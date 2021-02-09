@@ -1,5 +1,5 @@
-CheckMakeDefault.java:9:12: compiler.err.illegal.combination.of.modifiers: interface, inline
-CheckMakeDefault.java:10:21: compiler.err.illegal.combination.of.modifiers: abstract, inline
+CheckMakeDefault.java:9:15: compiler.err.illegal.combination.of.modifiers: interface, inline
+CheckMakeDefault.java:10:24: compiler.err.illegal.combination.of.modifiers: abstract, inline
 CheckMakeDefault.java:26:32: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: boolean, int)
 CheckMakeDefault.java:27:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: byte, boolean)
 CheckMakeDefault.java:28:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: char, boolean)

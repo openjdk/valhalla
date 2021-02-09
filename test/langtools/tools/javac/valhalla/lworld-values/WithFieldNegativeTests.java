@@ -5,11 +5,11 @@
  * @compile/fail/ref=WithFieldNegativeTests.out -XDrawDiagnostics WithFieldNegativeTests.java
  */
 
-inline final class A {
+primitive final class A {
     final int x = 10;
     static final int sx = 10;
 
-    inline final class B {
+    primitive final class B {
 
         final A a = A.default;
 

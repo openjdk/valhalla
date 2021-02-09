@@ -38,7 +38,7 @@ public class StaticFieldsTest {
     // ClassA and ClassB have a simple cycle in their static fields, but they should
     // be able to load and initialize themselves successfully. Access to these
     // static fields after their initialization should return the default value.
-    static inline class ClassA {
+    static primitive class ClassA {
         static ClassB b;
         public int i;
 
@@ -47,7 +47,7 @@ public class StaticFieldsTest {
         }
     }
 
-    static inline class ClassB {
+    static primitive class ClassB {
         static ClassA a;
         public int i;
 
@@ -59,7 +59,7 @@ public class StaticFieldsTest {
     // ClassC has a reference to itself in its static field, but it should be able
     // to initialize itelf successfully. Access to this static field after initialization
     // should return the default value.
-    static inline class ClassC {
+    static primitive class ClassC {
         static ClassC c;
         int i;
 
@@ -73,7 +73,7 @@ public class StaticFieldsTest {
     // read these static fields during their initialization, the value read from
     // these fields should be the default value. Both classes should initialize
     // successfully.
-    static inline class ClassD {
+    static primitive class ClassD {
         static ClassE e;
         int i;
 
@@ -86,7 +86,7 @@ public class StaticFieldsTest {
         }
     }
 
-    static inline class ClassE {
+    static primitive class ClassE {
         static ClassD d;
         int i;
 
@@ -102,7 +102,7 @@ public class StaticFieldsTest {
     // ClassF and ClassG have circular references in their static fields, and they
     // create new instances of each other type to initialize these static fields
     // during their initialization. Both classes should initialize successfully.
-    static inline class ClassF {
+    static primitive class ClassF {
         static ClassG g;
         int i;
 
@@ -116,7 +116,7 @@ public class StaticFieldsTest {
         }
     }
 
-    static inline class ClassG {
+    static primitive class ClassG {
         static ClassF f;
         int i;
 

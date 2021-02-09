@@ -23,7 +23,7 @@
 
 // key: compiler.err.with.field.operator.disallowed
 
-final inline class Blah {
+final primitive class Blah {
     final int x;
     Blah() {
         Blah b = __WithField(x, 10);

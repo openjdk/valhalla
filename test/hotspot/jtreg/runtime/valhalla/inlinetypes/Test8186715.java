@@ -43,7 +43,7 @@ public class Test8186715 {
     }
 }
 
-inline final class MyValueType {
+primitive final class MyValueType {
     final int i;
     final int j;
 

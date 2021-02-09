@@ -456,7 +456,7 @@ public class TestCallingConvention extends InlineTypeTest {
     }
 
     // Test calling a method that has circular register/stack dependencies when unpacking inline type arguments
-    inline class TestValue23 {
+    primitive class TestValue23 {
         final double f1;
         TestValue23(double val) {
             f1 = val;
@@ -528,7 +528,7 @@ public class TestCallingConvention extends InlineTypeTest {
     }
 
     // Test calling convention with deep hierarchy of flattened fields
-    final inline class Test27Value1 {
+    final primitive class Test27Value1 {
         final Test27Value2 valueField;
 
         private Test27Value1(Test27Value2 val2) {
@@ -541,7 +541,7 @@ public class TestCallingConvention extends InlineTypeTest {
         }
     }
 
-    final inline class Test27Value2 {
+    final primitive class Test27Value2 {
         final Test27Value3 valueField;
 
         private Test27Value2(Test27Value3 val3) {
@@ -554,7 +554,7 @@ public class TestCallingConvention extends InlineTypeTest {
         }
     }
 
-    final inline class Test27Value3 {
+    final primitive class Test27Value3 {
         final int x;
 
         private Test27Value3(int x) {
@@ -767,7 +767,7 @@ public class TestCallingConvention extends InlineTypeTest {
     // Test method resolution with scalarized inline type receiver at invokespecial
     static final MethodHandle test37_mh;
 
-    inline class Test37Value {
+    primitive class Test37Value {
         int x = rI;
 
         @DontInline
@@ -802,7 +802,7 @@ public class TestCallingConvention extends InlineTypeTest {
         Asserts.assertEQ(res, vt);
     }
 
-    static inline class LargeValueWithOops {
+    static primitive class LargeValueWithOops {
         // Use all 6 int registers + 50/2 on stack = 29
         Object o1 = null;
         Object o2 = null;
@@ -835,7 +835,7 @@ public class TestCallingConvention extends InlineTypeTest {
         Object o29 = null;
     }
 
-    static inline class LargeValueWithoutOops {
+    static primitive class LargeValueWithoutOops {
         // Use all 6 int registers + 50/2 on stack = 29
         int i1 = 0;
         int i2 = 0;
@@ -918,7 +918,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     // More empty inline type tests with containers
 
-    static inline class EmptyContainer {
+    static primitive class EmptyContainer {
         private MyValueEmpty empty;
 
         EmptyContainer(MyValueEmpty empty) {
@@ -932,7 +932,7 @@ public class TestCallingConvention extends InlineTypeTest {
         MyValueEmpty getNoInline() { return empty; }
     }
 
-    static inline class MixedContainer {
+    static primitive class MixedContainer {
         public int val;
         private EmptyContainer empty;
 

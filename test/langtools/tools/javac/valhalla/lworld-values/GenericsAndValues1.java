@@ -30,7 +30,7 @@
  * @compile GenericsAndValues1.java
  */
 
- @__inline__ class Foo implements Comparable<Foo.ref>{
+ @__primitive__ class Foo implements Comparable<Foo.ref>{
     final int value;
   
     public Foo(int value) {

@@ -111,7 +111,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                  RefPoint_Access_Impl2.class);
     }
 
-    static inline class Point {
+    static primitive class Point {
         final int x;
         final int y;
         public Point(int x, int y) {
@@ -228,7 +228,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         public int func2(int a, int b, Point p)     { return field + a + b + p.x + p.y + 1; }
     }
 
-    static inline class MyImplVal1 implements Intf {
+    static primitive class MyImplVal1 implements Intf {
         final int field;
         MyImplVal1() {
             field = 11000;
@@ -241,7 +241,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    static inline class MyImplVal2 implements Intf {
+    static primitive class MyImplVal2 implements Intf {
         final int field;
         MyImplVal2() {
             field = 12000;
@@ -254,7 +254,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    static inline class MyImplVal1X implements Intf {
+    static primitive class MyImplVal1X implements Intf {
         final int field;
         MyImplVal1X() {
             field = 11000;
@@ -267,7 +267,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
-    static inline class MyImplVal2X implements Intf {
+    static primitive class MyImplVal2X implements Intf {
         final int field;
         MyImplVal2X() {
             field = 12000;
@@ -292,7 +292,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return intfs[n];
     }
 
-    static inline class FixedPoints {
+    static primitive class FixedPoints {
         final boolean Z0 = false;
         final boolean Z1 = true;
         final byte    B  = (byte)2;
@@ -303,7 +303,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
     static FixedPoints fixedPointsField = new FixedPoints();
 
-    static inline class FloatPoint {
+    static primitive class FloatPoint {
         final float x;
         final float y;
         public FloatPoint(float x, float y) {
@@ -311,7 +311,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             this.y = y;
         }
     }
-    static inline class DoublePoint {
+    static primitive class DoublePoint {
         final double x;
         final double y;
         public DoublePoint(double x, double y) {
@@ -322,7 +322,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     static FloatPoint floatPointField = new FloatPoint(123.456f, 789.012f);
     static DoublePoint doublePointField = new DoublePoint(123.456, 789.012);
 
-    static inline class EightFloats {
+    static primitive class EightFloats {
         float f1, f2, f3, f4, f5, f6, f7, f8;
         public EightFloats() {
             f1 = 1.1f;
@@ -352,7 +352,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2);
     }
 
-    static inline class RefPoint implements RefPoint_Access {
+    static primitive class RefPoint implements RefPoint_Access {
         final Number x;
         final Number y;
         public RefPoint(int x, int y) {
@@ -441,7 +441,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     // This inline class has too many fields to fit in registers on x64 for
     // InlineTypeReturnedAsFields.
-    static inline class TooBigToReturnAsFields {
+    static primitive class TooBigToReturnAsFields {
         int a0 = 0;
         int a1 = 1;
         int a2 = 2;
@@ -2170,7 +2170,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         test103_v = new Test103Value(); // invokestatic "Test103Value.<init>()QTest103Value;"
     }
 
-    static inline class Test103Value {
+    static primitive class Test103Value {
         int x = rI;
     }
 
@@ -2195,7 +2195,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         test104_v = new Test104Value(); // invokestatic "Test104Value.<init>()QTest104Value;"
     }
 
-    static inline class Test104Value {
+    static primitive class Test104Value {
         long x0 = rL;
         long x1 = rL;
         long x2 = rL;

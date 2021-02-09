@@ -2675,7 +2675,7 @@ public class JavacParser implements Parser {
         case CONTINUE: case SEMI: case ELSE: case FINALLY: case CATCH:
         case ASSERT:
             return List.of(parseSimpleStatement());
-        case VALUE:
+        case PRIMITIVE:
         case MONKEYS_AT:
         case FINAL: {
             dc = token.comment(CommentStyle.JAVADOC);
@@ -3210,7 +3210,7 @@ public class JavacParser implements Parser {
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
-            case VALUE       : flag = Flags.VALUE; break;
+            case PRIMITIVE   : flag = Flags.VALUE; break;
             case VOLATILE    : flag = Flags.VOLATILE; break;
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
@@ -3243,7 +3243,7 @@ public class JavacParser implements Parser {
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
                     final Name name = TreeInfo.name(ann.annotationType);
-                    if (name == names.__inline__ || name == names.java_lang___inline__) {
+                    if (name == names.__primitive__ || name == names.java_lang___primitive__) {
                         flag = Flags.VALUE;
                     } else {
                         annotations.append(ann);
@@ -3458,9 +3458,9 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    // Does the given token signal an inline modifier ? If yes, suitably reclassify token.
+    // Does the given token signal a primitive modifier ? If yes, suitably reclassify token.
     Token recastToken(Token token) {
-        if (token.kind != IDENTIFIER || token.name() != names.inline) {
+        if (token.kind != IDENTIFIER || token.name() != names.primitive) {
             return token;
         }
         if (peekToken(t->t == PRIVATE ||
@@ -3489,7 +3489,7 @@ public class JavacParser implements Parser {
                          t == ENUM ||
                          t == IDENTIFIER)) { // new value Comparable() {}
             checkSourceLevel(Feature.INLINE_TYPES);
-            return new Token(VALUE, token.pos, token.endPos, token.comments);
+            return new Token(PRIMITIVE, token.pos, token.endPos, token.comments);
         }
         return token;
     }

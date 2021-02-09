@@ -28,11 +28,11 @@
  * @run main/othervm -Xverify:none LookupOnLoxTest
  */
 
-public inline class LookupOnLoxTest {
+public primitive class LookupOnLoxTest {
 
     int ARRAY[] = { 10, 20, 30 };
 
-    static inline class Tuple {
+    static primitive class Tuple {
         private final int index;
         private final int element;
 
@@ -42,7 +42,7 @@ public inline class LookupOnLoxTest {
         }
     }
 
-    static inline class Cursor {
+    static primitive class Cursor {
         private final int[] array;
         private final int index;
 

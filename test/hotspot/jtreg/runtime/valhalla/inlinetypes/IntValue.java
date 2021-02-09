@@ -23,7 +23,7 @@
 
 package runtime.valhalla.inlinetypes;
 
-public inline class IntValue {
+public primitive class IntValue {
     int val;
     public IntValue()       { this(0); }
     public IntValue(int v)  { val = v; }

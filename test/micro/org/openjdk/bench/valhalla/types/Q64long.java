@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public inline class Q64long implements Int64, ByLong {
+public primitive class Q64long implements Int64, ByLong {
 
     public final long v0;
 

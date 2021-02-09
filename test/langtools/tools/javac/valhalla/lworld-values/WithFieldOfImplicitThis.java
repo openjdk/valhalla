@@ -36,7 +36,7 @@ import java.nio.file.Paths;
 
 public class WithFieldOfImplicitThis {
 
-    final inline class X {
+    final primitive class X {
 
         final int x;
 

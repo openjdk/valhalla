@@ -37,7 +37,7 @@ public class CheckLocalClasses {
     public class RefOuter {
         void foo() {
             RefOuter o = new RefOuter();
-            inline  class Inner {
+            primitive  class Inner {
                 private final int value2;
                 public Inner(int value2) {
                     System.out.println(o);
@@ -46,11 +46,11 @@ public class CheckLocalClasses {
             }
         }
     }
-    public inline class ValueOuter {
+    public primitive class ValueOuter {
         int x = 10;
         void foo() {
             ValueOuter o = new ValueOuter();
-            inline class Inner {
+            primitive class Inner {
                 private final int value2;
                 public Inner(int value2) {
                     System.out.println(o);

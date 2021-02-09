@@ -9,7 +9,7 @@ public class ConflictingSuperInterfaceTest {
 
     interface I<T> {}
     abstract class S implements I<String> {}
-    inline static class Foo extends S implements I<Integer> {
+    primitive static class Foo extends S implements I<Integer> {
         String s = "";
     }
 }

@@ -477,7 +477,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     // Test scalarization of default inline type with non-flattenable field
-    final inline class Test17Value {
+    final primitive class Test17Value {
         public final MyValue1.ref valueField;
 
         @ForceInline
@@ -584,7 +584,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     // Test writing null to a flattenable/non-flattenable inline type field in an inline type
-    final inline class Test21Value {
+    final primitive class Test21Value {
         final MyValue1.ref valueField1;
         final MyValue1 valueField2;
         final MyValue1.ref alwaysNull = null;
@@ -802,7 +802,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     // Test casting null to unloaded inline type
-    final inline class Test31Value {
+    final primitive class Test31Value {
         private final int i = 0;
     }
 
@@ -834,11 +834,11 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(result, null);
     }
 
-    static inline class Test33Value1 {
+    static primitive class Test33Value1 {
         int x = 0;
     }
 
-    static inline class Test33Value2 {
+    static primitive class Test33Value2 {
         Test33Value1.ref vt;
 
         public Test33Value2() {

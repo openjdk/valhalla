@@ -119,7 +119,7 @@ public class SubstitutabilityTest {
                        .setLong(4L);
     }
 
-    static inline class MyValue {
+    static primitive class MyValue {
         static int cnt = 0;
         final int x;
         final MyValue2 vtField1;
@@ -132,7 +132,7 @@ public class SubstitutabilityTest {
         }
     }
 
-    static inline class MyValue2 {
+    static primitive class MyValue2 {
         static int cnt = 0;
         final int x;
         public MyValue2() {

@@ -369,7 +369,7 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     // null free array profiling
 
-    inline static class NotFlattenable {
+    primitive static class NotFlattenable {
         private final Object o1 = null;
         private final Object o2 = null;
         private final Object o3 = null;
@@ -916,7 +916,7 @@ public class TestLWorldProfiling extends InlineTypeTest {
     // Test array access with polluted array type profile
     static abstract class Test40Abstract { }
     static class Test40Class extends Test40Abstract { }
-    static inline class Test40Inline extends Test40Abstract { }
+    static primitive class Test40Inline extends Test40Abstract { }
 
     @ForceInline
     public Object test40_access(Object[] array) {

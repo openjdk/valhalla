@@ -1,12 +1,12 @@
-TopInterfaceNegativeTest.java:29:39: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
+TopInterfaceNegativeTest.java:29:42: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:11:26: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:13:44: compiler.err.repeated.interface
 TopInterfaceNegativeTest.java:14:44: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:17:28: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:20:32: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:24:48: compiler.err.repeated.interface
-TopInterfaceNegativeTest.java:30:39: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
-TopInterfaceNegativeTest.java:30:53: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
-TopInterfaceNegativeTest.java:28:19: compiler.err.inline.type.must.not.implement.identity.object: TopInterfaceNegativeTest.V1
+TopInterfaceNegativeTest.java:30:42: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
+TopInterfaceNegativeTest.java:30:56: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
+TopInterfaceNegativeTest.java:28:22: compiler.err.inline.type.must.not.implement.identity.object: TopInterfaceNegativeTest.V1
 TopInterfaceNegativeTest.java:33:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TopInterfaceNegativeTest.V2, java.lang.IdentityObject)
 11 errors

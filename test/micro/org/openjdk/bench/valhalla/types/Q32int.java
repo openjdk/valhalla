@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public inline class Q32int implements Int32, ByInt {
+public primitive class Q32int implements Int32, ByInt {
 
     public final int v0;
 

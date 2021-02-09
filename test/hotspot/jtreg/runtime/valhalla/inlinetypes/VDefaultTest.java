@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
 
 public class VDefaultTest {
 
-    static inline final class Point {
+    static primitive final class Point {
         final int x;
         final int y;
 
@@ -52,7 +52,7 @@ public class VDefaultTest {
         }
     }
 
-    static inline final class Value {
+    static primitive final class Value {
         final char c;
         final byte b;
         final short s;

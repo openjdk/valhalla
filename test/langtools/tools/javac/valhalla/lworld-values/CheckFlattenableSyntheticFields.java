@@ -35,16 +35,16 @@ import com.sun.tools.classfile.*;
 
 public class CheckFlattenableSyntheticFields {
     public class RefOuter {
-        inline  class Inner {
+        primitive  class Inner {
             private final int value2;
             public Inner(int value2) {
                 this.value2 = value2;
             }
         }
     }
-    public inline class ValueOuter {
+    public primitive class ValueOuter {
         int x = 10;
-        inline  class Inner {
+        primitive  class Inner {
             private final int value2;
             public Inner(int value2) {
                 this.value2 = value2;

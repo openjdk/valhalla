@@ -21,7 +21,7 @@
  * questions.
  */
 
-final inline class SimpleInlineType {
+final primitive class SimpleInlineType {
     final int x;
 
     private SimpleInlineType() {

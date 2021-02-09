@@ -31,7 +31,7 @@
  */
 
 
-inline class Test0 {
+primitive class Test0 {
     int x = 42;
     short[] array = new short[7];
 }

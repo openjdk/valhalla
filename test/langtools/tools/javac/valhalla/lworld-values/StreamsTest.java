@@ -32,7 +32,7 @@ import java.util.Arrays;
 
 public class StreamsTest {
 
-    public static inline class X {
+    public static primitive class X {
 
         String data;
 

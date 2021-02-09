@@ -28,7 +28,7 @@
  * @run main/othervm ParameterizedDefault
  */
 
-public inline class ParameterizedDefault<E> {
+public primitive class ParameterizedDefault<E> {
     E value;
     ParameterizedDefault(E value) { this.value = value; }
     static String foo (Object p) {

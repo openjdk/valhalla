@@ -22,6 +22,6 @@
  *
  */
 
-public inline class Element1 {
+public primitive class Element1 {
     int i=0,j=0;
 }

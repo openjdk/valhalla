@@ -28,7 +28,7 @@
  * @run main/othervm ValueNewReadWrite
  */
 
-public inline class ValueNewReadWrite {
+public primitive class ValueNewReadWrite {
 
     int y = 10;
     int twice_x_plus_y;

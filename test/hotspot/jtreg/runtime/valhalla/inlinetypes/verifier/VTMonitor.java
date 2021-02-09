@@ -29,7 +29,7 @@
  * @run main/othervm -Xverify:remote VTMonitor
  */
 
-public inline final class VTMonitor {
+public primitive final class VTMonitor {
     final int x;
     final int y;
 

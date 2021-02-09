@@ -30,7 +30,7 @@
 
 public class ChainedAssignmentTest {
 
-	static inline class Point {
+	static primitive class Point {
 		int x;
 		int y;
 		Point() {
@@ -38,7 +38,7 @@ public class ChainedAssignmentTest {
 		}
 	}
 
-	static inline class LongPoint {
+	static primitive class LongPoint {
 		long x;
 		long y;
 		LongPoint() {

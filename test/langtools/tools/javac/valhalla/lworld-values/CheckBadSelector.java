@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckBadSelector.out -XDrawDiagnostics CheckBadSelector.java
  */
 
-inline final class Point {
+primitive final class Point {
 
     void badSelector() {
         Class<?> c = int.class;

@@ -63,7 +63,7 @@ public class TestJNIArrays {
         System.loadLibrary("TestJNIArrays");
     }
 
-    static inline class IntInt {
+    static primitive class IntInt {
         int i0;
         int i1;
 
@@ -83,7 +83,7 @@ public class TestJNIArrays {
         }
     }
 
-    static inline class Containee {
+    static primitive class Containee {
         float f;
         short s;
 
@@ -93,7 +93,7 @@ public class TestJNIArrays {
         }
     }
 
-    static inline class Container {
+    static primitive class Container {
         double d;
         Containee c;
         byte b;
@@ -111,7 +111,7 @@ public class TestJNIArrays {
 
     }
 
-    static inline class LongLongLongLong {
+    static primitive class LongLongLongLong {
         long l0, l1, l2, l3;
 
         public LongLongLongLong(long l0, long l1, long l2, long l3) {
@@ -122,14 +122,14 @@ public class TestJNIArrays {
         }
     }
 
-    static inline class BigValue {
+    static primitive class BigValue {
         long l0 = 0, l1 = 0,   l2 = 0, l3 = 0, l4 = 0, l5 = 0, l6 = 0, l7 = 0, l8 = 0, l9 = 0;
         long l10 = 0, l11 = 0, l12 = 0, l13 = 0, l14 = 0, l15 = 0, l16 = 0, l17 = 0, l18 = 0, l19 = 0;
         long l20 = 0, l21 = 0, l22 = 0, l23 = 0, l24 = 0, l25 = 0, l26 = 0, l27 = 0, l28 = 0, l29 = 0;
         long l30 = 0, l31 = 0, l32 = 0, l33 = 0, l34 = 0, l35 = 0, l36 = 0, l37 = 0, l38 = 0, l39 = 0;
     }
 
-    static inline class InlineWithOops {
+    static primitive class InlineWithOops {
         String s = "bonjour";
         int i = 0;
         Containee c = new Containee(2.3f, (short)4);

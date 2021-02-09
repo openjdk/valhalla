@@ -42,7 +42,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 
-inline class MyValue {
+primitive class MyValue {
     public final int x;
 
     public MyValue(int x) {

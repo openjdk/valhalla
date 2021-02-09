@@ -23,7 +23,7 @@
 
 // key: compiler.err.inline.class.may.not.override
 
-inline class InlineBogusOverride {
+primitive class InlineBogusOverride {
     int x = 42;
     public Object clone() {
         return this;

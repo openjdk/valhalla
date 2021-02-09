@@ -5,7 +5,7 @@
  * @compile/fail/ref=UncheckedDefault.out -Xlint:all -Werror -XDrawDiagnostics -XDdev UncheckedDefault.java
  */
 
-public inline class UncheckedDefault<E> {
+public primitive class UncheckedDefault<E> {
     E value;
     UncheckedDefault(E value) { this.value = value; }
     public static void main(String [] args) {

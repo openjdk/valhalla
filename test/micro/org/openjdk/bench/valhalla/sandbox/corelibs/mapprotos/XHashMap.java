@@ -305,7 +305,7 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
      * Basic hash bin node, used for most entries.  (See below for
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
      */
-    static inline class XNode<K,V> implements Map.Entry<K,V> {
+    static primitive class XNode<K,V> implements Map.Entry<K,V> {
         final int hash;
         final K key;
         V value;
@@ -390,7 +390,7 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
         }
     }
 
-    inline class XNodeWrapper implements Map.Entry<K,V> {
+    primitive class XNodeWrapper implements Map.Entry<K,V> {
         int index;
 
         XNodeWrapper(int index) {

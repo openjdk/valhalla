@@ -34,7 +34,7 @@ import jdk.test.lib.Asserts;
  * @run main/othervm/native TestJNIIsSameObject
  */
 public class TestJNIIsSameObject {
-  static inline class Value {
+  static primitive class Value {
     int i;
 
     public Value(int i) {

@@ -4,7 +4,7 @@
  * @compile/fail/ref=CheckStaticFinalAssign.out -XDrawDiagnostics -XDdev CheckStaticFinalAssign.java
  */
 
-inline final class CheckStaticFinalAssign {
+primitive final class CheckStaticFinalAssign {
     static final int x;
     static {
         x = 10;

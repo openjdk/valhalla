@@ -28,7 +28,7 @@ final class ContainerValue2 {
     TestValue2[] valueArray;
 }
 
-public inline final class TestValue2 {
+public primitive final class TestValue2 {
     static TestValue2.ref staticValue = getInstance();
 
     final long l;

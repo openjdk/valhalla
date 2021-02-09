@@ -30,7 +30,7 @@
 
 public class TestUnresolvedDefault {
 
-    static inline class UnresolvedInline {
+    static primitive class UnresolvedInline {
         int x = 42;
     }
 

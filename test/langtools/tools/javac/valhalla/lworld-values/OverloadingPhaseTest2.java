@@ -33,7 +33,7 @@ public class OverloadingPhaseTest2 {
     interface A {}
     interface B extends A {}
 
-    static inline class X {
+    static primitive class X {
 
         int x = 42;
 

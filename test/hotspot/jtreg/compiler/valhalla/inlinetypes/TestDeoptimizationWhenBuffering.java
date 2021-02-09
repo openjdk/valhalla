@@ -74,7 +74,7 @@ import sun.hotspot.WhiteBox;
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
  */
 
-final inline class MyValue1 {
+final primitive class MyValue1 {
     static int cnt = 0;
     final int x;
     final MyValue2 vtField1;
@@ -95,7 +95,7 @@ final inline class MyValue1 {
     }
 }
 
-final inline class MyValue2 {
+final primitive class MyValue2 {
     static int cnt = 0;
     final int x;
     public MyValue2() {

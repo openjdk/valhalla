@@ -57,7 +57,7 @@ abstract class MyAbstract implements MyInterface {
 
 }
 
-inline class MyValue1 extends MyAbstract {
+primitive class MyValue1 extends MyAbstract {
     final int x;
 
     MyValue1(int x) {
@@ -73,7 +73,7 @@ inline class MyValue1 extends MyAbstract {
     }
 }
 
-inline class MyValue2 extends MyAbstract {
+primitive class MyValue2 extends MyAbstract {
     final int x;
 
     MyValue2(int x) {

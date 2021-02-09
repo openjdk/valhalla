@@ -39,7 +39,7 @@ public class InlineDiamondTest<E> {
         return new Y<>();
     }
 
-    private inline class Y<U> implements I<U> {
+    private primitive class Y<U> implements I<U> {
         int x = 42;
     }
 

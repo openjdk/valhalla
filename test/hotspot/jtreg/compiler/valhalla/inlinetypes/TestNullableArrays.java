@@ -2495,7 +2495,7 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Matrix multiplication test to exercise type flow analysis with nullable inline type arrays
-    inline static class Complex {
+    primitive static class Complex {
         private final double re;
         private final double im;
 

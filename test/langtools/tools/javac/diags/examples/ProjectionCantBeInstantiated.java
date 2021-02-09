@@ -23,7 +23,7 @@
 
 // key: compiler.err.projection.cant.be.instantiated
 
-public inline class ProjectionCantBeInstantiated {
+public primitive class ProjectionCantBeInstantiated {
     int x = 42;
     public static void main(String[] args) {
         new ProjectionCantBeInstantiated();

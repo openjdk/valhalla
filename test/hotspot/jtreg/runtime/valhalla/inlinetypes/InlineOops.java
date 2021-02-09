@@ -205,7 +205,7 @@ public class InlineOops {
         public Person otherPerson;
     }
 
-    static final inline class Composition {
+    static final primitive class Composition {
         public final Person onePerson;
         public final Person otherPerson;
 
@@ -601,7 +601,7 @@ public class InlineOops {
 
     // Various field layouts...sanity testing, see MVTCombo testing for full-set
 
-    static final inline class ObjectValue {
+    static final primitive class ObjectValue {
         final Object object;
 
         private ObjectValue(Object obj) {
@@ -635,7 +635,7 @@ public class InlineOops {
         String otherStuff;
     }
 
-    public static final inline class FooValue {
+    public static final primitive class FooValue {
         public final int id;
         public final String name;
         public final String description;
@@ -733,7 +733,7 @@ public class InlineOops {
         String otherStuff;
     }
 
-    static final inline class BarValue {
+    static final primitive class BarValue {
         final FooValue foo;
         final long extendedId;
         final String moreNotes;

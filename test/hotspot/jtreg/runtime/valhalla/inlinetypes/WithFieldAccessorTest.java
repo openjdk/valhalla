@@ -33,7 +33,7 @@
 // access to public, protected, and private final fields in an inline type.
 public class WithFieldAccessorTest {
 
-    public static final inline class V {
+    public static final primitive class V {
         public final char c;
         protected final long l;
         private final int i;

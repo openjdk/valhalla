@@ -5,7 +5,7 @@
  * @compile/fail/ref=CovariantArrayTest.out -XDrawDiagnostics -XDdev CovariantArrayTest.java
  */
 public class CovariantArrayTest {
-    static final inline class V {
+    static final primitive class V {
         public final int v1;
         private V () {v1 = 0;}
     }

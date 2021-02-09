@@ -30,16 +30,16 @@
 
 package compiler.valhalla.inlinetypes;
 
-inline class EmptyValue {
+primitive class EmptyValue {
 
 }
 
-inline class MyValue1 {
+primitive class MyValue1 {
     int x = 42;
     int[] array = new int[1];
 }
 
-inline class MyValue2 {
+primitive class MyValue2 {
     int[] a = new int[1];
     int[] b = new int[6];
     int[] c = new int[5];

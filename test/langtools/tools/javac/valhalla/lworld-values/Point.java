@@ -30,7 +30,7 @@
  * @compile -XDallowWithFieldOperator Point.java
  */
 
-inline class Point {
+primitive class Point {
     static final Point.ref origin = makePoint(10, 20);
     static final Point.ref origin2 = makePoint(10, 20);
     int x;

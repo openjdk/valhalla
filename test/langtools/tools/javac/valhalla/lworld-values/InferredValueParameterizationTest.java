@@ -35,7 +35,7 @@ import java.util.List;
 // This used to be negative test earlier in LW2.
 // Now no value type V <: T where T is a type variable.
 
-public inline class InferredValueParameterizationTest {
+public primitive class InferredValueParameterizationTest {
     int x = 10;
 
     static class Y<T> {

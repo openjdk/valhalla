@@ -5,11 +5,11 @@
  * @compile/fail/ref=CheckFinalize.out -XDrawDiagnostics CheckFinalize.java
  */
 
-final inline class CheckFinalize {
+final primitive class CheckFinalize {
     @Override
     protected void finalize() {}
 
-    final inline class CheckFinalizeInner { int x = 10; }
+    final primitive class CheckFinalizeInner { int x = 10; }
 
     void foo(CheckFinalizeInner cfi, CheckFinalize cf) {
         cfi.finalize();          // Error

@@ -25,7 +25,7 @@ package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-public final inline class Long8Inline {
+public final primitive class Long8Inline {
 
     final long longField1;
     final long longField2;

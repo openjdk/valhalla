@@ -47,21 +47,21 @@ public class InlineArrayHashImplicit {
 
     public static final int SIZE = 128;
 
-    public static inline class Val1  {
+    public static primitive class Val1  {
         public final int f0;
         public Val1(int f0) {
             this.f0 = f0;
         }
     }
 
-    public static inline class Val2  {
+    public static primitive class Val2  {
         public final int f0;
         public Val2(int f0) {
             this.f0 = f0;
         }
     }
 
-    public static inline class Val3  {
+    public static primitive class Val3  {
         public final int f0;
         public Val3(int f0) {
             this.f0 = f0;

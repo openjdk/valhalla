@@ -39,7 +39,7 @@ import jdk.test.lib.Asserts;
 public class VolatileTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    static inline class MyValue {
+    static primitive class MyValue {
         int i = 0;
         int j = 0;
     }

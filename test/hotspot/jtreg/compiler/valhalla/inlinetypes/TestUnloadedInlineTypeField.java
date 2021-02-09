@@ -76,7 +76,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
     //
     // MyValue1 has already been loaded, because it's in the InlineType attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test1_precondition().
-    static final inline class MyValue1 {
+    static final primitive class MyValue1 {
         final int foo;
 
         MyValue1() {
@@ -125,7 +125,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
     //
     // MyValue2 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedInlineTypeField.
-    static final inline class MyValue2 {
+    static final primitive class MyValue2 {
         final int foo;
 
         public MyValue2(int n) {
@@ -174,7 +174,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
     //
     // MyValue3 has already been loaded, because it's in the InlineType attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test3_precondition().
-    static final inline class MyValue3 {
+    static final primitive class MyValue3 {
         final int foo;
 
         public MyValue3() {
@@ -220,7 +220,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 4:
     // Same as case 1, except we use putfield instead of getfield.
-    static final inline class MyValue4 {
+    static final primitive class MyValue4 {
         final int foo;
 
         MyValue4(int n) {
@@ -258,7 +258,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 5:
     // Same as case 2, except we use putfield instead of getfield.
-    static final inline class MyValue5 {
+    static final primitive class MyValue5 {
         final int foo;
 
         MyValue5(int n) {
@@ -308,7 +308,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
     //
     // MyValue6 has already been loaded, because it's in the InlineType attribute of
     // TestUnloadedInlineTypeField, due to TestUnloadedInlineTypeField.test1_precondition().
-    static final inline class MyValue6 {
+    static final primitive class MyValue6 {
         final int foo;
 
         MyValue6() {
@@ -351,7 +351,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
     //
     // MyValue7 has not been loaded, because it is not explicitly referenced by
     // TestUnloadedInlineTypeField.
-    static final inline class MyValue7 {
+    static final primitive class MyValue7 {
         final int foo;
 
         MyValue7(int n) {
@@ -383,7 +383,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 8:
     // Same as case 1, except holder is allocated in test method (-> no holder null check required)
-    static final inline class MyValue8 {
+    static final primitive class MyValue8 {
         final int foo;
 
         MyValue8() {
@@ -424,7 +424,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 9:
     // Same as case 2, except holder is allocated in test method (-> no holder null check required)
-    static final inline class MyValue9 {
+    static final primitive class MyValue9 {
         final int foo;
 
         public MyValue9(int n) {
@@ -461,7 +461,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 10:
     // Same as case 4, but with putfield
-    static final inline class MyValue10 {
+    static final primitive class MyValue10 {
         final int foo;
 
         public MyValue10() {
@@ -509,7 +509,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 11:
     // Same as case 4, except holder is allocated in test method (-> no holder null check required)
-    static final inline class MyValue11 {
+    static final primitive class MyValue11 {
         final int foo;
 
         MyValue11(int n) {
@@ -549,7 +549,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 12:
     // Same as case 5, except holder is allocated in test method (-> no holder null check required)
-    static final inline class MyValue12 {
+    static final primitive class MyValue12 {
         final int foo;
 
         MyValue12(int n) {
@@ -590,7 +590,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 13:
     // Same as case 10, except MyValue13 is allocated in test method
-    static final inline class MyValue13 {
+    static final primitive class MyValue13 {
         final int foo;
 
         public MyValue13() {
@@ -636,7 +636,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 14:
     // Same as case 10, except storing null
-    static final inline class MyValue14 {
+    static final primitive class MyValue14 {
         final int foo;
 
         public MyValue14() {
@@ -682,7 +682,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 15:
     // Same as case 13, except MyValue15 is unloaded
-    static final inline class MyValue15 {
+    static final primitive class MyValue15 {
         final int foo;
 
         public MyValue15() {
@@ -792,7 +792,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 18:
     // Same as test7 but with the holder being loaded
-    static final inline class MyValue18 {
+    static final primitive class MyValue18 {
         final int foo;
 
         MyValue18(int n) {
@@ -826,7 +826,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
 
     // Test case 19:
     // Same as test18 but uninitialized (null) static inline type field
-    static final inline class MyValue19 {
+    static final primitive class MyValue19 {
         final int foo;
 
         MyValue19(int n) {
@@ -864,7 +864,7 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         int x = 42;
     }
 
-    static final inline class MyValue20 {
+    static final primitive class MyValue20 {
         MyObject20 obj;
 
         MyValue20() {

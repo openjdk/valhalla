@@ -30,7 +30,7 @@
  * @run main/othervm TypeRelationsTest
  */
 
-public inline class TypeRelationsTest {
+public primitive class TypeRelationsTest {
 
     int x = 42;
 

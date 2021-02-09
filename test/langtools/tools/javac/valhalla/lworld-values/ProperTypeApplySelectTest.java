@@ -36,7 +36,7 @@ public class ProperTypeApplySelectTest {
 
   static String out = "";
 
-  inline static class Foo<V> {
+  primitive static class Foo<V> {
     int x;
     Foo(int x) { this.x = x; }
   }

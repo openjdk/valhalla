@@ -32,7 +32,7 @@
 
 import jdk.test.lib.Asserts;
 
-final inline class MyValue1 {
+final primitive class MyValue1 {
     final Object o1;
     final Object o2;
 

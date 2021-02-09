@@ -23,7 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-public final inline class MyValue1 extends MyAbstract {
+public final primitive class MyValue1 extends MyAbstract {
     static int s;
     static final long sf = InlineTypeTest.rL;
     final int x;
