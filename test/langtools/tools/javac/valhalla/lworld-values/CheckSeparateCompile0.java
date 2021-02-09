@@ -34,7 +34,7 @@ public class CheckSeparateCompile0 {
             public primitive class I {
                 int i = 0;
                 I() {
-                    
+
                 }
                 String foo() {
                     return this.toString();
