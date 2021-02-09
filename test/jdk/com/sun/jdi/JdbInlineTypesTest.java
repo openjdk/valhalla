@@ -39,8 +39,8 @@ import java.net.URL;
 
 class JdbInlineTypesTestTarg {
     static MyValue static_v = new MyValue(16,'s', (byte)3, (byte)(byte)9);
-    
-    static inline class SmallValue {
+
+    static primitive class SmallValue {
         byte b0,b1;
 
         public SmallValue(byte b0, byte b1) {
@@ -48,8 +48,8 @@ class JdbInlineTypesTestTarg {
             this.b1 = b1;
         }
     }
-    
-    static inline class MyValue {
+
+    static primitive class MyValue {
         int a;
         char b;
         SmallValue small;
@@ -65,7 +65,7 @@ class JdbInlineTypesTestTarg {
         int i;
         MyValue value;
     }
-    
+
     public static void bkpt() {
 	MyValue v = new MyValue(12,'c', (byte)5, (byte)(byte)7);
         Object b = new Object();
@@ -141,8 +141,8 @@ public class JdbInlineTypesTest extends JdbTest {
 
 	// Trying set a inline field to null
 	execCommand(JdbCommand.set("JdbInlineTypesTestTarg.static_v", "null")).shouldContain("Can't set an inline type to null");
-	
-	// Printing an element of an inline type array
+
+    // Printing an element of an inline type array
 	execCommand(JdbCommand.print("array[0]")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=0 b=\u0000 small=[JdbInlineTypesTestTarg$SmallValue b0=0 b1=0]]\"");
 
 	// Setting an element of an inline type array
@@ -151,7 +151,7 @@ public class JdbInlineTypesTest extends JdbTest {
 	// Trying to set an element of an inline type array to null
 	execCommand(JdbCommand.set("array[1]", "null")).shouldContain("Can't set an inline type to null");
 
-	// Testing substitutability test 
+	// Testing substitutability test
 	execCommand(JdbCommand.print("v == v2")).shouldContain(" = true");
 	execCommand(JdbCommand.print("v == v3")).shouldContain(" = false");
 

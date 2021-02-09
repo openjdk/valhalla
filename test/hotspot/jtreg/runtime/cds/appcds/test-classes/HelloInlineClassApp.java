@@ -23,7 +23,7 @@
  */
 
 public class HelloInlineClassApp {
-    static inline class Point {
+    static primitive class Point {
         int x, y;
 
         public String toString() {
@@ -48,7 +48,7 @@ public class HelloInlineClassApp {
         }
     }
 
-    static inline class Rectangle {
+    static primitive class Rectangle {
         Point p0 = new Point(0,0);
         Point p1 = new Point(1,1);
     }
