@@ -43,7 +43,7 @@ public class objmonusage007 {
     native static int getResult();
     native static void check(Object o, Thread owner, int ec, int wc);
 
-    static inline class LocalValue {
+    static primitive class LocalValue {
         int i = 0;
     }
 

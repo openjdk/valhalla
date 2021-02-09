@@ -22,7 +22,7 @@
  *
  */
 
-public inline class Point {
+public primitive class Point {
   int i = 0, j = 0;
 
   public String msg() {
