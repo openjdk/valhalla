@@ -67,14 +67,14 @@ class JdbInlineTypesTestTarg {
     }
 
     public static void bkpt() {
-	MyValue v = new MyValue(12,'c', (byte)5, (byte)(byte)7);
+        MyValue v = new MyValue(12,'c', (byte)5, (byte)(byte)7);
         Object b = new Object();
         b = v;
-	Object o = new Object();
+        Object o = new Object();
         MyValue v2 = new MyValue(12,'c', (byte)5, (byte)7);
         MyValue v3 = new MyValue(11,'c', (byte)5, (byte)7);
         ObjectContainer oc = new ObjectContainer();
-	MyValue[] array = new MyValue[10];
+        MyValue[] array = new MyValue[10];
         System.out.println("v == v " + (b == b));
         int i = 0;     //@1 breakpoint
     }
@@ -100,62 +100,62 @@ public class JdbInlineTypesTest extends JdbTest {
         setBreakpointsFromTestSource("JdbInlineTypesTest.java", 1);
         // Run to breakpoint #1
         execCommand(JdbCommand.run())
-                .shouldContain("Breakpoint hit");
+            .shouldContain("Breakpoint hit");
 
-	// Printing a local variable containing an instance of an inline type
-	execCommand(JdbCommand.print("v"))
-                .shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
+        // Printing a local variable containing an instance of an inline type
+        execCommand(JdbCommand.print("v"))
+            .shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
 
-	// Printing an instance of an inline type stored in a local variable of type Object
-	execCommand(JdbCommand.print("b"))
-                .shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
+        // Printing an instance of an inline type stored in a local variable of type Object
+        execCommand(JdbCommand.print("b"))
+            .shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
 
-	// Trying to set a local variable containing an instance of an inline types to null
-	execCommand(JdbCommand.set("v", "null")).shouldContain("Can't set an inline type to null");
+        // Trying to set a local variable containing an instance of an inline types to null
+        execCommand(JdbCommand.set("v", "null")).shouldContain("Can't set an inline type to null");
 
-	// Storing an instance of an inline type into a local variable of type Object
-	execCommand(JdbCommand.set("o", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
+        // Storing an instance of an inline type into a local variable of type Object
+        execCommand(JdbCommand.set("o", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
 
-	// Printing a field of an instance of an inline type
-	execCommand(JdbCommand.print("v.a")).shouldContain(" = 12");
+        // Printing a field of an instance of an inline type
+        execCommand(JdbCommand.print("v.a")).shouldContain(" = 12");
 
-	// Print a flattened field of an instance of an inline type
-	execCommand(JdbCommand.print("v.small")).shouldContain(" = \"[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]\"");
+        // Print a flattened field of an instance of an inline type
+        execCommand(JdbCommand.print("v.small")).shouldContain(" = \"[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]\"");
 
-	// Print a flattened field of an instance of an identity class
-	// Note field b has a not printible value (character 0);
-	execCommand(JdbCommand.print("oc.value")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=0 b=\u0000 small=[JdbInlineTypesTestTarg$SmallValue b0=0 b1=0]]\"");
+        // Print a flattened field of an instance of an identity class
+        // Note field b has a not printible value (character 0);
+        execCommand(JdbCommand.print("oc.value")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=0 b=\u0000 small=[JdbInlineTypesTestTarg$SmallValue b0=0 b1=0]]\"");
 
-	// Updating a flattened field of an instance of an identity class
-	execCommand(JdbCommand.set("oc.value", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
+        // Updating a flattened field of an instance of an identity class
+        execCommand(JdbCommand.set("oc.value", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
 
-	// Trying set a flattened field to null
-	execCommand(JdbCommand.set("oc.value", "null")).shouldContain("Can't set an inline type to null");
+        // Trying set a flattened field to null
+        execCommand(JdbCommand.set("oc.value", "null")).shouldContain("Can't set an inline type to null");
 
-	// Print a static inline field
-	execCommand(JdbCommand.print("JdbInlineTypesTestTarg.static_v"))
-                .shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=16 b=s small=[JdbInlineTypesTestTarg$SmallValue b0=3 b1=9]]\"");
+        // Print a static inline field
+        execCommand(JdbCommand.print("JdbInlineTypesTestTarg.static_v"))
+            .shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=16 b=s small=[JdbInlineTypesTestTarg$SmallValue b0=3 b1=9]]\"");
 
-	// Updating a static inline field
-	execCommand(JdbCommand.set("JdbInlineTypesTestTarg.static_v", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
+        // Updating a static inline field
+        execCommand(JdbCommand.set("JdbInlineTypesTestTarg.static_v", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
 
-	// Trying set a inline field to null
-	execCommand(JdbCommand.set("JdbInlineTypesTestTarg.static_v", "null")).shouldContain("Can't set an inline type to null");
+        // Trying set a inline field to null
+        execCommand(JdbCommand.set("JdbInlineTypesTestTarg.static_v", "null")).shouldContain("Can't set an inline type to null");
 
-    // Printing an element of an inline type array
-	execCommand(JdbCommand.print("array[0]")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=0 b=\u0000 small=[JdbInlineTypesTestTarg$SmallValue b0=0 b1=0]]\"");
+        // Printing an element of an inline type array
+        execCommand(JdbCommand.print("array[0]")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=0 b=\u0000 small=[JdbInlineTypesTestTarg$SmallValue b0=0 b1=0]]\"");
 
-	// Setting an element of an inline type array
-	execCommand(JdbCommand.set("array[0]", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
+        // Setting an element of an inline type array
+        execCommand(JdbCommand.set("array[0]", "v")).shouldContain(" = \"[JdbInlineTypesTestTarg$MyValue a=12 b=c small=[JdbInlineTypesTestTarg$SmallValue b0=5 b1=7]]\"");
 
-	// Trying to set an element of an inline type array to null
-	execCommand(JdbCommand.set("array[1]", "null")).shouldContain("Can't set an inline type to null");
+        // Trying to set an element of an inline type array to null
+        execCommand(JdbCommand.set("array[1]", "null")).shouldContain("Can't set an inline type to null");
 
-	// Testing substitutability test
-	execCommand(JdbCommand.print("v == v2")).shouldContain(" = true");
-	execCommand(JdbCommand.print("v == v3")).shouldContain(" = false");
+        // Testing substitutability test
+        execCommand(JdbCommand.print("v == v2")).shouldContain(" = true");
+        execCommand(JdbCommand.print("v == v3")).shouldContain(" = false");
 
-	// Testing inline type instance creation
-	execCommand(JdbCommand.print("new JdbInlineTypesTestTarg$SmallValue(42,64)")).shouldContain(" = \"[JdbInlineTypesTestTarg$SmallValue b0=42 b1=64]\"");
+        // Testing inline type instance creation
+        execCommand(JdbCommand.print("new JdbInlineTypesTestTarg$SmallValue(42,64)")).shouldContain(" = \"[JdbInlineTypesTestTarg$SmallValue b0=42 b1=64]\"");
     }
 }
