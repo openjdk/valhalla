@@ -23,7 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-public inline class Point {
+public primitive class Point {
     int x = 4;
     int y = 7;
 }

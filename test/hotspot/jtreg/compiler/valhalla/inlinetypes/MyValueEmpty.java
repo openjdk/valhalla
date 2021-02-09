@@ -23,7 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-public final inline class MyValueEmpty extends MyAbstract {
+public final primitive class MyValueEmpty extends MyAbstract {
     public long hash() { return 0; }
 
     public MyValueEmpty copy(MyValueEmpty other) { return other; }

@@ -21,7 +21,7 @@
  * questions.
  */
 
-public inline class Value {
+public primitive class Value {
     char char_v;
     byte byte_v;
     boolean boolean_v;
@@ -148,7 +148,7 @@ public inline class Value {
         }
     }
 
-    static inline class IntValue implements Number {
+    static primitive class IntValue implements Number {
         int i;
         IntValue(int i) {
             this.i = i;
@@ -158,7 +158,7 @@ public inline class Value {
         }
     }
 
-    static inline class ShortValue implements Number {
+    static primitive class ShortValue implements Number {
         short s;
         ShortValue(short s) {
             this.s = s;

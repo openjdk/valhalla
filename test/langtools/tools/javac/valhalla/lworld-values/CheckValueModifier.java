@@ -12,11 +12,11 @@
    All uses of value below should trigger errors.
 */
 class CheckValueModifier {
-   inline int x;
-   inline int foo() {
+   primitive int x;
+   primitive int foo() {
    }
-   inline interface IFace {}
-   inline @interface Annot {}
-   inline enum Enum {}
-   inline abstract class Inner {}
+   primitive interface IFace {}
+   primitive @interface Annot {}
+   primitive enum Enum {}
+   primitive abstract class Inner {}
 }

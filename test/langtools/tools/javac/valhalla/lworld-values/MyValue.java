@@ -21,7 +21,7 @@
  * questions.
  */
 
-inline public final class MyValue {
+primitive public final class MyValue {
   final int f = 0;
   static MyValue create() {
     return MyValue.default;

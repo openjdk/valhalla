@@ -28,11 +28,11 @@
  * @run main/othervm -Xverify:none IntercastTest2
  */
 
-public inline class IntercastTest2 {
+public primitive class IntercastTest2 {
 
     int ARRAY[] = { 10, 20, 30 };
 
-    static inline class Tuple {
+    static primitive class Tuple {
         private final int index;
         private final int element;
 
@@ -42,7 +42,7 @@ public inline class IntercastTest2 {
         }
     }
 
-    static inline class Cursor {
+    static primitive class Cursor {
         private final int[] array;
         private final int index;
 

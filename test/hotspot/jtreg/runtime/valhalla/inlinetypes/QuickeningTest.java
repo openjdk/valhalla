@@ -57,7 +57,7 @@ public class QuickeningTest {
         public void setFj2(JumboInline j) { fj2 = j; }
     }
 
-    static final inline class Value {
+    static final primitive class Value {
         final Point.ref nfp;       /* Not flattenable inline field */
         final Point fp;         /* Flattenable and flattened inline field */
         final JumboInline fj;    /* Flattenable not flattened inline field */

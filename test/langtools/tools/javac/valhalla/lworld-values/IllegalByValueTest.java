@@ -17,8 +17,8 @@ public class IllegalByValueTest {
 
     public static void main(String[] args) {
         // Error cases.
-        new inline @Annot inline Comparable <String>() {};
-        int [] ia = new inline int[10];
-        new inline String("Hello");
+        new primitive @Annot primitive Comparable <String>() {};
+        int [] ia = new primitive int[10];
+        new primitive String("Hello");
     }
 }

@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class InlineTypeConversionTest {
-    static inline class Value {
+    static primitive class Value {
         Point val;
         Point.ref ref;
         Value(Point p1, Point.ref p2) {

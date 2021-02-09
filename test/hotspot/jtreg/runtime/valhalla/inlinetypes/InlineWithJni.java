@@ -29,7 +29,7 @@ package runtime.valhalla.inlinetypes;
  * @run main/othervm/native -Xint runtime.valhalla.inlinetypes.InlineWithJni
  * @run main/othervm/native -Xcomp runtime.valhalla.inlinetypes.InlineWithJni
  */
-public inline final class InlineWithJni {
+public primitive final class InlineWithJni {
 
     static {
         System.loadLibrary("InlineWithJni");

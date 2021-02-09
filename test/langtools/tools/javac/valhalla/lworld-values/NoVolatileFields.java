@@ -11,7 +11,7 @@ public class NoVolatileFields {
         volatile final int i = 0; // Error
     }
 
-    static inline class Bar {
+    static primitive class Bar {
         volatile int i = 0; // Error
     }
 }

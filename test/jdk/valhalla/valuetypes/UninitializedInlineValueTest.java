@@ -39,13 +39,13 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class UninitializedInlineValueTest {
-    static inline class EmptyInline {
+    static primitive class EmptyInline {
         public boolean isEmpty() {
             return true;
         }
     }
 
-    static inline class InlineValue {
+    static primitive class InlineValue {
         Object o;
         EmptyInline empty;
         InlineValue() {

@@ -98,7 +98,7 @@ public class TestWithfieldC1 extends InlineTypeTest {
         }
     }
 
-    static inline class FooValue {
+    static primitive class FooValue {
         public int x = 0, y = 0;
 
         @ForceInline

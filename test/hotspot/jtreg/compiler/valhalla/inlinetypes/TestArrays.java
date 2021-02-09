@@ -1865,7 +1865,7 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(result, i);
     }
 
-    inline static class NotFlattenable {
+    primitive static class NotFlattenable {
         private final Object o1 = null;
         private final Object o2 = null;
         private final Object o3 = null;
@@ -2162,7 +2162,7 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEQ(test90(), true);
     }
 
-    inline static final class Test91Value {
+    primitive static final class Test91Value {
         public final int f0;
         public final int f1;
         public final int f2;
@@ -3014,7 +3014,7 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(empty, MyValueEmpty.default);
     }
 
-    static inline class EmptyContainer {
+    static primitive class EmptyContainer {
         MyValueEmpty empty = MyValueEmpty.default;
     }
 

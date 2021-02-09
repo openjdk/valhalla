@@ -31,7 +31,7 @@
 /**
  * Test javadoc
  */
-public inline class DocLintSyntheticsTest {
+public primitive class DocLintSyntheticsTest {
   /** field */
   private final int value;
   /**

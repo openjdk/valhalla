@@ -36,7 +36,7 @@ import java.util.ArrayList;
 
 public class EnhancedForLoopTest {
 
-    inline static class Foo<V> implements Iterable<V> {
+    primitive static class Foo<V> implements Iterable<V> {
 
         List<V> lv;
 

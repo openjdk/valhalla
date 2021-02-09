@@ -30,7 +30,7 @@
 
 public class InstanceOfTopTypeTest {
     interface InlineObject {}
-    static inline class V implements InlineObject {
+    static primitive class V implements InlineObject {
         int x = 42;
     }
 

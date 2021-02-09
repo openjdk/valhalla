@@ -26,4 +26,4 @@
 // key: compiler.warn.source.no.system.modules.path
 // options: -source 13
 
-inline final class ValuesNotSupported {}
+primitive final class ValuesNotSupported {}

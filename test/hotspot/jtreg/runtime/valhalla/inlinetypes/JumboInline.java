@@ -22,7 +22,7 @@
  */
 package runtime.valhalla.inlinetypes;
 
-public inline final class JumboInline {
+public primitive final class JumboInline {
     final long l0;
     final long l1;
     final long l2;

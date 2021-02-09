@@ -32,7 +32,7 @@
 
 import java.util.stream.IntStream;
 
-@__inline__ class StreamBug {
+@__primitive__ class StreamBug {
   final int value;
   
   public StreamBug(int value) {

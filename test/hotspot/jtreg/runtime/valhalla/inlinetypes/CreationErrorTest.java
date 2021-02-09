@@ -56,7 +56,7 @@ import javax.tools.*;
 
 public class CreationErrorTest {
 
-    static inline class InlineClass {
+    static primitive class InlineClass {
         int i = 0;
     }
 

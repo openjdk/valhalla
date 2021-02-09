@@ -5,7 +5,7 @@
  * @compile/fail/ref=SneakThroSuperCallTest.out -XDrawDiagnostics -XDdev SneakThroSuperCallTest.java
  */
 
-public inline class SneakThroSuperCallTest { 
+public primitive class SneakThroSuperCallTest {
 
     int x = 10;
 

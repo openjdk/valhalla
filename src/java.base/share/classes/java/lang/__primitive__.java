@@ -29,12 +29,12 @@ import java.lang.annotation.*;
 import static java.lang.annotation.ElementType.*;
 
 /**
- * A class annotated {@code @__inline__} is an inline class.
- * This is a temporary workaround to enable use of inline types
- * in editors and IDEs that do not yet understand the 'inline' modifier.
- * @since 1.12
+ * A class annotated {@code @__primitive__} is a primitive class.
+ * This is a temporary workaround to enable use of primitive classes
+ * in editors and IDEs that do not yet understand the 'primitive' modifier.
+ * @since 1.16
  */
 @Retention(RetentionPolicy.SOURCE)
 @Target(value={ElementType.TYPE, ElementType.TYPE_USE})
-public @interface __inline__ {
+public @interface __primitive__ {
 }

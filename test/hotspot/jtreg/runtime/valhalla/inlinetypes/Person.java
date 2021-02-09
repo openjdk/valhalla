@@ -23,7 +23,7 @@
 
 package runtime.valhalla.inlinetypes;
 
-public final inline class Person {
+public final primitive class Person {
 
     final int    id;
     final String firstName;

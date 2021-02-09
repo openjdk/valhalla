@@ -24,7 +24,7 @@
 // options: -XDallowWithFieldOperator
 // key: compiler.err.value.instance.field.expected.here
 
-final inline class Blah {
+final primitive class Blah {
     final int x;
     static int si;
     Blah() {

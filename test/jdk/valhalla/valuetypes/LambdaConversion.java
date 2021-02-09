@@ -37,7 +37,7 @@ import static org.testng.Assert.*;
 public class LambdaConversion {
 
     static class c_int { }
-    static inline class Pointer<X> {
+    static primitive class Pointer<X> {
         final long addr;
 
         public Pointer(long addr) {

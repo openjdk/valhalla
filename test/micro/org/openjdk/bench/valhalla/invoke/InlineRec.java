@@ -47,7 +47,7 @@ public class InlineRec {
     @Param("100")
     public int depth;
 
-    public static inline class V {
+    public static primitive class V {
         final int v;
 
         public V(int v) {

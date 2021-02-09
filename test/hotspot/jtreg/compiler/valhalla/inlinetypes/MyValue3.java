@@ -26,7 +26,7 @@ package compiler.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
-final inline class MyValue3Inline {
+final primitive class MyValue3Inline {
     final float f7;
     final double f8;
 
@@ -62,7 +62,7 @@ final inline class MyValue3Inline {
 
 // Inline type definition to stress test return of an inline type in registers
 // (uses all registers of calling convention on x86_64)
-public final inline class MyValue3 extends MyAbstract {
+public final primitive class MyValue3 extends MyAbstract {
     final char c;
     final byte bb;
     final short s;

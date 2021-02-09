@@ -50,7 +50,7 @@
 
 import jdk.test.lib.Asserts;
 
-final inline class MyValue1 {
+final primitive class MyValue1 {
     final int foo;
 
     private MyValue1() {
@@ -58,7 +58,7 @@ final inline class MyValue1 {
     }
 }
 
-final inline class MyValue1Box {
+final primitive class MyValue1Box {
     final int foo;
 
     private MyValue1Box() {
@@ -66,7 +66,7 @@ final inline class MyValue1Box {
     }
 }
 
-final inline class MyValue2 {
+final primitive class MyValue2 {
     final int foo;
 
     public MyValue2(int n) {
@@ -74,7 +74,7 @@ final inline class MyValue2 {
     }
 }
 
-final inline class MyValue2Box {
+final primitive class MyValue2Box {
     final int foo;
 
     public MyValue2Box(int n) {
@@ -82,7 +82,7 @@ final inline class MyValue2Box {
     }
 }
 
-final inline class MyValue3 {
+final primitive class MyValue3 {
     final int foo;
 
     public MyValue3(int n) {
@@ -90,7 +90,7 @@ final inline class MyValue3 {
     }
 }
 
-final inline class MyValue3Box {
+final primitive class MyValue3Box {
     final int foo;
 
     public MyValue3Box(int n) {
@@ -98,7 +98,7 @@ final inline class MyValue3Box {
     }
 }
 
-final inline class MyValue4 {
+final primitive class MyValue4 {
     final int foo;
 
     public MyValue4(int n) {
@@ -106,7 +106,7 @@ final inline class MyValue4 {
     }
 }
 
-final inline class MyValue4Box {
+final primitive class MyValue4Box {
     final int foo;
 
     public MyValue4Box(int n) {
@@ -114,7 +114,7 @@ final inline class MyValue4Box {
     }
 }
 
-final inline class MyValue5 {
+final primitive class MyValue5 {
     final int foo;
 
     public MyValue5(int n) {
@@ -122,7 +122,7 @@ final inline class MyValue5 {
     }
 }
 
-final inline class MyValue6 {
+final primitive class MyValue6 {
     final int foo;
 
     public MyValue6(int n) {
@@ -134,7 +134,7 @@ final inline class MyValue6 {
     }
 }
 
-final inline class MyValue6Box {
+final primitive class MyValue6Box {
     final int foo;
 
     public MyValue6Box(int n) {
@@ -146,7 +146,7 @@ final inline class MyValue6Box {
     }
 }
 
-final inline class MyValue7 {
+final primitive class MyValue7 {
     final int foo;
 
     public MyValue7(int n) {
@@ -154,7 +154,7 @@ final inline class MyValue7 {
     }
 }
 
-final inline class MyValue7Box {
+final primitive class MyValue7Box {
     final int foo;
 
     public MyValue7Box(int n) {
@@ -162,25 +162,25 @@ final inline class MyValue7Box {
     }
 }
 
-final inline class MyValue8 {
+final primitive class MyValue8 {
     final int foo = 123;
     static {
         TestUnloadedInlineTypeArray.MyValue8_inited = true;
     }
 }
 
-final inline class MyValue9 {
+final primitive class MyValue9 {
     final int foo = 123;
     static {
         TestUnloadedInlineTypeArray.MyValue9_inited = true;
     }
 }
 
-final inline class MyValue10 {
+final primitive class MyValue10 {
     final int foo = 42;
 }
 
-final inline class MyValue11 {
+final primitive class MyValue11 {
     final int foo = 42;
 }
 

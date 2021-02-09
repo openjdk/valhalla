@@ -30,7 +30,7 @@
  * @run main RefDotClass
  */
 
-public inline class RefDotClass {
+public primitive class RefDotClass {
     final int value;
 
     public RefDotClass(int value) {

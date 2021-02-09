@@ -65,11 +65,11 @@ class TestUnloadedInlineTypeField {
         MyValue15 v;
     }
 
-    static inline class MyValue16 {
+    static primitive class MyValue16 {
         int foo = 42;
     }
 
-    static inline class MyValue17 {
+    static primitive class MyValue17 {
         int foo = 42;
     }
 }

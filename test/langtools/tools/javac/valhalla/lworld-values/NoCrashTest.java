@@ -34,7 +34,7 @@ public class NoCrashTest {
 
     interface I {}
     static class C implements I {}
-    static inline final class V implements I { int x = 0; }
+    static primitive final class V implements I { int x = 0; }
 
     static void triggerNPE(V.ref [] vra) {
         vra[0] = null;

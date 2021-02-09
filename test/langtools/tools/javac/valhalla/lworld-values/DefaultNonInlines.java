@@ -30,7 +30,7 @@
 
 public class DefaultNonInlines {
 
-    static inline class Val {
+    static primitive class Val {
         public int v = 42;
     }
 

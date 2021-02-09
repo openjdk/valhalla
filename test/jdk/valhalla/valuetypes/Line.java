@@ -21,7 +21,7 @@
  * questions.
  */
 
-public final inline class Line {
+public final primitive class Line {
     public Point p1;
     public Point p2;
 

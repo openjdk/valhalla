@@ -430,7 +430,7 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // Test copyOf intrinsic with allocated inline type in it's debug information
-    final inline class Test25Value {
+    final primitive class Test25Value {
         final int x;
         public Test25Value() {
             this.x = 42;

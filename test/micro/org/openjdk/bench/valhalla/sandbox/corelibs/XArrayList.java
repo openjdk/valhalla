@@ -1095,7 +1095,7 @@ public class XArrayList<E> extends AbstractList<E>
     /**
      * Create an inline cursor for this XArrayList.
      */
-    private inline class AListCursor<E> implements InlineCursor<E> {
+    private primitive class AListCursor<E> implements InlineCursor<E> {
         // Inner class field 'this' is initialized
         int index;
         int expectedModCount;

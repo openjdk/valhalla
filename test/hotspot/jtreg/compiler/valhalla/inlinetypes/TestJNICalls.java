@@ -93,7 +93,7 @@ public class TestJNICalls extends InlineTypeTest {
         Asserts.assertEQ(result, vt.hash());
     }
 
-    static inline class MyValueWithNative {
+    static primitive class MyValueWithNative {
         public final int x;
 
         private MyValueWithNative(int x) {

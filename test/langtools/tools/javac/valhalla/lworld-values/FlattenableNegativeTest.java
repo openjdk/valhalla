@@ -6,10 +6,10 @@
  */
 
 public class FlattenableNegativeTest {
-    inline final class V {
+    primitive final class V {
         final int x = 10;
         
-        inline final class X {
+        primitive final class X {
             final V v = null;  // Error: initialization illegal
             final V v2 = v;    // OK, null not constant propagated.
 

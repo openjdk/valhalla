@@ -100,7 +100,7 @@ public class Names {
     public final Name serialVersionUID;
     public final Name toString;
     public final Name value;
-    public final Name inline;
+    public final Name primitive;
     public final Name valueOf;
     public final Name values;
     public final Name readResolve;
@@ -113,8 +113,8 @@ public class Names {
     public final Name java_lang_Enum;
     public final Name java_lang_Object;
     public final Name java_lang_System;
-    public final Name __inline__;
-    public final Name java_lang___inline__;
+    public final Name __primitive__;
+    public final Name java_lang___primitive__;
     public final Name java_lang_IdentityObject;
 
     // names of builtin classes
@@ -285,7 +285,7 @@ public class Names {
         serialVersionUID = fromString("serialVersionUID");
         toString = fromString("toString");
         value = fromString("value");
-        inline = fromString("inline");
+        primitive = fromString("primitive");
         valueOf = fromString("valueOf");
         values = fromString("values");
         readResolve = fromString("readResolve");
@@ -299,8 +299,8 @@ public class Names {
         java_lang_Enum = fromString("java.lang.Enum");
         java_lang_Object = fromString("java.lang.Object");
         java_lang_System = fromString("java.lang.System");
-        __inline__ = fromString("__inline__");
-        java_lang___inline__ = fromString("java.lang.__inline__");
+        __primitive__ = fromString("__primitive__");
+        java_lang___primitive__ = fromString("java.lang.__primitive__");
         java_lang_IdentityObject = fromString("java.lang.IdentityObject");
 
         // names of builtin classes

@@ -106,7 +106,7 @@ public class TestC1 extends InlineTypeTest {
         Asserts.assertEQ(r2, 0x1234567812345678L);
     }
 
-    static inline class SimpleValue2 {
+    static primitive class SimpleValue2 {
         final int value;
         SimpleValue2(int value) {
             this.value = value;
@@ -207,7 +207,7 @@ public class TestC1 extends InlineTypeTest {
     }
 
     // Test 1st level sub-element access to non-flattened field
-    static inline class Big {
+    static primitive class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19 ;
 
         Big(long n) {
@@ -240,7 +240,7 @@ public class TestC1 extends InlineTypeTest {
         }
     }
 
-    static inline class TestValue {
+    static primitive class TestValue {
         int i;
         Big big;
 
@@ -288,7 +288,7 @@ public class TestC1 extends InlineTypeTest {
     // (read/write are not performed, pre-allocated instance is used for reads)
     // Most tests check that error conditions are still correctly handled
     // (OOB, null pointer)
-    static inline class EmptyType {}
+    static primitive class EmptyType {}
 
     @Test(compLevel=C1)
     public EmptyType test9() {

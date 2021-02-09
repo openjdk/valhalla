@@ -29,5 +29,5 @@
  * @summary Test behavior with empty value type.
  * @compile -XDrawDiagnostics -XDdev EmptyValueTest.java
  */
-public final inline class EmptyValueTest {
+public final primitive class EmptyValueTest {
 }

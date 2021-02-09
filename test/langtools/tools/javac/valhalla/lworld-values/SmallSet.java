@@ -23,7 +23,7 @@
  * questions.
  */
 
-public inline class SmallSet {
+public primitive class SmallSet {
 
   final int value;
 

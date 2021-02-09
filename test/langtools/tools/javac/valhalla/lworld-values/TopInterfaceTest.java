@@ -32,7 +32,7 @@ public class TopInterfaceTest  {
 
     static class C {}
 
-    static inline class V {
+    static primitive class V {
         int x = 42;
     }
 

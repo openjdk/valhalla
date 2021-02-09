@@ -66,7 +66,7 @@ public class TestC2CCalls {
     public static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
     public static final int rI = Utils.getRandomInstance().nextInt() % 1000;
 
-    static inline class OtherVal {
+    static primitive class OtherVal {
         public final int x;
 
         private OtherVal(int x) {
@@ -89,7 +89,7 @@ public class TestC2CCalls {
         public int getValue();
     }
 
-    static inline class MyValue1 implements MyInterface1 {
+    static primitive class MyValue1 implements MyInterface1 {
         public final int x;
 
         private MyValue1(int x) {
@@ -155,7 +155,7 @@ public class TestC2CCalls {
         }
     }
 
-    static inline class MyValue2 implements MyInterface1 {
+    static primitive class MyValue2 implements MyInterface1 {
         public final int x;
 
         private MyValue2(int x) {
@@ -221,7 +221,7 @@ public class TestC2CCalls {
         }
     }
 
-    static inline class MyValue3 implements MyInterface1 {
+    static primitive class MyValue3 implements MyInterface1 {
         public final double d1;
         public final double d2;
         public final double d3;
@@ -271,7 +271,7 @@ public class TestC2CCalls {
         }
     }
 
-    static inline class MyValue4 implements MyInterface1 {
+    static primitive class MyValue4 implements MyInterface1 {
         public final int x1;
         public final int x2;
         public final int x3;

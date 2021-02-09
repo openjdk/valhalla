@@ -5,7 +5,7 @@
  * @compile/fail/ref=DualPathInnerType.out -XDrawDiagnostics DualPathInnerType.java
  */
 
-public inline class DualPathInnerType  {
+public primitive class DualPathInnerType  {
 
     class Inner { }
 

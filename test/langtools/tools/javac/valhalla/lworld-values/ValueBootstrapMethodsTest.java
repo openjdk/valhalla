@@ -33,7 +33,7 @@ import java.util.Objects;
 
 public class ValueBootstrapMethodsTest {
 
-    public static final inline class Value {
+    public static final primitive class Value {
         private final int i;
         private final double d;
         private final String s;

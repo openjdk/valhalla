@@ -30,28 +30,28 @@
 
 public class ChainedAssignmentTest {
 
-	static inline class Point {
-		int x;
-		int y;
-		Point() {
-			x = y = 1234; // Problematic
-		}
-	}
+    static primitive class Point {
+        int x;
+        int y;
+        Point() {
+            x = y = 1234; // Problematic
+        }
+    }
 
-	static inline class LongPoint {
-		long x;
-		long y;
-		LongPoint() {
-			x = y = 1234; // Problematic
-		}
-	}
-	public static void main(String[] args) {
-		Point p = new Point();
+    static primitive class LongPoint {
+        long x;
+        long y;
+        LongPoint() {
+            x = y = 1234; // Problematic
+        }
+    }
+    public static void main(String[] args) {
+        Point p = new Point();
         if (!p.toString().equals("[ChainedAssignmentTest$Point x=1234 y=1234]"))
             throw new AssertionError("Broken");
 
         LongPoint lp = new LongPoint();
         if (!lp.toString().equals("[ChainedAssignmentTest$LongPoint x=1234 y=1234]"))
             throw new AssertionError("Broken");
-	}
+    }
 }

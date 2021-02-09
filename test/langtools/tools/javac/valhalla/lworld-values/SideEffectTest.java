@@ -31,36 +31,36 @@
 
 public class SideEffectTest {
 
-	static inline class V {
+    static primitive class V {
 
         static String output = "";
 
         int x;
 
-		V() {
+        V() {
             foo(x = 1234);
-		}
+        }
 
-		V(int x) {
+        V(int x) {
             int l = 1234; 
             foo(l += this.x = x);
-		}
+        }
 
         static void foo(int x) {
             output += x;
         }
-	}
+    }
 
-	public static void main(String[] args) {
-		V v = new V();
+    public static void main(String[] args) {
+        V v = new V();
         if (!v.output.equals("1234"))
             throw new AssertionError("Broken");
         if (!v.toString().equals("[SideEffectTest$V x=1234]"))
             throw new AssertionError("Broken");
-		v = new V(8765);
+        v = new V(8765);
         if (!v.output.equals("12349999"))
             throw new AssertionError("Broken");
         if (!v.toString().equals("[SideEffectTest$V x=8765]"))
             throw new AssertionError("Broken");
-	}
+    }
 }

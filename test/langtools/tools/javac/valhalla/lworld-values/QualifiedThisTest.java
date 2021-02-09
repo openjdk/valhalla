@@ -28,7 +28,7 @@
  * @run main/othervm QualifiedThisTest
  */
 
-public inline  class QualifiedThisTest {
+public primitive class QualifiedThisTest {
 
     final int x;
     final int y;

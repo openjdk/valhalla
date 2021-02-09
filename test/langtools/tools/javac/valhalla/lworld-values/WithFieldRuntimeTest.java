@@ -28,7 +28,7 @@
  * @run main/othervm WithFieldRuntimeTest
  */
 
-public final inline class WithFieldRuntimeTest {
+public final primitive class WithFieldRuntimeTest {
 
     final int x = 10;
 
