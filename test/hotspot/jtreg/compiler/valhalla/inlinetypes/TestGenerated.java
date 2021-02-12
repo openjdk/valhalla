@@ -118,6 +118,10 @@ public class TestGenerated {
         }
     }
 
+    boolean test8(MyValue1[] array) {
+        return array[0].array == array[0].array;
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
@@ -132,6 +136,7 @@ public class TestGenerated {
             t.test5(array3);
             t.test6();
             t.test7(false);
+            t.test8(array3);
         }
     }
 }
