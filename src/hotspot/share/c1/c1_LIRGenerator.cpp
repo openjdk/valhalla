@@ -3050,6 +3050,11 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
     do_update = exact_klass == NULL || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
   }
 
+  // Inline types can't be null
+  if (exact_klass != NULL && exact_klass->is_inlinetype()) {
+    do_null = false;
+  }
+
   if (!do_null && !do_update) {
     return result;
   }
