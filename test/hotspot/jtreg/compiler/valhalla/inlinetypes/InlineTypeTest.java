@@ -119,7 +119,7 @@ public abstract class InlineTypeTest {
 
     protected static final boolean TieredCompilation = (Boolean)WHITE_BOX.getVMFlag("TieredCompilation");
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
-    static final boolean TEST_C1 = TieredCompilation && TieredStopAtLevel < COMP_LEVEL_FULL_OPTIMIZATION;
+    static final boolean TEST_C1 = TieredStopAtLevel < COMP_LEVEL_FULL_OPTIMIZATION;
 
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
@@ -145,9 +145,6 @@ public abstract class InlineTypeTest {
     protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
     private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "true"));
     private static final boolean PREFER_CL_FLAGS = Boolean.parseBoolean(System.getProperty("PreferCommandLineFlags", "false"));
-
-    // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
-    protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
 
     // Pre-defined settings
     private static final String[] defaultFlags = {
@@ -368,9 +365,6 @@ public abstract class InlineTypeTest {
                 if (!PREFER_CL_FLAGS) {
                     cmds = InputArguments.getVmInputArgs();
                 }
-                if (RUN_SCENARIOS_WITH_XCOMP) {
-                    cmds = concat(cmds, "-Xcomp");
-                }
                 cmds = concat(cmds, test.getVMParameters(i));
                 cmds = concat(cmds, test.getExtraVMParameters(i));
                 if (PREFER_CL_FLAGS) {
@@ -578,9 +572,7 @@ public abstract class InlineTypeTest {
                 continue;
             }
             String graph = compilations.get(testName);
-            if (PRINT_GRAPH) {
-                System.out.println("\nGraph for " + testName + "\n" + graph);
-            }
+            System.out.println("\nGraph for " + testName + "\n" + graph);
             // Parse graph using regular expressions to determine if it contains forbidden nodes
             Test[] annos = test.getAnnotationsByType(Test.class);
             Test anno = Arrays.stream(annos).filter(TestAnnotation::find).findFirst().orElse(null);
@@ -828,7 +820,7 @@ public abstract class InlineTypeTest {
         if (!TEST_C1 && compLevel < COMP_LEVEL_FULL_OPTIMIZATION) {
             compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
         }
-        if (TieredCompilation && compLevel > (int)TieredStopAtLevel) {
+        if (compLevel > (int)TieredStopAtLevel) {
             compLevel = (int)TieredStopAtLevel;
         }
         return compLevel;
