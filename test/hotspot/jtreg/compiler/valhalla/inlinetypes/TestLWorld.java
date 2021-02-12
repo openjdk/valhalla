@@ -328,6 +328,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // merge of inline types in an object local
+    @ForceInline
     public Object test10_helper() {
         return valueField1;
     }
