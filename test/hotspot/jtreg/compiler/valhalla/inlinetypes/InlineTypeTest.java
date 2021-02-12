@@ -119,7 +119,7 @@ public abstract class InlineTypeTest {
 
     protected static final boolean TieredCompilation = (Boolean)WHITE_BOX.getVMFlag("TieredCompilation");
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
-    static final boolean TEST_C1 = TieredStopAtLevel < COMP_LEVEL_FULL_OPTIMIZATION;
+    static final boolean TEST_C1 = TieredCompilation && TieredStopAtLevel < COMP_LEVEL_FULL_OPTIMIZATION;
 
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
@@ -820,7 +820,7 @@ public abstract class InlineTypeTest {
         if (!TEST_C1 && compLevel < COMP_LEVEL_FULL_OPTIMIZATION) {
             compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
         }
-        if (compLevel > (int)TieredStopAtLevel) {
+        if (TieredCompilation && compLevel > (int)TieredStopAtLevel) {
             compLevel = (int)TieredStopAtLevel;
         }
         return compLevel;
