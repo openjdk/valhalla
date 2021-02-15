@@ -270,7 +270,7 @@ public class Symtab {
                     /* Temporary treatment for inline class: Given an inline class V that implements
                        I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
                     */
-                    if (type.isValue()) {
+                    if (type.isPrimitiveClass()) {
                         List<Type> bounds = List.of(objectType).appendList(((ClassSymbol) type.tsym).getInterfaces());
                         arg = new WildcardType(bounds.size() > 1 ? types.makeIntersectionType(bounds) : objectType, BoundKind.EXTENDS, boundClass);
                     } else {

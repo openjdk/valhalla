@@ -606,8 +606,8 @@ public class Types {
             return true;
         }
 
-        boolean tValue = t.isValue();
-        boolean sValue = s.isValue();
+        boolean tValue = t.isPrimitiveClass();
+        boolean sValue = s.isPrimitiveClass();
         if (tValue != sValue) {
             return tValue ?
                     isSubtype(t.referenceProjection(), s) :
@@ -1007,8 +1007,8 @@ public class Types {
        }
     }
 
-    public boolean isValue(Type t) {
-        return t != null && t.tsym != null && (t.tsym.flags_field & Flags.VALUE) != 0;
+    public boolean isPrimitiveClass(Type t) {
+        return t != null && t.tsym != null && (t.tsym.flags_field & Flags.PRIMITIVE_CLASS) != 0;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
@@ -1037,9 +1037,9 @@ public class Types {
                     // if T.ref <: S, then T[] <: S[]
                     Type es = elemtype(s);
                     Type et = elemtype(t);
-                    if (isValue(et)) {
+                    if (isPrimitiveClass(et)) {
                         et = et.referenceProjection();
-                        if (isValue(es))
+                        if (isPrimitiveClass(es))
                             es = es.referenceProjection();  // V <: V, surely
                     }
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
@@ -1141,7 +1141,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isValue(s)) ||
+                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isPrimitiveClass(s)) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1223,9 +1223,9 @@ public class Types {
                         // if T.ref <: S, then T[] <: S[]
                         Type es = elemtype(s);
                         Type et = elemtype(t);
-                        if (isValue(et)) {
+                        if (isPrimitiveClass(et)) {
                             et = et.referenceProjection();
-                            if (isValue(es))
+                            if (isPrimitiveClass(es))
                                 es = es.referenceProjection();  // V <: V, surely
                         }
                         return isSubtypeNoCapture(et, es);
@@ -1718,7 +1718,7 @@ public class Types {
                subtyping, thereby necessitating special handling.
             */
             if ((ss.isReferenceProjection() && ss.valueProjection() == ts) ||
-                (ss.isValue() && ss.referenceProjection() == ts)) {
+                (ss.isPrimitiveClass() && ss.referenceProjection() == ts)) {
                 return false;
             }
             if (isSubtype(erasure(ts.type), erasure(ss.type))) {
@@ -1776,7 +1776,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !isValue(t)))
+                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !isPrimitiveClass(t)))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -1795,11 +1795,11 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
-                    if (isValue(t)) {
+                    if (isPrimitiveClass(t)) {
                         // (s) Value ? == (s) Value.ref
                         t = t.referenceProjection();
                     }
-                    if (isValue(s)) {
+                    if (isPrimitiveClass(s)) {
                         // (Value) t ? == (Value.ref) t
                         s = s.referenceProjection();
                     }
@@ -2235,15 +2235,15 @@ public class Types {
            superclass)
         */
         if (checkReferenceProjection)
-            t = t.isValue() ? t.referenceProjection() : t;
+            t = t.isPrimitiveClass() ? t.referenceProjection() : t;
 
         if (sym.type == syms.objectType) { //optimization
-            if (!isValue(t))
+            if (!isPrimitiveClass(t))
                 return syms.objectType;
         }
         if (sym.type == syms.identityObjectType) {
             // IdentityObject is super interface of every concrete identity class other than jlO
-            if (t.isValue() || t.tsym == syms.objectType.tsym)
+            if (t.isPrimitiveClass() || t.tsym == syms.objectType.tsym)
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
@@ -2268,7 +2268,7 @@ public class Types {
                     return t;
 
                 // No man may be an island, but the bell tolls for a value.
-                if (isValue(t))
+                if (isPrimitiveClass(t))
                     return null;
 
                 Symbol c = t.tsym;
@@ -2390,10 +2390,10 @@ public class Types {
            where the hierarchy is navigable. V and V.ref have identical membership
            with no bridging needs.
         */
-        if (t.isValue())
+        if (t.isPrimitiveClass())
             t = t.referenceProjection();
 
-        if (sym.owner.isValue())
+        if (sym.owner.isPrimitiveClass())
             sym = sym.referenceProjection();
 
         return memberType.visit(t, sym);
@@ -2607,8 +2607,8 @@ public class Types {
             bounds = bounds.prepend(syms.objectType);
         }
         long flags = ABSTRACT | PUBLIC | SYNTHETIC | COMPOUND | ACYCLIC;
-        if (isValue(bounds.head))
-            flags |= VALUE;
+        if (isPrimitiveClass(bounds.head))
+            flags |= PRIMITIVE_CLASS;
         ClassSymbol bc =
             new ClassSymbol(flags,
                             Type.moreInfo
@@ -5245,7 +5245,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.isValue(type))
+                    if (types.isPrimitiveClass(type))
                         append('Q');
                     else
                         append('L');

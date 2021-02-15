@@ -329,7 +329,7 @@ public class Attr extends JCTree.Visitor {
                    withfield operator -This does not result in mutation of final fields; the code generator
                    would implement `copy on write' semantics via the opcode `withfield'.
                 */
-                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isValue(v.owner.type)) {
+                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isPrimitiveClass(v.owner.type)) {
                     if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
                         complain = false;
                 }
@@ -991,8 +991,8 @@ public class Attr extends JCTree.Visitor {
                         env.tree.hasTag(NEWCLASS)) {
                     c.flags_field |= NOOUTERTHIS;
                 }
-                if (env.tree.hasTag(NEWCLASS) && types.isValue(c.getSuperclass())) {
-                    c.flags_field |= VALUE; // avoid further secondary errors.
+                if (env.tree.hasTag(NEWCLASS) && types.isPrimitiveClass(c.getSuperclass())) {
+                    c.flags_field |= PRIMITIVE_CLASS; // avoid further secondary errors.
                 }
                 attribClass(tree.pos(), c);
                 result = tree.type = c.type;
@@ -1325,7 +1325,7 @@ public class Attr extends JCTree.Visitor {
                as these can undergo updates via copy on write.
             */
             if (tree.init != null) {
-                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && types.isValue(v.owner.type)) ||
+                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && types.isPrimitiveClass(v.owner.type)) ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
@@ -1528,7 +1528,7 @@ public class Attr extends JCTree.Visitor {
             if (tree.field.type != null && !tree.field.type.isErroneous()) {
                 final Symbol sym = TreeInfo.symbol(tree.field);
                 if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
-                        (sym.flags() & STATIC) != 0 || !types.isValue(sym.owner.type)) {
+                        (sym.flags() & STATIC) != 0 || !types.isPrimitiveClass(sym.owner.type)) {
                     log.error(tree.field.pos(), Errors.PrimitiveClassInstanceFieldExpectedHere);
                 } else {
                     Type ownType = sym.owner.type;
@@ -2121,7 +2121,7 @@ public class Attr extends JCTree.Visitor {
             Iterator<DiagnosticPosition> posIt = positions.iterator();
 
             condTypes = condTypes.stream()
-                                 .map(t -> chk.checkNonVoid(posIt.next(), t.isValue() ? t.referenceProjection() : t))
+                                 .map(t -> chk.checkNonVoid(posIt.next(), t.isPrimitiveClass() ? t.referenceProjection() : t))
                                  .collect(List.collector());
 
             // both are known to be reference types (or projections).  The result is
@@ -2549,11 +2549,11 @@ public class Attr extends JCTree.Visitor {
             if (symbol != null) {
                 /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
                  */
-                boolean superCallOnValueReceiver = types.isValue(env.enclClass.sym.type)
+                boolean superCallOnValueReceiver = types.isPrimitiveClass(env.enclClass.sym.type)
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                if (types.isValue(qualifier) || superCallOnValueReceiver) {
+                if (types.isPrimitiveClass(qualifier) || superCallOnValueReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
                     switch (name.toString()) {
@@ -2598,7 +2598,7 @@ public class Attr extends JCTree.Visitor {
                 // Temporary treatment for inline class: Given an inline class V that implements
                 // I1, I2, ... In, v.getClass() is typed to be Class<? extends Object & I1 & I2 .. & In>
                 Type wcb;
-                if (qualifierType.isValue()) {
+                if (qualifierType.isPrimitiveClass()) {
                     List<Type> bounds = List.of(syms.objectType).appendList(((ClassSymbol) qualifierType.tsym).getInterfaces());
                     wcb = bounds.size() > 1 ? types.makeIntersectionType(bounds) : syms.objectType;
                 } else {
@@ -2781,7 +2781,7 @@ public class Attr extends JCTree.Visitor {
             // Check that it is an instantiation of a class and not a projection type
             if (clazz.hasTag(SELECT)) {
                 JCFieldAccess fieldAccess = (JCFieldAccess) clazz;
-                if (fieldAccess.selected.type.isValue() &&
+                if (fieldAccess.selected.type.isPrimitiveClass() &&
                         (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                     log.error(tree.pos(), Errors.ProjectionCantBeInstantiated);
                 }
@@ -3031,7 +3031,7 @@ public class Attr extends JCTree.Visitor {
         if (arg.getTag() == NEWCLASS)
             return arg;
         // Likewise arg can't be null if it is a value.
-        if (types.isValue(arg.type))
+        if (types.isPrimitiveClass(arg.type))
             return arg;
         // optimization: X.this is never null; skip null check
         Name name = TreeInfo.name(arg);
@@ -4435,9 +4435,9 @@ public class Attr extends JCTree.Visitor {
                     return syms.getClassField(site, types);
                 } else if (name == names._default) {
                     return new VarSymbol(STATIC, names._default, site, site.tsym);
-                } else if (name == names.ref && site.isValue() && resultInfo.pkind.contains(KindSelector.TYP)) {
+                } else if (name == names.ref && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
                     return site.tsym.referenceProjection();
-                } else if (name == names.val && site.isValue() && resultInfo.pkind.contains(KindSelector.TYP)) {
+                } else if (name == names.val && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
                     return site.tsym;
                 } else {
                     // We are seeing a plain identifier as selector.
@@ -5091,7 +5091,7 @@ public class Attr extends JCTree.Visitor {
                 implementing = bounds;
             }
             JCClassDecl cd = make.at(tree).ClassDef(
-                make.Modifiers(PUBLIC | ABSTRACT | (extending != null && TreeInfo.symbol(extending).isValue() ? VALUE : 0)),
+                make.Modifiers(PUBLIC | ABSTRACT | (extending != null && TreeInfo.symbol(extending).isPrimitiveClass() ? PRIMITIVE_CLASS : 0)),
                 names.empty, List.nil(),
                 extending, implementing, List.nil());
 
@@ -5221,7 +5221,7 @@ public class Attr extends JCTree.Visitor {
         try {
             annotate.flush();
             attribClass(c);
-            if (types.isValue(c.type)) {
+            if (types.isPrimitiveClass(c.type)) {
                 final Env<AttrContext> env = typeEnvs.get(c);
                 if (!allowValueMemberCycles) {
                     if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
@@ -5393,11 +5393,11 @@ public class Attr extends JCTree.Visitor {
 
                 attribClassBody(env, c);
 
-                if ((c.flags() & (VALUE | ABSTRACT)) == VALUE) { // for non-intersection, concrete values.
+                if ((c.flags() & (PRIMITIVE_CLASS | ABSTRACT)) == PRIMITIVE_CLASS) { // for non-intersection, concrete values.
                     Assert.check(env.tree.hasTag(CLASSDEF));
                     JCClassDecl classDecl = (JCClassDecl) env.tree;
                     if (classDecl.extending != null) {
-                        chk.checkConstraintsOfInlineSuper(env.tree.pos(), c);
+                        chk.checkSuperConstraintsOfPrimitiveClass(env.tree.pos(), c);
                     }
                 }
 

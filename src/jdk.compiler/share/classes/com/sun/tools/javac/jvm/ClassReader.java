@@ -297,7 +297,7 @@ public class ClassReader {
     private void enterMember(ClassSymbol c, Symbol sym) {
         // Synthetic members are not entered -- reason lost to history (optimization?).
         // Lambda methods must be entered because they may have inner classes (which reference them)
-        ClassSymbol refProjection =  c.isValue() ? c.referenceProjection() : null;
+        ClassSymbol refProjection =  c.isPrimitiveClass() ? c.referenceProjection() : null;
         if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda)) {
             c.members_field.enter(sym);
             if (refProjection != null) {
@@ -1004,7 +1004,7 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValue()) {
+                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isPrimitiveClass()) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -2677,7 +2677,7 @@ public class ClassReader {
 
     public void readClassFile(ClassSymbol c) {
         readClassFileInternal(c);
-        if (c.isValue()) {
+        if (c.isPrimitiveClass()) {
             /* http://cr.openjdk.java.net/~briangoetz/valhalla/sov/04-translation.html
                The relationship of value and reference projections differs between the language model
                and the VM model. In the language, the value projection is not a subtype of the
@@ -2797,10 +2797,10 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_INLINE) != 0) {
-            flags &= ~ACC_INLINE;
+        if ((flags & ACC_PRIMITIVE) != 0) {
+            flags &= ~ACC_PRIMITIVE;
             if (allowPrimitiveClasses) {
-                flags |= VALUE;
+                flags |= PRIMITIVE_CLASS;
             }
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
