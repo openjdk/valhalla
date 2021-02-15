@@ -3488,7 +3488,7 @@ public class JavacParser implements Parser {
                          t == INTERFACE ||
                          t == ENUM ||
                          t == IDENTIFIER)) { // new value Comparable() {}
-            checkSourceLevel(Feature.INLINE_TYPES);
+            checkSourceLevel(Feature.PRIMITIVE_CLASSES);
             return new Token(PRIMITIVE, token.pos, token.endPos, token.comments);
         }
         return token;

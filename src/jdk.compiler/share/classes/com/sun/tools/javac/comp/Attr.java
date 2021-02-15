@@ -167,7 +167,7 @@ public class Attr extends JCTree.Visitor {
         allowLambda = Feature.LAMBDA.allowedInSource(source);
         allowDefaultMethods = Feature.DEFAULT_METHODS.allowedInSource(source);
         allowStaticInterfaceMethods = Feature.STATIC_INTERFACE_METHODS.allowedInSource(source);
-        allowInlineTypes = Feature.INLINE_TYPES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         allowReifiableTypesInInstanceof =
                 Feature.REIFIABLE_TYPES_INSTANCEOF.allowedInSource(source) &&
                 (!preview.isPreview(Feature.REIFIABLE_TYPES_INSTANCEOF) || preview.isEnabled());
@@ -201,9 +201,9 @@ public class Attr extends JCTree.Visitor {
      */
     boolean allowDefaultMethods;
 
-    /** Switch: allow inline types?
+    /** Switch: allow primitive classes ?
      */
-    boolean allowInlineTypes;
+    boolean allowPrimitiveClasses;
 
     /** Switch: static interface methods enabled?
      */
@@ -1529,7 +1529,7 @@ public class Attr extends JCTree.Visitor {
                 final Symbol sym = TreeInfo.symbol(tree.field);
                 if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
                         (sym.flags() & STATIC) != 0 || !types.isValue(sym.owner.type)) {
-                    log.error(tree.field.pos(), Errors.ValueInstanceFieldExpectedHere);
+                    log.error(tree.field.pos(), Errors.PrimitiveClassInstanceFieldExpectedHere);
                 } else {
                     Type ownType = sym.owner.type;
                     switch(tree.field.getTag()) {
@@ -2561,7 +2561,7 @@ public class Attr extends JCTree.Visitor {
                             if (argSize == 0
                                     || (types.isConvertible(argtypes.head, syms.longType) &&
                                     (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
-                                log.error(tree.pos(), Errors.ValueDoesNotSupport(name));
+                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
                             }
                             break;
                         case "notify":
@@ -2569,13 +2569,13 @@ public class Attr extends JCTree.Visitor {
                         case "clone":
                         case "finalize":
                             if (argSize == 0)
-                                log.error(tree.pos(), Errors.ValueDoesNotSupport(name));
+                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
                             break;
                         case "hashCode":
                         case "equals":
                         case "toString":
                             if (superCallOnValueReceiver)
-                                log.error(tree.pos(), Errors.ValueDoesNotSupport(names.fromString("invocation of super." + name)));
+                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(names.fromString("invocation of super." + name)));
                             break;
                     }
                 }
@@ -4256,9 +4256,9 @@ public class Attr extends JCTree.Visitor {
         if (tree.name == names._this || tree.name == names._super ||
                 tree.name == names._class || tree.name == names._default)
         {
-            if (tree.name == names._default && !allowInlineTypes) {
+            if (tree.name == names._default && !allowPrimitiveClasses) {
                 log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
-                        Feature.INLINE_TYPES.error(sourceName));
+                        Feature.PRIMITIVE_CLASSES.error(sourceName));
             }
             skind = KindSelector.TYP;
         } else {

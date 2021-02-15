@@ -105,9 +105,9 @@ public class ClassReader {
      */
     boolean allowModules;
 
-    /** Switch: allow inline types.
+    /** Switch: allow primitive classes.
      */
-    boolean allowInlineTypes;
+    boolean allowPrimitiveClasses;
 
     /** Switch: allow sealed
      */
@@ -276,7 +276,7 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowInlineTypes = Feature.INLINE_TYPES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
                 Feature.SEALED_CLASSES.allowedInSource(source);
@@ -813,7 +813,7 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (allowInlineTypes) {
+                    if (allowPrimitiveClasses) {
                         if (sym.isConstructor()  && ((MethodSymbol) sym).type.getParameterTypes().size() == 0) {
                             int code_length = buf.getInt(bp + 4);
                             if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
@@ -2506,7 +2506,7 @@ public class ClassReader {
     }
 
     protected ClassSymbol enterClass(Name name) {
-        if (allowInlineTypes && name.toString().endsWith("$ref")) {
+        if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
             ClassSymbol v = syms.enterClass(currentModule, name.subName(0, name.length() - 4));
             return v.referenceProjection();
         }
@@ -2799,7 +2799,7 @@ public class ClassReader {
         }
         if ((flags & ACC_INLINE) != 0) {
             flags &= ~ACC_INLINE;
-            if (allowInlineTypes) {
+            if (allowPrimitiveClasses) {
                 flags |= VALUE;
             }
         }

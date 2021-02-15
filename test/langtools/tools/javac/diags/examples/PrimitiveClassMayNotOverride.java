@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,11 @@
  * questions.
  */
 
-// options: -XDallowWithFieldOperator
-// key: compiler.err.value.instance.field.expected.here
+// key: compiler.err.primitive.class.may.not.override
 
-final primitive class Blah {
-    final int x;
-    static int si;
-    Blah() {
-        x = 10;
-        Blah b = __WithField(this.si, 10);
+primitive class InlineBogusOverride {
+    int x = 42;
+    public Object clone() {
+        return this;
     }
 }
