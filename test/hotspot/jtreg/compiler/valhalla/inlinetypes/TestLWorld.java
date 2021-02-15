@@ -3301,17 +3301,15 @@ public class TestLWorld extends InlineTypeTest {
     @Test
     public void test119(boolean deopt) {
         MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
-// TODO disabled until JDK-8253893 is fixed
-//        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
-//        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
+        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
+        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
         if (deopt) {
             // uncommon trap
             WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test119"));
         }
         Asserts.assertEquals(array1[0], MyValueEmpty.default);
-// TODO disabled until JDK-8253893 is fixed
-//        Asserts.assertEquals(array2[0], EmptyContainer.default);
-//        Asserts.assertEquals(array3[0], MixedContainer.default);
+        Asserts.assertEquals(array2[0], EmptyContainer.default);
+        Asserts.assertEquals(array3[0], MixedContainer.default);
     }
 
     @DontCompile
