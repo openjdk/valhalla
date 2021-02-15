@@ -1782,7 +1782,7 @@ public class Code {
                 int width = width(t);
                 Type old = stack[stacksize-width];
                 Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
-                        (old.isValue() != t.isValue() && types.isConvertible(types.erasure(old), types.erasure(t))));
+                        (old.isPrimitiveClass() != t.isPrimitiveClass() && types.isConvertible(types.erasure(old), types.erasure(t))));
                 stack[stacksize-width] = t;
                 break;
             default:

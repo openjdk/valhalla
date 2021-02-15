@@ -418,11 +418,11 @@ public class Resolve {
             /* If any inline types are involved, ask the same question in the reference universe,
                where the hierarchy is navigable
             */
-            if (site.isValue())
+            if (site.isPrimitiveClass())
                 site = site.referenceProjection();
-            if (sym.owner.isValue())
+            if (sym.owner.isPrimitiveClass())
                 sym = sym.referenceProjection();
-            if (env.enclClass.sym.isValue())
+            if (env.enclClass.sym.isPrimitiveClass())
                 env.enclClass.sym = env.enclClass.sym.referenceProjection();
         } else if (sym.kind == TYP) {
             // A type is accessible in a reference projection if it was
@@ -487,9 +487,9 @@ public class Resolve {
         /* If any inline types are involved, ask the same question in the reference universe,
            where the hierarchy is navigable
         */
-        if (site.isValue())
+        if (site.isPrimitiveClass())
             site = site.referenceProjection();
-        if (sym.owner.isValue())
+        if (sym.owner.isPrimitiveClass())
             sym = sym.referenceProjection();
 
         Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
@@ -3063,7 +3063,7 @@ public class Resolve {
                             return sym;
                         }
                     };
-                    ClassSymbol refProjection = newConstr.owner.isValue() ?
+                    ClassSymbol refProjection = newConstr.owner.isPrimitiveClass() ?
                                                      (ClassSymbol) newConstr.owner.referenceProjection() : null;
                     if (refProjection != null) {
                         MethodSymbol clone = newConstr.clone(refProjection);

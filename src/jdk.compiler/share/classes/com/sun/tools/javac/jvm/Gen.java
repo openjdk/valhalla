@@ -2046,7 +2046,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, types.isValue(elemtype)), type);
+                code.emitAnewarray(makeRef(pos, elemtype, types.isPrimitiveClass(elemtype)), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2278,7 +2278,7 @@ public class Gen extends JCTree.Visitor {
             (!tree.clazz.type.tsym.isReferenceProjection() || tree.clazz.type.tsym.valueProjection() != tree.expr.type.tsym) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
             checkDimension(tree.pos(), tree.clazz.type);
-            if (types.isValue(tree.clazz.type)) {
+            if (types.isPrimitiveClass(tree.clazz.type)) {
                 code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
             } else {
                 code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
@@ -2349,7 +2349,7 @@ public class Gen extends JCTree.Visitor {
             result = items.makeStackItem(pt);
             return;
         } else if (tree.name == names._default) {
-            if (tree.type.asElement().isValue()) {
+            if (tree.type.asElement().isPrimitiveClass()) {
                 code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
             } else if (tree.type.isReference()) {
                 code.emitop0(aconst_null);

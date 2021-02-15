@@ -2100,7 +2100,7 @@ public class Lower extends TreeTranslator {
      */
     public <T extends JCExpression> T translate(T tree, Type type) {
         return (tree == null) ? null :
-                applyInlineConversionsAsNeeded(boxIfNeeded(translate(tree), type), type);
+                applyPrimitiveConversionsAsNeeded(boxIfNeeded(translate(tree), type), type);
     }
 
     /** Visitor method: Translate tree.
@@ -3097,11 +3097,11 @@ public class Lower extends TreeTranslator {
         return result.toList();
     }
 
-    /** Apply inline widening/narrowing conversions as needed */
+    /** Apply primitive value/reference conversions as needed */
     @SuppressWarnings("unchecked")
-    <T extends JCExpression> T applyInlineConversionsAsNeeded(T tree, Type type) {
-        boolean haveValue = tree.type.isValue();
-        if (haveValue == type.isValue())
+    <T extends JCExpression> T applyPrimitiveConversionsAsNeeded(T tree, Type type) {
+        boolean haveValue = tree.type.isPrimitiveClass();
+        if (haveValue == type.isPrimitiveClass())
             return tree;
         if (haveValue) {
             // widening coversion is a NOP for the VM due to subtyping relationship at class file

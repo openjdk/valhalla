@@ -2331,7 +2331,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             if (typeArgs == null) {
@@ -2402,7 +2402,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.VALUE | Flags.FINAL);
+            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL);
             if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
@@ -2411,7 +2411,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             return newClass;
@@ -3210,7 +3210,7 @@ public class JavacParser implements Parser {
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
-            case PRIMITIVE   : flag = Flags.VALUE; break;
+            case PRIMITIVE   : flag = Flags.PRIMITIVE_CLASS; break;
             case VOLATILE    : flag = Flags.VOLATILE; break;
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
@@ -3244,7 +3244,7 @@ public class JavacParser implements Parser {
                         pos = ann.pos;
                     final Name name = TreeInfo.name(ann.annotationType);
                     if (name == names.__primitive__ || name == names.java_lang___primitive__) {
-                        flag = Flags.VALUE;
+                        flag = Flags.PRIMITIVE_CLASS;
                     } else {
                         annotations.append(ann);
                         flag = 0;
@@ -3265,7 +3265,7 @@ public class JavacParser implements Parser {
             pos = Position.NOPOS;
 
         // Force value classes to be automatically final.
-        if ((flags & (Flags.VALUE | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.VALUE) {
+        if ((flags & (Flags.PRIMITIVE_CLASS | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.PRIMITIVE_CLASS) {
             flags |= Flags.FINAL;
         }
 
