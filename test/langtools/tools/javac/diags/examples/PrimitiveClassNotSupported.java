@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,9 @@
  * questions.
  */
 
-// key: compiler.err.inline.class.may.not.override
+// key: compiler.err.feature.not.supported.in.source
+// key: compiler.misc.feature.primitive.classes
+// key: compiler.warn.source.no.system.modules.path
+// options: -source 13
 
-primitive class InlineBogusOverride {
-    int x = 42;
-    public Object clone() {
-        return this;
-    }
-}
+primitive final class ValuesNotSupported {}

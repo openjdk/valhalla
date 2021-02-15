@@ -744,7 +744,7 @@ public class Check {
             if  (st.tsym == syms.objectType.tsym)
                 return;
             if (!st.tsym.isAbstract()) {
-                log.error(pos, Errors.ConcreteSupertypeForInlineClass(c, st));
+                log.error(pos, Errors.ConcreteSupertypeForPrimitiveClass(c, st));
             }
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
@@ -918,7 +918,7 @@ public class Check {
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
                 if (types.isValue(targ)) {
-                    log.error(pos, Errors.GenericParameterizationWithValueType(t));
+                    log.error(pos, Errors.GenericParameterizationWithPrimitiveClass(t));
                 }
                 visit(targ, pos);
             }
@@ -1962,7 +1962,7 @@ public class Check {
         if (origin.isValue() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
             if (m.name == names.clone || m.name == names.finalize) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),
-                        Errors.InlineClassMayNotOverride(m.name));
+                        Errors.PrimitiveClassMayNotOverride(m.name));
                 m.flags_field |= BAD_OVERRIDE;
                 return;
             }
@@ -2429,7 +2429,7 @@ public class Check {
     // where
     private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {
         if ((c.flags_field & LOCKED) != 0) {
-            log.error(pos, Errors.CyclicValueTypeMembership(c));
+            log.error(pos, Errors.CyclicPrimitiveClassMembership(c));
             return;
         }
         try {
@@ -2696,7 +2696,7 @@ public class Check {
         checkCompatibleConcretes(pos, c);
 
         if (c.isValue() && types.asSuper(c, syms.identityObjectType.tsym, true) != null) {
-            log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
+            log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
         }
     }
 

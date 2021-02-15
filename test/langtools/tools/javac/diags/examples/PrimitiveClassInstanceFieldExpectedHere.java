@@ -21,9 +21,14 @@
  * questions.
  */
 
-// key: compiler.err.feature.not.supported.in.source
-// key: compiler.misc.feature.inline.type
-// key: compiler.warn.source.no.system.modules.path
-// options: -source 13
+// options: -XDallowWithFieldOperator
+// key: compiler.err.primitive.class.instance.field.expected.here
 
-primitive final class ValuesNotSupported {}
+final primitive class Blah {
+    final int x;
+    static int si;
+    Blah() {
+        x = 10;
+        Blah b = __WithField(this.si, 10);
+    }
+}
