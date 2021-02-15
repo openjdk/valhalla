@@ -1332,10 +1332,6 @@ int compare(ReassignedField* left, ReassignedField* right) {
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
 static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
-  if (svIndex >= sv->field_size()) {
-    // No fields left to re-assign.
-    return svIndex;
-  }
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
   InstanceKlass* ik = klass;
   while (ik != NULL) {
@@ -1345,13 +1341,12 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
         if (field._type == T_INLINE_TYPE) {
-          field._type = T_OBJECT;
-        }
-        if (fs.is_inlined()) {
-          // Resolve klass of flattened inline type field
-          Klass* vk = klass->get_inline_type_field_klass(fs.index());
-          field._klass = InlineKlass::cast(vk);
-          field._type = T_INLINE_TYPE;
+          if (fs.is_inlined()) {
+            // Resolve klass of flattened inline type field
+            field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
+          } else {
+            field._type = T_OBJECT;
+          }
         }
         fields->append(field);
       }
@@ -1360,26 +1355,26 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   }
   fields->sort(compare);
   for (int i = 0; i < fields->length(); i++) {
+    BasicType type = fields->at(i)._type;
+    int offset = base_offset + fields->at(i)._offset;
+    // Check for flattened inline type field before accessing the ScopeValue because it might not have any fields
+    if (type == T_INLINE_TYPE) {
+      // Recursively re-assign flattened inline type fields
+      InstanceKlass* vk = fields->at(i)._klass;
+      assert(vk != NULL, "must be resolved");
+      offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+      svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
+      continue; // Continue because we don't need to increment svIndex
+    }
     intptr_t val;
     ScopeValue* scope_field = sv->field_at(svIndex);
     StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
-    int offset = base_offset + fields->at(i)._offset;
-    BasicType type = fields->at(i)._type;
     switch (type) {
       case T_OBJECT:
       case T_ARRAY:
         assert(value->type() == T_OBJECT, "Agreement.");
         obj->obj_field_put(offset, value->get_obj()());
         break;
-
-      case T_INLINE_TYPE: {
-        // Recursively re-assign flattened inline type fields
-        InstanceKlass* vk = fields->at(i)._klass;
-        assert(vk != NULL, "must be resolved");
-        offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
-        svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
-        continue; // Continue because we don't need to increment svIndex
-      }
 
       // Have to cast to INT (32 bits) pointer to avoid little/big-endian problem.
       case T_INT: case T_FLOAT: { // 4 bytes.

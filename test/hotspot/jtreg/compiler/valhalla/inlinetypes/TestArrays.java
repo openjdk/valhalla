@@ -3018,8 +3018,6 @@ public class TestArrays extends InlineTypeTest {
         MyValueEmpty empty = MyValueEmpty.default;
     }
 
-    // TODO disabled until JDK-8253893 is fixed
-/*
     // Empty inline type container array access
     @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
     public MyValueEmpty test131(EmptyContainer[] array) {
@@ -3034,7 +3032,6 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(array[0], EmptyContainer.default);
         Asserts.assertEquals(empty, MyValueEmpty.default);
     }
-*/
 
     // Empty inline type array access with unknown array type
     @Test()
@@ -3055,8 +3052,6 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(empty, null);
     }
 
-    // TODO disabled until JDK-8253893 is fixed
-/*
     // Empty inline type container array access with unknown array type
     @Test()
     public Object test133(Object[] array) {
@@ -3075,7 +3070,6 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(array[0], EmptyContainer.default);
         Asserts.assertEquals(empty, null);
     }
-*/
 
     // Non-escaping empty inline type array access
     @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
@@ -3357,5 +3351,18 @@ public class TestArrays extends InlineTypeTest {
     @DontCompile
     public void test144_verifier(boolean warmup) {
         test144();
+    }
+
+    // Test that array load slow path correctly initializes non-flattened field of empty inline type
+    @Test()
+    public Object test145(Object[] array) {
+        return array[0];
+    }
+
+    @DontCompile
+    public void test145_verifier(boolean warmup) {
+        Object[] array = new EmptyContainer[1];
+        EmptyContainer empty = (EmptyContainer)test145(array);
+        Asserts.assertEquals(empty, EmptyContainer.default);
     }
 }
