@@ -2132,9 +2132,17 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       return Type::get_zero_type(_type->basic_type());
     }
   }
-  if (!EnableValhalla) { // CMH: Fix JDK-8255045
-    Node* alloc = is_new_object_mark_load(phase);
-    if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
+  Node* alloc = is_new_object_mark_load(phase);
+  if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
+    if (EnableValhalla) {
+      // The mark word may contain property bits (inline, flat, null-free)
+      Node* klass_node = alloc->in(AllocateNode::KlassNode);
+      const TypeKlassPtr* tkls = phase->type(klass_node)->is_klassptr();
+      ciKlass* klass = tkls->klass();
+      if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact()) {
+        return TypeX::make(klass->prototype_header().value());
+      }
+    } else {
       return TypeX::make(markWord::prototype().value());
     }
   }

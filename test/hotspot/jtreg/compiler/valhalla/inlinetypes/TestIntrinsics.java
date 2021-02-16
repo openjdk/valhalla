@@ -1075,4 +1075,59 @@ public class TestIntrinsics extends InlineTypeTest {
     public void test57_verifier(boolean warmup) {
         test57();
     }
+
+    // Test unsafe allocation
+    @Test()
+    public boolean test58(Class<?> c1, Class<?> c2) throws Exception {
+        Object obj1 = U.allocateInstance(c1);
+        Object obj2 = U.allocateInstance(c2);
+        return obj1 == obj2;
+    }
+
+    @DontCompile
+    public void test58_verifier(boolean warmup) throws Exception {
+        boolean res = test58(MyValue1.class, MyValue1.class);
+        Asserts.assertTrue(res);
+        res = test58(Object.class, MyValue1.class);
+        Asserts.assertFalse(res);
+        res = test58(MyValue1.class, Object.class);
+        Asserts.assertFalse(res);
+    }
+
+    // Test synchronization on unsafe inline type allocation
+    @Test()
+    public void test59(Class<?> c) throws Exception {
+        Object obj = U.allocateInstance(c);
+        synchronized (obj) {
+
+        }
+    }
+
+    @DontCompile
+    public void test59_verifier(boolean warmup) throws Exception {
+        test59(Integer.class);
+        try {
+            test59(MyValue1.class);
+            throw new RuntimeException("test59 failed: synchronization on inline type should not succeed");
+        } catch (IllegalMonitorStateException e) {
+
+        }
+    }
+
+    // Test mark word load optimization on unsafe inline type allocation
+    @Test()
+    public boolean test60(Class<?> c1, Class<?> c2, boolean b1, boolean b2) throws Exception {
+        Object obj1 = b1 ? new Object() : U.allocateInstance(c1);
+        Object obj2 = b2 ? new Object() : U.allocateInstance(c2);
+        return obj1 == obj2;
+    }
+
+    @DontCompile
+    public void test60_verifier(boolean warmup) throws Exception {
+        Asserts.assertTrue(test60(MyValue1.class, MyValue1.class, false, false));
+        Asserts.assertFalse(test60(MyValue1.class, MyValue2.class, false, false));
+        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, false, true));
+        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, false));
+        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, true));
+    }
 }
