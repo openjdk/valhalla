@@ -130,6 +130,8 @@ public:
   // Fetch Klass::access_flags.
   jint                   access_flags();
 
+  markWord prototype_header() const;
+
   // What kind of ciObject is this?
   bool is_klass() const { return true; }
 

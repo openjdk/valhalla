@@ -3623,4 +3623,26 @@ public class TestLWorld extends InlineTypeTest {
             // Expected
         }
     }
+
+    // Variant with non-scalarized inline type
+    @Test()
+    public static void test134(boolean b) {
+        Object obj = null;
+        if (b) {
+            obj = MyValue2.createWithFieldsInline(rI, rD);
+        }
+        synchronized (obj) {
+
+        }
+    }
+
+    @DontCompile
+    public void test134_verifier(boolean warmup) {
+        try {
+            test134(true);
+            throw new RuntimeException("test134 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
 }
