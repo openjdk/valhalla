@@ -29,8 +29,8 @@
  * @comment JDK-8231610 Relocate the CDS archive if it cannot be mapped to the requested address
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @build HelloRelocation
- * @run driver ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref HelloInlineClassApp$Rectangle HelloInlineClassApp$Rectangle$ref
+ * @build Hello
+ * @run driver ClassFileInstaller -jar hello.jar Hello
  * @run driver ArchiveRelocationTest
  */
 
@@ -59,7 +59,7 @@ public class ArchiveRelocationTest {
         System.out.println("============================================================");
 
         String appJar = ClassFileInstaller.getJarPath("hello.jar");
-        String mainClass = "HelloRelocation";
+        String mainClass = "Hello";
         String forceRelocation = "-XX:ArchiveRelocationMode=1";
         String runRelocArg  = run_reloc  ? forceRelocation : "-showversion";
         String logArg = "-Xlog:cds=debug,cds+reloc=debug";
@@ -67,14 +67,12 @@ public class ArchiveRelocationTest {
         String nmtArg = "-XX:NativeMemoryTracking=detail";
 
         OutputAnalyzer out = TestCommon.dump(appJar,
-                                             TestCommon.list(mainClass,
-                                                             "HelloInlineClassApp",
-                                                             "HelloInlineClassApp$Point"),
-                                             unlockArg, dumpRelocArg, logArg, nmtArg);
+                TestCommon.list(mainClass),
+                unlockArg, logArg, nmtArg);
         out.shouldContain("Relocating archive from");
 
         TestCommon.run("-cp", appJar, unlockArg, runRelocArg, logArg,  mainClass)
-            .assertNormalExit(output -> {
+                .assertNormalExit(output -> {
                     if (run_reloc) {
                         output.shouldContain("Try to map archive(s) at an alternative address");
                     }
