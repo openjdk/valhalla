@@ -569,11 +569,10 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::restricted_return_value_check(JavaThread* thread, oopDesc* obj))
   LastFrameAccessor last_frame(thread);
   assert(last_frame.bytecode().code() == Bytecodes::_areturn, "Only areturn should have such checks");
-  Method* caller = last_frame.method();
-  constantPoolHandle cph(THREAD, caller->constants());
-  Method* callee = last_frame.cache_entry()->method_if_resolved(cph);
-  if (callee->constMethod()->has_restricted_method()) {
-    Klass* k = callee->restricted_return_value();
+  Method* method = last_frame.method();
+  constantPoolHandle cph(THREAD, method->constants());
+  if (method->constMethod()->has_restricted_method()) {
+    Klass* k = method->restricted_return_value();
     if (k != NULL && !obj->klass()->is_subtype_of(k)) {
       THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
     }

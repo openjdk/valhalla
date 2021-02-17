@@ -3954,7 +3954,6 @@ void TemplateTable::prepare_invoke(int byte_no,
   const bool is_invokehandle     = code == Bytecodes::_invokehandle;
   const bool is_invokevirtual    = code == Bytecodes::_invokevirtual;
   const bool is_invokespecial    = code == Bytecodes::_invokespecial;
-  const bool is_invokestatic     = code == Bytecodes::_invokestatic;
   const bool load_receiver       = (recv  != noreg);
   const bool save_flags          = (flags != noreg);
   assert(load_receiver == (code != Bytecodes::_invokestatic && code != Bytecodes::_invokedynamic), "");
