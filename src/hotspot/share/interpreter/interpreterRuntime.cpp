@@ -552,7 +552,7 @@ JRT_ENTRY(void, InterpreterRuntime::restricted_parameter_checks(JavaThread* thre
       sizes[i] = parameter_type_word_count(ss.type());
       i++;
     }
-    int tos_idx = (int)last_frame.get_frame().interpreter_frame_expression_stack_size() - 1;
+    int tos_idx = (int)last_frame.get_frame().interpreter_frame_expression_stack_size() - 3;
     for (int i = arg_count - 1; i >=0; --i) {
       Klass* k = callee->restricted_param_type_at(i);
       if (k != NULL) {

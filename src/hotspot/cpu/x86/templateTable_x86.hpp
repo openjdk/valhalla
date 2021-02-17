@@ -45,4 +45,6 @@
 
   static void invoke_is_substitutable(Register aobj, Register bobj, Label& is_subst, Label& not_subst);
 
+  static void restricted_method_check(Register method);
+
 #endif // CPU_X86_TEMPLATETABLE_X86_HPP

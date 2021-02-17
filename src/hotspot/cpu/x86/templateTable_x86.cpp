@@ -3928,6 +3928,19 @@ void TemplateTable::fast_xaccess(TosState state) {
 //-----------------------------------------------------------------------------
 // Calls
 
+void TemplateTable::restricted_method_check(Register method) {
+    Label not_restricted;
+  __ movptr(rscratch1, method);
+  __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+  __ andl(rscratch1, Method::_restricted_method);
+  __ jcc(Assembler::zero, not_restricted);
+  __ restore_bcp();
+  __ push(method);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
+  __ pop(method);
+  __ bind(not_restricted);
+}
+
 void TemplateTable::prepare_invoke(int byte_no,
                                    Register method,  // linked method (or i-klass)
                                    Register index,   // itable index, MethodType, etc.
@@ -3958,40 +3971,6 @@ void TemplateTable::prepare_invoke(int byte_no,
   __ save_bcp();
 
   load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
-
-  if (is_invokevirtual) {
-    Label not_restricted, restriction_test, not_vfinal;
-    __ movl(rscratch1, flags);
-    __ andl(rscratch1, (1 << ConstantPoolCacheEntry::is_vfinal_shift));
-    __ jcc(Assembler::zero, not_vfinal);
-    __ movptr(rscratch1, method);
-    __ jmp(restriction_test);
-    __ bind(not_vfinal);
-    __ movl(rscratch1, flags);
-    __ andl(rscratch1, ConstantPoolCacheEntry::parameter_size_mask);
-    const int no_return_pc_pushed_yet = -1;  // argument slot correction before we push return address
-    const int receiver_is_at_end      = -1;  // back off one slot to get receiver
-    Address recv_addr = __ argument_address(rscratch1, no_return_pc_pushed_yet + receiver_is_at_end);
-    __ movptr(rscratch1, recv_addr);
-    __ load_klass(rscratch1, rscratch1, rscratch2);
-    __ lookup_virtual_method(rscratch1, method, rscratch1);
-    __ bind(restriction_test);
-    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
-    __ andl(rscratch1, Method::_restricted_method);
-    __ jcc(Assembler::zero, not_restricted);
-    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
-    load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
-    __ bind(not_restricted);
-  } else if (is_invokespecial || is_invokestatic) {
-    Label not_restricted;
-    __ movptr(rscratch1, method);
-    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
-    __ andl(rscratch1, Method::_restricted_method);
-    __ jcc(Assembler::zero, not_restricted);
-    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
-    load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
-    __ bind(not_restricted);
-  }
 
   // maybe push appendix to arguments (just before return address)
   if (is_invokedynamic || is_invokehandle) {
@@ -4076,7 +4055,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   // profile this call
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
-
+  restricted_method_check(method);
   __ jump_from_interpreted(method, rax);
 
   __ bind(notFinal);
@@ -4091,6 +4070,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
   __ profile_arguments_type(rdx, method, rbcp, true);
+  restricted_method_check(method);
   __ jump_from_interpreted(method, rdx);
 }
 
@@ -4119,6 +4099,7 @@ void TemplateTable::invokespecial(int byte_no) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
+  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rax);
 }
 
@@ -4129,6 +4110,7 @@ void TemplateTable::invokestatic(int byte_no) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
+  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rax);
 }
 
@@ -4191,7 +4173,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ profile_final_call(rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
-
+  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rdx);
   // no return from above
   __ bind(notVFinal);
@@ -4242,6 +4224,8 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ jcc(Assembler::zero, no_such_method);
 
   __ profile_arguments_type(rdx, rbx, rbcp, true);
+
+  restricted_method_check(rbx);
 
   // do the call
   // rcx: receiver
