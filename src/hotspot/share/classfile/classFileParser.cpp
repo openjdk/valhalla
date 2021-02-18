@@ -1472,18 +1472,6 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
                           _can_access_vm_annotations,
                           CHECK);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
-      } else if (attribute_name == vmSymbols::tag_restricted_field()) {
-        check_property(
-          attribute_length == 2,
-          "Invalid RestrictedField field attribute length %u in class file %s",
-          attribute_length, CHECK);
-          const u2 type_index = cfs->get_u2_fast();
-          check_property(valid_symbol_at(type_index),
-                         "Invalid constant pool index %u for field restricted type signature in class file %s",
-                          type_index, CHECK);
-          *restricted_field_info = type_index;
-          *has_restricted_type = true;
-          set_has_restricted_fields();
       } else if (attribute_name == vmSymbols::tag_runtime_invisible_annotations()) {
         if (runtime_invisible_annotations_exists) {
           classfile_parse_error(
@@ -1521,6 +1509,22 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
           assert(runtime_invisible_type_annotations != NULL, "null invisible type annotations");
         }
         cfs->skip_u1(attribute_length, CHECK);
+      } else if (_major_version >= JAVA_17_VERSION) {
+        if (attribute_name == vmSymbols::tag_restricted_field()) {
+          check_property(
+            attribute_length == 2,
+            "Invalid RestrictedField field attribute length %u in class file %s",
+            attribute_length, CHECK);
+            const u2 type_index = cfs->get_u2_fast();
+            check_property(valid_symbol_at(type_index),
+                          "Invalid constant pool index %u for field restricted type signature in class file %s",
+                            type_index, CHECK);
+            *restricted_field_info = type_index;
+            *has_restricted_type = true;
+            set_has_restricted_fields();
+        } else {
+          cfs->skip_u1(attribute_length, CHECK);  // Skip unknown attributes
+        }
       } else {
         cfs->skip_u1(attribute_length, CHECK);  // Skip unknown attributes
       }
