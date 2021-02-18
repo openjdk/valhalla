@@ -26,7 +26,7 @@
 /*
  * @test
  * @bug 8253760
- * @summary [type-restrictions] Static inline fields are not "erased" to the ref type
+ * @summary [type-restrictions] Static primitive value type fields are not "erased" to the ref type
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDflattenWithTypeRestrictions RestrictedStaticFieldCodegenTest.java
  * @run main/othervm -Xverify:none RestrictedStaticFieldCodegenTest
@@ -39,7 +39,7 @@ import java.nio.file.Paths;
 
 class PointBox {
 
-    static inline class Point {
+    static primitive class Point {
         public double x;
         public double y;
         public Point(double x, double y) { this.x = x; this.y = y; }

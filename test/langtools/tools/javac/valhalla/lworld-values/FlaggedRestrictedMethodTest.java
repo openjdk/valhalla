@@ -39,8 +39,8 @@ import java.lang.invoke.RestrictedType;
 
 public class FlaggedRestrictedMethodTest {
 
-    inline class Point {}
-    inline class Line {}
+    primitive class Point {}
+    primitive class Line {}
 
     static Point foo(int x, Point p, int y, Line l) {
         return p;

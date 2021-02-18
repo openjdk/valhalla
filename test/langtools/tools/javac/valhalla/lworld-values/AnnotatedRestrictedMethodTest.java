@@ -38,8 +38,8 @@ import java.lang.invoke.RestrictedType;
 
 public class AnnotatedRestrictedMethodTest {
 
-    inline class Point {}
-    inline class Line {}
+    primitive class Point {}
+    primitive class Line {}
 
     Point foo(int x, Point p, int y, Line l) {
         return p;
