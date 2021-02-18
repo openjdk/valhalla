@@ -35,7 +35,7 @@ package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
-inline class MyValue {
+primitive class MyValue {
     public Integer o1;
     public Integer o2;
     public Integer o3;

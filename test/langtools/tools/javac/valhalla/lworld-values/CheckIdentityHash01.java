@@ -29,7 +29,7 @@
  */
 import static java.lang.System.*;
 
-public final inline class CheckIdentityHash01 {
+public final primitive class CheckIdentityHash01 {
     void test(CheckIdentityHash01 v) {
 
         identityHashCode(v);      // <- error

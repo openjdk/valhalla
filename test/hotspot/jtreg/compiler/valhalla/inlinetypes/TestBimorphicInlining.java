@@ -47,7 +47,7 @@ interface MyInterface {
     public MyInterface hash(MyInterface arg);
 }
 
-inline final class TestValue1 implements MyInterface {
+primitive final class TestValue1 implements MyInterface {
     final int x;
 
     public TestValue1(int x) {
@@ -59,7 +59,7 @@ inline final class TestValue1 implements MyInterface {
     }
 }
 
-inline final class TestValue2 implements MyInterface {
+primitive final class TestValue2 implements MyInterface {
     final int x;
 
     public TestValue2(int x) {

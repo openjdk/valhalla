@@ -202,7 +202,7 @@ public class ObjectMethods {
         return hc;
     }
 
-    static inline class MyValue1 {
+    static primitive class MyValue1 {
         private Point p;
         private Point.ref np;
 
@@ -234,7 +234,7 @@ public class ObjectMethods {
         }
     }
 
-    static inline class InlineType1 implements Number {
+    static primitive class InlineType1 implements Number {
         int i;
         public InlineType1(int i) {
             this.i = i;
@@ -244,7 +244,7 @@ public class ObjectMethods {
         }
     }
 
-    static inline class InlineType2 implements Number {
+    static primitive class InlineType2 implements Number {
         int i;
         public InlineType2(int i) {
             this.i = i;

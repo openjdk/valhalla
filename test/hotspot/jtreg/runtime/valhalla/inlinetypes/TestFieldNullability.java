@@ -34,7 +34,7 @@ package runtime.valhalla.inlinetypes;
 import jdk.test.lib.Asserts;
 
 public class TestFieldNullability {
-    static inline class MyValue {
+    static primitive class MyValue {
         int x;
 
         public MyValue() {
@@ -42,7 +42,7 @@ public class TestFieldNullability {
         }
     }
 
-    static inline class MyBigValue {
+    static primitive class MyBigValue {
         long l0, l1, l2, l3, l4, l5, l6, l7, l8, l9;
         long l10, l11, l12, l13, l14, l15, l16, l17, l18, l19;
 
@@ -52,7 +52,7 @@ public class TestFieldNullability {
         }
     }
 
-    static inline class TestInlineType {
+    static primitive class TestInlineType {
         final MyValue.ref nullableField;
         final MyValue nullfreeField;        // flattened
         final MyValue.ref nullField;           // src of null

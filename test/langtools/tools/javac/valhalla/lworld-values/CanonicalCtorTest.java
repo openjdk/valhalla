@@ -28,7 +28,7 @@
  * @run main/othervm -ea CanonicalCtorTest
  */
 
-public inline class CanonicalCtorTest {
+public primitive class CanonicalCtorTest {
 
 	private final int x, ymx;
 

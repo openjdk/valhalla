@@ -31,7 +31,7 @@
  */
 
 public class StaticSelectedThroughProjection {
-    static inline class MyValue {
+    static primitive class MyValue {
         int x = 42;
         static String test() {
             return "OK";

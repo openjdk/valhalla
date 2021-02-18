@@ -21,7 +21,7 @@
  * questions.
  */
 
-public inline class NonFlattenValue {
+public primitive class NonFlattenValue {
     Point.ref nfp;
 
     NonFlattenValue() {

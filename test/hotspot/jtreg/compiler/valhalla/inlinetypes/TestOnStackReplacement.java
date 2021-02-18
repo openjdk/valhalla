@@ -177,7 +177,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
     }
 
     // Test OSR in method with inline type receiver
-    inline class Test6Value {
+    primitive class Test6Value {
         public int f = 0;
 
         public int test() {
@@ -203,7 +203,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
     }
 
     // Similar to test6 but with more fields and reserved stack entry
-    static inline class Test7Value1 {
+    static primitive class Test7Value1 {
         public int i1 = rI;
         public int i2 = rI;
         public int i3 = rI;
@@ -212,7 +212,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
         public int i6 = rI;
     }
 
-    static inline class Test7Value2 {
+    static primitive class Test7Value2 {
         public int i1 = rI;
         public int i2 = rI;
         public int i3 = rI;

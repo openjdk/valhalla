@@ -199,7 +199,7 @@ public class QTypeDescriptorTest {
         Line toLine(Point p, NonFlattenValue nfv);
     }
 
-    static inline class ValueTest {
+    static primitive class ValueTest {
         private final int value;
         public ValueTest() { this.value = 0; }
 

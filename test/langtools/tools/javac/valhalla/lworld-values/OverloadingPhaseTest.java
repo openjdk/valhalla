@@ -7,7 +7,7 @@
 
 public class OverloadingPhaseTest {
 
-    static inline class V {
+    static primitive class V {
         int x = 0;
     }
 

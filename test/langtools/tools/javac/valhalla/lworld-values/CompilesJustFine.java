@@ -38,7 +38,7 @@ class CompilesFine {
         nfspQm = null;
     }
 }
-inline final class Point {
+primitive final class Point {
     final int x;
     final int y;
 
@@ -50,7 +50,7 @@ inline final class Point {
 
 class CompilesJustFine {
 
-    static final inline class Value {
+    static final primitive class Value {
         final PointBug2.ref nfpQm;
 
         private Value() {
@@ -58,7 +58,7 @@ class CompilesJustFine {
         }
     }
 }
-inline final class PointBug2 {
+primitive final class PointBug2 {
     final int x;
     final int y;
 

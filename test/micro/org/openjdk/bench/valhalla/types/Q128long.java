@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public inline class Q128long implements Int128, ByLong {
+public primitive class Q128long implements Int128, ByLong {
 
     public final long v0;
     public final long v1;

@@ -38,7 +38,7 @@ public class TestDeadAllocationRemoval {
     }
 }
 
-inline class MyValue {
+primitive class MyValue {
     public static long instanceCount = 0;
     public float fFld = 0;
     public boolean bFld = true;

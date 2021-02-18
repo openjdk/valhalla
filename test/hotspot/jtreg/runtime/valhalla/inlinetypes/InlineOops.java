@@ -205,7 +205,7 @@ public class InlineOops {
         public Person otherPerson;
     }
 
-    static final inline class Composition {
+    static final primitive class Composition {
         public final Person onePerson;
         public final Person otherPerson;
 
@@ -298,14 +298,14 @@ public class InlineOops {
 
         // Sanity check, FixMe need more test cases
         objects = testFrameOops(couple);
-        //assertTrue(objects.length == 5, "Number of frame oops incorrect = " + objects.length);
-        //assertTrue(objects[0] == couple, "Bad oop 0");
-        //assertTrue(objects[1] == fn1, "Bad oop 1");
-        //assertTrue(objects[2] == ln1, "Bad oop 2");
-        //assertTrue(objects[3] == TEST_STRING1, "Bad oop 3");
-        //assertTrue(objects[4] == TEST_STRING2, "Bad oop 4");
+        assertTrue(objects.length == 5, "Number of frame oops incorrect = " + objects.length);
+        assertTrue(objects[0] == couple, "Bad oop 0");
+        assertTrue(objects[1] == fn1, "Bad oop 1");
+        assertTrue(objects[2] == ln1, "Bad oop 2");
+        assertTrue(objects[3] == TEST_STRING1, "Bad oop 3");
+        assertTrue(objects[4] == TEST_STRING2, "Bad oop 4");
 
-        //testFrameOopsVBytecodes();
+        testFrameOopsVBytecodes();
     }
 
     static final String GET_OOP_MAP_NAME = "getOopMap";
@@ -601,7 +601,7 @@ public class InlineOops {
 
     // Various field layouts...sanity testing, see MVTCombo testing for full-set
 
-    static final inline class ObjectValue {
+    static final primitive class ObjectValue {
         final Object object;
 
         private ObjectValue(Object obj) {
@@ -635,7 +635,7 @@ public class InlineOops {
         String otherStuff;
     }
 
-    public static final inline class FooValue {
+    public static final primitive class FooValue {
         public final int id;
         public final String name;
         public final String description;
@@ -733,7 +733,7 @@ public class InlineOops {
         String otherStuff;
     }
 
-    static final inline class BarValue {
+    static final primitive class BarValue {
         final FooValue foo;
         final long extendedId;
         final String moreNotes;

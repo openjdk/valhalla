@@ -328,6 +328,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // merge of inline types in an object local
+    @ForceInline
     public Object test10_helper() {
         return valueField1;
     }
@@ -1488,7 +1489,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Inline type with some non-flattened fields
-    final inline class Test51Value {
+    final primitive class Test51Value {
         final Object objectField1;
         final Object objectField2;
         final Object objectField3;
@@ -1974,7 +1975,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test calling a method on an uninitialized inline type
-    final inline class Test72Value {
+    final primitive class Test72Value {
         final int x = 42;
         public int get() {
             return x;
@@ -2130,7 +2131,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test flattened field with non-flattenend (but flattenable) inline type field
-    static inline class Small {
+    static primitive class Small {
         final int i;
         final Big big; // Too big to be flattened
 
@@ -2140,7 +2141,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    static inline class Big {
+    static primitive class Big {
         long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9;
         long l10,l11,l12,l13,l14,l15,l16,l17,l18,l19;
         long l20,l21,l22,l23,l24,l25,l26,l27,l28,l29;
@@ -2394,7 +2395,7 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertFalse(test91(new Object()));
     }
 
-    static inline class Test92Value {
+    static primitive class Test92Value {
         final int field;
         public Test92Value() {
             field = 0x42;
@@ -2912,7 +2913,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    static inline class LongWrapper implements WrapperInterface {
+    static primitive class LongWrapper implements WrapperInterface {
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
 
@@ -3167,7 +3168,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    static inline class LongWrapper2 implements WrapperInterface2 {
+    static primitive class LongWrapper2 implements WrapperInterface2 {
         private long val;
 
         public LongWrapper2(long val) {
@@ -3179,7 +3180,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    static inline class InlineWrapper {
+    static primitive class InlineWrapper {
         WrapperInterface2 content;
 
         public InlineWrapper(long val) {
@@ -3287,11 +3288,11 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertTrue(res);
     }
 
-    static inline class EmptyContainer {
+    static primitive class EmptyContainer {
         private MyValueEmpty empty = MyValueEmpty.default;
     }
 
-    static inline class MixedContainer {
+    static primitive class MixedContainer {
         public int val = rI;
         private EmptyContainer empty = EmptyContainer.default;
     }
@@ -3300,17 +3301,15 @@ public class TestLWorld extends InlineTypeTest {
     @Test
     public void test119(boolean deopt) {
         MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
-// TODO disabled until JDK-8253893 is fixed
-//        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
-//        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
+        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
+        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
         if (deopt) {
             // uncommon trap
             WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test119"));
         }
         Asserts.assertEquals(array1[0], MyValueEmpty.default);
-// TODO disabled until JDK-8253893 is fixed
-//        Asserts.assertEquals(array2[0], EmptyContainer.default);
-//        Asserts.assertEquals(array3[0], MixedContainer.default);
+        Asserts.assertEquals(array2[0], EmptyContainer.default);
+        Asserts.assertEquals(array3[0], MixedContainer.default);
     }
 
     @DontCompile
@@ -3620,6 +3619,28 @@ public class TestLWorld extends InlineTypeTest {
         try {
             test133(false);
             throw new RuntimeException("test133 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Variant with non-scalarized inline type
+    @Test()
+    public static void test134(boolean b) {
+        Object obj = null;
+        if (b) {
+            obj = MyValue2.createWithFieldsInline(rI, rD);
+        }
+        synchronized (obj) {
+
+        }
+    }
+
+    @DontCompile
+    public void test134_verifier(boolean warmup) {
+        try {
+            test134(true);
+            throw new RuntimeException("test134 failed: no exception thrown");
         } catch (IllegalMonitorStateException ex) {
             // Expected
         }

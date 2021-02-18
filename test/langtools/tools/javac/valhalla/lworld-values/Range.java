@@ -23,7 +23,7 @@
  * questions.
  */
 
-public inline class Range<T> {
+public primitive class Range<T> {
     private final T lower;
     private final T upper;
 

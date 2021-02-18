@@ -34,7 +34,7 @@ import java.util.ArrayList;
 import java.util.function.*;
 import java.util.NoSuchElementException;
 
-inline class OptionalInt {
+primitive class OptionalInt {
     // private static final OptionalInt EMPTY = OptionalInt.default;
 
     private boolean isPresent = false;

@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckThisLeak.out -XDrawDiagnostics -XDdev CheckThisLeak.java
  */
 
-inline class V {
+primitive class V {
 
 	private final int x, ymx;
 

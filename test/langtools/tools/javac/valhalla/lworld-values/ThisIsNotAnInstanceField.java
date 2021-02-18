@@ -30,13 +30,13 @@
  * @run main ThisIsNotAnInstanceField
  */
 
-public inline class ThisIsNotAnInstanceField {
+public primitive class ThisIsNotAnInstanceField {
 
     int i = 513;
 
     Inner.ref i2 = new Inner();
 
-    inline class Inner {
+    primitive class Inner {
         int c = 511;
     }
 

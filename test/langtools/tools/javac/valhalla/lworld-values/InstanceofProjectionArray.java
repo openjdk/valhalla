@@ -31,7 +31,7 @@
  */
 
 
-public inline class InstanceofProjectionArray {
+public primitive class InstanceofProjectionArray {
 
     int value;
     public InstanceofProjectionArray() { this.value = 0; }

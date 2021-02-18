@@ -73,7 +73,7 @@ public class InlineTypeCreation {
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
     }
 
-    static final inline class StaticSelf {
+    static final primitive class StaticSelf {
 
         static final StaticSelf.ref DEFAULT = create(0);
         final int f1;

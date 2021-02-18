@@ -218,7 +218,7 @@ public class MemberEnter extends JCTree.Visitor {
 
         localEnv.info.scope.leave();
         if (chk.checkUnique(tree.pos(), m, enclScope)) {
-            ClassSymbol refProjection = m.owner.isValue() ? (ClassSymbol) m.owner.referenceProjection() : null;
+            ClassSymbol refProjection = m.owner.isPrimitiveClass() ? (ClassSymbol) m.owner.referenceProjection() : null;
             enclScope.enter(m);
             if (refProjection != null) {
                 MethodSymbol clone = m.clone(refProjection);
@@ -300,7 +300,7 @@ public class MemberEnter extends JCTree.Visitor {
         */
         if (tree.init != null) {
             v.flags_field |= HASINIT;
-            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !types.isValue(v.owner.type)) &&
+            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !types.isPrimitiveClass(v.owner.type)) &&
                 needsLazyConstValue(tree.init)) {
                 Env<AttrContext> initEnv = getInitEnv(tree, env);
                 initEnv.info.enclVar = v;
@@ -309,7 +309,7 @@ public class MemberEnter extends JCTree.Visitor {
         }
         if (chk.checkUnique(tree.pos(), v, enclScope)) {
             chk.checkTransparentVar(tree.pos(), v, enclScope);
-            ClassSymbol refProjection =  v.owner.isValue() ? (ClassSymbol) v.owner.referenceProjection() : null;
+            ClassSymbol refProjection =  v.owner.isPrimitiveClass() ? (ClassSymbol) v.owner.referenceProjection() : null;
             enclScope.enter(v);
             if (refProjection != null) {
                 VarSymbol clone = v.clone(refProjection);

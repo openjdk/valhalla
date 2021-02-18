@@ -42,7 +42,7 @@ public class ClassLiteralTypingTest {
         return 1;
     }
 
-    static inline class V implements I {
+    static primitive class V implements I {
         int x = 42;
     }
 

@@ -33,7 +33,7 @@ import jdk.test.lib.Asserts;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
-final inline class MyValue1 {
+final primitive class MyValue1 {
     public final int x = 0;
 }
 

@@ -73,7 +73,7 @@ public class StreamTest {
         stream.forEach(p -> assertTrue((p.x % 2) == 0));
     }
 
-    static inline class Value {
+    static primitive class Value {
         int i;
         Point p;
         Point.ref nullable;

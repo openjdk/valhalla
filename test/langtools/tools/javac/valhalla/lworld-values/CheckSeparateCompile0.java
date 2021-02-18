@@ -26,23 +26,23 @@
  */
 
 public class CheckSeparateCompile0 {
-	int x = 123;
-	public class O {
-		int o = 456;
-		public class M {
-			int m = 789;
-			public inline class I {
-				int i = 0;
-				I() {
-					
-				}
-				String foo() {
-					return this.toString();
-				}
-			}
+    int x = 123;
+    public class O {
+        int o = 456;
+        public class M {
+            int m = 789;
+            public primitive class I {
+                int i = 0;
+                I() {
+
+                }
+                String foo() {
+                    return this.toString();
+                }
+            }
             public String toString() {
                 return "o = " + o + " m = " + m + " x = " + x;
             }
-		}
-	}
+        }
+    }
 }

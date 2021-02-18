@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@
  * @comment JDK-8231610 Relocate the CDS archive if it cannot be mapped to the requested address
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @build HelloRelocation
- * @run driver ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref HelloInlineClassApp$Rectangle HelloInlineClassApp$Rectangle$ref
+ * @build Hello
+ * @run driver ClassFileInstaller -jar hello.jar Hello
  * @run driver ArchiveRelocationTest
  */
 
@@ -40,9 +40,8 @@ import jtreg.SkippedException;
 public class ArchiveRelocationTest {
     public static void main(String... args) throws Exception {
         try {
-            test(true,  false);
-            test(false, true);
-            test(true,  true);
+            test(false);
+            test(true);
         } catch (SkippedException s) {
             s.printStackTrace();
             throw new RuntimeException("Archive mapping should always succeed after JDK-8231610 (did the machine run out of memory?)");
@@ -51,37 +50,29 @@ public class ArchiveRelocationTest {
 
     static int caseCount = 0;
 
-    // dump_reloc - force relocation of archive during dump time?
     // run_reloc  - force relocation of archive during run time?
-    static void test(boolean dump_reloc, boolean run_reloc) throws Exception {
+    // Note: relocation always happens during dumping.
+    static void test(boolean run_reloc) throws Exception {
         caseCount += 1;
         System.out.println("============================================================");
-        System.out.println("case = " + caseCount + ", dump = " + dump_reloc
-                           + ", run = " + run_reloc);
+        System.out.println("case = " + caseCount + ", run_reloc = " + run_reloc);
         System.out.println("============================================================");
 
-
         String appJar = ClassFileInstaller.getJarPath("hello.jar");
-        String mainClass = "HelloRelocation";
+        String mainClass = "Hello";
         String forceRelocation = "-XX:ArchiveRelocationMode=1";
-        String dumpRelocArg = dump_reloc ? forceRelocation : "-showversion";
         String runRelocArg  = run_reloc  ? forceRelocation : "-showversion";
         String logArg = "-Xlog:cds=debug,cds+reloc=debug";
         String unlockArg = "-XX:+UnlockDiagnosticVMOptions";
         String nmtArg = "-XX:NativeMemoryTracking=detail";
 
         OutputAnalyzer out = TestCommon.dump(appJar,
-                                             TestCommon.list(mainClass,
-                                                             "HelloInlineClassApp",
-                                                             "HelloInlineClassApp$Point"),
-                                             unlockArg, dumpRelocArg, logArg, nmtArg);
-        if (dump_reloc) {
-            out.shouldContain("ArchiveRelocationMode == 1: always allocate class space at an alternative address");
-            out.shouldContain("Relocating archive from");
-        }
+                TestCommon.list(mainClass),
+                unlockArg, logArg, nmtArg);
+        out.shouldContain("Relocating archive from");
 
         TestCommon.run("-cp", appJar, unlockArg, runRelocArg, logArg,  mainClass)
-            .assertNormalExit(output -> {
+                .assertNormalExit(output -> {
                     if (run_reloc) {
                         output.shouldContain("Try to map archive(s) at an alternative address");
                     }

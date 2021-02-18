@@ -37,7 +37,7 @@ import java.nio.file.Paths;
 
 public class BoxValCastTest {
 
-    static inline class VT {
+    static primitive class VT {
         int f = 0;
         static final VT.ref vtbox = (VT.ref) new VT(); // no binary cast
         static VT vt = (VT) vtbox; // binary cast

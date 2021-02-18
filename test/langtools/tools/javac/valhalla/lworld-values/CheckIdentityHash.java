@@ -28,7 +28,7 @@
  * @compile CheckIdentityHash.java 
  */
 
-final inline class CheckIdentityHash {
+final primitive class CheckIdentityHash {
     int identityHashCode(CheckIdentityHash x) {
         return 0;
     }

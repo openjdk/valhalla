@@ -28,7 +28,7 @@
  * @run main/othervm QualifiedSuperCtor
  */
 
-inline class A {
+primitive class A {
     int x = 1000000;
     class Inner { 
         String aDotThis;

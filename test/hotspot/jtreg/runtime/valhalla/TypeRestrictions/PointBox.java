@@ -33,14 +33,14 @@ class PointBox {
     @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
     static public Object p71;
 
-    static inline class Point {
+    static primitive class Point {
         public double x;
         public double y;
 
         public Point(double x, double y) { this.x = x; this.y = y; }
     }
 
-    static inline class Rec {
+    static primitive class Rec {
         @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
         public Point.ref p37;
 

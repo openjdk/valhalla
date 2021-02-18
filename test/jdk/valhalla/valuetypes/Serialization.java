@@ -78,7 +78,7 @@ public class Serialization {
     }
 
     /** A Serializable Point */
-    static inline class SerializablePoint implements Serializable {
+    static primitive class SerializablePoint implements Serializable {
         public int x;
         public int y;
         SerializablePoint(int x, int y) { this.x = x; this.y = y; }
@@ -90,7 +90,7 @@ public class Serialization {
     }
 
     /** An Externalizable Point */
-    static inline class ExternalizablePoint implements Externalizable {
+    static primitive class ExternalizablePoint implements Externalizable {
         public int x;
         public int y;
         ExternalizablePoint(int x, int y) { this.x = x; this.y = y; }
@@ -130,7 +130,7 @@ public class Serialization {
     }
 
     /** A Serializable Foo, with a serial proxy */
-    static inline class SerializableFoo implements Serializable {
+    static primitive class SerializableFoo implements Serializable {
         public int x;
         SerializableFoo(int x) { this.x = x; }
         static SerializableFoo make(int x) {
@@ -152,7 +152,7 @@ public class Serialization {
     }
 
     /** An Externalizable Foo, with a serial proxy */
-    static inline class ExternalizableFoo implements Externalizable {
+    static primitive class ExternalizableFoo implements Externalizable {
         public String s;
         ExternalizableFoo(String s) {  this.s = s; }
         static ExternalizableFoo make(String s) {

@@ -42,7 +42,7 @@ import static jdk.test.lib.Asserts.*;
 public class UnsafeTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
-    static inline class Value1 {
+    static primitive class Value1 {
         Point point;
         Point[] array;
         Value1(Point p, Point... points) {
@@ -51,7 +51,7 @@ public class UnsafeTest {
         }
     }
 
-    static inline class Value2 {
+    static primitive class Value2 {
         int i;
         Value1 v;
 
@@ -61,7 +61,7 @@ public class UnsafeTest {
         }
     }
 
-    static inline class Value3 {
+    static primitive class Value3 {
         Object o;
         Value2 v;
 

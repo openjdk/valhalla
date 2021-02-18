@@ -7,7 +7,7 @@
 
 final class ConditionalTypeTest {
     interface I {}
-    static inline class Node implements I {}
+    static primitive class Node implements I {}
     static void foo(int i) {
         var ret1 = (i == 0) ? new XNodeWrapper() : new Node();
         ret1 = "String cannot be assigned to I";
@@ -32,5 +32,5 @@ final class ConditionalTypeTest {
         var ret9 = (i == 0) ? (Node.ref) new Node() : new Node();
         ret9 = "String cannot be assigned to Node";
     }
-    static inline class XNodeWrapper implements I {}
+    static primitive class XNodeWrapper implements I {}
 }

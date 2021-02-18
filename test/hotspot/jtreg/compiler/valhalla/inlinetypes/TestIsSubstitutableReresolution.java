@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution::test
  *                   compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution
  */
-final inline class MyValue {
+final primitive class MyValue {
     final int x;
 
     public MyValue(int x) {

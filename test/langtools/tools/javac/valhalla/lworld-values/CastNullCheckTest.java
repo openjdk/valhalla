@@ -35,7 +35,7 @@
 
 public class CastNullCheckTest {
 
-    final inline class XX {
+    final primitive class XX {
         final int x = 10;
     }
 

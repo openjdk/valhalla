@@ -7,7 +7,7 @@
 
 public class GenericArrayTest {
 
-    public inline class Value<T> {
+    public primitive class Value<T> {
 
         T t = null;
 

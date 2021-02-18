@@ -73,7 +73,7 @@ public class InlineTypeDensity {
 
     interface LocalDateTime extends LocalDate, LocalTime {}
 
-    static final inline class LocalDateValue implements LocalDate {
+    static final primitive class LocalDateValue implements LocalDate {
         final int   year;
         final short month;
         final short day;
@@ -97,7 +97,7 @@ public class InlineTypeDensity {
         }
     }
 
-    static final inline class LocalTimeValue implements LocalTime {
+    static final primitive class LocalTimeValue implements LocalTime {
         final byte hour;
         final byte minute;
         final byte second;
@@ -125,7 +125,7 @@ public class InlineTypeDensity {
         }
     }
 
-    static final inline class LocalDateTimeValue implements LocalDateTime {
+    static final primitive class LocalDateTimeValue implements LocalDateTime {
         final LocalDateValue date;
         final LocalTimeValue time;
 
@@ -233,10 +233,10 @@ public class InlineTypeDensity {
         Asserts.assertLessThan(flatArraySize, objectArraySize, "Flat array accounts for more heap than object array + elements !");
     }
 
-    static inline class MyByte  { byte  v = 0; }
-    static inline class MyShort { short v = 0; }
-    static inline class MyInt   { int   v = 0; }
-    static inline class MyLong  { long  v = 0; }
+    static primitive class MyByte  { byte  v = 0; }
+    static primitive class MyShort { short v = 0; }
+    static primitive class MyInt   { int   v = 0; }
+    static primitive class MyLong  { long  v = 0; }
 
     void assertArraySameSize(Object a, Object b, int nofElements) {
         long aSize = WHITE_BOX.getObjectSize(a);
@@ -287,11 +287,11 @@ public class InlineTypeDensity {
         testLongArraySizesSame(testSizes);
     }
 
-    static inline class bbValue { byte b = 0; byte b2 = 0;}
-    static inline class bsValue { byte b = 0; short s = 0;}
-    static inline class siValue { short s = 0; int i = 0;}
-    static inline class ssiValue { short s = 0; short s2 = 0; int i = 0;}
-    static inline class blValue { byte b = 0; long l = 0; }
+    static primitive class bbValue { byte b = 0; byte b2 = 0;}
+    static primitive class bsValue { byte b = 0; short s = 0;}
+    static primitive class siValue { short s = 0; int i = 0;}
+    static primitive class ssiValue { short s = 0; short s2 = 0; int i = 0;}
+    static primitive class blValue { byte b = 0; long l = 0; }
 
     // Expect aligned array addressing to nearest pow2
     void testAlignedSize() {

@@ -37,11 +37,11 @@ import java.lang.ref.*;
  */
 public class Ifacmp {
 
-    static inline class MyValue {
+    static primitive class MyValue {
         int value;
         public MyValue(int v) { this.value = v; }
     };
-    static inline class MyValue2 {
+    static primitive class MyValue2 {
         int value;
         public MyValue2(int v) { this.value = v; }
     };

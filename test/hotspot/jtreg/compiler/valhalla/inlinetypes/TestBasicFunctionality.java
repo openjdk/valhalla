@@ -786,12 +786,12 @@ public class TestBasicFunctionality extends InlineTypeTest {
     }
 
     // Test correct loading of flattened fields
-    inline class Test37Value2 {
+    primitive class Test37Value2 {
         final int x = 0;
         final int y = 0;
     }
 
-    inline class Test37Value1 {
+    primitive class Test37Value1 {
         final double d = 0;
         final float f = 0;
         final Test37Value2 v = new Test37Value2();
@@ -809,7 +809,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
     }
 
     // Test elimination of inline type allocations without a unique CheckCastPP
-    inline class Test38Value {
+    primitive class Test38Value {
         public int i;
         public Test38Value(int i) { this.i = i; }
     }
@@ -836,7 +836,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
     }
 
     // Tests split if with inline type Phi users
-    static inline class Test39Value {
+    static primitive class Test39Value {
         public int iFld1;
         public int iFld2;
 

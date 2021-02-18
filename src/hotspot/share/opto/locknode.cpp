@@ -184,7 +184,7 @@ void Parse::do_monitor_enter() {
 
   Node* obj = peek();
   const Type* obj_type = gvn().type(obj);
-  if (obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
+  if (obj_type->isa_inlinetype() || obj_type->is_inlinetypeptr()) {
     uncommon_trap(Deoptimization::Reason_class_check,
                   Deoptimization::Action_none);
     return;

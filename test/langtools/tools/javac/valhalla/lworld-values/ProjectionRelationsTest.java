@@ -60,7 +60,7 @@ public class ProjectionRelationsTest {
     }
 
     public static void main(String... args) throws Exception {
-        String code = "inline class C {\n" +
+        String code = "primitive class C {\n" +
                 "         C.ref cref     = new C();\n" +
                 "         C []  ca       = null;\n" +
                 "         C.ref [] cra   = null;\n" +

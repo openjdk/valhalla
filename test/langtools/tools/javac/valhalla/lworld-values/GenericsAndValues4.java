@@ -30,7 +30,7 @@
  * @compile GenericsAndValues4.java
  */
 
-inline class InlineType<E> {
+primitive class InlineType<E> {
 
     interface Sample<K extends Comparable<? super K>, V> {
         void doesCompile(InlineType<? extends K> argument);

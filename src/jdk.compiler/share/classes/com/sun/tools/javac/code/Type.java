@@ -235,7 +235,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         this.metadata = metadata;
     }
 
-    public boolean isValue() {
+    public boolean isPrimitiveClass() {
         return false;
     }
 
@@ -1195,8 +1195,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         @Override
-        public boolean isValue() {
-            return tsym != null && tsym.isValue();
+        public boolean isPrimitiveClass() {
+            return tsym != null && tsym.isPrimitiveClass();
         }
 
         @Override
@@ -1229,7 +1229,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public ClassType referenceProjection() {
 
-            if (!isValue() || projection != null)
+            if (!isPrimitiveClass() || projection != null)
                 return projection;
 
             // make a best case effort to cache the other projection.

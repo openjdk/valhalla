@@ -36,7 +36,7 @@ import jdk.test.lib.Asserts;
 
 public class CheckcastTest {
 
-    static inline class Point {
+    static primitive class Point {
         int x;
         int y;
 

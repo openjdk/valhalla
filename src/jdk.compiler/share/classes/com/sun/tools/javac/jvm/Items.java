@@ -148,7 +148,7 @@ public class Items {
      *  @param member   The represented symbol.
      */
     Item makeStaticItem(Symbol member) {
-        if (this.types.flattenWithTypeRestrictions && member.kind == Kind.VAR && member.type.isValue()) {
+        if (this.types.flattenWithTypeRestrictions && member.kind == Kind.VAR && member.type.isPrimitiveClass()) {
             return new StaticItem(getFlattenedField(member));
         } else {
             return new StaticItem(member);
@@ -161,7 +161,7 @@ public class Items {
      *                      and private members).
      */
     Item makeMemberItem(Symbol member, boolean nonvirtual) {
-        if (this.types.flattenWithTypeRestrictions && member.kind == Kind.VAR && member.type.isValue()) {
+        if (this.types.flattenWithTypeRestrictions && member.kind == Kind.VAR && member.type.isPrimitiveClass()) {
             return new MemberItem(getFlattenedField(member), nonvirtual);
         } else {
             return new MemberItem(member, nonvirtual);

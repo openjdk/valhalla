@@ -53,7 +53,7 @@ public class UnannotatedProjection {
     @interface TARR {}
 
     @DA @DARR
-    public inline class V<@TA @TARR T> {}
+    public primitive class V<@TA @TARR T> {}
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(UnannotatedProjection.class.getResourceAsStream("UnannotatedProjection$V.class"));

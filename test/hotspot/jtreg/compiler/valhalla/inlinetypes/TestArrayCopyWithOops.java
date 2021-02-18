@@ -49,7 +49,7 @@ public class TestArrayCopyWithOops {
         long val = Integer.MAX_VALUE;
     }
 
-    static inline class ManyOops {
+    static primitive class ManyOops {
         MyObject o1 = new MyObject();
         MyObject o2 = new MyObject();
         MyObject o3 = new MyObject();

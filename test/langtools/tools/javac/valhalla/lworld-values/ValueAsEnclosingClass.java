@@ -28,9 +28,9 @@
  * @run main/othervm ValueAsEnclosingClass
  */
 
-public inline class ValueAsEnclosingClass {
+public primitive class ValueAsEnclosingClass {
 
-    static inline class V {
+    static primitive class V {
         int y = 52;
 
         class Bar { }

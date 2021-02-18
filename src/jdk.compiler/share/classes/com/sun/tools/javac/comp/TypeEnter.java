@@ -681,7 +681,7 @@ public class TypeEnter implements Completer {
             // Determine supertype.
             Type supertype;
             JCExpression extending;
-            final boolean isValueType = (tree.mods.flags & Flags.VALUE) != 0;
+            final boolean isValueType = (tree.mods.flags & Flags.PRIMITIVE_CLASS) != 0;
 
             if (tree.extending != null) {
                 extending = clearTypeParams(tree.extending);
@@ -733,7 +733,7 @@ public class TypeEnter implements Completer {
                 ct.all_interfaces_field = (all_interfaces == null)
                         ? ct.interfaces_field : all_interfaces.toList();
             }
-            if (ct.isValue()) {
+            if (ct.isPrimitiveClass()) {
                 ClassSymbol cSym = (ClassSymbol) ct.tsym;
                 if (cSym.projection != null) {
                     ClassType projectedType = (ClassType) cSym.projection.type;

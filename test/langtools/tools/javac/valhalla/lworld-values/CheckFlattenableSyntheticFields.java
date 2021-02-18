@@ -35,16 +35,16 @@ import com.sun.tools.classfile.*;
 
 public class CheckFlattenableSyntheticFields {
     public class RefOuter {
-        inline  class Inner {
+        primitive  class Inner {
             private final int value2;
             public Inner(int value2) {
                 this.value2 = value2;
             }
         }
     }
-    public inline class ValueOuter {
+    public primitive class ValueOuter {
         int x = 10;
-        inline  class Inner {
+        primitive  class Inner {
             private final int value2;
             public Inner(int value2) {
                 this.value2 = value2;
@@ -55,7 +55,7 @@ public class CheckFlattenableSyntheticFields {
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckFlattenableSyntheticFields.class.getResourceAsStream("CheckFlattenableSyntheticFields$ValueOuter$Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
+        if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
@@ -63,7 +63,7 @@ public class CheckFlattenableSyntheticFields {
 
         cls = ClassFile.read(CheckFlattenableSyntheticFields.class.getResourceAsStream("CheckFlattenableSyntheticFields$RefOuter$Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
+        if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))

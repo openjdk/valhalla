@@ -26,13 +26,13 @@
 /*
  * @test
  * @bug 8244711
- * @summary Test that inline types work well with TWR
+ * @summary Test that primitive classes work well with TWR
  * @run main AutoCloseableTest
  */
 
 public class AutoCloseableTest {
 
-    inline static class Foo implements AutoCloseable {
+    primitive static class Foo implements AutoCloseable {
 
         String s = "Exception while closing AutoCloseable";
 

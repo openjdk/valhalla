@@ -72,7 +72,7 @@ public class ValueBootstrapMethods {
         }
     }
 
-    public static inline class Value {
+    public static primitive class Value {
         private final int i;
         private final double d;
         private final String s;

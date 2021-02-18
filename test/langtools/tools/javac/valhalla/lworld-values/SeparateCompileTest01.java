@@ -40,7 +40,7 @@ class ForeignType<X> {
     public Pointer<X> allocate() { return null; }
 }
 
-inline class Point {
+primitive class Point {
     final int x;
     final int y;
 

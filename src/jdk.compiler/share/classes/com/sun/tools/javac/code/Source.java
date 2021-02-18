@@ -223,7 +223,7 @@ public enum Source {
         PATTERN_MATCHING_IN_INSTANCEOF(JDK16, Fragments.FeaturePatternMatchingInstanceof, DiagKind.NORMAL),
         REIFIABLE_TYPES_INSTANCEOF(JDK16, Fragments.FeatureReifiableTypesInstanceof, DiagKind.PLURAL),
         RECORDS(JDK16, Fragments.FeatureRecords, DiagKind.PLURAL),
-        INLINE_TYPES(JDK17, Fragments.FeatureInlineType, DiagKind.NORMAL),
+        PRIMITIVE_CLASSES(JDK17, Fragments.FeaturePrimitiveClasses, DiagKind.NORMAL),
         SEALED_CLASSES(JDK17, Fragments.FeatureSealedClasses, DiagKind.PLURAL),
         ;
 

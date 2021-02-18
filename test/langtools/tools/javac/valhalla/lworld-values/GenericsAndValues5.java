@@ -37,7 +37,7 @@ import java.util.function.Function;
 import java.util.List;
 import java.util.ArrayList;
 
-inline class Optional<T> {
+primitive class Optional<T> {
     private T value;
 
     @SuppressWarnings("unchecked")

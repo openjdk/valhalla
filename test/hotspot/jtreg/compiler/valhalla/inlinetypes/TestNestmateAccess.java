@@ -41,7 +41,7 @@ interface MyInterface {
     int hash();
 }
 
-inline class MyValue implements MyInterface {
+primitive class MyValue implements MyInterface {
     int x = 42;
     int y = 43;
 
@@ -69,7 +69,7 @@ class Test1 {
 }
 
 // Same as Test1 but outer class is an inline type
-inline class Test2 {
+primitive class Test2 {
     private MyValue vt;
 
     public Test2(final MyValue vt) {
@@ -123,7 +123,7 @@ class Test4 {
 }
 
 // Same as Test2 but with static field
-inline class Test5 {
+primitive class Test5 {
     private static MyValue vt;
 
     public Test5(final MyValue vt) {
@@ -158,7 +158,7 @@ class Test6 {
 }
 
 // Same as Test6 but outer class is an inline type
-inline class Test7 {
+primitive class Test7 {
     private static MyValue vt;
 
     public MyInterface test(MyValue init) {

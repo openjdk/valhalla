@@ -39,8 +39,8 @@ import java.lang.invoke.RestrictedType;
 
 public class RestrictedTypeAnnotationCodegenTest {
 
-    inline class Point {}
-    inline class Line {}
+    primitive class Point {}
+    primitive class Line {}
 
     @RestrictedType("QRestrictedTypeAnnotationCodegenTest$Line;")
     public Object jloFld = null;
