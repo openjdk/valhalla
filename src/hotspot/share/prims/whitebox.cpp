@@ -1814,7 +1814,7 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
     return NULL;
   }
   instanceHandle ih(THREAD, (instanceOop) aoop);
-  InstanceKlass* klass = InstanceKlass::cast(aoop->klass());
+  InstanceKlass* klass = InstanceKlass::cast(ih->klass());
   if (klass->nonstatic_oop_map_count() == 0) {
     return NULL;
   }
@@ -1826,61 +1826,56 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
     map++;
   }
 
-  objArrayOop result_array =
-      oopFactory::new_objArray(vmClasses::Object_klass(), oop_count, CHECK_NULL);
+  objArrayHandle result_array =
+      oopFactory::new_objArray_handle(vmClasses::Object_klass(), oop_count, CHECK_NULL);
   map = klass->start_of_nonstatic_oop_maps();
-  instanceOop ioop = ih();
   int index = 0;
   while (map < end) {
     int offset = map->offset();
     for (unsigned int j = 0; j < map->count(); j++) {
-      result_array->obj_at_put(index++, ioop->obj_field(offset));
+      result_array->obj_at_put(index++, ih->obj_field(offset));
       offset += heapOopSize;
     }
     map++;
   }
-  return (jobjectArray)JNIHandles::make_local(THREAD, result_array);
+  return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
 WB_END
 
 class CollectOops : public BasicOopIterateClosure {
  public:
   GrowableArray<Handle>* array;
 
-  objArrayOop create_results(TRAPS) {
-    objArrayOop result_array =
-        oopFactory::new_objArray(vmClasses::Object_klass(), array->length(), CHECK_NULL);
+  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
+    objArrayHandle result_array =
+        oopFactory::new_objArray_handle(vmClasses::Object_klass(), array->length(), CHECK_NULL);
     for (int i = 0 ; i < array->length(); i++) {
       result_array->obj_at_put(i, array->at(i)());
     }
-    return result_array;
-  }
-
-  jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    return (jobjectArray)JNIHandles::make_local(THREAD, create_results(THREAD));
+    return (jobjectArray)JNIHandles::make_local(THREAD, result_array());
   }
 
   void add_oop(oop o) {
+    Handle oh = Handle(Thread::current(), o);
     // Value might be oop, but JLS can't see as Object, just iterate through it...
-    if (o != NULL && o->is_inline_type()) {
-      o->oop_iterate(this);
+    if (oh != NULL && oh->is_inline_type()) {
+      oh->oop_iterate(this);
     } else {
-      array->append(Handle(Thread::current(), o));
+      array->append(oh);
     }
   }
 
-  void do_oop(oop* o) { add_oop(*o); }
-  void do_oop(narrowOop* v) { add_oop(CompressedOops::decode(*v)); }
+  void do_oop(oop* o) { add_oop(HeapAccess<>::oop_load(o)); }
+  void do_oop(narrowOop* v) { add_oop(HeapAccess<>::oop_load(v)); }
 };
 
 
 WB_ENTRY(jobjectArray, WB_getObjectsViaOopIterator(JNIEnv* env, jobject wb, jobject thing))
-  ResourceMark rm(THREAD);
+  ResourceMark rm(thread);
+  Handle objh(thread, JNIHandles::resolve(thing));
   GrowableArray<Handle>* array = new GrowableArray<Handle>(128);
   CollectOops collectOops;
   collectOops.array = array;
-
-  JNIHandles::resolve(thing)->oop_iterate(&collectOops);
-
+  objh->oop_iterate(&collectOops);
   return collectOops.create_jni_result(env, THREAD);
 WB_END
 

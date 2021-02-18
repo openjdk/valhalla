@@ -146,9 +146,6 @@ public abstract class InlineTypeTest {
     private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "true"));
     private static final boolean PREFER_CL_FLAGS = Boolean.parseBoolean(System.getProperty("PreferCommandLineFlags", "false"));
 
-    // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
-    protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
-
     // Pre-defined settings
     private static final String[] defaultFlags = {
         "-XX:-BackgroundCompilation"};
@@ -368,9 +365,6 @@ public abstract class InlineTypeTest {
                 if (!PREFER_CL_FLAGS) {
                     cmds = InputArguments.getVmInputArgs();
                 }
-                if (RUN_SCENARIOS_WITH_XCOMP) {
-                    cmds = concat(cmds, "-Xcomp");
-                }
                 cmds = concat(cmds, test.getVMParameters(i));
                 cmds = concat(cmds, test.getExtraVMParameters(i));
                 if (PREFER_CL_FLAGS) {
@@ -578,9 +572,7 @@ public abstract class InlineTypeTest {
                 continue;
             }
             String graph = compilations.get(testName);
-            if (PRINT_GRAPH) {
-                System.out.println("\nGraph for " + testName + "\n" + graph);
-            }
+            System.out.println("\nGraph for " + testName + "\n" + graph);
             // Parse graph using regular expressions to determine if it contains forbidden nodes
             Test[] annos = test.getAnnotationsByType(Test.class);
             Test anno = Arrays.stream(annos).filter(TestAnnotation::find).findFirst().orElse(null);

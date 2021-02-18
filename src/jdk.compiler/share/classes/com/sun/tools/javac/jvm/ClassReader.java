@@ -105,9 +105,9 @@ public class ClassReader {
      */
     boolean allowModules;
 
-    /** Switch: allow inline types.
+    /** Switch: allow primitive classes.
      */
-    boolean allowInlineTypes;
+    boolean allowPrimitiveClasses;
 
     /** Switch: allow sealed
      */
@@ -276,7 +276,7 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowInlineTypes = Feature.INLINE_TYPES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
                 Feature.SEALED_CLASSES.allowedInSource(source);
@@ -297,7 +297,7 @@ public class ClassReader {
     private void enterMember(ClassSymbol c, Symbol sym) {
         // Synthetic members are not entered -- reason lost to history (optimization?).
         // Lambda methods must be entered because they may have inner classes (which reference them)
-        ClassSymbol refProjection =  c.isValue() ? c.referenceProjection() : null;
+        ClassSymbol refProjection =  c.isPrimitiveClass() ? c.referenceProjection() : null;
         if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda)) {
             c.members_field.enter(sym);
             if (refProjection != null) {
@@ -813,7 +813,7 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (allowInlineTypes) {
+                    if (allowPrimitiveClasses) {
                         if (sym.isConstructor()  && ((MethodSymbol) sym).type.getParameterTypes().size() == 0) {
                             int code_length = buf.getInt(bp + 4);
                             if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
@@ -1004,7 +1004,7 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValue()) {
+                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isPrimitiveClass()) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -1280,7 +1280,7 @@ public class ClassReader {
             new AttributeReader(names.RestrictedField, V60, MEMBER_ATTRIBUTE) {
                 @Override
                 protected boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowInlineTypes;
+                    return super.accepts(kind) && allowPrimitiveClasses;
                 }
                 protected void read(Symbol sym, int attrLen) {
                     if (sym.kind == VAR && sym.owner.kind == TYP) {
@@ -1296,7 +1296,7 @@ public class ClassReader {
             new AttributeReader(names.RestrictedMethod, V60, MEMBER_ATTRIBUTE) {
                 @Override
                 protected boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowInlineTypes;
+                    return super.accepts(kind) && allowPrimitiveClasses;
                 }
                 protected void read(Symbol sym, int attrLen) {
                     if (!types.flattenWithTypeRestrictions) {
@@ -2554,7 +2554,7 @@ public class ClassReader {
     }
 
     protected ClassSymbol enterClass(Name name) {
-        if (allowInlineTypes && name.toString().endsWith("$ref")) {
+        if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
             ClassSymbol v = syms.enterClass(currentModule, name.subName(0, name.length() - 4));
             return v.referenceProjection();
         }
@@ -2725,7 +2725,7 @@ public class ClassReader {
 
     public void readClassFile(ClassSymbol c) {
         readClassFileInternal(c);
-        if (c.isValue()) {
+        if (c.isPrimitiveClass()) {
             /* http://cr.openjdk.java.net/~briangoetz/valhalla/sov/04-translation.html
                The relationship of value and reference projections differs between the language model
                and the VM model. In the language, the value projection is not a subtype of the
@@ -2845,10 +2845,10 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_INLINE) != 0) {
-            flags &= ~ACC_INLINE;
-            if (allowInlineTypes) {
-                flags |= VALUE;
+        if ((flags & ACC_PRIMITIVE) != 0) {
+            flags &= ~ACC_PRIMITIVE;
+            if (allowPrimitiveClasses) {
+                flags |= PRIMITIVE_CLASS;
             }
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded

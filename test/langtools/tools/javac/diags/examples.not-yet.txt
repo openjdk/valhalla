@@ -205,16 +205,16 @@ compiler.err.preview.not.latest
 compiler.err.preview.without.source.or.release
 
 # Value types
-compiler.err.cyclic.value.type.membership
-compiler.err.value.does.not.support
-compiler.err.value.may.not.extend
+compiler.err.cyclic.primitive.class.membership
+compiler.err.primitive.class.does.not.support
+compiler.err.primitive.class.may.not.extend
 compiler.err.this.exposed.prematurely
-compiler.err.inline.type.must.not.implement.identity.object
-compiler.err.concrete.supertype.for.inline.class
+compiler.err.primitive.class.must.not.implement.identity.object
+compiler.err.concrete.supertype.for.primitive.class
 compiler.err.super.class.cannot.be.inner
 compiler.err.super.class.declares.init.block
 compiler.err.super.constructor.cannot.take.arguments
 compiler.err.super.field.not.allowed
 compiler.err.super.method.cannot.be.synchronized
 compiler.err.super.no.arg.constructor.must.be.empty
-compiler.err.generic.parameterization.with.value.type
+compiler.err.generic.parameterization.with.primitive.class

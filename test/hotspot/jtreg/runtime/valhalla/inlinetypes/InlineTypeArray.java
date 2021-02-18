@@ -244,7 +244,7 @@ public class InlineTypeArray {
         assertEquals(x, 1, "Bad Point Value");
     }
 
-    static final inline class MyInt implements Comparable<MyInt.ref> {
+    static final primitive class MyInt implements Comparable<MyInt.ref> {
         final int value;
 
         private MyInt() { this(0); }
@@ -277,7 +277,7 @@ public class InlineTypeArray {
         default String hi() { return "Hi"; }
     }
 
-    static final inline class MyOtherInt implements SomeSecondaryType {
+    static final primitive class MyOtherInt implements SomeSecondaryType {
         final int value;
         private MyOtherInt() { value = 0; }
     }
@@ -465,7 +465,7 @@ public class InlineTypeArray {
         } catch (NullPointerException npe) {}
     }
 
-    static final inline class MyPoint {
+    static final primitive class MyPoint {
         final               MyInt x;
         final               MyInt y;
 

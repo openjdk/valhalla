@@ -37,7 +37,7 @@ public class CheckLocalClasses {
     public class RefOuter {
         void foo() {
             RefOuter o = new RefOuter();
-            inline  class Inner {
+            primitive  class Inner {
                 private final int value2;
                 public Inner(int value2) {
                     System.out.println(o);
@@ -46,11 +46,11 @@ public class CheckLocalClasses {
             }
         }
     }
-    public inline class ValueOuter {
+    public primitive class ValueOuter {
         int x = 10;
         void foo() {
             ValueOuter o = new ValueOuter();
-            inline class Inner {
+            primitive class Inner {
                 private final int value2;
                 public Inner(int value2) {
                     System.out.println(o);
@@ -63,7 +63,7 @@ public class CheckLocalClasses {
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$ValueOuter$1Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
+        if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
@@ -71,7 +71,7 @@ public class CheckLocalClasses {
 
         cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$RefOuter$1Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
+        if (!cls.access_flags.is(AccessFlags.ACC_PRIMITIVE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))

@@ -33,7 +33,7 @@
 
 import com.sun.tools.classfile.*;
 
-public inline class CheckFieldDescriptors {
+public primitive class CheckFieldDescriptors {
 
     int x = 10;
 

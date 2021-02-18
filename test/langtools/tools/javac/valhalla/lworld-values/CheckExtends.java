@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckExtends.out -XDrawDiagnostics CheckExtends.java
  */
 
-final inline class CheckExtends extends Object {
+final primitive class CheckExtends extends Object {
     static class Nested {}
-    static inline class NestedValue extends Nested {}
+    static primitive class NestedValue extends Nested {}
 }

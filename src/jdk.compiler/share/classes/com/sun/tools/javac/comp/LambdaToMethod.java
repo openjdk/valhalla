@@ -2340,7 +2340,7 @@ public class LambdaToMethod extends TreeTranslator {
                         receiverIsReferenceProjection() ||
                         (tree.getMode() == ReferenceMode.NEW &&
                           tree.kind != ReferenceKind.ARRAY_CTOR &&
-                          (tree.sym.owner.isDirectlyOrIndirectlyLocal() || tree.sym.owner.isInner() || tree.sym.owner.isValue()));
+                          (tree.sym.owner.isDirectlyOrIndirectlyLocal() || tree.sym.owner.isInner() || tree.sym.owner.isPrimitiveClass()));
             }
 
             Type generatedRefSig() {

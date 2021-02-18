@@ -64,10 +64,10 @@ public enum Modifier {
      */
      DEFAULT,
     /**
-     * The modifier {@code value}
-     * @since 1.11
+     * The modifier {@code primitive}
+     * @since 1.17
      */
-    VALUE,
+    PRIMITIVE,
 
     /** The modifier {@code static} */          STATIC,
 

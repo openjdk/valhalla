@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public inline class QComplex implements Complex {
+public primitive class QComplex implements Complex {
 
     public final double re;
     public final double im;

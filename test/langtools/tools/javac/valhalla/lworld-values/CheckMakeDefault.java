@@ -4,17 +4,17 @@
  *
  * @compile/fail/ref=CheckMakeDefault.out -XDallowWithFieldOperator -XDrawDiagnostics CheckMakeDefault.java
  */
-inline final class Point {
+primitive final class Point {
 
-    inline interface I { int x = 10; } // Error
-    inline abstract class A { int x = 10; } // Error
+    primitive interface I { int x = 10; } // Error
+    primitive abstract class A { int x = 10; } // Error
     static final class Sinner {
         static Sinner make() {
             return Sinner.default;
         }
     }
 
-    inline static final class SinnerValue {
+    primitive static final class SinnerValue {
         static SinnerValue make() {
             return SinnerValue.default;
         } int x = 10;

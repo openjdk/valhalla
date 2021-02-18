@@ -42,7 +42,7 @@ import static org.testng.Assert.*;
 public class InlineConstructorTest {
 
     // Target test class
-    static inline class SimpleInline {
+    static primitive class SimpleInline {
         public final int x;
 
         SimpleInline() {

@@ -21,7 +21,7 @@
  * questions.
  */
 
-public inline class Point {
+public primitive class Point {
 
     public static Point getInstance(int x, int y) {
         return new Point(x, y);

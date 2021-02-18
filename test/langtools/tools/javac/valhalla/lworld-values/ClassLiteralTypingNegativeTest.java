@@ -7,7 +7,7 @@
 
 public class ClassLiteralTypingNegativeTest {
 
-    public static inline class Foo {
+    public static primitive class Foo {
         final int value = 0;
 
         public static void main(String[] args) {
@@ -24,7 +24,7 @@ public class ClassLiteralTypingNegativeTest {
 
     interface I {}
 
-    public static inline class Bar implements I {
+    public static primitive class Bar implements I {
         final int value = 0;
 
         public static void main(String[] args) {

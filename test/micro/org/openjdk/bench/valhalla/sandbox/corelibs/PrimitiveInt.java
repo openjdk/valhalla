@@ -1,6 +1,6 @@
 package org.openjdk.bench.valhalla.sandbox.corelibs;
 
-public inline class PrimitiveInt {
+public primitive class PrimitiveInt {
     int value;
 
     PrimitiveInt(int value) {

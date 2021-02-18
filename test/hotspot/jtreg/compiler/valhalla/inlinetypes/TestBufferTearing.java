@@ -54,7 +54,7 @@ import jdk.internal.misc.Unsafe;
  *                   compiler.valhalla.inlinetypes.TestBufferTearing
  */
 
-inline class MyValue {
+primitive class MyValue {
     int x;
     int y;
 

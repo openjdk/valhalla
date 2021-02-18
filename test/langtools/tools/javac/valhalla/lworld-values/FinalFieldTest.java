@@ -4,7 +4,7 @@
  * @compile/fail/ref=FinalFieldTest.out --should-stop=at=FLOW -XDrawDiagnostics  FinalFieldTest.java
  */
 
-final inline class Blah {
+final primitive class Blah {
     final int x = 10;
     final int y;
     Blah() {

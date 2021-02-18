@@ -208,6 +208,15 @@ jint ciKlass::access_flags() {
 }
 
 // ------------------------------------------------------------------
+// ciKlass::prototype_header
+markWord ciKlass::prototype_header() const {
+  assert(is_loaded(), "not loaded");
+  GUARDED_VM_ENTRY(
+    return get_Klass()->prototype_header();
+  )
+}
+
+// ------------------------------------------------------------------
 // ciKlass::print_impl
 //
 // Implementation of the print method

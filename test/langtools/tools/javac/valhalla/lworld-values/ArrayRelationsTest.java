@@ -30,7 +30,7 @@
  * @run main/othervm ArrayRelationsTest
  */
 
-public inline class ArrayRelationsTest {
+public primitive class ArrayRelationsTest {
 
     int x = 42;
 

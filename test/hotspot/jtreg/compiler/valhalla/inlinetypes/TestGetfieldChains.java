@@ -181,12 +181,12 @@ public class TestGetfieldChains extends InlineTypeTest {
         Asserts.assertEQ(nsfe.getMessage(), "x");
     }
 
-    static inline class EmptyType { }
-    static inline class EmptyContainer {
+    static primitive class EmptyType { }
+    static primitive class EmptyContainer {
         int i = 0;
         EmptyType et = new EmptyType();
     }
-    static inline class Container {
+    static primitive class Container {
         EmptyContainer container0 = new EmptyContainer();
         EmptyContainer container1 = new EmptyContainer();
     }

@@ -9,7 +9,7 @@ public class MiscThisLeak {
     interface I {
         void foo();
     }
-    inline class V {
+    primitive class V {
         class K {}
         int f;
         V() {

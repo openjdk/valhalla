@@ -1,4 +1,4 @@
-CheckCyclicMembership.java:13:37: compiler.err.cyclic.value.type.membership: CheckCyclicMembership.InnerValue
-CheckCyclicMembership.java:15:33: compiler.err.cyclic.value.type.membership: CheckCyclicMembership
-CheckCyclicMembership.java:19:22: compiler.err.cyclic.value.type.membership: CheckCyclicMembership
+CheckCyclicMembership.java:13:37: compiler.err.cyclic.primitive.class.membership: CheckCyclicMembership.InnerValue
+CheckCyclicMembership.java:15:33: compiler.err.cyclic.primitive.class.membership: CheckCyclicMembership
+CheckCyclicMembership.java:19:22: compiler.err.cyclic.primitive.class.membership: CheckCyclicMembership
 3 errors

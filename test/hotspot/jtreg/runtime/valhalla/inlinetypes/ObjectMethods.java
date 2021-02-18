@@ -215,7 +215,7 @@ public class ObjectMethods {
         }
     }
 
-    static final inline class MyInt {
+    static final primitive class MyInt {
         final int value;
         private MyInt() { value = 0; }
         public static MyInt create(int v) {

@@ -31,7 +31,7 @@
 
 public class WithFieldAccessorTest {
 
-    public static final inline class V {
+    public static final primitive class V {
         private final int i;
         V() {
             this.i = 0;

@@ -32,7 +32,7 @@
 
 public class CompilerNoBogusAssert {
 
-    static inline class Point {
+    static primitive class Point {
         int x;
         int y;
 

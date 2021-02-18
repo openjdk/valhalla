@@ -5,11 +5,11 @@
  * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics CheckFlattenableCycles.java
  */
 
-final inline class CheckFlattenableCycles {
+final primitive class CheckFlattenableCycles {
     class InnerRef {
         CheckFlattenableCycles cfc;
     }
-    inline final class InnerValue {
+    primitive final class InnerValue {
         final CheckFlattenableCycles     cfc = CheckFlattenableCycles.default; // Error.
     }
     final CheckFlattenableCycles cfc = CheckFlattenableCycles.default; // Error.

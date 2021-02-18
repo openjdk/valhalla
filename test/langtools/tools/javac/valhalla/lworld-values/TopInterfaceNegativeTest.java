@@ -25,9 +25,9 @@ public class TopInterfaceNegativeTest  {
     static class C6 implements IdentityObject, ID {}
     static class C7 implements II, ID {}
 
-    static inline class V1 implements IdentityObject { int x = 0; }
-    static inline class V2 implements InlineObject {}
-    static inline class V3 implements InlineObject, InlineObject  {}
+    static primitive class V1 implements IdentityObject { int x = 0; }
+    static primitive class V2 implements InlineObject {}
+    static primitive class V3 implements InlineObject, InlineObject  {}
 
     void foo(V2 v) {
         if (v instanceof IdentityObject)

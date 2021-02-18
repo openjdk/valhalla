@@ -40,10 +40,10 @@ import java.util.Arrays;
 public class StaticInitFactoryTest {
     static interface Cons {};
 
-    static inline class DefaultConstructor implements Cons {
+    static primitive class DefaultConstructor implements Cons {
         int x = 0;
     }
-    static inline class ConstructorWithArgs implements Cons {
+    static primitive class ConstructorWithArgs implements Cons {
         int x;
         int y;
         public ConstructorWithArgs(int x) {

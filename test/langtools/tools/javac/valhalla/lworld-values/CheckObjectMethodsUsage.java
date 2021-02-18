@@ -5,7 +5,7 @@
  * @compile/fail/ref=CheckObjectMethodsUsage.out -XDrawDiagnostics CheckObjectMethodsUsage.java
  */
 
-public inline class CheckObjectMethodsUsage {
+public primitive class CheckObjectMethodsUsage {
     int x = 42;
 
     public void finalize() {}

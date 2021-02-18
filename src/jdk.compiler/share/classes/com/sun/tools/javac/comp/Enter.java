@@ -496,7 +496,7 @@ public class Enter extends JCTree.Visitor {
         // Enter type parameters.
         ct.typarams_field = classEnter(tree.typarams, localEnv);
         ct.allparams_field = null;
-        if (ct.isValue()) {
+        if (ct.isPrimitiveClass()) {
             if (ct.projection != null) {
                 ct.projection.typarams_field = ct.typarams_field;
                 ct.projection.allparams_field = ct.allparams_field;

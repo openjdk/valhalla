@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public inline class Q64int implements Int64, ByInt {
+public primitive class Q64int implements Int64, ByInt {
 
     public final Q32int v0;
     public final Q32int v1;

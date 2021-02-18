@@ -22,7 +22,7 @@
  */
 package org.openjdk.bench.valhalla.types;
 
-public inline class Q128byte implements Int128, ByByte {
+public primitive class Q128byte implements Int128, ByByte {
 
     public final Q64byte v0;
     public final Q64byte v1;

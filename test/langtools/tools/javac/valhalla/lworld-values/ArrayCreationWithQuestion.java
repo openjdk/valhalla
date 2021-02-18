@@ -37,7 +37,7 @@ import java.nio.file.Paths;
 
 public class ArrayCreationWithQuestion {
 
-    static inline class VT {
+    static primitive class VT {
         VT.ref[] a1 = new VT.ref[42];
         VT.ref[] a2 = new VT.ref[42];
         VT[] a3 = new VT[42];

@@ -32,7 +32,7 @@
  */
 
 
-inline final class TestValue1 {
+primitive final class TestValue1 {
     final int x;
     public TestValue1(int x) {
         this.x = x;

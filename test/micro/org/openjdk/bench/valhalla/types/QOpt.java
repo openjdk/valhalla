@@ -24,7 +24,7 @@ package org.openjdk.bench.valhalla.types;
 
 import java.util.NoSuchElementException;
 
-public inline class QOpt<T> implements Opt<T> {
+public primitive class QOpt<T> implements Opt<T> {
 
     public final T value;
 

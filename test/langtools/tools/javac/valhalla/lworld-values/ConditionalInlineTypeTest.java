@@ -32,7 +32,7 @@
 
 public class ConditionalInlineTypeTest {
 
-    static inline class V {}
+    static primitive class V {}
 
     public static void main(String [] args) {
 

@@ -29,7 +29,7 @@
  * @run main/othervm WithFieldOfGenericType
  */
 
-public final inline class WithFieldOfGenericType<E> {
+public final primitive class WithFieldOfGenericType<E> {
   private final boolean value;
 
   public static <E> WithFieldOfGenericType<E> create() {

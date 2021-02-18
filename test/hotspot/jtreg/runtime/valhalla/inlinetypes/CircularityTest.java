@@ -37,27 +37,27 @@ public class CircularityTest {
     static boolean b = true;
     static int counter = 0;
 
-    static inline class A {
+    static primitive class A {
         static B b;
         static C c;
         int i = 0;
     }
 
-    static inline class B {
+    static primitive class B {
         static {
             Asserts.assertNotNull(A.c, "Should have returned C's default value");
         }
         int i = 0;
     }
 
-    static inline class C {
+    static primitive class C {
         int i;
         public C(int i) {
             this.i = i;
         }
     }
 
-    static inline class D {
+    static primitive class D {
         static C c;
         int i = 0;
         static {
@@ -68,25 +68,25 @@ public class CircularityTest {
         }
     }
 
-    static inline class E {
+    static primitive class E {
         static F f;
         static C c;
         int i = 0;
     }
 
-    static inline class F {
+    static primitive class F {
         int i = 0;
         static {
             E.c = new C(5);
         }
     }
 
-    static inline class G {
+    static primitive class G {
         static H h;
         int i = 0;
     }
 
-    static inline class H {
+    static primitive class H {
         int i = 0;
         static {
             if (CircularityTest.b) {
@@ -96,13 +96,13 @@ public class CircularityTest {
         }
     }
 
-    static inline class I {
+    static primitive class I {
         static J j;
         static H h;
         int i = 0;
     }
 
-    static inline class J {
+    static primitive class J {
         int i = 0;
         static {
             CircularityTest.counter = 1;

@@ -868,7 +868,7 @@ public class ClassWriter extends ClassFile {
     int writeNestMembersIfNeeded(ClassSymbol csym) {
         Set<ClassSymbol> nestedUnique = new LinkedHashSet<>();
         if (csym.owner.kind == PCK) {
-            if (csym.isValue()) {
+            if (csym.isPrimitiveClass()) {
                 // reference projection is the host
             } else if (csym.isReferenceProjection()) {
                 ClassSymbol valueProjection = csym.valueProjection();
@@ -894,10 +894,10 @@ public class ClassWriter extends ClassFile {
      * Write NestHost attribute (if needed)
      */
     int writeNestHostIfNeeded(ClassSymbol csym) {
-        if (csym.owner.kind != PCK || csym.isValue()) {
+        if (csym.owner.kind != PCK || csym.isPrimitiveClass()) {
             int alenIdx = writeAttr(names.NestHost);
             ClassSymbol outerMost = csym.outermostClass();
-            if (outerMost.isValue()) {
+            if (outerMost.isPrimitiveClass()) {
                 outerMost = outerMost.referenceProjection();
             }
             databuf.appendChar(poolWriter.putClass(outerMost));
@@ -912,7 +912,7 @@ public class ClassWriter extends ClassFile {
         ClassSymbol csym = (ClassSymbol)sym;
         if (csym.owner.kind != PCK) {
             seen.add(csym);
-            if (csym.isValue()) {
+            if (csym.isPrimitiveClass()) {
                 seen.add(csym.referenceProjection());
             }
         }
@@ -975,7 +975,7 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.putName(v.name));
         boolean emitRestrictedField = false;
         int restrictedFieldDescriptor = 0;
-        if (types.flattenWithTypeRestrictions && v.type.isValue()) {
+        if (types.flattenWithTypeRestrictions && v.type.isPrimitiveClass()) {
             emitRestrictedField = true;
             databuf.appendChar(poolWriter.putDescriptor(v.type.referenceProjection()));
         } else {
@@ -1001,7 +1001,7 @@ public class ClassWriter extends ClassFile {
         }
         if (emitRestrictedField) {
             int alenIdx = writeAttr(names.RestrictedField);
-            if (types.flattenWithTypeRestrictions && v.type.isValue()) {
+            if (types.flattenWithTypeRestrictions && v.type.isPrimitiveClass()) {
                 databuf.appendChar(poolWriter.putDescriptor(v));
             }   else {
                 databuf.appendChar(restrictedFieldDescriptor);
@@ -1059,13 +1059,13 @@ public class ClassWriter extends ClassFile {
 
         if (types.flattenWithTypeRestrictions && m.name == m.name.table.names.init && m.owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(m.owner.type.getEnclosingType());
-            if (outerThisType.isValue()) {
+            if (outerThisType.isPrimitiveClass()) {
                 emitRestrictedMethod = true;
             }
         }
         CheckTypeRestrictedParameters:
         for (Type pt : m.type.getParameterTypes()) {
-            if (pt.isValue() && types.flattenWithTypeRestrictions) {
+            if (pt.isPrimitiveClass() && types.flattenWithTypeRestrictions) {
                 emitRestrictedMethod = true;
                 break;
             }
@@ -1076,7 +1076,7 @@ public class ClassWriter extends ClassFile {
                 }
             }
         }
-        if (m.type.getReturnType().isValue() && types.flattenWithTypeRestrictions) {
+        if (m.type.getReturnType().isPrimitiveClass() && types.flattenWithTypeRestrictions) {
             emitRestrictedMethod = true;
         } else {
             for (Attribute.Compound anno : m.type.getReturnType().getAnnotationMirrors()) {
@@ -1093,13 +1093,13 @@ public class ClassWriter extends ClassFile {
             if (types.flattenWithTypeRestrictions) {
                 if (m.name == names.init && m.owner.hasOuterInstance()) {
                     Type outerThisType = types.erasure(m.owner.type.getEnclosingType());
-                    databuf.appendChar(outerThisType.isValue() ? poolWriter.putDescriptor(outerThisType) : 0);
+                    databuf.appendChar(outerThisType.isPrimitiveClass() ? poolWriter.putDescriptor(outerThisType) : 0);
                 }
                 for (Type pt : m.erasure(types).getParameterTypes()) {
-                    databuf.appendChar(pt.isValue() ? poolWriter.putDescriptor(pt) : 0);
+                    databuf.appendChar(pt.isPrimitiveClass() ? poolWriter.putDescriptor(pt) : 0);
                 }
                 Type rt = m.erasure(types).getReturnType();
-                databuf.appendChar(rt.isValue() ? poolWriter.putDescriptor(rt) : 0);
+                databuf.appendChar(rt.isPrimitiveClass() ? poolWriter.putDescriptor(rt) : 0);
             } else {
                 int restrictedTypeDescriptor;
                 for (Type pt : m.type.getParameterTypes()) {
@@ -1347,7 +1347,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(types.isValue(t) ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
+                databuf.appendChar(types.isPrimitiveClass(t) ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
@@ -1612,7 +1612,7 @@ public class ClassWriter extends ClassFile {
         throws IOException, PoolOverflow, StringOverflow
     {
         JavaFileObject javaFileObject = writeClassInternal(c);
-        if (c.isValue()) {
+        if (c.isPrimitiveClass()) {
             ClassSymbol refProjection = c.referenceProjection();
             refProjection.flags_field = (refProjection.flags_field & ~FINAL) | ABSTRACT;
             writeClassInternal(refProjection);
@@ -1664,8 +1664,8 @@ public class ClassWriter extends ClassFile {
         databuf.reset();
         poolbuf.reset();
 
-        Type supertype = c.isValue() ? c.type.referenceProjection() : types.supertype(c.type);
-        List<Type> interfaces = c.isValue() ? List.nil() : types.interfaces(c.type);
+        Type supertype = c.isPrimitiveClass() ? c.type.referenceProjection() : types.supertype(c.type);
+        List<Type> interfaces = c.isPrimitiveClass() ? List.nil() : types.interfaces(c.type);
         List<Type> typarams = c.type.getTypeArguments();
 
         int flags;
@@ -1674,7 +1674,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~DEFAULT);
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & (ClassFlags | ACC_INLINE) & ~STRICTFP;
+            flags = flags & (ClassFlags | ACC_PRIMITIVE) & ~STRICTFP;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1851,8 +1851,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_VARARGS;
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
-        if ((flags & VALUE) != 0)
-            result |= ACC_INLINE;
+        if ((flags & PRIMITIVE_CLASS) != 0)
+            result |= ACC_PRIMITIVE;
         return result;
     }
 

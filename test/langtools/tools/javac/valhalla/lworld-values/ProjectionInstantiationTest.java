@@ -6,7 +6,7 @@
  */
 import java.util.function.Supplier;
 
-final inline class ProjectionInstantiationTest {
+final primitive class ProjectionInstantiationTest {
     int x = 42;
     public static void main(String[] args) {
         new ProjectionInstantiationTest();

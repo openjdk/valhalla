@@ -30,7 +30,7 @@ final class ContainerValue4 {
     TestValue4[] valueArray;
 }
 
-public inline final class TestValue4 {
+public primitive final class TestValue4 {
 
     static TestValue4.ref staticValue = getInstance();
 

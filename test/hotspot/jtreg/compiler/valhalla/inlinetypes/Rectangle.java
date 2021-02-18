@@ -23,7 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-public inline class Rectangle {
+public primitive class Rectangle {
     Point p0 = new Point();
     Point p1 = new Point();
 }

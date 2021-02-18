@@ -9,7 +9,7 @@ abstract class Low<T, U> {}
 abstract class Mid<T, U> extends Low<U, T> {}
 abstract class High<T, U> extends Mid<U, T> {}
 
-inline
+primitive
 class GenericInlineTest<T, U> extends High<U, T> {
 
     int x = 0;

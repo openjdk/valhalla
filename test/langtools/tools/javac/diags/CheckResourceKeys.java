@@ -310,8 +310,7 @@ public class CheckResourceKeys {
             "javac.",
             "verbose.",
             "locn.",
-            "java.lang.__value__",
-            "java.lang.__inline__"
+            "java.lang.__primitive__"
     ));
 
     /**

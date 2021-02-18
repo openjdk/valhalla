@@ -38,7 +38,7 @@ public class AttributesTest {
 
     void foo() {
         @Deprecated
-        inline class V<T> {}
+        primitive class V<T> {}
     }
 
     public static void main(String[] args) throws Exception {

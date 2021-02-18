@@ -21,7 +21,7 @@
  * questions.
  */
 
-public inline class Point {
+public primitive class Point {
     static final Object STATIC_FIELD = new Object();
     public int x;
     public int y;

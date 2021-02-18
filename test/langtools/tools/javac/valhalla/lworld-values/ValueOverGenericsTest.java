@@ -8,7 +8,7 @@
 import java.util.ArrayList;
 import java.io.Serializable;
 
-inline class ValueOverGenericsTest {
+primitive class ValueOverGenericsTest {
     int x = 10;
     ArrayList<ValueOverGenericsTest> ax = null;
     void foo(ArrayList<? extends ValueOverGenericsTest> p) {

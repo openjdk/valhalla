@@ -51,7 +51,7 @@ public class InlineArray1 {
         public int my_method();
     }
 
-    public static inline class Val1 implements MyInterface {
+    public static primitive class Val1 implements MyInterface {
         public final int f0;
         public Val1(int f0) {
             this.f0 = f0;
@@ -63,7 +63,7 @@ public class InlineArray1 {
         }
     }
 
-    public static inline class Val2 implements MyInterface {
+    public static primitive class Val2 implements MyInterface {
         public final int f0;
         public Val2(int f0) {
             this.f0 = f0;
@@ -75,7 +75,7 @@ public class InlineArray1 {
         }
     }
 
-    public static inline class Val3 implements MyInterface {
+    public static primitive class Val3 implements MyInterface {
         public final int f0;
         public Val3(int f0) {
             this.f0 = f0;

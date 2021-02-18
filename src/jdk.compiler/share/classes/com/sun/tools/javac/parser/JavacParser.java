@@ -2331,7 +2331,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             if (typeArgs == null) {
@@ -2402,7 +2402,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.VALUE | Flags.FINAL);
+            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL);
             if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
@@ -2411,7 +2411,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & Flags.VALUE) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             return newClass;
@@ -2675,7 +2675,7 @@ public class JavacParser implements Parser {
         case CONTINUE: case SEMI: case ELSE: case FINALLY: case CATCH:
         case ASSERT:
             return List.of(parseSimpleStatement());
-        case VALUE:
+        case PRIMITIVE:
         case MONKEYS_AT:
         case FINAL: {
             dc = token.comment(CommentStyle.JAVADOC);
@@ -3210,7 +3210,7 @@ public class JavacParser implements Parser {
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
-            case VALUE       : flag = Flags.VALUE; break;
+            case PRIMITIVE   : flag = Flags.PRIMITIVE_CLASS; break;
             case VOLATILE    : flag = Flags.VOLATILE; break;
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
@@ -3243,8 +3243,8 @@ public class JavacParser implements Parser {
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
                     final Name name = TreeInfo.name(ann.annotationType);
-                    if (name == names.__inline__ || name == names.java_lang___inline__) {
-                        flag = Flags.VALUE;
+                    if (name == names.__primitive__ || name == names.java_lang___primitive__) {
+                        flag = Flags.PRIMITIVE_CLASS;
                     } else {
                         annotations.append(ann);
                         flag = 0;
@@ -3265,7 +3265,7 @@ public class JavacParser implements Parser {
             pos = Position.NOPOS;
 
         // Force value classes to be automatically final.
-        if ((flags & (Flags.VALUE | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.VALUE) {
+        if ((flags & (Flags.PRIMITIVE_CLASS | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.PRIMITIVE_CLASS) {
             flags |= Flags.FINAL;
         }
 
@@ -3458,9 +3458,9 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    // Does the given token signal an inline modifier ? If yes, suitably reclassify token.
+    // Does the given token signal a primitive modifier ? If yes, suitably reclassify token.
     Token recastToken(Token token) {
-        if (token.kind != IDENTIFIER || token.name() != names.inline) {
+        if (token.kind != IDENTIFIER || token.name() != names.primitive) {
             return token;
         }
         if (peekToken(t->t == PRIVATE ||
@@ -3488,8 +3488,8 @@ public class JavacParser implements Parser {
                          t == INTERFACE ||
                          t == ENUM ||
                          t == IDENTIFIER)) { // new value Comparable() {}
-            checkSourceLevel(Feature.INLINE_TYPES);
-            return new Token(VALUE, token.pos, token.endPos, token.comments);
+            checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+            return new Token(PRIMITIVE, token.pos, token.endPos, token.comments);
         }
         return token;
     }

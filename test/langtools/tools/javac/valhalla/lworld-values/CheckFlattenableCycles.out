@@ -1,4 +1,4 @@
-CheckFlattenableCycles.java:13:42: compiler.err.cyclic.value.type.membership: CheckFlattenableCycles.InnerValue
-CheckFlattenableCycles.java:15:34: compiler.err.cyclic.value.type.membership: CheckFlattenableCycles
-CheckFlattenableCycles.java:19:26: compiler.err.cyclic.value.type.membership: CheckFlattenableCycles
+CheckFlattenableCycles.java:13:42: compiler.err.cyclic.primitive.class.membership: CheckFlattenableCycles.InnerValue
+CheckFlattenableCycles.java:15:34: compiler.err.cyclic.primitive.class.membership: CheckFlattenableCycles
+CheckFlattenableCycles.java:19:26: compiler.err.cyclic.primitive.class.membership: CheckFlattenableCycles
 3 errors

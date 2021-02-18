@@ -224,7 +224,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
     /**
      * Basic hash bin node, used for most entries.
      */
-    static inline class YNode<K,V> implements Map.Entry<K,V> {
+    static primitive class YNode<K,V> implements Map.Entry<K,V> {
         final int hash;
         final short probes; // maybe only a byte
         final K key;
@@ -278,7 +278,7 @@ public class HashMap<K,V> extends XAbstractMap<K,V>
         }
     }
 
-    inline class YNodeWrapper implements Map.Entry<K,V> {
+    primitive class YNodeWrapper implements Map.Entry<K,V> {
         final int index;
         final YNode<K,V> entry;
 

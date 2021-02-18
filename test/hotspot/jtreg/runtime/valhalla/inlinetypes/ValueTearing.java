@@ -111,7 +111,7 @@ public class ValueTearing {
     }
 
     // A normally tearable inline value.
-    static inline class TPoint {
+    static primitive class TPoint {
         TPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
         public String toString() { return String.format("(%d,%d)", x, y); }
@@ -176,7 +176,7 @@ public class ValueTearing {
     interface NT extends NonTearable { }
 
     // A hardened, non-tearable version of TPoint.
-    static inline class NTPoint implements NT {
+    static primitive class NTPoint implements NT {
         NTPoint(long x, long y) { this.x = x; this.y = y; }
         final long x, y;
         public String toString() { return String.format("(%d,%d)", x, y); }

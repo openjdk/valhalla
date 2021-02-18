@@ -33,7 +33,7 @@
 //
 interface II { }
 
-public inline final class VTAssignability implements II {
+public primitive final class VTAssignability implements II {
     final int x;
     final int y;
 

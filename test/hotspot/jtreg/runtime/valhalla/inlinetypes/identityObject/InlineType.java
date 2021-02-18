@@ -1,3 +1,3 @@
-public inline class InlineType {
+public primitive class InlineType {
     int i = 0;
 }

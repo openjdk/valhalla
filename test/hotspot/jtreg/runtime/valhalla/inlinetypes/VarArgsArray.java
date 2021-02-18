@@ -157,7 +157,7 @@ public class VarArgsArray {
         new VarArgsArray().test();
     }
 
-    inline class MyInt {
+    primitive class MyInt {
         int value;
         public MyInt() { this(0); }
         public MyInt(int v) { this.value = v; }

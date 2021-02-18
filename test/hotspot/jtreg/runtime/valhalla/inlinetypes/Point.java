@@ -22,7 +22,7 @@
  */
 package runtime.valhalla.inlinetypes;
 
-public inline final class Point {
+public primitive final class Point {
     final int x;
     final int y;
 

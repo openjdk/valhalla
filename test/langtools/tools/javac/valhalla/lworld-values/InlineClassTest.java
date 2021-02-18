@@ -30,7 +30,7 @@
  * @run main/othervm InlineClassTest
  */
 
-public inline class InlineClassTest {
+public primitive class InlineClassTest {
     int x = 42;
     public static void main(String [] args) {
         if (!new InlineClassTest().toString().equals("[InlineClassTest x=42]"))

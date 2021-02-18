@@ -24,7 +24,7 @@
 package compiler.valhalla.inlinetypes;
 
 // Inline type definition with too many fields to return in registers
-final inline class MyValue4 extends MyAbstract {
+final primitive class MyValue4 extends MyAbstract {
     final MyValue3 v1;
     final MyValue3 v2;
 

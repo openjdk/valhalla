@@ -7,9 +7,9 @@
 
 class InlineAnnotationOnAnonymousClass {
     interface I {}
-    @__inline__
+    @__primitive__
     public static void main(String args []) {
-        new @__inline__ I() {
+        new @__primitive__ I() {
         };
     }
 }

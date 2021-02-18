@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,15 +57,18 @@ public class TestLWorldProfiling extends InlineTypeTest {
           "-XX:-UseACmpProfile",
           "-XX:TypeProfileLevel=0",
           "-XX:-MonomorphicArrayCheck",
+          "-XX:TieredStopAtLevel=4",
           "-XX:-TieredCompilation" },
         { "-XX:+UseArrayLoadStoreProfile",
           "-XX:+UseACmpProfile",
           "-XX:TypeProfileLevel=0",
+          "-XX:TieredStopAtLevel=4",
           "-XX:-TieredCompilation" },
         { "-XX:-UseArrayLoadStoreProfile",
           "-XX:-UseACmpProfile",
           "-XX:TypeProfileLevel=222",
           "-XX:-MonomorphicArrayCheck",
+          "-XX:TieredStopAtLevel=4",
           "-XX:-TieredCompilation" }
     };
 
@@ -369,7 +372,7 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     // null free array profiling
 
-    inline static class NotFlattenable {
+    primitive static class NotFlattenable {
         private final Object o1 = null;
         private final Object o2 = null;
         private final Object o3 = null;
@@ -916,7 +919,7 @@ public class TestLWorldProfiling extends InlineTypeTest {
     // Test array access with polluted array type profile
     static abstract class Test40Abstract { }
     static class Test40Class extends Test40Abstract { }
-    static inline class Test40Inline extends Test40Abstract { }
+    static primitive class Test40Inline extends Test40Abstract { }
 
     @ForceInline
     public Object test40_access(Object[] array) {

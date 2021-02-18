@@ -37,13 +37,13 @@ import java.lang.reflect.Field;
 
 public class EmptyInlineTest {
 
-    static inline class EmptyInline {
+    static primitive class EmptyInline {
         public boolean isEmpty() {
             return true;
         }
     }
 
-    static inline class EmptyField {
+    static primitive class EmptyField {
         EmptyInline empty;
 
         EmptyField() {

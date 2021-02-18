@@ -23,7 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-final inline class MyValue2Inline {
+final primitive class MyValue2Inline {
     final double d;
     final long l;
 
@@ -57,7 +57,7 @@ final inline class MyValue2Inline {
     }
 }
 
-public final inline class MyValue2 extends MyAbstract {
+public final primitive class MyValue2 extends MyAbstract {
     final int x;
     final byte y;
     final MyValue2Inline v;
