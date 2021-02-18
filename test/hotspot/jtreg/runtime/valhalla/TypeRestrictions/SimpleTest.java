@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Simple test about type restrictions
  * @library /test/lib
- * @compile  -XDflattenWithTypeRestrictions SimpleTest.java
+ * @compile SimpleTest.java
  * @run main/othervm -Xint runtime.valhalla.typerestrictions.SimpleTest
  */
 public class SimpleTest {
