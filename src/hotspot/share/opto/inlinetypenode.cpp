@@ -210,7 +210,7 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   for (uint j = 0; j < nfields; ++j) {
     int offset = vk->nonstatic_field_at(j)->offset();
     Node* value = field_value_by_offset(offset, true /* include flattened inline type fields */);
-    if (value->is_InlineType()) {
+    if (value->is_InlineTypeBase()) {
       // Add inline type field to the worklist to process later
       worklist.push(value);
     }
@@ -241,10 +241,12 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
   }
   // Now scalarize non-flattened fields
   for (uint i = 0; i < worklist.size(); ++i) {
-    Node* vt = worklist.at(i);
-    vt->as_InlineType()->make_scalar_in_safepoints(igvn);
+    InlineTypeBaseNode* vt = worklist.at(i)->isa_InlineTypeBase();
+    vt->make_scalar_in_safepoints(igvn);
   }
-  igvn->record_for_igvn(this);
+  if (outcnt() == 0) {
+    igvn->remove_dead_node(this);
+  }
 }
 
 const TypePtr* InlineTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const {
@@ -494,6 +496,14 @@ Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
   vt = kit->gvn().transform(vt)->as_InlineTypeBase();
   kit->replace_in_map(this, vt);
   return vt;
+}
+
+Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  if (phase->C->scalarize_in_safepoints() && can_reshape) {
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    make_scalar_in_safepoints(igvn);
+  }
+  return NULL;
 }
 
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk) {
@@ -861,7 +871,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       }
     }
   }
-  return NULL;
+  return InlineTypeBaseNode::Ideal(phase, can_reshape);
 }
 
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
@@ -893,7 +903,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
         replace_allocation(igvn, res, res_dom);
         // The result of the dominated allocation is now unused and will be removed
         // later in PhaseMacroExpand::eliminate_allocate_node to not confuse loop opts.
-        igvn->record_for_igvn(alloc);
+        igvn->_worklist.push(alloc);
       }
     }
   }
