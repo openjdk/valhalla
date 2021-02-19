@@ -23,9 +23,12 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037
+ * @bug 8260034 8260225 8260283 8261037 8261874
  * @summary Generated inline type tests.
- * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.TestGenerated
+ * @run main/othervm -Xbatch
+ *                   compiler.valhalla.inlinetypes.TestGenerated
+ * @run main/othervm -Xbatch -XX:FlatArrayElementMaxSize=0
+ *                   compiler.valhalla.inlinetypes.TestGenerated
  */
 
 package compiler.valhalla.inlinetypes;
@@ -122,6 +125,17 @@ public class TestGenerated {
         return array[0].array == array[0].array;
     }
 
+    void test9(boolean b) {
+        MyValue1[] array = { new MyValue1() };
+        if (b) {
+            for (int i = 0; i < 10; ++i) {
+                if (array != array) {
+                    array = null;
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
@@ -137,6 +151,7 @@ public class TestGenerated {
             t.test6();
             t.test7(false);
             t.test8(array3);
+            t.test9(true);
         }
     }
 }

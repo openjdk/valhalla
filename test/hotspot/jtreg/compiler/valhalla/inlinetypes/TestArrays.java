@@ -3365,4 +3365,56 @@ public class TestArrays extends InlineTypeTest {
         EmptyContainer empty = (EmptyContainer)test145(array);
         Asserts.assertEquals(empty, EmptyContainer.default);
     }
+
+    // Test that non-flattened array does not block inline type scalarization
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE)
+    @Warmup(50000)
+    public void test146(boolean b) {
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2[] array = { vt };
+        if (b) {
+            for (int i = 0; i < 10; ++i) {
+                if (array != array) {
+                    array = null;
+                }
+            }
+        }
+    }
+
+    @DontCompile
+    public void test146_verifier(boolean warmup) {
+        test146(true);
+    }
+
+    // Test that non-flattened array does not block inline type scalarization
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE)
+    @Warmup(50000)
+    public int test147(boolean deopt) {
+        // Both vt and array should be scalarized
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2[] array = new MyValue2[1];
+
+        // Delay scalarization to after loop opts
+        boolean store = false;
+        for (int i = 0; i < 5; ++i) {
+            if (i == 1) {
+                store = true;
+            }
+        }
+        if (store) {
+            array[0] = vt;
+        }
+
+        if (deopt) {
+            // Uncommon trap referencing array
+            return array[0].x + 42;
+        }
+        return array[0].x;
+    }
+
+    @DontCompile
+    public void test147_verifier(boolean warmup) {
+        int res = test147(!warmup);
+        Asserts.assertEquals(res, MyValue2.createWithFieldsInline(rI, rD).x + (warmup ? 0 : 42));
+    }
 }
