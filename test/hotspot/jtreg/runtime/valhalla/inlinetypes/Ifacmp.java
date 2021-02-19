@@ -173,6 +173,7 @@ public class Ifacmp {
                     if (a != b) throw new RuntimeException("Substitutability test failed" + a + " != " + b);
                 }
             }
+            System.gc();
         } while (ref.get() != null);
     }
 
