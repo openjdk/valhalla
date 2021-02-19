@@ -1898,12 +1898,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
   C2_MacroAssembler _masm(&cbuf);
 
-  __ verified_entry(C, 0);
-  __ bind(*_verified_entry);
-  // n.b. frame size includes space for return pc and rfp
-  const int framesize = C->output()->frame_size_in_bytes();
-  assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
-
   // insert a nop at the start of the prolog so we can patch in a
   // branch if we need to invalidate the method later
   __ nop();
@@ -1923,11 +1917,8 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
     __ reinitialize_ptrue();
   }
 
-  int bangsize = C->output()->bang_size_in_bytes();
-  if (C->output()->need_stack_bang(bangsize))
-    __ generate_stack_overflow_check(bangsize);
-
-  __ build_frame(framesize);
+  __ verified_entry(C, 0);
+  __ bind(*_verified_entry);
 
   if (C->stub_function() == NULL) {
     BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();

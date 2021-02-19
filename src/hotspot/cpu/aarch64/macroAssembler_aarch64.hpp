@@ -616,15 +616,36 @@ public:
   static bool needs_explicit_null_check(intptr_t offset);
   static bool uses_implicit_null_check(void* address);
 
-  void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
+  // markWord tests, kills markWord reg
+  void test_markword_is_inline_type(Register markword, Label& is_inline_type);
+
+  // inlineKlass queries, kills temp_reg
+  void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
+  void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
+  void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
+
+  // Get the default value oop for the given InlineKlass
+  void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);
+  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
+  // get_default_value_oop with extra assertion for empty inline klass
+  void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
   void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
   void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
   void test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened);
 
-  // Check klass/oops is flat inline type array (oop->_klass->_layout_helper & vt_bit)
+  // Check oops for special arrays, i.e. flattened and/or null-free
+  void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
   void test_flattened_array_oop(Register klass, Register temp_reg, Label& is_flattened_array);
+  void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
   void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
+  void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
+
+  // Check array klass layout helper for flatten or null-free arrays...
+  void test_flattened_array_layout(Register lh, Label& is_flattened_array);
+  void test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array);
+  void test_null_free_array_layout(Register lh, Label& is_null_free_array);
+  void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
   static address target_addr_for_insn(address insn_addr, unsigned insn);
   static address target_addr_for_insn(address insn_addr) {
@@ -834,7 +855,6 @@ public:
 
   // oop manipulations
   void load_metadata(Register dst, Register src);
-  void load_storage_props(Register dst, Register src);
 
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
@@ -849,6 +869,15 @@ public:
 
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                        Register tmp1, Register tmp_thread, Register tmp3 = noreg);
+
+  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
+
+  // inline type data payload offsets...
+  void first_field_offset(Register inline_klass, Register offset);
+  void data_for_oop(Register oop, Register data, Register inline_klass);
+  // get data payload ptr a flat value array at index, kills rcx and index
+  void data_for_value_array_index(Register array, Register array_klass,
+                                  Register index, Register data);
 
   // Resolves obj for access. Result is placed in the same register.
   // All other registers are preserved.
@@ -909,6 +938,15 @@ public:
   void round_to(Register reg, int modulus);
 
   // allocation
+
+  // Object / value buffer allocation...
+  // Allocate instance of klass, assumes klass initialized by caller
+  // new_obj prefers to be rax
+  // Kills t1 and t2, perserves klass, return allocation in new_obj (rsi on LP64)
+  void allocate_instance(Register klass, Register new_obj,
+                         Register t1, Register t2,
+                         bool clear_fields, Label& alloc_failed);
+
   void eden_allocate(
     Register obj,                      // result: pointer to object after successful allocation
     Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
@@ -926,6 +964,9 @@ public:
   );
   void zero_memory(Register addr, Register len, Register t1);
   void verify_tlab();
+
+  // For field "index" within "klass", return inline_klass ...
+  void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -1221,11 +1262,13 @@ public:
 
   int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
-  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
+  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
+                            VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
                             RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[]);
-  void restore_stack(Compile* C);
+                          VMRegPair* from, int from_count, int& from_index, VMReg to,
+                          RegState reg_state[]);
+  void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
   VMReg spill_reg_for(VMReg reg);
 
   void tableswitch(Register index, jint lowbound, jint highbound,
