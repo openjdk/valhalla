@@ -29,8 +29,7 @@
  */
 
 public class InstanceOfTopTypeTest {
-    interface InlineObject {}
-    static primitive class V implements InlineObject {
+    static primitive class V {
         int x = 42;
     }
 
@@ -39,28 +38,28 @@ public class InstanceOfTopTypeTest {
         Object o = new InstanceOfTopTypeTest();
         if (o instanceof IdentityObject)
             points++;     // 1
-        if (o instanceof InlineObject)
+        if (o instanceof PrimitiveObject)
             throw new AssertionError("Broken");
         o = new V();
         if (o instanceof IdentityObject)
             throw new AssertionError("Broken");
-        if (o instanceof InlineObject)
+        if (o instanceof PrimitiveObject)
             points++; // 2
         Object [] oa = new InstanceOfTopTypeTest[] { new InstanceOfTopTypeTest() };
         if (oa instanceof IdentityObject)
             points++; // 3
         if (oa[0] instanceof IdentityObject)
             points++; // 4
-        if (oa[0] instanceof InlineObject)
+        if (oa[0] instanceof PrimitiveObject)
             throw new AssertionError("Broken");
         oa = new V[] { new V() };
         if (oa instanceof IdentityObject)
             points++; // 5
         if (oa[0] instanceof IdentityObject)
             throw new AssertionError("Broken");
-        if (oa[0] instanceof InlineObject)
+        if (oa[0] instanceof PrimitiveObject)
             points++;
-        if (points != 6)
-            throw new AssertionError("Broken top type set up" + points);
+        if (points != 4)
+            throw new AssertionError("Broken top type set up " + points);
     }
 }

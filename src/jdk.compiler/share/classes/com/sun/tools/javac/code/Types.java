@@ -2241,7 +2241,7 @@ public class Types {
             if (!isPrimitiveClass(t))
                 return syms.objectType;
         }
-        if (sym.type == syms.identityObjectType) {
+        if (sym == syms.identityObjectType.tsym) {
             // IdentityObject is super interface of every concrete identity class other than jlO
             if (t.isPrimitiveClass() || t.tsym == syms.objectType.tsym)
                 return null;
@@ -2250,6 +2250,12 @@ public class Types {
             if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
                 return syms.identityObjectType;
             } // else fall through and look for explicit coded super interface
+        } else if (sym == syms.primitiveObjectType.tsym) {
+            if (t.isPrimitiveClass() || t.isReferenceProjection())
+                return syms.primitiveObjectType;
+            if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
+                return null;
+            // else fall through and look for explicit coded super interface
         }
         return asSuper.visit(t, sym);
     }
