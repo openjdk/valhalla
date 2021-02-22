@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Testing accessing flattened field from class with no knowledge of the type restriction
  * @library /test/lib
- * @compile  -XDflattenWithTypeRestrictions SimpleTest.java IncompleteKnowledgeTest.java
+ * @compile SimpleTest.java IncompleteKnowledgeTest.java
  * @run main/othervm -Xverify:none -Xcomp runtime.valhalla.typerestrictions.IncompleteKnowledgeTest
  */
 public class IncompleteKnowledgeTest {

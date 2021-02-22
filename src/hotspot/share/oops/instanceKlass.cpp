@@ -1031,6 +1031,10 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           }
         }
       }
+      // Loadding classes of restricted parameters
+      if (m->constMethod()->has_restricted_method()) {
+        m->resolve_restricted_types(CHECK_false);
+      }
     }
   }
 
@@ -1255,6 +1259,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
       THROW_OOP(e());
     }
   }
+
 
   // Step 8
   // Initialize classes of inline fields

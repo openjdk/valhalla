@@ -70,6 +70,7 @@ class InterpreterOopMap;
 class Method : public Metadata {
  friend class VMStructs;
  friend class JVMCIVMStructs;
+ friend class TemplateTable;
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to Method::metaspace_pointers_do().
@@ -94,7 +95,8 @@ class Method : public Metadata {
     _scalarized_args       = 1 << 8,
     _c1_needs_stack_repair = 1 << 9,
     _c2_needs_stack_repair = 1 << 10,
-    _scoped                = 1 << 11
+    _scoped                = 1 << 11,
+    _restricted_method     = 1 << 12
   };
   mutable u2 _flags;
 
@@ -171,6 +173,12 @@ class Method : public Metadata {
   Symbol* generic_signature() const              { int idx = generic_signature_index(); return ((idx != 0) ? constants()->symbol_at(idx) : (Symbol*)NULL); }
   int generic_signature_index() const            { return constMethod()->generic_signature_index(); }
   void set_generic_signature_index(int index)    { constMethod()->set_generic_signature_index(index); }
+
+  // RestrictedMethod support
+  void resolve_restricted_types(TRAPS);
+  Klass* restricted_return_value() const;
+  u1 restricted_num_param() const                { return constMethod()->restricted_num_param(); }
+  Klass* restricted_param_type_at(int index) const;
 
   // annotations support
   AnnotationArray* annotations() const           {
@@ -708,7 +716,7 @@ public:
   static int header_size()                       {
     return align_up((int)sizeof(Method), wordSize) / wordSize;
   }
-  static int size(bool is_native);
+  static int size(bool is_native, InlineTableSizes* sizes);
   int size() const                               { return method_size(); }
   void log_touched(TRAPS);
   static void print_touched_methods(outputStream* out);
@@ -953,6 +961,14 @@ public:
     _flags = x ? (_flags | _c2_needs_stack_repair) : (_flags & ~_c2_needs_stack_repair);
   }
 
+  void set_restricted_method(bool x) {
+    _flags = x ? (_flags | _restricted_method) : ( _flags & ~_restricted_method);
+  }
+
+  bool has_restricted_method() const {
+    return (_flags & _restricted_method) != 0;
+  }
+
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)
 
   ConstMethod::MethodType method_type() const {
@@ -1077,6 +1093,8 @@ public:
   // Inlined elements
   address* native_function_addr() const          { assert(is_native(), "must be native"); return (address*) (this+1); }
   address* signature_handler_addr() const        { return native_function_addr() + 1; }
+  Klass** restricted_return_value_addr() const   { return is_native() ? (Klass**)(signature_handler_addr() + 1) : (Klass**) (this+1); }
+  Klass** restricted_param_type_start() const    { return restricted_return_value_addr() + 1; }
 };
 
 

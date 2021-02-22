@@ -2723,6 +2723,18 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
+  if (_desc->bytecode() == Bytecodes::_areturn) {  // or should the test be state == atos ?
+    Label not_restricted;
+    __ get_method(rscratch1);
+    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+    __ andl(rscratch1, Method::_restricted_method);
+    __ jcc(Assembler::zero, not_restricted);
+    Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
+    __ movptr(robj, aaddress(0));
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_return_value_check), robj);
+    __ bind(not_restricted);
+  }
+
   if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
     Label no_safepoint;
     NOT_PRODUCT(__ block_comment("Thread-local Safepoint poll"));
@@ -3917,6 +3929,19 @@ void TemplateTable::fast_xaccess(TosState state) {
 //-----------------------------------------------------------------------------
 // Calls
 
+void TemplateTable::restricted_method_check(Register method) {
+    Label not_restricted;
+  __ movptr(rscratch1, method);
+  __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+  __ andl(rscratch1, Method::_restricted_method);
+  __ jcc(Assembler::zero, not_restricted);
+  __ restore_bcp();
+  __ push(method);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
+  __ pop(method);
+  __ bind(not_restricted);
+}
+
 void TemplateTable::prepare_invoke(int byte_no,
                                    Register method,  // linked method (or i-klass)
                                    Register index,   // itable index, MethodType, etc.
@@ -4030,7 +4055,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   // profile this call
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
-
+  restricted_method_check(method);
   __ jump_from_interpreted(method, rax);
 
   __ bind(notFinal);
@@ -4044,8 +4069,8 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_virtual_call(rax, rlocals, rdx);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
-
   __ profile_arguments_type(rdx, method, rbcp, true);
+  restricted_method_check(method);
   __ jump_from_interpreted(method, rdx);
 }
 
@@ -4074,6 +4099,7 @@ void TemplateTable::invokespecial(int byte_no) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
+  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rax);
 }
 
@@ -4084,6 +4110,7 @@ void TemplateTable::invokestatic(int byte_no) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
+  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rax);
 }
 
@@ -4146,7 +4173,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ profile_final_call(rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
-
+  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rdx);
   // no return from above
   __ bind(notVFinal);
@@ -4197,6 +4224,8 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ jcc(Assembler::zero, no_such_method);
 
   __ profile_arguments_type(rdx, rbx, rbcp, true);
+
+  restricted_method_check(rbx);
 
   // do the call
   // rcx: receiver

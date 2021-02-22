@@ -93,7 +93,7 @@ Method* Method::allocate(ClassLoaderData* loader_data,
                                           sizes,
                                           method_type,
                                           CHECK_NULL);
-  int size = Method::size(access_flags.is_native());
+  int size = Method::size(access_flags.is_native(), sizes);
   return new (loader_data, size, MetaspaceObj::MethodType, THREAD) Method(cm, access_flags);
 }
 
@@ -174,6 +174,39 @@ address Method::get_c2i_no_clinit_check_entry() {
   assert(VM_Version::supports_fast_class_init_checks(), "");
   assert(adapter() != NULL, "must have");
   return adapter()->get_c2i_no_clinit_check_entry();
+}
+
+
+void  Method::resolve_restricted_types(TRAPS) {
+  int idx = constMethod()->restricted_return_value_index();
+  Handle loader_h(THREAD, constants()->pool_holder()->class_loader());
+  Handle protdom_h(THREAD, constants()->pool_holder()->protection_domain());
+  if (idx != 0) {
+    Symbol* ret = constants()->symbol_at(idx);
+    Klass* k = SystemDictionary::resolve_or_fail(ret, loader_h, protdom_h, true, CHECK);
+    *restricted_return_value_addr() = k;
+  } else {
+    *restricted_return_value_addr() = NULL;
+  }
+  Klass** param_array = restricted_param_type_start();
+  for (int i = 0; i < restricted_num_param(); i++) {
+    int idx = constMethod()->restricted_param_type_index_at(i);
+    if (idx != 0) {
+      Symbol* ret = constants()->symbol_at(idx);
+      Klass* k = SystemDictionary::resolve_or_fail(ret, loader_h, protdom_h, true, CHECK);
+      param_array[i] = k;
+    } else {
+      param_array[i] = NULL;
+    }
+  }
+}
+
+Klass* Method::restricted_return_value() const {
+  return *restricted_return_value_addr();
+}
+
+Klass* Method::restricted_param_type_at(int index) const {
+  return restricted_param_type_start()[index];
 }
 
 char* Method::name_and_sig_as_C_string() const {
@@ -341,9 +374,12 @@ address Method::bcp_from(address bcp) const {
   }
 }
 
-int Method::size(bool is_native) {
+int Method::size(bool is_native, InlineTableSizes* sizes) {
   // If native, then include pointers for native_function and signature_handler
   int extra_bytes = (is_native) ? 2*sizeof(address*) : 0;
+  if (sizes->restricted_method_length() != -1) {
+    extra_bytes += (sizes->restricted_method_length() + 1) * sizeof(Klass*); // +1 is for the return value type
+  }
   int extra_words = align_up(extra_bytes, BytesPerWord) / BytesPerWord;
   return align_metadata_size(header_size() + extra_words);
 }
@@ -1615,6 +1651,7 @@ methodHandle Method::clone_with_new_data(const methodHandle& m, u_char* new_code
   int parameter_annotations_len = cm->parameter_annotations_length();
   int type_annotations_len = cm->type_annotations_length();
   int default_annotations_len = cm->default_annotations_length();
+  int restricted_method_len = 0;
 
   InlineTableSizes sizes(
       localvariable_len,
@@ -1627,6 +1664,7 @@ methodHandle Method::clone_with_new_data(const methodHandle& m, u_char* new_code
       parameter_annotations_len,
       type_annotations_len,
       default_annotations_len,
+      restricted_method_len,
       0);
 
   ClassLoaderData* loader_data = m->method_holder()->class_loader_data();

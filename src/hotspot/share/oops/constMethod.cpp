@@ -129,6 +129,16 @@ int ConstMethod::size(int code_size,
     extra_bytes += sizes->method_parameters_length() * sizeof(MethodParametersElement);
   }
 
+  // Protocol for RestrictedMethod attribute
+  // if sizes->restricted_method_length() == -1 => attribute is not present
+  // if sizes->restricted_method_length() ==  0 => attribute is present but restricted_param_types array is empty
+  // otherwise the attribute is present and the restricted_param_types array contains sizes->restricted_method_length() elements
+  if (sizes->restricted_method_length() >= 0) {
+    extra_bytes += sizeof(u2); // restricted_return_type
+    extra_bytes += sizeof(u1); // num param
+    extra_bytes += sizes->restricted_method_length() * sizeof(u2);  // restricted_param_types array
+  }
+
   // Align sizes up to a word.
   extra_bytes = align_up(extra_bytes, BytesPerWord);
 
@@ -174,16 +184,42 @@ u2* ConstMethod::last_u2_element() const {
   return (u2*)((AnnotationArray**)constMethod_end() - offset) - 1;
 }
 
+u1* ConstMethod::restricted_num_params_addr() const {
+  assert(has_restricted_method(), "called only if method has a RestrictedMethod attribute");
+  return (u1*)last_u2_element();
+}
+
+u2* ConstMethod::restricted_return_type_index_addr() const {
+  assert(has_restricted_method(), "called only if method has a RestrictedMethod attribute");
+  return last_u2_element() - 1;
+}
+
+u2* ConstMethod::restricted_param_type_start() const {
+  assert(has_restricted_method(), "called only if method has a RestrictedMethod attribute");
+  return last_u2_element() - 1 - *restricted_num_params_addr();
+}
+
 u2* ConstMethod::generic_signature_index_addr() const {
   // Located at the end of the constMethod.
   assert(has_generic_signature(), "called only if generic signature exists");
-  return last_u2_element();
+  if (has_restricted_method()) {
+    return restricted_param_type_start() - 1;
+  } else {
+    return last_u2_element();
+  }
 }
 
 u2* ConstMethod::method_parameters_length_addr() const {
   assert(has_method_parameters(), "called only if table is present");
-  return has_generic_signature() ? (last_u2_element() - 1) :
-                                    last_u2_element();
+  if (has_generic_signature()) {
+    return generic_signature_index_addr() - 1;
+  } else {
+    if (has_restricted_method()) {
+      return restricted_param_type_start() - 1;
+    } else {
+      return last_u2_element();
+    }
+  }
 }
 
 u2* ConstMethod::checked_exceptions_length_addr() const {
@@ -193,9 +229,15 @@ u2* ConstMethod::checked_exceptions_length_addr() const {
     // If method parameters present, locate immediately before them.
     return (u2*)method_parameters_start() - 1;
   } else {
-    // Else, the exception table is at the end of the constMethod.
-    return has_generic_signature() ? (last_u2_element() - 1) :
-                                     last_u2_element();
+    if (has_generic_signature()) {
+      return generic_signature_index_addr() - 1;
+    } else {
+      if (has_restricted_method()) {
+        return restricted_param_type_start() - 1;
+      } else {
+        return last_u2_element();
+      }
+    }
   }
 }
 
@@ -209,9 +251,15 @@ u2* ConstMethod::exception_table_length_addr() const {
       // If method parameters present, locate immediately before them.
       return (u2*)method_parameters_start() - 1;
     } else {
-      // Else, the exception table is at the end of the constMethod.
-      return has_generic_signature() ? (last_u2_element() - 1) :
-                                        last_u2_element();
+      if (has_generic_signature()) {
+        return generic_signature_index_addr() - 1;
+      } else {
+        if (has_restricted_method()) {
+          return restricted_param_type_start() - 1;
+        } else {
+          return last_u2_element();
+        }
+      }
     }
   }
 }
@@ -230,9 +278,15 @@ u2* ConstMethod::localvariable_table_length_addr() const {
         // If method parameters present, locate immediately before them.
         return (u2*)method_parameters_start() - 1;
       } else {
-        // Else, the exception table is at the end of the constMethod.
-      return has_generic_signature() ? (last_u2_element() - 1) :
-                                        last_u2_element();
+        if (has_generic_signature()) {
+          return generic_signature_index_addr() - 1;
+        } else {
+          if (has_restricted_method()) {
+            return restricted_param_type_start() - 1;
+          } else {
+            return last_u2_element();
+          }
+        }
       }
     }
   }
@@ -264,6 +318,8 @@ void ConstMethod::set_inlined_tables_length(InlineTableSizes* sizes) {
     _flags |= _has_type_annotations;
   if (sizes->default_annotations_length() > 0)
     _flags |= _has_default_annotations;
+  if (sizes->restricted_method_length() > 0)
+    _flags |= _has_restricted_method;
 
   // This code is extremely brittle and should possibly be revised.
   // The *_length_addr functions walk backwards through the
