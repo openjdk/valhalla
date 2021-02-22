@@ -1015,8 +1015,10 @@ LEAF(LoadIndexed, AccessIndexed)
   DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
+  intx hash_inline_access() const;
+
   // generic
-  HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
+  HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), hash_inline_access())
 };
 
 class DelayedLoadIndexed : public CompilationResourceObj {
@@ -1037,10 +1039,10 @@ private:
     _offset += offset;
   }
 
-  LoadIndexed* load_instr() { return _load_instr; }
-  ValueStack* state_before() { return _state_before; }
-  ciField* field() { return _field; }
-  int offset() { return _offset; }
+  LoadIndexed* load_instr() const { return _load_instr; }
+  ValueStack* state_before() const { return _state_before; }
+  ciField* field() const { return _field; }
+  int offset() const { return _offset; }
 };
 
 LEAF(StoreIndexed, AccessIndexed)

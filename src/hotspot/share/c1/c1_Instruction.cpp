@@ -265,6 +265,14 @@ ciType* LoadIndexed::declared_type() const {
   return ak->element_type();
 }
 
+intx LoadIndexed::hash_inline_access() const {
+  if (delayed() != NULL) {
+    return HASH2(_vt, delayed()->offset());
+  } else {
+    return HASH1(_vt);
+  }
+}
+
 bool StoreIndexed::is_exact_flattened_array_store() const {
   if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL && value()->declared_type() != NULL) {
     ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();

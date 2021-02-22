@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128
  * @summary Generated inline type tests.
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
@@ -46,6 +46,11 @@ primitive class MyValue2 {
     int[] a = new int[1];
     int[] b = new int[6];
     int[] c = new int[5];
+}
+
+primitive class MyValue3 {
+    int[] intArray = new int[1];
+    float[] floatArray = new float[1];
 }
 
 public class TestGenerated {
@@ -136,11 +141,29 @@ public class TestGenerated {
         }
     }
 
+    int[] f6 = new int[1];
+
+    void test10(MyValue3[] array) {
+        float[] floatArray = array[0].floatArray;
+        if (f6 == f6) {
+            f6 = array[0].intArray;
+        }
+    }
+
+    void test11(MyValue3[] array) {
+        float[] floatArray = array[0].floatArray;
+        if (array[0].intArray[0] != 42) {
+            throw new RuntimeException("test11 failed");
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
         MyValue1[] array2 = new MyValue1[10];
         MyValue1[] array3 = { new MyValue1() };
+        MyValue3[] array4 = { new MyValue3() };
+        array4[0].intArray[0] = 42;
 
         for (int i = 0; i < 50_000; ++i) {
             t.test1(array1);
@@ -152,6 +175,8 @@ public class TestGenerated {
             t.test7(false);
             t.test8(array3);
             t.test9(true);
+            t.test10(array4);
+            t.test11(array4);
         }
     }
 }
