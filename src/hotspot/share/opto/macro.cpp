@@ -2705,13 +2705,15 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   // Before any new projection is added:
   CallProjections* projs = call->extract_projections(true, true);
 
-  Node* ctl = new Node(1);
-  Node* mem = new Node(1);
-  Node* io = new Node(1);
-  Node* ex_ctl = new Node(1);
-  Node* ex_mem = new Node(1);
-  Node* ex_io = new Node(1);
-  Node* res = new Node(1);
+  // Create temporary hook nodes that will be replaced below.
+  // Add an input to prevent hook nodes from being dead.
+  Node* ctl = new Node(call);
+  Node* mem = new Node(ctl);
+  Node* io = new Node(ctl);
+  Node* ex_ctl = new Node(ctl);
+  Node* ex_mem = new Node(ctl);
+  Node* ex_io = new Node(ctl);
+  Node* res = new Node(ctl);
 
   Node* cast = transform_later(new CastP2XNode(ctl, res));
   Node* mask = MakeConX(0x1);
