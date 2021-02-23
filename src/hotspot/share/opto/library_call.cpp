@@ -109,9 +109,7 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
 #endif
   ciMethod* callee = kit.callee();
   const int bci    = kit.bci();
-#ifdef ASSERT
-  Node* ctrl = kit.control();
-#endif
+
   // Try to inline the intrinsic.
   if ((CheckIntrinsics ? callee->intrinsic_candidate() : true) &&
       kit.try_to_inline(_last_predicate)) {
@@ -133,8 +131,8 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
     C->print_inlining_update(this);
     return kit.transfer_exceptions_into_jvms();
   }
+
   // The intrinsic bailed out
-  assert(ctrl == kit.control(), "Control flow was added although we bailed out");
   if (jvms->has_method()) {
     // Not a root compile.
     const char* msg;
