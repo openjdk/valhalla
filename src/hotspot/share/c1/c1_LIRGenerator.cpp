@@ -2301,9 +2301,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   } else if (x->delayed() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
-    access_sub_element(array, index, result,
-                       x->delayed() == NULL ? 0 : x->delayed()->field(),
-                       x->delayed() == NULL ? 0 : x->delayed()->offset());
+    access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
   } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
              x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
     // Load the default instance instead of reading the element
