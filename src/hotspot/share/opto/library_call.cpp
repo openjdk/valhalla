@@ -134,16 +134,7 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
     return kit.transfer_exceptions_into_jvms();
   }
   // The intrinsic bailed out
-#ifdef ASSERT
-  if (ctrl != kit.control()) {
-    ctrl->dump(0);
-    tty->print_cr("####");
-    kit.control()->dump(3);
-    assert(false, "control flow added");
-  }
-  // TODO just use this
-  //assert(ctrl == kit.control(), "Control flow was added although we bailed out");
-#endif
+  assert(ctrl == kit.control(), "Control flow was added although we bailed out");
   if (jvms->has_method()) {
     // Not a root compile.
     const char* msg;
