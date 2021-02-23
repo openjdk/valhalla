@@ -41,7 +41,7 @@ interface RMInterface {
 }
 
 public class RestrictedMethodTest implements RMInterface {
-  static inline class Point {
+  static primitive class Point {
     int x = 0;
     int y = 0;
   }
