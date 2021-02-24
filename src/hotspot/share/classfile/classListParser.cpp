@@ -400,9 +400,15 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
 
     bool identity_object_implemented = false;
     bool identity_object_specified = false;
+    bool primitive_object_implemented = false;
+    bool primitive_object_specified = false;
     for (i = 0; i < actual_num_interfaces; i++) {
       if (k->local_interfaces()->at(i) == vmClasses::IdentityObject_klass()) {
         identity_object_implemented = true;
+        break;
+      }
+      if (k->local_interfaces()->at(i) == vmClasses::PrimitiveObject_klass()) {
+        primitive_object_implemented = true;
         break;
       }
     }
@@ -411,15 +417,19 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
         identity_object_specified = true;
         break;
       }
+      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::PrimitiveObject_klass()) {
+        primitive_object_specified = true;
+        break;
+      }
     }
 
     expected_num_interfaces = actual_num_interfaces;
-    if (identity_object_implemented  && !identity_object_specified) {
+    if ( (identity_object_implemented  && !identity_object_specified) ||
+         (primitive_object_implemented && !primitive_object_specified) ){
       // Backwards compatibility -- older classlists do not know about
-      // java.lang.IdentityObject.
+      // java.lang.IdentityObject or java.lang.PrimitiveObject
       expected_num_interfaces--;
     }
-
     if (specified_num_interfaces != expected_num_interfaces) {
       print_specified_interfaces();
       print_actual_interfaces(k);
@@ -683,6 +693,11 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
     // Backwards compatibility -- older classlists do not know about
     // java.lang.IdentityObject.
     return vmClasses::IdentityObject_klass();
+  }
+  if (interface_name == vmSymbols::java_lang_PrimitiveObject()) {
+    // Backwards compatibility -- older classlists do not know about
+    // java.lang.PrimitiveObject.
+    return vmClasses::PrimitiveObject_klass();
   }
 
   const int n = _interfaces->length();

@@ -213,6 +213,8 @@ class ClassFileParser {
   bool _invalid_identity_super; // if true, invalid super type for an identity type.
   bool _implements_identityObject;
   bool _has_injected_identityObject;
+  bool _implements_primitiveObject;
+  bool _has_injected_primitiveObject;
 
   // precomputed flags
   bool _has_finalizer;
@@ -263,7 +265,6 @@ class ClassFileParser {
   void parse_interfaces(const ClassFileStream* const stream,
                         const int itfs_len,
                         ConstantPool* const cp,
-                        bool is_inline_type,
                         bool* has_nonstatic_concrete_methods,
                         bool* is_declared_atomic,
                         TRAPS);

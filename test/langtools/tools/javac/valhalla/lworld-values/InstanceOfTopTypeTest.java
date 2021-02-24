@@ -58,8 +58,8 @@ public class InstanceOfTopTypeTest {
         if (oa[0] instanceof IdentityObject)
             throw new AssertionError("Broken");
         if (oa[0] instanceof PrimitiveObject)
-            points++;
-        if (points != 4)
+            points++; // 6
+        if (points != 6)
             throw new AssertionError("Broken top type set up " + points);
     }
 }
