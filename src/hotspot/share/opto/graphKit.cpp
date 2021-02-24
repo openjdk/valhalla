@@ -3100,7 +3100,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   Node* res = _gvn.transform(cast);
   if (recv_xtype->is_inlinetypeptr() && recv_xtype->inline_klass()->is_scalarizable()) {
     assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
-    res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass());
+    res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_ptr(&gvn());
   }
 
   (*casted_receiver) = res;
