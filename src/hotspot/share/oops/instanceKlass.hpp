@@ -292,7 +292,8 @@ class InstanceKlass: public Klass {
     _misc_is_declared_atomic                  = 1 << 19, // implements jl.NonTearable
     _misc_invalid_inline_super                = 1 << 20, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 21, // invalid super type for an identity type
-    _misc_has_injected_identityObject         = 1 << 22  // IdentityObject has been injected by the JVM
+    _misc_has_injected_identityObject         = 1 << 22, // IdentityObject has been injected by the JVM
+    _misc_has_injected_primitiveObject        = 1 << 23  // PrimitiveObject has been injected by the JVM
   };
 
   // (*) An inline type is considered empty if it contains no non-static fields or
@@ -481,6 +482,14 @@ class InstanceKlass: public Klass {
 
   void set_has_injected_identityObject() {
     _misc_flags |= _misc_has_injected_identityObject;
+  }
+
+  bool has_injected_primitiveObject() const {
+    return (_misc_flags & _misc_has_injected_primitiveObject);
+  }
+
+  void set_has_injected_primitiveObject() {
+    _misc_flags |= _misc_has_injected_primitiveObject;
   }
 
   // field sizes
