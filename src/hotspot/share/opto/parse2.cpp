@@ -2176,6 +2176,12 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     return;
   }
 
+  // Check for equality before potentially allocating
+  if (left == right) {
+    do_if(btest, makecon(TypeInt::CC_EQ));
+    return;
+  }
+
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
     PreserveReexecuteState preexecs(this);

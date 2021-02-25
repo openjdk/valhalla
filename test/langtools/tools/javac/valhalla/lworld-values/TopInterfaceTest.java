@@ -49,7 +49,7 @@ public class TopInterfaceTest  {
 
 
         Class<?> [] ca = inln_o.getClass().getInterfaces();
-        if (ca.length != 0)
+        if (ca.length != 1 || !ca[0].getCanonicalName().equals("java.lang.PrimitiveObject"))
             throw new AssertionError("Found wrong super interfaces");
 
 

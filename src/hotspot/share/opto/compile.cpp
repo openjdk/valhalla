@@ -988,6 +988,7 @@ void Compile::Init(int aliaslevel) {
   _loop_opts_cnt = LoopOptsCount;
   _has_flattened_accesses = false;
   _flattened_accesses_share_alias = true;
+  _scalarize_in_safepoints = false;
 
   set_do_inlining(Inline);
   set_max_inline_size(MaxInlineSize);
@@ -1954,26 +1955,10 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
 }
 
 void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
-  // Make inline types scalar in safepoints
-  for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
-    InlineTypeBaseNode* vt = _inline_type_nodes.at(i)->as_InlineTypeBase();
-    vt->make_scalar_in_safepoints(&igvn);
+  if (_inline_type_nodes.length() == 0) {
+    return;
   }
-  if (remove) {
-    // Remove inline type nodes
-    while (_inline_type_nodes.length() > 0) {
-      InlineTypeBaseNode* vt = _inline_type_nodes.pop()->as_InlineTypeBase();
-      if (vt->outcnt() == 0) {
-        igvn.remove_dead_node(vt);
-      } else if (vt->is_InlineTypePtr()) {
-        igvn.replace_node(vt, vt->get_oop());
-      } else {
-        igvn.replace_node(vt, igvn.C->top());
-      }
-    }
-  }
-  // TODO only check once we are removing, right?
-  // Make sure that the return value does not keep an unused allocation alive
+  // Make sure that the return value does not keep an otherwise unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
     for (uint i = 1; i < root()->req(); i++){
@@ -1991,6 +1976,31 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
         assert(ret_val->outcnt() == 0, "should be dead now");
         igvn.remove_dead_node(ret_val);
       }
+    }
+  }
+  if (remove) {
+    // Remove inline type nodes
+    while (_inline_type_nodes.length() > 0) {
+      InlineTypeBaseNode* vt = _inline_type_nodes.pop()->as_InlineTypeBase();
+      if (vt->outcnt() == 0) {
+        igvn.remove_dead_node(vt);
+      } else if (vt->is_InlineTypePtr()) {
+        igvn.replace_node(vt, vt->get_oop());
+      } else {
+#ifdef ASSERT
+        for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
+          assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");
+        }
+#endif
+        igvn.replace_node(vt, igvn.C->top());
+      }
+    }
+  } else {
+    // Give inline types a chance to be scalarized in safepoints
+    // Delay this until all inlining is over to avoid getting inconsistent debug info
+    set_scalarize_in_safepoints(true);
+    for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
+      igvn._worklist.push(_inline_type_nodes.at(i));
     }
   }
   igvn.optimize();
@@ -2627,10 +2637,8 @@ void Compile::Optimize() {
     set_for_igvn(save_for_igvn);
   }
 
-  if (_inline_type_nodes.length() > 0) {
-    // Do this once all inlining is over to avoid getting inconsistent debug info
-    process_inline_types(igvn);
-  }
+  // Process inline type nodes now that all inlining is over
+  process_inline_types(igvn);
 
   adjust_flattened_array_access_aliases(igvn);
 
@@ -2737,11 +2745,8 @@ void Compile::Optimize() {
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
 #endif
 
-  if (_inline_type_nodes.length() > 0) {
-    // Process inline type nodes again and remove them. From here
-    // on we don't need to keep track of field values anymore.
-    process_inline_types(igvn, /* remove= */ true);
-  }
+  // Process inline type nodes again after loop opts
+  process_inline_types(igvn);
 
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
@@ -2752,6 +2757,10 @@ void Compile::Optimize() {
     }
     print_method(PHASE_MACRO_EXPANSION, 2);
   }
+
+  // Process inline type nodes again and remove them. From here
+  // on we don't need to keep track of field values anymore.
+  process_inline_types(igvn, /* remove= */ true);
 
   {
     TracePhase tp("barrierExpand", &timers[_t_barrierExpand]);

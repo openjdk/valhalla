@@ -223,6 +223,7 @@ public class Symtab {
     public final Type typeDescriptorType;
     public final Type recordType;
     public final Type identityObjectType;
+    public final Type primitiveObjectType;
     public final Type restrictedTypeType;
     public final Type valueBasedType;
 
@@ -600,6 +601,7 @@ public class Symtab {
         restrictedTypeType = enterClass("java.lang.invoke.RestrictedType");
         recordType = enterClass("java.lang.Record");
         identityObjectType = enterClass("java.lang.IdentityObject");
+        primitiveObjectType = enterClass("java.lang.PrimitiveObject");
         valueBasedType = enterClass("jdk.internal.ValueBased");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
@@ -609,6 +611,7 @@ public class Symtab {
         synthesizeEmptyInterfaceIfMissing(serializedLambdaType);
         synthesizeEmptyInterfaceIfMissing(stringConcatFactory);
         synthesizeEmptyInterfaceIfMissing(identityObjectType);
+        synthesizeEmptyInterfaceIfMissing(primitiveObjectType);
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);

@@ -2220,25 +2220,15 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   ciInlineKlass* inline_klass = NULL;
   if (type == T_INLINE_TYPE) {
-    Node* cls = null_check(argument(4));
-    if (stopped()) {
-      return true;
-    }
-    Node* kls = load_klass_from_mirror(cls, false, NULL, 0);
-    const TypeKlassPtr* kls_t = _gvn.type(kls)->isa_klassptr();
-    if (!kls_t->klass_is_exact()) {
+    const TypeInstPtr* cls = _gvn.type(argument(4))->isa_instptr();
+    if (cls == NULL || cls->const_oop() == NULL) {
       return false;
     }
-    ciKlass* klass = kls_t->klass();
-    if (!klass->is_inlinetype()) {
+    ciType* mirror_type = cls->const_oop()->as_instance()->java_mirror_type();
+    if (!mirror_type->is_inlinetype()) {
       return false;
     }
-    inline_klass = klass->as_inline_klass();
-  }
-
-  receiver = null_check(receiver);
-  if (stopped()) {
-    return true;
+    inline_klass = mirror_type->as_inline_klass();
   }
 
   if (base->is_InlineType()) {
@@ -2402,6 +2392,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
   }
 
+  receiver = null_check(receiver);
+  if (stopped()) {
+    return true;
+  }
   // Heap pointers get a null-check from the interpreter,
   // as a courtesy.  However, this is not guaranteed by Unsafe,
   // and it is not possible to fully distinguish unintended nulls
@@ -2498,41 +2492,36 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
+  if (!value->is_InlineType()) {
+    return false;
+  }
 
   receiver = null_check(receiver);
   if (stopped()) {
     return true;
   }
 
-  if (!value->is_InlineType()) {
-    return false;
-  }
-
   set_result(value->as_InlineType()->make_larval(this, true));
-
   return true;
 }
 
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   Node* receiver = argument(0);
   Node* buffer = argument(1);
+  if (!buffer->is_InlineType()) {
+    return false;
+  }
+  InlineTypeNode* vt = buffer->as_InlineType();
+  if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
+    return false;
+  }
 
   receiver = null_check(receiver);
   if (stopped()) {
     return true;
   }
 
-  if (!buffer->is_InlineType()) {
-    return false;
-  }
-
-  InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
-    return false;
-  }
-
   set_result(vt->finish_larval(this));
-
   return true;
 }
 
@@ -3256,22 +3245,22 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
+  bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-      if (!obj->is_InlineType() && tm->as_klass()->is_inlinetype()) {
-        // Casting to .val, check for null
-        obj = null_check(obj);
-        if (stopped()) {
-          return true;
-        }
-      }
+      // Check for null if casting to .val
+      requires_null_check = !obj->is_InlineType() && tm->as_klass()->is_inlinetype();
+
       int static_res = C->static_subtype_check(tm->as_klass(), obj_klass);
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
+        if (requires_null_check) {
+          obj = null_check(obj);
+        }
         set_result(obj);
         return true;
       } else if (static_res == Compile::SSC_always_false) {
@@ -3292,6 +3281,9 @@ bool LibraryCallKit::inline_Class_cast() {
   // Class.cast() is java implementation of _checkcast bytecode.
   // Do checkcast (Parse::do_checkcast()) optimizations here.
 
+  if (requires_null_check) {
+    obj = null_check(obj);
+  }
   mirror = null_check(mirror);
   // If mirror is dead, only null-path is taken.
   if (stopped()) {
@@ -3310,7 +3302,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
-    if (EnableValhalla && !obj->is_InlineType()) {
+    if (EnableValhalla && !obj->is_InlineType() && !requires_null_check) {
       // Check if we are casting to .val
       Node* is_val_kls = generate_value_guard(kls, NULL);
       if (is_val_kls != NULL) {
