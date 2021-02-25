@@ -43,6 +43,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/constantPool.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -50,11 +51,10 @@
 #include "utilities/hashtable.inline.hpp"
 #include "utilities/macros.hpp"
 
+volatile Thread* ClassListParser::_parsing_thread = NULL;
 ClassListParser* ClassListParser::_instance = NULL;
 
 ClassListParser::ClassListParser(const char* file) {
-  assert(_instance == NULL, "must be singleton");
-  _instance = this;
   _classlist_file = file;
   _file = NULL;
   // Use os::open() because neither fopen() nor os::fopen()
@@ -73,12 +73,22 @@ ClassListParser::ClassListParser(const char* file) {
   _line_no = 0;
   _interfaces = new (ResourceObj::C_HEAP, mtClass) GrowableArray<int>(10, mtClass);
   _indy_items = new (ResourceObj::C_HEAP, mtClass) GrowableArray<const char*>(9, mtClass);
+
+  // _instance should only be accessed by the thread that created _instance.
+  assert(_instance == NULL, "must be singleton");
+  _instance = this;
+  Atomic::store(&_parsing_thread, Thread::current());
+}
+
+bool ClassListParser::is_parsing_thread() {
+  return Atomic::load(&_parsing_thread) == Thread::current();
 }
 
 ClassListParser::~ClassListParser() {
   if (_file) {
     fclose(_file);
   }
+  Atomic::store(&_parsing_thread, (Thread*)NULL);
   _instance = NULL;
 }
 
@@ -400,9 +410,15 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
 
     bool identity_object_implemented = false;
     bool identity_object_specified = false;
+    bool primitive_object_implemented = false;
+    bool primitive_object_specified = false;
     for (i = 0; i < actual_num_interfaces; i++) {
       if (k->local_interfaces()->at(i) == vmClasses::IdentityObject_klass()) {
         identity_object_implemented = true;
+        break;
+      }
+      if (k->local_interfaces()->at(i) == vmClasses::PrimitiveObject_klass()) {
+        primitive_object_implemented = true;
         break;
       }
     }
@@ -411,15 +427,19 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
         identity_object_specified = true;
         break;
       }
+      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::PrimitiveObject_klass()) {
+        primitive_object_specified = true;
+        break;
+      }
     }
 
     expected_num_interfaces = actual_num_interfaces;
-    if (identity_object_implemented  && !identity_object_specified) {
+    if ( (identity_object_implemented  && !identity_object_specified) ||
+         (primitive_object_implemented && !primitive_object_specified) ){
       // Backwards compatibility -- older classlists do not know about
-      // java.lang.IdentityObject.
+      // java.lang.IdentityObject or java.lang.PrimitiveObject
       expected_num_interfaces--;
     }
-
     if (specified_num_interfaces != expected_num_interfaces) {
       print_specified_interfaces();
       print_actual_interfaces(k);
@@ -683,6 +703,11 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
     // Backwards compatibility -- older classlists do not know about
     // java.lang.IdentityObject.
     return vmClasses::IdentityObject_klass();
+  }
+  if (interface_name == vmSymbols::java_lang_PrimitiveObject()) {
+    // Backwards compatibility -- older classlists do not know about
+    // java.lang.PrimitiveObject.
+    return vmClasses::PrimitiveObject_klass();
   }
 
   const int n = _interfaces->length();

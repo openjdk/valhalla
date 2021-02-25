@@ -635,7 +635,11 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
       value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
       if (value != NULL && ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
-        value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
+        if (value->is_EncodeP()) {
+          value = value->in(1);
+        } else {
+          value = transform_later(new DecodeNNode(value, value->get_ptr_type()));
+        }
       }
     }
     if (value != NULL) {
@@ -656,6 +660,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
   DEBUG_ONLY( Node* disq_node = NULL; )
   bool  can_eliminate = true;
 
+  Unique_Node_List worklist;
   Node* res = alloc->result_cast();
   const TypeOopPtr* res_type = NULL;
   if (res == NULL) {
@@ -664,6 +669,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
     NOT_PRODUCT(fail_eliminate = "Allocation does not have unique CheckCastPP";)
     can_eliminate = false;
   } else {
+    worklist.push(res);
     res_type = _igvn.type(res)->isa_oopptr();
     if (res_type == NULL) {
       NOT_PRODUCT(fail_eliminate = "Neither instance or array allocation";)
@@ -677,9 +683,9 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
     }
   }
 
-  if (can_eliminate && res != NULL) {
-    for (DUIterator_Fast jmax, j = res->fast_outs(jmax);
-                               j < jmax && can_eliminate; j++) {
+  while (can_eliminate && worklist.size() > 0) {
+    res = worklist.pop();
+    for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax && can_eliminate; j++) {
       Node* use = res->fast_out(j);
 
       if (use->is_AddP()) {
@@ -730,6 +736,9 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         }
       } else if (use->is_InlineType() && use->isa_InlineType()->get_oop() == res) {
         // ok to eliminate
+      } else if (use->is_InlineTypePtr() && use->isa_InlineTypePtr()->get_oop() == res) {
+        // Process users
+        worklist.push(use);
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
@@ -765,7 +774,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         alloc->dump();
       else
         res->dump();
-    } else if (alloc->_is_scalar_replaceable) {
+    } else {
       tty->print("NotScalar (%s)", fail_eliminate);
       if (res == NULL)
         alloc->dump();
@@ -951,17 +960,18 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 #endif
         return false;
       }
-      if (field_val->is_InlineType()) {
-        // Keep track of inline types to scalarize them later
-        value_worklist.push(field_val);
-      } else if (UseCompressedOops && field_type->isa_narrowoop()) {
+      if (UseCompressedOops && field_type->isa_narrowoop()) {
         // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
         // to be able scalar replace the allocation.
         if (field_val->is_EncodeP()) {
           field_val = field_val->in(1);
-        } else {
+        } else if (!field_val->is_InlineTypeBase()) {
           field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
         }
+      }
+      if (field_val->is_InlineTypeBase()) {
+        // Keep track of inline types to scalarize them later
+        value_worklist.push(field_val);
       }
       sfpt->add_req(field_val);
     }
@@ -980,8 +990,8 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   // because Deoptimization::reassign_flat_array_elements needs field values.
   bool allow_oop = (klass == NULL) || !klass->is_flat_array_klass();
   for (uint i = 0; i < value_worklist.size(); ++i) {
-    Node* vt = value_worklist.at(i);
-    vt->as_InlineType()->make_scalar_in_safepoints(&_igvn, allow_oop);
+    InlineTypeBaseNode* vt = value_worklist.at(i)->as_InlineTypeBase();
+    vt->make_scalar_in_safepoints(&_igvn, allow_oop);
   }
   return true;
 }
@@ -2257,7 +2267,8 @@ void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
 
   assert(unc->peek_monitor_box() == lock->box_node(), "wrong monitor");
   assert((obj_type->is_inlinetypeptr() && unc->peek_monitor_obj()->is_SafePointScalarObject()) ||
-         (unc->peek_monitor_obj() == lock->obj_node()), "wrong monitor");
+         (obj->is_InlineTypePtr() && obj->in(1) == unc->peek_monitor_obj()) ||
+         (obj == unc->peek_monitor_obj()), "wrong monitor");
 
   // pop monitor and push obj back on stack: we trap before the monitorenter
   unc->pop_monitor();
@@ -2694,13 +2705,15 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   // Before any new projection is added:
   CallProjections* projs = call->extract_projections(true, true);
 
-  Node* ctl = new Node(1);
-  Node* mem = new Node(1);
-  Node* io = new Node(1);
-  Node* ex_ctl = new Node(1);
-  Node* ex_mem = new Node(1);
-  Node* ex_io = new Node(1);
-  Node* res = new Node(1);
+  // Create temporary hook nodes that will be replaced below.
+  // Add an input to prevent hook nodes from being dead.
+  Node* ctl = new Node(call);
+  Node* mem = new Node(ctl);
+  Node* io = new Node(ctl);
+  Node* ex_ctl = new Node(ctl);
+  Node* ex_mem = new Node(ctl);
+  Node* ex_io = new Node(ctl);
+  Node* res = new Node(ctl);
 
   Node* cast = transform_later(new CastP2XNode(ctl, res));
   Node* mask = MakeConX(0x1);

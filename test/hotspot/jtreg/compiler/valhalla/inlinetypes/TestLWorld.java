@@ -3645,4 +3645,70 @@ public class TestLWorld extends InlineTypeTest {
             // Expected
         }
     }
+
+    // Test that acmp of the same inline object is removed
+    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    public static boolean test135() {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
+        return val == val;
+    }
+
+    @DontCompile
+    public void test135_verifier(boolean warmup) {
+        Asserts.assertTrue(test135());
+    }
+
+    // Same as test135 but with .ref
+    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    public static boolean test136(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = null;
+        }
+        return val == val;
+    }
+
+    @DontCompile
+    public void test136_verifier(boolean warmup) {
+        Asserts.assertTrue(test136(false));
+        Asserts.assertTrue(test136(true));
+    }
+
+    static final primitive class SimpleInlineType {
+        final int x;
+        public SimpleInlineType(int x) {
+            this.x = x;
+        }
+    }
+
+    // Test that acmp of different inline objects with same content is removed
+    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    public static boolean test137(int i) {
+        SimpleInlineType val1 = new SimpleInlineType(i);
+        SimpleInlineType val2 = new SimpleInlineType(i);
+        return val1 == val2;
+    }
+
+    @DontCompile
+    public void test137_verifier(boolean warmup) {
+        Asserts.assertTrue(test137(rI));
+    }
+
+    // Same as test137 but with .ref
+    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    public static boolean test138(int i, boolean b) {
+        SimpleInlineType.ref val1 = new SimpleInlineType(i);
+        SimpleInlineType.ref val2 = new SimpleInlineType(i);
+        if (b) {
+            val1 = null;
+            val2 = null;
+        }
+        return val1 == val2;
+    }
+
+    @DontCompile
+    public void test138_verifier(boolean warmup) {
+        Asserts.assertTrue(test138(rI, false));
+        Asserts.assertTrue(test138(rI, true));
+    }
 }

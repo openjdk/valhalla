@@ -307,6 +307,7 @@ class Compile : public Phase {
   bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
   bool                  _has_flattened_accesses; // Any known flattened array accesses?
   bool                  _flattened_accesses_share_alias; // Initially all flattened array share a single slice
+  bool                  _scalarize_in_safepoints; // Scalarize inline types in safepoint debug info
   uint                  _stress_seed;           // Seed for stress testing
 
   // Compilation environment.
@@ -602,6 +603,8 @@ class Compile : public Phase {
   void          set_flattened_accesses()         { _has_flattened_accesses = true; }
   bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
   void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
+  bool          scalarize_in_safepoints() const { return _scalarize_in_safepoints; }
+  void          set_scalarize_in_safepoints(bool z) { _scalarize_in_safepoints = z; }
 
   // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }

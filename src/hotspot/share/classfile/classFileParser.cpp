@@ -961,7 +961,6 @@ static bool put_after_lookup(const Symbol* name, const Symbol* sig, NameSigHash*
 void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
                                        int itfs_len,
                                        ConstantPool* cp,
-                                       bool is_inline_type,
                                        bool* const has_nonstatic_concrete_methods,
                                        // FIXME: lots of these functions
                                        // declare their parameters as const,
@@ -1017,7 +1016,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       }
 
       InstanceKlass* ik = InstanceKlass::cast(interf);
-      if (is_inline_type && ik->invalid_inline_super()) {
+      if (is_inline_type() && ik->invalid_inline_super()) {
         ResourceMark rm(THREAD);
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
@@ -1037,6 +1036,11 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       }
       if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
         _implements_identityObject = true;
+      }
+      if (ik->name() == vmSymbols::java_lang_PrimitiveObject()) {
+        // further checks for "is_invalid_super_for_inline_type()" needed later
+        // needs field parsing, delay unitl post_process_parse_stream()
+        _implements_primitiveObject = true;
       }
       _temp_local_interfaces->append(ik);
     }
@@ -4707,6 +4711,9 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
     if (length == 1 && result->at(0) == vmClasses::IdentityObject_klass()) {
       return Universe::the_single_IdentityObject_klass_array();
     }
+    if (length == 1 && result->at(0) == vmClasses::PrimitiveObject_klass()) {
+      return Universe::the_single_PrimitiveObject_klass_array();
+    }
 
     Array<InstanceKlass*>* const new_result =
       MetadataFactory::new_array<InstanceKlass*>(loader_data, length, CHECK_NULL);
@@ -5825,6 +5832,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (_has_injected_identityObject) {
     ik->set_has_injected_identityObject();
   }
+  if (_has_injected_primitiveObject) {
+    ik->set_has_injected_primitiveObject();
+  }
 
   assert(_fac != NULL, "invariant");
   ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_INLINE]);
@@ -6081,8 +6091,14 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // it's official
   set_klass(ik);
 
+  // the common single interface arrays need setup here to provide the
+  // correct answer to "compute_transitive_interfaces()", during
+  // "SystemDictionary::initialize()"
   if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
     Universe::initialize_the_single_IdentityObject_klass_array(ik, CHECK);
+  }
+  if (ik->name() == vmSymbols::java_lang_PrimitiveObject()) {
+    Universe::initialize_the_single_PrimitiveObject_klass_array(ik, CHECK);
   }
 
   debug_only(ik->verify();)
@@ -6237,6 +6253,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _invalid_identity_super(false),
   _implements_identityObject(false),
   _has_injected_identityObject(false),
+  _implements_primitiveObject(false),
+  _has_injected_primitiveObject(false),
   _has_restricted_fields(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
@@ -6581,7 +6599,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_interfaces(stream,
                    _itfs_len,
                    cp,
-                   is_inline_type(),
                    &_has_nonstatic_concrete_methods,
                    &_is_declared_atomic,
                    CHECK);
@@ -6729,13 +6746,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     if (is_inline_type()) {
       const InstanceKlass* super_ik = _super_klass;
       if (super_ik->invalid_inline_super()) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_IncompatibleClassChangeError(),
-          "inline class %s has an invalid super class %s",
-          _class_name->as_klass_external_name(),
-          _super_klass->external_name());
+        classfile_icce_error("inline class %s has an invalid super class %s", _super_klass, THREAD);
         return;
       }
     }
@@ -6767,11 +6778,25 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     _temp_local_interfaces->append(vmClasses::IdentityObject_klass());
     _has_injected_identityObject = true;
   }
+  // Check if declared as PrimitiveObject...else add if needed
+  if (_implements_primitiveObject) {
+    if (!is_inline_type() && invalid_inline_super()) {
+      classfile_icce_error("class %s can not implement %s, neither valid inline classes or valid supertype",
+                            vmClasses::PrimitiveObject_klass(), THREAD);
+      return;
+    }
+  } else if (is_inline_type()) {
+    _temp_local_interfaces->append(vmClasses::PrimitiveObject_klass());
+    _has_injected_primitiveObject = true;
+  }
+
   int itfs_len = _temp_local_interfaces->length();
   if (itfs_len == 0) {
     _local_interfaces = Universe::the_empty_instance_klass_array();
   } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::IdentityObject_klass()) {
     _local_interfaces = Universe::the_single_IdentityObject_klass_array();
+  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::PrimitiveObject_klass()) {
+    _local_interfaces = Universe::the_single_PrimitiveObject_klass_array();
   } else {
     _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
     for (int i = 0; i < itfs_len; i++) {

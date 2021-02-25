@@ -94,6 +94,8 @@ public:
 
   // Allocate all non-flattened inline type fields
   Node* allocate_fields(GraphKit* kit);
+
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
 //------------------------------InlineTypeNode-------------------------------------
