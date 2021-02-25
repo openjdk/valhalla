@@ -245,7 +245,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
     vt->make_scalar_in_safepoints(igvn);
   }
   if (outcnt() == 0) {
-    igvn->remove_dead_node(this);
+    igvn->_worklist.push(this);
   }
 }
 
