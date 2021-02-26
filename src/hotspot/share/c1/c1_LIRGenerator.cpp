@@ -1755,7 +1755,11 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
     __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
     Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-    __ move(load_constant(default_value), result);
+    if (default_value->is_pinned()) {
+      __ move(LIR_OprFact::value_type(default_value->type()), result);
+    } else {
+      __ move(load_constant(default_value), result);
+    }
     __ branch_destination(L_end->label());
     set_in_conditional_code(false);
   }
@@ -2159,7 +2163,11 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
     Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-    __ move(load_constant(default_value), result);
+    if (default_value->is_pinned()) {
+      __ move(LIR_OprFact::value_type(default_value->type()), result);
+    } else {
+      __ move(load_constant(default_value), result);
+    }
     __ branch_destination(L_end->label());
     set_in_conditional_code(false);
   }
@@ -2309,7 +2317,11 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
     LIR_Opr result = rlock_result(x, x->elt_type());
     Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
-    __ move(load_constant(default_value), result);
+    if (default_value->is_pinned()) {
+      __ move(LIR_OprFact::value_type(default_value->type()), result);
+    } else {
+      __ move(load_constant(default_value), result);
+    }
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = NULL;
