@@ -74,6 +74,8 @@ class ciMethod : public ciMetadata {
   ciSignature*     _signature;
   ciMethodData*    _method_data;
   ciMethodBlocks*   _method_blocks;
+  GrowableArray<ciKlass*>* _restricted_arguments;
+  ciKlass*         _restricted_return_value;
 
   // Code attributes.
   int _code_size;
@@ -95,6 +97,7 @@ class ciMethod : public ciMetadata {
   bool _can_be_statically_bound;
   bool _has_reserved_stack_access;
   bool _is_overpass;
+  bool _has_restricted_method;
 
   // Lazy fields, filled in on demand
   address              _code;
@@ -345,6 +348,7 @@ class ciMethod : public ciMetadata {
   bool is_default_method() const                 { return !is_abstract() && !is_private() &&
                                                           holder()->is_interface(); }
   bool is_overpass    () const                   { check_is_loaded(); return _is_overpass; }
+  bool has_restriced_method() const              { return _has_restricted_method; }
   bool has_loops      () const;
   bool has_jsrs       () const;
   bool is_getter      () const;
@@ -381,6 +385,14 @@ class ciMethod : public ciMetadata {
   // Support for the inline type calling convention
   bool has_scalarized_args() const;
   const GrowableArray<SigEntry>* get_sig_cc();
+
+  // RestrictedMethod support
+  ciKlass* restricted_argument_at(int index) {
+    return _restricted_arguments->at(index);
+  }
+  ciKlass* restricted_return_value() {
+    return _restricted_return_value;
+  }
 };
 
 #endif // SHARE_CI_CIMETHOD_HPP

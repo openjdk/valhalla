@@ -1656,6 +1656,13 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       break;
   }
 
+  if (method()->has_restriced_method() && method()->restricted_return_value() != NULL) {
+    CheckCast* c = new CheckCast(method()->restricted_return_value(), x, copy_state_before());
+    append_split(c);
+    c->set_incompatible_class_change_check();
+    c->set_direct_compare(method()->restricted_return_value()->as_instance_klass()->is_final());
+  }
+
   // Check to see whether we are inlining. If so, Return
   // instructions become Gotos to the continuation point.
   if (continuation() != NULL) {
@@ -2251,6 +2258,23 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     if (bc_raw == Bytecodes::_invokehandle) {
       assert(!will_link, "should come here only for unlinked call");
       code = Bytecodes::_invokespecial;
+    }
+  }
+
+  if (target->has_restriced_method()) {
+    Method* m = target->get_Method();
+    int args_base = state()->stack_size() - target->arg_size();
+    if (code != Bytecodes::_invokestatic) {
+      args_base++;
+    }
+    assert(target->arg_size_no_receiver() == m->restricted_num_param(), "Must match");
+    for (int i = 0; i < m->restricted_num_param(); i++) {
+      if (m->restricted_param_type_at(i) != NULL) {
+        CheckCast* c = new CheckCast(target->restricted_argument_at(i),state()->stack_at(args_base + i), copy_state_before());
+        append_split(c);
+        c->set_incompatible_class_change_check();
+        c->set_direct_compare(target->restricted_argument_at(i)->as_instance_klass()->is_final());
+      }
     }
   }
 
