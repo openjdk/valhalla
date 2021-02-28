@@ -1520,9 +1520,15 @@ LEAF(NewMultiArray, NewArray)
 };
 
 LEAF(Deoptimize, StateSplit)
+private:
+  ciKlass*    _klass;
+
  public:
-  Deoptimize(ValueStack* state_before)
-  : StateSplit(objectType, state_before) {}
+  Deoptimize(ciKlass* klass, ValueStack* state_before)
+  : StateSplit(objectType, state_before), _klass(klass) {}
+
+  // accessors
+  ciKlass* klass() const                         { return _klass; }
 };
 
 BASE(TypeCheck, StateSplit)
