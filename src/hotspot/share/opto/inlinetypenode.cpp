@@ -457,7 +457,10 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile
   for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
     ProjNode* pn = call->fast_out(i)->as_Proj();
     uint con = pn->_con;
-    if (con >= TypeFunc::Parms+1) {
+    Node* field = NULL;
+    if (con == TypeFunc::Parms) {
+      field = get_oop();
+    } else if (con > TypeFunc::Parms) {
       uint field_nb = con - (TypeFunc::Parms+1);
       int extra = 0;
       for (uint j = 0; j < field_nb - extra; j++) {
@@ -468,11 +471,13 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile
         }
       }
       ciField* f = vk->nonstatic_field_at(field_nb - extra);
-      Node* field = field_value_by_offset(f->offset(), true);
+      field = field_value_by_offset(f->offset(), true);
       if (field->is_InlineType()) {
         assert(field->as_InlineType()->is_allocated(&kit->gvn()), "must be allocated");
         field = field->as_InlineType()->get_oop();
       }
+    }
+    if (field != NULL) {
       C->gvn_replace_by(pn, field);
       C->initial_gvn()->hash_delete(pn);
       pn->set_req(0, C->top());
