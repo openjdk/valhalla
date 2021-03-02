@@ -621,6 +621,11 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
 
 InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
+  if (!in) {
+    // Keep track of the oop. The returned inline type might already be buffered.
+    Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
+    vt->set_oop(oop);
+  }
   vt->initialize_fields(kit, multi, base_input, in);
   return kit->gvn().transform(vt)->as_InlineType();
 }

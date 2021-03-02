@@ -1101,7 +1101,6 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
         // (RAX on x64, with LSB set to 1) and we need to allocate an inline
         // type instance of that type and initialize it with other values being
         // returned (in other registers).
-        // type.
         if (vk_ret != NULL) {
           *vk_ret = NULL;
         }

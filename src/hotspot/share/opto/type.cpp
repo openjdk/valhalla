@@ -2115,8 +2115,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   case T_INLINE_TYPE:
     if (ret_vt_fields) {
       uint pos = TypeFunc::Parms;
-      field_array[pos] = TypePtr::BOTTOM;
-      pos++;
+      field_array[pos++] = get_const_type(return_type);
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
