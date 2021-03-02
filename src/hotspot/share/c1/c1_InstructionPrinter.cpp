@@ -542,7 +542,9 @@ void InstructionPrinter::do_NewMultiArray(NewMultiArray* x) {
 }
 
 void InstructionPrinter::do_Deoptimize(Deoptimize* x) {
-  output()->print("deoptimize");
+  output()->print("deoptimize [unloaded=");
+  print_klass(x->klass());
+  output()->print("] ");
 }
 
 void InstructionPrinter::do_MonitorEnter(MonitorEnter* x) {
