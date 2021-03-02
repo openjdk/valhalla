@@ -630,7 +630,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     InstanceKlass* ik = InstanceKlass::cast(klass);
     int tab = 1;
     st->print_cr("Class %s [@%s]:", klass->name()->as_C_string(),
-        klass->class_loader_data()->name()->as_C_string());
+        klass->class_loader_data()->loader_name());
     ResourceMark rm;
     GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
     for (FieldStream fd(ik, false, false); !fd.eos(); fd.next()) {
