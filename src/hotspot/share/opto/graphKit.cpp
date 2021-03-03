@@ -2019,7 +2019,10 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
 
   // Replace the result with the new result if it exists and is used
   if (callprojs->resproj[0] != NULL && result != NULL) {
-    assert(callprojs->nb_resproj == 1, "unexpected number of results");
+    // If the inlined code is dead, the result projections for an inline type returned as
+    // fields have not been replaced. They will go away once the call is replaced by TOP below.
+    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()),
+           "unexpected number of results");
     C->gvn_replace_by(callprojs->resproj[0], result);
   }
 
