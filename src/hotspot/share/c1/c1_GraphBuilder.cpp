@@ -1656,7 +1656,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       break;
   }
 
-  if (method()->has_restriced_method() && method()->restricted_return_value() != NULL) {
+  if (method()->has_type_restrictions() && method()->restricted_return_value() != NULL) {
     CheckCast* c = new CheckCast(method()->restricted_return_value(), x, copy_state_before());
     append_split(c);
     c->set_incompatible_class_change_check();
@@ -2261,20 +2261,31 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
-  if (target->has_restriced_method()) {
-    Method* m = target->get_Method();
-    int args_base = state()->stack_size() - target->arg_size();
-    if (code != Bytecodes::_invokestatic) {
-      args_base++;
+  if (target->has_type_restrictions()) {
+    const bool has_receiver =
+      code == Bytecodes::_invokespecial   ||
+      code == Bytecodes::_invokevirtual   ||
+      code == Bytecodes::_invokeinterface;
+    if (has_receiver) {
+      int index = state()->stack_size() - (target->arg_size_no_receiver() + 1);
+      Value receiver = state()->stack_at(index);
+      null_check(receiver);
     }
-    assert(target->arg_size_no_receiver() == m->restricted_num_param(), "Must match");
-    for (int i = 0; i < m->restricted_num_param(); i++) {
-      if (m->restricted_param_type_at(i) != NULL) {
-        CheckCast* c = new CheckCast(target->restricted_argument_at(i),state()->stack_at(args_base + i), copy_state_before());
+    int cursor = state()->stack_size() - target->arg_size();
+    if (has_receiver) {
+      cursor++;
+    }
+    int count = target->signature()->count();
+    int num = target->restricted_num_param();
+    assert(target->signature()->count() == target->restricted_num_param(), "Must match");
+    for (int i = 0; i < target->restricted_num_param(); i++) {
+      if (target->restricted_argument_at(i) != NULL) {
+        CheckCast* c = new CheckCast(target->restricted_argument_at(i),state()->stack_at(cursor), copy_state_before());
         append_split(c);
         c->set_incompatible_class_change_check();
         c->set_direct_compare(target->restricted_argument_at(i)->as_instance_klass()->is_final());
       }
+      cursor += state()->stack_at(cursor)->type()->size();
     }
   }
 
@@ -3597,6 +3608,12 @@ ValueStack* GraphBuilder::state_at_entry() {
   ciSignature* sig = method()->signature();
   for (int i = 0; i < sig->count(); i++) {
     ciType* type = sig->type_at(i);
+    if (method()->has_type_restrictions() && method()->restricted_argument_at(i) != NULL) {
+      // Replacing the type information from the signature by the type information from
+      // the RestrictedMethod attribute, assuming type restrictions checks have been
+      // performed by the caller
+      type = method()->restricted_argument_at(i);
+    }
     BasicType basic_type = type->basic_type();
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;

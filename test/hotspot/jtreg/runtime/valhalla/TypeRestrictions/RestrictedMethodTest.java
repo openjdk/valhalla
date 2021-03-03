@@ -32,6 +32,7 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile RestrictedMethodTest.java
  * @run main/othervm -Xint runtime.valhalla.typerestrictions.RestrictedMethodTest
+ * @run main/othervm -Xcomp -XX:TieredStopAtLevel=1 -XX:+TraceDeoptimization runtime.valhalla.typerestrictions.RestrictedMethodTest
  */
 
 interface RMInterface {
@@ -45,6 +46,17 @@ public class RestrictedMethodTest implements RMInterface {
     int x = 0;
     int y = 0;
   }
+
+  static class Unloaded {
+    static public primitive class Complex {
+	    double real = 0;
+	    double imaginary = 0;
+    }
+
+    void print(@RestrictedType("Qruntime/valhalla/typerestrictions/RestrictedMethodTest$Unloaded$Complex;") Object o) {
+	    System.out.println("print says "+o);
+    }
+}
 
   void oneRestrictedArgument(@RestrictedType("Qruntime/valhalla/typerestrictions/RestrictedMethodTest$Point;") Object o) {
     System.out.println("oneRestrictedArgument says " + o);
@@ -93,7 +105,7 @@ public class RestrictedMethodTest implements RMInterface {
   static void expectNoError(Throwable t) {
     Asserts.assertNull(t, "No Error should have been thrown");
   }
-  public static void main(String[] args) {
+  public static void test(int n) {
     Point p = new Point();
     RestrictedMethodTest test = new RestrictedMethodTest();
     Throwable result = null;
@@ -180,5 +192,29 @@ public class RestrictedMethodTest implements RMInterface {
     }
     expectICC(result);
     result = null;
+    if (n != 0) {
+      Unloaded ul = new Unloaded();
+      Unloaded.Complex c = new Unloaded.Complex();
+      result = null;
+	    ul.print(c);
+      expectNoError(result);
+	    try {
+		    ul.print(new String("string"));
+	    } catch (Throwable t) {
+		    result = t;
+	    }
+      expectICC(result);
+    }
+  }
+
+  static public void main(String[] args) {
+    for (int i = 0; i < 10; i++) {
+      System.out.println("Iteration "+i);
+      test(0);
+    }
+    for (int i = 10; i < 20; i++) {
+      System.out.println("Iteration "+i);
+      test(1);
+    }
   }
 }

@@ -1034,7 +1034,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
         }
       }
       // Loadding classes of restricted parameters
-      if (m->constMethod()->has_restricted_method()) {
+      if (m->constMethod()->has_type_restrictions()) {
         m->resolve_restricted_types(CHECK_false);
       }
     }

@@ -93,7 +93,7 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
   _can_be_parsed      = true;
   _has_reserved_stack_access = h_m->has_reserved_stack_access();
   _is_overpass        = h_m->is_overpass();
-  _has_restricted_method = h_m->has_restricted_method();
+  _has_type_restrictions = h_m->has_type_restrictions();
   // Lazy fields, filled in on demand.  Require allocation.
   _code               = NULL;
   _exception_handlers = NULL;
@@ -152,11 +152,12 @@ ciMethod::ciMethod(const methodHandle& h_m, ciInstanceKlass* holder) :
   if (_interpreter_invocation_count == 0)
     _interpreter_invocation_count = 1;
   _instructions_size = -1;
-  if (_has_restricted_method) {
-    assert(arg_size_no_receiver() == h_m()->restricted_num_param(), "Must match");
+  if (_has_type_restrictions) {
+    assert(signature()->count() == h_m()->restricted_num_param(), "Must match");
+    int num_param = h_m()->restricted_num_param();
     Arena* arena = CURRENT_ENV->arena();
-    _restricted_arguments = new (arena) GrowableArray<ciKlass*>(arena, _size_of_parameters, _size_of_parameters, NULL);
-    for (int i = 0; i < h_m()->restricted_num_param(); i++) {
+    _restricted_arguments = new (arena) GrowableArray<ciKlass*>(arena, num_param, num_param, NULL);
+    for (int i = 0; i < num_param; i++) {
       if (h_m()->restricted_param_type_at(i) != NULL) {
         _restricted_arguments->at_put(i, CURRENT_ENV->get_metadata(h_m()->restricted_param_type_at(i))->as_klass());
       } else {
@@ -204,7 +205,7 @@ ciMethod::ciMethod(ciInstanceKlass* holder,
   // the holder has the wrong class loader (e.g. invokedynamic call
   // sites) so we pass the accessor.
   _signature = new (CURRENT_ENV->arena()) ciSignature(accessor, constantPoolHandle(), signature);
-  _has_restricted_method = false;
+  _has_type_restrictions = false;
 }
 
 

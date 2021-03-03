@@ -3935,7 +3935,7 @@ void TemplateTable::restricted_method_check(Register method) {
     Label not_restricted;
   __ movptr(rscratch1, method);
   __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
-  __ andl(rscratch1, Method::_restricted_method);
+  __ andl(rscratch1, Method::_type_restrictions);
   __ jcc(Assembler::zero, not_restricted);
   __ restore_bcp();
   __ push(method);

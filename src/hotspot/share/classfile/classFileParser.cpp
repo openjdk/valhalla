@@ -3197,7 +3197,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 
   // Copy RestrictedMethod attribute if present
   if (has_restricted_method_attribute) {
-    m->set_restricted_method(true);
+    m->set_has_type_restrictions(true);
     *(m->constMethod()->restricted_num_params_addr()) = restricted_num_params;
     *(m->constMethod()->restricted_return_type_index_addr()) = restricted_return_type_index;
     u2* cursor = m->constMethod()->restricted_param_type_start();

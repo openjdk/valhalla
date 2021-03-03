@@ -185,24 +185,24 @@ u2* ConstMethod::last_u2_element() const {
 }
 
 u1* ConstMethod::restricted_num_params_addr() const {
-  assert(has_restricted_method(), "called only if method has a RestrictedMethod attribute");
+  assert(has_type_restrictions(), "called only if method has a RestrictedMethod attribute");
   return (u1*)last_u2_element();
 }
 
 u2* ConstMethod::restricted_return_type_index_addr() const {
-  assert(has_restricted_method(), "called only if method has a RestrictedMethod attribute");
+  assert(has_type_restrictions(), "called only if method has a RestrictedMethod attribute");
   return last_u2_element() - 1;
 }
 
 u2* ConstMethod::restricted_param_type_start() const {
-  assert(has_restricted_method(), "called only if method has a RestrictedMethod attribute");
+  assert(has_type_restrictions(), "called only if method has a RestrictedMethod attribute");
   return last_u2_element() - 1 - *restricted_num_params_addr();
 }
 
 u2* ConstMethod::generic_signature_index_addr() const {
   // Located at the end of the constMethod.
   assert(has_generic_signature(), "called only if generic signature exists");
-  if (has_restricted_method()) {
+  if (has_type_restrictions()) {
     return restricted_param_type_start() - 1;
   } else {
     return last_u2_element();
@@ -214,7 +214,7 @@ u2* ConstMethod::method_parameters_length_addr() const {
   if (has_generic_signature()) {
     return generic_signature_index_addr() - 1;
   } else {
-    if (has_restricted_method()) {
+    if (has_type_restrictions()) {
       return restricted_param_type_start() - 1;
     } else {
       return last_u2_element();
@@ -232,7 +232,7 @@ u2* ConstMethod::checked_exceptions_length_addr() const {
     if (has_generic_signature()) {
       return generic_signature_index_addr() - 1;
     } else {
-      if (has_restricted_method()) {
+      if (has_type_restrictions()) {
         return restricted_param_type_start() - 1;
       } else {
         return last_u2_element();
@@ -254,7 +254,7 @@ u2* ConstMethod::exception_table_length_addr() const {
       if (has_generic_signature()) {
         return generic_signature_index_addr() - 1;
       } else {
-        if (has_restricted_method()) {
+        if (has_type_restrictions()) {
           return restricted_param_type_start() - 1;
         } else {
           return last_u2_element();
@@ -281,7 +281,7 @@ u2* ConstMethod::localvariable_table_length_addr() const {
         if (has_generic_signature()) {
           return generic_signature_index_addr() - 1;
         } else {
-          if (has_restricted_method()) {
+          if (has_type_restrictions()) {
             return restricted_param_type_start() - 1;
           } else {
             return last_u2_element();
@@ -319,7 +319,7 @@ void ConstMethod::set_inlined_tables_length(InlineTableSizes* sizes) {
   if (sizes->default_annotations_length() > 0)
     _flags |= _has_default_annotations;
   if (sizes->restricted_method_length() > 0)
-    _flags |= _has_restricted_method;
+    _flags |= _has_type_restrictions;
 
   // This code is extremely brittle and should possibly be revised.
   // The *_length_addr functions walk backwards through the

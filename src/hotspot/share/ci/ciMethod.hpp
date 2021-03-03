@@ -97,7 +97,7 @@ class ciMethod : public ciMetadata {
   bool _can_be_statically_bound;
   bool _has_reserved_stack_access;
   bool _is_overpass;
-  bool _has_restricted_method;
+  bool _has_type_restrictions;
 
   // Lazy fields, filled in on demand
   address              _code;
@@ -348,7 +348,7 @@ class ciMethod : public ciMetadata {
   bool is_default_method() const                 { return !is_abstract() && !is_private() &&
                                                           holder()->is_interface(); }
   bool is_overpass    () const                   { check_is_loaded(); return _is_overpass; }
-  bool has_restriced_method() const              { return _has_restricted_method; }
+  bool has_type_restrictions  () const           { return _has_type_restrictions; }
   bool has_loops      () const;
   bool has_jsrs       () const;
   bool is_getter      () const;
@@ -387,10 +387,13 @@ class ciMethod : public ciMetadata {
   const GrowableArray<SigEntry>* get_sig_cc();
 
   // RestrictedMethod support
-  ciKlass* restricted_argument_at(int index) {
+  int restricted_num_param() const {
+    return _restricted_arguments->length();
+  }
+  ciKlass* restricted_argument_at(int index) const {
     return _restricted_arguments->at(index);
   }
-  ciKlass* restricted_return_value() {
+  ciKlass* restricted_return_value() const {
     return _restricted_return_value;
   }
 };

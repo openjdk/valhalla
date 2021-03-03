@@ -540,7 +540,7 @@ JRT_ENTRY(void, InterpreterRuntime::restricted_parameter_checks(JavaThread* thre
   constantPoolHandle cph(THREAD, caller->constants());
   Method* callee = last_frame.cache_entry()->method_if_resolved(cph);
   assert(callee != NULL, "Something bad happened");
-  if (callee->has_restricted_method()) {
+  if (callee->has_type_restrictions()) {
     ResourceMark rm(THREAD);
     Symbol* signature = callee->signature();
     ArgumentCount args(signature);
@@ -571,7 +571,7 @@ JRT_ENTRY(void, InterpreterRuntime::restricted_return_value_check(JavaThread* th
   assert(last_frame.bytecode().code() == Bytecodes::_areturn, "Only areturn should have such checks");
   Method* method = last_frame.method();
   constantPoolHandle cph(THREAD, method->constants());
-  if (method->constMethod()->has_restricted_method()) {
+  if (method->constMethod()->has_type_restrictions()) {
     Klass* k = method->restricted_return_value();
     if (k != NULL && !obj->klass()->is_subtype_of(k)) {
       THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
