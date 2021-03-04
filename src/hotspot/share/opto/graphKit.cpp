@@ -1897,7 +1897,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // Return of multiple values (inline type fields): we create a
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-    uint base_input = TypeFunc::Parms + 1;
+    uint base_input = TypeFunc::Parms;
     ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
@@ -2019,7 +2019,10 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
 
   // Replace the result with the new result if it exists and is used
   if (callprojs->resproj[0] != NULL && result != NULL) {
-    assert(callprojs->nb_resproj == 1, "unexpected number of results");
+    // If the inlined code is dead, the result projections for an inline type returned as
+    // fields have not been replaced. They will go away once the call is replaced by TOP below.
+    assert(callprojs->nb_resproj == 1 || (call->tf()->returns_inline_type_as_fields() && stopped()),
+           "unexpected number of results");
     C->gvn_replace_by(callprojs->resproj[0], result);
   }
 
@@ -2739,9 +2742,9 @@ Node* GraphKit::make_native_call(const TypeFunc* call_type, uint nargs, ciNative
 
   address call_addr = nep->entry_point();
   if (nep->need_transition()) {
-    BufferBlob* invoker = SharedRuntime::make_native_invoker(call_addr,
-                                                             nep->shadow_space(),
-                                                             arg_regs, ret_regs);
+    RuntimeStub* invoker = SharedRuntime::make_native_invoker(call_addr,
+                                                              nep->shadow_space(),
+                                                              arg_regs, ret_regs);
     if (invoker == NULL) {
       C->record_failure("native invoker not implemented on this platform");
       return NULL;

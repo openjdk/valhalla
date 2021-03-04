@@ -2902,6 +2902,7 @@ public class JavacParser implements Parser {
             accept(LBRACE);
             List<JCCase> cases = switchBlockStatementGroups();
             JCSwitch t = to(F.at(pos).Switch(selector, cases));
+            t.endpos = token.endPos;
             accept(RBRACE);
             return t;
         }

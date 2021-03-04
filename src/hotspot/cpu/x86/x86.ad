@@ -2374,6 +2374,18 @@ encode %{
       __ int3();
       __ bind(L);
     }
+    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
+      // An inline type is returned as fields in multiple registers.
+      // Rax either contains an oop if the inline type is buffered or a pointer
+      // to the corresponding InlineKlass with the lowest bit set to 1. Zero rax
+      // if the lowest bit is set to allow C2 to use the oop after null checking.
+      // rax &= (rax & 1) - 1
+      C2_MacroAssembler _masm(&cbuf);
+      __ movptr(rscratch1, rax);
+      __ andptr(rscratch1, 0x1);
+      __ subptr(rscratch1, 0x1);
+      __ andptr(rax, rscratch1);
+    }
   %}
 
 %}
