@@ -6018,9 +6018,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
         Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
         // Inline classes for instance fields must have been pre-loaded
         // Inline classes for static fields might not have been loaded yet
-        Klass* klass = SystemDictionary::find(klass_name,
+        InstanceKlass* klass = SystemDictionary::find_instance_klass(klass_name,
             Handle(THREAD, ik->class_loader()),
-            Handle(THREAD, ik->protection_domain()), CHECK);
+            Handle(THREAD, ik->protection_domain()));
         assert(klass != NULL, "Just checking");
         assert(klass->access_flags().is_inline_type(), "Inline type expected");
         ik->set_inline_type_field_klass(i, klass);

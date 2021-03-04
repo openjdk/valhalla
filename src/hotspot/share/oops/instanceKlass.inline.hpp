@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,9 +75,9 @@ inline Klass** InstanceKlass::end_of_nonstatic_oop_maps() const {
                    nonstatic_oop_map_count());
 }
 
-inline Klass* volatile* InstanceKlass::adr_implementor() const {
+inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
   if (is_interface()) {
-    return (Klass* volatile*)end_of_nonstatic_oop_maps();
+    return (InstanceKlass* volatile*)end_of_nonstatic_oop_maps();
   } else {
     return NULL;
   }
@@ -103,7 +103,7 @@ inline address InstanceKlass::adr_fingerprint() const {
       return (address)(adr_host + 1);
     }
 
-    Klass* volatile* adr_impl = adr_implementor();
+    InstanceKlass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
       return (address)(adr_impl + 1);
     }
@@ -126,7 +126,7 @@ inline address InstanceKlass::adr_inline_type_field_klasses() const {
       return (address)(adr_host + 1);
     }
 
-    Klass* volatile* adr_impl = adr_implementor();
+    InstanceKlass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
       return (address)(adr_impl + 1);
     }
@@ -325,7 +325,7 @@ inline u2* InstanceKlass::fields_descriptor_type() const {
       return (u2*)(adr_host + 1);
     }
 
-    Klass* volatile* adr_impl = adr_implementor();
+    InstanceKlass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
       return (u2*)(adr_impl + 1);
     }

@@ -1009,8 +1009,13 @@ static void disconnect_projections(MultiNode* n, PhaseIterGVN& igvn) {
 
 // Process users of eliminated allocation.
 void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_alloc) {
+  Unique_Node_List worklist;
   Node* res = alloc->result_cast();
   if (res != NULL) {
+    worklist.push(res);
+  }
+  while (worklist.size() > 0) {
+    res = worklist.pop();
     for (DUIterator_Last jmin, j = res->last_outs(jmin); j >= jmin; ) {
       Node *use = res->last_out(j);
       uint oc1 = res->outcnt();
@@ -1076,6 +1081,12 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
         _igvn.rehash_node_delayed(use);
         use->isa_InlineType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+      } else if (use->is_InlineTypePtr()) {
+        assert(use->isa_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
+        _igvn.rehash_node_delayed(use);
+        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+        // Process users
+        worklist.push(use);
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(inline_alloc, "Unexpected store to mark word");
