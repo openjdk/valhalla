@@ -3962,7 +3962,9 @@ static void hook_memory_on_init(GraphKit& kit, int alias_idx,
 
   Node* prevmem = kit.memory(alias_idx);
   init_in_merge->set_memory_at(alias_idx, prevmem);
-  kit.set_memory(init_out_raw, alias_idx);
+  if (init_out_raw != NULL) {
+    kit.set_memory(init_out_raw, alias_idx);
+  }
 }
 
 //---------------------------set_output_for_allocation-------------------------
@@ -4026,7 +4028,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
           int off_in_vt = field->offset() - vk->first_field_offset();
           const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
           int fieldidx = C->get_alias_index(adr_type, true);
-          hook_memory_on_init(*this, fieldidx, minit_in, minit_out);
+          hook_memory_on_init(*this, fieldidx, minit_in, NULL);
         }
         C->set_flattened_accesses_share_alias(true);
         hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::INLINES), minit_in, minit_out);

@@ -1064,6 +1064,10 @@ void PhiNode::verify_adr_type(bool recursive) const {
   if (Node::in_dump())               return;  // muzzle asserts when printing
 
   assert((_type == Type::MEMORY) == (_adr_type != NULL), "adr_type for memory phis only");
+  assert(_adr_type == NULL || _adr_type->isa_aryptr() == NULL ||
+         _adr_type->is_aryptr()->is_known_instance() ||
+         !_adr_type->is_aryptr()->is_flat() ||
+         !Compile::current()->flattened_accesses_share_alias() || _adr_type == TypeAryPtr::INLINES, "");
 
   if (!VerifyAliases)       return;  // verify thoroughly only if requested
 
