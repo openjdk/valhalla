@@ -133,7 +133,6 @@ public abstract class InlineTypeTest {
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
     private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true")) && !XCOMP;
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1 && COMPILE_COMMANDS;
-    private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
     private static final String TESTLIST = System.getProperty("Testlist", "");
     private static final String EXCLUDELIST = System.getProperty("Exclude", "");
@@ -158,9 +157,6 @@ public abstract class InlineTypeTest {
         "-XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.*::*"};
     private static final String[] printFlags = {
         "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintOptoAssembly"};
-    private static final String[] verifyFlags = {
-        "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame",
-        "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC", "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
 
     protected static final int InlineTypePassFieldsAsArgsOn = 0x1;
     protected static final int InlineTypePassFieldsAsArgsOff = 0x2;
@@ -455,7 +451,7 @@ public abstract class InlineTypeTest {
             }
         }
         // Each VM is launched with flags in this order, so the later ones can override the earlier one:
-        //     VERIFY_IR/VERIFY_VM flags specified below
+        //     VERIFY_IR flags specified below
         //     vmInputArgs, which consists of:
         //        @run options
         //        getVMParameters()
@@ -468,9 +464,6 @@ public abstract class InlineTypeTest {
             cmds = concat(cmds, printFlags);
             // Always trap for exception throwing to not confuse IR verification
             cmds = concat(cmds, "-XX:-OmitStackTraceInFastThrow");
-        }
-        if (VERIFY_VM) {
-            cmds = concat(cmds, verifyFlags);
         }
         cmds = concat(cmds, vmInputArgs);
         cmds = concat(cmds, defaultFlags);

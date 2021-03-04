@@ -2070,7 +2070,7 @@ void GraphBuilder::withfield(int field_index)
   Value obj = apop();
 
   if (!holder->is_loaded()) {
-    apush(append_split(new Deoptimize(state_before)));
+    apush(append_split(new Deoptimize(holder, state_before)));
     return;
   }
 
@@ -2511,7 +2511,7 @@ void GraphBuilder::default_value(int klass_index) {
     ciInlineKlass* vk = klass->as_inline_klass();
     apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
   } else {
-    apush(append_split(new Deoptimize(copy_state_before())));
+    apush(append_split(new Deoptimize(klass, copy_state_before())));
   }
 }
 
