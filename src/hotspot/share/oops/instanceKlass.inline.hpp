@@ -125,7 +125,7 @@ inline address InstanceKlass::adr_inline_type_field_klasses() const {
       return (address)(adr_host + 1);
     }
 
-    Klass* volatile* adr_impl = adr_implementor();
+    InstanceKlass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
       return (address)(adr_impl + 1);
     }

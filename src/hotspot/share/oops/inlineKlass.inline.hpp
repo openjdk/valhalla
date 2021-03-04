@@ -47,7 +47,7 @@ inline InlineKlassFixedBlock* InlineKlass::inlineklass_static_block() const {
     return (InlineKlassFixedBlock*)(adr_host + 1);
   }
 
-  Klass* volatile* adr_impl = adr_implementor();
+  InstanceKlass* volatile* adr_impl = adr_implementor();
   if (adr_impl != NULL) {
     return (InlineKlassFixedBlock*)(adr_impl + 1);
   }
