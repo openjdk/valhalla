@@ -325,7 +325,7 @@ inline u2* InstanceKlass::fields_descriptor_type() const {
       return (u2*)(adr_host + 1);
     }
 
-    Klass* volatile* adr_impl = adr_implementor();
+    InstanceKlass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
       return (u2*)(adr_impl + 1);
     }
