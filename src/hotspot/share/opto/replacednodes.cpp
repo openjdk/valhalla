@@ -145,6 +145,7 @@ void ReplacedNodes::apply(Compile* C, Node* ctl) {
       enqueue_use(initial, use, work);
       bool replace = true;
       // Check that this use is dominated by ctl. Go ahead with the replacement if it is.
+      DEBUG_ONLY(uint loop_count = 0);
       while (work.size() != 0 && replace) {
         Node* n = work.pop();
         if (use->outcnt() == 0) {
@@ -174,6 +175,7 @@ void ReplacedNodes::apply(Compile* C, Node* ctl) {
             enqueue_use(n, n->out(k), work);
           }
         }
+        assert(loop_count++ < K, "infinite loop in ReplacedNodes::apply");
       }
       if (replace) {
         bool is_in_table = C->initial_gvn()->hash_delete(use);

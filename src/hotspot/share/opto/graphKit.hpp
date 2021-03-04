@@ -708,9 +708,10 @@ class GraphKit : public Phase {
       assert(!recv_type->maybe_null(), "should never be null");
       InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);
-      if (replace_value && !Compile::current()->inlining_incrementally()) {
+      if (replace_value && is_Parse()) {
         // Only replace in map if we are not incrementally inlining because we
         // share a map with the caller which might expect the inline type as oop.
+        assert(!Compile::current()->inlining_incrementally(), "sanity");
         replace_in_map(n, vt);
       }
       n = vt;
