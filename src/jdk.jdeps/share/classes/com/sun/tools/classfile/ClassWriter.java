@@ -349,6 +349,20 @@ public class ClassWriter {
             out.writeShort(info.name_and_type_index);
             return 1;
         }
+
+        @Override
+        public Integer visitParameter(CONSTANT_Parameter_info info, ClassOutputStream out) {
+            out.writeByte(info.parameter_kind.tag);
+            out.writeShort(info.bootstrap_method_attr_index);
+            return 1;
+        }
+
+        @Override
+        public Integer visitLinkage(CONSTANT_Linkage_info info, ClassOutputStream out) {
+            out.writeShort(info.parameter_index);
+            out.writeShort(info.reference_index);
+            return 1;
+        }
     }
 
     /**
@@ -650,6 +664,13 @@ public class ClassWriter {
                 for (Attribute componentAttr: info.attributes)
                     write(componentAttr, out);
             }
+            return null;
+        }
+
+        @Override
+        public Void visitParametric(Parametric_attribute attr, ClassOutputStream out) {
+            out.writeShort(attr.parameter_index);
+            out.writeShort(attr.type_index);
             return null;
         }
 

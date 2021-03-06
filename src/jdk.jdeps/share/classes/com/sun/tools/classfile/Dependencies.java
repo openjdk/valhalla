@@ -713,6 +713,14 @@ public class Dependencies {
                 return null;
             }
 
+            public Void visitParameter(CONSTANT_Parameter_info info, Void p) {
+                return null;
+            }
+
+            public Void visitLinkage(CONSTANT_Linkage_info info, Void p) {
+                return null;
+            }
+
             public Void visitNameAndType(CONSTANT_NameAndType_info info, Void p) {
                 try {
                     new Signature(info.type_index).getType(constant_pool).accept(this, null);

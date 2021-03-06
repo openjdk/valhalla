@@ -166,6 +166,7 @@ public class Names {
     public final Name Value;
     public final Name Varargs;
     public final Name PermittedSubclasses;
+    public final Name Parametric;
 
     // members of java.lang.annotation.ElementType
     public final Name ANNOTATION_TYPE;
@@ -225,6 +226,12 @@ public class Names {
     // sealed types
     public final Name permits;
     public final Name sealed;
+
+    // valhalla
+    // Parametric annotation
+    public final Name kind;
+    public final Name METHOD_ONLY;
+    public final Name METHOD_AND_CLASS;
 
     public final Name.Table table;
 
@@ -352,6 +359,7 @@ public class Names {
         Value = fromString("Value");
         Varargs = fromString("Varargs");
         PermittedSubclasses = fromString("PermittedSubclasses");
+        Parametric = fromString("Parametric");
 
         // members of java.lang.annotation.ElementType
         ANNOTATION_TYPE = fromString("ANNOTATION_TYPE");
@@ -405,6 +413,11 @@ public class Names {
         // sealed types
         permits = fromString("permits");
         sealed = fromString("sealed");
+
+        // valhalla
+        kind = fromString("kind");
+        METHOD_ONLY = fromString("METHOD_ONLY");
+        METHOD_AND_CLASS = fromString("METHOD_AND_CLASS");
     }
 
     protected Name.Table createTable(Options options) {
