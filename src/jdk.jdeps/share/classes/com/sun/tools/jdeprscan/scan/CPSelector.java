@@ -120,4 +120,14 @@ class CPSelector implements ConstantPool.Visitor<Void,CPEntries> {
     public Void visitUtf8(ConstantPool.CONSTANT_Utf8_info info, CPEntries p) {
         return null;
     }
+
+    @Override
+    public Void visitParameter(ConstantPool.CONSTANT_Parameter_info info, CPEntries p) {
+        return null;
+    }
+
+    @Override
+    public Void visitLinkage(ConstantPool.CONSTANT_Linkage_info info, CPEntries p) {
+        return null;
+    }
 }

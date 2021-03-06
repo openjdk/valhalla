@@ -217,6 +217,7 @@ public class Code {
         this.syms = syms;
         this.types = types;
         this.poolWriter = poolWriter;
+        this.poolWriter.currentMethSymbol = meth;
         this.debugCode = debugCode;
         this.stackMap = stackMap;
         switch (stackMap) {

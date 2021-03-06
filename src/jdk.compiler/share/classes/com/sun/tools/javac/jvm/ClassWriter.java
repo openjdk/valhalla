@@ -108,6 +108,8 @@ public class ClassWriter extends ClassFile {
 
     private Check check;
 
+    private boolean supportParametricVM;
+
     /**
      * If true, class files will be written in module-specific subdirectories
      * of the CLASS_OUTPUT location.
@@ -192,6 +194,8 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
+
+        supportParametricVM = options.isSet("supportParametricVM");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -371,6 +375,10 @@ public class ClassWriter extends ClassFile {
             int alenIdx = writeAttr(names.Signature);
             databuf.appendChar(poolWriter.putSignature(sym));
             endAttr(alenIdx);
+            acount++;
+        }
+        if (supportParametricVM && sym.attribute(syms.parametricType.tsym) != null) {
+            writeParametricAttribute(sym);
             acount++;
         }
         acount += writeJavaAnnotations(sym.getRawAttributes());
@@ -858,6 +866,26 @@ public class ClassWriter extends ClassFile {
             acount += writeMemberAttrs(v, true);
             endAttrs(acountIdx, acount);
         }
+        endAttr(alenIdx);
+        return 1;
+    }
+
+    int writeParametricAttribute(Symbol sym) {
+        int alenIdx = writeAttr(names.Parametric);
+        int kind = 1; // the default
+        Attribute.Compound c = sym.attribute(syms.parametricType.tsym);
+        Attribute value = c.member(names.kind);
+        if (value != null && value instanceof Attribute.Enum) {
+            Name kindName = ((Attribute.Enum)value).value.name;
+            kind = switch (kindName.toString()) {
+                case "CLASS" -> 1;
+                case "METHOD_ONLY" -> 2;
+                case "METHOD_AND_CLASS" -> 3;
+                default -> throw new AssertionError("unexpected kind");
+            };
+        }
+        databuf.appendChar(poolWriter.putParameter(kind));
+        databuf.appendChar(0);
         endAttr(alenIdx);
         return 1;
     }
@@ -1707,6 +1735,11 @@ public class ClassWriter extends ClassFile {
 
         if (!poolWriter.innerClasses.isEmpty()) {
             writeInnerClasses();
+            acount++;
+        }
+
+        if (supportParametricVM && c.attribute(syms.parametricType.tsym) != null) {
+            writeParametricAttribute(c);
             acount++;
         }
 

@@ -129,7 +129,7 @@ public class Gen extends JCTree.Visitor {
         genCrt = options.isSet(XJCOV);
         debugCode = options.isSet("debug.code");
         disableVirtualizedPrivateInvoke = options.isSet("disableVirtualizedPrivateInvoke");
-        poolWriter = new PoolWriter(types, names);
+        poolWriter = new PoolWriter(types, names, syms, log, options.isSet("supportParametricVM"));
 
         // ignore cldc because we cannot have both stackmap formats
         this.stackMap = StackMapFormat.JSR202;

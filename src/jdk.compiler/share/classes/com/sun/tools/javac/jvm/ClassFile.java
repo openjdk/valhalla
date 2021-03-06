@@ -85,6 +85,8 @@ public class ClassFile {
     public final static int CONSTANT_InvokeDynamic = 18;
     public final static int CONSTANT_Module = 19;
     public final static int CONSTANT_Package = 20;
+    public final static int CONSTANT_Parameter = 21;
+    public final static int CONSTANT_Linkage = 22;
 
     public final static int REF_getField = 1;
     public final static int REF_getStatic = 2;

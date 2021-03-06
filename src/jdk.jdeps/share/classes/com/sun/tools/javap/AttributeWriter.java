@@ -60,6 +60,7 @@ import com.sun.tools.classfile.ModuleResolution_attribute;
 import com.sun.tools.classfile.ModuleTarget_attribute;
 import com.sun.tools.classfile.NestHost_attribute;
 import com.sun.tools.classfile.NestMembers_attribute;
+import com.sun.tools.classfile.Parametric_attribute;
 import com.sun.tools.classfile.Record_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
@@ -894,6 +895,12 @@ public class AttributeWriter extends BasicWriter
         } catch (ConstantPoolException ex) {
             throw new AssertionError(ex);
         }
+        return null;
+    }
+
+    @Override
+    public Void visitParametric(Parametric_attribute attr, Void ignore) {
+        println("Parametric: #" + attr.parameter_index + ":" + attr.type_index);
         return null;
     }
 

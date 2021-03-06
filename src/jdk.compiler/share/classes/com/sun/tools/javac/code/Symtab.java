@@ -66,7 +66,6 @@ import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
-import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -225,6 +224,9 @@ public class Symtab {
     public final Type identityObjectType;
     public final Type primitiveObjectType;
     public final Type valueBasedType;
+    public final Type parametricType;
+    public final Type linkageClassType;
+    public final Type linkageMethodType;
 
     /** The symbol representing the length field of an array.
      */
@@ -601,6 +603,9 @@ public class Symtab {
         identityObjectType = enterClass("java.lang.IdentityObject");
         primitiveObjectType = enterClass("java.lang.PrimitiveObject");
         valueBasedType = enterClass("jdk.internal.ValueBased");
+        parametricType = enterClass("java.lang.annotation.Parametric");
+        linkageClassType = enterClass("java.lang.annotation.LinkageClass");
+        linkageMethodType = enterClass("java.lang.annotation.LinkageMethod");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);

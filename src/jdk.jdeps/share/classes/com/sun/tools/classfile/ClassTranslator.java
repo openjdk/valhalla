@@ -44,6 +44,8 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_NameAndType_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Package_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_String_info;
 import com.sun.tools.classfile.ConstantPool.CONSTANT_Utf8_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Parameter_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Linkage_info;
 import com.sun.tools.classfile.ConstantPool.CPInfo;
 
 /**
@@ -423,6 +425,34 @@ public class ClassTranslator
                 info2 = info;
             else
                 info2 = new CONSTANT_NameAndType_info(cp2, info.name_index, info.type_index);
+            translations.put(info, info2);
+        }
+        return info;
+    }
+
+    @Override
+    public CPInfo visitParameter(CONSTANT_Parameter_info info, Map<Object, Object> translations) {
+        CONSTANT_Parameter_info info2 = (CONSTANT_Parameter_info) translations.get(info);
+        if (info2 == null) {
+            ConstantPool cp2 = translate(info.cp, translations);
+            if (cp2 == info.cp)
+                info2 = info;
+            else
+                info2 = new CONSTANT_Parameter_info(cp2, info.parameter_kind, info.bootstrap_method_attr_index);
+            translations.put(info, info2);
+        }
+        return info;
+    }
+
+    @Override
+    public CPInfo visitLinkage(CONSTANT_Linkage_info info, Map<Object, Object> translations) {
+        CONSTANT_Linkage_info info2 = (CONSTANT_Linkage_info) translations.get(info);
+        if (info2 == null) {
+            ConstantPool cp2 = translate(info.cp, translations);
+            if (cp2 == info.cp)
+                info2 = info;
+            else
+                info2 = new CONSTANT_Linkage_info(cp2, info.parameter_index, info.reference_index);
             translations.put(info, info2);
         }
         return info;
