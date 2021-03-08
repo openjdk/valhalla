@@ -5412,12 +5412,12 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   int call_offset = -1;
 
 #ifdef _LP64
-  // The following code is similar to allocate_instance but has some slightly differences,
+  // The following code is similar to allocate_instance but has some slight differences,
   // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
-  // allocating is not necessary if vk != NULL, etc. allocate_instance can not aware of these.
+  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
   Label slow_case;
   // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
-  mov(rscratch1, rax); // save rax for slow_case since *_allocate may corrupts it when allocation failed
+  mov(rscratch1, rax); // save rax for slow_case since *_allocate may corrupt it when allocation failed
   if (vk != NULL) {
     // Called from C1, where the return type is statically known.
     movptr(rbx, (intptr_t)vk->get_InlineKlass());
@@ -5453,7 +5453,6 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     store_klass(buffer_obj, rbx, tmp_store_klass);
     // 3. Initialize its fields with an inline class specific handler
     if (vk != NULL) {
-      // FIXME -- do the packing in-line to avoid the runtime call
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
       movptr(rbx, Address(r13, InstanceKlass::adr_inlineklass_fixed_block_offset()));
