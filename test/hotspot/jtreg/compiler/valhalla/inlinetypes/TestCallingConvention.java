@@ -49,6 +49,7 @@ public class TestCallingConvention extends InlineTypeTest {
         case 0: return new String[] {"-Dsun.reflect.inflationThreshold=10000"}; // Don't generate bytecodes but call through runtime for reflective calls
         case 1: return new String[] {"-Dsun.reflect.inflationThreshold=10000"};
         case 3: return new String[] {"-XX:FlatArrayElementMaxSize=0"};
+        case 4: return new String[] {"-XX:-UseTLAB"};
         }
         return null;
     }
