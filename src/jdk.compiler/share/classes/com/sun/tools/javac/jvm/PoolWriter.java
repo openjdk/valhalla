@@ -128,17 +128,7 @@ public class PoolWriter {
      * Puts a class symbol into the pool and return its index.
      */
     int putClass(ClassSymbol csym) {
-        Attribute.Compound parametricAnno = csym.attribute(syms.parametricType.tsym);
-        if (supportParametricVM &&
-                parametricAnno != null &&
-                enclMethodHasLinkageAnno() &&
-                !referencesBeingLinked.contains(csym)) {
-            int linkageIndex = generateLinkage(types.erasure(csym.type), parametricAnno);
-            if (linkageIndex > 0) {
-                return linkageIndex;
-            }
-        }
-        return pool.writeIfNeeded(types.erasure(csym.type));
+        return pool.writeIfNeeded(wrapWithLinkageIfNeeded(types.erasure(csym.type), csym.attribute(syms.parametricType.tsym)));
     }
 
     /**
@@ -146,17 +136,7 @@ public class PoolWriter {
      * or an array type.
      */
     int putClass(Type t) {
-        Attribute.Compound parametricAnno = t.tsym.attribute(syms.parametricType.tsym);
-        if (supportParametricVM &&
-                parametricAnno != null &&
-                enclMethodHasLinkageAnno() &&
-                !referencesBeingLinked.contains(t)) {
-            int linkageIndex = generateLinkage(t, parametricAnno);
-            if (linkageIndex > 0) {
-                return linkageIndex;
-            }
-        }
-        return pool.writeIfNeeded(types.erasure(t));
+        return pool.writeIfNeeded(wrapWithLinkageIfNeeded(types.erasure(t), t.tsym.attribute(syms.parametricType.tsym)));
     }
 
     /**
@@ -174,17 +154,7 @@ public class PoolWriter {
      * Puts a member reference into the constant pool. Valid members are either field or method symbols.
      */
     int putMember(Symbol s) {
-        Attribute.Compound parametricAnno = s.attribute(syms.parametricType.tsym);
-        if (supportParametricVM &&
-                parametricAnno != null &&
-                enclMethodHasLinkageAnno() &&
-                !referencesBeingLinked.contains(s)) {
-            int linkageIndex = generateLinkage(s, parametricAnno);
-            if (linkageIndex > 0) {
-                return linkageIndex;
-            }
-        }
-        return pool.writeIfNeeded(s);
+        return pool.writeIfNeeded(wrapWithLinkageIfNeeded(s, s.attribute(syms.parametricType.tsym)));
     }
 
     // where
@@ -198,9 +168,14 @@ public class PoolWriter {
          * to generate the corresponding legacy entry. If successful it will return the index of the corresponding
          * Linkage_info constant in the constant pool
          */
-        int generateLinkage(Object s, Attribute.Compound parametricAnno) {
+        PoolConstant wrapWithLinkageIfNeeded(PoolConstant poolConstant, Attribute.Compound parametricAnno) {
             // the referred element is parametric
-            if (!supportParametricVM) return -1;
+            if (!supportParametricVM ||
+                    parametricAnno == null ||
+                    !enclMethodHasLinkageAnno() ||
+                    referencesBeingLinked.contains(poolConstant)) {
+                return poolConstant;
+            }
             Name kindName = names.CLASS;
             Attribute value = parametricAnno.member(names.kind);
             if (value != null && value instanceof Attribute.Enum) {
@@ -217,7 +192,7 @@ public class PoolWriter {
                 }
                 if (linkageMethodValueStr == null) {
                     log.printRawLines("LinkageMethod annotation without value");
-                    return -1;
+                    return poolConstant;
                 }
             }
             String linkageClassValueStr = null;
@@ -229,33 +204,33 @@ public class PoolWriter {
                 }
                 if (linkageClassValueStr == null) {
                     log.printRawLines("LinkageClass annotation without value");
-                    return -1;
+                    return poolConstant;
                 }
             }
             if (kindName == names.METHOD_ONLY) {
                 if (linkageMethodValueStr == null) {
                     // bail out
-                    return -1;
+                    return poolConstant;
                 }
-                referencesBeingLinked.add(s);
-                return pool.writeIfNeeded(new Linkage(linkageMethodValueStr, s, false));
+                referencesBeingLinked.add(poolConstant);
+                return new Linkage(linkageMethodValueStr, poolConstant, false);
             } else if (kindName == names.CLASS) {
                 if (linkageClassValueStr == null) {
                     // bail out
-                    return -1;
+                    return poolConstant;
                 }
-                referencesBeingLinked.add(s);
-                return pool.writeIfNeeded(new Linkage(linkageClassValueStr, s, s instanceof Type));
+                referencesBeingLinked.add(poolConstant);
+                return new Linkage(linkageClassValueStr, poolConstant, poolConstant instanceof Type);
             } else if (kindName == names.METHOD_AND_CLASS) {
                 if (linkageMethodValueStr == null) {
                     // bail out
-                    return -1;
+                    return poolConstant;
                 }
-                referencesBeingLinked.add(s);
-                return pool.writeIfNeeded(new Linkage(linkageMethodValueStr, s, s instanceof Type));
+                referencesBeingLinked.add(poolConstant);
+                return new Linkage(linkageMethodValueStr, poolConstant, poolConstant instanceof Type);
             }
             log.printRawLines("could not generate Linkage_info constant");
-            return -1;
+            return poolConstant;
         }
 
     /**
