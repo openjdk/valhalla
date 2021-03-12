@@ -1588,6 +1588,7 @@ const Type *TypeInt::xmeet( const Type *t ) const {
   case DoubleTop:
   case DoubleCon:
   case DoubleBot:
+  case InlineType:
   case Bottom:                  // Ye Olde Default
     return Type::BOTTOM;
   default:                      // All else is a mistake
