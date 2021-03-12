@@ -1218,6 +1218,7 @@ Type::Category Type::category() const {
     case Type::DoubleTop:
     case Type::DoubleCon:
     case Type::DoubleBot:
+    case Type::InlineType:
       return Category::Data;
     case Type::Memory:
       return Category::Memory;
@@ -1587,6 +1588,7 @@ const Type *TypeInt::xmeet( const Type *t ) const {
   case DoubleTop:
   case DoubleCon:
   case DoubleBot:
+  case InlineType:
   case Bottom:                  // Ye Olde Default
     return Type::BOTTOM;
   default:                      // All else is a mistake
