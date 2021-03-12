@@ -874,6 +874,10 @@ public class ClassWriter extends ClassFile {
         int alenIdx = writeAttr(names.Parametric);
         int kind = 1; // the default
         Attribute.Compound c = sym.attribute(syms.parametricType.tsym);
+        // let's extract the id from the annotation
+        Attribute idValue = c.member(names.id);
+
+        // now, let's extract the kind from the annotation
         Attribute value = c.member(names.kind);
         if (value != null && value instanceof Attribute.Enum) {
             Name kindName = ((Attribute.Enum)value).value.name;
@@ -884,7 +888,7 @@ public class ClassWriter extends ClassFile {
                 default -> throw new AssertionError("unexpected kind");
             };
         }
-        databuf.appendChar(poolWriter.putParameter(kind));
+        databuf.appendChar(poolWriter.putParameter(idValue.getValue().toString(), kind));
         databuf.appendChar(0);
         endAttr(alenIdx);
         return 1;

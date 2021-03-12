@@ -314,8 +314,8 @@ public class PoolWriter {
     /**
      * Puts a parameter into the pool and returns its index.
      */
-    int putParameter(int kind) {
-        return pool.writeIfNeeded(new Parameter(kind));
+    int putParameter(String id, int kind) {
+        return pool.writeIfNeeded(new Parameter(id, kind));
     }
 
     /**

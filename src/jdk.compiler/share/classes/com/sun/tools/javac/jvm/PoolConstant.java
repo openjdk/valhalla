@@ -228,9 +228,15 @@ public interface PoolConstant {
      */
     final class Parameter implements PoolConstant {
 
+        String id;
         final int kind;
 
         Parameter(int kind) {
+            this.kind = kind;
+        }
+
+        Parameter(String id, int kind) {
+            this.id = id;
             this.kind = kind;
         }
 
@@ -241,7 +247,7 @@ public interface PoolConstant {
 
         @Override
         public Object poolKey(Types types) {
-            return Integer.valueOf(kind);
+            return id;
         }
     }
 

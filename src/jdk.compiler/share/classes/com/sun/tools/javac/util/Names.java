@@ -229,6 +229,7 @@ public class Names {
 
     // valhalla
     // Parametric annotation
+    public final Name id;
     public final Name kind;
     public final Name METHOD_ONLY;
     public final Name METHOD_AND_CLASS;
@@ -415,6 +416,7 @@ public class Names {
         sealed = fromString("sealed");
 
         // valhalla
+        id = fromString("id");
         kind = fromString("kind");
         METHOD_ONLY = fromString("METHOD_ONLY");
         METHOD_AND_CLASS = fromString("METHOD_AND_CLASS");
