@@ -53,6 +53,11 @@ primitive class MyValue3 {
     float[] floatArray = new float[1];
 }
 
+primitive class MyValue4 {
+    short b = 2;
+    int c = 8;
+}
+
 public class TestGenerated {
     EmptyValue f1 = new EmptyValue();
     EmptyValue f2 = new EmptyValue();
@@ -157,6 +162,26 @@ public class TestGenerated {
         }
     }
 
+    MyValue4[] d = {new MyValue4()};
+    MyValue4 e;
+    byte f;
+    byte test12() {
+        MyValue4 i = new MyValue4();
+        for (int j = 0; j < 6; ++j) {
+            MyValue4[] k = {};
+            if (i.b < 0101)
+                i = e;
+            for (int l = 0; l < 9; ++l) {
+                MyValue4 m = new MyValue4();
+                i = m;
+            }
+        }
+        if (d[0].c > 1)
+            for (int n = 0; n < 7; ++n)
+                ;
+        return f;
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
@@ -177,6 +202,7 @@ public class TestGenerated {
             t.test9(true);
             t.test10(array4);
             t.test11(array4);
+            t.test12();
         }
     }
 }

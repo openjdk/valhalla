@@ -4028,6 +4028,9 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
           int off_in_vt = field->offset() - vk->first_field_offset();
           const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
           int fieldidx = C->get_alias_index(adr_type, true);
+          // Pass NULL for init_out. Having per flat array element field memory edges as uses of the Initialize node
+          // can result in per flat array field Phis to be created which confuses the logic of
+          // Compile::adjust_flattened_array_access_aliases().
           hook_memory_on_init(*this, fieldidx, minit_in, NULL);
         }
         C->set_flattened_accesses_share_alias(true);

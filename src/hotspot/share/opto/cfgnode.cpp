@@ -1064,10 +1064,14 @@ void PhiNode::verify_adr_type(bool recursive) const {
   if (Node::in_dump())               return;  // muzzle asserts when printing
 
   assert((_type == Type::MEMORY) == (_adr_type != NULL), "adr_type for memory phis only");
+  // Flat array element shouldn't get their own memory slice until flattened_accesses_share_alias is cleared.
+  // It could be the graph has no loads/stores and flattened_accesses_share_alias is never cleared. EA could still
+  // creates per element Phis but that wouldn't be a problem as there are no memory accesses for that array.
   assert(_adr_type == NULL || _adr_type->isa_aryptr() == NULL ||
          _adr_type->is_aryptr()->is_known_instance() ||
          !_adr_type->is_aryptr()->is_flat() ||
-         !Compile::current()->flattened_accesses_share_alias() || _adr_type == TypeAryPtr::INLINES, "");
+         !Compile::current()->flattened_accesses_share_alias() ||
+         _adr_type == TypeAryPtr::INLINES, "flat array element shouldn't get its own slice yet");
 
   if (!VerifyAliases)       return;  // verify thoroughly only if requested
 
