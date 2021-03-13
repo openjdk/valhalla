@@ -6914,10 +6914,12 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_dcos = generate_dsin_dcos(/* isCos = */ true);
     }
 
-    StubRoutines::_load_inline_type_fields_in_regs =
+    if (InlineTypeReturnedAsFields) {
+      StubRoutines::_load_inline_type_fields_in_regs =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
-    StubRoutines::_store_inline_type_fields_to_buf =
+      StubRoutines::_store_inline_type_fields_to_buf =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
+    }
 
     // Safefetch stubs.
     generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
