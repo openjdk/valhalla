@@ -4532,36 +4532,29 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 
       // Initialize topmost object field, divide size by 8, check if odd and
       // test if zero.
-      lsr(layout_size, layout_size, LogBytesPerLong); // divide by 2*oopSize and set carry flag if odd
 
   #ifdef ASSERT
       // make sure instance_size was multiple of 8
       Label L;
-      // XXXNick: TODO
-      // Ignore partial flag stall after shrl() since it is debug VM
-      //jcc(Assembler::carryClear, L);
-      //stop("object size is not multiple of 2 - adjust this code");
-      //bind(L);
+      tst(layout_size, 7);
+      br(Assembler::EQ, L);
+      stop("object size is not multiple of 8 - adjust this code");
+      bind(L);
       // must be > 0, no extra check needed here
   #endif
+
+      lsr(layout_size, layout_size, LogBytesPerLong);
 
       // initialize remaining object fields: instance_size was a multiple of 8
       {
         Label loop;
         Register base = t2;
 
-        // XXXNick: check this
-
-        add(base, new_obj, sizeof(oopDesc) - 1*oopSize);
         bind(loop);
-        str(zr, Address(base, layout_size, Address::lsl(LogBytesPerLong)));
+        add(rscratch1, new_obj, layout_size, Assembler::LSL, LogBytesPerLong);
+        str(zr, Address(rscratch1, sizeof(oopDesc) - 1*oopSize));
         subs(layout_size, layout_size, 1);
         br(Assembler::NE, loop);
-
-        //movptr(Address(new_obj, layout_size, Address::times_8, sizeof(oopDesc) - 1*oopSize), zero);
-        //NOT_LP64(movptr(Address(new_obj, layout_size, Address::times_8, sizeof(oopDesc) - 2*oopSize), zero));
-        //decrement(layout_size);
-        //jcc(Assembler::notZero, loop);
       }
     } // clear_fields
 
@@ -5676,9 +5669,6 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 
   Label slow_case;
 
-  // XXXNick: this function needs updating
-  brk(1);
-
   // Try to allocate a new buffered inline type (from the heap)
   if (UseTLAB) {
 
@@ -5696,32 +5686,15 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     }
 
     ldr(r13, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-
-    // check whether we have space in TLAB,
-    // rscratch1 contains pointer to just allocated obj
     lea(r14, Address(r13, r14));
     ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-
     cmp(r14, rscratch1);
     br(Assembler::GT, slow_case);
-
-    // OK we have room in TLAB,
-    // Set new TLAB top
     str(r14, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-
-#if 0
-    // Set new class always locked
-    mov(rscratch1, (uint64_t) markWord::always_locked_prototype().value());
+    mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
     str(rscratch1, Address(r13, oopDesc::mark_offset_in_bytes()));
-#endif
 
     store_klass_gap(r13, zr);  // zero klass gap for compressed oops
-    if (vk == NULL) {
-      // store_klass corrupts rbx, so save it in rax for later use (interpreter case only).
-      mov(r0, r1);
-    }
-
-    store_klass(r13, r1);  // klass
 
     if (vk != NULL) {
       // FIXME -- do the packing in-line to avoid the runtime call
@@ -5962,13 +5935,7 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
 void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
-    brk(1);
-    // TODO: check this
-    ldr(rfp, Address(sp, initial_framesize));
-    ldr(rscratch1, Address(sp, sp_inc_offset));
-    mov(rscratch2, sp);
-    add(rscratch2, rscratch2, rscratch1);
-    mov(sp, rscratch2);
+    Unimplemented();
   } else {
     remove_frame(initial_framesize);
   }

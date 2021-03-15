@@ -287,8 +287,8 @@ MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitIn
 : MonitorAccessStub(obj_reg, lock_reg)
 {
   _info = new CodeEmitInfo(info);
-  _throw_imse_stub = throw_imse_stub;
   _scratch_reg = scratch_reg;
+  _throw_imse_stub = throw_imse_stub;
   if (_throw_imse_stub != NULL) {
     assert(_scratch_reg != LIR_OprFact::illegalOpr, "must be");
   }

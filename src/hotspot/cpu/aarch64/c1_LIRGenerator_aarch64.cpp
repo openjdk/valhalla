@@ -181,7 +181,7 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
     if (large_disp != 0) {
       LIR_Opr tmp = new_pointer_register();
       if (Assembler::operand_valid_for_add_sub_immediate(large_disp)) {
-        __ add(tmp, tmp, LIR_OprFact::intptrConst(large_disp));
+        __ add(index, LIR_OprFact::intptrConst(large_disp), tmp);
         index = tmp;
       } else {
         __ move(tmp, LIR_OprFact::intptrConst(large_disp));

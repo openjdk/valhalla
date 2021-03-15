@@ -349,22 +349,10 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 }
 
 void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, bool needs_stack_repair) {
-#if 0
-  push(rbp);
-  if (PreserveFramePointer) {
-    mov(rbp, rsp);
-  }
-  decrement(rsp, frame_size_in_bytes);
-#endif
   MacroAssembler::build_frame(frame_size_in_bytes + 2 * wordSize);
 
   if (needs_stack_repair) {
-    brk(1);
-    // Save stack increment (also account for fixed framesize and rbp)
-    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    int real_frame_size = sp_inc + frame_size_in_bytes + wordSize;
-    mov(rscratch1, real_frame_size);
-    str(rscratch1, Address(sp, frame_size_in_bytes - wordSize));
+    Unimplemented();
   }
 }
 
@@ -379,11 +367,17 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
     bind(*verified_inline_entry_label);
   }
 
-  MacroAssembler::build_frame(frame_size_in_bytes + 2 * wordSize);
+  build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
 
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
+}
+
+void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair,
+                                     int sp_inc_offset) {
+  MacroAssembler::remove_frame(frame_size_in_bytes + 2 * wordSize,
+                               needs_stack_repair, sp_inc_offset);
 }
 
 void C1_MacroAssembler::verified_entry() {
@@ -416,19 +410,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // Check if we need to extend the stack for packing
   int sp_inc = 0;
   if (args_on_stack > args_on_stack_cc) {
-    // XXXNick: this is almost certainly wrong
-
-    brk(2);
-
-    // Two additional slots to account for return address
-    sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
-    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    // Save the return address, adjust the stack (make sure it is properly
-    // 16-byte aligned) and copy the return address to the new top of the stack.
-    // The stack will be repaired on return (see MacroAssembler::remove_frame).
-    //pop(r13);
-    sub(sp, sp, sp_inc);
-    //push(r13);
+    Unimplemented();
   }
 
   // Create a temp frame so we can call into the runtime. It must be properly set up to accommodate GC.
@@ -442,7 +424,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   bs->nmethod_entry_barrier(this);
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
-  movptr(r1, (intptr_t)(ces->method()));
+  mov(r1, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
     far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
   } else {
@@ -452,7 +434,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
 
   // Remove the temp frame
   add(sp, sp, frame_size_in_bytes);
-  //pop(rbp);
 
   shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
                       args_passed_cc, args_on_stack_cc, regs_cc, // from
@@ -460,10 +441,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
                       sp_inc);
 
   if (ces->c1_needs_stack_repair()) {
-    // Create the real frame. Below jump will then skip over the stack banging and frame
-    // setup code in the verified_inline_entry (which has a different real_frame_size).
-    brk(3);
-    build_frame_helper(frame_size_in_bytes, sp_inc, true);
+    Unimplemented();
   }
 
   b(verified_inline_entry_label);

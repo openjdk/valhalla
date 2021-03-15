@@ -2632,9 +2632,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ bind(uninitialized);
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
           Label slow_case, finish;
-          // XXXNick: fastpath not correct below
-          __ b(slow_case); __ brk(1);
-          __ ldrb(rscratch1, Address(klass /* XXX */, InstanceKlass::init_state_offset()));
+          __ ldrb(rscratch1, Address(cache, InstanceKlass::init_state_offset()));
           __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
           __ br(Assembler::NE, slow_case);
           __ get_default_value_oop(klass, off /* temp */, r0);

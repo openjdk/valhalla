@@ -2025,6 +2025,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load (object->mark() | 1) into swap_reg %r0
     __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ orr(swap_reg, rscratch1, 1);
+    if (EnableValhalla) {
+      assert(!UseBiasedLocking, "Not compatible with biased-locking");
+      // Mask inline_type bit such that we go to the slow path if object is an inline type
+      __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
+    }
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     __ str(swap_reg, Address(lock_reg, mark_word_offset));
@@ -2090,7 +2095,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in v0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_INLINE_TYPE:
+  case T_INLINE_TYPE:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
