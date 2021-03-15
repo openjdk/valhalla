@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.jvm;
 
+import com.sun.tools.javac.code.Attribute;
 import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -32,18 +33,23 @@ import com.sun.tools.javac.code.Symbol.DynamicMethodSymbol;
 import com.sun.tools.javac.code.Symbol.MethodHandleSymbol;
 import com.sun.tools.javac.code.Symbol.ModuleSymbol;
 import com.sun.tools.javac.code.Symbol.PackageSymbol;
+import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ConstantPoolQType;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.jvm.ClassWriter.PoolOverflow;
 import com.sun.tools.javac.jvm.ClassWriter.StringOverflow;
+import com.sun.tools.javac.jvm.PoolConstant.Linkage;
 import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant.BasicConstant;
 import com.sun.tools.javac.jvm.PoolConstant.Dynamic;
 import com.sun.tools.javac.jvm.PoolConstant.Dynamic.BsmKey;
 import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
+import com.sun.tools.javac.jvm.PoolConstant.Parameter;
+import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.ByteBuffer;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
@@ -51,9 +57,11 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.TypeTag.ARRAY;
@@ -85,6 +93,12 @@ public class PoolWriter {
 
     private final Names names;
 
+    private final Symtab syms;
+
+    private final Log log;
+
+    private final boolean supportParametricVM;
+
     /** Pool helper **/
     final WriteablePoolHelper pool;
 
@@ -97,18 +111,24 @@ public class PoolWriter {
     /** The list of entries in the BootstrapMethods attribute. */
     Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();
 
-    public PoolWriter(Types types, Names names) {
+    // current symbol for which the code is being generated
+    Symbol.MethodSymbol currentMethSymbol;
+
+    public PoolWriter(Types types, Names names, Symtab syms, Log log, boolean supportParametricVM) {
         this.types = types;
         this.names = names;
+        this.syms = syms;
+        this.log = log;
         this.signatureGen = new SharedSignatureGenerator(types);
         this.pool = new WriteablePoolHelper();
+        this.supportParametricVM = supportParametricVM;
     }
 
     /**
      * Puts a class symbol into the pool and return its index.
      */
     int putClass(ClassSymbol csym) {
-        return putClass(csym.type);
+        return pool.writeIfNeeded(wrapWithLinkageIfNeeded(types.erasure(csym.type), csym.attribute(syms.parametricType.tsym)));
     }
 
     /**
@@ -116,7 +136,7 @@ public class PoolWriter {
      * or an array type.
      */
     int putClass(Type t) {
-        return pool.writeIfNeeded(types.erasure(t));
+        return pool.writeIfNeeded(wrapWithLinkageIfNeeded(types.erasure(t), t.tsym.attribute(syms.parametricType.tsym)));
     }
 
     /**
@@ -124,15 +144,94 @@ public class PoolWriter {
      * or an array type.
      */
     int putClass(ConstantPoolQType t) {
+        // still need to check here if linkage is necessary
         return pool.writeIfNeeded(t);
     }
+
+    Set<Object> referencesBeingLinked = new HashSet<>();
 
     /**
      * Puts a member reference into the constant pool. Valid members are either field or method symbols.
      */
     int putMember(Symbol s) {
-        return pool.writeIfNeeded(s);
+        return pool.writeIfNeeded(wrapWithLinkageIfNeeded(s, s.attribute(syms.parametricType.tsym)));
     }
+
+    // where
+        boolean enclMethodHasLinkageAnno() {
+            return currentMethSymbol != null && (currentMethSymbol.attribute(syms.linkageMethodType.tsym) != null ||
+                    currentMethSymbol.attribute(syms.linkageClassType.tsym) != null);
+        }
+
+        /* this method will try to generate a Linkage that will eventually be written into the constant pool
+         * if it can't find all the needed information it will bail out, and return -1, to inform the caller
+         * to generate the corresponding legacy entry. If successful it will return the index of the corresponding
+         * Linkage_info constant in the constant pool
+         */
+        PoolConstant wrapWithLinkageIfNeeded(PoolConstant poolConstant, Attribute.Compound parametricAnno) {
+            // the referred element is parametric
+            if (!supportParametricVM ||
+                    parametricAnno == null ||
+                    !enclMethodHasLinkageAnno() ||
+                    referencesBeingLinked.contains(poolConstant)) {
+                return poolConstant;
+            }
+            Name kindName = names.CLASS;
+            Attribute value = parametricAnno.member(names.kind);
+            if (value != null && value instanceof Attribute.Enum) {
+                kindName = ((Attribute.Enum)value).value.name;
+            }
+
+            // let's find out if the enclosing method has any linkage annotations
+            String linkageMethodValueStr = null;
+            Attribute.Compound linkageMethodAnno = currentMethSymbol.attribute(syms.linkageMethodType.tsym);
+            if (linkageMethodAnno != null) {
+                Attribute linkageMethodValue = linkageMethodAnno.member(names.value);
+                if (linkageMethodValue != null && linkageMethodValue instanceof Attribute.Constant) {
+                    linkageMethodValueStr = linkageMethodValue.getValue().toString();
+                }
+                if (linkageMethodValueStr == null) {
+                    log.printRawLines("LinkageMethod annotation without value");
+                    return poolConstant;
+                }
+            }
+            String linkageClassValueStr = null;
+            Attribute.Compound linkageClassAnno = currentMethSymbol.attribute(syms.linkageClassType.tsym);
+            if (linkageClassAnno != null) {
+                Attribute linkageClassValue = linkageClassAnno.member(names.value);
+                if (linkageClassValue != null && linkageClassValue instanceof Attribute.Constant) {
+                    linkageClassValueStr = linkageClassValue.getValue().toString();
+                }
+                if (linkageClassValueStr == null) {
+                    log.printRawLines("LinkageClass annotation without value");
+                    return poolConstant;
+                }
+            }
+            if (kindName == names.METHOD_ONLY) {
+                if (linkageMethodValueStr == null) {
+                    // bail out
+                    return poolConstant;
+                }
+                referencesBeingLinked.add(poolConstant);
+                return new Linkage(linkageMethodValueStr, poolConstant, false);
+            } else if (kindName == names.CLASS) {
+                if (linkageClassValueStr == null) {
+                    // bail out
+                    return poolConstant;
+                }
+                referencesBeingLinked.add(poolConstant);
+                return new Linkage(linkageClassValueStr, poolConstant, poolConstant instanceof Type);
+            } else if (kindName == names.METHOD_AND_CLASS) {
+                if (linkageMethodValueStr == null) {
+                    // bail out
+                    return poolConstant;
+                }
+                referencesBeingLinked.add(poolConstant);
+                return new Linkage(linkageMethodValueStr, poolConstant, poolConstant instanceof Type);
+            }
+            log.printRawLines("could not generate Linkage_info constant");
+            return poolConstant;
+        }
 
     /**
      * Puts a dynamic reference into the constant pool and return its index.
@@ -210,6 +309,13 @@ public class PoolWriter {
      */
     int putNameAndType(Symbol s) {
         return pool.writeIfNeeded(new NameAndType(s.name, descriptorType(s)));
+    }
+
+    /**
+     * Puts a parameter into the pool and returns its index.
+     */
+    int putParameter(String id, int kind) {
+        return pool.writeIfNeeded(new Parameter(id, kind));
     }
 
     /**
@@ -380,6 +486,9 @@ public class PoolWriter {
                     if (ct.hasTag(CLASS)) {
                         enterInner((ClassSymbol)ct.tsym);
                     }
+                    if (referencesBeingLinked.contains(c)) {
+                        referencesBeingLinked.remove(c);
+                    }
                     break;
                 }
                 case ClassFile.CONSTANT_Utf8: {
@@ -401,6 +510,9 @@ public class PoolWriter {
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putClass((ClassSymbol)sym.owner));
                     poolbuf.appendChar(putNameAndType(sym));
+                    if (referencesBeingLinked.contains(c)) {
+                        referencesBeingLinked.remove(c);
+                    }
                     break;
                 }
                 case ClassFile.CONSTANT_Package: {
@@ -473,6 +585,24 @@ public class PoolWriter {
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(makeBootstrapEntry(d));
                     poolbuf.appendChar(putNameAndType(d));
+                    break;
+                }
+                case ClassFile.CONSTANT_Parameter: {
+                    Parameter p = (Parameter) c;
+                    poolbuf.appendByte(tag);
+                    poolbuf.appendByte(p.kind);
+                    poolbuf.appendChar(0);
+                    break;
+                }
+                case ClassFile.CONSTANT_Linkage: {
+                    Linkage l = (Linkage) c;
+                    poolbuf.appendByte(tag);
+                    poolbuf.appendChar(putConstant(l.parameter));
+                    if (l.hasClassReference()) {
+                        poolbuf.appendChar(putClass((Type)l.reference));
+                    } else {
+                        poolbuf.appendChar(putMember((Symbol)l.reference));
+                    }
                     break;
                 }
                 default:

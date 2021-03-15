@@ -31,12 +31,13 @@ import com.sun.tools.javac.code.Symbol.PackageSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
+import com.sun.tools.javac.jvm.PoolConstant.Parameter;
+import com.sun.tools.javac.jvm.PoolConstant.Linkage;
 import com.sun.tools.javac.util.ByteBuffer;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Name.NameMapper;
 import com.sun.tools.javac.util.Names;
 
-import java.util.Arrays;
 import java.util.BitSet;
 
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Class;
@@ -47,6 +48,7 @@ import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Float;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Integer;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InterfaceMethodref;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_InvokeDynamic;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Linkage;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Long;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodHandle;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Methodref;
@@ -54,6 +56,7 @@ import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_MethodType;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Module;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_NameandType;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Package;
+import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Parameter;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_String;
 import static com.sun.tools.javac.jvm.ClassFile.CONSTANT_Utf8;
 import static com.sun.tools.javac.jvm.ClassFile.internalize;
@@ -97,6 +100,8 @@ public class PoolReader {
     private static final BitSet packageCP = new BitSet();
     private static final BitSet utf8CP = new BitSet();
     private static final BitSet nameAndTypeCP = new BitSet();
+    private static final BitSet parameterCP = new BitSet();
+    private static final BitSet linkageCP = new BitSet();
 
     static {
         classCP.set(CONSTANT_Class);
@@ -105,6 +110,8 @@ public class PoolReader {
         packageCP.set(CONSTANT_Package);
         utf8CP.set(CONSTANT_Utf8);
         nameAndTypeCP.set(CONSTANT_NameandType);
+        parameterCP.set(CONSTANT_Parameter);
+        linkageCP.set(CONSTANT_Linkage);
     }
 
     /**
@@ -178,6 +185,20 @@ public class PoolReader {
     }
 
     /**
+     * Get a parameter from the pool at given index.
+     */
+    Parameter getParameter(int index) {
+        return pool.readIfNeeded(index, parameterCP);
+    }
+
+    /**
+     * Get a linkage from the pool at given index.
+     */
+    Linkage getLinkage(int index) {
+        return pool.readIfNeeded(index, linkageCP);
+    }
+
+    /**
      * Get a class symbol from the pool at given index.
      */
     Object getConstant(int index) {
@@ -235,6 +256,12 @@ public class PoolReader {
                 Name name = getName(poolbuf.getChar(offset));
                 return syms.enterModule(name);
             }
+            case CONSTANT_Parameter: {
+                int kind = poolbuf.getByte(offset);
+                // ignore the bsm entry for now
+                poolbuf.getChar(offset + 1);
+                return new Parameter(kind);
+            }
             default:
                 throw reader.badClassFile("unexpected.const.pool.tag.at",
                         Integer.toString(tag),
@@ -271,6 +298,7 @@ public class PoolReader {
                     offset += 2;
                     break;
                 case CONSTANT_MethodHandle:
+                case CONSTANT_Parameter:
                     offset += 3;
                     break;
                 case CONSTANT_Fieldref:
@@ -281,6 +309,7 @@ public class PoolReader {
                 case CONSTANT_Float:
                 case CONSTANT_Dynamic:
                 case CONSTANT_InvokeDynamic:
+                case CONSTANT_Linkage:
                     offset += 4;
                     break;
                 case CONSTANT_Long:

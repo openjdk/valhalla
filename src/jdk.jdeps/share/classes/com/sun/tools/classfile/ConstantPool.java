@@ -120,6 +120,8 @@ public class ConstantPool {
     public static final int CONSTANT_InvokeDynamic = 18;
     public static final int CONSTANT_Module = 19;
     public static final int CONSTANT_Package = 20;
+    public static final int CONSTANT_Parameter = 21;
+    public static final int CONSTANT_Linkage = 22;
 
     public static enum RefKind {
         REF_getField(1),
@@ -158,6 +160,31 @@ public class ConstantPool {
                     return REF_newInvokeSpecial;
                 case 9:
                     return REF_invokeInterface;
+                default:
+                    return null;
+            }
+        }
+    }
+
+    public static enum ParamKind {
+        CLASS(1),
+        METHOD_ONLY(2),
+        METHOD_AND_CLASS(3);
+
+        public final int tag;
+
+        ParamKind(int tag) {
+            this.tag = tag;
+        }
+
+        static ParamKind getParamKind(int tag) {
+            switch(tag) {
+                case 1:
+                    return CLASS;
+                case 2:
+                    return METHOD_ONLY;
+                case 3:
+                    return METHOD_AND_CLASS;
                 default:
                     return null;
             }
@@ -240,6 +267,14 @@ public class ConstantPool {
                 pool[i] = new CONSTANT_Utf8_info(cr);
                 break;
 
+            case CONSTANT_Parameter:
+                pool[i] = new CONSTANT_Parameter_info(this, cr);
+                break;
+
+            case CONSTANT_Linkage:
+                pool[i] = new CONSTANT_Linkage_info(this, cr);
+                break;
+
             default:
                 throw new InvalidEntry(i, tag);
             }
@@ -317,6 +352,14 @@ public class ConstantPool {
         throw new EntryNotFound(value);
     }
 
+    public CONSTANT_Parameter_info getParameterInfo(int index) throws InvalidIndex, UnexpectedEntry {
+        return ((CONSTANT_Parameter_info) get(index, CONSTANT_Parameter));
+    }
+
+    public CONSTANT_Linkage_info getLinkageInfo(int index) throws InvalidIndex, UnexpectedEntry {
+        return ((CONSTANT_Linkage_info) get(index, CONSTANT_Linkage));
+    }
+
     public Iterable<CPInfo> entries() {
         return () -> new Iterator<CPInfo>() {
 
@@ -367,6 +410,8 @@ public class ConstantPool {
         R visitPackage(CONSTANT_Package_info info, P p);
         R visitString(CONSTANT_String_info info, P p);
         R visitUtf8(CONSTANT_Utf8_info info, P p);
+        R visitParameter(CONSTANT_Parameter_info info, P p);
+        R visitLinkage(CONSTANT_Linkage_info info, P p);
     }
 
     public static abstract class CPInfo {
@@ -421,7 +466,18 @@ public class ConstantPool {
         }
 
         public String getClassName() throws ConstantPoolException {
-            return cp.getClassInfo(class_index).getName();
+            CPInfo info = cp.get(class_index);
+            if (info.getTag() == CONSTANT_Class) {
+                return cp.getClassInfo(class_index).getName();
+            } else if (info.getTag() == CONSTANT_Linkage) {
+                CONSTANT_Linkage_info linkage_info = (CONSTANT_Linkage_info) info;
+                CPInfo info2 = cp.get(linkage_info.reference_index);
+                if (info2.getTag() == CONSTANT_Class) {
+                    return cp.getClassInfo(linkage_info.reference_index).getName();
+                }
+            }
+            // we shouldn't get here
+            throw new AssertionError("unexpected entry at " + class_index);
         }
 
         public CONSTANT_NameAndType_info getNameAndTypeInfo() throws ConstantPoolException {
@@ -1047,6 +1103,90 @@ public class ConstantPool {
         }
 
         public final String value;
+    }
+
+    public static class CONSTANT_Parameter_info extends CPInfo {
+        CONSTANT_Parameter_info(ConstantPool cp, ClassReader cr) throws IOException {
+            super(cp);
+            parameter_kind = ParamKind.getParamKind(cr.readUnsignedByte());
+            bootstrap_method_attr_index = cr.readUnsignedShort();
+        }
+
+        public CONSTANT_Parameter_info(ConstantPool cp, ParamKind parameter_kind, int bootstrap_method_attr_index) {
+            super(cp);
+            this.parameter_kind = parameter_kind;
+            this.bootstrap_method_attr_index = bootstrap_method_attr_index;
+        }
+
+        public int getTag() {
+            return CONSTANT_Parameter;
+        }
+
+        public int byteLength() {
+            return 4;
+        }
+
+        public ParamKind getKind() {
+            return parameter_kind;
+        }
+
+        public int getBSM() {
+            return bootstrap_method_attr_index;
+        }
+
+        public <R, D> R accept(Visitor<R, D> visitor, D data) {
+            return visitor.visitParameter(this, data);
+        }
+
+        @Override
+        public String toString() {
+            return "CONSTANT_Parameter_info[parameter_kind: " + parameter_kind + ", bootstrap_method_attr_index: " + bootstrap_method_attr_index + "]";
+        }
+
+        public final ParamKind parameter_kind;
+        public final int bootstrap_method_attr_index;
+    }
+
+    public static class CONSTANT_Linkage_info extends CPInfo {
+        CONSTANT_Linkage_info(ConstantPool cp, ClassReader cr) throws IOException {
+            super(cp);
+            parameter_index = cr.readUnsignedShort();
+            reference_index = cr.readUnsignedShort();
+        }
+
+        public CONSTANT_Linkage_info(ConstantPool cp, int parameter_index, int reference_index) {
+            super(cp);
+            this.parameter_index = parameter_index;
+            this.reference_index = reference_index;
+        }
+
+        public int getTag() {
+            return CONSTANT_Linkage;
+        }
+
+        public int byteLength() {
+            return 4;
+        }
+
+        public int getParameterIndex() {
+            return parameter_index;
+        }
+
+        public int getReferenceIndex() {
+            return reference_index;
+        }
+
+        public <R, D> R accept(Visitor<R, D> visitor, D data) {
+            return visitor.visitLinkage(this, data);
+        }
+
+        @Override
+        public String toString() {
+            return "CONSTANT_Linkage_info[parameter_index: " + parameter_index + ", reference_index: " + reference_index + "]";
+        }
+
+        public final int parameter_index;
+        public final int reference_index;
     }
 
 }

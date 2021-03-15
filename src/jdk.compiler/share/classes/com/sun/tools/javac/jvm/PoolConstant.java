@@ -25,6 +25,7 @@
 
 package com.sun.tools.javac.jvm;
 
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.code.Types.UniqueType;
@@ -219,6 +220,65 @@ public interface PoolConstant {
         @Override
         public Object poolKey(Types types) {
             return new Pair<>(name, new UniqueType(type, types));
+        }
+    }
+
+    /**
+     * A pool constant implementation describing a parameter pool entry.
+     */
+    final class Parameter implements PoolConstant {
+
+        String id;
+        final int kind;
+
+        Parameter(int kind) {
+            this.kind = kind;
+        }
+
+        Parameter(String id, int kind) {
+            this.id = id;
+            this.kind = kind;
+        }
+
+        @Override
+        public int poolTag() {
+            return ClassFile.CONSTANT_Parameter;
+        }
+
+        @Override
+        public Object poolKey(Types types) {
+            return id;
+        }
+    }
+
+    /**
+     * A pool constant implementation describing a linkage pool entry.
+     */
+    final class Linkage implements PoolConstant {
+
+        final Object parameter;
+        // could be symbol or type
+        final Object reference;
+        final boolean isClassReference;
+
+        Linkage(Object parameter, Object reference, boolean isClassReference) {
+            this.parameter = parameter;
+            this.reference = reference;
+            this.isClassReference = isClassReference;
+        }
+
+        @Override
+        public int poolTag() {
+            return ClassFile.CONSTANT_Linkage;
+        }
+
+        @Override
+        public Object poolKey(Types types) {
+            return new Pair<>(parameter, reference);
+        }
+
+        public boolean hasClassReference() {
+            return isClassReference;
         }
     }
 }

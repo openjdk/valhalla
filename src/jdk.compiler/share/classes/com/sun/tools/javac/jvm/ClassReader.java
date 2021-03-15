@@ -1277,6 +1277,17 @@ public class ClassReader {
                     }
                 }
             },
+            new AttributeReader(names.Parametric, V61, CLASS_OR_MEMBER_ATTRIBUTE) {
+                @Override
+                protected boolean accepts(AttributeKind kind) {
+                    return super.accepts(kind);
+                }
+                protected void read(Symbol sym, int attrLen) {
+                    // just read the info, nothing to do for now
+                    nextChar();
+                    nextChar();
+                }
+            },
         };
 
         for (AttributeReader r: readers)

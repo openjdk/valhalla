@@ -200,6 +200,10 @@ public final class ReferenceFinder {
         public Boolean visitUtf8(CONSTANT_Utf8_info info, ConstantPool cpool) {
             return false;
         }
+
+        public Boolean visitParameter(CONSTANT_Parameter_info info, ConstantPool cpool) { return false; }
+
+        public Boolean visitLinkage(CONSTANT_Linkage_info info, ConstantPool cpool) { return false; }
     };
 
     private Instruction.KindVisitor<Integer, List<Integer>> codeVisitor =

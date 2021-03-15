@@ -170,6 +170,20 @@ public class ConstantWriter extends BasicWriter {
                 return 1;
             }
 
+            public Integer visitParameter(CONSTANT_Parameter_info info, Void p) {
+                print(info.parameter_kind + ":" + info.bootstrap_method_attr_index);
+                tab();
+                println("// " + stringValue(info));
+                return 1;
+            }
+
+            public Integer visitLinkage(CONSTANT_Linkage_info info, Void p) {
+                print("#" + info.parameter_index + ":#" + info.reference_index);
+                tab();
+                println("// " + stringValue(info));
+                return 1;
+            }
+
         };
         println("Constant pool:");
         indent(+1);
@@ -257,6 +271,10 @@ public class ConstantWriter extends BasicWriter {
                 return "Dynamic";
             case CONSTANT_NameAndType:
                 return "NameAndType";
+            case CONSTANT_Parameter:
+                return "Parameter";
+            case CONSTANT_Linkage:
+                return "Linkage";
             default:
                 return "(unknown tag " + tag + ")";
         }
@@ -473,6 +491,20 @@ public class ConstantWriter extends BasicWriter {
                 }
             }
             return sb.toString();
+        }
+
+        public String visitParameter(CONSTANT_Parameter_info info, Void p) {
+            return info.parameter_kind + ":" + info.bootstrap_method_attr_index;
+        }
+
+        public String visitLinkage(CONSTANT_Linkage_info info, Void p) {
+            try {
+                ClassFile classFile = classWriter.getClassFile();
+                return stringValue(classFile.constant_pool.get(info.parameter_index)) + ":" +
+                        stringValue(classFile.constant_pool.get(info.reference_index));
+            } catch (ConstantPoolException e) {
+                return report(e);
+            }
         }
 
         String visitRef(CPRefInfo info, Void p) {
