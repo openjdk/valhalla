@@ -199,6 +199,13 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     }
 
     @DefinedBy(Api.COMPILER_TREE)
+    public JCTree visitDefaultExpression(DefaultExpressionTree node, P p) {
+        JCDefaultExpression t = (JCDefaultExpression) node;
+        JCExpression clazz = copy(t.clazz, p);
+        return M.at(t.pos).DefaultExpression(clazz);
+    }
+
+    @DefinedBy(Api.COMPILER_TREE)
     public JCTree visitDoWhileLoop(DoWhileLoopTree node, P p) {
         JCDoWhileLoop t = (JCDoWhileLoop) node;
         JCStatement body = copy(t.body, p);

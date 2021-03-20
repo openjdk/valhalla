@@ -253,6 +253,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
          */
         SELECT,
 
+        /** Default expressions, of type DefaultExpressionTree.
+         */
+        DEFAULT_EXPRESSION,
+
         /** Member references, of type Reference.
          */
         REFERENCE,
@@ -1355,6 +1359,32 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return CASE;
+        }
+    }
+
+    /**
+     * A "Identifier<TA1, TA2>.default" construction.
+     */
+    public static class JCDefaultExpression extends JCPolyExpression implements DefaultExpressionTree {
+        public JCExpression clazz;
+
+        protected JCDefaultExpression(JCExpression clazz) {
+            this.clazz = clazz;
+        }
+        @Override
+        public void accept(Visitor v) { v.visitDefaultExpression(this); }
+
+        @DefinedBy(Api.COMPILER_TREE)
+        public Kind getKind() { return Kind.DEFAULT_EXPRESSION; }
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public ExpressionTree getClazz() { return clazz; }
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public <R,D> R accept(TreeVisitor<R,D> v, D d) {
+            return v.visitDefaultExpression(this, d);
+        }
+        @Override
+        public Tag getTag() {
+            return DEFAULT_EXPRESSION;
         }
     }
 
@@ -3209,6 +3239,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         JCSwitchExpression SwitchExpression(JCExpression selector, List<JCCase> cases);
         JCCase Case(CaseTree.CaseKind caseKind, List<JCExpression> pat,
                     List<JCStatement> stats, JCTree body);
+        JCDefaultExpression DefaultExpression(JCExpression type);
         JCSynchronized Synchronized(JCExpression lock, JCBlock body);
         JCTry Try(JCBlock body, List<JCCatch> catchers, JCBlock finalizer);
         JCTry Try(List<JCTree> resources,
@@ -3287,6 +3318,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitLabelled(JCLabeledStatement that)   { visitTree(that); }
         public void visitSwitch(JCSwitch that)               { visitTree(that); }
         public void visitCase(JCCase that)                   { visitTree(that); }
+        public void visitDefaultExpression(JCDefaultExpression that) { visitTree(that); }
         public void visitSwitchExpression(JCSwitchExpression that)               { visitTree(that); }
         public void visitSynchronized(JCSynchronized that)   { visitTree(that); }
         public void visitTry(JCTry that)                     { visitTree(that); }

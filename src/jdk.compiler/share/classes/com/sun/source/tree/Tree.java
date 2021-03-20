@@ -254,6 +254,13 @@ public interface Tree {
         SWITCH_EXPRESSION(SwitchExpressionTree.class),
 
         /**
+         * Used for instances of {@link DefaultExpressionTree}.
+         *
+         * @since valhalla
+         */
+        DEFAULT_EXPRESSION(DefaultExpressionTree.class),
+
+        /**
          * Used for instances of {@link SynchronizedTree}.
          */
         SYNCHRONIZED(SynchronizedTree.class),
