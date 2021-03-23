@@ -599,7 +599,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types
       // Allocate the buffers here with a runtime call.
-      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+      RegisterSaver reg_save(false /* save_vectors */);
+      OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
       address the_pc = __ pc();
@@ -616,7 +617,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       oop_maps->add_gc_map((int)(__ pc() - start), map);
       __ reset_last_Java_frame(false);
 
-      RegisterSaver::restore_live_registers(masm);
+      reg_save.restore_live_registers(masm);
 
       Label no_exception;
       __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
@@ -978,9 +979,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
   address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
-    Label unused;
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
-    skip_fixup = unused;
+    skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
@@ -1012,11 +1012,11 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 
   address c2i_unverified_inline_entry = c2i_unverified_entry;
 
- // Non-scalarized c2i adapter
+  // Non-scalarized c2i adapter
   address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
     Label inline_entry_skip_fixup;
@@ -1024,7 +1024,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
     c2i_inline_entry = __ pc();
-    Label unused;
     gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
@@ -2017,6 +2016,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load (object->mark() | 1) into swap_reg %r0
     __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ orr(swap_reg, rscratch1, 1);
+    if (EnableValhalla) {
+      assert(!UseBiasedLocking, "Not compatible with biased-locking");
+      // Mask inline_type bit such that we go to the slow path if object is an inline type
+      __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
+    }
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     __ str(swap_reg, Address(lock_reg, mark_word_offset));
@@ -2082,7 +2086,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in v0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_INLINE_TYPE:
+  case T_INLINE_TYPE:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -3332,6 +3336,7 @@ void OptoRuntime::generate_exception_blob() {
   // Set exception blob
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
+#endif // COMPILER2
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
@@ -3345,6 +3350,15 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   const Array<SigEntry>* sig_vk = vk->extended_sig();
   const Array<VMRegPair>* regs = vk->return_regs();
+
+  int pack_fields_jobject_off = __ offset();
+  // Resolve pre-allocated buffer from JNI handle.
+  // We cannot do this in generate_call_stub() because it requires GC code to be initialized.
+  __ ldr(r0, Address(r13, 0));
+  __ resolve_jobject(r0 /* value */,
+                     rthread /* thread */,
+                     r12 /* tmp */);
+  __ str(r0, Address(r13, 0));
 
   int pack_fields_off = __ offset();
 
@@ -3435,7 +3449,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   __ flush();
 
-  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }
 
 // ---------------------------------------------------------------
@@ -3689,4 +3703,3 @@ void NativeInvokerGenerator::generate() {
 
   __ flush();
 }
-#endif // COMPILER2

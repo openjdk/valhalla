@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -208,6 +208,7 @@ NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKl
   _klass_reg = klass_reg;
   _info = new CodeEmitInfo(info);
   assert(stub_id == Runtime1::new_instance_id                 ||
+         stub_id == Runtime1::new_instance_no_inline_id       ||
          stub_id == Runtime1::fast_new_instance_id            ||
          stub_id == Runtime1::fast_new_instance_init_check_id,
          "need new_instance id");
@@ -253,7 +254,8 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of NewObjectArrayStub
 
-NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info, bool is_inline_type) {
+NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result,
+                                       CodeEmitInfo* info, bool is_inline_type) {
   _klass_reg = klass_reg;
   _result = result;
   _length = length;
@@ -299,11 +301,11 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   if (_throw_imse_stub != NULL) {
     // When we come here, _obj_reg has already been checked to be non-null.
     __ ldr(rscratch1, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
-    __ mov(rscratch2, markWord::always_locked_pattern);
+    __ mov(rscratch2, markWord::inline_type_pattern);
     __ andr(rscratch1, rscratch1, rscratch2);
 
     __ cmp(rscratch1, rscratch2);
-    __ br(Assembler::NE, *_throw_imse_stub->entry());
+    __ br(Assembler::EQ, *_throw_imse_stub->entry());
   }
 
   ce->store_parameter(_obj_reg->as_register(),  1);

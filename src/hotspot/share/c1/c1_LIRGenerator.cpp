@@ -1728,7 +1728,7 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
 #endif
 
   LIR_Opr elm_op = new_pointer_register();
-  LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
+  LIR_Address* elm_address = generate_address(array.result(), index_op, 0, array_header_size, T_ADDRESS);
   __ leal(LIR_OprFact::address(elm_address), elm_op);
   return elm_op;
 }

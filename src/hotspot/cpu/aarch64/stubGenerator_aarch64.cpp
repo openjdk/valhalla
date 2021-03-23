@@ -2104,6 +2104,14 @@ class StubGenerator: public StubCodeGenerator {
     __ eor(rscratch2, rscratch2, scratch_src_klass);
     __ cbnz(rscratch2, L_failed);
 
+    // Check for flat inline type array -> return -1
+    __ tst(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ br(Assembler::NE, L_failed);
+
+    // Check for null-free (non-flat) inline type array -> handle as object array
+    __ tst(lh, Klass::_lh_null_free_bit_inplace);
+    __ br(Assembler::NE, L_failed);
+
     //  if (!src->is_Array()) return -1;
     __ tbz(lh, 31, L_failed);  // i.e. (lh >= 0)
 
@@ -6818,7 +6826,6 @@ class StubGenerator: public StubCodeGenerator {
     oop_maps->add_gc_map(the_pc - start, map);
 
     __ reset_last_Java_frame(false);
-    __ maybe_isb();
 
     __ ldrd(j_farg7, f7_save);
     __ ldrd(j_farg6, f6_save);

@@ -631,6 +631,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     case new_instance_id:
+    case new_instance_no_inline_id:
     case fast_new_instance_id:
     case fast_new_instance_init_check_id:
       {
@@ -639,6 +640,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         if (id == new_instance_id) {
           __ set_info("new_instance", dont_gc_arguments);
+        } else if (id == new_instance_no_inline_id) {
+          __ set_info("new_instance_no_inline", dont_gc_arguments);
         } else if (id == fast_new_instance_id) {
           __ set_info("fast new_instance", dont_gc_arguments);
         } else {
@@ -698,7 +701,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         __ enter();
         OopMap* map = save_live_registers(sasm);
-        int call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
+        int call_offset;
+        if (id == new_instance_no_inline_id) {
+          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance_no_inline), klass);
+        } else {
+          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_instance), klass);
+        }
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
         restore_live_registers_except_r0(sasm);
@@ -739,11 +747,9 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         if (id == new_type_array_id) {
           __ set_info("new_type_array", dont_gc_arguments);
-        }
-        else if (id == new_object_array_id) {
+        } else if (id == new_object_array_id) {
           __ set_info("new_object_array", dont_gc_arguments);
-        }
-        else {
+        } else {
           __ set_info("new_flat_array", dont_gc_arguments);
         }
 
@@ -754,18 +760,29 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           Register t0 = obj;
           __ ldrw(t0, Address(klass, Klass::layout_helper_offset()));
           __ asrw(t0, t0, Klass::_lh_array_tag_shift);
-
-          int tag = 0;
           switch (id) {
-           case new_type_array_id: tag = Klass::_lh_array_tag_type_value; break;
-           case new_object_array_id: tag = Klass::_lh_array_tag_obj_value; break;
-           case new_flat_array_id: tag = Klass::_lh_array_tag_vt_value; break;
-           default:  ShouldNotReachHere();
+          case new_type_array_id:
+            __ cmpw(t0, Klass::_lh_array_tag_type_value);
+            __ br(Assembler::EQ, ok);
+            __ stop("assert(is a type array klass)");
+            break;
+          case new_object_array_id:
+            __ cmpw(t0, Klass::_lh_array_tag_obj_value); // new "[Ljava/lang/Object;"
+            __ br(Assembler::EQ, ok);
+            __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // new "[LVT;"
+            __ br(Assembler::EQ, ok);
+            __ stop("assert(is an object or inline type array klass)");
+            break;
+          case new_flat_array_id:
+            // new "[QVT;"
+            __ cmpw(t0, Klass::_lh_array_tag_vt_value);  // the array can be flattened.
+            __ br(Assembler::EQ, ok);
+            __ cmpw(t0, Klass::_lh_array_tag_obj_value); // the array cannot be flattened (due to InlineArrayElementMaxFlatSize, etc)
+            __ br(Assembler::EQ, ok);
+            __ stop("assert(is an object or inline type array klass)");
+            break;
+          default:  ShouldNotReachHere();
           }
-          __ mov(rscratch1, tag);
-          __ cmpw(t0, rscratch1);
-          __ br(Assembler::EQ, ok);
-          __ stop("assert(is an array klass)");
           __ should_not_reach_here();
           __ bind(ok);
         }
@@ -821,9 +838,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         int call_offset;
         if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
-        } else {
-          // Runtime1::new_object_array handles both object and flat arrays
+        } else if (id == new_object_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
+        } else {
+          assert(id == new_flat_array_id, "must be");
+          call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_flat_array), klass, length);
         }
 
         oop_maps = new OopMapSet();
@@ -860,11 +879,11 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case buffer_inline_args_id:
     case buffer_inline_args_no_receiver_id:
-    {
+      {
         const char* name = (id == buffer_inline_args_id) ?
           "buffer_inline_args" : "buffer_inline_args_no_receiver";
         StubFrame f(sasm, name, dont_gc_arguments);
-        OopMap* map = save_live_registers(sasm, 2);
+        OopMap* map = save_live_registers(sasm);
         Register method = r1;
         address entry = (id == buffer_inline_args_id) ?
           CAST_FROM_FN_PTR(address, buffer_inline_args) :
@@ -880,7 +899,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
     case load_flattened_array_id:
       {
         StubFrame f(sasm, "load_flattened_array", dont_gc_arguments);
-        OopMap* map = save_live_registers(sasm, 3);
+        OopMap* map = save_live_registers(sasm);
 
         // Called with store_parameter and not C abi
 
@@ -915,16 +934,16 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
-      case substitutability_check_id:
+    case substitutability_check_id:
       {
         StubFrame f(sasm, "substitutability_check", dont_gc_arguments);
-        OopMap* map = save_live_registers(sasm, 3);
+        OopMap* map = save_live_registers(sasm);
 
         // Called with store_parameter and not C abi
 
-        f.load_argument(1, r0); // r0,: left
-        f.load_argument(0, r1); // r1,: right
-        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, substitutability_check), r0, r1);
+        f.load_argument(1, r1); // r1,: left
+        f.load_argument(0, r2); // r2,: right
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, substitutability_check), r1, r2);
 
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
@@ -933,8 +952,6 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         // r0,: are the two operands substitutable
       }
       break;
-
-
 
     case register_finalizer_id:
       {
@@ -975,7 +992,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     case throw_incompatible_class_change_error_id:
-      { StubFrame f(sasm, "throw_incompatible_class_change_exception", dont_gc_arguments);
+      { StubFrame f(sasm, "throw_incompatible_class_change_error", dont_gc_arguments);
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_incompatible_class_change_error), false);
       }
       break;

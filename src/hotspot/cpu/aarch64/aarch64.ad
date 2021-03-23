@@ -1898,12 +1898,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
   C2_MacroAssembler _masm(&cbuf);
 
-  __ verified_entry(C, 0);
-  __ bind(*_verified_entry);
-  // n.b. frame size includes space for return pc and rfp
-  const int framesize = C->output()->frame_size_in_bytes();
-  assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
-
   // insert a nop at the start of the prolog so we can patch in a
   // branch if we need to invalidate the method later
   __ nop();
@@ -1923,11 +1917,8 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
     __ reinitialize_ptrue();
   }
 
-  int bangsize = C->output()->bang_size_in_bytes();
-  if (C->output()->need_stack_bang(bangsize))
-    __ generate_stack_overflow_check(bangsize);
-
-  __ build_frame(framesize);
+  __ verified_entry(C, 0);
+  __ bind(*_verified_entry);
 
   if (C->stub_function() == NULL) {
     BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
@@ -3937,6 +3928,12 @@ encode %{
 
     // Set tmp to be (markWord of object | UNLOCK_VALUE).
     __ orr(tmp, disp_hdr, markWord::unlocked_value);
+
+    if (EnableValhalla) {
+      assert(!UseBiasedLocking, "Not compatible with biased-locking");
+      // Mask inline_type bit such that we go to the slow path if object is an inline type
+      __ andr(tmp, tmp, ~((int) markWord::inline_type_bit_in_place));
+    }
 
     // Initialize the box. (Must happen before we update the object mark!)
     __ str(tmp, Address(box, BasicLock::displaced_header_offset_in_bytes()));
@@ -14979,9 +14976,9 @@ instruct MoveL2D_reg_reg(vRegD dst, iRegL src) %{
 // ============================================================================
 // clearing of an array
 
-instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, iRegL val, Universe dummy, rFlagsReg cr)
+instruct clearArray_reg_reg_immL0(iRegL_R11 cnt, iRegP_R10 base, immL0 zero, Universe dummy, rFlagsReg cr)
 %{
-  match(Set dummy (ClearArray (Binary cnt base) val));
+  match(Set dummy (ClearArray (Binary cnt base) zero));
   effect(USE_KILL cnt, USE_KILL base, KILL cr);
 
   ins_cost(4 * INSN_COST);
@@ -14998,10 +14995,27 @@ instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, iRegL val, Universe d
   ins_pipe(pipe_class_memory);
 %}
 
+instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, iRegL val, Universe dummy, rFlagsReg cr)
+%{
+  predicate(((ClearArrayNode*)n)->word_copy_only());
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(USE_KILL cnt, USE_KILL base, KILL cr);
+
+  ins_cost(4 * INSN_COST);
+  format %{ "ClearArray $cnt, $base, $val" %}
+
+  ins_encode %{
+    __ fill_words($base$$Register, $cnt$$Register, $val$$Register);
+  %}
+
+  ins_pipe(pipe_class_memory);
+%}
+
 instruct clearArray_imm_reg(immL cnt, iRegP_R10 base, Universe dummy, rFlagsReg cr)
 %{
   predicate((uint64_t)n->in(2)->get_long()
-            < (uint64_t)(BlockZeroingLowLimit >> LogBytesPerWord));
+            < (uint64_t)(BlockZeroingLowLimit >> LogBytesPerWord)
+            && !((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray cnt base));
   effect(USE_KILL base);
 

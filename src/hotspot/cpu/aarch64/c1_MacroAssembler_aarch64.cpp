@@ -94,9 +94,10 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // and mark it as unlocked
   orr(hdr, hdr, markWord::unlocked_value);
 
-  if (EnableValhalla && !UseBiasedLocking) {
+  if (EnableValhalla) {
+    assert(!UseBiasedLocking, "Not compatible with biased-locking");
     // Mask always_locked bit such that we go to the slow path if object is an inline type
-    andr(hdr, hdr, ~markWord::biased_lock_bit_in_place);
+    andr(hdr, hdr, ~markWord::inline_type_bit_in_place);
   }
 
   // save unlocked object header into the displaced header location on the stack
@@ -187,7 +188,8 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register t1, Register t2) {
   assert_different_registers(obj, klass, len);
-  if (UseBiasedLocking && !len->is_valid()) {
+  if (EnableValhalla) {
+    // Need to copy markWord::prototype header for klass
     assert_different_registers(obj, klass, len, t1, t2);
     ldr(t1, Address(klass, Klass::prototype_header_offset()));
   } else {
@@ -300,6 +302,7 @@ void C1_MacroAssembler::initialize_object(Register obj, Register klass, Register
 
   verify_oop(obj);
 }
+
 void C1_MacroAssembler::allocate_array(Register obj, Register len, Register t1, Register t2, int header_size, int f, Register klass, Label& slow_case) {
   assert_different_registers(obj, len, t1, t2, klass);
 
@@ -345,9 +348,16 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   cmp_klass(receiver, iCache, rscratch1);
 }
 
+void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, bool needs_stack_repair) {
+  MacroAssembler::build_frame(frame_size_in_bytes + 2 * wordSize);
 
-void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes, bool needs_stack_repair, Label* verified_inline_entry_label) {
-  assert(bang_size_in_bytes >= framesize, "stack bang size incorrect");
+  if (needs_stack_repair) {
+    Unimplemented();
+  }
+}
+
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_inline_entry_label) {
+  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter().
   generate_stack_overflow_check(bang_size_in_bytes);
@@ -357,56 +367,35 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes, bool 
     bind(*verified_inline_entry_label);
   }
 
-  MacroAssembler::build_frame(framesize + 2 * wordSize);
+  build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
 
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
 }
 
-void C1_MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {
-
-  guarantee(needs_stack_repair == false, "Stack repair should not be true");
-
-  MacroAssembler::remove_frame(framesize + 2 * wordSize);
+void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair,
+                                     int sp_inc_offset) {
+  MacroAssembler::remove_frame(frame_size_in_bytes + 2 * wordSize,
+                               needs_stack_repair, sp_inc_offset);
 }
 
-void C1_MacroAssembler::verified_inline_entry() {
-  if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
-    // Verified Entry first instruction should be 5 bytes long for correct
-    // patching by patch_verified_entry().
-    //
-    // C1Breakpoint and VerifyFPU have one byte first instruction.
-    // Also first instruction will be one byte "push(rbp)" if stack banging
-    // code is not generated (see build_frame() above).
-    // For all these cases generate long instruction first.
-    nop();
-  }
-
+void C1_MacroAssembler::verified_entry() {
+  // If we have to make this method not-entrant we'll overwrite its
+  // first instruction with a jump.  For this action to be legal we
+  // must ensure that this first instruction is a B, BL, NOP, BKPT,
+  // SVC, HVC, or SMC.  Make it a NOP.
   nop();
-  // build frame
-  // verify_FPU(0, "method_entry");
+  if (C1Breakpoint) brk(1);
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
-  // This function required to support for InlineTypePassFieldsAsArgs
-  if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
-    // Verified Entry first instruction should be 5 bytes long for correct
-    // patching by patch_verified_entry().
-    //
-    // C1Breakpoint and VerifyFPU have one byte first instruction.
-    // Also first instruction will be one byte "push(rbp)" if stack banging
-    // code is not generated (see build_frame() above).
-    // For all these cases generate long instruction first.
-    nop();
-  }
-
-  nop();
-  // verify_FPU(0, "method_entry");
-
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
   assert(InlineTypePassFieldsAsArgs, "sanity");
+  // Make sure there is enough stack space for this method's activation.
+  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
+  generate_stack_overflow_check(bang_size_in_bytes);
 
-  GrowableArray<SigEntry>* sig   = &ces->sig();
+  GrowableArray<SigEntry>* sig    = &ces->sig();
   GrowableArray<SigEntry>* sig_cc = is_inline_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
   VMRegPair* regs      = ces->regs();
   VMRegPair* regs_cc   = is_inline_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
@@ -418,24 +407,21 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
 
-  // Create a temp frame so we can call into runtime. It must be properly set up to accomodate GC.
-  int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
-  if (sp_inc > 0) {
-    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    sub(sp, sp, sp_inc);
-  } else {
-    sp_inc = 0;
+  // Check if we need to extend the stack for packing
+  int sp_inc = 0;
+  if (args_on_stack > args_on_stack_cc) {
+    Unimplemented();
   }
 
-  sub(sp, sp, frame_size_in_bytes);
-  if (sp_inc > 0) {
-    int real_frame_size = frame_size_in_bytes +
-           + wordSize  // pushed rbp
-           + wordSize  // returned address pushed by the stack extension code
-           + sp_inc;   // stack extension
-    mov(rscratch1, real_frame_size);
-    str(rscratch1, Address(sp, frame_size_in_bytes - wordSize));
-  }
+  // Create a temp frame so we can call into the runtime. It must be properly set up to accommodate GC.
+  build_frame_helper(frame_size_in_bytes, sp_inc, ces->c1_needs_stack_repair());
+
+  // Initialize orig_pc to detect deoptimization during buffering in below runtime call
+  str(zr, Address(sp, sp_offset_for_orig_pc));
+
+  // The runtime call might safepoint, make sure nmethod entry barrier is executed
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r1, (intptr_t) ces->method());
@@ -449,17 +435,13 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // Remove the temp frame
   add(sp, sp, frame_size_in_bytes);
 
-  int n = shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
-                              args_passed_cc, regs_cc,            // from
-                              args_passed, args_on_stack, regs);  // to
-  assert(sp_inc == n, "must be");
+  shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
+                      args_passed_cc, args_on_stack_cc, regs_cc, // from
+                      args_passed, args_on_stack, regs,          // to
+                      sp_inc);
 
-  if (sp_inc != 0) {
-    // Do the stack banging here, and skip over the stack repair code in the
-    // verified_inline_entry (which has a different real_frame_size).
-    assert(sp_inc > 0, "stack should not shrink");
-    generate_stack_overflow_check(bang_size_in_bytes);
-    decrement(sp, frame_size_in_bytes);
+  if (ces->c1_needs_stack_repair()) {
+    Unimplemented();
   }
 
   b(verified_inline_entry_label);
