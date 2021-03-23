@@ -205,6 +205,7 @@ public class AccessFlags {
             case ACC_VOLATILE:
                 return "volatile";
             case 0x100:
+                // ACC_NATIVE or ACC_PRIMITIVE
                 return (t == Kind.Class || t == Kind.InnerClass) ? "primitive" : "native";
             case ACC_ABSTRACT:
                 return "abstract";
