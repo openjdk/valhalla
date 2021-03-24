@@ -370,7 +370,7 @@ implements CRTFlags {
             sr.mergeWith(csp(tree.clazz));
             result = sr;
         }
-        
+
         public void visitIf(JCIf tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
             sr.mergeWith(csp(tree.cond));
