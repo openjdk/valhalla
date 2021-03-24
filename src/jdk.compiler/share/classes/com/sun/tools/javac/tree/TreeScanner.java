@@ -186,7 +186,7 @@ public class TreeScanner extends Visitor {
         scan(tree.stats);
     }
 
-    public void visitDefaultExpression(JCDefaultExpression tree) {
+    public void visitDefaultValue(JCDefaultValue tree) {
         scan(tree.clazz);
     }
 

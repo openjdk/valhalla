@@ -298,8 +298,8 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
-    public JCDefaultExpression DefaultExpression(JCExpression type) {
-        JCDefaultExpression tree = new JCDefaultExpression(type);
+    public JCDefaultValue DefaultValue(JCExpression type) {
+        JCDefaultValue tree = new JCDefaultValue(type);
         tree.pos = pos;
         return tree;
     }

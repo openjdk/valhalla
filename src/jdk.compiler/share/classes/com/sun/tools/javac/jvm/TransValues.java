@@ -200,7 +200,7 @@ public class TransValues extends TreeTranslator {
                     // Synthesize code to allocate factory "product" via: V $this = V.default;
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
                     final JCExpression type = make.Type(currentClass.type);
-                    rhs = make.DefaultExpression(type);
+                    rhs = make.DefaultValue(type);
                     rhs.type = currentClass.type;
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.init(args);

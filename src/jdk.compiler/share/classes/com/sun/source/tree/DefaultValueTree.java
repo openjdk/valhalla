@@ -37,12 +37,12 @@ package com.sun.source.tree;
  *
  * @since valhalla
  */
-public interface DefaultExpressionTree extends ExpressionTree {
+public interface DefaultValueTree extends ExpressionTree {
 
     /**
      * Returns the name of the class of the instance being initialized.
      * @return the name
      */
-    ExpressionTree getClazz();
+    ExpressionTree getType();
 
 }

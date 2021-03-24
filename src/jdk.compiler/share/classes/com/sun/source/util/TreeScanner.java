@@ -393,9 +393,8 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
      * @return the result of scanning
      */
     @Override
-    public R visitDefaultExpression(DefaultExpressionTree node, P p) {
-        R r = scan(node.getClazz(), p);
-        return r;
+    public R visitDefaultValue(DefaultValueTree node, P p) {
+        return scan(node.getType(), p);
     }
 
     /**

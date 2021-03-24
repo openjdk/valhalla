@@ -4461,7 +4461,7 @@ public class Attr extends JCTree.Visitor {
                 return types.createErrorType(name, site.tsym, site).tsym;
             default:
                 // The qualifier expression is of a primitive type -- only
-                // .class and .default is allowed for these.
+                // .class is allowed for these.
                 if (name == names._class) {
                     // In this case, we have already made sure in Select that
                     // qualifier expression is a type.
@@ -4881,7 +4881,7 @@ public class Attr extends JCTree.Visitor {
         }
     }
 
-    public void visitDefaultExpression(JCDefaultExpression tree) {
+    public void visitDefaultValue(JCDefaultValue tree) {
         if (!allowPrimitiveClasses) {
             log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
                     Feature.PRIMITIVE_CLASSES.error(sourceName));
@@ -4892,7 +4892,6 @@ public class Attr extends JCTree.Visitor {
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
 
-        Symbol sitesym = TreeInfo.symbol(tree.clazz);
         Symbol sym = switch (site.getTag()) {
                 case PACKAGE, WILDCARD -> throw new AssertionError(tree);
                 case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;

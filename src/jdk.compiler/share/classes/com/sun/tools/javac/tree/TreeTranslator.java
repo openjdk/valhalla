@@ -380,7 +380,7 @@ public class TreeTranslator extends JCTree.Visitor {
         result = tree;
     }
 
-    public void visitDefaultExpression(JCDefaultExpression tree) {
+    public void visitDefaultValue(JCDefaultValue tree) {
         tree.clazz = translate(tree.clazz);
         result = tree;
     }

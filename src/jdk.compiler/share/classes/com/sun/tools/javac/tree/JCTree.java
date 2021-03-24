@@ -253,9 +253,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
          */
         SELECT,
 
-        /** Default expressions, of type DefaultExpressionTree.
+        /** Default values, of type DefaultValueTree.
          */
-        DEFAULT_EXPRESSION,
+        DEFAULT_VALUE,
 
         /** Member references, of type Reference.
          */
@@ -1365,26 +1365,26 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * A "Identifier<TA1, TA2>.default" construction.
      */
-    public static class JCDefaultExpression extends JCPolyExpression implements DefaultExpressionTree {
+    public static class JCDefaultValue extends JCPolyExpression implements DefaultValueTree {
         public JCExpression clazz;
 
-        protected JCDefaultExpression(JCExpression clazz) {
+        protected JCDefaultValue(JCExpression clazz) {
             this.clazz = clazz;
         }
         @Override
-        public void accept(Visitor v) { v.visitDefaultExpression(this); }
+        public void accept(Visitor v) { v.visitDefaultValue(this); }
 
         @DefinedBy(Api.COMPILER_TREE)
-        public Kind getKind() { return Kind.DEFAULT_EXPRESSION; }
+        public Kind getKind() { return Kind.DEFAULT_VALUE; }
         @Override @DefinedBy(Api.COMPILER_TREE)
-        public ExpressionTree getClazz() { return clazz; }
+        public JCExpression getType() { return clazz; }
         @Override @DefinedBy(Api.COMPILER_TREE)
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
-            return v.visitDefaultExpression(this, d);
+            return v.visitDefaultValue(this, d);
         }
         @Override
         public Tag getTag() {
-            return DEFAULT_EXPRESSION;
+            return DEFAULT_VALUE;
         }
     }
 
@@ -3239,7 +3239,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         JCSwitchExpression SwitchExpression(JCExpression selector, List<JCCase> cases);
         JCCase Case(CaseTree.CaseKind caseKind, List<JCExpression> pat,
                     List<JCStatement> stats, JCTree body);
-        JCDefaultExpression DefaultExpression(JCExpression type);
+        JCDefaultValue DefaultValue(JCExpression type);
         JCSynchronized Synchronized(JCExpression lock, JCBlock body);
         JCTry Try(JCBlock body, List<JCCatch> catchers, JCBlock finalizer);
         JCTry Try(List<JCTree> resources,
@@ -3318,7 +3318,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitLabelled(JCLabeledStatement that)   { visitTree(that); }
         public void visitSwitch(JCSwitch that)               { visitTree(that); }
         public void visitCase(JCCase that)                   { visitTree(that); }
-        public void visitDefaultExpression(JCDefaultExpression that) { visitTree(that); }
+        public void visitDefaultValue(JCDefaultValue that) { visitTree(that); }
         public void visitSwitchExpression(JCSwitchExpression that)               { visitTree(that); }
         public void visitSynchronized(JCSynchronized that)   { visitTree(that); }
         public void visitTry(JCTry that)                     { visitTree(that); }

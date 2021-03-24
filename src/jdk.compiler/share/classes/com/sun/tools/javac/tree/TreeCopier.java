@@ -199,10 +199,10 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     }
 
     @DefinedBy(Api.COMPILER_TREE)
-    public JCTree visitDefaultExpression(DefaultExpressionTree node, P p) {
-        JCDefaultExpression t = (JCDefaultExpression) node;
+    public JCTree visitDefaultValue(DefaultValueTree node, P p) {
+        JCDefaultValue t = (JCDefaultValue) node;
         JCExpression clazz = copy(t.clazz, p);
-        return M.at(t.pos).DefaultExpression(clazz);
+        return M.at(t.pos).DefaultValue(clazz);
     }
 
     @DefinedBy(Api.COMPILER_TREE)

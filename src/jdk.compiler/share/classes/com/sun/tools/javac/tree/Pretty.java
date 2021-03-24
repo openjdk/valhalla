@@ -743,7 +743,7 @@ public class Pretty extends JCTree.Visitor {
         }
     }
 
-    public void visitDefaultExpression(JCDefaultExpression tree) {
+    public void visitDefaultValue(JCDefaultValue tree) {
         try {
             printExpr(tree.clazz, TreeInfo.postfixPrec);
             print(".default");

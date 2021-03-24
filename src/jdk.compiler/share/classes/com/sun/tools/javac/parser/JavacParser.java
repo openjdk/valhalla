@@ -1357,7 +1357,7 @@ public class JavacParser implements Parser {
                             case DEFAULT:
                                 if (typeArgs != null) return illegal();
                                 selectExprMode();
-                                t = to(F.at(pos).DefaultExpression(t));
+                                t = to(F.at(pos).DefaultValue(t));
                                 nextToken();
                                 break loop;
                             case CLASS:
@@ -1434,7 +1434,7 @@ public class JavacParser implements Parser {
                             while (token.kind == DOT) {
                                 nextToken();
                                 if (token.kind == DEFAULT) {
-                                    t =  toP(F.at(token.pos).DefaultExpression(t));
+                                    t =  toP(F.at(token.pos).DefaultValue(t));
                                     nextToken();
                                     selectExprMode();
                                     return term3Rest(t, typeArgs);
@@ -2280,7 +2280,7 @@ public class JavacParser implements Parser {
                 if (selector == CLASS) {
                     t = toP(F.at(pos).Select(t, names._class));
                 } else {
-                    t = toP(F.at(pos).DefaultExpression(t));
+                    t = toP(F.at(pos).DefaultValue(t));
                 }
             }
         } else if ((mode & TYPE) != 0) {
