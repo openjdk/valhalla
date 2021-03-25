@@ -4254,12 +4254,8 @@ public class Attr extends JCTree.Visitor {
         // Determine the expected kind of the qualifier expression.
         KindSelector skind = KindSelector.NIL;
         if (tree.name == names._this || tree.name == names._super ||
-                tree.name == names._class || tree.name == names._default)
+                tree.name == names._class)
         {
-            if (tree.name == names._default && !allowPrimitiveClasses) {
-                log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
-                        Feature.PRIMITIVE_CLASSES.error(sourceName));
-            }
             skind = KindSelector.TYP;
         } else {
             if (pkind().contains(KindSelector.PCK))
@@ -4281,15 +4277,10 @@ public class Attr extends JCTree.Visitor {
             while (elt.hasTag(ARRAY))
                 elt = ((ArrayType)elt).elemtype;
             if (elt.hasTag(TYPEVAR)) {
-                if (tree.name == names._default) {
-                    result = check(tree, litType(BOT).constType(null),
-                            KindSelector.VAL, resultInfo);
-                } else {
-                    log.error(tree.pos(), Errors.TypeVarCantBeDeref);
-                    result = tree.type = types.createErrorType(tree.name, site.tsym, site);
-                    tree.sym = tree.type.tsym;
-                    return;
-                }
+                log.error(tree.pos(), Errors.TypeVarCantBeDeref);
+                result = tree.type = types.createErrorType(tree.name, site.tsym, site);
+                tree.sym = tree.type.tsym;
+                return;
             }
         }
 
@@ -4433,9 +4424,7 @@ public class Attr extends JCTree.Visitor {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
-                } else if (name == names._default) {
-                    return new VarSymbol(STATIC, names._default, site, site.tsym);
-                } else if (name == names.ref && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
+               } else if (name == names.ref && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
                     return site.tsym.referenceProjection();
                 } else if (name == names.val && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
                     return site.tsym;
@@ -4448,10 +4437,6 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
-                if (name == names._default) {
-                    // Be sure to return the default value before examining bounds
-                    return new VarSymbol(STATIC, names._default, site, site.tsym);
-                }
                 // Normally, site.getUpperBound() shouldn't be null.
                 // It should only happen during memberEnter/attribBase
                 // when determining the super type which *must* be
@@ -4476,13 +4461,11 @@ public class Attr extends JCTree.Visitor {
                 return types.createErrorType(name, site.tsym, site).tsym;
             default:
                 // The qualifier expression is of a primitive type -- only
-                // .class and .default is allowed for these.
+                // .class is allowed for these.
                 if (name == names._class) {
                     // In this case, we have already made sure in Select that
                     // qualifier expression is a type.
                     return syms.getClassField(site, types);
-                } else if (name == names._default) {
-                    return new VarSymbol(STATIC, names._default, site, site.tsym);
                 } else {
                     log.error(pos, Errors.CantDeref(site));
                     return syms.errSymbol;
@@ -4896,6 +4879,29 @@ public class Attr extends JCTree.Visitor {
             log.report(errDiag);
             return types.createErrorType(site);
         }
+    }
+
+    public void visitDefaultValue(JCDefaultValue tree) {
+        if (!allowPrimitiveClasses) {
+            log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
+                    Feature.PRIMITIVE_CLASSES.error(sourceName));
+        }
+
+        // Attribute the qualifier expression, and determine its symbol (if any).
+        Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP, Type.noType));
+        if (!pkind().contains(KindSelector.TYP_PCK))
+            site = capture(site); // Capture field access
+
+        Symbol sym = switch (site.getTag()) {
+                case PACKAGE, WILDCARD -> throw new AssertionError(tree);
+                case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
+                default -> new VarSymbol(STATIC, names._default, site, site.tsym);
+        };
+
+        if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
+            site = types.skipTypeVars(site, true);
+        }
+        result = checkId(tree, site, sym, env, resultInfo);
     }
 
     public void visitLiteral(JCLiteral tree) {

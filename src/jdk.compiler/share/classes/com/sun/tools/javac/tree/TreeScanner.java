@@ -186,6 +186,10 @@ public class TreeScanner extends Visitor {
         scan(tree.stats);
     }
 
+    public void visitDefaultValue(JCDefaultValue tree) {
+        scan(tree.clazz);
+    }
+
     public void visitSwitchExpression(JCSwitchExpression tree) {
         scan(tree.selector);
         scan(tree.cases);

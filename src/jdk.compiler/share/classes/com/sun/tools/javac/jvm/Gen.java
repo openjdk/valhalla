@@ -2348,16 +2348,6 @@ public class Gen extends JCTree.Visitor {
             code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
-        } else if (tree.name == names._default) {
-            if (tree.type.asElement().isPrimitiveClass()) {
-                code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
-            } else if (tree.type.isReference()) {
-                code.emitop0(aconst_null);
-            } else {
-                code.emitop0(zero(Code.typecode(tree.type)));
-            }
-            result = items.makeStackItem(tree.type);
-            return;
         }
 
         Symbol ssym = TreeInfo.symbol(tree.selected);
@@ -2412,6 +2402,18 @@ public class Gen extends JCTree.Visitor {
                 }
             }
         }
+    }
+
+    public void visitDefaultValue(JCDefaultValue tree) {
+        if (tree.type.asElement().isPrimitiveClass()) {
+            code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+        } else if (tree.type.isReference()) {
+            code.emitop0(aconst_null);
+        } else {
+            code.emitop0(zero(Code.typecode(tree.type)));
+        }
+        result = items.makeStackItem(tree.type);
+        return;
     }
 
     public boolean isInvokeDynamic(Symbol sym) {

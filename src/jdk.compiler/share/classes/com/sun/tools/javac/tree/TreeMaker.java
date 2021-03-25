@@ -298,6 +298,12 @@ public class TreeMaker implements JCTree.Factory {
         return tree;
     }
 
+    public JCDefaultValue DefaultValue(JCExpression type) {
+        JCDefaultValue tree = new JCDefaultValue(type);
+        tree.pos = pos;
+        return tree;
+    }
+
     public JCSwitchExpression SwitchExpression(JCExpression selector, List<JCCase> cases) {
         JCSwitchExpression tree = new JCSwitchExpression(selector, cases);
         tree.pos = pos;

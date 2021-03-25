@@ -743,6 +743,15 @@ public class Pretty extends JCTree.Visitor {
         }
     }
 
+    public void visitDefaultValue(JCDefaultValue tree) {
+        try {
+            printExpr(tree.clazz, TreeInfo.postfixPrec);
+            print(".default");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     public void visitDoLoop(JCDoWhileLoop tree) {
         try {
             print("do ");
