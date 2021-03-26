@@ -2723,16 +2723,18 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
-  if (_desc->bytecode() == Bytecodes::_areturn) {  // or should the test be state == atos ?
-    Label not_restricted;
-    __ get_method(rscratch1);
-    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
-    __ andl(rscratch1, Method::_restricted_method);
-    __ jcc(Assembler::zero, not_restricted);
-    Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
-    __ movptr(robj, aaddress(0));
-    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_return_value_check), robj);
-    __ bind(not_restricted);
+  if (UseTypeRestrictions) {
+    if (_desc->bytecode() == Bytecodes::_areturn) {  // or should the test be state == atos ?
+      Label not_restricted;
+      __ get_method(rscratch1);
+      __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+      __ andl(rscratch1, Method::_restricted_method);
+      __ jcc(Assembler::zero, not_restricted);
+      Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
+      __ movptr(robj, aaddress(0));
+      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_return_value_check), robj);
+      __ bind(not_restricted);
+    }
   }
 
   if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {

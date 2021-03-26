@@ -1524,9 +1524,11 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
             check_property(valid_symbol_at(type_index),
                           "Invalid constant pool index %u for field restricted type signature in class file %s",
                             type_index, CHECK);
-            *restricted_field_info = type_index;
-            *has_restricted_type = true;
-            set_has_restricted_fields();
+            if (UseTypeRestrictions) {
+              *restricted_field_info = type_index;
+              *has_restricted_type = true;
+              set_has_restricted_fields();
+            }
         } else {
           cfs->skip_u1(attribute_length, CHECK);  // Skip unknown attributes
         }
@@ -3033,15 +3035,9 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       } else if (method_attribute_name == vmSymbols::tag_restricted_method()) {
         const u1* const current_start = cfs->current();
 
-        // RestrictedMethod_attribute {
-        //   u2 name_index;
-        //   u4 length;
-        //   u1 num_params;
-        //   u2 restricted_param_type[num_params];
-        //   u2 restricted_return_type;
-        // }
-
-        has_restricted_method_attribute = true;
+        if (UseTypeRestrictions) {
+          has_restricted_method_attribute = true;
+        }
         cfs->guarantee_more(1, CHECK_NULL);  // num_params
         restricted_num_params = cfs->get_u1_fast();
         guarantee_property((int)method_attribute_length == restricted_num_params * 2 + 3,
