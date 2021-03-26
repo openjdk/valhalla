@@ -4894,10 +4894,10 @@ public class Attr extends JCTree.Visitor {
             site = capture(site); // Capture field access
 
         Symbol sym = switch (site.getTag()) {
-        		case WILDCARD -> throw new AssertionError(tree);
+                case WILDCARD -> throw new AssertionError(tree);
                 case PACKAGE -> {
-                	log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
-                			Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
+                    log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
+                            Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
                     yield syms.errSymbol;
                 }
                 case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;

@@ -7,8 +7,8 @@
 
 public class UnknownTypeDefault {
 
-	public static void main(String [] args) {
-		Object d1 = Y.default;
-		Object d2 = y.Z.default;
-	}
+    public static void main(String [] args) {
+        Object d1 = Y.default;
+        Object d2 = y.Z.default;
+    }
 }
