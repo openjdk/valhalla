@@ -23,6 +23,7 @@
 
 package runtime.valhalla.typerestrictions;
 
+import java.lang.invoke.RestrictedType;
 import jdk.test.lib.Asserts;
 
 /*
@@ -40,11 +41,13 @@ public class SimpleTest {
         public Point(double x, double y) { this.x = x; this.y = y; }
     }
 
-    public Point p;
+    @RestrictedType("Qruntime/valhalla/typerestrictions/SimpleTest$Point;")
+    public Object p;
 
     public static void main(String... args) {
         SimpleTest b = new SimpleTest();
-        if (b.p != new Point(0,0)) throw new RuntimeException();
+        boolean diff = b.p == new Point(0,0);
+        Asserts.assertTrue(diff, "Must be identical");
         b.p = new Point(1.0, 2.0);
         if (b.p != new Point(1.0, 2.0)) throw new RuntimeException();
     }

@@ -39,7 +39,7 @@ public class IncompleteKnowledgeTest {
         double x = 0.0D;
         for (int i = 0; i < 100; i++) {
             SimpleTest st = new SimpleTest();
-            x = st.p.x;
+            x = ((SimpleTest.Point)st.p).x;
         }
         System.out.println(x);
     }
