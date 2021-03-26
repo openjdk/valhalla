@@ -38,6 +38,7 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.util.SimpleTreeVisitor;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Kinds.KindName;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
@@ -4888,12 +4889,17 @@ public class Attr extends JCTree.Visitor {
         }
 
         // Attribute the qualifier expression, and determine its symbol (if any).
-        Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP, Type.noType));
+        Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP_PCK, Type.noType));
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
 
         Symbol sym = switch (site.getTag()) {
-                case PACKAGE, WILDCARD -> throw new AssertionError(tree);
+        		case WILDCARD -> throw new AssertionError(tree);
+                case PACKAGE -> {
+                	log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
+                			Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
+                    yield syms.errSymbol;
+                }
                 case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
                 default -> new VarSymbol(STATIC, names._default, site, site.tsym);
         };
