@@ -3923,7 +3923,7 @@ intptr_t InitializeNode::can_capture_store(StoreNode* st, PhaseGVN* phase, bool 
                 assert(!n->is_Store(), "2 stores to same slice on same control?");
                 Node* base = other_adr;
                 if (base->is_Phi()) {
-                  // In rare case, base may be a PhiNode and it may reads
+                  // In rare case, base may be a PhiNode and it may read
                   // the same memory slice between InitializeNode and store.
                   failed = true;
                   break;
