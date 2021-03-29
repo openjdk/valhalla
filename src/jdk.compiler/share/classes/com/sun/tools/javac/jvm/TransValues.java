@@ -223,16 +223,6 @@ public class TransValues extends TreeTranslator {
                 currentMethod.setType(factorySym.type);
                 currentMethod.factoryProduct = product;
                 currentClass.sym.members().remove(tree.sym);
-                ClassSymbol refProjection = currentClass.sym.projection;
-                if (refProjection != null) {
-                    MethodSymbol projection = tree.sym.projection;
-                    Assert.check(projection != null);
-                    refProjection.members().remove(projection);
-                    projection = factorySym.clone(refProjection);
-                    projection.projection = factorySym;
-                    factorySym.projection = projection;
-                    refProjection.members().enter(projection);
-                }
                 tree.sym = factorySym;
                 currentClass.sym.members().enter(factorySym);
                 tree.mods.flags |= STATIC;

@@ -733,16 +733,6 @@ public class TypeEnter implements Completer {
                 ct.all_interfaces_field = (all_interfaces == null)
                         ? ct.interfaces_field : all_interfaces.toList();
             }
-            if (ct.isPrimitiveClass()) {
-                ClassSymbol cSym = (ClassSymbol) ct.tsym;
-                if (cSym.projection != null) {
-                    ClassType projectedType = (ClassType) cSym.projection.type;
-                    projectedType.supertype_field = ct.supertype_field;
-                    projectedType.interfaces_field = ct.interfaces_field;
-                    projectedType.all_interfaces_field = ct.all_interfaces_field;
-                }
-            }
-
             /* it could be that there are already some symbols in the permitted list, for the case
              * where there are subtypes in the same compilation unit but the permits list is empty
              * so don't overwrite the permitted list if it is not empty
