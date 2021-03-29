@@ -1106,6 +1106,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 buf.append(className(tsym, true));
             }
 
+            if (referenceProjection) {
+                buf.append('.');
+                buf.append(tsym.name.table.names.ref);
+            }
+
             if (getTypeArguments().nonEmpty()) {
                 buf.append('<');
                 buf.append(getTypeArguments().toString());

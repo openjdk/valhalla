@@ -2,7 +2,7 @@ GenericInlineTest.java:21:36: compiler.err.prob.found.req: (compiler.misc.inconv
 GenericInlineTest.java:27:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest<java.lang.String,java.lang.Integer>, Mid<java.lang.Integer,java.lang.String>)
 GenericInlineTest.java:29:35: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest<java.lang.String,java.lang.Integer>, Low<java.lang.String,java.lang.Integer>)
 GenericInlineTest.java:33:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: Low<java.lang.Integer,java.lang.String>, GenericInlineTest<java.lang.String,java.lang.Integer>)
-GenericInlineTest.java:37:53: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest<java.lang.String,java.lang.Integer>, GenericInlineTest$ref<java.lang.Integer,java.lang.String>)
-GenericInlineTest.java:40:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest$ref<java.lang.Integer,java.lang.String>, GenericInlineTest<java.lang.String,java.lang.Integer>)
-GenericInlineTest.java:41:50: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest$ref<java.lang.Integer,java.lang.String>, GenericInlineTest<java.lang.String,java.lang.Integer>)
+GenericInlineTest.java:37:53: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest<java.lang.String,java.lang.Integer>, GenericInlineTest.ref<java.lang.Integer,java.lang.String>)
+GenericInlineTest.java:40:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest.ref<java.lang.Integer,java.lang.String>, GenericInlineTest<java.lang.String,java.lang.Integer>)
+GenericInlineTest.java:41:50: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: GenericInlineTest.ref<java.lang.Integer,java.lang.String>, GenericInlineTest<java.lang.String,java.lang.Integer>)
 7 errors
