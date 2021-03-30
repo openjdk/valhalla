@@ -34,6 +34,7 @@ import jdk.test.lib.Asserts;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
+ *                               -XX:PerMethodRecompilationCutoff=-1 -XX:PerBytecodeRecompilationCutoff=-1
  *                               compiler.valhalla.inlinetypes.InlineTypeTest
  *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
