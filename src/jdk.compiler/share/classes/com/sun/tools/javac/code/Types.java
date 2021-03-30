@@ -5354,6 +5354,10 @@ public class Types {
             } else {
                 append(externalize(c.flatname));
             }
+            if (ct.isReferenceProjection()) {
+                append('$');
+                append(types.names.ref);
+            }
             if (ct.getTypeArguments().nonEmpty()) {
                 append('<');
                 assembleSig(ct.getTypeArguments());

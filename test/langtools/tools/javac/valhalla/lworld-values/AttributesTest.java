@@ -57,11 +57,11 @@ public class AttributesTest {
             throw new AssertionError("Unexpected inner class attribute");
         }
         String name = inners.classes[0].getInnerName(cls.constant_pool);
-        if (!name.equals("V$ref")) {
+        if (!name.equals("V")) {
             throw new AssertionError("Unexpected inner class " + name);
         }
         name = inners.classes[1].getInnerName(cls.constant_pool);
-        if (!name.equals("V")) {
+        if (!name.equals("V$ref")) {
             throw new AssertionError("Unexpected inner class " + name);
         }
 
