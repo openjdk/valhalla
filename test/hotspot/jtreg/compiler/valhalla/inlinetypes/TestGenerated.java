@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034 8260225 8260283 8261037 8261874 8262128
+ * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831
  * @summary Generated inline type tests.
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
@@ -56,6 +56,10 @@ primitive class MyValue3 {
 primitive class MyValue4 {
     short b = 2;
     int c = 8;
+}
+
+primitive class MyValue5 {
+    int b = 2;
 }
 
 public class TestGenerated {
@@ -182,12 +186,31 @@ public class TestGenerated {
         return f;
     }
 
+    int test13_iField;
+    MyValue5 test13_c;
+    MyValue5 test13_t;
+
+    void test13(MyValue5[] array) {
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                test13_iField = 6;
+            }
+            for (int j = 0; j < 2; ++j) {
+                test13_iField += array[0].b;
+            }
+            MyValue5[] array2 = {new MyValue5()};
+            test13_c = array[0];
+            array2[0] = test13_t;
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
         MyValue1[] array2 = new MyValue1[10];
         MyValue1[] array3 = { new MyValue1() };
         MyValue3[] array4 = { new MyValue3() };
+        MyValue5[] array5 = { new MyValue5() };
         array4[0].intArray[0] = 42;
 
         for (int i = 0; i < 50_000; ++i) {
@@ -203,6 +226,7 @@ public class TestGenerated {
             t.test10(array4);
             t.test11(array4);
             t.test12();
+            t.test13(array5);
         }
     }
 }

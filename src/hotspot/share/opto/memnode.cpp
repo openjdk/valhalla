@@ -3922,6 +3922,12 @@ intptr_t InitializeNode::can_capture_store(StoreNode* st, PhaseGVN* phase, bool 
                 // the store control then we cannot capture the store.
                 assert(!n->is_Store(), "2 stores to same slice on same control?");
                 Node* base = other_adr;
+                if (base->is_Phi()) {
+                  // In rare case, base may be a PhiNode and it may read
+                  // the same memory slice between InitializeNode and store.
+                  failed = true;
+                  break;
+                }
                 assert(base->is_AddP(), "should be addp but is %s", base->Name());
                 base = base->in(AddPNode::Base);
                 if (base != NULL) {
