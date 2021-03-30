@@ -1134,9 +1134,15 @@ public class Lower extends TreeTranslator {
         switch (sym.kind) {
         case TYP:
             if (sym.owner.kind != PCK) {
+                // Make sure not to lose type fidelity due to symbol sharing between projections
+                boolean requireReferenceProjection =
+                        tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref && tree.type.isReferenceProjection();
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
+                if (requireReferenceProjection) {
+                    flatname = flatname.append('$', names.ref);
+                }
                 while (base != null &&
                        TreeInfo.symbol(base) != null &&
                        TreeInfo.symbol(base).kind != PCK) {
@@ -1149,9 +1155,15 @@ public class Lower extends TreeTranslator {
                 } else if (base == null) {
                     tree = make.at(tree.pos).Ident(sym);
                     ((JCIdent) tree).name = flatname;
+                    if (requireReferenceProjection) {
+                        tree.setType(tree.type.referenceProjection());
+                    }
                 } else {
                     ((JCFieldAccess) tree).selected = base;
                     ((JCFieldAccess) tree).name = flatname;
+                    if (requireReferenceProjection) {
+                        tree.setType(tree.type.referenceProjection());
+                    }
                 }
             }
             break;

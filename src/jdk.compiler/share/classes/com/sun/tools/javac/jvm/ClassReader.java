@@ -540,6 +540,8 @@ public class ClassReader {
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
         Type outer = Type.noType;
+        Name name;
+        boolean requireProjection;
         int startSbp = sbp;
 
         while (true) {
@@ -547,24 +549,37 @@ public class ClassReader {
             switch (c) {
 
             case ';': {         // end
-                ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
-                                                         startSbp,
-                                                         sbp - startSbp));
-
+                name = names.fromUtf(signatureBuffer,
+                        startSbp,
+                        sbp - startSbp);
+                if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
+                    name = name.subName(0, name.length() - 4);
+                    requireProjection = true;
+                } else {
+                    requireProjection = false;
+                }
+                ClassSymbol t = enterClass(name);
                 try {
                     return (outer == Type.noType) ?
-                            t.erasure(types) :
-                        new ClassType(outer, List.nil(), t);
+                            requireProjection ? t.erasure(types).referenceProjection() : t.erasure(types) :
+                        new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, requireProjection);
                 } finally {
                     sbp = startSbp;
                 }
             }
 
             case '<':           // generic arguments
-                ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
-                                                         startSbp,
-                                                         sbp - startSbp));
-                outer = new ClassType(outer, sigToTypes('>'), t) {
+                name = names.fromUtf(signatureBuffer,
+                        startSbp,
+                        sbp - startSbp);
+                if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
+                    name = name.subName(0, name.length() - 4);
+                    requireProjection = true;
+                } else {
+                    requireProjection = false;
+                }
+                ClassSymbol t = enterClass(name);
+                outer = new ClassType(outer, sigToTypes('>'), t, TypeMetadata.EMPTY, requireProjection) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
                         public Type getEnclosingType() {
@@ -624,10 +639,17 @@ public class ClassReader {
             case '.':
                 //we have seen an enclosing non-generic class
                 if (outer != Type.noType) {
-                    t = enterClass(names.fromUtf(signatureBuffer,
-                                                 startSbp,
-                                                 sbp - startSbp));
-                    outer = new ClassType(outer, List.nil(), t);
+                    name = names.fromUtf(signatureBuffer,
+                            startSbp,
+                            sbp - startSbp);
+                    if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
+                        name = name.subName(0, name.length() - 4);
+                        requireProjection = true;
+                    } else {
+                        requireProjection = false;
+                    }
+                    t = enterClass(name);
+                    outer = new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, requireProjection);
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;

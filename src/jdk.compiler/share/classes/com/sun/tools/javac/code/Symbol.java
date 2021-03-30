@@ -1379,7 +1379,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if (erasure_field == null)
                 erasure_field = new ClassType(types.erasure(type.getEnclosingType()),
                                               List.nil(), this,
-                                              type.getMetadata());
+                                              type.getMetadata(),
+                                              type.isReferenceProjection());
             return erasure_field;
         }
 

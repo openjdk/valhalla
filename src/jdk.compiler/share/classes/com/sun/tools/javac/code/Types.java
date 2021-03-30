@@ -274,7 +274,7 @@ public class Types {
                     formals = formals.tail;
                 }
                 if (outer1 == outer && !changed) return t;
-                else return new ClassType(outer1, typarams1.toList(), t.tsym, t.getMetadata()) {
+                else return new ClassType(outer1, typarams1.toList(), t.tsym, t.getMetadata(), t.isReferenceProjection()) {
                     @Override
                     protected boolean needsStripping() {
                         return true;
@@ -1008,7 +1008,7 @@ public class Types {
     }
 
     public boolean isPrimitiveClass(Type t) {
-        return t != null && t.tsym != null && (t.tsym.flags_field & Flags.PRIMITIVE_CLASS) != 0;
+        return t != null && !t.isReferenceProjection() && t.tsym != null && (t.tsym.flags_field & Flags.PRIMITIVE_CLASS) != 0;
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
@@ -2555,15 +2555,26 @@ public class Types {
 
             @Override
             public Type visitClassType(ClassType t, Boolean recurse) {
-                Type erased = t.tsym.erasure(Types.this);
-                if (recurse) {
-                    erased = new ErasedClassType(erased.getEnclosingType(),erased.tsym,
-                            t.getMetadata().without(Kind.ANNOTATIONS));
-                    return erased;
-                } else {
-                    return combineMetadata(erased, t);
+                // erasure(projection(primitive)) = projection(erasure(primitive))
+                Type erased = eraseClassType(t, recurse);
+                if (t.isReferenceProjection()) {
+                    erased = new ClassType(erased.getEnclosingType(),
+                            List.nil(), erased.tsym,
+                            erased.getMetadata(), true);
                 }
+                return erased;
             }
+                // where
+                private Type eraseClassType(ClassType t, Boolean recurse) {
+                    Type erased = t.tsym.erasure(Types.this);
+                    if (recurse) {
+                        erased = new ErasedClassType(erased.getEnclosingType(), erased.tsym,
+                                t.getMetadata().without(Kind.ANNOTATIONS));
+                        return erased;
+                    } else {
+                        return combineMetadata(erased, t);
+                    }
+                }
 
             @Override
             public Type visitTypeVar(TypeVar t, Boolean recurse) {
@@ -2886,7 +2897,7 @@ public class Types {
                 Type outer1 = classBound(t.getEnclosingType());
                 if (outer1 != t.getEnclosingType())
                     return new ClassType(outer1, t.getTypeArguments(), t.tsym,
-                                         t.getMetadata());
+                                         t.getMetadata(), t.isReferenceProjection());
                 else
                     return t;
             }
@@ -4579,7 +4590,7 @@ public class Types {
 
         if (captured)
             return new ClassType(cls.getEnclosingType(), S, cls.tsym,
-                                 cls.getMetadata());
+                                 cls.getMetadata(), cls.isReferenceProjection());
         else
             return t;
     }

@@ -277,7 +277,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             List<Type> typarams = t.getTypeArguments();
             List<Type> typarams1 = visit(typarams, s);
             if (outer1 == outer && typarams1 == typarams) return t;
-            else return new ClassType(outer1, typarams1, t.tsym, t.metadata) {
+            else return new ClassType(outer1, typarams1, t.tsym, t.metadata, t.isReferenceProjection()) {
                 @Override
                 protected boolean needsStripping() {
                     return true;
@@ -1036,23 +1036,33 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public List<Type> all_interfaces_field;
 
-        /* The 'other' projection: If 'this' is type of an inline class, then 'projection' is the
-           its doppleganger in its referene projection world and vice versa.
+        /** The 'other' projection: If 'this' is type of a primitive class, then 'projection' is the
+         *  reference projection type and vice versa. Lazily initialized, not to be accessed directly.
         */
         public ClassType projection;
 
+        /** Is this class type a reference projection of a primitive class type ?
+         */
+        private boolean isReferenceProjection;
+
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
-            this(outer, typarams, tsym, TypeMetadata.EMPTY);
+            this(outer, typarams, tsym, TypeMetadata.EMPTY, false);
         }
 
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym,
                          TypeMetadata metadata) {
+            this(outer, typarams, tsym, metadata, false);
+        }
+
+        public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym,
+                         TypeMetadata metadata, boolean isReferenceProjection) {
             super(tsym, metadata);
-            this.outer_field = outer;
+            this.outer_field = outer != null && outer.isReferenceProjection() ? outer.valueProjection() : outer;
             this.typarams_field = typarams;
             this.allparams_field = null;
             this.supertype_field = null;
             this.interfaces_field = null;
+            this.isReferenceProjection = isReferenceProjection;
         }
 
         public int poolTag() {
@@ -1061,7 +1071,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public ClassType cloneWithMetadata(TypeMetadata md) {
-            return new ClassType(outer_field, typarams_field, tsym, md) {
+            return new ClassType(outer_field, typarams_field, tsym, md, isReferenceProjection) {
                 @Override
                 public Type baseType() { return ClassType.this.baseType(); }
             };
@@ -1079,7 +1089,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         public Type constType(Object constValue) {
             final Object value = constValue;
-            return new ClassType(getEnclosingType(), typarams_field, tsym, metadata) {
+            return new ClassType(getEnclosingType(), typarams_field, tsym, metadata, isReferenceProjection) {
                     @Override
                     public Object constValue() {
                         return value;
@@ -1106,7 +1116,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 buf.append(className(tsym, true));
             }
 
-            if (referenceProjection) {
+            if (isReferenceProjection) {
                 buf.append('.');
                 buf.append(tsym.name.table.names.ref);
             }
@@ -1172,7 +1182,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         }
 
         public void setEnclosingType(Type outer) {
-            outer_field = outer;
+            outer_field = outer != null && outer.isReferenceProjection() ? outer.valueProjection() : outer;
         }
 
         public List<Type> allparams() {
@@ -1201,12 +1211,12 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public boolean isPrimitiveClass() {
-            return tsym != null && tsym.isPrimitiveClass();
+            return !isReferenceProjection && tsym != null && tsym.isPrimitiveClass();
         }
 
         @Override
         public boolean isReferenceProjection() {
-            return tsym != null && tsym.isReferenceProjection();
+            return isReferenceProjection;
         }
 
         @Override
@@ -1217,10 +1227,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             if (projection !=  null)
                 return projection;
 
-            // Make a best case effort to cache the other projection.
-            ClassSymbol valueClass = (ClassSymbol) tsym.valueProjection();
-
-            projection = new ClassType(outer_field, typarams_field, valueClass);
+            projection = new ClassType(outer_field, typarams_field, tsym, getMetadata(), false);
             projection.allparams_field = allparams_field;
             projection.supertype_field = supertype_field;
 
@@ -1237,10 +1244,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             if (!isPrimitiveClass() || projection != null)
                 return projection;
 
-            // make a best case effort to cache the other projection.
-            ClassSymbol refClass = (ClassSymbol) tsym.referenceProjection();
-
-            projection = new ClassType(outer_field, typarams_field, refClass);
+            projection = new ClassType(outer_field, typarams_field, tsym, getMetadata(), true);
             projection.allparams_field = allparams_field;
             projection.supertype_field = supertype_field;
 
@@ -1298,7 +1302,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     public static class ErasedClassType extends ClassType {
         public ErasedClassType(Type outer, TypeSymbol tsym,
                                TypeMetadata metadata) {
-            super(outer, List.nil(), tsym, metadata);
+            super(outer, List.nil(), tsym, metadata, false);
         }
 
         @Override
