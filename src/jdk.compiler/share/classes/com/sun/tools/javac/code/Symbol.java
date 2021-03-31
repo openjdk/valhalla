@@ -2042,7 +2042,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
             // check for a direct implementation
             if (other.isOverridableIn((TypeSymbol)owner) &&
-                types.asSuper(owner.type, other.owner) != null &&
+                types.asSuper(owner.type, other.owner.type) != null &&
                 types.isSameType(erasure(types), other.erasure(types)))
                 return true;
 
@@ -2123,7 +2123,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
             // check for a direct implementation
             if (other.isOverridableIn((TypeSymbol)owner) &&
-                types.asSuper(owner.type, other.owner) != null) {
+                types.asSuper(owner.type, other.owner, true) != null) {
                 Type mt = types.memberType(owner.type, this);
                 Type ot = types.memberType(owner.type, other);
                 if (types.isSubSignature(mt, ot)) {

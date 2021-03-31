@@ -553,7 +553,7 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 if (t.tsym == sym)
                     return t;
-                Type base = asSuper(sym.type, t.tsym);
+                Type base = asSuper(sym.type, t);
                 if (base == null)
                     return null;
                 ListBuffer<Type> from = new ListBuffer<>();
@@ -1051,7 +1051,7 @@ public class Types {
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
             } else if (!s.isRaw()) {
-                Type t2 = asSuper(t, s.tsym);
+                Type t2 = asSuper(t, s);
                 if (t2 != null && t2.isRaw()) {
                     if (isReifiable(s)) {
                         warn.silentWarn(LintCategory.UNCHECKED);
@@ -1203,7 +1203,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                Type sup = asSuper(t, s.tsym);
+                Type sup = asSuper(t, s);
                 if (sup == null) return false;
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
@@ -2191,6 +2191,21 @@ public class Types {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="asSuper">
+    /**
+     * Return the (most specific) base type of `t' that starts with the
+     * given type `s'.  If none exists, return null.
+     *
+     * @param t a type
+     * @param s a type
+     */
+    public Type asSuper(Type t, Type s) {
+        /* There isn't any language level subtyping relation between a primitive class type and
+           its reference projection even though they share the same underlying symbol
+        */
+        return  (t.tsym != s.tsym || t.isReferenceProjection() == s.isReferenceProjection()) ?
+                asSuper(t, s.tsym) : null;
+    }
+
     /**
      * Return the (most specific) base type of t that starts with the
      * given symbol.  If none exists, return null.
@@ -3347,7 +3362,7 @@ public class Types {
             for (MethodSymbol m2 : methods) {
                 if (m1 == m2) continue;
                 if (m2.owner != m1.owner &&
-                        asSuper(m2.owner.type, m1.owner) != null) {
+                        asSuper(m2.owner.type, m1.owner.type) != null) {
                     isMin_m1 = false;
                     break;
                 }
@@ -4178,9 +4193,9 @@ public class Types {
             //step 3 - for each element G in MEC, compute lci(Inv(G))
             List<Type> candidates = List.nil();
             for (Type erasedSupertype : mec) {
-                List<Type> lci = List.of(asSuper(ts[startIdx], erasedSupertype.tsym));
+                List<Type> lci = List.of(asSuper(ts[startIdx], erasedSupertype));
                 for (int i = startIdx + 1 ; i < ts.length ; i++) {
-                    Type superType = asSuper(ts[i], erasedSupertype.tsym);
+                    Type superType = asSuper(ts[i], erasedSupertype);
                     lci = intersect(lci, superType != null ? List.of(superType) : List.nil());
                 }
                 candidates = candidates.appendList(lci);
@@ -4634,7 +4649,7 @@ public class Types {
         // The arguments to the supers could be unified here to
         // get a more accurate analysis
         while (commonSupers.nonEmpty()) {
-            Type t1 = asSuper(from, commonSupers.head.tsym);
+            Type t1 = asSuper(from, commonSupers.head);
             Type t2 = commonSupers.head; // same as asSuper(to, commonSupers.head.tsym);
             if (disjointTypes(t1.getTypeArguments(), t2.getTypeArguments()))
                 return false;
@@ -4661,7 +4676,7 @@ public class Types {
             from = target;
         }
         Assert.check(!dynamicTypeMayImplementAdditionalInterfaces(from.tsym));
-        Type t1 = asSuper(from, to.tsym);
+        Type t1 = asSuper(from, to);
         if (t1 == null) return false;
         Type t2 = to;
         if (disjointTypes(t1.getTypeArguments(), t2.getTypeArguments()))

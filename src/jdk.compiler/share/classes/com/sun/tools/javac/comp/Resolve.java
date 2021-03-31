@@ -1233,7 +1233,7 @@ public class Resolve {
                     }
                     return true;
                 } else {
-                    return types.asSuper(t, s.tsym) == null && types.asSuper(s, t.tsym) == null;
+                    return types.asSuper(t, s) == null && types.asSuper(s, t) == null;
                 }
             }
 
@@ -1715,12 +1715,12 @@ public class Resolve {
                 // but we need to protect against cases where the methods are defined in some classfile
                 // and make sure we issue an ambiguity error accordingly (by skipping the logic below).
                 if (m1Owner != m2Owner) {
-                    if (types.asSuper(m1Owner.type, m2Owner) != null &&
+                    if (types.asSuper(m1Owner.type, m2Owner.type) != null &&
                         ((m1.owner.flags_field & INTERFACE) == 0 ||
                          (m2.owner.flags_field & INTERFACE) != 0) &&
                         m1.overrides(m2, m1Owner, types, false))
                         return m1;
-                    if (types.asSuper(m2Owner.type, m1Owner) != null &&
+                    if (types.asSuper(m2Owner.type, m1Owner.type) != null &&
                         ((m2.owner.flags_field & INTERFACE) == 0 ||
                          (m1.owner.flags_field & INTERFACE) != 0) &&
                         m2.overrides(m1, m2Owner, types, false))
@@ -3666,7 +3666,7 @@ public class Resolve {
                 List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             super(referenceTree, name, site, argtypes.tail, typeargtypes, maxPhase);
             if (site.isRaw() && !argtypes.head.hasTag(NONE)) {
-                Type asSuperSite = types.asSuper(argtypes.head, site.tsym);
+                Type asSuperSite = types.asSuper(argtypes.head, site);
                 this.site = types.skipTypeVars(asSuperSite, true);
             }
         }
@@ -3815,7 +3815,7 @@ public class Resolve {
                 if (t.tsym == c) {
                     env.info.defaultSuperCallSite = t;
                     return new VarSymbol(0, names._super,
-                            types.asSuper(env.enclClass.type, c), env.enclClass.sym);
+                            types.asSuper(env.enclClass.type, c.type), env.enclClass.sym);
                 }
             }
             //find a direct super type that is a subtype of 'c'

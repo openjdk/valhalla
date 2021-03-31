@@ -481,7 +481,7 @@ public class Infer {
          */
         if (to.isParameterized()) {
             for (Type t : from.getBounds(InferenceBound.EQ, InferenceBound.LOWER)) {
-                Type sup = types.asSuper(t, to.tsym);
+                Type sup = types.asSuper(t, to);
                 if (sup != null && sup.isRaw()) {
                     return true;
                 }
@@ -1146,7 +1146,7 @@ public class Infer {
         private Type asSuper(Type t, Type sup) {
             return (sup.hasTag(ARRAY)) ?
                     new ArrayType(asSuper(types.elemtype(t), types.elemtype(sup)), syms.arrayClass) :
-                    types.asSuper(t, sup.tsym);
+                    types.asSuper(t, sup);
         }
 
     boolean doIncorporationOp(IncorporationBinaryOpKind opKind, Type op1, Type op2, Warner warn) {

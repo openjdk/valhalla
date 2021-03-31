@@ -3529,7 +3529,7 @@ public class Lower extends TreeTranslator {
                                            eType,
                                            List.nil());
             VarSymbol itvar = new VarSymbol(SYNTHETIC, names.fromString("i" + target.syntheticNameChar()),
-                                            types.erasure(types.asSuper(iterator.type.getReturnType(), syms.iteratorType.tsym)),
+                                            types.erasure(types.asSuper(iterator.type.getReturnType(), syms.iteratorType)),
                                             currentMethodSym);
 
              JCStatement init = make.
@@ -3990,8 +3990,7 @@ public class Lower extends TreeTranslator {
         else if (tree.name == names._super &&
                 types.isDirectSuperInterface(tree.selected.type.tsym, currentClass)) {
             //default super call!! Not a classic qualified super call
-            TypeSymbol supSym = tree.selected.type.tsym;
-            Assert.checkNonNull(types.asSuper(currentClass.type, supSym));
+            Assert.checkNonNull(types.asSuper(currentClass.type, tree.selected.type));
             result = tree;
         }
         else if (tree.name == names._this || tree.name == names._super) {

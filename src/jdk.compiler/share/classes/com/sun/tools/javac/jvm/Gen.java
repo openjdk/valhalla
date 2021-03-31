@@ -2276,7 +2276,7 @@ public class Gen extends JCTree.Visitor {
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
             (!tree.clazz.type.tsym.isReferenceProjection() || tree.clazz.type.tsym.valueProjection() != tree.expr.type.tsym) &&
-           types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
+           types.asSuper(tree.expr.type, tree.clazz.type) == null) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
                 code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
