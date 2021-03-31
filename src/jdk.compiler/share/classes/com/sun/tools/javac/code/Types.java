@@ -1453,9 +1453,18 @@ public class Types {
                     return tMap.isEmpty();
                 }
                 return t.tsym == s.tsym
-                    && visit(t.getEnclosingType(), s.getEnclosingType())
+                    && t.isReferenceProjection() == s.isReferenceProjection()
+                    && visit(getEnclosingType(t), getEnclosingType(s))
                     && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
+                // where
+                private Type getEnclosingType(Type t) {
+                    Type et = t.getEnclosingType();
+                    if (et.isReferenceProjection()) {
+                        et = et.valueProjection();
+                    }
+                    return et;
+                }
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
@@ -1713,14 +1722,6 @@ public class Types {
     }
     // where
         private boolean areDisjoint(ClassSymbol ts, ClassSymbol ss) {
-            /* The disjointsness checks below are driven by subtyping. At the language level
-               a reference projection type and its value projection type are not related by
-               subtyping, thereby necessitating special handling.
-            */
-            if ((ss.isReferenceProjection() && ss.valueProjection() == ts) ||
-                (ss.isPrimitiveClass() && ss.referenceProjection() == ts)) {
-                return false;
-            }
             if (isSubtype(erasure(ts.type), erasure(ss.type))) {
                 return false;
             }
@@ -2413,9 +2414,6 @@ public class Types {
         */
         if (t.isPrimitiveClass())
             t = t.referenceProjection();
-
-        if (sym.owner.isPrimitiveClass())
-            sym = sym.referenceProjection();
 
         return memberType.visit(t, sym);
         }

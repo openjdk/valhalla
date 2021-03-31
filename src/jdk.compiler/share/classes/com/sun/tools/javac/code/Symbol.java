@@ -2106,18 +2106,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                                             boolean requireConcreteIfInherited) {
             if (isConstructor() || _other.kind != MTH) return false;
 
-
-            /* If any inline types are involved, ask the same question in the reference universe,
-               where the hierarchy is navigable
-            */
-            if (origin.isPrimitiveClass())
-                origin = (TypeSymbol) origin.referenceProjection();
-
-            if (this.owner.isPrimitiveClass()) {
-                return this.projection != null &&
-                        this.projection.overrides(_other, origin, types, checkResult, requireConcreteIfInherited);
-            }
-
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
 
@@ -2172,14 +2160,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @Override
         public boolean isInheritedIn(Symbol clazz, Types types) {
-
-            /* If any inline types are involved, ask the same question in the reference universe,
-               where the hierarchy is navigable
-            */
-            if (clazz.isPrimitiveClass())
-                clazz = clazz.referenceProjection();
-            if (this.owner.isPrimitiveClass())
-                return this.projection.isInheritedIn(clazz, types);
 
             switch ((int)(flags_field & Flags.AccessFlags)) {
                 case PUBLIC:

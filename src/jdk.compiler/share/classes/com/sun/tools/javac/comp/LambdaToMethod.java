@@ -2288,7 +2288,7 @@ public class LambdaToMethod extends TreeTranslator {
                C$ref.class and fail with a NoSuchMethodError. we need to workaround it ourselves.
             */
             boolean receiverIsReferenceProjection() {
-                return tree.sym.kind == MTH && tree.sym.owner.isReferenceProjection();
+                return tree.getQualifierExpression().type.isReferenceProjection();
             }
 
             /**
