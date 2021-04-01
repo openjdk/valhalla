@@ -1418,6 +1418,16 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
   }
 #endif
 
+  if (UseTypeRestrictions) {
+    Label not_restricted;
+    __ get_method(rscratch1);
+    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+    __ andl(rscratch1, Method::_type_restrictions);
+    __ jcc(Assembler::zero, not_restricted);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
+    __ bind(not_restricted);
+  }
+
   // jvmti support
   __ notify_method_entry();
 

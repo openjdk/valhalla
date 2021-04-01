@@ -751,6 +751,7 @@ LEAF(Local, Instruction)
   bool is_receiver() const                       { return _is_receiver; }
 
   virtual ciType* declared_type() const          { return _declared_type; }
+  virtual void set_declared_type(ciType* type)   { _declared_type = type; }
 
   // generic
   virtual void input_values_do(ValueVisitor* f)   { /* no values */ }

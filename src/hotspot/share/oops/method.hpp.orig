@@ -72,7 +72,6 @@ class Method : public Metadata {
  friend class JVMCIVMStructs;
  friend class TemplateTable;
  friend class SharedRuntime;
- friend class TemplateInterpreterGenerator;
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to Method::metaspace_pointers_do().
