@@ -4383,7 +4383,7 @@ public class Attr extends JCTree.Visitor {
 
             if (site.isRaw()) {
                 // Determine argument types for site.
-                Type site1 = types.asSuper(env.enclClass.sym.type, site);
+                Type site1 = types.asSuper(env.enclClass.sym.type, site.tsym);
                 if (site1 != null) site = site1;
             }
         }
