@@ -379,7 +379,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
 
   // Oop is non-NULL, use it
   region->init_req(1, kit->control());
-  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr());
+  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr()->join_speculative(TypePtr::NOTNULL));
   PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
   PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
@@ -932,4 +932,36 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       --i; --imax;
     }
   }
+}
+
+Node* InlineTypePtrNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  if (can_reshape) {
+    // Remove useless InlineTypePtr nodes that might keep other nodes alive
+    ResourceMark rm;
+    Unique_Node_List users;
+    users.push(this);
+    bool useless = true;
+    for (uint i = 0; i < users.size(); ++i) {
+      Node* use = users.at(i);
+      if (use->is_Cmp() || use->Opcode() == Op_Return || use->Opcode() == Op_CastP2X || (use == this && i != 0) ||
+          (use->is_Load() && use->outcnt() == 1 && use->unique_out() == this)) {
+        // No need to keep track of field values, we can just use the oop
+        continue;
+      }
+      if (use->is_Load() || use->is_Store() || (use->is_InlineTypeBase() && use != this) || use->is_SafePoint()) {
+        // We need to keep track of field values to allow the use to be folded/scalarized
+        useless = false;
+        break;
+      }
+      for (DUIterator_Fast jmax, j = use->fast_outs(jmax); j < jmax; j++) {
+        users.push(use->fast_out(j));
+      }
+    }
+    if (useless) {
+      phase->is_IterGVN()->replace_node(this, get_oop());
+      return NULL;
+    }
+  }
+
+  return InlineTypeBaseNode::Ideal(phase, can_reshape);
 }

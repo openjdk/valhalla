@@ -2377,6 +2377,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (is_store) {
       const Type* val_t = _gvn.type(val);
       if (!val_t->isa_inlinetype() || val_t->inline_klass() != inline_klass) {
+        set_map(old_map);
+        set_sp(old_sp);
         return false;
       }
     }
