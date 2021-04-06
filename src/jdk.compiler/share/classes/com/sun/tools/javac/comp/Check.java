@@ -2695,8 +2695,8 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        boolean implementsIdentityObject = types.asSuper(c, syms.identityObjectType.tsym, true) != null;
-        boolean implementsPrimitiveObject = types.asSuper(c, syms.primitiveObjectType.tsym, true) != null;
+        boolean implementsIdentityObject = types.isSubtype(c.referenceProjectionOrSelf(), syms.identityObjectType);
+        boolean implementsPrimitiveObject = types.isSubtype(c.referenceProjectionOrSelf(), syms.primitiveObjectType);
         if (c.isPrimitiveClass() && implementsIdentityObject) {
             log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
         } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {

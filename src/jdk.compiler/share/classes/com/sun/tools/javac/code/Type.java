@@ -256,11 +256,19 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     }
 
     /**
-     * @return the reference projection type IFF the receiver is an inline type
+     * @return the reference projection type IFF the receiver is a primitive class type
      * and null otherwise
      */
     public Type referenceProjection() {
         return null;
+    }
+
+    /**
+     * @return the reference projection type IFF the receiver is a primitive class type or self otherwise.
+     */
+    public Type referenceProjectionOrSelf() {
+        Type projection = referenceProjection();
+        return projection != null ? projection : this;
     }
 
     /**
@@ -1241,7 +1249,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public ClassType referenceProjection() {
 
-            if (!isPrimitiveClass() || projection != null)
+            if (!isPrimitiveClass())
+                return null;
+
+            if (projection != null)
                 return projection;
 
             projection = new ClassType(outer_field, typarams_field, tsym, getMetadata(), true);
