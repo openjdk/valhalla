@@ -168,6 +168,8 @@ private:
     }
   }
 
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+
 public:
   virtual int Opcode() const;
 };

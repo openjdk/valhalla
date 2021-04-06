@@ -3361,13 +3361,8 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           memnode_worklist.append_if_missing(use);
         }
       } else if (use->Opcode() == Op_Return) {
-        assert(_compile->tf()->returns_inline_type_as_fields(), "must return an inline type");
-        // Get InlineKlass by removing the tag bit from the metadata pointer
-        Node* klass = use->in(TypeFunc::Parms);
-        intptr_t ptr = igvn->type(klass)->isa_rawptr()->get_con();
-        clear_nth_bit(ptr, 0);
-        assert(Metaspace::contains((void*)ptr), "should be klass");
-        assert(((InlineKlass*)ptr)->contains_oops(), "returned inline type must contain a reference field");
+        // Allocation is referenced by field of returned inline type
+        assert(_compile->tf()->returns_inline_type_as_fields(), "EA: unexpected reference by ReturnNode");
       } else {
         uint op = use->Opcode();
         if ((op == Op_StrCompressedCopy || op == Op_StrInflatedCopy) &&

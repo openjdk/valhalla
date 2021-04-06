@@ -1955,9 +1955,6 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
 }
 
 void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
-  if (_inline_type_nodes.length() == 0) {
-    return;
-  }
   // Make sure that the return value does not keep an otherwise unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
@@ -1977,6 +1974,9 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
         igvn.remove_dead_node(ret_val);
       }
     }
+  }
+  if (_inline_type_nodes.length() == 0) {
+    return;
   }
   if (remove) {
     // Remove inline type nodes

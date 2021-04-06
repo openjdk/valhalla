@@ -204,6 +204,21 @@ public class TestGenerated {
         }
     }
 
+    void test14(boolean b, MyValue4 val) {
+        for (int i = 0; i < 10; ++i) {
+            if (b) {
+                val = MyValue4.default;
+            }
+            MyValue4[] array = new MyValue4[1];
+            array[0] = val;
+
+            for (int j = 0; j < 5; ++j) {
+                for (int k = 0; k < 5; ++k) {
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
@@ -227,6 +242,7 @@ public class TestGenerated {
             t.test11(array4);
             t.test12();
             t.test13(array5);
+            t.test14(false, MyValue4.default);
         }
     }
 }
