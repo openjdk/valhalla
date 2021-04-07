@@ -3711,4 +3711,25 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertTrue(test138(rI, false));
         Asserts.assertTrue(test138(rI, true));
     }
+
+    static primitive class Test139Value {
+        Object obj = null;
+        MyValueEmpty empty = MyValueEmpty.default;
+    }
+
+    static primitive class Test139Wrapper {
+        Test139Value value = Test139Value.default;
+    }
+
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public MyValueEmpty test139() {
+        Test139Wrapper w = new Test139Wrapper();
+        return w.value.empty;
+    }
+
+    @DontCompile
+    public void test139_verifier(boolean warmup) {
+        MyValueEmpty empty = test139();
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
 }
