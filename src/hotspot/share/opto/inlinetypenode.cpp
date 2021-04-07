@@ -274,6 +274,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     Node* value = NULL;
     ciType* ft = field_type(i);
     if (ft->is_inlinetype() && ft->as_inline_klass()->is_empty()) {
+      // Loading from a field of an empty inline type. Just return the default instance.
       value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
     } else if (field_is_flattened(i)) {
       // Recursively load the flattened inline type field
