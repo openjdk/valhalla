@@ -3092,9 +3092,10 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
           CheckCast* c = new CheckCast(restricted_type, state()->local_at(idx), copy_state_before());
           append_split(c);
           c->set_incompatible_class_change_check();
-          if (restricted_type->as_instance_klass() != NULL) {
-            c->set_direct_compare(restricted_type->as_instance_klass()->is_final());
-          }
+          // restricted types must be primitive classes
+          assert(restricted_type->as_instance_klass() != NULL, "Sanity check");
+          assert(restricted_type->as_instance_klass()->is_final(), "Sanity check");
+          c->set_direct_compare(true);
           // Updating argument information
           state()->store_local(idx, c);
         }
