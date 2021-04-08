@@ -46,22 +46,22 @@ public class EnhancedForLoopTest {
 
     static primitive class PrimitiveIterator<V> implements Iterator<V> {
 
-    	Iterator<V> iv;
-    	
-    	public PrimitiveIterator(List<V> lv) {
-			this.iv = lv.iterator();
-		}
-    	
-		@Override
-		public boolean hasNext() {
-			return iv.hasNext();
-		}
+        Iterator<V> iv;
 
-		@Override
-		public V next() {
-			return iv.next();
-		}
-    	
+        public PrimitiveIterator(List<V> lv) {
+            this.iv = lv.iterator();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return iv.hasNext();
+        }
+
+        @Override
+        public V next() {
+            return iv.next();
+        }
+
     }
 
     primitive static class Foo<V> implements Iterable<V> {
