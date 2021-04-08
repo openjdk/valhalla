@@ -2042,7 +2042,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
             // check for a direct implementation
             if (other.isOverridableIn((TypeSymbol)owner) &&
-                types.isSubtype(owner.type, other.owner.type) &&
+                types.asSuper(owner.type.referenceProjectionOrSelf(), other.owner) != null &&
                 types.isSameType(erasure(types), other.erasure(types)))
                 return true;
 

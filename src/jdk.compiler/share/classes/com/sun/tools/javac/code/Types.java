@@ -2206,11 +2206,14 @@ public class Types {
      * this method.
      *
      * 1. Since Foo.ref and Foo.val share the same symbol, that of Foo.class, a call to
-     *    asSuper(Foo.ref.type, Foo.val.type.tsym) would return non-null. This is NOT correct
-     *    Foo.val is NOT a super type of Foo.ref either in the language model or in the VM's
-     *    world view. An example of such an hazardous call used to exist in Gen.visitTypeCast.
-     *    When we emit code for  (Foo) Foo.ref.instance a check for whether we really need the
-     *    cast cannot/shouldn't be gated on asSuper(tree.expr.type, tree.clazz.type.tsym) == null)
+     *    asSuper(Foo.ref.type, Foo.val.type.tsym) would return non-null. This MAY NOT BE correct
+     *    depending on the call site. Foo.val is NOT a super type of Foo.ref either in the language
+     *    model or in the VM's world view. An example of such an hazardous call used to exist in
+     *    Gen.visitTypeCast. When we emit code for  (Foo) Foo.ref.instance a check for whether we
+     *    really need the cast cannot/shouldn't be gated on
+     *
+     *        asSuper(tree.expr.type, tree.clazz.type.tsym) == null)
+     *
      *    but use !types.isSubtype(tree.expr.type, tree.clazz.type) which operates in terms of
      *    types. When we operate in terms of symbols, there is a loss of type information leading
      *    to a hazard. Whether a call to asSuper should be transformed into a isSubtype call is
