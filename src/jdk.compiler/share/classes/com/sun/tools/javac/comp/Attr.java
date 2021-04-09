@@ -4426,7 +4426,7 @@ public class Attr extends JCTree.Visitor {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
-                } else if (site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP) && (name == names.ref || name == names.val)) {
+                } else if (site.isPrimitiveClass() && isType(location) && resultInfo.pkind.contains(KindSelector.TYP) && (name == names.ref || name == names.val)) {
                     return site.tsym;
                 } else {
                     // We are seeing a plain identifier as selector.

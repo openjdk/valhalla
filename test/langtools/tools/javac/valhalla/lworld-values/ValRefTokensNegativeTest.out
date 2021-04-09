@@ -1,0 +1,5 @@
+ValRefTokensNegativeTest.java:10:29: compiler.err.cant.resolve.location: kindname.class, ref, , , (compiler.misc.location: kindname.class, ValRefTokensNegativeTest, null)
+ValRefTokensNegativeTest.java:11:36: compiler.err.cant.resolve.location: kindname.class, val, , , (compiler.misc.location: kindname.class, ValRefTokensNegativeTest, null)
+ValRefTokensNegativeTest.java:26:26: compiler.err.cant.resolve.location: kindname.variable, val, , , (compiler.misc.location: kindname.class, ValRefTokensNegativeTest.EmptyValue, null)
+ValRefTokensNegativeTest.java:30:26: compiler.err.cant.resolve.location: kindname.variable, ref, , , (compiler.misc.location: kindname.class, ValRefTokensNegativeTest.EmptyValue, null)
+4 errors
