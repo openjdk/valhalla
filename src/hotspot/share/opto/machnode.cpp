@@ -725,7 +725,7 @@ bool MachCallNode::returns_pointer() const {
           r->field_at(TypeFunc::Parms)->isa_ptr());
 }
 
-bool MachCallNode::returns_vt() const {
+bool MachCallNode::returns_scalarized() const {
   return tf()->returns_inline_type_as_fields();
 }
 

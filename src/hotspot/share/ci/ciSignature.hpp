@@ -57,7 +57,7 @@ public:
 
   ciType*   return_type() const                  { return _return_type; }
   ciType*   type_at(int index) const             { return _types.at(index); }
-  bool      maybe_returns_inline_type() const;
+  bool      returns_inline_type() const;
 
   int       size() const                         { return _size; }
   int       count() const                        { return _types.length(); }

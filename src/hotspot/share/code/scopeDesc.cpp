@@ -40,7 +40,7 @@ ScopeDesc::ScopeDesc(const CompiledMethod* code, PcDesc* pd, bool ignore_objects
   _reexecute     = pd->should_reexecute();
   _rethrow_exception = pd->rethrow_exception();
   _return_oop    = pd->return_oop();
-  _return_vt     = pd->return_vt();
+  _return_scalarized = pd->return_scalarized();
   _has_ea_local_in_scope = ignore_objects ? false : pd->has_ea_local_in_scope();
   _arg_escape    = ignore_objects ? false : pd->arg_escape();
   decode_body();
@@ -54,7 +54,7 @@ void ScopeDesc::initialize(const ScopeDesc* parent, int decode_offset) {
   _reexecute     = false; //reexecute only applies to the first scope
   _rethrow_exception = false;
   _return_oop    = false;
-  _return_vt     = false;
+  _return_scalarized = false;
   _has_ea_local_in_scope = parent->has_ea_local_in_scope();
   _arg_escape    = false;
   decode_body();

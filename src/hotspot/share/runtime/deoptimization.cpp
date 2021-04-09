@@ -208,7 +208,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   // of all oop return values.
   GrowableArray<Handle> return_oops;
   InlineKlass* vk = NULL;
-  if (save_oop_result && scope->return_vt()) {
+  if (save_oop_result && scope->return_scalarized()) {
     vk = InlineKlass::returned_inline_klass(map);
     if (vk != NULL) {
       vk->save_oop_fields(map, return_oops);
