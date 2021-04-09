@@ -945,7 +945,7 @@ public:
 
   // Similar to cousin class CallNode::returns_pointer
   bool returns_pointer() const;
-  bool returns_vt() const;
+  bool returns_scalarized() const;
 
   bool guaranteed_safepoint() const { return _guaranteed_safepoint; }
 

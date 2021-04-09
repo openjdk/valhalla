@@ -957,7 +957,9 @@ Node* InlineTypePtrNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       }
     }
     if (useless) {
-      phase->is_IterGVN()->replace_node(this, get_oop());
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      igvn->_worklist.push(this);
+      igvn->replace_in_uses(this, get_oop());
       return NULL;
     }
   }

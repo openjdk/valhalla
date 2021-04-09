@@ -3382,7 +3382,7 @@ void nmethod::print_code_comment_on(outputStream* st, int column, address begin,
           break;
         }
       }
-      st->print(" {reexecute=%d rethrow=%d return_oop=%d return_vt=%d}", sd->should_reexecute(), sd->rethrow_exception(), sd->return_oop(), sd->return_vt());
+      st->print(" {reexecute=%d rethrow=%d return_oop=%d return_scalarized=%d}", sd->should_reexecute(), sd->rethrow_exception(), sd->return_oop(), sd->return_scalarized());
     }
 
     // Print all scopes

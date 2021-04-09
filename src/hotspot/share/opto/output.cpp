@@ -1049,7 +1049,7 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
   bool is_method_handle_invoke = false;
   bool is_opt_native = false;
   bool return_oop = false;
-  bool return_vt = false;
+  bool return_scalarized = false;
   bool has_ea_local_in_scope = sfn->_has_ea_local_in_scope;
   bool arg_escape = false;
 
@@ -1072,11 +1072,11 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
     }
 
     // Check if a call returns an object.
-    if (mcall->returns_pointer() || mcall->returns_vt()) {
+    if (mcall->returns_pointer() || mcall->returns_scalarized()) {
       return_oop = true;
     }
-    if (mcall->returns_vt()) {
-      return_vt = true;
+    if (mcall->returns_scalarized()) {
+      return_scalarized = true;
     }
     safepoint_pc_offset += mcall->ret_addr_offset();
     C->debug_info()->add_safepoint(safepoint_pc_offset, mcall->_oop_map);
@@ -1202,7 +1202,7 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
       is_method_handle_invoke,
       is_opt_native,
       return_oop,
-      return_vt,
+      return_scalarized,
       has_ea_local_in_scope,
       arg_escape,
       locvals,
