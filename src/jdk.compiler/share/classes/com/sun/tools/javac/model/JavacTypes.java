@@ -295,7 +295,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
     public TypeMirror asMemberOf(DeclaredType containing, Element element) {
         Type site = (Type)containing;
         Symbol sym = (Symbol)element;
-        if (types.asSuper(site, sym.getEnclosingElement()) == null)
+        if (types.asSuper(site.referenceProjectionOrSelf(), sym.getEnclosingElement()) == null)
             throw new IllegalArgumentException(sym + "@" + site);
         return types.memberType(site, sym);
     }

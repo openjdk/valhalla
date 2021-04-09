@@ -230,6 +230,9 @@ public class PoolWriter {
      * Enter an inner class into the `innerClasses' set.
      */
     void enterInner(ClassSymbol c) {
+        if (c.isReferenceProjection()) {
+            c = c.valueProjection();
+        }
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
@@ -375,6 +378,9 @@ public class PoolWriter {
                     Name name = ct.hasTag(ARRAY) ?
                             typeSig(ct) :
                             c instanceof ConstantPoolQType ? names.fromString("Q" + new String(externalize(ct.tsym.flatName())) + ";") : names.fromUtf(externalize(ct.tsym.flatName()));
+                    if (ct.isReferenceProjection()) {
+                        name = name.append('$', names.ref);
+                    }
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {

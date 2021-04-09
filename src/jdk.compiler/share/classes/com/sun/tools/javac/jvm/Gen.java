@@ -2275,8 +2275,8 @@ public class Gen extends JCTree.Visitor {
         // inline widening conversion is a nop, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.tsym.isReferenceProjection() || tree.clazz.type.tsym.valueProjection() != tree.expr.type.tsym) &&
-           types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
+            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
+           !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
                 code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);

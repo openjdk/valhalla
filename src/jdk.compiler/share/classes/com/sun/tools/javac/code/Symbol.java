@@ -426,18 +426,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /**
-     * Return the value projection IFF 'this' happens to be derived reference projection, null
-     * otherwise.
+     * If this is the symbol for a reference projection class, what is the class for which
+     * this is a projection ??
      */
-    public Symbol valueProjection() {
-        return null;
-    }
-
-    /**
-     * Return the reference projection IFF 'this' happens to be inline class, null
-     * otherwise.
-     */
-    public Symbol referenceProjection() {
+    public ClassSymbol valueProjection() {
         return null;
     }
 
@@ -1328,12 +1320,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         private List<RecordComponent> recordComponents = List.nil();
 
-        /* the 'other' projection: If 'this' is an inline class then 'projection' is its reference projection
-           and vice versa.
-         */
-        public ClassSymbol projection;
-
-
         // sealed classes related fields
         /** The classes, or interfaces, permitted to extend this class, or interface
          */
@@ -1393,7 +1379,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if (erasure_field == null)
                 erasure_field = new ClassType(types.erasure(type.getEnclosingType()),
                                               List.nil(), this,
-                                              type.getMetadata());
+                                              type.getMetadata(),
+                                              type.isReferenceProjection());
             return erasure_field;
         }
 
@@ -1663,65 +1650,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             return (flags_field & RECORD) != 0;
         }
 
-        @Override
-        public boolean isReferenceProjection() {
-            return projection != null && projection.isPrimitiveClass();
-        }
-
-        @Override
-        public ClassSymbol valueProjection() {
-            return isReferenceProjection() ? projection : null;
-        }
-
-        @Override
-        public ClassSymbol referenceProjection() {
-            if (!isPrimitiveClass())
-                return null;
-
-            if (projection != null)
-                return projection;
-
-            ClassType ct = (ClassType) this.type;
-            ClassType projectedType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null);
-            projectedType.allparams_field = ct.allparams_field;
-            projectedType.supertype_field = ct.supertype_field;
-
-            projectedType.interfaces_field = ct.interfaces_field;
-            projectedType.all_interfaces_field = ct.all_interfaces_field;
-            projectedType.projection = ct;
-            ct.projection = projectedType;
-
-            Name projectionName = this.name.append('$', this.name.table.names.ref);
-            long projectionFlags = (this.flags() & ~(PRIMITIVE_CLASS | UNATTRIBUTED | FINAL)) | SEALED;
-
-            projection = new ClassSymbol(projectionFlags, projectionName, projectedType, this.owner);
-            projection.members_field = WriteableScope.create(projection);
-            for (Symbol s : this.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
-                Symbol clone = null;
-                if (s.kind == MTH) {
-                    MethodSymbol valMethod = (MethodSymbol)s;
-                    MethodSymbol refMethod = valMethod.clone(projection);
-                    valMethod.projection = refMethod;
-                    refMethod.projection = valMethod;
-                    clone = refMethod;
-                } else if (s.kind == VAR) {
-                    VarSymbol valVar = (VarSymbol)s;
-                    VarSymbol refVar = valVar.clone(projection);
-                    valVar.projection = refVar;
-                    refVar.projection = valVar;
-                    clone = refVar;
-                }
-                projection.members_field.enter(clone);
-            }
-            projection.completer = Completer.NULL_COMPLETER;
-            projection.sourcefile = this.sourcefile;
-            projection.flatname = this.flatname.append('$', this.name.table.names.ref);
-            projection.permitted = List.of(this);
-            projection.projection = this;
-            projectedType.tsym = projection;
-            return projection;
-        }
-
         @DefinedBy(Api.LANGUAGE_MODEL)
         public List<Type> getPermittedSubclasses() {
             return permitted.map(s -> s.type);
@@ -1747,11 +1675,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          *    If this is a local variable, its logical slot number.
          */
         public int adr = -1;
-
-        /* The 'other' projection: If 'this' is a field of an inline class, then 'projection' is the
-           its doppleganger in its referene projection class and vice versa.
-        */
-        public VarSymbol projection;
 
         /** Construct a variable symbol, given its flags, name, type and owner.
          */
@@ -1785,7 +1708,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             v.pos = pos;
             v.adr = adr;
             v.data = data;
-            v.projection = projection;
 //          System.out.println("clone " + v + " in " + newOwner);//DEBUG
             return v;
         }
@@ -1836,18 +1758,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                                       final JCVariableDecl variable)
         {
             setData((Callable<Object>)() -> attr.attribLazyConstantValue(env, variable, type));
-        }
-
-        @Override
-        public VarSymbol referenceProjection() {
-            return this.owner.isPrimitiveClass() ?
-                    this.owner.referenceProjection() != null ? projection : null
-                               : null;
-        }
-
-        @Override
-        public VarSymbol valueProjection() {
-            return  projection != null ? projection.owner.isPrimitiveClass() ? projection : null: null;
         }
 
         /**
@@ -2026,11 +1936,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         public Attribute defaultValue = null;
 
-        /* The 'other' projection: If 'this' is a method of an inline class, then 'projection' is the
-           its doppleganger in its referene projection class and vice versa.
-        */
-        public MethodSymbol projection;
-
         /** Construct a method symbol, given its flags, name, type and owner.
          */
         public MethodSymbol(long flags, Name name, Type type, Symbol owner) {
@@ -2053,7 +1958,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                 }
             };
             m.code = code;
-            m.projection = projection;
             return m;
         }
 
@@ -2138,7 +2042,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
             // check for a direct implementation
             if (other.isOverridableIn((TypeSymbol)owner) &&
-                types.asSuper(owner.type, other.owner) != null &&
+                types.asSuper(owner.type.referenceProjectionOrSelf(), other.owner) != null &&
                 types.isSameType(erasure(types), other.erasure(types)))
                 return true;
 
@@ -2202,24 +2106,12 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                                             boolean requireConcreteIfInherited) {
             if (isConstructor() || _other.kind != MTH) return false;
 
-
-            /* If any inline types are involved, ask the same question in the reference universe,
-               where the hierarchy is navigable
-            */
-            if (origin.isPrimitiveClass())
-                origin = (TypeSymbol) origin.referenceProjection();
-
-            if (this.owner.isPrimitiveClass()) {
-                return this.projection != null &&
-                        this.projection.overrides(_other, origin, types, checkResult, requireConcreteIfInherited);
-            }
-
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
 
             // check for a direct implementation
             if (other.isOverridableIn((TypeSymbol)owner) &&
-                types.asSuper(owner.type, other.owner) != null) {
+                types.asSuper(owner.type.referenceProjectionOrSelf(), other.owner) != null) {
                 Type mt = types.memberType(owner.type, this);
                 Type ot = types.memberType(owner.type, other);
                 if (types.isSubSignature(mt, ot)) {
@@ -2269,14 +2161,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         @Override
         public boolean isInheritedIn(Symbol clazz, Types types) {
 
-            /* If any inline types are involved, ask the same question in the reference universe,
-               where the hierarchy is navigable
-            */
-            if (clazz.isPrimitiveClass())
-                clazz = clazz.referenceProjection();
-            if (this.owner.isPrimitiveClass())
-                return this.projection.isInheritedIn(clazz, types);
-
             switch ((int)(flags_field & Flags.AccessFlags)) {
                 case PUBLIC:
                     return !this.owner.isInterface() ||
@@ -2289,18 +2173,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         public boolean isLambdaMethod() {
             return (flags() & LAMBDA_METHOD) == LAMBDA_METHOD;
-        }
-
-        @Override
-        public MethodSymbol referenceProjection() {
-            return this.owner.isPrimitiveClass() ?
-                    this.owner.referenceProjection() != null ? projection : null
-                    : null;
-        }
-
-        @Override
-        public MethodSymbol valueProjection() {
-            return  projection != null ? projection.owner.isPrimitiveClass() ? projection : null : null;
         }
 
         /** override this method to point to the original enclosing method if this method symbol represents a synthetic

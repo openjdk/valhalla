@@ -288,14 +288,7 @@ public class TransTypes extends TreeTranslator {
         bridges.append(md);
 
         // Add bridge to scope of enclosing class and keep track of the bridge span.
-        ClassSymbol refProjection = origin.isPrimitiveClass() ? origin.referenceProjection() : null;
         origin.members().enter(bridge);
-        if (refProjection != null) {
-            MethodSymbol clone = bridge.clone(refProjection);
-            clone.projection = bridge;
-            bridge.projection = clone;
-            refProjection.members().enter(clone);
-        }
     }
 
     private List<VarSymbol> createBridgeParams(MethodSymbol impl, MethodSymbol bridge,

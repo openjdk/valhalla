@@ -297,29 +297,8 @@ public class ClassReader {
     private void enterMember(ClassSymbol c, Symbol sym) {
         // Synthetic members are not entered -- reason lost to history (optimization?).
         // Lambda methods must be entered because they may have inner classes (which reference them)
-        ClassSymbol refProjection =  c.isPrimitiveClass() ? c.referenceProjection() : null;
-        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda)) {
+        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda))
             c.members_field.enter(sym);
-            if (refProjection != null) {
-                Symbol clone = null;
-                if (sym.kind == MTH) {
-                    MethodSymbol valMethod = (MethodSymbol)sym;
-                    MethodSymbol refMethod = valMethod.clone(refProjection);
-                    valMethod.projection = refMethod;
-                    refMethod.projection = valMethod;
-                    clone = refMethod;
-                } else if (sym.kind == VAR) {
-                    VarSymbol valVar = (VarSymbol)sym;
-                    VarSymbol refVar = valVar.clone(refProjection);
-                    valVar.projection = refVar;
-                    refVar.projection = valVar;
-                    clone = refVar;
-                }
-                if (clone != null) {
-                    refProjection.members_field.enter(clone);
-                }
-            }
-        }
     }
 
 /************************************************************************
@@ -561,6 +540,8 @@ public class ClassReader {
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
         Type outer = Type.noType;
+        Name name;
+        boolean requireProjection;
         int startSbp = sbp;
 
         while (true) {
@@ -568,24 +549,37 @@ public class ClassReader {
             switch (c) {
 
             case ';': {         // end
-                ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
-                                                         startSbp,
-                                                         sbp - startSbp));
-
+                name = names.fromUtf(signatureBuffer,
+                        startSbp,
+                        sbp - startSbp);
+                if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
+                    name = name.subName(0, name.length() - 4);
+                    requireProjection = true;
+                } else {
+                    requireProjection = false;
+                }
+                ClassSymbol t = enterClass(name);
                 try {
                     return (outer == Type.noType) ?
-                            t.erasure(types) :
-                        new ClassType(outer, List.nil(), t);
+                            requireProjection ? t.erasure(types).referenceProjection() : t.erasure(types) :
+                        new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, requireProjection);
                 } finally {
                     sbp = startSbp;
                 }
             }
 
             case '<':           // generic arguments
-                ClassSymbol t = enterClass(names.fromUtf(signatureBuffer,
-                                                         startSbp,
-                                                         sbp - startSbp));
-                outer = new ClassType(outer, sigToTypes('>'), t) {
+                name = names.fromUtf(signatureBuffer,
+                        startSbp,
+                        sbp - startSbp);
+                if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
+                    name = name.subName(0, name.length() - 4);
+                    requireProjection = true;
+                } else {
+                    requireProjection = false;
+                }
+                ClassSymbol t = enterClass(name);
+                outer = new ClassType(outer, sigToTypes('>'), t, TypeMetadata.EMPTY, requireProjection) {
                         boolean completed = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
                         public Type getEnclosingType() {
@@ -645,10 +639,17 @@ public class ClassReader {
             case '.':
                 //we have seen an enclosing non-generic class
                 if (outer != Type.noType) {
-                    t = enterClass(names.fromUtf(signatureBuffer,
-                                                 startSbp,
-                                                 sbp - startSbp));
-                    outer = new ClassType(outer, List.nil(), t);
+                    name = names.fromUtf(signatureBuffer,
+                            startSbp,
+                            sbp - startSbp);
+                    if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
+                        name = name.subName(0, name.length() - 4);
+                        requireProjection = true;
+                    } else {
+                        requireProjection = false;
+                    }
+                    t = enterClass(name);
+                    outer = new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, requireProjection);
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
@@ -2506,10 +2507,6 @@ public class ClassReader {
     }
 
     protected ClassSymbol enterClass(Name name) {
-        if (allowPrimitiveClasses && name.toString().endsWith("$ref")) {
-            ClassSymbol v = syms.enterClass(currentModule, name.subName(0, name.length() - 4));
-            return v.referenceProjection();
-        }
         return syms.enterClass(currentModule, name);
     }
 

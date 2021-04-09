@@ -471,10 +471,6 @@ public class Enter extends JCTree.Visitor {
         c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
         c.sourcefile = env.toplevel.sourcefile;
         c.members_field = WriteableScope.create(c);
-        if (c.projection != null) {
-            // Do not carry around symbols from prior round.
-            c.projection.members_field = WriteableScope.create(c.projection);
-        }
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;

@@ -1594,7 +1594,7 @@ public class Attr extends JCTree.Visitor {
             Type elemtype = types.elemtype(exprType); // perhaps expr is an array?
             if (elemtype == null) {
                 // or perhaps expr implements Iterable<T>?
-                Type base = types.asSuper(exprType, syms.iterableType.tsym, true);
+                Type base = types.asSuper(exprType.referenceProjectionOrSelf(), syms.iterableType.tsym);
                 if (base == null) {
                     log.error(tree.expr.pos(),
                               Errors.ForeachNotApplicableToType(exprType,
@@ -1916,7 +1916,7 @@ public class Attr extends JCTree.Visitor {
 
     void checkAutoCloseable(DiagnosticPosition pos, Env<AttrContext> env, Type resource) {
         if (!resource.isErroneous() &&
-            types.asSuper(resource, syms.autoCloseableType.tsym, true) != null &&
+            types.asSuper(resource.referenceProjectionOrSelf(), syms.autoCloseableType.tsym) != null &&
             !types.isSameType(resource, syms.autoCloseableType)) { // Don't emit warning for AutoCloseable itself
             Symbol close = syms.noSymbol;
             Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
@@ -2609,7 +2609,8 @@ public class Attr extends JCTree.Visitor {
                                 BoundKind.EXTENDS,
                                 syms.boundClass)),
                         restype.tsym,
-                        restype.getMetadata());
+                        restype.getMetadata(),
+                        restype.isReferenceProjection());
             } else if (msym != null &&
                     msym.owner == syms.arrayClass &&
                     methodName == names.clone &&
@@ -2810,7 +2811,8 @@ public class Attr extends JCTree.Visitor {
                 ClassType site = new ClassType(clazztype.getEnclosingType(),
                             clazztype.tsym.type.getTypeArguments(),
                                                clazztype.tsym,
-                                               clazztype.getMetadata());
+                                               clazztype.getMetadata(),
+                                               clazztype.isReferenceProjection());
 
                 Env<AttrContext> diamondEnv = localEnv.dup(tree);
                 diamondEnv.info.selectSuper = cdef != null || tree.classDeclRemoved();
@@ -4381,7 +4383,7 @@ public class Attr extends JCTree.Visitor {
 
             if (site.isRaw()) {
                 // Determine argument types for site.
-                Type site1 = types.asSuper(env.enclClass.sym.type, site.tsym);
+                Type site1 = types.asSuper(env.enclClass.sym.type.referenceProjectionOrSelf(), site.tsym);
                 if (site1 != null) site = site1;
             }
         }
@@ -4424,9 +4426,7 @@ public class Attr extends JCTree.Visitor {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
-               } else if (name == names.ref && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
-                    return site.tsym.referenceProjection();
-                } else if (name == names.val && site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP)) {
+                } else if (site.isPrimitiveClass() && resultInfo.pkind.contains(KindSelector.TYP) && (name == names.ref || name == names.val)) {
                     return site.tsym;
                 } else {
                     // We are seeing a plain identifier as selector.
@@ -4531,20 +4531,27 @@ public class Attr extends JCTree.Visitor {
             switch (sym.kind) {
             case TYP:
                 // For types, the computed type equals the symbol's type,
-                // except for two situations:
+                // except for three situations:
                 owntype = sym.type;
                 if (owntype.hasTag(CLASS)) {
                     chk.checkForBadAuxiliaryClassAccess(tree.pos(), env, (ClassSymbol)sym);
                     Type ownOuter = owntype.getEnclosingType();
 
-                    // (a) If the symbol's type is parameterized, erase it
+                    // (a) If symbol is a primitive class and its reference projection
+                    // is requested via the .ref notation, then adjust the computed type to
+                    // reflect this.
+                    if (owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
+                        owntype = new ClassType(owntype.getEnclosingType(), owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), true);
+                    }
+
+                    // (b) If the symbol's type is parameterized, erase it
                     // because no type parameters were given.
                     // We recover generic outer type later in visitTypeApply.
                     if (owntype.tsym.type.getTypeArguments().nonEmpty()) {
                         owntype = types.erasure(owntype);
                     }
 
-                    // (b) If the symbol's type is an inner class, then
+                    // (c) If the symbol's type is an inner class, then
                     // we have to interpret its outer type as a superclass
                     // of the site type. Example:
                     //
@@ -4564,7 +4571,7 @@ public class Attr extends JCTree.Visitor {
                         if (normOuter != ownOuter)
                             owntype = new ClassType(
                                 normOuter, List.nil(), owntype.tsym,
-                                owntype.getMetadata());
+                                owntype.getMetadata(), owntype.isReferenceProjection());
                     }
                 }
                 break;
@@ -4975,7 +4982,7 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
                 owntype = new ClassType(clazzOuter, actuals, clazztype.tsym,
-                                        clazztype.getMetadata());
+                                        clazztype.getMetadata(), clazztype.isReferenceProjection());
             } else {
                 if (formals.length() != 0) {
                     log.error(tree.pos(),

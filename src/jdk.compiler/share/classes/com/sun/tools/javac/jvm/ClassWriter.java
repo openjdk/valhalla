@@ -40,6 +40,7 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Directive.*;
+import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
@@ -820,11 +821,13 @@ public class ClassWriter extends ClassFile {
  * Writing Objects
  **********************************************************************/
 
-    /** Write "inner classes" attribute.
+    /** Write "inner classes" attribute. If a primitive class happens to be an inner class,
+     *  the reference projection class will also be an inner class.
      */
     void writeInnerClasses() {
         int alenIdx = writeAttr(names.InnerClasses);
-        databuf.appendChar(poolWriter.innerClasses.size());
+        int icCountIdx = beginAttrs();
+        int icCount = 0;
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
             char flags = (char) adjustFlags(inner.flags_field);
@@ -841,7 +844,19 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(
                 !inner.name.isEmpty() ? poolWriter.putName(inner.name) : 0);
             databuf.appendChar(flags);
+            icCount++;
+            if (inner.isPrimitiveClass()) {
+                databuf.appendChar(poolWriter.putClass(inner.type.referenceProjection()));
+                databuf.appendChar(
+                        inner.owner.kind == TYP && !inner.name.isEmpty() ? poolWriter.putClass((ClassSymbol)inner.owner) : 0);
+                databuf.appendChar(
+                        !inner.name.isEmpty() ? poolWriter.putName(inner.name.append('$', names.ref)) : 0);
+                flags = (char) ((flags & ~(ACC_PRIMITIVE | FINAL)) | ABSTRACT);
+                databuf.appendChar(flags);
+                icCount++;
+            }
         }
+        endAttrs(icCountIdx, icCount);
         endAttr(alenIdx);
     }
 
@@ -879,10 +894,17 @@ public class ClassWriter extends ClassFile {
             }
             if (!nestedUnique.isEmpty()) {
                 int alenIdx = writeAttr(names.NestMembers);
-                databuf.appendChar(nestedUnique.size());
+                int nmcIdx = beginAttrs();
+                int nmc = 0;
                 for (ClassSymbol s : nestedUnique) {
                     databuf.appendChar(poolWriter.putClass(s));
+                    nmc++;
+                    if (s.isPrimitiveClass() && s.owner.kind != PCK) {
+                        databuf.appendChar(poolWriter.putClass(s.type.referenceProjection()));
+                        nmc++;
+                    }
                 }
+                endAttrs(nmcIdx, nmc);
                 endAttr(alenIdx);
                 return 1;
             }
@@ -898,9 +920,10 @@ public class ClassWriter extends ClassFile {
             int alenIdx = writeAttr(names.NestHost);
             ClassSymbol outerMost = csym.outermostClass();
             if (outerMost.isPrimitiveClass()) {
-                outerMost = outerMost.referenceProjection();
+                databuf.appendChar(poolWriter.putClass(outerMost.type.referenceProjection()));
+            } else {
+                databuf.appendChar(poolWriter.putClass(outerMost));
             }
-            databuf.appendChar(poolWriter.putClass(outerMost));
             endAttr(alenIdx);
             return 1;
         }
@@ -912,9 +935,6 @@ public class ClassWriter extends ClassFile {
         ClassSymbol csym = (ClassSymbol)sym;
         if (csym.owner.kind != PCK) {
             seen.add(csym);
-            if (csym.isPrimitiveClass()) {
-                seen.add(csym.referenceProjection());
-            }
         }
         if (csym.members() != null) {
             for (Symbol s : sym.members().getSymbols()) {
@@ -1511,12 +1531,61 @@ public class ClassWriter extends ClassFile {
     {
         JavaFileObject javaFileObject = writeClassInternal(c);
         if (c.isPrimitiveClass()) {
-            ClassSymbol refProjection = c.referenceProjection();
-            refProjection.flags_field = (refProjection.flags_field & ~FINAL) | ABSTRACT;
-            writeClassInternal(refProjection);
+            writeClassInternal(getReferenceProjection(c));
         }
         return javaFileObject;
     }
+
+        // where
+        private static ClassSymbol getReferenceProjection(ClassSymbol c) {
+
+            ClassSymbol projection;
+            ClassType projectedType;
+
+            ClassType ct = (ClassType) c.type;
+            projectedType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null, ct.getMetadata(), false);
+            projectedType.allparams_field = ct.allparams_field;
+            projectedType.supertype_field = ct.supertype_field;
+
+            projectedType.interfaces_field = ct.interfaces_field;
+            projectedType.all_interfaces_field = ct.all_interfaces_field;
+            projectedType.projection = null;
+
+            Name projectionName = c.name.append('$', c.name.table.names.ref);
+            long projectionFlags = (c.flags() & ~(PRIMITIVE_CLASS | UNATTRIBUTED | FINAL)) | (ABSTRACT | SEALED);
+
+            projection = new ClassSymbol(projectionFlags, projectionName, projectedType, c.owner) {
+                @Override
+                public boolean isReferenceProjection() {
+                    return true;
+                }
+
+                @Override
+                public ClassSymbol valueProjection() {
+                    return c;
+                }
+            };
+            projection.members_field = WriteableScope.create(projection);
+            for (Symbol s : c.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
+                Symbol clone = null;
+                if (s.kind == MTH) {
+                    MethodSymbol valMethod = (MethodSymbol)s;
+                    MethodSymbol refMethod = valMethod.clone(projection);
+                    clone = refMethod;
+                } else if (s.kind == VAR) {
+                    VarSymbol valVar = (VarSymbol)s;
+                    VarSymbol refVar = valVar.clone(projection);
+                    clone = refVar;
+                }
+                projection.members_field.enter(clone);
+            }
+            projection.completer = Completer.NULL_COMPLETER;
+            projection.sourcefile = c.sourcefile;
+            projection.flatname = c.flatname.append('$', c.name.table.names.ref);
+            projection.permitted = List.of(c);
+            projectedType.tsym = projection;
+            return projection;
+        }
 
     private JavaFileObject writeClassInternal(ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow
@@ -1590,7 +1659,7 @@ public class ClassWriter extends ClassFile {
         } else {
             databuf.appendChar(poolWriter.putClass(c));
         }
-        databuf.appendChar(supertype.hasTag(CLASS) ? poolWriter.putClass((ClassSymbol)supertype.tsym) : 0);
+        databuf.appendChar(supertype.hasTag(CLASS) ? poolWriter.putClass(supertype) : 0);
         databuf.appendChar(interfaces.length());
         for (List<Type> l = interfaces; l.nonEmpty(); l = l.tail)
             databuf.appendChar(poolWriter.putClass((ClassSymbol)l.head.tsym));

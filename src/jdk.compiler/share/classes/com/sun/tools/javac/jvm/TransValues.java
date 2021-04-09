@@ -34,6 +34,7 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Types;
@@ -223,16 +224,6 @@ public class TransValues extends TreeTranslator {
                 currentMethod.setType(factorySym.type);
                 currentMethod.factoryProduct = product;
                 currentClass.sym.members().remove(tree.sym);
-                ClassSymbol refProjection = currentClass.sym.projection;
-                if (refProjection != null) {
-                    MethodSymbol projection = tree.sym.projection;
-                    Assert.check(projection != null);
-                    refProjection.members().remove(projection);
-                    projection = factorySym.clone(refProjection);
-                    projection.projection = factorySym;
-                    factorySym.projection = projection;
-                    refProjection.members().enter(projection);
-                }
                 tree.sym = factorySym;
                 currentClass.sym.members().enter(factorySym);
                 tree.mods.flags |= STATIC;
@@ -339,22 +330,20 @@ public class TransValues extends TreeTranslator {
         if (fieldAccess.name != names._class) {  // TODO: this and super ??
             Symbol sym = TreeInfo.symbol(fieldAccess);
             Symbol sitesym = TreeInfo.symbol(fieldAccess.selected);
-            TypeSymbol selectedType = fieldAccess.selected.type.tsym;
+            Type selectedType = fieldAccess.selected.type;
             if (selectedType.isReferenceProjection()) {
                 switch (sym.kind) {
                     case MTH:
                     case VAR:
                         if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
-                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
                         } else {
                             fieldAccess.selected =
-                                    make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
-                            if (sym.owner.isReferenceProjection()) // is an empty class file.
-                                TreeInfo.setSymbol(fieldAccess, sym.valueProjection());
+                                    make.TypeCast(types.erasure(selectedType.valueProjection()), fieldAccess.selected);
                         }
                         break;
                     case TYP:
-                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
                         break;
                 }
             }

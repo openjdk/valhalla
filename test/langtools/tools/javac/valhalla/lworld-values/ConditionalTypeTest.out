@@ -1,6 +1,6 @@
 ConditionalTypeTest.java:13:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, ConditionalTypeTest.I)
 ConditionalTypeTest.java:24:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, ConditionalTypeTest.Node)
-ConditionalTypeTest.java:27:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, ConditionalTypeTest.Node$ref)
+ConditionalTypeTest.java:27:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, ConditionalTypeTest.Node.ref)
 ConditionalTypeTest.java:30:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, ConditionalTypeTest.Node)
 ConditionalTypeTest.java:33:16: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, ConditionalTypeTest.Node)
 5 errors
