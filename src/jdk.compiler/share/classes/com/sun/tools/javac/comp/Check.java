@@ -843,6 +843,15 @@ public class Check {
             return t;
         else
             return typeTagError(pos,
+                    diags.fragment(Fragments.TypeReqRef),
+                    t);
+    }
+
+    Type checkRefType(DiagnosticPosition pos, Type t, boolean valueOK, boolean universalTVar) {
+        if (t.isReference() && (valueOK  || universalTVar || !types.isPrimitiveClass(t)))
+            return t;
+        else
+            return typeTagError(pos,
                                 diags.fragment(Fragments.TypeReqRef),
                                 t);
     }
@@ -861,10 +870,10 @@ public class Check {
      *  @param trees         Original trees, used for error reporting.
      *  @param types         The types to be checked.
      */
-    List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
+    List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types, boolean valueOK, boolean universalTV) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, false);
+            l.head = checkRefType(tl.head.pos(), l.head, valueOK, universalTV);
             tl = tl.tail;
         }
         return types;

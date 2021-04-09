@@ -812,8 +812,12 @@ public class Attr extends JCTree.Visitor {
      *  Check that all the types are references.
      */
     List<Type> attribTypes(List<JCExpression> trees, Env<AttrContext> env) {
+        return attribTypes(trees, env, false, false);
+    }
+
+    List<Type> attribTypes(List<JCExpression> trees, Env<AttrContext> env, boolean valueOK, boolean universalTV) {
         List<Type> types = attribAnyTypes(trees, env);
-        return chk.checkRefTypes(trees, types);
+        return chk.checkRefTypes(trees, types, valueOK, universalTV);
     }
 
     /**
@@ -2543,7 +2547,7 @@ public class Attr extends JCTree.Visitor {
             Symbol msym = TreeInfo.symbol(tree.meth);
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
-            chk.checkRefTypes(tree.typeargs, typeargtypes);
+            chk.checkRefTypes(tree.typeargs, typeargtypes, true, false);
 
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null) {
@@ -4308,7 +4312,8 @@ public class Attr extends JCTree.Visitor {
             sym = selectSym(tree, sitesym, site, env, resultInfo);
         }
         boolean varArgs = env.info.lastResolveVarargs();
-        tree.sym = sym;
+        tree.sym = (site.getTag() == TYPEVAR && tree.name == names.ref) ?
+                sym.type.tsym : sym;
 
         if (site.hasTag(TYPEVAR) && !isType(sym) && sym.kind != ERR) {
             site = types.skipTypeVars(site, true);
@@ -4437,6 +4442,21 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
+                if (name == names.ref && ((TypeVar)site).universal) {
+                    TypeVar siteTV = (TypeVar)site;
+                    if (siteTV.referenceTypeVar == null) {
+                        siteTV.referenceTypeVar = new TypeVar(siteTV.tsym,
+                                //new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner),
+                                siteTV.getUpperBound(), siteTV.getLowerBound(), siteTV.getMetadata(), false);
+                        siteTV.referenceTypeVar.createdFromUniversalTypeVar = true;
+                        siteTV.referenceTypeVar.universalTypeVar = siteTV;
+                        TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
+                        tmpTVarSym.type = siteTV.referenceTypeVar;
+                    }
+                    TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
+                    tmpTVarSym.type = siteTV.referenceTypeVar;
+                    return tmpTVarSym;
+                }
                 // Normally, site.getUpperBound() shouldn't be null.
                 // It should only happen during memberEnter/attribBase
                 // when determining the super type which *must* be
@@ -4948,7 +4968,8 @@ public class Attr extends JCTree.Visitor {
         Type clazztype = chk.checkClassType(tree.clazz.pos(), attribType(tree.clazz, env));
 
         // Attribute type parameters
-        List<Type> actuals = attribTypes(tree.arguments, env);
+        ClassSymbol cs = (ClassSymbol)TreeInfo.symbol(tree);
+        List<Type> actuals = attribTypes(tree.arguments, env, true, cs.type.allparams().stream().allMatch(t -> ((TypeVar)t).universal));
 
         if (clazztype.hasTag(CLASS)) {
             List<Type> formals = clazztype.tsym.type.getTypeArguments();

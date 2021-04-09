@@ -206,6 +206,7 @@ public class Tokens {
         GTGTEQ(">>="),
         GTGTGTEQ(">>>="),
         MONKEYS_AT("@"),
+        UNIVERSAL("__universal"),
         CUSTOM;
 
         public final String name;

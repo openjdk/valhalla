@@ -608,6 +608,8 @@ public class Types {
 
         boolean tValue = t.isPrimitiveClass();
         boolean sValue = s.isPrimitiveClass();
+        if ((s.hasTag(TYPEVAR)) && ((TypeVar)s).isUniversal() && t.hasTag(BOT))
+            return false;
         if (tValue != sValue) {
             return tValue ?
                     isSubtype(t.referenceProjection(), s) :
@@ -1048,6 +1050,11 @@ public class Types {
                 }
             } else if (isSubtype(t, s, capture)) {
                 return true;
+            } else if (t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+                // we are seeing a case of a universal type variable being assigned to a non-universal one, we will need
+                // to create a new lint category for the assignment between universal and not universal type vars
+                warn.warn(LintCategory.UNCHECKED);
+                return true;
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
             } else if (!s.isRaw()) {
@@ -1099,6 +1106,9 @@ public class Types {
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s))
             return true;
+        if (t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+            return true;
+        }
         if (s.isPartial())
             return isSuperType(s, t);
 
@@ -1648,6 +1658,16 @@ public class Types {
                 } else {
                     return false;
                 }
+            }
+
+            @Override
+            public Boolean visitTypeVar(TypeVar t, Type s) {
+                if (s.hasTag(TYPEVAR)) {
+                    TypeVar other = (TypeVar)s;
+                    if (t.universal != other.universal && t.tsym == other.tsym)
+                        return true;
+                }
+                return isSameType(t, s);
             }
 
             @Override
@@ -2245,8 +2265,7 @@ public class Types {
          */
 
         if (sym.type == syms.objectType) { //optimization
-            if (!isPrimitiveClass(t))
-                return syms.objectType;
+            return syms.objectType;
         }
         if (sym == syms.identityObjectType.tsym) {
             // IdentityObject is super interface of every concrete identity class other than jlO
@@ -2279,10 +2298,6 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 if (t.tsym == sym)
                     return t;
-
-                // No man may be an island, but the bell tolls for a value.
-                if (isPrimitiveClass(t))
-                    return null;
 
                 Symbol c = t.tsym;
                 if (!seenTypes.add(c)) {
@@ -3486,6 +3501,12 @@ public class Types {
                 if (t.equalsIgnoreMetadata(from.head)) {
                     return to.head.withTypeVar(t);
                 }
+                if (t.createdFromUniversalTypeVar &&
+                        from.head.hasTag(TYPEVAR) &&
+                        ((TypeVar)from.head).referenceTypeVar != null &&
+                        t.equalsIgnoreMetadata(((TypeVar)from.head).referenceTypeVar)) {
+                    return to.head.withTypeVar(t);
+                }
             }
             return t;
         }
@@ -3635,7 +3656,14 @@ public class Types {
         private static final TypeMapping<Void> newInstanceFun = new TypeMapping<Void>() {
             @Override
             public TypeVar visitTypeVar(TypeVar t, Void _unused) {
-                return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata());
+                TypeVar newTV = new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata(), t.universal);
+                if (t.referenceTypeVar != null) {
+                    newTV.referenceTypeVar = new TypeVar(t.tsym,
+                            t.getUpperBound(), t.getLowerBound(), t.getMetadata(), false);
+                    newTV.referenceTypeVar.createdFromUniversalTypeVar = true;
+                    newTV.referenceTypeVar.universalTypeVar = newTV;
+                }
+                return newTV;
             }
         };
     // </editor-fold>

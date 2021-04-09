@@ -51,6 +51,7 @@ import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.BLOCK;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.BOOLEAN;
+import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.comp.Flow.ThisExposability.ALLOWED;
 import static com.sun.tools.javac.comp.Flow.ThisExposability.BANNED;
@@ -1790,7 +1791,8 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalUninitializedField(sym)));
+                isFinalUninitializedField(sym)) ||
+                isUninitializedFieldOfUniversalTVar(sym));
         }
 
         boolean isFinalUninitializedField(VarSymbol sym) {
@@ -1801,6 +1803,13 @@ public class Flow {
 
         boolean isFinalUninitializedStaticField(VarSymbol sym) {
             return isFinalUninitializedField(sym) && sym.isStatic();
+        }
+
+        boolean isUninitializedFieldOfUniversalTVar(VarSymbol sym) {
+            return sym.owner.kind == TYP &&
+                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
+                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
+                    sym.type.hasTag(TYPEVAR) && ((Type.TypeVar)sym.type).universal);
         }
 
         /** Initialize new trackable variable by setting its address field

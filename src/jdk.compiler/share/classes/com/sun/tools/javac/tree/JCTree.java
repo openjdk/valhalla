@@ -2702,10 +2702,14 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public List<JCExpression> bounds;
         /** type annotations on type parameter */
         public List<JCAnnotation> annotations;
-        protected JCTypeParameter(Name name, List<JCExpression> bounds, List<JCAnnotation> annotations) {
+        /** is this an universal type variable?  */
+        public boolean universal;
+
+        protected JCTypeParameter(Name name, List<JCExpression> bounds, List<JCAnnotation> annotations, boolean universal) {
             this.name = name;
             this.bounds = bounds;
             this.annotations = annotations;
+            this.universal = universal;
         }
         @Override
         public void accept(Visitor v) { v.visitTypeParameter(this); }

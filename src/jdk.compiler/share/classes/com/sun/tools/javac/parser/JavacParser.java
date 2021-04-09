@@ -4582,6 +4582,11 @@ public class JavacParser implements Parser {
     JCTypeParameter typeParameter() {
         int pos = token.pos;
         List<JCAnnotation> annos = typeAnnotationsOpt();
+        boolean universal = false;
+        if (token.kind == UNIVERSAL) {
+            universal = true;
+            nextToken();
+        }
         Name name = typeName();
         ListBuffer<JCExpression> bounds = new ListBuffer<>();
         if (token.kind == EXTENDS) {
@@ -4592,7 +4597,9 @@ public class JavacParser implements Parser {
                 bounds.append(parseType());
             }
         }
-        return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos));
+        return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos, universal));
+        // use the line below to make experiments setting all type variables as universal
+        //return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos, true));
     }
 
     /** FormalParameters = "(" [ FormalParameterList ] ")"
