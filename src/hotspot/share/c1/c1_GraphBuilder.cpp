@@ -1023,6 +1023,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     length = append(new ArrayLength(array, state_before));
   }
 
+  bool need_membar = false;
   LoadIndexed* load_indexed = NULL;
   Instruction* result = NULL;
   if (array->is_loaded_flattened_array()) {
@@ -1059,6 +1060,10 @@ void GraphBuilder::load_indexed(BasicType type) {
         apush(append_split(new_instance));
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         load_indexed->set_vt(new_instance);
+        // The LoadIndexed node will initialise this instance by copying from
+        // the flattened field.  Ensure these stores are visible before any
+        // subsequent store that publishes this reference.
+        need_membar = true;
       }
     }
   } else {
@@ -1071,6 +1076,9 @@ void GraphBuilder::load_indexed(BasicType type) {
     }
   }
   result = append(load_indexed);
+  if (need_membar) {
+    append(new MemBar(lir_membar_storestore));
+  }
   assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
   if (!array->is_loaded_flattened_array()) {
     push(as_ValueType(type), result);
@@ -2004,6 +2012,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               } else {
                 copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(), state_before);
               }
+              // Ensure the stores to copy the field contents are visible
+              // before any subsequent store that publishes this reference.
+              append(new MemBar(lir_membar_storestore));
             }
           }
         }
