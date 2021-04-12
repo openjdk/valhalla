@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,12 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     public static void main(String[] args) throws Throwable {
+        // Make sure Test140Value is loaded but not linked
+        Class<?> class1 = Test140Value.class;
+        // Make sure Test141Value is linked but not initialized
+        Class<?> class2 = Test141Value.class;
+        class2.getDeclaredFields();
+
         TestLWorld test = new TestLWorld();
         test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class,
                  MyValue3Inline.class, Test51Value.class);
@@ -3731,5 +3737,47 @@ public class TestLWorld extends InlineTypeTest {
     public void test139_verifier(boolean warmup) {
         MyValueEmpty empty = test139();
         Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
+
+    // Test calling a method on a loaded but not linked inline type
+    final primitive class Test140Value {
+        final int x = 42;
+        public int get() {
+            return x;
+        }
+    }
+
+    @Test
+    @Warmup(0)
+    public int test140() {
+        Test140Value vt = Test140Value.default;
+        return vt.get();
+    }
+
+    @DontCompile
+    public void test140_verifier(boolean warmup) {
+        int result = test140();
+        Asserts.assertEquals(result, 0);
+    }
+
+    // Test calling a method on a linked but not initialized inline type
+    final primitive class Test141Value {
+        final int x = 42;
+        public int get() {
+            return x;
+        }
+    }
+
+    @Test
+    @Warmup(0)
+    public int test141() {
+        Test141Value vt = Test141Value.default;
+        return vt.get();
+    }
+
+    @DontCompile
+    public void test141_verifier(boolean warmup) {
+        int result = test141();
+        Asserts.assertEquals(result, 0);
     }
 }
