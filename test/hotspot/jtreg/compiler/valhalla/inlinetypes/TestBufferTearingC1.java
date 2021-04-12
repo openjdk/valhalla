@@ -28,10 +28,7 @@ package compiler.valhalla.inlinetypes;
  * @test TestBufferTearingC1
  * @key randomness
  * @summary Additional tests for C1 missing barriers when buffering inline types.
- * @run main/othervm -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=0
- *                   -XX:TieredStopAtLevel=1
- *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
- * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
  *                   -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
  */
@@ -57,35 +54,43 @@ primitive class Rect {
 public class TestBufferTearingC1 {
 
     public static Point[] points = new Point[] { new Point(1, 1) };
-    public static Point point = new Point(1, 1);
+    public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
+    public static Rect[] rects = new Rect[] { rect };
+
+    public static Object ref1 = points[0];
+    public static Object ref2 = rect.a;
+    public static Object ref3 = rects[0].a;
 
     static volatile boolean running = true;
 
-    public static void writePoint(int iter) {
-        Rect r = new Rect(new Point(iter, iter), new Point(iter + 1, iter + 1));
-        point = points[0];  // Indexed load of flattened array (when FlatArrayElementMaxSize != 0)
-        points[0] = r.a;    // Load from flattened field (when InlineFieldMaxFlatSize != 0)
+    public static void writeRefs(int iter) {
+        ref1 = points[0];    // Indexed load of flattened array
+        ref2 = rect.a;       // Load from flattened field
+        ref3 = rects[0].a;   // Indexed load (delayed) followed by flattened field access
+
+        points[0] = new Point(iter, iter);
+        rect = new Rect(new Point(iter, iter), new Point(iter + 1, iter + 1));
+        rects[0] = rect;
     }
 
     private static void checkMissingBarrier() {
         while (running) {
-            // When FlatArrayElementMaxSize == 0 the "buffered" reference
-            // created by the load from the flattened field `r.a' will be
-            // stored directly in the array at `points[0]'.  It should not be
-            // possible to read through this reference and see the
-            // intermediate zero-initialised state of the object (i.e. there
-            // should be a store-store barrier after copying the flattened
-            // field contents before the store that publishes it).
-            if (points[0].x == 0 || points[0].y == 0) {
+            // Each refN holds a "buffered" reference created when reading a
+            // flattened field or array element.  It should not be possible to
+            // read through this reference and see the intermediate
+            // zero-initialised state of the object (i.e. there should be a
+            // store-store barrier after copying the flattened field contents
+            // before the store that publishes it).
+
+            if (((Point)ref1).x == 0 || ((Point)ref1).y == 0) {
                 throw new IllegalStateException();
             }
 
-            // Similarly, when InlineFieldMaxFlatSize == 0 the buffered
-            // reference created by the indexed load from the flattened array
-            // `points[0]' will be stored directly in the field `points'.  It
-            // should not be possible to read through this reference and see
-            // the intermediate zero-initialised state of the object.
-            if (point.x == 0 || point.y == 0) {
+            if (((Point)ref2).x == 0 || ((Point)ref2).y == 0) {
+                throw new IllegalStateException();
+            }
+
+            if (((Point)ref3).x == 0 || ((Point)ref3).y == 0) {
                 throw new IllegalStateException();
             }
         }
@@ -99,7 +104,7 @@ public class TestBufferTearingC1 {
         }
 
         for (int i = 1; i < 1_000_000; i++) {
-            writePoint(i);
+            writeRefs(i);
         }
 
         running = false;

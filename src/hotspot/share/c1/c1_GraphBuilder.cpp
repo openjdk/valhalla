@@ -1983,6 +1983,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
+            bool need_membar = false;
             if (inline_klass->is_empty()) {
               apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
               if (has_pending_field_access()) {
@@ -1999,6 +2000,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               apush(append_split(vt));
               append(pending_load_indexed()->load_instr());
               set_pending_load_indexed(NULL);
+              need_membar = true;
             } else {
               NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
               _memory->new_instance(new_instance);
@@ -2012,8 +2014,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               } else {
                 copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(), state_before);
               }
-              // Ensure the stores to copy the field contents are visible
-              // before any subsequent store that publishes this reference.
+              need_membar = true;
+            }
+            if (need_membar) {
+              // If we allocated a new instance ensure the stores to copy the
+              // field contents are visible before any subsequent store that
+              // publishes this reference.
               append(new MemBar(lir_membar_storestore));
             }
           }
