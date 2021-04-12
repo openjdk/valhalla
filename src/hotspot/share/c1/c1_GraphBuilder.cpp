@@ -2488,7 +2488,8 @@ void GraphBuilder::new_instance(int klass_index) {
 void GraphBuilder::default_value(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  if (!stream()->is_unresolved_klass() && klass->is_inlinetype()) {
+  if (!stream()->is_unresolved_klass() && klass->is_inlinetype() &&
+      klass->as_inline_klass()->is_initialized()) {
     ciInlineKlass* vk = klass->as_inline_klass();
     apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
   } else {
