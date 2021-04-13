@@ -956,4 +956,21 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         res = test39(false, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
     }
+
+    // Test NPE when casting constant null to inline type
+    @Test()
+    public MyValue1 test40() throws Throwable {
+        Object NULL = null;
+        return (MyValue1)NULL;
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) throws Throwable {
+        try {
+            test40();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
 }
