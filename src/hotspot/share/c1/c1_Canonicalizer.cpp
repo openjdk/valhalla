@@ -646,8 +646,7 @@ void Canonicalizer::do_NewObjectArray (NewObjectArray*  x) {}
 void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
 void Canonicalizer::do_Deoptimize     (Deoptimize*      x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
-  if (x->klass()->is_loaded() && !x->klass()->is_inlinetype()) {
-    // Don't canonicalize for non-nullable types -- we need to throw NPE.
+  if (x->klass()->is_loaded()) {
     Value obj = x->obj();
     ciType* klass = obj->exact_type();
     if (klass == NULL) {
@@ -659,12 +658,13 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
       // Interface casts can't be statically optimized away since verifier doesn't
       // enforce interface types in bytecode.
       if (!is_interface && klass->is_subtype_of(x->klass())) {
+        assert(!x->klass()->is_inlinetype() || x->klass() == klass, "Inline klasses can't have subtypes");
         set_canonical(obj);
         return;
       }
     }
-    // checkcast of null returns null
-    if (obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    // checkcast of null returns null for non-inline klasses
+    if (!x->klass()->is_inlinetype() && obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
       set_canonical(obj);
     }
   }

@@ -2043,8 +2043,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 }
 
 // Baseline version of withfield, allocate every time
-void GraphBuilder::withfield(int field_index)
-{
+void GraphBuilder::withfield(int field_index) {
   // Save the entire state and re-execute on deopt
   ValueStack* state_before = copy_state_before();
   state_before->set_should_reexecute(true);

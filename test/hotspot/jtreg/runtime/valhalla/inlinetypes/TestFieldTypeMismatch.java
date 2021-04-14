@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,7 +21,7 @@
  * questions.
  */
 
-package compiler.valhalla.inlinetypes;
+package runtime.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
 
@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile TestFieldTypeMismatchHelper.jasm
  * @compile TestFieldTypeMismatch.java
- * @run main/othervm compiler.valhalla.inlinetypes.TestFieldTypeMismatch
+ * @run main/othervm runtime.valhalla.inlinetypes.TestFieldTypeMismatch
  */
 
 final class MyValue {
@@ -46,7 +46,7 @@ public class TestFieldTypeMismatch {
         } catch(IncompatibleClassChangeError err) {
             exception = true;
             Asserts.assertEquals(err.getMessage(),
-                "Class compiler/valhalla/inlinetypes/TestFieldTypeMismatchHelper expects class compiler.valhalla.inlinetypes.MyValue to be an inline type, but it is not");
+                "Class runtime/valhalla/inlinetypes/TestFieldTypeMismatchHelper expects class runtime.valhalla.inlinetypes.MyValue to be an inline type, but it is not");
         }
         Asserts.assertTrue(exception);
     }
