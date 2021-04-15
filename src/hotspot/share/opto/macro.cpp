@@ -2815,7 +2815,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(ex_r);
   transform_later(ex_mem_phi);
   transform_later(ex_io_phi);
-  
+
   // We don't know how many values are returned. This assumes the
   // worst case, that all available registers are used.
   for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
