@@ -323,6 +323,10 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
           obj, field_index, holder_klass);
 
   bind(done);
+
+  // Ensure the stores to copy the inline field contents are visible
+  // before any subsequent store that publishes this reference.
+  membar(Assembler::StoreStore);
 }
 
 // Load object from cpool->resolved_references(index)

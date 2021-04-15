@@ -1023,6 +1023,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     length = append(new ArrayLength(array, state_before));
   }
 
+  bool need_membar = false;
   LoadIndexed* load_indexed = NULL;
   Instruction* result = NULL;
   if (array->is_loaded_flattened_array()) {
@@ -1059,6 +1060,10 @@ void GraphBuilder::load_indexed(BasicType type) {
         apush(append_split(new_instance));
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         load_indexed->set_vt(new_instance);
+        // The LoadIndexed node will initialise this instance by copying from
+        // the flattened field.  Ensure these stores are visible before any
+        // subsequent store that publishes this reference.
+        need_membar = true;
       }
     }
   } else {
@@ -1071,6 +1076,9 @@ void GraphBuilder::load_indexed(BasicType type) {
     }
   }
   result = append(load_indexed);
+  if (need_membar) {
+    append(new MemBar(lir_membar_storestore));
+  }
   assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
   if (!array->is_loaded_flattened_array()) {
     push(as_ValueType(type), result);
@@ -1617,7 +1625,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
 
   // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
-  if (method()->is_object_constructor() &&
+  if ((method()->is_object_constructor() || method()->is_static_init_factory()) &&
        (scope()->wrote_final() ||
          (AlwaysSafeConstructors && scope()->wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
@@ -1975,6 +1983,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
+            bool need_membar = false;
             if (inline_klass->is_empty()) {
               apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
               if (has_pending_field_access()) {
@@ -1991,6 +2000,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               apush(append_split(vt));
               append(pending_load_indexed()->load_instr());
               set_pending_load_indexed(NULL);
+              need_membar = true;
             } else {
               NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
               _memory->new_instance(new_instance);
@@ -2004,6 +2014,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               } else {
                 copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(), state_before);
               }
+              need_membar = true;
+            }
+            if (need_membar) {
+              // If we allocated a new instance ensure the stores to copy the
+              // field contents are visible before any subsequent store that
+              // publishes this reference.
+              append(new MemBar(lir_membar_storestore));
             }
           }
         }
