@@ -988,22 +988,18 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   // Class initialization barrier for static methods
   address c2i_no_clinit_check_entry = NULL;
-
   if (VM_Version::supports_fast_class_init_checks()) {
     Label L_skip_barrier;
+
     { // Bypass the barrier for non-static methods
-        Register flags  = rscratch1;
-      __ ldrw(flags, Address(rmethod, Method::access_flags_offset()));
-      __ tst(flags, JVM_ACC_STATIC);
-      __ br(Assembler::NE, L_skip_barrier); // non-static
+      __ ldrw(rscratch1, Address(rmethod, Method::access_flags_offset()));
+      __ andsw(zr, rscratch1, JVM_ACC_STATIC);
+      __ br(Assembler::EQ, L_skip_barrier); // non-static
     }
 
-    Register klass = rscratch1;
-    __ load_method_holder(klass, rmethod);
-    // We pass rthread to this function on x86
-    __ clinit_barrier(klass, rscratch2, &L_skip_barrier /*L_fast_path*/);
-
-    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
+    __ load_method_holder(rscratch2, rmethod);
+    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
 
     __ bind(L_skip_barrier);
     c2i_no_clinit_check_entry = __ pc();
