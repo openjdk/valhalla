@@ -58,22 +58,23 @@ public class WithFieldOfExplicitSelector {
     void run() {
         String [] params = new String [] { "-v",
                                             Paths.get(System.getProperty("test.classes"),
-                                                "WithFieldOfExplicitSelector$X.class").toString() };
+                                                "WithFieldOfExplicitSelector$X$ref.class").toString() };
         runCheck(params, new String [] {
 
          "0: iload_1",
          "1: aload_0",
-         "2: swap",
-         "3: withfield     #7                  // Field i:I",
-         "6: astore_3",
-         "7: aload_2",
-         "8: invokevirtual #11                 // Method java/lang/Integer.intValue:()I",
-        "11: aload_3",
-        "12: swap",
-        "13: withfield     #7                  // Field i:I",
-        "16: astore_3",
-        "17: aload_3",
-        "18: areturn"
+         "2: checkcast     #1                  // class \"QWithFieldOfExplicitSelector$X;\"",
+         "5: swap",
+         "6: withfield     #3                  // Field WithFieldOfExplicitSelector$X.i:I",
+         "9: astore_3",
+        "10: aload_2",
+        "11: invokevirtual #9                  // Method java/lang/Integer.intValue:()I",
+        "14: aload_3",
+        "15: swap",
+        "16: withfield     #3                  // Field WithFieldOfExplicitSelector$X.i:I",
+        "19: astore_3",
+        "20: aload_3",
+        "21: areturn"
          });
      }
 

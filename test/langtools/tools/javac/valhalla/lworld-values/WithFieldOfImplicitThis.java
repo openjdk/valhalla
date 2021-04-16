@@ -59,22 +59,26 @@ public class WithFieldOfImplicitThis {
     void run() {
         String [] params = new String [] { "-v",
                                             Paths.get(System.getProperty("test.classes"),
-                                                "WithFieldOfImplicitThis$X.class").toString() };
+                                                "WithFieldOfImplicitThis$X$ref.class").toString() };
         runCheck(params, new String [] {
 
          "0: defaultvalue  #1                  // class WithFieldOfImplicitThis$X",
          "3: astore_3",
-         "4: aload_0",
-         "5: iload_2",
-         "6: withfield     #7                  // Field x:I",
-         "9: astore_3",
-        "10: aload_0",
-        "11: aload_1",
-        "12: invokevirtual #11                 // Method java/lang/Integer.intValue:()I",
-        "15: withfield     #7                  // Field x:I",
-        "18: astore_3",
-        "19: aload_3",
-        "20: areturn"
+         "4: iload_2",
+         "5: aload_0",
+         "6: checkcast     #3                  // class \"QWithFieldOfImplicitThis$X;\"",
+         "9: swap",
+        "10: withfield     #5                  // Field WithFieldOfImplicitThis$X.x:I",
+        "13: astore_3",
+        "14: aload_1",
+        "15: invokevirtual #9                  // Method java/lang/Integer.intValue:()I",
+        "18: aload_0",
+        "19: checkcast     #3                  // class \"QWithFieldOfImplicitThis$X;\"",
+        "22: swap",
+        "23: withfield     #5                  // Field WithFieldOfImplicitThis$X.x:I",
+        "26: astore_3",
+        "27: aload_3",
+        "28: areturn"
          });
      }
 

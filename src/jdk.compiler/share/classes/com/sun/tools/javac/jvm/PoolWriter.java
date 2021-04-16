@@ -85,17 +85,28 @@ public class PoolWriter {
 
     private final Names names;
 
-    /** Pool helper **/
-    final WriteablePoolHelper pool;
-
     /** Sole signature generator */
     final SharedSignatureGenerator signatureGen;
 
+
+    /* *****************************************************************************
+     *
+     * For Valhalla, where a single primitive class may result in two different class
+     * files, one each for the projection, we manage the constant pool on a bipartite
+     * basis. Toggling between the main pool and the alternate pool is achieved via
+     * a call to com.sun.tools.javac.jvm.PoolWriter.switchPool()
+     *
+     * ******************************************************************************
+     */
+
+    /** Pool helper **/
+    WriteablePoolHelper pool, altPool;
+
     /** The inner classes to be written, as an ordered set (enclosing first). */
-    LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>();
+    LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>(), altInnerClasses;
 
     /** The list of entries in the BootstrapMethods attribute. */
-    Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();
+    Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>(), altBootstrapMethods;
 
     public PoolWriter(Types types, Names names) {
         this.types = types;
@@ -405,7 +416,11 @@ public class PoolWriter {
                 case ClassFile.CONSTANT_Fieldref: {
                     Symbol sym = (Symbol)c;
                     poolbuf.appendByte(tag);
-                    poolbuf.appendChar(putClass((ClassSymbol)sym.owner));
+                    if (sym.belongsInReferenceProjection()) {
+                        poolbuf.appendChar(putClass(sym.owner.type.referenceProjection()));
+                    } else {
+                        poolbuf.appendChar(putClass((ClassSymbol)sym.owner));
+                    }
                     poolbuf.appendChar(putNameAndType(sym));
                     break;
                 }
@@ -526,5 +541,30 @@ public class PoolWriter {
         innerClasses.clear();
         bootstrapMethods.clear();
         pool.reset();
+    }
+
+    void switchPool() {
+
+        // Take a snap shot
+        WriteablePoolHelper savedPool = pool;
+        LinkedHashSet<ClassSymbol> savedInnerClasses = innerClasses;
+        Map<BsmKey, Integer> savedBootstrapMethods = bootstrapMethods;
+
+        // Initialize alternarte pool state
+        if (altPool == null) {
+            altPool = new WriteablePoolHelper();
+            altInnerClasses = new LinkedHashSet<>();
+            altBootstrapMethods = new LinkedHashMap<>();
+        }
+
+        // Switch
+        pool = altPool;
+        innerClasses = altInnerClasses;
+        bootstrapMethods = altBootstrapMethods;
+
+        // Persists snap shot
+        altPool = savedPool;
+        altInnerClasses = savedInnerClasses;
+        altBootstrapMethods = savedBootstrapMethods;
     }
 }

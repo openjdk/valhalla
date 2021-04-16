@@ -52,7 +52,7 @@ public class ConstantPropagationTest {
     void run() {
         String [] params = new String [] { "-v",
                                             Paths.get(System.getProperty("test.classes"),
-                                                "ConstantPropagationTest$X.class").toString() };
+                                                "ConstantPropagationTest$X$ref.class").toString() };
         runCheck(params, new String [] {
 
          "ConstantValue: int 8888",

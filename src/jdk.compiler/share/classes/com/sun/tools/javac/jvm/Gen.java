@@ -945,7 +945,15 @@ public class Gen extends JCTree.Visitor {
         this.pt = tree.sym.erasure(types).getReturnType();
 
         checkDimension(tree.pos(), tree.sym.erasure(types));
-        genMethod(tree, localEnv, false);
+
+        try {
+            if (tree.sym.belongsInReferenceProjection())
+                poolWriter.switchPool();
+            genMethod(tree, localEnv, false);
+        } finally {
+            if (tree.sym.belongsInReferenceProjection())
+                poolWriter.switchPool();
+        }
     }
 //where
         /** Generate code for a method.
@@ -1001,7 +1009,7 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isValueFactory()) {
+                    } else if (env.enclMethod.sym.isPrimitiveFactory()) {
                         items.makeLocalItem(env.enclMethod.factoryProduct).load();
                         code.emitop0(areturn);
                     } else {
@@ -1067,7 +1075,7 @@ public class Gen extends JCTree.Visitor {
             // If method is not static, create a new local variable address
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
-                Type selfType = meth.owner.type;
+                Type selfType = meth.belongsInReferenceProjection() ? meth.owner.type.referenceProjection() : meth.owner.type;
                 if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(

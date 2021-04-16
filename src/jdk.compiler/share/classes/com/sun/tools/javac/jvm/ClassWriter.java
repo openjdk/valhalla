@@ -1498,12 +1498,20 @@ public class ClassWriter extends ClassFile {
         }
     }
 
-    void writeFields(Scope s) {
+    void writeFields(ClassSymbol c) {
+
+        Scope s = c.members();
+
         // process them in reverse sibling order;
         // i.e., process them in declaration order.
         List<VarSymbol> vars = List.nil();
         for (Symbol sym : s.getSymbols(NON_RECURSIVE)) {
-            if (sym.kind == VAR) vars = vars.prepend((VarSymbol)sym);
+            if (sym.kind == VAR) {
+                if (c.isPrimitiveClass() && sym.belongsInReferenceProjection()) {
+                    continue;
+                }
+                vars = vars.prepend((VarSymbol)sym);
+            }
         }
         while (vars.nonEmpty()) {
             writeField(vars.head);
@@ -1511,11 +1519,18 @@ public class ClassWriter extends ClassFile {
         }
     }
 
-    void writeMethods(Scope s) {
+    void writeMethods(ClassSymbol c) {
+
+        Scope s = c.members();
+
         List<MethodSymbol> methods = List.nil();
         for (Symbol sym : s.getSymbols(NON_RECURSIVE)) {
-            if (sym.kind == MTH && (sym.flags() & HYPOTHETICAL) == 0)
+            if (sym.kind == MTH && (sym.flags() & HYPOTHETICAL) == 0) {
+                if (c.isPrimitiveClass() && sym.belongsInReferenceProjection()) {
+                    continue;
+                }
                 methods = methods.prepend((MethodSymbol)sym);
+            }
         }
         while (methods.nonEmpty()) {
             writeMethod(methods.head);
@@ -1529,9 +1544,15 @@ public class ClassWriter extends ClassFile {
     public JavaFileObject writeClass(ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow
     {
+        ClassSymbol refProjection = c.isPrimitiveClass() ? getReferenceProjection(c) : null;
         JavaFileObject javaFileObject = writeClassInternal(c);
-        if (c.isPrimitiveClass()) {
-            writeClassInternal(getReferenceProjection(c));
+        if (refProjection != null) {
+            try {
+                poolWriter.switchPool();
+                writeClassInternal(refProjection);
+            } finally {
+                poolWriter.switchPool();
+            }
         }
         return javaFileObject;
     }
@@ -1565,8 +1586,14 @@ public class ClassWriter extends ClassFile {
                     return c;
                 }
             };
+
+            /* Sort state related members i.e fields and constructors into the value projection and
+               behavioral members i.e methods into the reference projection. See that constructors
+               have been morphed into static factory methods already. All _other_ static members are
+               translated onto the reference projection.
+            */
             projection.members_field = WriteableScope.create(projection);
-            for (Symbol s : c.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
+            for (Symbol s : c.members().getSymbols(s->s.belongsInReferenceProjection(), NON_RECURSIVE)) {
                 Symbol clone = null;
                 if (s.kind == MTH) {
                     MethodSymbol valMethod = (MethodSymbol)s;
@@ -1665,37 +1692,40 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(poolWriter.putClass((ClassSymbol)l.head.tsym));
         int fieldsCount = 0;
         int methodsCount = 0;
-        boolean referenceProjection = c.isReferenceProjection();
-        if (!referenceProjection) {
-            for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
-                switch (sym.kind) {
-                    case VAR:
-                        fieldsCount++;
-                        break;
-                    case MTH:
-                        if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
-                        break;
-                    case TYP:
-                        poolWriter.enterInner((ClassSymbol)sym);
-                        break;
-                    default:
-                        Assert.error();
-                }
+        for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
+            switch (sym.kind) {
+                case VAR:
+                    if (c.isPrimitiveClass() && sym.belongsInReferenceProjection()) {
+                        continue;
+                    }
+                    fieldsCount++;
+                    break;
+                case MTH:
+                    if ((sym.flags() & HYPOTHETICAL) == 0) {
+                        if (c.isPrimitiveClass() && sym.belongsInReferenceProjection()) {
+                            continue;
+                        }
+                        methodsCount++;
+                    }
+                    break;
+                case TYP:
+                    poolWriter.enterInner((ClassSymbol)sym);
+                    break;
+                default:
+                    Assert.error();
             }
+        }
 
-            if (c.trans_local != null) {
-                for (ClassSymbol local : c.trans_local) {
-                    poolWriter.enterInner(local);
-                }
+        if (c.trans_local != null) {
+            for (ClassSymbol local : c.trans_local) {
+                poolWriter.enterInner(local);
             }
         }
 
         databuf.appendChar(fieldsCount);
-        if (!referenceProjection)
-            writeFields(c.members());
+        writeFields(c);
         databuf.appendChar(methodsCount);
-        if (!referenceProjection)
-            writeMethods(c.members());
+        writeMethods(c);
 
         int acountIdx = beginAttrs();
         int acount = 0;

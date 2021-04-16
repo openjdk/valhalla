@@ -57,10 +57,10 @@ public class BoxValCastTest {
     void run() {
         String [] params = new String [] { "-v",
                                             Paths.get(System.getProperty("test.classes"),
-                                                "BoxValCastTest$VT.class").toString() };
+                                                "BoxValCastTest$VT$ref.class").toString() };
         runCheck(params, new String [] {
 
-        "checkcast     #7                  // class \"QBoxValCastTest$VT;\""
+        "checkcast     #1                  // class \"QBoxValCastTest$VT;\""
 
          });
 
@@ -84,7 +84,7 @@ public class BoxValCastTest {
          if (errors > 0) {
              throw new AssertionError("Unexpected javap output: " + out);
          }
-        String [] splits = out.split("checkcast     #7", -1);
+        String [] splits = out.split("checkcast     #1", -1);
         if (splits.length != 4) {
              throw new AssertionError("Unexpected javap output: " + splits.length);
         }

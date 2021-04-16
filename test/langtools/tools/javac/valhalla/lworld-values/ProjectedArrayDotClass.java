@@ -54,12 +54,12 @@ public class ProjectedArrayDotClass {
     void run() {
         String [] params = new String [] { "-v",
                                             Paths.get(System.getProperty("test.classes"),
-                                                "ProjectedArrayDotClass$VT.class").toString() };
+                                                "ProjectedArrayDotClass$VT$ref.class").toString() };
         runCheck(params, new String [] {
-        "         3: ldc           #13                 // class \"[LProjectedArrayDotClass$VT$ref;\"",
-        "        11: ldc           #21                 // class \"[QProjectedArrayDotClass$VT;\"",
-        "        19: ldc           #13                 // class \"[LProjectedArrayDotClass$VT$ref;\"",
-        "        27: ldc           #21                 // class \"[QProjectedArrayDotClass$VT;\"",
+        "         3: ldc           #7                  // class \"[LProjectedArrayDotClass$VT$ref;\"",
+        "        11: ldc           #15                 // class \"[QProjectedArrayDotClass$VT;\"",
+        "        19: ldc           #7                  // class \"[LProjectedArrayDotClass$VT$ref;\"",
+        "        27: ldc           #15                 // class \"[QProjectedArrayDotClass$VT;\"",
          });
 
      }

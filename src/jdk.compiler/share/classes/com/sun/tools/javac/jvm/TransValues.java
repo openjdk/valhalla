@@ -307,6 +307,23 @@ public class TransValues extends TreeTranslator {
                 return;
             }
         }
+
+        if (currentClass.sym.isPrimitiveClass() && currentMethod != null && !constructingValue()) {
+            // Current method will be hosited into the reference projection. Transform the reference
+            // to ident into ((C$val) this).x;
+            if (isPrimitiveInstanceMemberAccess(ident.sym)) {
+                JCExpression expr = make.This(currentClass.type).setType(currentClass.type.referenceProjection());
+                expr = make.TypeCast(types.erasure(currentClass.type), expr);
+                result = make.Select(expr, ident.sym);
+                return;
+            }
+            // Retype this!
+            if (ident.name == names._this) {
+                ident.setType(ident.type.referenceProjection());
+                result = make.TypeCast(types.erasure(currentClass.type), ident);
+                return;
+            }
+        }
         super.visitIdent(ident);
     }
 
@@ -383,6 +400,15 @@ public class TransValues extends TreeTranslator {
                 && (symbol.name != names._this && symbol.name != names._super)
                 && (symbol.kind == VAR || symbol.kind == MTH)
                 && symbol.owner == currentClass.sym && !symbol.isStatic();
+    }
+
+    private boolean isPrimitiveInstanceMemberAccess(Symbol symbol) {
+        return symbol != null
+                && (symbol.name != names._this && symbol.name != names._super)
+                && (symbol.kind == VAR || symbol.kind == MTH)
+                && symbol.owner == currentClass.sym
+                && !symbol.isStatic()
+                && currentClass.sym.isPrimitiveClass();
     }
 
     private MethodSymbol getValueFactory(MethodSymbol init) {

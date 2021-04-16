@@ -341,6 +341,23 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return this;
     }
 
+    /** Should this member be emitted in a reference projection class file ?
+     *  All state related members i.e instance fields and factory methods
+     *  get emitted in the value projection class file while behavior i.e
+     *  methods get emitted into reference projection class file.
+     */
+    public boolean belongsInReferenceProjection() {
+        return this.owner.kind == TYP &&
+                this.owner.isReferenceProjection() ||
+                    (this.owner.isPrimitiveClass()
+                    && switch (kind) {
+                        case VAR -> isStatic();
+                        case MTH -> ((flags() & (HYPOTHETICAL | NATIVE)) == 0) &&
+                                            (!isStatic() || !isPrimitiveFactory());
+                        default -> false;
+                    });
+    }
+
     /** The symbol's erased type.
      */
     public Type erasure(Types types) {
@@ -477,9 +494,9 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
-    /** Is this symbol a value factory?
+    /** Is this symbol a factory for a primitive class?
      */
-    public boolean isValueFactory() {
+    public boolean isPrimitiveFactory() {
         return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 

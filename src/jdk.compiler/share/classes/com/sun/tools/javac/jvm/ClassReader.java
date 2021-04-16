@@ -70,6 +70,7 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 
 import com.sun.tools.javac.code.Scope.LookupKind;
 
+import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.TypeTag.ARRAY;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
@@ -2687,10 +2688,24 @@ public class ClassReader {
             ClassSymbol referenceProjection = syms.getClass(currentModule, flatname);
             if (referenceProjection != null) {
                 if (referenceProjection.name != names.ref && referenceProjection.owner.kind == PCK) {
-                    readClassFileInternal(referenceProjection);
+                    referenceProjection.complete();
                     ClassType classType = (ClassType) c.type;
                     classType.supertype_field = ((ClassType) referenceProjection.type).supertype_field;
                     classType.interfaces_field = ((ClassType) referenceProjection.type).interfaces_field;
+                    for (Symbol s : referenceProjection.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
+                        Symbol clone = null;
+                        if (s.kind == MTH) {
+                            MethodSymbol refMethod = (MethodSymbol)s;
+                            MethodSymbol valMethod = refMethod.clone(c);
+                            clone = valMethod;
+                        } else if (s.kind == VAR) {
+                            VarSymbol refVar = (VarSymbol)s;
+                            VarSymbol valVar = refVar.clone(c);
+                            clone = refVar;
+                        }
+                        c.members_field.enter(clone);
+                        referenceProjection.members().remove(s);
+                    }
                     // Discard the projection, it will be recomputed on the fly.
                     referenceProjection.owner.members().remove(referenceProjection);
                 }
