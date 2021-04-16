@@ -29,10 +29,12 @@
  * @run testng/othervm --enable-preview Reflection
  */
 
+import java.lang.constant.ClassDesc;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -52,27 +54,30 @@ public class Reflection {
         test.newInstance();
         test.constructor();
         test.accessFieldX(o.x);
-        test.staticField();
+        test.checkStaticField("STATIC_FIELD", Object.class);
+        // TODO: static field is in the reference projection
+        Class<?> declaringClass = Point.class;
+        test.testSetAccessible(declaringClass.getDeclaredField("STATIC_FIELD"));
     }
 
     @Test
     public static void testLineClass() throws Exception {
         Line l = Line.makeLine(10, 20, 30, 40);
         Reflection test = new Reflection(Line.class, "Line", l);
-        test.checkField("public final Point Line.p1", "p1", Point.class);
-        test.checkField("public final Point Line.p2", "p2", Point.class);
-        test.checkMethod("public Point Line.p1()",           "p1", Point.class);
-        test.checkMethod("public Point Line.p2()",           "p2", Point.class);
+        test.checkInstanceField("p1", Point.class);
+        test.checkInstanceField("p2", Point.class);
+        test.checkInstanceMethod("p1", Point.class);
+        test.checkInstanceMethod("p2", Point.class);
     }
 
     @Test
     public static void testNonFlattenValue() throws Exception {
         NonFlattenValue nfv = NonFlattenValue.make(10, 20);
         Reflection test = new Reflection(NonFlattenValue.class, "NonFlattenValue", nfv);
-        test.checkField("final Point$ref NonFlattenValue.nfp", "nfp", Point.ref.class);
-        test.checkMethod("public Point NonFlattenValue.pointValue()", "pointValue", Point.class);
-        test.checkMethod("public Point$ref NonFlattenValue.point()", "point", Point.ref.class);
-        test.checkMethod("public boolean NonFlattenValue.has(Point,Point$ref)", "has", boolean.class, Point.class, Point.ref.class);
+        test.checkInstanceField("nfp", Point.ref.class);
+        test.checkInstanceMethod("pointValue", Point.class);
+        test.checkInstanceMethod("point", Point.ref.class);
+        test.checkInstanceMethod("has", boolean.class, Point.class, Point.ref.class);
     }
 
     /*
@@ -198,20 +203,102 @@ public class Reflection {
         assertEquals(o.getClass(), c);
     }
 
-    void staticField() throws Exception {
-        Field f = c.getDeclaredField("STATIC_FIELD");
+    void testSetAccessible(Field f) throws Exception {
         f.trySetAccessible();
         assertTrue(f.isAccessible());
     }
 
-    void checkField(String source, String name, Class<?> type) throws Exception {
+    /*
+     * Fields are in the value projection
+     */
+    void checkInstanceField(String name, Class<?> type) throws Exception {
         Field f = c.getDeclaredField(name);
-        assertEquals(f.getType(), type);
-        assertEquals(f.toString(), source);
+        assertTrue(f.getType() == type);
+        checkToString(f);
     }
 
-    void checkMethod(String source, String name, Class<?> returnType, Class<?>... params) throws Exception {
-        Method m = c.getDeclaredMethod(name, params);
-        assertEquals(m.toString(), source);
+    /*
+     * Static members are in the reference projection
+     */
+    void checkStaticField(String name, Class<?> type) throws Exception {
+        Class<?> declaringClass = c;
+        // TODO: methods are in the reference projection
+        // Class<?> declaringClass = c.referenceType().get();
+        Field f = declaringClass.getDeclaredField(name);
+        assertTrue(f.getType() == type);
+        checkToString(f);
+    }
+
+    /*
+     * Methods are in the reference projection
+     */
+    void checkInstanceMethod(String name, Class<?> returnType, Class<?>... params) throws Exception {
+        Class<?> declaringClass = c;
+        // TODO: methods are in the reference projection
+        // Class<?> declaringClass = c.referenceType().get();
+        Method m = declaringClass.getDeclaredMethod(name, params);
+        assertTrue(m.getReturnType() == returnType);
+        checkToString(m);
+    }
+
+    void checkToString(Field f) {
+        StringBuilder sb = new StringBuilder();
+        int mods = f.getModifiers();
+        if (Modifier.isPublic(mods)) {
+            sb.append("public").append(" ");
+        }
+        if (Modifier.isStatic(mods)) {
+            sb.append("static").append(" ");
+        }
+        if (Modifier.isFinal(mods)) {
+            sb.append("final").append(" ");
+        }
+        // instance fields are in the value projection
+        // whereas static fields are in the reference projection
+        Class<?> declaringClass = c;
+        // TODO: static members are in the reference projection
+        // if (Modifier.isStatic(mods)) {
+        //    declaringClass = c.referenceType().get();
+        // }
+        sb.append(displayName(f.getType())).append(" ");
+        sb.append(declaringClass.getName()).append(".").append(f.getName());
+        assertEquals(f.toString(), sb.toString());
+    }
+
+    void checkToString(Method m) {
+        StringBuilder sb = new StringBuilder();
+        int mods = m.getModifiers();
+        if (Modifier.isPublic(mods)) {
+            sb.append("public").append(" ");
+        }
+        if (Modifier.isStatic(mods)) {
+            sb.append("static").append(" ");
+        }
+        if (Modifier.isFinal(mods)) {
+            sb.append("final").append(" ");
+        }
+        sb.append(displayName(m.getReturnType())).append(" ");
+        // TODO: methods are in the reference projection
+        // Class<?> declaringClass = c.referenceType().get();
+        Class<?> declaringClass = c;
+        sb.append(declaringClass.getName()).append(".").append(m.getName());
+        sb.append("(");
+        int count = m.getParameterCount();
+        for (Class<?> ptype : m.getParameterTypes()) {
+            sb.append(displayName(ptype));
+            if (--count > 0) {
+                sb.append(",");
+            }
+        }
+        sb.append(")");
+        assertEquals(m.toString(), sb.toString());
+    }
+
+    static String displayName(Class<?> type) {
+        if (type.isPrimitive()) {
+            ClassDesc classDesc = type.describeConstable().get();
+            return classDesc.displayName();
+        }
+        return type.getName();
     }
 }

@@ -605,6 +605,7 @@ public final class Class<T> implements java.io.Serializable,
     public Optional<Class<?>> referenceType() {
         if (isPrimitive()) return Optional.empty();
         if (isInterface() || isArray()) return Optional.of(this);
+        if (!isPrimitiveClass()) return Optional.of(this);
 
         Class<?>[] valRefTypes = getPrimitiveTypes();
         return valRefTypes.length == 2 ? Optional.of(valRefTypes[1]) : Optional.empty();
