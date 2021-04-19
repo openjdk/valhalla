@@ -2742,12 +2742,12 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeInstPtr::BOTTOM));
 
   // Try to allocate a new buffered inline instance either from TLAB or eden space
-  Node* needgc_ctrl; // needgc means slowcase, i.e. allocation failed
+  Node* needgc_ctrl = NULL; // needgc means slowcase, i.e. allocation failed
   CallLeafNoFPNode* handler_call;
   const bool alloc_in_place = (UseTLAB || Universe::heap()->supports_inline_contig_alloc());
   if (alloc_in_place) {
-    Node* fast_oop_ctrl;
-    Node* fast_oop_rawmem;
+    Node* fast_oop_ctrl = NULL;
+    Node* fast_oop_rawmem = NULL;
     Node* mask2 = MakeConX(-2);
     Node* masked2 = transform_later(new AndXNode(cast, mask2));
     Node* rawklassptr = transform_later(new CastX2PNode(masked2));
@@ -2821,20 +2821,26 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
     if (domain->field_at(i) == Type::HALF) {
       slow_call->init_req(i, top());
-      if (alloc_in_place) handler_call->init_req(i+1, top());
+      if (alloc_in_place) {
+        handler_call->init_req(i+1, top());
+      }
       continue;
     }
     Node* proj = transform_later(new ProjNode(call, i));
     slow_call->init_req(i, proj);
-    if (alloc_in_place) handler_call->init_req(i+1, proj);
+    if (alloc_in_place) {
+      handler_call->init_req(i+1, proj);
+    }
   }
   // We can safepoint at that new call
   slow_call->copy_call_debug_info(&_igvn, call);
   transform_later(slow_call);
-  if (alloc_in_place) transform_later(handler_call);
+  if (alloc_in_place) {
+    transform_later(handler_call);
+  }
 
-  Node* fast_ctl;
-  Node* fast_res;
+  Node* fast_ctl = NULL;
+  Node* fast_res = NULL;
   MergeMemNode* fast_mem;
   if (alloc_in_place) {
     fast_ctl = transform_later(new ProjNode(handler_call, TypeFunc::Control));
@@ -2845,7 +2851,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     transform_later(fast_mem);
   }
 
-  Node* r = new RegionNode(alloc_in_place ? 4: 3);
+  Node* r = new RegionNode(alloc_in_place ? 4 : 3);
   Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
   Node* io_phi = new PhiNode(r, Type::ABIO);
   Node* res_phi = new PhiNode(r, TypeInstPtr::BOTTOM);
