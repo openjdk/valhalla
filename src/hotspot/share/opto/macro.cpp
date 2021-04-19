@@ -2841,7 +2841,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
 
   Node* fast_ctl = NULL;
   Node* fast_res = NULL;
-  MergeMemNode* fast_mem;
+  MergeMemNode* fast_mem = NULL;
   if (alloc_in_place) {
     fast_ctl = transform_later(new ProjNode(handler_call, TypeFunc::Control));
     Node* rawmem = transform_later(new ProjNode(handler_call, TypeFunc::Memory));
