@@ -2729,6 +2729,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* ex_io = new Node(ctl);
   Node* res = new Node(ctl);
 
+  // Allocate a new buffered inline type only if a new one is not returned
   Node* cast = transform_later(new CastP2XNode(ctl, res));
   Node* mask = MakeConX(0x1);
   Node* masked = transform_later(new AndXNode(cast, mask));
@@ -2738,49 +2739,56 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(allocation_iff);
   Node* allocation_ctl = transform_later(new IfTrueNode(allocation_iff));
   Node* no_allocation_ctl = transform_later(new IfFalseNode(allocation_iff));
-
   Node* no_allocation_res = transform_later(new CheckCastPPNode(no_allocation_ctl, res, TypeInstPtr::BOTTOM));
 
-  Node* mask2 = MakeConX(-2);
-  Node* masked2 = transform_later(new AndXNode(cast, mask2));
-  Node* rawklassptr = transform_later(new CastX2PNode(masked2));
-  Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::OBJECT_OR_NULL));
-
-  Node* slowpath_bol = NULL;
-  Node* top_adr = NULL;
-  Node* old_top = NULL;
-  Node* new_top = NULL;
-  if (UseTLAB) {
-    Node* end_adr = NULL;
-    set_eden_pointers(top_adr, end_adr);
-    Node* end = make_load(ctl, mem, end_adr, 0, TypeRawPtr::BOTTOM, T_ADDRESS);
-    old_top = new LoadPNode(ctl, mem, top_adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM, MemNode::unordered);
-    transform_later(old_top);
+  // Try to allocate a new buffered inline instance either from TLAB or eden space
+  Node* needgc_ctrl = NULL; // needgc means slowcase, i.e. allocation failed
+  CallLeafNoFPNode* handler_call;
+  const bool alloc_in_place = (UseTLAB || Universe::heap()->supports_inline_contig_alloc());
+  if (alloc_in_place) {
+    Node* fast_oop_ctrl = NULL;
+    Node* fast_oop_rawmem = NULL;
+    Node* mask2 = MakeConX(-2);
+    Node* masked2 = transform_later(new AndXNode(cast, mask2));
+    Node* rawklassptr = transform_later(new CastX2PNode(masked2));
+    Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::OBJECT_OR_NULL));
     Node* layout_val = make_load(NULL, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
     Node* size_in_bytes = ConvI2X(layout_val);
-    new_top = new AddPNode(top(), old_top, size_in_bytes);
-    transform_later(new_top);
-    Node* slowpath_cmp = new CmpPNode(new_top, end);
-    transform_later(slowpath_cmp);
-    slowpath_bol = new BoolNode(slowpath_cmp, BoolTest::ge);
-    transform_later(slowpath_bol);
+    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+    Node* fast_oop = bs->obj_allocate(this, allocation_ctl, mem, allocation_ctl, size_in_bytes, io, needgc_ctrl,
+                                      fast_oop_ctrl, fast_oop_rawmem,
+                                      AllocateInstancePrefetchLines);
+    // Allocation succeed, initialize buffered inline instance header firstly,
+    // and then initialize its fields with an inline class specific handler
+    Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
+    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
+    fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
+    if (UseCompressedClassPointers) {
+      fast_oop_rawmem = make_store(fast_oop_ctrl, fast_oop_rawmem, fast_oop, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
+    }
+    Node* fixed_block  = make_load(fast_oop_ctrl, fast_oop_rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    Node* pack_handler = make_load(fast_oop_ctrl, fast_oop_rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+    handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
+                                        NULL,
+                                        "pack handler",
+                                        TypeRawPtr::BOTTOM);
+    handler_call->init_req(TypeFunc::Control, fast_oop_ctrl);
+    handler_call->init_req(TypeFunc::Memory, fast_oop_rawmem);
+    handler_call->init_req(TypeFunc::I_O, top());
+    handler_call->init_req(TypeFunc::FramePtr, call->in(TypeFunc::FramePtr));
+    handler_call->init_req(TypeFunc::ReturnAdr, top());
+    handler_call->init_req(TypeFunc::Parms, pack_handler);
+    handler_call->init_req(TypeFunc::Parms+1, fast_oop);
   } else {
-    slowpath_bol = intcon(1);
-    top_adr = top();
-    old_top = top();
-    new_top = top();
+    needgc_ctrl = allocation_ctl;
   }
-  IfNode* slowpath_iff = new IfNode(allocation_ctl, slowpath_bol, PROB_UNLIKELY_MAG(4), COUNT_UNKNOWN);
-  transform_later(slowpath_iff);
 
-  Node* slowpath_true = new IfTrueNode(slowpath_iff);
-  transform_later(slowpath_true);
-
+  // Allocation failed, fall back to a runtime call
   CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_inline_type_fields_Type(),
                                                          StubRoutines::store_inline_type_fields_to_buf(),
                                                          "store_inline_type_fields",
                                                          TypePtr::BOTTOM);
-  slow_call->init_req(TypeFunc::Control, slowpath_true);
+  slow_call->init_req(TypeFunc::Control, needgc_ctrl);
   slow_call->init_req(TypeFunc::Memory, mem);
   slow_call->init_req(TypeFunc::I_O, io);
   slow_call->init_req(TypeFunc::FramePtr, call->in(TypeFunc::FramePtr));
@@ -2804,67 +2812,49 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   ex_r->init_req(2, ex_ctl);
   ex_mem_phi->init_req(2, ex_mem);
   ex_io_phi->init_req(2, ex_io);
-
   transform_later(ex_r);
   transform_later(ex_mem_phi);
   transform_later(ex_io_phi);
-
-  Node* slowpath_false = new IfFalseNode(slowpath_iff);
-  transform_later(slowpath_false);
-  Node* rawmem = new StorePNode(slowpath_false, mem, top_adr, TypeRawPtr::BOTTOM, new_top, MemNode::unordered);
-  transform_later(rawmem);
-  Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
-  rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
-  rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
-  if (UseCompressedClassPointers) {
-    rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
-  }
-  Node* fixed_block  = make_load(slowpath_false, rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-  Node* pack_handler = make_load(slowpath_false, rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-
-  CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
-                                                        NULL,
-                                                        "pack handler",
-                                                        TypeRawPtr::BOTTOM);
-  handler_call->init_req(TypeFunc::Control, slowpath_false);
-  handler_call->init_req(TypeFunc::Memory, rawmem);
-  handler_call->init_req(TypeFunc::I_O, top());
-  handler_call->init_req(TypeFunc::FramePtr, call->in(TypeFunc::FramePtr));
-  handler_call->init_req(TypeFunc::ReturnAdr, top());
-  handler_call->init_req(TypeFunc::Parms, pack_handler);
-  handler_call->init_req(TypeFunc::Parms+1, old_top);
 
   // We don't know how many values are returned. This assumes the
   // worst case, that all available registers are used.
   for (uint i = TypeFunc::Parms+1; i < domain->cnt(); i++) {
     if (domain->field_at(i) == Type::HALF) {
       slow_call->init_req(i, top());
-      handler_call->init_req(i+1, top());
+      if (alloc_in_place) {
+        handler_call->init_req(i+1, top());
+      }
       continue;
     }
     Node* proj = transform_later(new ProjNode(call, i));
     slow_call->init_req(i, proj);
-    handler_call->init_req(i+1, proj);
+    if (alloc_in_place) {
+      handler_call->init_req(i+1, proj);
+    }
   }
-
   // We can safepoint at that new call
   slow_call->copy_call_debug_info(&_igvn, call);
   transform_later(slow_call);
-  transform_later(handler_call);
+  if (alloc_in_place) {
+    transform_later(handler_call);
+  }
 
-  Node* handler_ctl = transform_later(new ProjNode(handler_call, TypeFunc::Control));
-  rawmem = transform_later(new ProjNode(handler_call, TypeFunc::Memory));
-  Node* slowpath_false_res = transform_later(new ProjNode(handler_call, TypeFunc::Parms));
+  Node* fast_ctl = NULL;
+  Node* fast_res = NULL;
+  MergeMemNode* fast_mem = NULL;
+  if (alloc_in_place) {
+    fast_ctl = transform_later(new ProjNode(handler_call, TypeFunc::Control));
+    Node* rawmem = transform_later(new ProjNode(handler_call, TypeFunc::Memory));
+    fast_res = transform_later(new ProjNode(handler_call, TypeFunc::Parms));
+    fast_mem = MergeMemNode::make(mem);
+    fast_mem->set_memory_at(Compile::AliasIdxRaw, rawmem);
+    transform_later(fast_mem);
+  }
 
-  MergeMemNode* slowpath_false_mem = MergeMemNode::make(mem);
-  slowpath_false_mem->set_memory_at(Compile::AliasIdxRaw, rawmem);
-  transform_later(slowpath_false_mem);
-
-  Node* r = new RegionNode(4);
+  Node* r = new RegionNode(alloc_in_place ? 4 : 3);
   Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
   Node* io_phi = new PhiNode(r, Type::ABIO);
   Node* res_phi = new PhiNode(r, TypeInstPtr::BOTTOM);
-
   r->init_req(1, no_allocation_ctl);
   mem_phi->init_req(1, mem);
   io_phi->init_req(1, io);
@@ -2873,11 +2863,12 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   mem_phi->init_req(2, slow_mem);
   io_phi->init_req(2, slow_io);
   res_phi->init_req(2, slow_res);
-  r->init_req(3, handler_ctl);
-  mem_phi->init_req(3, slowpath_false_mem);
-  io_phi->init_req(3, io);
-  res_phi->init_req(3, slowpath_false_res);
-
+  if (alloc_in_place) {
+    r->init_req(3, fast_ctl);
+    mem_phi->init_req(3, fast_mem);
+    io_phi->init_req(3, io);
+    res_phi->init_req(3, fast_res);
+  }
   transform_later(r);
   transform_later(mem_phi);
   transform_later(io_phi);
@@ -3232,11 +3223,9 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     case Node::Class_CallStaticJava:
       expand_mh_intrinsic_return(n->as_CallStaticJava());
       C->remove_macro_node(n);
-      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
     case Node::Class_FlatArrayCheck:
       expand_flatarraycheck_node(n->as_FlatArrayCheck());
-      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
     default:
       assert(false, "unknown node type in macro list");
