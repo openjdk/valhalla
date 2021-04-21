@@ -29,9 +29,9 @@ package com.sun.source.tree;
  * A tree node for a {@code default} instance initializion expression.
  *
  * For example:
- * <pre>
+ * <pre>{@code
  *   Optional<String>.default
- * </pre>
+ * }</pre>
  *
  * @jls todo
  *
