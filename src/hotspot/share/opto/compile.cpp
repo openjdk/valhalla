@@ -72,7 +72,6 @@
 #include "opto/type.hpp"
 #include "opto/vector.hpp"
 #include "opto/vectornode.hpp"
-#include "runtime/arguments.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -2789,6 +2788,8 @@ void Compile::Optimize() {
   }
  } // (End scope of igvn; run destructor if necessary for asserts.)
 
+ check_no_dead_use();
+
  process_print_inlining();
 
  // A method with only infinite loops has no edges entering loops from root
@@ -2803,6 +2804,25 @@ void Compile::Optimize() {
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
  DEBUG_ONLY(set_phase_optimize_finished();)
 }
+
+#ifdef ASSERT
+void Compile::check_no_dead_use() const {
+  ResourceMark rm;
+  Unique_Node_List wq;
+  wq.push(root());
+  for (uint i = 0; i < wq.size(); ++i) {
+    Node* n = wq.at(i);
+    for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++) {
+      Node* u = n->fast_out(j);
+      if (u->outcnt() == 0 && !u->is_Con()) {
+        u->dump();
+        fatal("no reachable node should have no use");
+      }
+      wq.push(u);
+    }
+  }
+}
+#endif
 
 void Compile::inline_vector_reboxing_calls() {
   if (C->_vector_reboxing_late_inlines.length() > 0) {
@@ -2863,7 +2883,7 @@ static bool is_vector_bitwise_op(Node* n) {
 }
 
 static bool is_vector_bitwise_cone_root(Node* n) {
-  if (!is_vector_bitwise_op(n)) {
+  if (n->bottom_type()->isa_vectmask() || !is_vector_bitwise_op(n)) {
     return false;
   }
   for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
@@ -3177,7 +3197,6 @@ void Compile::Code_Gen() {
     if (failing()) {
       return;
     }
-    print_method(PHASE_AFTER_MATCHING, 3);
   }
   // In debug mode can dump m._nodes.dump() for mapping of ideal to machine
   // nodes.  Mapping is only valid at the root of each matched subtree.
@@ -3953,7 +3972,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     }
     break;
   case Op_Loop:
-    assert(!n->as_Loop()->is_transformed_long_loop() || _loop_opts_cnt == 0, "should have been turned into a counted loop");
+    assert(!n->as_Loop()->is_transformed_long_inner_loop() || _loop_opts_cnt == 0, "should have been turned into a counted loop");
   case Op_CountedLoop:
   case Op_LongCountedLoop:
   case Op_OuterStripMinedLoop:
@@ -5156,7 +5175,7 @@ void Compile::sort_macro_nodes() {
   }
 }
 
-void Compile::print_method(CompilerPhaseType cpt, const char *name, int level, int idx) {
+void Compile::print_method(CompilerPhaseType cpt, const char *name, int level) {
   EventCompilerPhase event;
   if (event.should_commit()) {
     CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, cpt, C->_compile_id, level);
@@ -5178,7 +5197,7 @@ void Compile::print_method(CompilerPhaseType cpt, int level, int idx) {
     jio_snprintf(output, sizeof(output), "%s", CompilerPhaseTypeHelper::to_string(cpt));
   }
 #endif
-  print_method(cpt, output, level, idx);
+  print_method(cpt, output, level);
 }
 
 void Compile::print_method(CompilerPhaseType cpt, Node* n, int level) {
@@ -5244,7 +5263,7 @@ void igv_print(bool network, const char* phase_name) {
 
 // Called from debugger. Normal write to the default _printer. Only works if Ideal Graph Visualizer printing flags are set.
 void igv_print_default() {
-  Compile::current()->print_method(PHASE_DEBUG, 0, 0);
+  Compile::current()->print_method(PHASE_DEBUG, 0);
 }
 
 // Called from debugger, especially when replaying a trace in which the program state cannot be altered like with rr replay.
@@ -5267,7 +5286,7 @@ void Compile::igv_print_method_to_file(const char* phase_name, bool append) {
     _debug_file_printer->update_compiled_method(C->method());
   }
   tty->print_cr("Method %s to %s", append ? "appended" : "printed", file_name);
-  _debug_file_printer->print_method(phase_name, 0);
+  _debug_file_printer->print(phase_name, (Node*)C->root());
 }
 
 void Compile::igv_print_method_to_network(const char* phase_name) {
@@ -5277,7 +5296,7 @@ void Compile::igv_print_method_to_network(const char* phase_name) {
     _debug_network_printer->update_compiled_method(C->method());
   }
   tty->print_cr("Method printed over network stream to IGV");
-  _debug_network_printer->print_method(phase_name, 0);
+  _debug_network_printer->print(phase_name, (Node*)C->root());
 }
 #endif
 

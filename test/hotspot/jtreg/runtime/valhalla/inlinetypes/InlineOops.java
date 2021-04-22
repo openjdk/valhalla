@@ -40,7 +40,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -55,7 +55,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -70,7 +70,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -85,7 +85,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
@@ -101,7 +101,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -116,7 +116,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -131,7 +131,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -146,7 +146,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128

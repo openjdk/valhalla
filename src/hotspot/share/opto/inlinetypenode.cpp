@@ -219,7 +219,7 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
-  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end());
+  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end(), igvn);
 }
 
 void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
@@ -231,7 +231,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
       int nb = 0;
       if (allow_oop && is_allocated(igvn) && get_oop()->is_Con()) {
         // Inline type is allocated with a constant oop, link it directly
-        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end());
+        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end(), igvn);
         igvn->rehash_node_delayed(sfpt);
       } else {
         nb = make_scalar_in_safepoint(igvn, worklist, sfpt);

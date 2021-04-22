@@ -74,12 +74,6 @@ inline address InlineKlass::data_for_oop(oop o) const {
   return ((address) (void*) o) + first_field_offset();
 }
 
-inline oop InlineKlass::oop_for_data(address data) const {
-  oop o = (oop) (data - first_field_offset());
-  assert(oopDesc::is_oop(o, false), "Not an oop");
-  return o;
-}
-
 inline void InlineKlass::inline_copy_payload_to_new_oop(void* src, oop dst) {
   HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, data_for_oop(dst), this);
 }

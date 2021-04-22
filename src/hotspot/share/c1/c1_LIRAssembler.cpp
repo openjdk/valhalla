@@ -32,6 +32,7 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -470,9 +471,6 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     break;
   case lir_icvirtual_call:
     ic_call(op);
-    break;
-  case lir_virtual_call:
-    vtable_call(op);
     break;
   default:
     fatal("unexpected op code: %s", op->name());

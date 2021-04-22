@@ -30,7 +30,7 @@
  * @library /test/lib
  * @compile test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java
  * @build sun.hotspot.WhiteBox
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run driver RewriteBytecodesInlineTest
  */
 

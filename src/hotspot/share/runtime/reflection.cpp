@@ -44,7 +44,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
-#include "runtime/arguments.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -102,7 +101,7 @@ oop Reflection::box(jvalue* value, BasicType type, TRAPS) {
   }
   if (is_reference_type(type)) {
     // regular objects are not boxed
-    return (oop) value->l;
+    return cast_to_oop(value->l);
   }
   oop result = java_lang_boxing_object::create(type, value, CHECK_NULL);
   if (result == NULL) {
@@ -276,7 +275,7 @@ void Reflection::array_set(jvalue* value, arrayOop a, int index, BasicType value
   }
   if (a->is_objArray()) {
     if (value_type == T_OBJECT) {
-      oop obj = (oop) value->l;
+      oop obj = cast_to_oop(value->l);
       if (obj != NULL) {
         Klass* element_klass = ObjArrayKlass::cast(a->klass())->element_klass();
         if (!obj->is_a(element_klass)) {
@@ -960,7 +959,7 @@ static methodHandle resolve_interface_call(InstanceKlass* klass,
 }
 
 // Conversion
-static BasicType basic_type_mirror_to_basic_type(oop basic_type_mirror, TRAPS) {
+static BasicType basic_type_mirror_to_basic_type(oop basic_type_mirror) {
   assert(java_lang_Class::is_primitive(basic_type_mirror),
     "just checking");
   return java_lang_Class::primitive_type(basic_type_mirror);
@@ -1112,7 +1111,7 @@ static oop invoke(InstanceKlass* klass,
     oop arg = args->obj_at(i);
     if (java_lang_Class::is_primitive(type_mirror)) {
       jvalue value;
-      BasicType ptype = basic_type_mirror_to_basic_type(type_mirror, CHECK_NULL);
+      BasicType ptype = basic_type_mirror_to_basic_type(type_mirror);
       BasicType atype = Reflection::unbox_for_primitive(arg, &value, CHECK_NULL);
       if (ptype != atype) {
         Reflection::widen(&value, atype, ptype, CHECK_NULL);
@@ -1184,7 +1183,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   oop return_type_mirror = java_lang_reflect_Method::return_type(method_mirror);
   BasicType rtype;
   if (java_lang_Class::is_primitive(return_type_mirror)) {
-    rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
+    rtype = basic_type_mirror_to_basic_type(return_type_mirror);
   } else if (java_lang_Class::as_Klass(return_type_mirror)->is_inline_klass()) {
     rtype = T_INLINE_TYPE;
   } else {

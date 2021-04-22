@@ -35,7 +35,7 @@ import sun.hotspot.WhiteBox;
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile -XDallowWithFieldOperator TestDeoptimizationWhenBuffering.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering C1

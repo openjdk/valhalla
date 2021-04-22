@@ -27,7 +27,7 @@
 
 #include "asm/codeBuffer.hpp"
 #include "code/codeBlob.hpp"
-#include "interpreter/bytecodeHistogram.hpp"
+#include "code/vmreg.hpp"
 #include "interpreter/bytecodeTracer.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/allocation.hpp"
@@ -55,10 +55,7 @@ class SharedRuntime: AllStatic {
   static bool resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
                                           CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
                                           Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
-  static methodHandle resolve_sub_helper(JavaThread *thread,
-                                         bool is_virtual,
-                                         bool is_optimized,
-                                         bool* caller_is_c1, TRAPS);
+  static methodHandle resolve_sub_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS);
 
   // Shared stub locations
 
@@ -185,8 +182,8 @@ class SharedRuntime: AllStatic {
 #endif
 
   // exception handling across interpreter/compiler boundaries
-  static address raw_exception_handler_for_return_address(JavaThread* thread, address return_address);
-  static address exception_handler_for_return_address(JavaThread* thread, address return_address);
+  static address raw_exception_handler_for_return_address(JavaThread* current, address return_address);
+  static address exception_handler_for_return_address(JavaThread* current, address return_address);
 
   // exception handling and implicit exceptions
   static address compute_compiled_exc_handler(CompiledMethod* nm, address ret_pc, Handle& exception,
@@ -196,24 +193,24 @@ class SharedRuntime: AllStatic {
     IMPLICIT_DIVIDE_BY_ZERO,
     STACK_OVERFLOW
   };
-  static void    throw_AbstractMethodError(JavaThread* thread);
-  static void    throw_IncompatibleClassChangeError(JavaThread* thread);
-  static void    throw_ArithmeticException(JavaThread* thread);
-  static void    throw_NullPointerException(JavaThread* thread);
-  static void    throw_NullPointerException_at_call(JavaThread* thread);
-  static void    throw_StackOverflowError(JavaThread* thread);
-  static void    throw_delayed_StackOverflowError(JavaThread* thread);
-  static void    throw_StackOverflowError_common(JavaThread* thread, bool delayed);
-  static address continuation_for_implicit_exception(JavaThread* thread,
+  static void    throw_AbstractMethodError(JavaThread* current);
+  static void    throw_IncompatibleClassChangeError(JavaThread* current);
+  static void    throw_ArithmeticException(JavaThread* current);
+  static void    throw_NullPointerException(JavaThread* current);
+  static void    throw_NullPointerException_at_call(JavaThread* current);
+  static void    throw_StackOverflowError(JavaThread* current);
+  static void    throw_delayed_StackOverflowError(JavaThread* current);
+  static void    throw_StackOverflowError_common(JavaThread* current, bool delayed);
+  static address continuation_for_implicit_exception(JavaThread* current,
                                                      address faulting_pc,
                                                      ImplicitExceptionKind exception_kind);
 
   // Post-slow-path-allocation, pre-initializing-stores step for
   // implementing e.g. ReduceInitialCardMarks
-  static void on_slowpath_allocation_exit(JavaThread* thread);
+  static void on_slowpath_allocation_exit(JavaThread* current);
 
-  static void enable_stack_reserved_zone(JavaThread* thread);
-  static frame look_for_reserved_stack_annotated_method(JavaThread* thread, frame fr);
+  static void enable_stack_reserved_zone(JavaThread* current);
+  static frame look_for_reserved_stack_annotated_method(JavaThread* current, frame fr);
 
   // Shared stub locations
   static address get_poll_stub(address pc);
@@ -261,8 +258,8 @@ class SharedRuntime: AllStatic {
 #endif // PRODUCT
 
   // Helper routine for full-speed JVMTI exception throwing support
-  static void throw_and_post_jvmti_exception(JavaThread *thread, Handle h_exception);
-  static void throw_and_post_jvmti_exception(JavaThread *thread, Symbol* name, const char *message = NULL);
+  static void throw_and_post_jvmti_exception(JavaThread* current, Handle h_exception);
+  static void throw_and_post_jvmti_exception(JavaThread* current, Symbol* name, const char *message = NULL);
 
   // RedefineClasses() tracing support for obsolete method entry
   static int rc_trace_method_entry(JavaThread* thread, Method* m);
@@ -318,10 +315,7 @@ class SharedRuntime: AllStatic {
 
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.
-  static methodHandle resolve_helper(JavaThread *thread,
-                                     bool is_virtual,
-                                     bool is_optimized,
-                                     bool* caller_is_c1, TRAPS);
+  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS);
 
  private:
   // deopt blob
@@ -335,18 +329,18 @@ class SharedRuntime: AllStatic {
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
 
   // Resets a call-site in compiled code so it will get resolved again.
-  static methodHandle reresolve_call_site(JavaThread *thread, bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // In the code prolog, if the klass comparison fails, the inline cache
   // misses and the call site is patched to megamorphic
-  static methodHandle handle_ic_miss_helper(JavaThread* thread, bool& is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // Find the method that called us.
-  static methodHandle find_callee_method(JavaThread* thread, TRAPS);
+  static methodHandle find_callee_method(TRAPS);
 
   static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 
-  static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
+  static void monitor_exit_helper(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
   static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
     assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
@@ -362,13 +356,8 @@ class SharedRuntime: AllStatic {
   }
 
  private:
-  static Handle find_callee_info(JavaThread* thread,
-                                 Bytecodes::Code& bc,
-                                 CallInfo& callinfo, TRAPS);
-  static Handle find_callee_info_helper(JavaThread* thread,
-                                        vframeStream& vfst,
-                                        Bytecodes::Code& bc,
-                                        CallInfo& callinfo, TRAPS);
+  static Handle find_callee_info(Bytecodes::Code& bc, CallInfo& callinfo, TRAPS);
+  static Handle find_callee_info_helper(vframeStream& vfst, Bytecodes::Code& bc, CallInfo& callinfo, TRAPS);
 
   static Method* extract_attached_method(vframeStream& vfst);
 
@@ -521,16 +510,16 @@ class SharedRuntime: AllStatic {
   static bool should_fixup_call_destination(address destination, address entry_point, address caller_pc, Method* moop, CodeBlob* cb);
 
   // Slow-path Locking and Unlocking
-  static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
-  static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* thread);
+  static void complete_monitor_locking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
+  static void complete_monitor_unlocking_C(oopDesc* obj, BasicLock* lock, JavaThread* current);
 
   // Resolving of calls
-  static address resolve_static_call_C     (JavaThread *thread);
-  static address resolve_virtual_call_C    (JavaThread *thread);
-  static address resolve_opt_virtual_call_C(JavaThread *thread);
+  static address resolve_static_call_C     (JavaThread* current);
+  static address resolve_virtual_call_C    (JavaThread* current);
+  static address resolve_opt_virtual_call_C(JavaThread* current);
 
-  static void load_inline_type_fields_in_regs(JavaThread *thread, oopDesc* res);
-  static void store_inline_type_fields_to_buf(JavaThread *thread, intptr_t res);
+  static void load_inline_type_fields_in_regs(JavaThread* current, oopDesc* res);
+  static void store_inline_type_fields_to_buf(JavaThread* current, intptr_t res);
 
   // arraycopy, the non-leaf version.  (See StubRoutines for all the leaf calls.)
   static void slow_arraycopy_C(oopDesc* src,  jint src_pos,
@@ -539,12 +528,12 @@ class SharedRuntime: AllStatic {
 
   // handle ic miss with caller being compiled code
   // wrong method handling (inline cache misses, zombie methods)
-  static address handle_wrong_method(JavaThread* thread);
-  static address handle_wrong_method_abstract(JavaThread* thread);
-  static address handle_wrong_method_ic_miss(JavaThread* thread);
-  static void allocate_inline_types(JavaThread* thread, Method* callee, bool allocate_receiver);
-  static oop allocate_inline_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS);
-  static void apply_post_barriers(JavaThread* thread, objArrayOopDesc* array);
+  static address handle_wrong_method(JavaThread* current);
+  static address handle_wrong_method_abstract(JavaThread* current);
+  static address handle_wrong_method_ic_miss(JavaThread* current);
+  static void allocate_inline_types(JavaThread* current, Method* callee, bool allocate_receiver);
+  static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS);
+  static void apply_post_barriers(JavaThread* current, objArrayOopDesc* array);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 

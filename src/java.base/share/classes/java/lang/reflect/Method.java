@@ -234,6 +234,7 @@ public final class Method extends Executable {
 
     /**
      * {@inheritDoc}
+     * @jls 8.4.3 Method Modifiers
      */
     @Override
     public int getModifiers() {
@@ -244,6 +245,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @throws GenericSignatureFormatError {@inheritDoc}
      * @since 1.5
+     * @jls 8.4.4 Generic Methods
      */
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -605,6 +607,9 @@ public final class Method extends Executable {
      * @jls 8.4.8.3 Requirements in Overriding and Hiding
      * @jls 15.12.4.5 Create Frame, Synchronize, Transfer Control
      * @jvms 4.6 Methods
+     * @see <a
+     * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
+     * programming language and JVM modeling in core reflection</a>
      */
     public boolean isBridge() {
         return (getModifiers() & Modifier.BRIDGE) != 0;
@@ -613,6 +618,7 @@ public final class Method extends Executable {
     /**
      * {@inheritDoc}
      * @since 1.5
+     * @jls 8.4.1 Formal Parameters
      */
     @Override
     public boolean isVarArgs() {
@@ -623,6 +629,9 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @jls 13.1 The Form of a Binary
      * @jvms 4.6 Methods
+     * @see <a
+     * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
+     * programming language and JVM modeling in core reflection</a>
      * @since 1.5
      */
     @Override
@@ -640,6 +649,7 @@ public final class Method extends Executable {
      * @return true if and only if this method is a default
      * method as defined by the Java Language Specification.
      * @since 1.8
+     * @jls 9.4 Method Declarations
      */
     public boolean isDefault() {
         // Default methods are public non-abstract instance methods
@@ -697,6 +707,7 @@ public final class Method extends Executable {
      *     {@link Class} and no definition can be found for the
      *     default class value.
      * @since  1.5
+     * @jls 9.6.2 Defaults for Annotation Type Elements
      */
     public Object getDefaultValue() {
         if  (annotationDefault == null)
@@ -709,8 +720,7 @@ public final class Method extends Executable {
                 getConstantPool(getDeclaringClass()),
             getDeclaringClass());
         if (result instanceof ExceptionProxy) {
-            if (result instanceof TypeNotPresentExceptionProxy) {
-                TypeNotPresentExceptionProxy proxy = (TypeNotPresentExceptionProxy)result;
+            if (result instanceof TypeNotPresentExceptionProxy proxy) {
                 throw new TypeNotPresentException(proxy.typeName(), proxy.getCause());
             }
             throw new AnnotationFormatError("Invalid default: " + this);
@@ -756,7 +766,7 @@ public final class Method extends Executable {
     }
 
     @Override
-    boolean handleParameterNumberMismatch(int resultLength, int numParameters) {
+    boolean handleParameterNumberMismatch(int resultLength, Class<?>[] parameterTypes) {
         throw new AnnotationFormatError("Parameter annotations don't match number of parameters");
     }
 }
