@@ -460,7 +460,7 @@ void jvmtiDeferredLocalVariableSet::update_value(StackValueCollection* locals, B
     case T_OBJECT:
     case T_INLINE_TYPE:
       {
-        Handle obj(Thread::current(), (oop)value.l);
+        Handle obj(Thread::current(), cast_to_oop(value.l));
         locals->set_obj_at(index, obj);
       }
       break;

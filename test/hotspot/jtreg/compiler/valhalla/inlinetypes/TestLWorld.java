@@ -38,7 +38,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestLWorld.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.InlineTypeTest

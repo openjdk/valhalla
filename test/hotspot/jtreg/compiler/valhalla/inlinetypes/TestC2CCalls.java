@@ -27,7 +27,7 @@
  * @summary Test inline type calling convention with compiled to compiled calls.
  * @library /test/lib /test/lib /compiler/whitebox /
  * @compile TestC2CCalls.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   TestC2CCalls
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

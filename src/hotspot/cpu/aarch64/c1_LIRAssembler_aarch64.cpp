@@ -2248,13 +2248,6 @@ void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
   add_call_info(code_offset(), op->info(), op->maybe_return_as_fields());
 }
 
-
-/* vtable-dispatch is not enabled for aarch64 platform*/
-void LIR_Assembler::vtable_call(LIR_OpJavaCall* op) {
-  ShouldNotReachHere();
-}
-
-
 void LIR_Assembler::emit_static_call_stub() {
   address call_pc = __ pc();
   address stub = __ start_a_stub(call_stub_size());

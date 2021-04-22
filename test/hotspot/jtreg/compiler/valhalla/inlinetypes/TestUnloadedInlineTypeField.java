@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @summary Test the handling of fields of unloaded inline classes.
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
  * @compile TestUnloadedInlineTypeField.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                               -XX:PerMethodRecompilationCutoff=-1 -XX:PerBytecodeRecompilationCutoff=-1

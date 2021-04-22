@@ -154,7 +154,7 @@ public:
   size_t mapping_offset()           const { return _mapping_offset; }
   size_t mapping_end_offset()       const { return _mapping_offset + used_aligned(); }
   size_t used()                     const { return _used; }
-  size_t used_aligned()             const; // aligned up to os::vm_allocation_granularity()
+  size_t used_aligned()             const; // aligned up to MetaspaceShared::core_region_alignment()
   char*  mapped_base()              const { assert_is_not_heap_region(); return _mapped_base; }
   char*  mapped_end()               const { return mapped_base()        + used_aligned(); }
   bool   read_only()                const { return _read_only != 0; }
@@ -187,7 +187,7 @@ class FileMapHeader: private CDSFileMapHeaderBase {
   // The following fields record the states of the VM during dump time.
   // They are compared with the runtime states to see if the archive
   // can be used.
-  size_t _alignment;                // how shared archive should be aligned
+  size_t _core_region_alignment;    // how shared archive should be aligned
   int    _obj_alignment;            // value of ObjectAlignmentInBytes
   address _narrow_oop_base;         // compressed oop encoding base
   int    _narrow_oop_shift;         // compressed oop encoding shift
@@ -199,6 +199,7 @@ class FileMapHeader: private CDSFileMapHeaderBase {
   bool    _compressed_class_ptrs;   // save the flag UseCompressedClassPointers
   size_t  _cloned_vtables_offset;   // The address of the first cloned vtable
   size_t  _serialized_data_offset;  // Data accessed using {ReadClosure,WriteClosure}::serialize()
+  address _heap_begin;              // heap begin at dump time.
   address _heap_end;                // heap end at dump time.
   bool _base_archive_is_default;    // indicates if the base archive is the system default one
 
@@ -241,7 +242,7 @@ class FileMapHeader: private CDSFileMapHeaderBase {
   void set_as_offset(char* p, size_t *offset);
 public:
   // Accessors -- fields declared in CDSFileMapHeaderBase
-  unsigned int magic() const {return _magic;}
+  unsigned int magic()                    const { return _magic; }
   int crc()                               const { return _crc; }
   int version()                           const { return _version; }
 
@@ -251,7 +252,7 @@ public:
   // Accessors -- fields declared in FileMapHeader
 
   size_t header_size()                     const { return _header_size; }
-  size_t alignment()                       const { return _alignment; }
+  size_t core_region_alignment()           const { return _core_region_alignment; }
   int obj_alignment()                      const { return _obj_alignment; }
   address narrow_oop_base()                const { return _narrow_oop_base; }
   int narrow_oop_shift()                   const { return _narrow_oop_shift; }
@@ -262,6 +263,7 @@ public:
   address narrow_klass_base()              const { return (address)mapped_base_address(); }
   char* cloned_vtables()                   const { return from_mapped_offset(_cloned_vtables_offset); }
   char* serialized_data()                  const { return from_mapped_offset(_serialized_data_offset); }
+  address heap_begin()                     const { return _heap_begin; }
   address heap_end()                       const { return _heap_end; }
   bool base_archive_is_default()           const { return _base_archive_is_default; }
   const char* jvm_ident()                  const { return _jvm_ident; }
@@ -312,7 +314,7 @@ public:
     return FileMapRegion::cast(&_space[i]);
   }
 
-  void populate(FileMapInfo* info, size_t alignment);
+  void populate(FileMapInfo* info, size_t core_region_alignment);
 
   static bool is_valid_region(int region) {
     return (0 <= region && region < NUM_CDS_REGIONS);
@@ -378,17 +380,21 @@ public:
   int    compute_header_crc()  const { return header()->compute_crc(); }
   void   set_header_crc(int crc)     { header()->set_crc(crc); }
   int    space_crc(int i)      const { return space_at(i)->crc(); }
-  void   populate_header(size_t alignment);
+  void   populate_header(size_t core_region_alignment);
   bool   validate_header();
   void   invalidate();
   int    crc()                 const { return header()->crc(); }
   int    version()             const { return header()->version(); }
-  size_t alignment()           const { return header()->alignment(); }
+  unsigned int magic()         const { return header()->magic(); }
   address narrow_oop_base()    const { return header()->narrow_oop_base(); }
   int     narrow_oop_shift()   const { return header()->narrow_oop_shift(); }
   uintx   max_heap_size()      const { return header()->max_heap_size(); }
   address narrow_klass_base()  const { return header()->narrow_klass_base(); }
   int     narrow_klass_shift() const { return header()->narrow_klass_shift(); }
+  size_t  core_region_alignment() const { return header()->core_region_alignment(); }
+
+  void   set_header_base_archive_name_size(size_t size)      { header()->set_base_archive_name_size(size); }
+  void   set_header_base_archive_is_default(bool is_default) { header()->set_base_archive_is_default(is_default); }
 
   CompressedOops::Mode narrow_oop_mode()      const { return header()->narrow_oop_mode(); }
   jshort app_module_paths_start_index()       const { return header()->app_module_paths_start_index(); }
@@ -542,6 +548,10 @@ public:
 
   void print(outputStream* st) {
     header()->print(st);
+  }
+
+  const char* vm_version() {
+    return header()->jvm_ident();
   }
 
  private:

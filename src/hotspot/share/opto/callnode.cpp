@@ -1716,17 +1716,27 @@ void SafePointNode::disconnect_from_root(PhaseIterGVN *igvn) {
 
 SafePointScalarObjectNode::SafePointScalarObjectNode(const TypeOopPtr* tp,
 #ifdef ASSERT
-                                                     AllocateNode* alloc,
+                                                     Node* alloc,
 #endif
                                                      uint first_index,
-                                                     uint n_fields) :
+                                                     uint n_fields,
+                                                     bool is_auto_box) :
   TypeNode(tp, 1), // 1 control input -- seems required.  Get from root.
   _first_index(first_index),
-  _n_fields(n_fields)
+  _n_fields(n_fields),
+  _is_auto_box(is_auto_box)
 #ifdef ASSERT
   , _alloc(alloc)
 #endif
 {
+#ifdef ASSERT
+  if (alloc != NULL && !alloc->is_Allocate()
+      && !(alloc->Opcode() == Op_VectorBox)
+      && (!alloc->is_CallStaticJava() || !alloc->as_CallStaticJava()->is_boxing_method())) {
+    alloc->dump();
+    assert(false, "unexpected call node");
+  }
+#endif
   init_class_id(Class_SafePointScalarObject);
 }
 
@@ -2272,7 +2282,7 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (can_reshape && EliminateLocks && !is_non_esc_obj() &&
       !obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
     //
-    // If we are locking an unescaped object, the lock/unlock is unnecessary
+    // If we are locking an non-escaped object, the lock/unlock is unnecessary
     //
     ConnectionGraph *cgr = phase->C->congraph();
     if (cgr != NULL && cgr->not_global_escape(obj_node())) {
@@ -2442,7 +2452,7 @@ Node *UnlockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (can_reshape && EliminateLocks && !is_non_esc_obj() &&
       !obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
     //
-    // If we are unlocking an unescaped object, the lock/unlock is unnecessary.
+    // If we are unlocking an non-escaped object, the lock/unlock is unnecessary.
     //
     ConnectionGraph *cgr = phase->C->congraph();
     if (cgr != NULL && cgr->not_global_escape(obj_node())) {

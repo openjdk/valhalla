@@ -28,6 +28,7 @@
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
+#include "runtime/registerMap.hpp"
 //#include "oops/oop.inline.hpp"
 
 // An InlineKlass is a specialized InstanceKlass for inline types.
@@ -157,7 +158,6 @@ class InlineKlass: public InstanceKlass {
   instanceOop allocate_instance_buffer(TRAPS);
 
   address data_for_oop(oop o) const;
-  oop oop_for_data(address data) const;
 
   // Query if this class promises atomicity one way or another
   bool is_atomic() { return is_naturally_atomic() || is_declared_atomic(); }
