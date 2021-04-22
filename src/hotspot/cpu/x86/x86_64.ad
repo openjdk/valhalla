@@ -10974,7 +10974,8 @@ instruct MoveL2D_reg_reg(regD dst, rRegL src) %{
 instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                   Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX <= 2 || !VM_Version::supports_avx512vlbw()));
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
+            (UseAVX <= 2 || !VM_Version::supports_avx512vlbw()));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11031,9 +11032,10 @@ instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 %}
 
 instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
-                  Universe dummy, rFlagsReg cr)
+                            Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only());
+  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
+            (UseAVX <= 2 || !VM_Version::supports_avx512vlbw()));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11081,7 +11083,7 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
   %}
   ins_encode %{
     __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
-                 $tmp$$XMMRegister, false, true, knoreg);
+                 $tmp$$XMMRegister, false, true);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -11090,9 +11092,8 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
                        Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() &&
-               UseAVX > 2 && VM_Version::supports_avx512vlbw() &&
-               !n->in(2)->bottom_type()->is_long()->is_con());
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
+            UseAVX > 2 && VM_Version::supports_avx512vlbw() && !n->in(2)->in(1)->bottom_type()->is_long()->is_con());
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
 
@@ -11143,7 +11144,67 @@ instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_Reg
   %}
   ins_encode %{
     __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
-                 $tmp$$XMMRegister, false, $ktmp$$KRegister);
+                 $tmp$$XMMRegister, false, false, $ktmp$$KRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct rep_stos_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+                                 Universe dummy, rFlagsReg cr)
+%{
+  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
+            UseAVX > 2 && VM_Version::supports_avx512vlbw() && !n->in(2)->in(1)->bottom_type()->is_long()->is_con());
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
+
+  format %{ $$template
+    $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
+    $$emit$$"cmp     InitArrayShortSize,rcx\n\t"
+    $$emit$$"jg      LARGE\n\t"
+    $$emit$$"dec     rcx\n\t"
+    $$emit$$"js      DONE\t# Zero length\n\t"
+    $$emit$$"mov     rax,(rdi,rcx,8)\t# LOOP\n\t"
+    $$emit$$"dec     rcx\n\t"
+    $$emit$$"jge     LOOP\n\t"
+    $$emit$$"jmp     DONE\n\t"
+    $$emit$$"# LARGE:\n\t"
+    if (UseFastStosb) {
+       $$emit$$"shlq    rcx,3\t# Convert doublewords to bytes\n\t"
+       $$emit$$"rep     stosb\t# Store rax to *rdi++ while rcx--\n\t"
+    } else if (UseXMMForObjInit) {
+       $$emit$$"mov     rdi,rax\n\t"
+       $$emit$$"vpxor   ymm0,ymm0,ymm0\n\t"
+       $$emit$$"jmpq    L_zero_64_bytes\n\t"
+       $$emit$$"# L_loop:\t# 64-byte LOOP\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"vmovdqu ymm0,0x20(rax)\n\t"
+       $$emit$$"add     0x40,rax\n\t"
+       $$emit$$"# L_zero_64_bytes:\n\t"
+       $$emit$$"sub     0x8,rcx\n\t"
+       $$emit$$"jge     L_loop\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jl      L_tail\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"add     0x20,rax\n\t"
+       $$emit$$"sub     0x4,rcx\n\t"
+       $$emit$$"# L_tail:\t# Clearing tail bytes\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jle     L_end\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"# L_sloop:\t# 8-byte short loop\n\t"
+       $$emit$$"vmovq   xmm0,(rax)\n\t"
+       $$emit$$"add     0x8,rax\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"jge     L_sloop\n\t"
+       $$emit$$"# L_end:\n\t"
+    } else {
+       $$emit$$"rep     stosq\t# Store rax to *rdi++ while rcx--\n\t"
+    }
+    $$emit$$"# DONE"
+  %}
+  ins_encode %{
+    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
+                 $tmp$$XMMRegister, false, true, $ktmp$$KRegister);
   %}
   ins_pipe(pipe_slow);
 %}
@@ -11152,7 +11213,8 @@ instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_Reg
 instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                         Universe dummy, rFlagsReg cr)
 %{
-  predicate(UseAVX <=2 && ((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only());
+  predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
+            UseAVX <= 2);
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11193,66 +11255,16 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
   %}
   ins_encode %{
     __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
-                 $tmp$$XMMRegister, true, false, knoreg);
-  %}
-  ins_pipe(pipe_slow);
-%}
-
-// Large ClearArray AVX512.
-instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
-                             Universe dummy, rFlagsReg cr)
-%{
-  predicate(UseAVX > 2 && ((ClearArrayNode*)n)->is_large());
-  match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
-
-  format %{ $$template
-    if (UseFastStosb) {
-       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
-       $$emit$$"shlq    rcx,3\t# Convert doublewords to bytes\n\t"
-       $$emit$$"rep     stosb\t# Store rax to *rdi++ while rcx--"
-    } else if (UseXMMForObjInit) {
-       $$emit$$"mov     rdi,rax\t# ClearArray:\n\t"
-       $$emit$$"vpxor   ymm0,ymm0,ymm0\n\t"
-       $$emit$$"jmpq    L_zero_64_bytes\n\t"
-       $$emit$$"# L_loop:\t# 64-byte LOOP\n\t"
-       $$emit$$"vmovdqu ymm0,(rax)\n\t"
-       $$emit$$"vmovdqu ymm0,0x20(rax)\n\t"
-       $$emit$$"add     0x40,rax\n\t"
-       $$emit$$"# L_zero_64_bytes:\n\t"
-       $$emit$$"sub     0x8,rcx\n\t"
-       $$emit$$"jge     L_loop\n\t"
-       $$emit$$"add     0x4,rcx\n\t"
-       $$emit$$"jl      L_tail\n\t"
-       $$emit$$"vmovdqu ymm0,(rax)\n\t"
-       $$emit$$"add     0x20,rax\n\t"
-       $$emit$$"sub     0x4,rcx\n\t"
-       $$emit$$"# L_tail:\t# Clearing tail bytes\n\t"
-       $$emit$$"add     0x4,rcx\n\t"
-       $$emit$$"jle     L_end\n\t"
-       $$emit$$"dec     rcx\n\t"
-       $$emit$$"# L_sloop:\t# 8-byte short loop\n\t"
-       $$emit$$"vmovq   xmm0,(rax)\n\t"
-       $$emit$$"add     0x8,rax\n\t"
-       $$emit$$"dec     rcx\n\t"
-       $$emit$$"jge     L_sloop\n\t"
-       $$emit$$"# L_end:\n\t"
-    } else {
-       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
-       $$emit$$"rep     stosq\t# Store rax to *rdi++ while rcx--"
-    }
-  %}
-  ins_encode %{
-    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
-                 $tmp$$XMMRegister, true, $ktmp$$KRegister);
+                 $tmp$$XMMRegister, true, false);
   %}
   ins_pipe(pipe_slow);
 %}
 
 instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
-                        Universe dummy, rFlagsReg cr)
+                                  Universe dummy, rFlagsReg cr)
 %{
-  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only());
+  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
+            UseAVX <= 2);
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11295,13 +11307,114 @@ instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_Reg
   ins_pipe(pipe_slow);
 %}
 
+// Large ClearArray AVX512.
+instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+                             Universe dummy, rFlagsReg cr)
+%{
+  predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
+            UseAVX > 2);
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
+
+  format %{ $$template
+    if (UseFastStosb) {
+       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
+       $$emit$$"shlq    rcx,3\t# Convert doublewords to bytes\n\t"
+       $$emit$$"rep     stosb\t# Store rax to *rdi++ while rcx--"
+    } else if (UseXMMForObjInit) {
+       $$emit$$"mov     rdi,rax\t# ClearArray:\n\t"
+       $$emit$$"vpxor   ymm0,ymm0,ymm0\n\t"
+       $$emit$$"jmpq    L_zero_64_bytes\n\t"
+       $$emit$$"# L_loop:\t# 64-byte LOOP\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"vmovdqu ymm0,0x20(rax)\n\t"
+       $$emit$$"add     0x40,rax\n\t"
+       $$emit$$"# L_zero_64_bytes:\n\t"
+       $$emit$$"sub     0x8,rcx\n\t"
+       $$emit$$"jge     L_loop\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jl      L_tail\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"add     0x20,rax\n\t"
+       $$emit$$"sub     0x4,rcx\n\t"
+       $$emit$$"# L_tail:\t# Clearing tail bytes\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jle     L_end\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"# L_sloop:\t# 8-byte short loop\n\t"
+       $$emit$$"vmovq   xmm0,(rax)\n\t"
+       $$emit$$"add     0x8,rax\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"jge     L_sloop\n\t"
+       $$emit$$"# L_end:\n\t"
+    } else {
+       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
+       $$emit$$"rep     stosq\t# Store rax to *rdi++ while rcx--"
+    }
+  %}
+  ins_encode %{
+    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
+                 $tmp$$XMMRegister, true, false, $ktmp$$KRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct rep_stos_large_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+                                       Universe dummy, rFlagsReg cr)
+%{
+  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
+            UseAVX > 2);
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
+
+  format %{ $$template
+    if (UseFastStosb) {
+       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
+       $$emit$$"shlq    rcx,3\t# Convert doublewords to bytes\n\t"
+       $$emit$$"rep     stosb\t# Store rax to *rdi++ while rcx--"
+    } else if (UseXMMForObjInit) {
+       $$emit$$"mov     rdi,rax\t# ClearArray:\n\t"
+       $$emit$$"vpxor   ymm0,ymm0,ymm0\n\t"
+       $$emit$$"jmpq    L_zero_64_bytes\n\t"
+       $$emit$$"# L_loop:\t# 64-byte LOOP\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"vmovdqu ymm0,0x20(rax)\n\t"
+       $$emit$$"add     0x40,rax\n\t"
+       $$emit$$"# L_zero_64_bytes:\n\t"
+       $$emit$$"sub     0x8,rcx\n\t"
+       $$emit$$"jge     L_loop\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jl      L_tail\n\t"
+       $$emit$$"vmovdqu ymm0,(rax)\n\t"
+       $$emit$$"add     0x20,rax\n\t"
+       $$emit$$"sub     0x4,rcx\n\t"
+       $$emit$$"# L_tail:\t# Clearing tail bytes\n\t"
+       $$emit$$"add     0x4,rcx\n\t"
+       $$emit$$"jle     L_end\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"# L_sloop:\t# 8-byte short loop\n\t"
+       $$emit$$"vmovq   xmm0,(rax)\n\t"
+       $$emit$$"add     0x8,rax\n\t"
+       $$emit$$"dec     rcx\n\t"
+       $$emit$$"jge     L_sloop\n\t"
+       $$emit$$"# L_end:\n\t"
+    } else {
+       $$emit$$"xorq    rax, rax\t# ClearArray:\n\t"
+       $$emit$$"rep     stosq\t# Store rax to *rdi++ while rcx--"
+    }
+  %}
+  ins_encode %{
+    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
+                 $tmp$$XMMRegister, true, true, $ktmp$$KRegister);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
 // Small ClearArray AVX512 constant length.
 instruct rep_stos_im(immL cnt, rRegP base, regD tmp, rax_RegL val, kReg ktmp, Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() &&
-            !((ClearArrayNode*)n)->word_copy_only() &&
-              (UseAVX > 2 && VM_Version::supports_avx512vlbw() &&
-               n->in(2)->bottom_type()->is_long()->is_con()));
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
+            (UseAVX > 2 && VM_Version::supports_avx512vlbw() && n->in(2)->in(1)->bottom_type()->is_long()->is_con()));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(TEMP tmp, USE_KILL val, TEMP ktmp, KILL cr);
   format %{ "clear_mem_imm $base , $cnt  \n\t" %}
