@@ -139,7 +139,9 @@ public class QTypeDescriptorTest {
     @Test(dataProvider = "descriptors")
     public static void testDescriptors(Class<?> defc, String name, Class<?>[] params, boolean found) throws Exception {
         try {
-            defc.getDeclaredMethod(name, params);
+            // TODO: methods are in the reference projection
+            Class<?> declaringClass = defc /* defc.referenceType().get() */;
+            declaringClass.getDeclaredMethod(name, params);
             if (!found) throw new AssertionError("Expected NoSuchMethodException");
         } catch (NoSuchMethodException e) {
             if (found) throw e;
