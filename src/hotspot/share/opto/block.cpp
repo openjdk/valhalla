@@ -1249,12 +1249,9 @@ void PhaseCFG::verify() const {
           assert(def_block || def->is_Con(), "must have block; constants for debug info ok");
           // Verify that all definitions dominate their uses (except for virtual
           // instructions merging multiple definitions).
-          // TODO re-enable
-          /*
           assert(n->is_Root() || n->is_Region() || n->is_Phi() || n->is_MachMerge() ||
                  def_block->dominates(block),
                  "uses must be dominated by definitions");
-          */
           // Verify that instructions in the block are in correct order.
           // Uses must follow their definition if they are at the same block.
           // Mostly done to check that MachSpillCopy nodes are placed correctly
