@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2015, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -110,5 +110,7 @@ using MacroAssembler::null_check;
   void null_check(Register r, Label *Lnull = NULL) { MacroAssembler::null_check(r); }
 
   void load_parameter(int offset_in_words, Register reg);
+
+  void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
 
 #endif // CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP

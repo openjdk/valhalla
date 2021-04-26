@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @bug 8244711
+ * @bug 8244711 8244712
  * @summary Test that inline types work well with enhanced for loop.
  * @run main EnhancedForLoopTest
  */
@@ -34,7 +34,35 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 
+/* This test covers/verifies that the asSuper calls in
+
+   com.sun.tools.javac.comp.Lower.visitIterableForeachLoop
+   com.sun.tools.javac.comp.Attr#visitForeachLoop
+
+   work properly with primitive class types.
+*/
+
 public class EnhancedForLoopTest {
+
+    static primitive class PrimitiveIterator<V> implements Iterator<V> {
+
+        Iterator<V> iv;
+
+        public PrimitiveIterator(List<V> lv) {
+            this.iv = lv.iterator();
+        }
+
+        @Override
+        public boolean hasNext() {
+            return iv.hasNext();
+        }
+
+        @Override
+        public V next() {
+            return iv.next();
+        }
+
+    }
 
     primitive static class Foo<V> implements Iterable<V> {
 
@@ -48,8 +76,8 @@ public class EnhancedForLoopTest {
             lv.add(v);
         }
 
-        public Iterator<V> iterator() {
-            return lv.iterator();
+       public PrimitiveIterator<V> iterator() {
+            return new PrimitiveIterator<V>(lv);
         }
     }
 

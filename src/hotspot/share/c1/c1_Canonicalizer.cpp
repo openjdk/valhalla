@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -242,8 +242,13 @@ void Canonicalizer::do_ArrayLength    (ArrayLength*     x) {
     // with same value Otherwise a Constant is live over multiple
     // blocks without being registered in a state array.
     Constant* length;
+    NewMultiArray* nma;
     if (na->length() != NULL &&
         (length = na->length()->as_Constant()) != NULL) {
+      assert(length->type()->as_IntConstant() != NULL, "array length must be integer");
+      set_constant(length->type()->as_IntConstant()->value());
+    } else if ((nma = x->array()->as_NewMultiArray()) != NULL &&
+               (length = nma->dims()->at(0)->as_Constant()) != NULL) {
       assert(length->type()->as_IntConstant() != NULL, "array length must be integer");
       set_constant(length->type()->as_IntConstant()->value());
     }
@@ -646,8 +651,7 @@ void Canonicalizer::do_NewObjectArray (NewObjectArray*  x) {}
 void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
 void Canonicalizer::do_Deoptimize     (Deoptimize*      x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
-  if (x->klass()->is_loaded() && !x->klass()->is_inlinetype()) {
-    // Don't canonicalize for non-nullable types -- we need to throw NPE.
+  if (x->klass()->is_loaded()) {
     Value obj = x->obj();
     ciType* klass = obj->exact_type();
     if (klass == NULL) {
@@ -659,12 +663,13 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
       // Interface casts can't be statically optimized away since verifier doesn't
       // enforce interface types in bytecode.
       if (!is_interface && klass->is_subtype_of(x->klass())) {
+        assert(!x->klass()->is_inlinetype() || x->klass() == klass, "Inline klasses can't have subtypes");
         set_canonical(obj);
         return;
       }
     }
-    // checkcast of null returns null
-    if (obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    // checkcast of null returns null for non-inline klasses
+    if (!x->klass()->is_inlinetype() && obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
       set_canonical(obj);
     }
   }

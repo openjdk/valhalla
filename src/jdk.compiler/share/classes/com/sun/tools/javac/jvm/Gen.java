@@ -2275,8 +2275,8 @@ public class Gen extends JCTree.Visitor {
         // inline widening conversion is a nop, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.tsym.isReferenceProjection() || tree.clazz.type.tsym.valueProjection() != tree.expr.type.tsym) &&
-           types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
+            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
+           !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
                 code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
@@ -2348,16 +2348,6 @@ public class Gen extends JCTree.Visitor {
             code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
             result = items.makeStackItem(pt);
             return;
-        } else if (tree.name == names._default) {
-            if (tree.type.asElement().isPrimitiveClass()) {
-                code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
-            } else if (tree.type.isReference()) {
-                code.emitop0(aconst_null);
-            } else {
-                code.emitop0(zero(Code.typecode(tree.type)));
-            }
-            result = items.makeStackItem(tree.type);
-            return;
         }
 
         Symbol ssym = TreeInfo.symbol(tree.selected);
@@ -2412,6 +2402,18 @@ public class Gen extends JCTree.Visitor {
                 }
             }
         }
+    }
+
+    public void visitDefaultValue(JCDefaultValue tree) {
+        if (tree.type.asElement().isPrimitiveClass()) {
+            code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+        } else if (tree.type.isReference()) {
+            code.emitop0(aconst_null);
+        } else {
+            code.emitop0(zero(Code.typecode(tree.type)));
+        }
+        result = items.makeStackItem(tree.type);
+        return;
     }
 
     public boolean isInvokeDynamic(Symbol sym) {

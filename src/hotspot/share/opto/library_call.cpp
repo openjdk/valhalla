@@ -51,7 +51,6 @@
 #include "opto/runtime.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
-#include "prims/nativeLookup.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/objectMonitor.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -109,7 +108,9 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
 #endif
   ciMethod* callee = kit.callee();
   const int bci    = kit.bci();
-
+#ifdef ASSERT
+  Node* ctrl = kit.control();
+#endif
   // Try to inline the intrinsic.
   if ((CheckIntrinsics ? callee->intrinsic_candidate() : true) &&
       kit.try_to_inline(_last_predicate)) {
@@ -133,6 +134,7 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
   }
 
   // The intrinsic bailed out
+  assert(ctrl == kit.control(), "Control flow was added although the intrinsic bailed out");
   if (jvms->has_method()) {
     // Not a root compile.
     const char* msg;
@@ -1275,7 +1277,7 @@ bool LibraryCallKit::inline_string_copy(bool compress) {
 
   // Check for allocation before we add nodes that would confuse
   // tightly_coupled_allocation()
-  AllocateArrayNode* alloc = tightly_coupled_allocation(dst, NULL);
+  AllocateArrayNode* alloc = tightly_coupled_allocation(dst);
 
   // Figure out the size and type of the elements we will be copying.
   const Type* src_type = src->Value(&_gvn);
@@ -1392,7 +1394,8 @@ bool LibraryCallKit::inline_string_toBytesU() {
     Node* size = _gvn.transform(new LShiftINode(length, intcon(1)));
     Node* klass_node = makecon(TypeKlassPtr::make(ciTypeArrayKlass::make(T_BYTE)));
     newcopy = new_array(klass_node, size, 0);  // no arguments to push
-    AllocateArrayNode* alloc = tightly_coupled_allocation(newcopy, NULL);
+    AllocateArrayNode* alloc = tightly_coupled_allocation(newcopy);
+    guarantee(alloc != NULL, "created above");
 
     // Calculate starting addresses.
     Node* src_start = array_element_address(value, offset, T_CHAR);
@@ -1410,26 +1413,22 @@ bool LibraryCallKit::inline_string_toBytesU() {
                       copyfunc_addr, copyfunc_name, TypeRawPtr::BOTTOM,
                       src_start, dst_start, ConvI2X(length) XTOP);
     // Do not let reads from the cloned object float above the arraycopy.
-    if (alloc != NULL) {
-      if (alloc->maybe_set_complete(&_gvn)) {
-        // "You break it, you buy it."
-        InitializeNode* init = alloc->initialization();
-        assert(init->is_complete(), "we just did this");
-        init->set_complete_with_arraycopy();
-        assert(newcopy->is_CheckCastPP(), "sanity");
-        assert(newcopy->in(0)->in(0) == init, "dest pinned");
-      }
-      // Do not let stores that initialize this object be reordered with
-      // a subsequent store that would make this object accessible by
-      // other threads.
-      // Record what AllocateNode this StoreStore protects so that
-      // escape analysis can go from the MemBarStoreStoreNode to the
-      // AllocateNode and eliminate the MemBarStoreStoreNode if possible
-      // based on the escape status of the AllocateNode.
-      insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
-    } else {
-      insert_mem_bar(Op_MemBarCPUOrder);
+    if (alloc->maybe_set_complete(&_gvn)) {
+      // "You break it, you buy it."
+      InitializeNode* init = alloc->initialization();
+      assert(init->is_complete(), "we just did this");
+      init->set_complete_with_arraycopy();
+      assert(newcopy->is_CheckCastPP(), "sanity");
+      assert(newcopy->in(0)->in(0) == init, "dest pinned");
     }
+    // Do not let stores that initialize this object be reordered with
+    // a subsequent store that would make this object accessible by
+    // other threads.
+    // Record what AllocateNode this StoreStore protects so that
+    // escape analysis can go from the MemBarStoreStoreNode to the
+    // AllocateNode and eliminate the MemBarStoreStoreNode if possible
+    // based on the escape status of the AllocateNode.
+    insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
   } // original reexecute is set back here
 
   C->set_has_split_ifs(true); // Has chance for split-if optimization
@@ -1457,7 +1456,7 @@ bool LibraryCallKit::inline_string_getCharsU() {
 
   // Check for allocation before we add nodes that would confuse
   // tightly_coupled_allocation()
-  AllocateArrayNode* alloc = tightly_coupled_allocation(dst, NULL);
+  AllocateArrayNode* alloc = tightly_coupled_allocation(dst);
 
   // Check if a null path was taken unconditionally.
   src = null_check(src);
@@ -2203,15 +2202,12 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   Node* receiver = argument(0);  // type: oop
 
   // Build address expression.
-  Node* adr;
   Node* heap_base_oop = top();
-  Node* offset = top();
-  Node* val;
 
   // The base is either a Java object or a value produced by Unsafe.staticFieldBase
   Node* base = argument(1);  // type: oop
   // The offset is a value produced by Unsafe.staticFieldOffset or Unsafe.objectFieldOffset
-  offset = argument(2);  // type: long
+  Node* offset = argument(2);  // type: long
   // We currently rely on the cookies produced by Unsafe.xxxFieldOffset
   // to be plain byte offsets, which are also the same as those accepted
   // by oopDesc::field_addr.
@@ -2267,12 +2263,19 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   // 32-bit machines ignore the high half!
   offset = ConvL2X(offset);
-  adr = make_unsafe_address(base, offset, is_store ? ACCESS_WRITE : ACCESS_READ, type, kind == Relaxed);
+
+  // Save state and restore on bailout
+  uint old_sp = sp();
+  SafePointNode* old_map = clone_map();
+
+  Node* adr = make_unsafe_address(base, offset, is_store ? ACCESS_WRITE : ACCESS_READ, type, kind == Relaxed);
 
   if (_gvn.type(base)->isa_ptr() == TypePtr::NULL_PTR) {
     if (type != T_OBJECT && (inline_klass == NULL || !inline_klass->has_object_fields())) {
       decorators |= IN_NATIVE; // off-heap primitive access
     } else {
+      set_map(old_map);
+      set_sp(old_sp);
       return false; // off-heap oop accesses are not supported
     }
   } else {
@@ -2286,10 +2289,12 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     decorators |= IN_HEAP;
   }
 
-  val = is_store ? argument(4 + (type == T_INLINE_TYPE ? 1 : 0)) : NULL;
+  Node* val = is_store ? argument(4 + (type == T_INLINE_TYPE ? 1 : 0)) : NULL;
 
   const TypePtr* adr_type = _gvn.type(adr)->isa_ptr();
   if (adr_type == TypePtr::NULL_PTR) {
+    set_map(old_map);
+    set_sp(old_sp);
     return false; // off-heap access with zero address
   }
 
@@ -2299,6 +2304,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   if (alias_type->adr_type() == TypeInstPtr::KLASS ||
       alias_type->adr_type() == TypeAryPtr::RANGE) {
+    set_map(old_map);
+    set_sp(old_sp);
     return false; // not supported
   }
 
@@ -2341,6 +2348,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     if ((bt == T_OBJECT) != (type == T_OBJECT)) {
       // Don't intrinsify mismatched object accesses
+      set_map(old_map);
+      set_sp(old_sp);
       return false;
     }
     mismatched = (bt != type);
@@ -2364,11 +2373,14 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (is_store) {
       const Type* val_t = _gvn.type(val);
       if (!val_t->isa_inlinetype() || val_t->inline_klass() != inline_klass) {
+        set_map(old_map);
+        set_sp(old_sp);
         return false;
       }
     }
   }
 
+  old_map->destruct(&_gvn);
   assert(!mismatched || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
   if (mismatched) {
@@ -2677,6 +2689,9 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   assert(Unsafe_field_offset_to_byte_offset(11) == 11, "fieldOffset must be byte-scaled");
   // 32-bit machines ignore the high half of long offsets
   offset = ConvL2X(offset);
+  // Save state and restore on bailout
+  uint old_sp = sp();
+  SafePointNode* old_map = clone_map();
   Node* adr = make_unsafe_address(base, offset, ACCESS_WRITE | ACCESS_READ, type, false);
   const TypePtr *adr_type = _gvn.type(adr)->isa_ptr();
 
@@ -2685,8 +2700,12 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   if (bt != T_ILLEGAL &&
       (is_reference_type(bt) != (type == T_OBJECT))) {
     // Don't intrinsify mismatched object accesses.
+    set_map(old_map);
+    set_sp(old_sp);
     return false;
   }
+
+  old_map->destruct(&_gvn);
 
   // For CAS, unlike inline_unsafe_access, there seems no point in
   // trying to refine types. Just use the coarse types here.
@@ -4439,8 +4458,8 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
             PreserveJVMState pjvms2(this);
             set_control(is_obja);
             // Generate a direct call to the right arraycopy function(s).
-            Node* alloc = tightly_coupled_allocation(alloc_obj, NULL);
-            ArrayCopyNode* ac = ArrayCopyNode::make(this, true, obj, intcon(0), alloc_obj, intcon(0), obj_length, alloc != NULL, false);
+            // Clones are always tightly coupled.
+            ArrayCopyNode* ac = ArrayCopyNode::make(this, true, obj, intcon(0), alloc_obj, intcon(0), obj_length, true, false);
             ac->set_clone_oop_array();
             Node* n = _gvn.transform(ac);
             assert(n == ac, "cannot disappear");
@@ -4688,7 +4707,7 @@ bool LibraryCallKit::inline_arraycopy() {
 
   // Check for allocation before we add nodes that would confuse
   // tightly_coupled_allocation()
-  AllocateArrayNode* alloc = tightly_coupled_allocation(dest, NULL);
+  AllocateArrayNode* alloc = tightly_coupled_allocation(dest);
 
   int saved_reexecute_sp = -1;
   JVMState* saved_jvms = arraycopy_restore_alloc_state(alloc, saved_reexecute_sp);
@@ -4724,7 +4743,7 @@ bool LibraryCallKit::inline_arraycopy() {
     // account: the null check is mandatory and if it caused an
     // uncommon trap to be emitted then the allocation can't be
     // considered tightly coupled in this context.
-    alloc = tightly_coupled_allocation(dest, NULL);
+    alloc = tightly_coupled_allocation(dest);
   }
 
   bool validated = false;
@@ -4961,8 +4980,7 @@ bool LibraryCallKit::inline_arraycopy() {
 // Helper function which determines if an arraycopy immediately follows
 // an allocation, with no intervening tests or other escapes for the object.
 AllocateArrayNode*
-LibraryCallKit::tightly_coupled_allocation(Node* ptr,
-                                           RegionNode* slow_region) {
+LibraryCallKit::tightly_coupled_allocation(Node* ptr) {
   if (stopped())             return NULL;  // no fast path
   if (C->AliasLevel() == 0)  return NULL;  // no MergeMems around
 
@@ -5000,10 +5018,6 @@ LibraryCallKit::tightly_coupled_allocation(Node* ptr,
       IfNode* iff = ctl->in(0)->as_If();
       Node* not_ctl = iff->proj_out_or_null(1 - ctl->as_Proj()->_con);
       assert(not_ctl != NULL && not_ctl != ctl, "found alternate");
-      if (slow_region != NULL && slow_region->find_edge(not_ctl) >= 1) {
-        ctl = iff->in(0);       // This test feeds the known slow_region.
-        continue;
-      }
       // One more try:  Various low-level checks bottom out in
       // uncommon traps.  If the debug-info of the trap omits
       // any reference to the allocation, as we've already

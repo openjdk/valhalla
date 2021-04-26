@@ -200,7 +200,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
         // Print fields of inlined fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
         int field_offset = offset() - vk->first_field_offset();
-        obj = (oop)(cast_from_oop<address>(obj) + field_offset);
+        obj = cast_to_oop(cast_from_oop<address>(obj) + field_offset);
         st->print_cr("Inline type field inlined '%s':", vk->name()->as_C_string());
         FieldPrinter print_field(st, obj);
         vk->do_nonstatic_fields(&print_field);

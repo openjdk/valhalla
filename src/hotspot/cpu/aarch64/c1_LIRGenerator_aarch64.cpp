@@ -181,10 +181,10 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
     if (large_disp != 0) {
       LIR_Opr tmp = new_pointer_register();
       if (Assembler::operand_valid_for_add_sub_immediate(large_disp)) {
-        __ add(tmp, tmp, LIR_OprFact::intptrConst(large_disp));
+        __ add(index, LIR_OprFact::intptrConst(large_disp), tmp);
         index = tmp;
       } else {
-        __ move(tmp, LIR_OprFact::intptrConst(large_disp));
+        __ move(LIR_OprFact::intptrConst(large_disp), tmp);
         __ add(tmp, index, tmp);
         index = tmp;
       }
@@ -198,7 +198,7 @@ LIR_Address* LIRGenerator::generate_address(LIR_Opr base, LIR_Opr index,
   }
 
   // at this point we either have base + index or base + displacement
-  if (large_disp == 0) {
+  if (large_disp == 0 && index->is_register()) {
     return new LIR_Address(base, index, type);
   } else {
     assert(Address::offset_ok_for_immed(large_disp, 0), "must be");
@@ -1157,26 +1157,28 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   CodeEmitInfo* info = state_for(x, x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
-                       FrameMap::r2_oop_opr,
-                       FrameMap::r5_oop_opr,
-                       FrameMap::r4_oop_opr,
-                       LIR_OprFact::illegalOpr,
-                       FrameMap::r3_metadata_opr, info);
+               /* allow_inline */ false,
+               FrameMap::r2_oop_opr,
+               FrameMap::r5_oop_opr,
+               FrameMap::r4_oop_opr,
+               LIR_OprFact::illegalOpr,
+               FrameMap::r3_metadata_opr, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
 }
 
 void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
-  // Mapping to do_NewInstance (same code)
-  CodeEmitInfo* info = state_for(x, x->state());
+  // Mapping to do_NewInstance (same code) but use state_before for reexecution.
+  CodeEmitInfo* info = state_for(x, x->state_before());
   x->set_to_object_type();
   LIR_Opr reg = result_register_for(x->type());
-  new_instance(reg, x->klass(), x->is_unresolved(),
-             FrameMap::r2_oop_opr,
-             FrameMap::r5_oop_opr,
-             FrameMap::r4_oop_opr,
-             LIR_OprFact::illegalOpr,
-             FrameMap::r3_metadata_opr, info);
+  new_instance(reg, x->klass(), false,
+               /* allow_inline */ true,
+               FrameMap::r2_oop_opr,
+               FrameMap::r5_oop_opr,
+               FrameMap::r4_oop_opr,
+               LIR_OprFact::illegalOpr,
+               FrameMap::r3_metadata_opr, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
 
@@ -1419,7 +1421,12 @@ void LIRGenerator::do_If(If* x) {
     __ safepoint(LIR_OprFact::illegalOpr, state_for(x, x->state_before()));
   }
 
-  __ cmp(lir_cond(cond), left, right);
+  if (x->substitutability_check()) {
+    substitutability_check(x, *xin, *yin);
+  } else {
+    __ cmp(lir_cond(cond), left, right);
+  }
+
   // Generate branch profiling. Profiling code doesn't kill flags.
   profile_branch(x, cond);
   move_to_phi(x->state());

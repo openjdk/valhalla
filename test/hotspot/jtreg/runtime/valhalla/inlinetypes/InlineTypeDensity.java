@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @summary Heap density test for InlineTypes
  * @library /test/lib
  * @compile -XDallowWithFieldOperator InlineTypeDensity.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity

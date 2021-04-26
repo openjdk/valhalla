@@ -1,3 +1,3 @@
-OverloadingPhaseTest.java:26:24: compiler.err.ref.ambiguous: roo, kindname.method, roo(OverloadingPhaseTest.V$ref,int), OverloadingPhaseTest, kindname.method, roo(OverloadingPhaseTest.V$ref,java.lang.Integer), OverloadingPhaseTest
-OverloadingPhaseTest.java:28:24: compiler.err.ref.ambiguous: roo, kindname.method, roo(OverloadingPhaseTest.V$ref,int), OverloadingPhaseTest, kindname.method, roo(OverloadingPhaseTest.V$ref,java.lang.Integer), OverloadingPhaseTest
+OverloadingPhaseTest.java:26:24: compiler.err.ref.ambiguous: roo, kindname.method, roo(OverloadingPhaseTest.V.ref,int), OverloadingPhaseTest, kindname.method, roo(OverloadingPhaseTest.V.ref,java.lang.Integer), OverloadingPhaseTest
+OverloadingPhaseTest.java:28:24: compiler.err.ref.ambiguous: roo, kindname.method, roo(OverloadingPhaseTest.V.ref,int), OverloadingPhaseTest, kindname.method, roo(OverloadingPhaseTest.V.ref,java.lang.Integer), OverloadingPhaseTest
 2 errors

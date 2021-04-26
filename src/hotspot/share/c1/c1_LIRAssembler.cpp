@@ -32,6 +32,7 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -331,7 +332,6 @@ void LIR_Assembler::check_no_unbound_labels() {
 
 //----------------------------------debug info--------------------------------
 
-
 void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
   int pc_offset = code_offset();
   flush_debug_info(pc_offset);
@@ -340,7 +340,6 @@ void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
     compilation()->add_exception_handlers_for_pco(pc_offset, info->exception_handlers());
   }
 }
-
 
 void LIR_Assembler::add_call_info(int pc_offset, CodeEmitInfo* cinfo, bool maybe_return_as_fields) {
   flush_debug_info(pc_offset);
@@ -473,9 +472,6 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
   case lir_icvirtual_call:
     ic_call(op);
     break;
-  case lir_virtual_call:
-    vtable_call(op);
-    break;
   default:
     fatal("unexpected op code: %s", op->name());
     break;
@@ -487,7 +483,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     compilation()->set_has_method_handle_invokes(true);
   }
 
-  ciInlineKlass* vk;
+  ciInlineKlass* vk = NULL;
   if (op->maybe_return_as_fields(&vk)) {
     int offset = store_inline_type_fields_to_buf(vk);
     add_call_info(offset, op->info(), true);

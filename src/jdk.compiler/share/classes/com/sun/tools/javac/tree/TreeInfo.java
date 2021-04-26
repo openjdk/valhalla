@@ -487,6 +487,8 @@ public class TreeInfo {
             }
             case CONDEXPR:
                 return getStartPos(((JCConditional) tree).cond);
+            case DEFAULT_VALUE:
+                return getStartPos(((JCDefaultValue) tree).clazz);
             case EXEC:
                 return getStartPos(((JCExpressionStatement) tree).expr);
             case INDEXED:
@@ -1037,7 +1039,7 @@ public class TreeInfo {
      */
     public static long firstFlag(long flags) {
         long flag = 1;
-        while ((flag & flags & ExtendedStandardFlags) == 0)
+        while ((flag & flags) == 0)
             flag = flag << 1;
         return flag;
     }

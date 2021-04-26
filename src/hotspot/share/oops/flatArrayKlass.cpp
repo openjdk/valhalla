@@ -448,7 +448,7 @@ void FlatArrayKlass::oop_print_on(oop obj, outputStream* st) {
   for(int index = 0; index < print_len; index++) {
     int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);
     st->print_cr(" - Index %3d offset %3d: ", index, off);
-    oop obj = (oop) ((address)va->value_at_addr(index, layout_helper()) - vk->first_field_offset());
+    oop obj = cast_to_oop((address)va->value_at_addr(index, layout_helper()) - vk->first_field_offset());
     FieldPrinter print_field(st, obj);
     vk->do_nonstatic_fields(&print_field);
     st->cr();

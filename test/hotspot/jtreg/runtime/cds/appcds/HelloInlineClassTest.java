@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,10 +28,11 @@
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
  * @build HelloInlineClassApp
- * @run driver ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref HelloInlineClassApp$Rectangle HelloInlineClassApp$Rectangle$ref
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref HelloInlineClassApp$Rectangle HelloInlineClassApp$Rectangle$ref
  * @run driver HelloInlineClassTest
  */
 
+import jdk.test.lib.helpers.ClassFileInstaller;
 import jdk.test.lib.process.OutputAnalyzer;
 
 public class HelloInlineClassTest {

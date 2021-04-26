@@ -71,17 +71,17 @@ public class BridgeShouldHaveNoInteriorAnnotationsTest
     };
 
 
-    // Expected output can't be directly encoded into NestedLambdasCastedTest !!!
+    // Expected output can't be directly encoded into BridgeShouldHaveNoInteriorAnnotationsTest !!!
     static class OutputExpectedOnceHolder {
         public String[] outputs = {
-            "0: #120(): CAST, offset=1, type_index=0, location=[TYPE_ARGUMENT(0)]",
-            "1: #120(): LOCAL_VARIABLE, {start_pc=5, length=2, index=1}, location=[TYPE_ARGUMENT(0)]",
+            "0: #118(): CAST, offset=1, type_index=0, location=[TYPE_ARGUMENT(0)]",
+            "1: #118(): LOCAL_VARIABLE, {start_pc=2, length=2, index=1}, location=[TYPE_ARGUMENT(0)]",
         };
     }
 
     static class OutputExpectedTwiceHolder {
         public String[] outputs = {
-            "0: #120(): METHOD_RETURN, location=[TYPE_ARGUMENT(0)]",
+            "0: #118(): METHOD_RETURN, location=[TYPE_ARGUMENT(0)]",
         };
     }
 

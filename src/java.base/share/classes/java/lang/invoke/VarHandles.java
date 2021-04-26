@@ -374,9 +374,9 @@ final class VarHandles {
     }
 
     public static VarHandle filterValue(VarHandle target, MethodHandle filterToTarget, MethodHandle filterFromTarget) {
-        Objects.nonNull(target);
-        Objects.nonNull(filterToTarget);
-        Objects.nonNull(filterFromTarget);
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(filterToTarget);
+        Objects.requireNonNull(filterFromTarget);
         //check that from/to filters do not throw checked exceptions
         noCheckedExceptions(filterToTarget);
         noCheckedExceptions(filterFromTarget);
@@ -473,8 +473,8 @@ final class VarHandles {
     }
 
     public static VarHandle filterCoordinates(VarHandle target, int pos, MethodHandle... filters) {
-        Objects.nonNull(target);
-        Objects.nonNull(filters);
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(filters);
 
         List<Class<?>> targetCoordinates = target.coordinateTypes();
         if (pos < 0 || pos >= targetCoordinates.size()) {
@@ -502,8 +502,8 @@ final class VarHandles {
     }
 
     public static VarHandle insertCoordinates(VarHandle target, int pos, Object... values) {
-        Objects.nonNull(target);
-        Objects.nonNull(values);
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(values);
 
         List<Class<?>> targetCoordinates = target.coordinateTypes();
         if (pos < 0 || pos >= targetCoordinates.size()) {
@@ -531,9 +531,9 @@ final class VarHandles {
     }
 
     public static VarHandle permuteCoordinates(VarHandle target, List<Class<?>> newCoordinates, int... reorder) {
-        Objects.nonNull(target);
-        Objects.nonNull(newCoordinates);
-        Objects.nonNull(reorder);
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(newCoordinates);
+        Objects.requireNonNull(reorder);
 
         List<Class<?>> targetCoordinates = target.coordinateTypes();
         MethodHandles.permuteArgumentChecks(reorder,
@@ -579,8 +579,8 @@ final class VarHandles {
     }
 
     public static VarHandle collectCoordinates(VarHandle target, int pos, MethodHandle filter) {
-        Objects.nonNull(target);
-        Objects.nonNull(filter);
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(filter);
         noCheckedExceptions(filter);
 
         List<Class<?>> targetCoordinates = target.coordinateTypes();
@@ -601,8 +601,8 @@ final class VarHandles {
     }
 
     public static VarHandle dropCoordinates(VarHandle target, int pos, Class<?>... valueTypes) {
-        Objects.nonNull(target);
-        Objects.nonNull(valueTypes);
+        Objects.requireNonNull(target);
+        Objects.requireNonNull(valueTypes);
 
         List<Class<?>> targetCoordinates = target.coordinateTypes();
         if (pos < 0 || pos > targetCoordinates.size()) {
@@ -619,8 +619,7 @@ final class VarHandles {
     }
 
     private static void noCheckedExceptions(MethodHandle handle) {
-        if (handle instanceof DirectMethodHandle) {
-            DirectMethodHandle directHandle = (DirectMethodHandle)handle;
+        if (handle instanceof DirectMethodHandle directHandle) {
             byte refKind = directHandle.member.getReferenceKind();
             MethodHandleInfo info = new InfoFromMemberName(
                     MethodHandles.Lookup.IMPL_LOOKUP,
@@ -700,7 +699,7 @@ final class VarHandles {
 //                @ForceInline
 //                @LambdaForm.Compiled
 //                @Hidden
-//                final static <METHOD> throws Throwable {
+//                static final <METHOD> throws Throwable {
 //                    if (handle.hasInvokeExactBehavior() && handle.accessModeType(ad.type) != ad.symbolicMethodTypeExact) {
 //                        throw new WrongMethodTypeException("expected " + handle.accessModeType(ad.type) + " but found "
 //                                + ad.symbolicMethodTypeExact);
@@ -718,7 +717,7 @@ final class VarHandles {
 //                @ForceInline
 //                @LambdaForm.Compiled
 //                @Hidden
-//                final static <METHOD> throws Throwable {
+//                static final <METHOD> throws Throwable {
 //                    if (handle.hasInvokeExactBehavior() && handle.accessModeType(ad.type) != ad.symbolicMethodTypeExact) {
 //                        throw new WrongMethodTypeException("expected " + handle.accessModeType(ad.type) + " but found "
 //                                + ad.symbolicMethodTypeExact);

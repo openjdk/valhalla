@@ -69,6 +69,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.lang.model.element.ElementVisitor;
 
@@ -385,9 +386,14 @@ public class Resolve {
     }
 
     boolean isAccessible(Env<AttrContext> env, Type t, boolean checkInner) {
-        return (t.hasTag(ARRAY))
-            ? isAccessible(env, types.cvarUpperBound(types.elemtype(t)))
-            : isAccessible(env, t.tsym, checkInner);
+        if (t.hasTag(ARRAY)) {
+            return isAccessible(env, types.cvarUpperBound(types.elemtype(t)));
+        } else if (t.isUnion()) {
+            return StreamSupport.stream(((UnionClassType) t).getAlternativeTypes().spliterator(), false)
+                    .allMatch(alternative -> isAccessible(env, alternative.tsym, checkInner));
+        } else {
+            return isAccessible(env, t.tsym, checkInner);
+        }
     }
 
     /** Is symbol accessible as a member of given type in given environment?
@@ -420,10 +426,6 @@ public class Resolve {
             */
             if (site.isPrimitiveClass())
                 site = site.referenceProjection();
-            if (sym.owner.isPrimitiveClass())
-                sym = sym.referenceProjection();
-            if (env.enclClass.sym.isPrimitiveClass())
-                env.enclClass.sym = env.enclClass.sym.referenceProjection();
         } else if (sym.kind == TYP) {
             // A type is accessible in a reference projection if it was
             // accessible in the value projection.
@@ -489,8 +491,6 @@ public class Resolve {
         */
         if (site.isPrimitiveClass())
             site = site.referenceProjection();
-        if (sym.owner.isPrimitiveClass())
-            sym = sym.referenceProjection();
 
         Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
         return (s2 == null || s2 == sym || sym.owner == s2.owner ||
@@ -1715,12 +1715,12 @@ public class Resolve {
                 // but we need to protect against cases where the methods are defined in some classfile
                 // and make sure we issue an ambiguity error accordingly (by skipping the logic below).
                 if (m1Owner != m2Owner) {
-                    if (types.asSuper(m1Owner.type, m2Owner) != null &&
+                    if (types.asSuper(m1Owner.type.referenceProjectionOrSelf(), m2Owner) != null &&
                         ((m1.owner.flags_field & INTERFACE) == 0 ||
                          (m2.owner.flags_field & INTERFACE) != 0) &&
                         m1.overrides(m2, m1Owner, types, false))
                         return m1;
-                    if (types.asSuper(m2Owner.type, m1Owner) != null &&
+                    if (types.asSuper(m2Owner.type.referenceProjectionOrSelf(), m1Owner) != null &&
                         ((m2.owner.flags_field & INTERFACE) == 0 ||
                          (m1.owner.flags_field & INTERFACE) != 0) &&
                         m2.overrides(m1, m2Owner, types, false))
@@ -2250,10 +2250,6 @@ public class Resolve {
                                    Type site,
                                    Name name,
                                    TypeSymbol c) {
-        // ATM, inner/nested types are members of only the declaring inline class,
-        // although accessible via the reference projection.
-        if (c.isReferenceProjection())
-            c = (TypeSymbol) c.valueProjection();
         for (Symbol sym : c.members().getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 return isAccessible(env, site, sym)
@@ -3063,13 +3059,6 @@ public class Resolve {
                             return sym;
                         }
                     };
-                    ClassSymbol refProjection = newConstr.owner.isPrimitiveClass() ?
-                                                     (ClassSymbol) newConstr.owner.referenceProjection() : null;
-                    if (refProjection != null) {
-                        MethodSymbol clone = newConstr.clone(refProjection);
-                        clone.projection = newConstr;
-                        newConstr.projection = clone;
-                    }
                     bestSoFar = selectBest(env, site, argtypes, typeargtypes,
                             newConstr,
                             bestSoFar,
@@ -3620,7 +3609,7 @@ public class Resolve {
             if (TreeInfo.isStaticSelector(referenceTree.expr, names)) {
                 if (argtypes.nonEmpty() &&
                         (argtypes.head.hasTag(NONE) ||
-                        types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head), originalSite))) {
+                        types.isSubtypeUnchecked(inferenceContext.asUndetVar(argtypes.head.referenceProjectionOrSelf()), originalSite))) {
                     return new UnboundMethodReferenceLookupHelper(referenceTree, name,
                             originalSite, argtypes, typeargtypes, maxPhase);
                 } else {
@@ -3673,7 +3662,7 @@ public class Resolve {
                 List<Type> argtypes, List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             super(referenceTree, name, site, argtypes.tail, typeargtypes, maxPhase);
             if (site.isRaw() && !argtypes.head.hasTag(NONE)) {
-                Type asSuperSite = types.asSuper(argtypes.head, site.tsym);
+                Type asSuperSite = types.asSuper(argtypes.head.referenceProjectionOrSelf(), site.tsym);
                 this.site = types.skipTypeVars(asSuperSite, true);
             }
         }
@@ -3732,7 +3721,7 @@ public class Resolve {
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             super(referenceTree, names.init, site, argtypes, typeargtypes, maxPhase);
             if (site.isRaw()) {
-                this.site = new ClassType(site.getEnclosingType(), site.tsym.type.getTypeArguments(), site.tsym, site.getMetadata());
+                this.site = new ClassType(site.getEnclosingType(), site.tsym.type.getTypeArguments(), site.tsym, site.getMetadata(), site.isReferenceProjection());
                 needsInference = true;
             }
         }
@@ -3822,7 +3811,7 @@ public class Resolve {
                 if (t.tsym == c) {
                     env.info.defaultSuperCallSite = t;
                     return new VarSymbol(0, names._super,
-                            types.asSuper(env.enclClass.type, c), env.enclClass.sym);
+                            types.asSuper(env.enclClass.type.referenceProjectionOrSelf(), c), env.enclClass.sym);
                 }
             }
             //find a direct super type that is a subtype of 'c'
@@ -3845,7 +3834,7 @@ public class Resolve {
         for (Type t1 : types.interfaces(t)) {
             boolean shouldAdd = true;
             for (Type t2 : types.directSupertypes(t)) {
-                if (t1 != t2 && types.isSubtypeNoCapture(t2, t1)) {
+                if (t1 != t2 && !t2.hasTag(ERROR) && types.isSubtypeNoCapture(t2, t1)) {
                     shouldAdd = false;
                 }
             }

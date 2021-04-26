@@ -219,7 +219,7 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
-  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end());
+  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end(), igvn);
 }
 
 void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
@@ -231,7 +231,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
       int nb = 0;
       if (allow_oop && is_allocated(igvn) && get_oop()->is_Con()) {
         // Inline type is allocated with a constant oop, link it directly
-        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end());
+        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end(), igvn);
         igvn->rehash_node_delayed(sfpt);
       } else {
         nb = make_scalar_in_safepoint(igvn, worklist, sfpt);
@@ -273,13 +273,12 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     int offset = holder_offset + field_offset(i);
     Node* value = NULL;
     ciType* ft = field_type(i);
-    if (field_is_flattened(i)) {
-      if (ft->as_inline_klass()->is_empty()) {
-        value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
-      } else {
-        // Recursively load the flattened inline type field
-        value = InlineTypeNode::make_from_flattened(kit, ft->as_inline_klass(), base, ptr, holder, offset, decorators);
-      }
+    if (ft->is_inlinetype() && ft->as_inline_klass()->is_empty()) {
+      // Loading from a field of an empty inline type. Just return the default instance.
+      value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
+    } else if (field_is_flattened(i)) {
+      // Recursively load the flattened inline type field
+      value = InlineTypeNode::make_from_flattened(kit, ft->as_inline_klass(), base, ptr, holder, offset, decorators);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
@@ -379,7 +378,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
 
   // Oop is non-NULL, use it
   region->init_req(1, kit->control());
-  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr());
+  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr()->join_speculative(TypePtr::NOTNULL));
   PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
   PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
@@ -689,13 +688,13 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
     Node* value = field_value(i);
     if (value->is_InlineType()) {
       InlineTypeNode* vt = value->as_InlineType();
-      if (field_is_flattened(i)) {
-        if (!vt->inline_klass()->is_empty()) {
-          // Check inline type field load recursively
-          base = vt->is_loaded(phase, vk, base, offset - vt->inline_klass()->first_field_offset());
-          if (base == NULL) {
-            return NULL;
-          }
+      if (vt->inline_klass()->is_empty()) {
+        continue;
+      } else if (field_is_flattened(i)) {
+        // Check inline type field load recursively
+        base = vt->is_loaded(phase, vk, base, offset - vt->inline_klass()->first_field_offset());
+        if (base == NULL) {
+          return NULL;
         }
         continue;
       } else {
@@ -932,4 +931,38 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       --i; --imax;
     }
   }
+}
+
+Node* InlineTypePtrNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  if (can_reshape) {
+    // Remove useless InlineTypePtr nodes that might keep other nodes alive
+    ResourceMark rm;
+    Unique_Node_List users;
+    users.push(this);
+    bool useless = true;
+    for (uint i = 0; i < users.size(); ++i) {
+      Node* use = users.at(i);
+      if (use->is_Cmp() || use->Opcode() == Op_Return || use->Opcode() == Op_CastP2X || (use == this && i != 0) ||
+          (use->is_Load() && use->outcnt() == 1 && use->unique_out() == this)) {
+        // No need to keep track of field values, we can just use the oop
+        continue;
+      }
+      if (use->is_Load() || use->is_Store() || (use->is_InlineTypeBase() && use != this) || use->is_SafePoint()) {
+        // We need to keep track of field values to allow the use to be folded/scalarized
+        useless = false;
+        break;
+      }
+      for (DUIterator_Fast jmax, j = use->fast_outs(jmax); j < jmax; j++) {
+        users.push(use->fast_out(j));
+      }
+    }
+    if (useless) {
+      PhaseIterGVN* igvn = phase->is_IterGVN();
+      igvn->_worklist.push(this);
+      igvn->replace_in_uses(this, get_oop());
+      return NULL;
+    }
+  }
+
+  return InlineTypeBaseNode::Ideal(phase, can_reshape);
 }

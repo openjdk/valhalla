@@ -33,6 +33,7 @@
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/tlab_globals.hpp"
+#include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -2535,6 +2536,59 @@ void MacroAssembler::vmovdqu(XMMRegister dst, AddressLiteral src, Register scrat
   }
 }
 
+void MacroAssembler::kmov(KRegister dst, Address src) {
+  if (VM_Version::supports_avx512bw()) {
+    kmovql(dst, src);
+  } else {
+    assert(VM_Version::supports_evex(), "");
+    kmovwl(dst, src);
+  }
+}
+
+void MacroAssembler::kmov(Address dst, KRegister src) {
+  if (VM_Version::supports_avx512bw()) {
+    kmovql(dst, src);
+  } else {
+    assert(VM_Version::supports_evex(), "");
+    kmovwl(dst, src);
+  }
+}
+
+void MacroAssembler::kmov(KRegister dst, KRegister src) {
+  if (VM_Version::supports_avx512bw()) {
+    kmovql(dst, src);
+  } else {
+    assert(VM_Version::supports_evex(), "");
+    kmovwl(dst, src);
+  }
+}
+
+void MacroAssembler::kmov(Register dst, KRegister src) {
+  if (VM_Version::supports_avx512bw()) {
+    kmovql(dst, src);
+  } else {
+    assert(VM_Version::supports_evex(), "");
+    kmovwl(dst, src);
+  }
+}
+
+void MacroAssembler::kmov(KRegister dst, Register src) {
+  if (VM_Version::supports_avx512bw()) {
+    kmovql(dst, src);
+  } else {
+    assert(VM_Version::supports_evex(), "");
+    kmovwl(dst, src);
+  }
+}
+
+void MacroAssembler::kmovql(KRegister dst, AddressLiteral src, Register scratch_reg) {
+  if (reachable(src)) {
+    kmovql(dst, as_Address(src));
+  } else {
+    lea(scratch_reg, src);
+    kmovql(dst, Address(scratch_reg, 0));
+  }
+}
 
 void MacroAssembler::kmovwl(KRegister dst, AddressLiteral src, Register scratch_reg) {
   if (reachable(src)) {
@@ -5332,7 +5386,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 #if COMPILER2_OR_JVMCI
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
-void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp) {
+void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, KRegister mask) {
   // cnt - number of qwords (8-byte words).
   // base - start address, qword aligned.
   Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
@@ -5368,7 +5422,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   if (use64byteVector) {
     addptr(cnt, 8);
     jccb(Assembler::equal, L_end);
-    fill64_masked_avx(3, base, 0, xtmp, k2, cnt, val, true);
+    fill64_masked_avx(3, base, 0, xtmp, mask, cnt, val, true);
     jmp(L_end);
   } else {
     addptr(cnt, 4);
@@ -5387,7 +5441,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   addptr(cnt, 4);
   jccb(Assembler::lessEqual, L_end);
   if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
-    fill32_masked_avx(3, base, 0, xtmp, k2, cnt, val);
+    fill32_masked_avx(3, base, 0, xtmp, mask, cnt, val);
   } else {
     decrement(cnt);
 
@@ -5411,60 +5465,61 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   int call_offset = -1;
 
 #ifdef _LP64
+  // The following code is similar to allocate_instance but has some slight differences,
+  // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
+  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
   Label slow_case;
-
-  // Try to allocate a new buffered inline type (from the heap)
-  if (UseTLAB) {
-    // FIXME -- for smaller code, the inline allocation (and the slow case) should be moved inside the pack handler.
-    if (vk != NULL) {
-      // Called from C1, where the return type is statically known.
-      movptr(rbx, (intptr_t)vk->get_InlineKlass());
-      jint lh = vk->layout_helper();
-      assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
-      movl(r14, lh);
+  // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
+  mov(rscratch1, rax); // save rax for slow_case since *_allocate may corrupt it when allocation failed
+  if (vk != NULL) {
+    // Called from C1, where the return type is statically known.
+    movptr(rbx, (intptr_t)vk->get_InlineKlass());
+    jint obj_size = vk->layout_helper();
+    assert(obj_size != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+    if (UseTLAB) {
+      tlab_allocate(r15_thread, rax, noreg, obj_size, r13, r14, slow_case);
     } else {
-      // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
-      mov(rbx, rax);
-      andptr(rbx, -2);
-      movl(r14, Address(rbx, Klass::layout_helper_offset()));
+      eden_allocate(r15_thread, rax, noreg, obj_size, r13, slow_case);
     }
-
-    movptr(r13, Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())));
-    lea(r14, Address(r13, r14, Address::times_1));
-    cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
-    jcc(Assembler::above, slow_case);
-    movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
-    movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
-
-    xorl(rax, rax); // use zero reg to clear memory (shorter code)
-    store_klass_gap(r13, rax);  // zero klass gap for compressed oops
-
+  } else {
+    // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
+    mov(rbx, rax);
+    andptr(rbx, -2);
+    movl(r14, Address(rbx, Klass::layout_helper_offset()));
+    if (UseTLAB) {
+      tlab_allocate(r15_thread, rax, r14, 0, r13, r14, slow_case);
+    } else {
+      eden_allocate(r15_thread, rax, r14, 0, r13, slow_case);
+    }
+  }
+  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+    // 2. Initialize buffered inline instance header
+    Register buffer_obj = rax;
+    movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
+    xorl(r13, r13);
+    store_klass_gap(buffer_obj, r13);
     if (vk == NULL) {
-      // store_klass corrupts rbx, so save it in rax for later use (interpreter case only).
-      mov(rax, rbx);
+      // store_klass corrupts rbx(klass), so save it in r13 for later use (interpreter case only).
+      mov(r13, rbx);
     }
     Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-    store_klass(r13, rbx, tmp_store_klass);  // klass
-
-    // We have our new buffered inline type, initialize its fields with an inline class specific handler
+    store_klass(buffer_obj, rbx, tmp_store_klass);
+    // 3. Initialize its fields with an inline class specific handler
     if (vk != NULL) {
-      // FIXME -- do the packing in-line to avoid the runtime call
-      mov(rax, r13);
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(r13, InstanceKlass::adr_inlineklass_fixed_block_offset()));
       movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
-      mov(rax, r13);
       call(rbx);
     }
     jmp(skip);
   }
-
   bind(slow_case);
   // We failed to allocate a new inline type, fall back to a runtime
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
+  mov(rax, rscratch1);
 #endif
 
   if (from_interpreter) {
@@ -5697,7 +5752,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
 }
 
 // Clearing constant sized memory using YMM/ZMM registers.
-void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegister xtmp) {
+void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegister xtmp, KRegister mask) {
   assert(UseAVX > 2 && VM_Version::supports_avx512vlbw(), "");
   bool use64byteVector = MaxVectorSize > 32 && AVX3Threshold == 0;
 
@@ -5722,8 +5777,8 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
         break;
       case 3:
         movl(rtmp, 0x7);
-        kmovwl(k2, rtmp);
-        evmovdqu(T_LONG, k2, Address(base, disp), xtmp, Assembler::AVX_256bit);
+        kmovwl(mask, rtmp);
+        evmovdqu(T_LONG, mask, Address(base, disp), xtmp, Assembler::AVX_256bit);
         break;
       case 4:
         evmovdqu(T_LONG, k0, Address(base, disp), xtmp, Assembler::AVX_256bit);
@@ -5731,8 +5786,8 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
       case 5:
         if (use64byteVector) {
           movl(rtmp, 0x1F);
-          kmovwl(k2, rtmp);
-          evmovdqu(T_LONG, k2, Address(base, disp), xtmp, Assembler::AVX_512bit);
+          kmovwl(mask, rtmp);
+          evmovdqu(T_LONG, mask, Address(base, disp), xtmp, Assembler::AVX_512bit);
         } else {
           evmovdqu(T_LONG, k0, Address(base, disp), xtmp, Assembler::AVX_256bit);
           movq(Address(base, disp + 32), xtmp);
@@ -5741,8 +5796,8 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
       case 6:
         if (use64byteVector) {
           movl(rtmp, 0x3F);
-          kmovwl(k2, rtmp);
-          evmovdqu(T_LONG, k2, Address(base, disp), xtmp, Assembler::AVX_512bit);
+          kmovwl(mask, rtmp);
+          evmovdqu(T_LONG, mask, Address(base, disp), xtmp, Assembler::AVX_512bit);
         } else {
           evmovdqu(T_LONG, k0, Address(base, disp), xtmp, Assembler::AVX_256bit);
           evmovdqu(T_LONG, k0, Address(base, disp + 32), xtmp, Assembler::AVX_128bit);
@@ -5751,13 +5806,13 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
       case 7:
         if (use64byteVector) {
           movl(rtmp, 0x7F);
-          kmovwl(k2, rtmp);
-          evmovdqu(T_LONG, k2, Address(base, disp), xtmp, Assembler::AVX_512bit);
+          kmovwl(mask, rtmp);
+          evmovdqu(T_LONG, mask, Address(base, disp), xtmp, Assembler::AVX_512bit);
         } else {
           evmovdqu(T_LONG, k0, Address(base, disp), xtmp, Assembler::AVX_256bit);
           movl(rtmp, 0x7);
-          kmovwl(k2, rtmp);
-          evmovdqu(T_LONG, k2, Address(base, disp + 32), xtmp, Assembler::AVX_256bit);
+          kmovwl(mask, rtmp);
+          evmovdqu(T_LONG, mask, Address(base, disp + 32), xtmp, Assembler::AVX_256bit);
         }
         break;
       default:
@@ -5767,7 +5822,8 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
   }
 }
 
-void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool word_copy_only) {
+void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp,
+                               bool is_large, bool word_copy_only, KRegister mask) {
   // cnt      - number of qwords (8-byte words).
   // base     - start address, qword aligned.
   // is_large - if optimizers know cnt is larger than InitArrayShortSize
@@ -5804,7 +5860,7 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMReg
     shlptr(cnt, 3); // convert to number of bytes
     rep_stosb();
   } else if (UseXMMForObjInit) {
-    xmm_clear_mem(base, cnt, val, xtmp);
+    xmm_clear_mem(base, cnt, val, xtmp, mask);
   } else {
     NOT_LP64(shlptr(cnt, 1);) // convert to number of 32-bit words for 32-bit VM
     rep_stos();
@@ -8436,7 +8492,7 @@ void MacroAssembler::crc32c_ipl_alg2_alt2(Register in_out, Register in1, Registe
 void MacroAssembler::char_array_compress(Register src, Register dst, Register len,
   XMMRegister tmp1Reg, XMMRegister tmp2Reg,
   XMMRegister tmp3Reg, XMMRegister tmp4Reg,
-  Register tmp5, Register result) {
+  Register tmp5, Register result, KRegister mask1, KRegister mask2) {
   Label copy_chars_loop, return_length, return_zero, done;
 
   // rsi: src
@@ -8488,14 +8544,14 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
     movl(result, 0xFFFFFFFF);
     shlxl(result, result, tmp5);
     notl(result);
-    kmovdl(k3, result);
+    kmovdl(mask2, result);
 
-    evmovdquw(tmp1Reg, k3, Address(src, 0), /*merge*/ false, Assembler::AVX_512bit);
-    evpcmpuw(k2, k3, tmp1Reg, tmp2Reg, Assembler::le, Assembler::AVX_512bit);
-    ktestd(k2, k3);
+    evmovdquw(tmp1Reg, mask2, Address(src, 0), /*merge*/ false, Assembler::AVX_512bit);
+    evpcmpuw(mask1, mask2, tmp1Reg, tmp2Reg, Assembler::le, Assembler::AVX_512bit);
+    ktestd(mask1, mask2);
     jcc(Assembler::carryClear, return_zero);
 
-    evpmovwb(Address(dst, 0), k3, tmp1Reg, Assembler::AVX_512bit);
+    evpmovwb(Address(dst, 0), mask2, tmp1Reg, Assembler::AVX_512bit);
 
     addptr(src, tmp5);
     addptr(src, tmp5);
@@ -8516,8 +8572,8 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
 
     bind(copy_32_loop);
     evmovdquw(tmp1Reg, Address(src, len, Address::times_2), /*merge*/ false, Assembler::AVX_512bit);
-    evpcmpuw(k2, tmp1Reg, tmp2Reg, Assembler::le, Assembler::AVX_512bit);
-    kortestdl(k2, k2);
+    evpcmpuw(mask1, tmp1Reg, tmp2Reg, Assembler::le, Assembler::AVX_512bit);
+    kortestdl(mask1, mask1);
     jcc(Assembler::carryClear, return_zero);
 
     // All elements in current processed chunk are valid candidates for
@@ -8538,14 +8594,14 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
     shlxl(result, result, len);
     notl(result);
 
-    kmovdl(k3, result);
+    kmovdl(mask2, result);
 
-    evmovdquw(tmp1Reg, k3, Address(src, 0), /*merge*/ false, Assembler::AVX_512bit);
-    evpcmpuw(k2, k3, tmp1Reg, tmp2Reg, Assembler::le, Assembler::AVX_512bit);
-    ktestd(k2, k3);
+    evmovdquw(tmp1Reg, mask2, Address(src, 0), /*merge*/ false, Assembler::AVX_512bit);
+    evpcmpuw(mask1, mask2, tmp1Reg, tmp2Reg, Assembler::le, Assembler::AVX_512bit);
+    ktestd(mask1, mask2);
     jcc(Assembler::carryClear, return_zero);
 
-    evpmovwb(Address(dst, 0), k3, tmp1Reg, Assembler::AVX_512bit);
+    evpmovwb(Address(dst, 0), mask2, tmp1Reg, Assembler::AVX_512bit);
     jmp(return_length);
 
     bind(below_threshold);
@@ -8645,7 +8701,7 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
 //     }
 //   }
 void MacroAssembler::byte_array_inflate(Register src, Register dst, Register len,
-  XMMRegister tmp1, Register tmp2) {
+  XMMRegister tmp1, Register tmp2, KRegister mask) {
   Label copy_chars_loop, done, below_threshold, avx3_threshold;
   // rsi: src
   // rdi: dst
@@ -8698,9 +8754,9 @@ void MacroAssembler::byte_array_inflate(Register src, Register dst, Register len
     movl(tmp3_aliased, -1);
     shlxl(tmp3_aliased, tmp3_aliased, tmp2);
     notl(tmp3_aliased);
-    kmovdl(k2, tmp3_aliased);
-    evpmovzxbw(tmp1, k2, Address(src, 0), Assembler::AVX_512bit);
-    evmovdquw(Address(dst, 0), k2, tmp1, /*merge*/ true, Assembler::AVX_512bit);
+    kmovdl(mask, tmp3_aliased);
+    evpmovzxbw(tmp1, mask, Address(src, 0), Assembler::AVX_512bit);
+    evmovdquw(Address(dst, 0), mask, tmp1, /*merge*/ true, Assembler::AVX_512bit);
 
     jmp(done);
     bind(avx3_threshold);

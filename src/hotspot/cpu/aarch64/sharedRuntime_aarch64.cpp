@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +32,7 @@
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
+#include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interp_masm.hpp"
@@ -239,15 +241,6 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm) {
 // 8 bytes vector registers are saved by default on AArch64.
 bool SharedRuntime::is_wide_vector(int size) {
   return size > 8;
-}
-
-size_t SharedRuntime::trampoline_size() {
-  return 16;
-}
-
-void SharedRuntime::generate_trampoline(MacroAssembler *masm, address destination) {
-  __ mov(rscratch1, destination);
-  __ br(rscratch1);
 }
 
 // The java_calling_convention describes stack locations as ideal slots on
@@ -608,7 +601,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types
       // Allocate the buffers here with a runtime call.
-      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+      RegisterSaver reg_save(false /* save_vectors */);
+      OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
       address the_pc = __ pc();
@@ -625,7 +619,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       oop_maps->add_gc_map((int)(__ pc() - start), map);
       __ reset_last_Java_frame(false);
 
-      RegisterSaver::restore_live_registers(masm);
+      reg_save.restore_live_registers(masm);
 
       Label no_exception;
       __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
@@ -987,9 +981,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
   address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
-    Label unused;
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
-    skip_fixup = unused;
+    skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
@@ -997,22 +990,18 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   // Class initialization barrier for static methods
   address c2i_no_clinit_check_entry = NULL;
-
   if (VM_Version::supports_fast_class_init_checks()) {
     Label L_skip_barrier;
+
     { // Bypass the barrier for non-static methods
-        Register flags  = rscratch1;
-      __ ldrw(flags, Address(rmethod, Method::access_flags_offset()));
-      __ tst(flags, JVM_ACC_STATIC);
-      __ br(Assembler::NE, L_skip_barrier); // non-static
+      __ ldrw(rscratch1, Address(rmethod, Method::access_flags_offset()));
+      __ andsw(zr, rscratch1, JVM_ACC_STATIC);
+      __ br(Assembler::EQ, L_skip_barrier); // non-static
     }
 
-    Register klass = rscratch1;
-    __ load_method_holder(klass, rmethod);
-    // We pass rthread to this function on x86
-    __ clinit_barrier(klass, rscratch2, &L_skip_barrier /*L_fast_path*/);
-
-    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
+    __ load_method_holder(rscratch2, rmethod);
+    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
 
     __ bind(L_skip_barrier);
     c2i_no_clinit_check_entry = __ pc();
@@ -1021,11 +1010,11 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
 
-  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
+  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 
   address c2i_unverified_inline_entry = c2i_unverified_entry;
 
- // Non-scalarized c2i adapter
+  // Non-scalarized c2i adapter
   address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
     Label inline_entry_skip_fixup;
@@ -1033,7 +1022,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
     c2i_inline_entry = __ pc();
-    Label unused;
     gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
@@ -1048,7 +1036,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
-int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
+static int c_calling_convention_priv(const BasicType *sig_bt,
                                          VMRegPair *regs,
                                          VMRegPair *regs2,
                                          int total_args_passed) {
@@ -1079,6 +1067,11 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         if (int_args < Argument::n_int_register_parameters_c) {
           regs[i].set1(INT_ArgReg[int_args++]->as_VMReg());
         } else {
+#ifdef __APPLE__
+          // Less-than word types are stored one after another.
+          // The code is unable to handle this so bailout.
+          return -1;
+#endif
           regs[i].set1(VMRegImpl::stack2reg(stk_args));
           stk_args += 2;
         }
@@ -1102,6 +1095,11 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         if (fp_args < Argument::n_float_register_parameters_c) {
           regs[i].set1(FP_ArgReg[fp_args++]->as_VMReg());
         } else {
+#ifdef __APPLE__
+          // Less-than word types are stored one after another.
+          // The code is unable to handle this so bailout.
+          return -1;
+#endif
           regs[i].set1(VMRegImpl::stack2reg(stk_args));
           stk_args += 2;
         }
@@ -1126,6 +1124,16 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
     }
 
   return stk_args;
+}
+
+int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
+                                         VMRegPair *regs,
+                                         VMRegPair *regs2,
+                                         int total_args_passed)
+{
+  int result = c_calling_convention_priv(sig_bt, regs, regs2, total_args_passed);
+  guarantee(result >= 0, "Unsupported arguments configuration");
+  return result;
 }
 
 // On 64 bit we will store integer like items to the stack as
@@ -1633,7 +1641,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // Now figure out where the args must be stored and how much stack space
   // they require.
   int out_arg_slots;
-  out_arg_slots = c_calling_convention(out_sig_bt, out_regs, NULL, total_c_args);
+  out_arg_slots = c_calling_convention_priv(out_sig_bt, out_regs, NULL, total_c_args);
+
+  if (out_arg_slots < 0) {
+    return NULL;
+  }
 
   // Compute framesize for the wrapper.  We need to handlize all oops in
   // incoming registers
@@ -2026,6 +2038,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load (object->mark() | 1) into swap_reg %r0
     __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ orr(swap_reg, rscratch1, 1);
+    if (EnableValhalla) {
+      assert(!UseBiasedLocking, "Not compatible with biased-locking");
+      // Mask inline_type bit such that we go to the slow path if object is an inline type
+      __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
+    }
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     __ str(swap_reg, Address(lock_reg, mark_word_offset));
@@ -2091,7 +2108,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in v0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_INLINE_TYPE:
+  case T_INLINE_TYPE:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -3341,6 +3358,7 @@ void OptoRuntime::generate_exception_blob() {
   // Set exception blob
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
+#endif // COMPILER2
 
 BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
@@ -3354,6 +3372,15 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   const Array<SigEntry>* sig_vk = vk->extended_sig();
   const Array<VMRegPair>* regs = vk->return_regs();
+
+  int pack_fields_jobject_off = __ offset();
+  // Resolve pre-allocated buffer from JNI handle.
+  // We cannot do this in generate_call_stub() because it requires GC code to be initialized.
+  __ ldr(r0, Address(r13, 0));
+  __ resolve_jobject(r0 /* value */,
+                     rthread /* thread */,
+                     r12 /* tmp */);
+  __ str(r0, Address(r13, 0));
 
   int pack_fields_off = __ offset();
 
@@ -3444,7 +3471,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   __ flush();
 
-  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }
 
 // ---------------------------------------------------------------
@@ -3698,4 +3725,3 @@ void NativeInvokerGenerator::generate() {
 
   __ flush();
 }
-#endif // COMPILER2

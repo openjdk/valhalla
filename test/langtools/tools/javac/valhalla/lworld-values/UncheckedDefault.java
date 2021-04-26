@@ -11,4 +11,10 @@ public primitive class UncheckedDefault<E> {
     public static void main(String [] args) {
         UncheckedDefault<String> foo = UncheckedDefault.default;
     }
+
+    public E makeDefault() {
+        E e = E.default;
+        return e;
+    }
+
 }

@@ -504,7 +504,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
 #ifdef ASSERT
   // Oop is not tagged, must be a valid oop
   if (VerifyOops) {
-    oopDesc::verify(oop((HeapWord*)ptr));
+    oopDesc::verify(cast_to_oop(ptr));
   }
 #endif
   return NULL;
