@@ -2831,6 +2831,9 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   _igvn.replace_in_uses(projs->catchall_catchproj, ex_r);
   _igvn.replace_in_uses(projs->catchall_memproj, ex_mem_phi);
   _igvn.replace_in_uses(projs->catchall_ioproj, ex_io_phi);
+  // The CatchNode should not use the ex_io_phi. Re-connect it to the catchall_ioproj.
+  Node* cn = projs->fallthrough_catchproj->in(0);
+  _igvn.replace_input_of(cn, 1, projs->catchall_ioproj);
 
   _igvn.replace_node(ctl, projs->fallthrough_catchproj);
   _igvn.replace_node(mem, projs->fallthrough_memproj);
