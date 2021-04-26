@@ -314,7 +314,7 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
       }
       // Block of memory-op input
       Block* inb = get_block_for_node(mach->in(j));
-      if (mach->in(j)->is_Con() && inb == get_block_for_node(mach)) {
+      if (mach->in(j)->is_Con() && mach->in(j)->req() == 1 && inb == get_block_for_node(mach)) {
         // Ignore constant loads scheduled in the same block (we can simply hoist them as well)
         continue;
       }
