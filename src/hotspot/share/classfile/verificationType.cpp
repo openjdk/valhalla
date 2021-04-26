@@ -125,8 +125,8 @@ bool VerificationType::is_reference_assignable_from(
     return resolve_and_check_assignability(klass, name(), from.name(),
           from_field_is_protected, from.is_array(), from.is_object(), THREAD);
   } else if (is_array() && from.is_array()) {
-    VerificationType comp_this = get_component(context, CHECK_false);
-    VerificationType comp_from = from.get_component(context, CHECK_false);
+    VerificationType comp_this = get_component(context);
+    VerificationType comp_from = from.get_component(context);
 
 /*
     // This code implements non-covariance between inline type arrays and both
@@ -203,7 +203,7 @@ bool VerificationType::is_ref_assignable_from_inline_type(const VerificationType
   }
 }
 
-VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) const {
+VerificationType VerificationType::get_component(ClassVerifier *context) const {
   assert(is_array() && name()->utf8_length() >= 2, "Must be a valid array");
   SignatureStream ss(name(), false);
   ss.skip_array_prefix(1);

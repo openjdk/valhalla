@@ -262,7 +262,7 @@ void TemplateTable::fconst(int value)
   transition(vtos, ftos);
   switch (value) {
   case 0:
-    __ fmovs(v0, zr);
+    __ fmovs(v0, 0.0);
     break;
   case 1:
     __ fmovs(v0, 1.0);
@@ -281,7 +281,7 @@ void TemplateTable::dconst(int value)
   transition(vtos, dtos);
   switch (value) {
   case 0:
-    __ fmovd(v0, zr);
+    __ fmovd(v0, 0.0);
     break;
   case 1:
     __ fmovd(v0, 1.0);
@@ -328,6 +328,7 @@ void TemplateTable::ldc(bool wide)
   __ add(r3, r1, tags_offset);
   __ lea(r3, Address(r0, r3));
   __ ldarb(r3, r3);
+  __ andr(r3, r3, ~JVM_CONSTANT_QDescBit);
 
   // unresolved class - get the resolved class
   __ cmp(r3, (u1)JVM_CONSTANT_UnresolvedClass);
@@ -808,6 +809,7 @@ void TemplateTable::aaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
+  __ profile_array(r2, r0, r4);
   if (UseFlatArray) {
     Label is_flat_array, done;
 
@@ -823,6 +825,7 @@ void TemplateTable::aaload()
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
   }
+  __ profile_element(r2, r0, r4);
 }
 
 void TemplateTable::baload()
@@ -1109,49 +1112,52 @@ void TemplateTable::dastore() {
 }
 
 void TemplateTable::aastore() {
-  Label is_null, ok_is_subtype, done;
+  Label is_null, is_flat_array, ok_is_subtype, done;
   transition(vtos, vtos);
   // stack: ..., array, index, value
   __ ldr(r0, at_tos());    // value
   __ ldr(r2, at_tos_p1()); // index
   __ ldr(r3, at_tos_p2()); // array
 
-  Address element_address(r3, r4, Address::uxtw(LogBytesPerHeapOop));
-
   index_check(r3, r2);     // kills r1
 
-  // FIXME: Could we remove the line below?
+  __ profile_array(r4, r3, r5);
+  __ profile_element(r4, r0, r5);
+
   __ add(r4, r2, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
+  Address element_address(r3, r4, Address::uxtw(LogBytesPerHeapOop));
+  // Be careful not to clobber r4 below
 
   // do array store check - check for NULL value first
   __ cbz(r0, is_null);
 
-  Label  is_flat_array;
+  // Move array class to r5
+  __ load_klass(r5, r3);
+
   if (UseFlatArray) {
-    __ test_flattened_array_oop(r3, r8 /*temp*/, is_flat_array);
+    __ ldrw(r6, Address(r5, Klass::layout_helper_offset()));
+    __ test_flattened_array_layout(r6, is_flat_array);
   }
 
   // Move subklass into r1
   __ load_klass(r1, r0);
 
-  // Move superklass into r0
-  __ load_klass(r0, r3);
-  __ ldr(r0, Address(r0, ObjArrayKlass::element_klass_offset()));
+  // Move array element superklass into r0
+  __ ldr(r0, Address(r5, ObjArrayKlass::element_klass_offset()));
   // Compress array + index*oopSize + 12 into a single register.  Frees r2.
 
   // Generate subtype check.  Blows r2, r5
   // Superklass in r0.  Subklass in r1.
 
-  __ gen_subtype_check(r1, ok_is_subtype);
+  // is "r1 <: r0" ? (value subclass <: array element superclass)
+  __ gen_subtype_check(r1, ok_is_subtype, false);
 
   // Come here on failure
   // object is at TOS
   __ b(Interpreter::_throw_ArrayStoreException_entry);
 
-
   // Come here on success
   __ bind(ok_is_subtype);
-
 
   // Get the value we will store
   __ ldr(r0, at_tos());
@@ -1161,12 +1167,10 @@ void TemplateTable::aastore() {
 
   // Have a NULL in r0, r3=array, r2=index.  Store NULL at ary[idx]
   __ bind(is_null);
-  __ profile_null_seen(r2);
-
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
-    // No way to store null in flat array
+    // No way to store null in flat null-free array
     __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
     __ b(store_null);
 
@@ -1182,9 +1186,7 @@ void TemplateTable::aastore() {
 
   if (EnableValhalla) {
      Label is_type_ok;
-
-    // store non-null value
-    __ bind(is_flat_array);
+    __ bind(is_flat_array); // Store non-null value to flat
 
     // Simplistic type check...
     // r0 - value, r2 - index, r3 - array.
@@ -1192,32 +1194,35 @@ void TemplateTable::aastore() {
     // Profile the not-null value's klass.
     // Load value class
      __ load_klass(r1, r0);
-     __ profile_typecheck(r2, r1, r0); // blows r2, and r0
+
+    // Move element klass into r7
+     __ ldr(r7, Address(r5, ArrayKlass::element_klass_offset()));
 
     // flat value array needs exact type match
-    // is "r8 == r0" (value subclass == array element superclass)
+    // is "r1 == r7" (value subclass == array element superclass)
 
-    // Move element klass into r0
-
-     __ load_klass(r0, r3);
-
-     __ ldr(r0, Address(r0, ArrayKlass::element_klass_offset()));
-     __ cmp(r0, r1);
+     __ cmp(r7, r1);
      __ br(Assembler::EQ, is_type_ok);
 
-     __ profile_typecheck_failed(r2);
      __ b(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
 
      __ bind(is_type_ok);
+    // r1: value's klass
+    // r3: array
+    // r5: array klass
+    __ test_klass_is_empty_inline_type(r1, r7, done);
 
-    // Reload from TOS to be safe, because of profile_typecheck that blows r2 and r0.
-    // FIXME: Should we really do it?
-     __ ldr(r1, at_tos());  // value
-     __ mov(r2, r3); // array, ldr(r2, at_tos_p2());
-     __ ldr(r3, at_tos_p1()); // index
-     __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_store), r1, r2, r3);
+    // calc dst for copy
+    __ ldrw(r7, at_tos_p1()); // index
+    __ data_for_value_array_index(r3, r5, r7, r7);
+
+    // ...and src for copy
+    __ ldr(r6, at_tos());  // value
+    __ data_for_oop(r6, r6, r1);
+
+    __ mov(r4, r1);  // Shuffle arguments to avoid conflict with c_rarg1
+    __ access_value_copy(IN_HEAP, r6, r7, r4);
   }
-
 
   // Pop stack arguments
   __ bind(done);
@@ -2034,8 +2039,10 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(r1);
 
-  Register is_value_mask = rscratch1;
-  __ mov(is_value_mask, markWord::always_locked_pattern);
+  __ profile_acmp(r2, r1, r0, r4);
+
+  Register is_inline_type_mask = rscratch1;
+  __ mov(is_inline_type_mask, markWord::inline_type_pattern);
 
   if (EnableValhalla) {
     __ cmp(r1, r0);
@@ -2047,11 +2054,11 @@ void TemplateTable::if_acmp(Condition cc) {
 
     // and both are values ?
     __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));
-    __ andr(r2, r2, is_value_mask);
+    __ andr(r2, r2, is_inline_type_mask);
     __ ldr(r4, Address(r0, oopDesc::mark_offset_in_bytes()));
-    __ andr(r4, r4, is_value_mask);
+    __ andr(r4, r4, is_inline_type_mask);
     __ andr(r2, r2, r4);
-    __ cmp(r2,  is_value_mask);
+    __ cmp(r2,  is_inline_type_mask);
     __ br(Assembler::NE, (cc == equal) ? not_taken : taken);
 
     // same value klass ?
@@ -2074,7 +2081,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ bind(taken);
   branch(false, false);
   __ bind(not_taken);
-  __ profile_not_taken_branch(r0);
+  __ profile_not_taken_branch(r0, true);
 }
 
 void TemplateTable::invoke_is_substitutable(Register aobj, Register bobj,
@@ -2424,10 +2431,10 @@ void TemplateTable::load_field_cp_cache_entry(Register obj,
   ByteSize cp_base_offset = ConstantPoolCache::base_offset();
   // Field offset
   __ ldr(off, Address(cache, in_bytes(cp_base_offset +
-                                          ConstantPoolCacheEntry::f2_offset())));
+                                      ConstantPoolCacheEntry::f2_offset())));
   // Flags
   __ ldrw(flags, Address(cache, in_bytes(cp_base_offset +
-                                           ConstantPoolCacheEntry::flags_offset())));
+                                         ConstantPoolCacheEntry::flags_offset())));
 
   // klass overwrite register
   if (is_static) {
@@ -2525,6 +2532,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   const Register cache = r2;
   const Register index = r3;
   const Register obj   = r4;
+  const Register klass = r5;
+  const Register inline_klass = r7;
   const Register off   = r19;
   const Register flags = r0;
   const Register raw_flags = r6;
@@ -2556,6 +2565,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   Label Done, notByte, notBool, notInt, notShort, notChar,
               notLong, notFloat, notObj, notDouble;
+
+  if (!is_static) {
+    __ ldr(klass, Address(cache, in_bytes(ConstantPoolCache::base_offset() +
+                                          ConstantPoolCacheEntry::f1_offset())));
+  }
 
   // x86 uses a shift and mask or wings it with a shift plus assert
   // the mask is not needed. aarch64 just uses bitfield extract
@@ -2602,29 +2616,36 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     }
     __ b(Done);
   } else { // Valhalla
-
     if (is_static) {
       __ load_heap_oop(r0, field);
-      Label is_inline, isUninitialized;
+      Label is_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_inline_type(raw_flags, r8 /*temp*/, is_inline);
-        // Not inline case
+      __ test_field_is_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
+        // field is not an inline type
         __ push(atos);
         __ b(Done);
-      // Inline case, must not return null even if uninitialized
-      __ bind(is_inline);
-        __ cbz(r0, isUninitialized);
+      // field is an inline type, must not return null even if uninitialized
+      __ bind(is_inline_type);
+        __ cbz(r0, uninitialized);
           __ push(atos);
           __ b(Done);
-        __ bind(isUninitialized);
+        __ bind(uninitialized);
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
+          Label slow_case, finish;
+          __ ldrb(rscratch1, Address(cache, InstanceKlass::init_state_offset()));
+          __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
+          __ br(Assembler::NE, slow_case);
+          __ get_default_value_oop(klass, off /* temp */, r0);
+        __ b(finish);
+        __ bind(slow_case);
           __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field), obj, raw_flags);
+          __ bind(finish);
           __ verify_oop(r0);
           __ push(atos);
           __ b(Done);
     } else {
-      Label isFlattened, isInitialized, is_inline, rewrite_inline;
-        __ test_field_is_inline_type(raw_flags, r8 /*temp*/, is_inline);
+      Label is_inlined, nonnull, is_inline_type, rewrite_inline;
+      __ test_field_is_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
         // Non-inline field case
         __ load_heap_oop(r0, field);
         __ push(atos);
@@ -2632,26 +2653,28 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
         }
         __ b(Done);
-      __ bind(is_inline);
-        __ test_field_is_inlined(raw_flags, r8 /* temp */, isFlattened);
-         // Non-inline field case
+      __ bind(is_inline_type);
+        __ test_field_is_inlined(raw_flags, noreg /* temp */, is_inlined);
+         // field is not inlined
           __ load_heap_oop(r0, field);
-          __ cbnz(r0, isInitialized);
+          __ cbnz(r0, nonnull);
             __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-            __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_inline_type_field), obj, raw_flags);
-          __ bind(isInitialized);
+            __ get_inline_type_field_klass(klass, raw_flags, inline_klass);
+            __ get_default_value_oop(inline_klass, klass /* temp */, r0);
+          __ bind(nonnull);
           __ verify_oop(r0);
           __ push(atos);
           __ b(rewrite_inline);
-        __ bind(isFlattened);
-          __ ldr(r10, Address(cache, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::f1_offset())));
+        __ bind(is_inlined);
+        // field is inlined
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-          call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field), obj, raw_flags, r10);
+          __ mov(r0, obj);
+          __ read_inlined_field(klass, raw_flags, off, inline_klass /* temp */, r0);
           __ verify_oop(r0);
           __ push(atos);
       __ bind(rewrite_inline);
       if (rc == may_rewrite) {
-         patch_bytecode(Bytecodes::_fast_qgetfield, bc, r1);
+        patch_bytecode(Bytecodes::_fast_qgetfield, bc, r1);
       }
       __ b(Done);
     }
@@ -2827,6 +2850,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   const Register flags = r0;
   const Register flags2 = r6;
   const Register bc    = r4;
+  const Register inline_klass = r5;
 
   resolve_cache_and_index(byte_no, cache, index, sizeof(u2));
   jvmti_post_field_mod(cache, index, is_static);
@@ -2902,19 +2926,18 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       }
       __ b(Done);
      } else { // Valhalla
-
       __ pop(atos);
       if (is_static) {
-        Label not_inline;
-         __ test_field_is_not_inline_type(flags2, r8 /* temp */, not_inline);
+        Label is_inline_type;
+         __ test_field_is_not_inline_type(flags2, noreg /* temp */, is_inline_type);
          __ null_check(r0);
-         __ bind(not_inline);
+         __ bind(is_inline_type);
          do_oop_store(_masm, field, r0, IN_HEAP);
          __ b(Done);
       } else {
-        Label is_inline, isFlattened, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_inline_type(flags2, r8 /*temp*/, is_inline);
-        // Not inline case
+        Label is_inline_type, is_inlined, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_inline_type(flags2, noreg /*temp*/, is_inline_type);
+        // Not an inline type
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, r0, IN_HEAP);
@@ -2923,18 +2946,23 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
           patch_bytecode(Bytecodes::_fast_aputfield, bc, r19, true, byte_no);
         }
         __ b(Done);
-        // Implementation of the inline semantic
-        __ bind(is_inline);
+        // Implementation of the inline type semantic
+        __ bind(is_inline_type);
         __ null_check(r0);
-        __ test_field_is_inlined(flags2, r8 /*temp*/, isFlattened);
-        // Not inline case
+        __ test_field_is_inlined(flags2, noreg /*temp*/, is_inlined);
+        // field is not inlined
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, r0, IN_HEAP);
         __ b(rewrite_inline);
-        __ bind(isFlattened);
+        __ bind(is_inlined);
+        // field is inlined
         pop_and_check_object(obj);
-        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value), r0, off, obj);
+        assert_different_registers(r0, inline_klass, obj, off);
+        __ load_klass(inline_klass, r0);
+        __ data_for_oop(r0, r0, inline_klass);
+        __ add(obj, obj, off);
+        __ access_value_copy(IN_HEAP, r0, obj, inline_klass);
         __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_qputfield, bc, r19, true, byte_no);
@@ -3164,14 +3192,18 @@ void TemplateTable::fast_storefield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_qputfield: //fall through
    {
-      Label isFlattened, done;
+      Label is_inlined, done;
       __ null_check(r0);
-      __ test_field_is_flattened(r3, r8 /* temp */, isFlattened);
-      // No Flattened case
+      __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
+      // field is not inlined
       do_oop_store(_masm, field, r0, IN_HEAP);
       __ b(done);
-      __ bind(isFlattened);
-      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value), r0, r1, r2);
+      __ bind(is_inlined);
+      // field is inlined
+      __ load_klass(r4, r0);
+      __ data_for_oop(r0, r0, r4);
+      __ lea(rscratch1, field);
+      __ access_value_copy(IN_HEAP, r0, rscratch1, r4);
       __ bind(done);
     }
     break;
@@ -3274,26 +3306,26 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_qgetfield:
     {
-       Label isFlattened, isInitialized, Done;
-       // FIXME: We don't need to reload registers multiple times, but stay close to x86 code
-       __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
-       __ test_field_is_inlined(r9, r8 /* temp */, isFlattened);
-        // Non-flattened field case
-        __ mov(r9, r0);
+      Register index = r4, klass = r5, inline_klass = r6;
+      Label is_inlined, nonnull, Done;
+      __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
+        // field is not inlined
         __ load_heap_oop(r0, field);
-        __ cbnz(r0, isInitialized);
-          __ mov(r0, r9);
-          __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
-          __ andw(r9, r9, ConstantPoolCacheEntry::field_index_mask);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_inline_type_field), r0, r9);
-        __ bind(isInitialized);
+        __ cbnz(r0, nonnull);
+          __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
+          __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
+                                             ConstantPoolCacheEntry::f1_offset())));
+          __ get_inline_type_field_klass(klass, index, inline_klass);
+          __ get_default_value_oop(inline_klass, rscratch1 /* temp */, r0);
+        __ bind(nonnull);
         __ verify_oop(r0);
         __ b(Done);
-      __ bind(isFlattened);
-        __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
-        __ andw(r9, r9, ConstantPoolCacheEntry::field_index_mask);
-        __ ldr(r3, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::f1_offset())));
-        call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field), r0, r9, r3);
+      __ bind(is_inlined);
+      // field is inlined
+        __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
+        __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
+                                           ConstantPoolCacheEntry::f1_offset())));
+        __ read_inlined_field(klass, index, r1, inline_klass /* temp */, r0);
         __ verify_oop(r0);
       __ bind(Done);
     }
@@ -3728,6 +3760,7 @@ void TemplateTable::_new() {
   __ get_unsigned_2_byte_index_at_bcp(r3, 1);
   Label slow_case;
   Label done;
+  Label is_not_value;
   Label initialize_header;
   Label initialize_object; // including clearing the fields
 
@@ -3745,95 +3778,22 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_offset(r4, r3, r4, rscratch1);
 
+  __ ldrb(rscratch1, Address(r4, InstanceKlass::kind_offset()));
+  __ cmp(rscratch1, (u1)InstanceKlass::_kind_inline_type);
+  __ br(Assembler::NE, is_not_value);
+
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
+
+  __ bind(is_not_value);
+
   // make sure klass is initialized & doesn't have finalizer
   // make sure klass is fully initialized
   __ ldrb(rscratch1, Address(r4, InstanceKlass::init_state_offset()));
   __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
   __ br(Assembler::NE, slow_case);
 
-  // get instance_size in InstanceKlass (scaled to a count of bytes)
-  __ ldrw(r3,
-          Address(r4,
-                  Klass::layout_helper_offset()));
-  // test to see if it has a finalizer or is malformed in some way
-  __ tbnz(r3, exact_log2(Klass::_lh_instance_slow_path_bit), slow_case);
-
-  // Allocate the instance:
-  //  If TLAB is enabled:
-  //    Try to allocate in the TLAB.
-  //    If fails, go to the slow path.
-  //  Else If inline contiguous allocations are enabled:
-  //    Try to allocate in eden.
-  //    If fails due to heap end, go to slow path.
-  //
-  //  If TLAB is enabled OR inline contiguous is enabled:
-  //    Initialize the allocation.
-  //    Exit.
-  //
-  //  Go to slow path.
-  const bool allow_shared_alloc =
-    Universe::heap()->supports_inline_contig_alloc();
-
-  if (UseTLAB) {
-    __ tlab_allocate(r0, r3, 0, noreg, r1, slow_case);
-
-    if (ZeroTLAB) {
-      // the fields have been already cleared
-      __ b(initialize_header);
-    } else {
-      // initialize both the header and fields
-      __ b(initialize_object);
-    }
-  } else {
-    // Allocation in the shared Eden, if allowed.
-    //
-    // r3: instance size in bytes
-    if (allow_shared_alloc) {
-      __ eden_allocate(r0, r3, 0, r10, slow_case);
-    }
-  }
-
-  // If UseTLAB or allow_shared_alloc are true, the object is created above and
-  // there is an initialize need. Otherwise, skip and go to the slow path.
-  if (UseTLAB || allow_shared_alloc) {
-    // The object is initialized before the header.  If the object size is
-    // zero, go directly to the header initialization.
-    __ bind(initialize_object);
-    __ sub(r3, r3, sizeof(oopDesc));
-    __ cbz(r3, initialize_header);
-
-    // Initialize object fields
-    {
-      __ add(r2, r0, sizeof(oopDesc));
-      Label loop;
-      __ bind(loop);
-      __ str(zr, Address(__ post(r2, BytesPerLong)));
-      __ sub(r3, r3, BytesPerLong);
-      __ cbnz(r3, loop);
-    }
-
-    // initialize object header only.
-    __ bind(initialize_header);
-    if (UseBiasedLocking) {
-      __ ldr(rscratch1, Address(r4, Klass::prototype_header_offset()));
-    } else {
-      __ mov(rscratch1, (intptr_t)markWord::prototype().value());
-    }
-    __ str(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
-    __ store_klass_gap(r0, zr);  // zero klass gap for compressed oops
-    __ store_klass(r0, r4);      // store klass last
-
-    {
-      SkipIfEqual skip(_masm, &DTraceAllocProbes, false);
-      // Trigger dtrace event for fastpath
-      __ push(atos); // save the return value
-      __ call_VM_leaf(
-           CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc), r0);
-      __ pop(atos); // restore the return value
-
-    }
-    __ b(done);
-  }
+  __ allocate_instance(r4, r0, r3, r1, true, slow_case);
+  __ b(done);
 
   // slow case
   __ bind(slow_case);
@@ -3912,6 +3872,7 @@ void TemplateTable::checkcast()
   __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
   __ lea(r1, Address(rscratch1, r19));
   __ ldarb(r1, r1);
+  __ andr(r1, r1, ~JVM_CONSTANT_QDescBit);
   __ cmp(r1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::EQ, quicked);
 
@@ -3981,6 +3942,7 @@ void TemplateTable::instanceof() {
   __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
   __ lea(r1, Address(rscratch1, r19));
   __ ldarb(r1, r1);
+  __ andr(r1, r1, ~JVM_CONSTANT_QDescBit);
   __ cmp(r1, (u1)JVM_CONSTANT_Class);
   __ br(Assembler::EQ, quicked);
 
@@ -4086,6 +4048,10 @@ void TemplateTable::monitorenter()
 
   __ resolve(IS_NOT_NULL, r0);
 
+  Label is_inline_type;
+  __ ldr(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+  __ test_markword_is_inline_type(rscratch1, is_inline_type);
+
   const Address monitor_block_top(
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
   const Address monitor_block_bot(
@@ -4175,6 +4141,11 @@ void TemplateTable::monitorenter()
   // The bcp has already been incremented. Just need to dispatch to
   // next instruction.
   __ dispatch_next(vtos);
+
+  __ bind(is_inline_type);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                    InterpreterRuntime::throw_illegal_monitor_state_exception));
+  __ should_not_reach_here();
 }
 
 
@@ -4186,6 +4157,18 @@ void TemplateTable::monitorexit()
   __ null_check(r0);
 
   __ resolve(IS_NOT_NULL, r0);
+
+  const int is_inline_type_mask = markWord::inline_type_pattern;
+  Label has_identity;
+  __ ldr(rscratch1, Address(r0, oopDesc::mark_offset_in_bytes()));
+  __ mov(rscratch2, is_inline_type_mask);
+  __ andr(rscratch1, rscratch1, rscratch2);
+  __ cmp(rscratch1, rscratch2);
+  __ br(Assembler::NE, has_identity);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                     InterpreterRuntime::throw_illegal_monitor_state_exception));
+  __ should_not_reach_here();
+  __ bind(has_identity);
 
   const Address monitor_block_top(
         rfp, frame::interpreter_frame_monitor_block_top_offset * wordSize);

@@ -102,10 +102,6 @@ class Runtime1: public AllStatic {
 
   // statistics
 #ifndef PRODUCT
-  static int _resolve_invoke_cnt;
-  static int _handle_wrong_method_cnt;
-  static int _ic_miss_cnt;
-  static int _generic_arraycopy_cnt;
   static int _generic_arraycopystub_cnt;
   static int _arraycopy_slowcase_cnt;
   static int _arraycopy_checkcast_cnt;
@@ -130,14 +126,13 @@ class Runtime1: public AllStatic {
   static int _throw_class_cast_exception_count;
   static int _throw_incompatible_class_change_error_count;
   static int _throw_illegal_monitor_state_exception_count;
-  static int _throw_array_store_exception_count;
   static int _throw_count;
 #endif
 
  private:
   static CodeBlob* _blobs[number_of_ids];
   static const char* _blob_names[];
-  static void buffer_inline_args_impl(JavaThread* thread, Method* m, bool allocate_receiver);
+  static void buffer_inline_args_impl(JavaThread* current, Method* m, bool allocate_receiver);
 
   // stub generation
  public:
@@ -154,44 +149,44 @@ class Runtime1: public AllStatic {
                                        Register arg1 = noreg, Register arg2 = noreg, Register arg3 = noreg);
 
   // runtime entry points
-  static void new_instance    (JavaThread* thread, Klass* klass);
-  static void new_instance_no_inline(JavaThread* thread, Klass* klass);
-  static void new_type_array  (JavaThread* thread, Klass* klass, jint length);
-  static void new_object_array(JavaThread* thread, Klass* klass, jint length);
-  static void new_flat_array (JavaThread* thread, Klass* klass, jint length);
-  static void new_multi_array (JavaThread* thread, Klass* klass, int rank, jint* dims);
-  static void load_flattened_array(JavaThread* thread, flatArrayOopDesc* array, int index);
-  static void store_flattened_array(JavaThread* thread, flatArrayOopDesc* array, int index, oopDesc* value);
-  static int  substitutability_check(JavaThread* thread, oopDesc* left, oopDesc* right);
-  static void buffer_inline_args(JavaThread* thread, Method* method);
-  static void buffer_inline_args_no_receiver(JavaThread* thread, Method* method);
+  static void new_instance    (JavaThread* current, Klass* klass);
+  static void new_instance_no_inline(JavaThread* current, Klass* klass);
+  static void new_type_array  (JavaThread* current, Klass* klass, jint length);
+  static void new_object_array(JavaThread* current, Klass* klass, jint length);
+  static void new_flat_array (JavaThread* current, Klass* klass, jint length);
+  static void new_multi_array (JavaThread* current, Klass* klass, int rank, jint* dims);
+  static void load_flattened_array(JavaThread* current, flatArrayOopDesc* array, int index);
+  static void store_flattened_array(JavaThread* current, flatArrayOopDesc* array, int index, oopDesc* value);
+  static int  substitutability_check(JavaThread* current, oopDesc* left, oopDesc* right);
+  static void buffer_inline_args(JavaThread* current, Method* method);
+  static void buffer_inline_args_no_receiver(JavaThread* current, Method* method);
 
-  static address counter_overflow(JavaThread* thread, int bci, Method* method);
+  static address counter_overflow(JavaThread* current, int bci, Method* method);
 
-  static void unimplemented_entry   (JavaThread* thread, StubID id);
+  static void unimplemented_entry(JavaThread* current, StubID id);
 
-  static address exception_handler_for_pc(JavaThread* thread);
+  static address exception_handler_for_pc(JavaThread* current);
 
-  static void throw_range_check_exception(JavaThread* thread, int index, arrayOopDesc* a);
-  static void throw_index_exception(JavaThread* thread, int index);
-  static void throw_div0_exception(JavaThread* thread);
-  static void throw_null_pointer_exception(JavaThread* thread);
-  static void throw_class_cast_exception(JavaThread* thread, oopDesc* object);
-  static void throw_incompatible_class_change_error(JavaThread* thread);
-  static void throw_illegal_monitor_state_exception(JavaThread* thread);
-  static void throw_array_store_exception(JavaThread* thread, oopDesc* object);
+  static void throw_range_check_exception(JavaThread* current, int index, arrayOopDesc* a);
+  static void throw_index_exception(JavaThread* current, int index);
+  static void throw_div0_exception(JavaThread* current);
+  static void throw_null_pointer_exception(JavaThread* current);
+  static void throw_class_cast_exception(JavaThread* current, oopDesc* object);
+  static void throw_incompatible_class_change_error(JavaThread* current);
+  static void throw_illegal_monitor_state_exception(JavaThread* current);
+  static void throw_array_store_exception(JavaThread* current, oopDesc* object);
 
-  static void monitorenter(JavaThread* thread, oopDesc* obj, BasicObjectLock* lock);
-  static void monitorexit (JavaThread* thread, BasicObjectLock* lock);
+  static void monitorenter(JavaThread* current, oopDesc* obj, BasicObjectLock* lock);
+  static void monitorexit (JavaThread* current, BasicObjectLock* lock);
 
-  static void deoptimize(JavaThread* thread, jint trap_request);
+  static void deoptimize(JavaThread* current, jint trap_request);
 
-  static int access_field_patching(JavaThread* thread);
-  static int move_klass_patching(JavaThread* thread);
-  static int move_mirror_patching(JavaThread* thread);
-  static int move_appendix_patching(JavaThread* thread);
+  static int access_field_patching(JavaThread* current);
+  static int move_klass_patching(JavaThread* current);
+  static int move_mirror_patching(JavaThread* current);
+  static int move_appendix_patching(JavaThread* current);
 
-  static void patch_code(JavaThread* thread, StubID stub_id);
+  static void patch_code(JavaThread* current, StubID stub_id);
 
  public:
   // initialization
@@ -218,7 +213,7 @@ class Runtime1: public AllStatic {
   // directly accessible leaf routine
   static int  is_instance_of(oopDesc* mirror, oopDesc* obj);
 
-  static void predicate_failed_trap(JavaThread* thread);
+  static void predicate_failed_trap(JavaThread* current);
 
   static void print_statistics()                 PRODUCT_RETURN;
 };

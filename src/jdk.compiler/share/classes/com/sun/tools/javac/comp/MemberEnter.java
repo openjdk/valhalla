@@ -218,14 +218,7 @@ public class MemberEnter extends JCTree.Visitor {
 
         localEnv.info.scope.leave();
         if (chk.checkUnique(tree.pos(), m, enclScope)) {
-            ClassSymbol refProjection = m.owner.isPrimitiveClass() ? (ClassSymbol) m.owner.referenceProjection() : null;
             enclScope.enter(m);
-            if (refProjection != null) {
-                MethodSymbol clone = m.clone(refProjection);
-                clone.projection = m;
-                m.projection = clone;
-                refProjection.members_field.enter(clone);
-            }
         }
 
         annotate.annotateLater(tree.mods.annotations, localEnv, m, tree.pos());
@@ -309,14 +302,7 @@ public class MemberEnter extends JCTree.Visitor {
         }
         if (chk.checkUnique(tree.pos(), v, enclScope)) {
             chk.checkTransparentVar(tree.pos(), v, enclScope);
-            ClassSymbol refProjection =  v.owner.isPrimitiveClass() ? (ClassSymbol) v.owner.referenceProjection() : null;
             enclScope.enter(v);
-            if (refProjection != null) {
-                VarSymbol clone = v.clone(refProjection);
-                clone.projection = v;
-                v.projection = clone;
-                refProjection.members_field.enter(clone);
-            }
         } else if (v.owner.kind == MTH || (v.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0) {
             // if this is a parameter or a field obtained from a record component, enter it
             enclScope.enter(v);

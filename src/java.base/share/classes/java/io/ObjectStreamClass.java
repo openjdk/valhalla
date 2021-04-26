@@ -834,7 +834,7 @@ public class ObjectStreamClass implements Serializable {
             char tcode = (char) in.readByte();
             String fname = in.readUTF();
             String signature = ((tcode == 'L') || (tcode == '[')) ?
-                in.readTypeString() : new String(new char[] { tcode });
+                in.readTypeString() : String.valueOf(tcode);
             try {
                 fields[i] = new ObjectStreamField(fname, signature, false);
             } catch (RuntimeException e) {
@@ -1197,7 +1197,7 @@ public class ObjectStreamClass implements Serializable {
             try {
                 writeObjectMethod.invoke(obj, new Object[]{ out });
             } catch (InvocationTargetException ex) {
-                Throwable th = ex.getTargetException();
+                Throwable th = ex.getCause();
                 if (th instanceof IOException) {
                     throw (IOException) th;
                 } else {
@@ -1227,7 +1227,7 @@ public class ObjectStreamClass implements Serializable {
             try {
                 readObjectMethod.invoke(obj, new Object[]{ in });
             } catch (InvocationTargetException ex) {
-                Throwable th = ex.getTargetException();
+                Throwable th = ex.getCause();
                 if (th instanceof ClassNotFoundException) {
                     throw (ClassNotFoundException) th;
                 } else if (th instanceof IOException) {
@@ -1258,7 +1258,7 @@ public class ObjectStreamClass implements Serializable {
             try {
                 readObjectNoDataMethod.invoke(obj, (Object[]) null);
             } catch (InvocationTargetException ex) {
-                Throwable th = ex.getTargetException();
+                Throwable th = ex.getCause();
                 if (th instanceof ObjectStreamException) {
                     throw (ObjectStreamException) th;
                 } else {
@@ -1287,7 +1287,7 @@ public class ObjectStreamClass implements Serializable {
             try {
                 return writeReplaceMethod.invoke(obj, (Object[]) null);
             } catch (InvocationTargetException ex) {
-                Throwable th = ex.getTargetException();
+                Throwable th = ex.getCause();
                 if (th instanceof ObjectStreamException) {
                     throw (ObjectStreamException) th;
                 } else {
@@ -1317,7 +1317,7 @@ public class ObjectStreamClass implements Serializable {
             try {
                 return readResolveMethod.invoke(obj, (Object[]) null);
             } catch (InvocationTargetException ex) {
-                Throwable th = ex.getTargetException();
+                Throwable th = ex.getCause();
                 if (th instanceof ObjectStreamException) {
                     throw (ObjectStreamException) th;
                 } else {
@@ -2406,8 +2406,7 @@ public class ObjectStreamClass implements Serializable {
                 return true;
             }
 
-            if (obj instanceof FieldReflectorKey) {
-                FieldReflectorKey other = (FieldReflectorKey) obj;
+            if (obj instanceof FieldReflectorKey other) {
                 Class<?> referent;
                 return (nullClass ? other.nullClass
                                   : ((referent = get()) != null) &&
@@ -2603,8 +2602,7 @@ public class ObjectStreamClass implements Serializable {
 
             @Override
             public final boolean equals(Object obj) {
-                if (!(obj instanceof Key)) return false;
-                Key other = (Key) obj;
+                if (!(obj instanceof Key other)) return false;
                 int n = length();
                 if (n != other.length()) return false;
                 for (int i = 0; i < n; i++) if (fieldType(i) != other.fieldType(i)) return false;

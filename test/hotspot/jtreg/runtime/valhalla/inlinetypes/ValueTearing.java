@@ -41,7 +41,7 @@ import static jdk.test.lib.Asserts.*;
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @compile ValueTearing.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xint  -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
  *                   -DSTEP_COUNT=10000 -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI

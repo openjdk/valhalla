@@ -1,0 +1,3 @@
+UnknownTypeDefault.java:11:22: compiler.err.cant.resolve.location: kindname.class, Y, null, null, (compiler.misc.location: kindname.class, UnknownTypeDefault, null)
+UnknownTypeDefault.java:12:24: compiler.err.cant.resolve.location: kindname.class, y.Z, null, null, (compiler.misc.location: kindname.class, UnknownTypeDefault, null)
+2 errors

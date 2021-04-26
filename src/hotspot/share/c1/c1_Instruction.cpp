@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -450,12 +450,11 @@ StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt
 
 
 Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-               int vtable_index, ciMethod* target, ValueStack* state_before, bool null_free)
+               ciMethod* target, ValueStack* state_before, bool null_free)
   : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
   , _args(args)
-  , _vtable_index(vtable_index)
   , _target(target)
 {
   set_flag(TargetIsLoadedFlag,   target->is_loaded());

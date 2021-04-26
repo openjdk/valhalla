@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -139,9 +139,13 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
     // 16-byte aligned) and copy the return address to the new top of the stack.
     // The stack will be repaired on return (see MacroAssembler::remove_frame).
     assert(sp_inc > 0, "sanity");
+#ifdef X86
     pop(r13);
     subptr(rsp, sp_inc);
     push(r13);
+#else
+    Unimplemented();
+#endif
   }
   shuffle_inline_args(false, receiver_only, sig,
                       args_passed, args_on_stack, regs,           // from

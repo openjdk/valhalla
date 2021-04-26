@@ -1225,7 +1225,7 @@ public class JavacTrees extends DocTrees {
             ClassType ct = (ClassType) errorType;
             return extraType2OriginalMap.computeIfAbsent(ct, tt ->
                     new ClassType(ct.getEnclosingType(), ct.typarams_field,
-                                  ct.tsym, ct.getMetadata()) {
+                                  ct.tsym, ct.getMetadata(), ct.isReferenceProjection()) {
                         @Override
                         public Type baseType() { return ct; }
                         @Override

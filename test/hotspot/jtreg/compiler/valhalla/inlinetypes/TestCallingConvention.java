@@ -35,7 +35,7 @@ import java.lang.reflect.Method;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestCallingConvention.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.InlineTypeTest
@@ -49,6 +49,7 @@ public class TestCallingConvention extends InlineTypeTest {
         case 0: return new String[] {"-Dsun.reflect.inflationThreshold=10000"}; // Don't generate bytecodes but call through runtime for reflective calls
         case 1: return new String[] {"-Dsun.reflect.inflationThreshold=10000"};
         case 3: return new String[] {"-XX:FlatArrayElementMaxSize=0"};
+        case 4: return new String[] {"-XX:-UseTLAB"};
         }
         return null;
     }

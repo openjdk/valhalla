@@ -75,7 +75,7 @@ class ScopeDesc : public ResourceObj {
   bool should_reexecute() const { return _reexecute; }
   bool rethrow_exception() const { return _rethrow_exception; }
   bool return_oop()       const { return _return_oop; }
-  bool return_vt()        const { return _return_vt; }
+  bool return_scalarized() const { return _return_scalarized; }
   // Returns true if one or more NoEscape or ArgEscape objects exist in
   // any of the scopes at compiled pc.
   bool has_ea_local_in_scope() const { return _has_ea_local_in_scope; }
@@ -109,7 +109,7 @@ class ScopeDesc : public ResourceObj {
   bool          _reexecute;
   bool          _rethrow_exception;
   bool          _return_oop;
-  bool          _return_vt;
+  bool          _return_scalarized;
   bool          _has_ea_local_in_scope;       // One or more NoEscape or ArgEscape objects exist in
                                               // any of the scopes at compiled pc.
   bool          _arg_escape;                  // Compiled Java call in youngest scope passes ArgEscape

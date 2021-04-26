@@ -370,7 +370,7 @@ public class LambdaToMethod extends TreeTranslator {
         //create the method declaration hoisting the lambda body
         JCMethodDecl lambdaDecl = make.MethodDef(make.Modifiers(sym.flags_field),
                 sym.name,
-                make.QualIdent(lambdaType.getReturnType().tsym),
+                make.QualIdent(lambdaType.getReturnType().tsym).setType(lambdaType.getReturnType()),
                 List.nil(),
                 localContext.syntheticParams,
                 lambdaType.getThrownTypes() == null ?
@@ -1859,7 +1859,7 @@ public class LambdaToMethod extends TreeTranslator {
                 if (forceSerializable) {
                     return true;
                 }
-                return types.asSuper(tree.target, syms.serializableType.tsym) != null;
+                return types.asSuper(tree.target.referenceProjectionOrSelf(), syms.serializableType.tsym) != null;
             }
 
             /**
@@ -2288,7 +2288,7 @@ public class LambdaToMethod extends TreeTranslator {
                C$ref.class and fail with a NoSuchMethodError. we need to workaround it ourselves.
             */
             boolean receiverIsReferenceProjection() {
-                return tree.sym.kind == MTH && tree.sym.owner.isReferenceProjection();
+                return tree.getQualifierExpression().type.isReferenceProjection();
             }
 
             /**

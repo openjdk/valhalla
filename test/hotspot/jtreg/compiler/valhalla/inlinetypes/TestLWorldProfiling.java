@@ -33,7 +33,7 @@ import java.lang.reflect.Method;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64")
  * @compile TestLWorldProfiling.java
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:FlatArrayElementMaxSize=-1
  *                               compiler.valhalla.inlinetypes.InlineTypeTest

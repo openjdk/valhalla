@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2099,9 +2099,9 @@ void GraphKit::increment_counter(address counter_addr) {
 void GraphKit::increment_counter(Node* counter_addr) {
   int adr_type = Compile::AliasIdxRaw;
   Node* ctrl = control();
-  Node* cnt  = make_load(ctrl, counter_addr, TypeInt::INT, T_INT, adr_type, MemNode::unordered);
-  Node* incr = _gvn.transform(new AddINode(cnt, _gvn.intcon(1)));
-  store_to_memory(ctrl, counter_addr, incr, T_INT, adr_type, MemNode::unordered);
+  Node* cnt  = make_load(ctrl, counter_addr, TypeLong::LONG, T_LONG, adr_type, MemNode::unordered);
+  Node* incr = _gvn.transform(new AddLNode(cnt, _gvn.longcon(1)));
+  store_to_memory(ctrl, counter_addr, incr, T_LONG, adr_type, MemNode::unordered);
 }
 
 
@@ -3962,7 +3962,9 @@ static void hook_memory_on_init(GraphKit& kit, int alias_idx,
 
   Node* prevmem = kit.memory(alias_idx);
   init_in_merge->set_memory_at(alias_idx, prevmem);
-  kit.set_memory(init_out_raw, alias_idx);
+  if (init_out_raw != NULL) {
+    kit.set_memory(init_out_raw, alias_idx);
+  }
 }
 
 //---------------------------set_output_for_allocation-------------------------
@@ -4026,7 +4028,10 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
           int off_in_vt = field->offset() - vk->first_field_offset();
           const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
           int fieldidx = C->get_alias_index(adr_type, true);
-          hook_memory_on_init(*this, fieldidx, minit_in, minit_out);
+          // Pass NULL for init_out. Having per flat array element field memory edges as uses of the Initialize node
+          // can result in per flat array field Phis to be created which confuses the logic of
+          // Compile::adjust_flattened_array_access_aliases().
+          hook_memory_on_init(*this, fieldidx, minit_in, NULL);
         }
         C->set_flattened_accesses_share_alias(true);
         hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::INLINES), minit_in, minit_out);
@@ -4625,7 +4630,7 @@ Node* GraphKit::compress_string(Node* src, const TypeAryPtr* src_type, Node* dst
   //  LoadB -> compress_string -> MergeMem(CharMem, StoreB(ByteMem))
   Node* mem = capture_memory(src_type, TypeAryPtr::BYTES);
   StrCompressedCopyNode* str = new StrCompressedCopyNode(control(), mem, src, dst, count);
-  Node* res_mem = _gvn.transform(new SCMemProjNode(str));
+  Node* res_mem = _gvn.transform(new SCMemProjNode(_gvn.transform(str)));
   set_memory(res_mem, TypeAryPtr::BYTES);
   return str;
 }
@@ -4647,6 +4652,8 @@ void GraphKit::inflate_string_slow(Node* src, Node* dst, Node* start, Node* coun
    * }
    */
   add_empty_predicates();
+  C->set_has_loops(true);
+
   RegionNode* head = new RegionNode(3);
   head->init_req(1, control());
   gvn().set_type(head, Type::CONTROL);

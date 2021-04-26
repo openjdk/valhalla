@@ -46,7 +46,7 @@ class PcDesc {
     PCDESC_has_ea_local_in_scope     = 1 << 4,
     PCDESC_arg_escape                = 1 << 5,
     PCDESC_is_optimized_linkToNative = 1 << 6,
-    PCDESC_return_vt                 = 1 << 7
+    PCDESC_return_scalarized         = 1 << 7
   };
 
   int _flags;
@@ -96,8 +96,8 @@ class PcDesc {
   bool     return_oop()                    const { return (_flags & PCDESC_return_oop) != 0;     }
   void set_return_oop(bool z)                    { set_flag(PCDESC_return_oop, z); }
 
-  bool     return_vt()                     const { return (_flags & PCDESC_return_vt) != 0;     }
-  void set_return_vt(bool z)                     { set_flag(PCDESC_return_vt, z); }
+  bool     return_scalarized()             const { return (_flags & PCDESC_return_scalarized) != 0; }
+  void set_return_scalarized(bool z)             { set_flag(PCDESC_return_scalarized, z); }
   // Indicates if there are objects in scope that, based on escape analysis, are local to the
   // compiled method or local to the current thread, i.e. NoEscape or ArgEscape
   bool     has_ea_local_in_scope()         const { return (_flags & PCDESC_has_ea_local_in_scope) != 0; }

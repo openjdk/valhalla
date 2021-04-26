@@ -1,4 +1,4 @@
 TypeRelationsNegativeTest.java:11:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, TypeRelationsNegativeTest)
 TypeRelationsNegativeTest.java:21:77: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, TypeRelationsNegativeTest)
-TypeRelationsNegativeTest.java:26:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TypeRelationsNegativeTest$ref[], TypeRelationsNegativeTest[])
+TypeRelationsNegativeTest.java:26:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TypeRelationsNegativeTest.ref[], TypeRelationsNegativeTest[])
 3 errors

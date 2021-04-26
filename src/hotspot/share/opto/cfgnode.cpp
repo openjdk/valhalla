@@ -632,6 +632,13 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       for (DUIterator_Last imin, i = last_outs(imin); i >= imin; --i) {
         Node* n = last_out(i);
         igvn->hash_delete(n); // Remove from worklist before modifying edges
+        if (n->outcnt() == 0) {
+          int uses_found = n->replace_edge(this, phase->C->top(), igvn);
+          if (uses_found > 1) { // (--i) done at the end of the loop.
+            i -= (uses_found - 1);
+          }
+          continue;
+        }
         if( n->is_Phi() ) {   // Collapse all Phis
           // Eagerly replace phis to avoid regionless phis.
           Node* in;
@@ -648,14 +655,8 @@ Node *RegionNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         }
         else if( n->is_Region() ) { // Update all incoming edges
           assert(n != this, "Must be removed from DefUse edges");
-          uint uses_found = 0;
-          for( uint k=1; k < n->req(); k++ ) {
-            if( n->in(k) == this ) {
-              n->set_req(k, parent_ctrl);
-              uses_found++;
-            }
-          }
-          if( uses_found > 1 ) { // (--i) done at the end of the loop.
+          int uses_found = n->replace_edge(this, parent_ctrl, igvn);
+          if (uses_found > 1) { // (--i) done at the end of the loop.
             i -= (uses_found - 1);
           }
         }
@@ -889,6 +890,9 @@ bool RegionNode::optimize_trichotomy(PhaseIterGVN* igvn) {
     // Replace bool input of iff2 with merged test
     BoolNode* new_bol = new BoolNode(bol2->in(1), res);
     igvn->replace_input_of(iff2, 1, igvn->transform((proj2->_con == 1) ? new_bol : new_bol->negate(igvn)));
+    if (new_bol->outcnt() == 0) {
+      igvn->remove_dead_node(new_bol);
+    }
   }
   return false;
 }
@@ -1064,6 +1068,14 @@ void PhiNode::verify_adr_type(bool recursive) const {
   if (Node::in_dump())               return;  // muzzle asserts when printing
 
   assert((_type == Type::MEMORY) == (_adr_type != NULL), "adr_type for memory phis only");
+  // Flat array element shouldn't get their own memory slice until flattened_accesses_share_alias is cleared.
+  // It could be the graph has no loads/stores and flattened_accesses_share_alias is never cleared. EA could still
+  // creates per element Phis but that wouldn't be a problem as there are no memory accesses for that array.
+  assert(_adr_type == NULL || _adr_type->isa_aryptr() == NULL ||
+         _adr_type->is_aryptr()->is_known_instance() ||
+         !_adr_type->is_aryptr()->is_flat() ||
+         !Compile::current()->flattened_accesses_share_alias() ||
+         _adr_type == TypeAryPtr::INLINES, "flat array element shouldn't get its own slice yet");
 
   if (!VerifyAliases)       return;  // verify thoroughly only if requested
 
@@ -1945,11 +1957,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           igvn->_worklist.push(r);
         }
         // Nuke it down
-        if (can_reshape) {
-          set_req_X(j, top, igvn);
-        } else {
-          set_req(j, top);
-        }
+        set_req_X(j, top, phase);
         progress = this;        // Record progress
       }
     }
@@ -1987,7 +1995,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         } else {
           // We can't return top if we are in Parse phase - cut inputs only
           // let Identity to handle the case.
-          replace_edge(uin, top);
+          replace_edge(uin, top, phase);
           return NULL;
         }
       }
@@ -2260,7 +2268,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
                              m->as_MergeMem()->memory_at(alias_idx) : m;
             // Update input if it is progress over what we have now
             if (new_mem != ii) {
-              set_req(i, new_mem);
+              set_req_X(i, new_mem, phase->is_IterGVN());
               progress = this;
             }
           }

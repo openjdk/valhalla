@@ -1018,11 +1018,14 @@ void GraphBuilder::load_indexed(BasicType type) {
   Value array = apop();
   Value length = NULL;
   if (CSEArrayLength ||
+      (array->as_Constant() != NULL) ||
       (array->as_AccessField() && array->as_AccessField()->field()->is_constant()) ||
-      (array->as_NewArray() && array->as_NewArray()->length() && array->as_NewArray()->length()->type()->is_constant())) {
+      (array->as_NewArray() && array->as_NewArray()->length() && array->as_NewArray()->length()->type()->is_constant()) ||
+      (array->as_NewMultiArray() && array->as_NewMultiArray()->dims()->at(0)->type()->is_constant())) {
     length = append(new ArrayLength(array, state_before));
   }
 
+  bool need_membar = false;
   LoadIndexed* load_indexed = NULL;
   Instruction* result = NULL;
   if (array->is_loaded_flattened_array()) {
@@ -1059,6 +1062,10 @@ void GraphBuilder::load_indexed(BasicType type) {
         apush(append_split(new_instance));
         load_indexed = new LoadIndexed(array, index, length, type, state_before);
         load_indexed->set_vt(new_instance);
+        // The LoadIndexed node will initialise this instance by copying from
+        // the flattened field.  Ensure these stores are visible before any
+        // subsequent store that publishes this reference.
+        need_membar = true;
       }
     }
   } else {
@@ -1071,6 +1078,9 @@ void GraphBuilder::load_indexed(BasicType type) {
     }
   }
   result = append(load_indexed);
+  if (need_membar) {
+    append(new MemBar(lir_membar_storestore));
+  }
   assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
   if (!array->is_loaded_flattened_array()) {
     push(as_ValueType(type), result);
@@ -1095,8 +1105,10 @@ void GraphBuilder::store_indexed(BasicType type) {
   Value array = apop();
   Value length = NULL;
   if (CSEArrayLength ||
+      (array->as_Constant() != NULL) ||
       (array->as_AccessField() && array->as_AccessField()->field()->is_constant()) ||
-      (array->as_NewArray() && array->as_NewArray()->length() && array->as_NewArray()->length()->type()->is_constant())) {
+      (array->as_NewArray() && array->as_NewArray()->length() && array->as_NewArray()->length()->type()->is_constant()) ||
+      (array->as_NewMultiArray() && array->as_NewMultiArray()->dims()->at(0)->type()->is_constant())) {
     length = append(new ArrayLength(array, state_before));
   }
   ciType* array_type = array->declared_type();
@@ -1617,7 +1629,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
 
   // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
-  if (method()->is_object_constructor() &&
+  if ((method()->is_object_constructor() || method()->is_static_init_factory()) &&
        (scope()->wrote_final() ||
          (AlwaysSafeConstructors && scope()->wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
@@ -1975,6 +1987,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
+            bool need_membar = false;
             if (inline_klass->is_empty()) {
               apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
               if (has_pending_field_access()) {
@@ -1991,6 +2004,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               apush(append_split(vt));
               append(pending_load_indexed()->load_instr());
               set_pending_load_indexed(NULL);
+              need_membar = true;
             } else {
               NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
               _memory->new_instance(new_instance);
@@ -2004,6 +2018,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               } else {
                 copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(), state_before);
               }
+              need_membar = true;
+            }
+            if (need_membar) {
+              // If we allocated a new instance ensure the stores to copy the
+              // field contents are visible before any subsequent store that
+              // publishes this reference.
+              append(new MemBar(lir_membar_storestore));
             }
           }
         }
@@ -2043,8 +2064,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 }
 
 // Baseline version of withfield, allocate every time
-void GraphBuilder::withfield(int field_index)
-{
+void GraphBuilder::withfield(int field_index) {
   // Save the entire state and re-execute on deopt
   ValueStack* state_before = copy_state_before();
   state_before->set_should_reexecute(true);
@@ -2417,7 +2437,6 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     code == Bytecodes::_invokeinterface;
   Values* args = state()->pop_arguments(target->arg_size_no_receiver() + patching_appendix_arg);
   Value recv = has_receiver ? apop() : NULL;
-  int vtable_index = Method::invalid_vtable_index;
 
   // A null check is required here (when there is a receiver) for any of the following cases
   // - invokespecial, always need a null check.
@@ -2457,7 +2476,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
-  Invoke* result = new Invoke(code, result_type, recv, args, vtable_index, target, state_before,
+  Invoke* result = new Invoke(code, result_type, recv, args, target, state_before,
                               declared_signature->return_type()->is_inlinetype());
   // push result
   append_split(result);
@@ -2488,7 +2507,8 @@ void GraphBuilder::new_instance(int klass_index) {
 void GraphBuilder::default_value(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  if (!stream()->is_unresolved_klass() && klass->is_inlinetype()) {
+  if (!stream()->is_unresolved_klass() && klass->is_inlinetype() &&
+      klass->as_inline_klass()->is_initialized()) {
     ciInlineKlass* vk = klass->as_inline_klass();
     apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
   } else {
@@ -3833,7 +3853,6 @@ const char* GraphBuilder::check_can_parse(ciMethod* callee) const {
   // Certain methods cannot be parsed at all:
   if ( callee->is_native())            return "native method";
   if ( callee->is_abstract())          return "abstract method";
-  if (!callee->can_be_compiled())      return "not compilable (disabled)";
   if (!callee->can_be_parsed())        return "cannot be parsed";
   return NULL;
 }

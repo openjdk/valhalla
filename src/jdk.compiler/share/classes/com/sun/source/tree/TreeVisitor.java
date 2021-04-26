@@ -170,6 +170,14 @@ public interface TreeVisitor<R,P> {
     R visitContinue(ContinueTree node, P p);
 
     /**
+     * Visits a DefaultValue node.
+     * @param node the node being visited
+     * @param p a parameter value
+     * @return a result value
+     */
+    R visitDefaultValue(DefaultValueTree node, P p);
+
+    /**
      * Visits a DoWhileTree node.
      * @param node the node being visited
      * @param p a parameter value

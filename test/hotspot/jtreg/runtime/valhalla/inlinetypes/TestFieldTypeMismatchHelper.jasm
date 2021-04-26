@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,9 @@
  *
  */
 
-public class compiler/valhalla/inlinetypes/TestFieldTypeMismatchHelper version 61:0 {
+public class runtime/valhalla/inlinetypes/TestFieldTypeMismatchHelper version 61:0 {
 
-    Field field:"Qcompiler/valhalla/inlinetypes/MyValue;";
+    Field field:"Qruntime/valhalla/inlinetypes/MyValue;";
 
     public Method "<init>":"()V"
       stack 1 locals 1
@@ -37,7 +37,7 @@ public class compiler/valhalla/inlinetypes/TestFieldTypeMismatchHelper version 6
     public Method test:"()V" stack 2 locals 1 {
         aload_0;
         aconst_null;
-        putfield Field field:"Qcompiler/valhalla/inlinetypes/MyValue;";
+        putfield Field field:"Qruntime/valhalla/inlinetypes/MyValue;";
         return;
     }
 }

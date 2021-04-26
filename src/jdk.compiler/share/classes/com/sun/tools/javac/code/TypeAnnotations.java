@@ -627,7 +627,7 @@ public class TypeAnnotations {
                     } else {
                         ClassType ret = new ClassType(t.getEnclosingType().accept(this, s),
                                                       t.typarams_field, t.tsym,
-                                                      t.getMetadata());
+                                                      t.getMetadata(), t.isReferenceProjection());
                         ret.all_interfaces_field = t.all_interfaces_field;
                         ret.allparams_field = t.allparams_field;
                         ret.interfaces_field = t.interfaces_field;

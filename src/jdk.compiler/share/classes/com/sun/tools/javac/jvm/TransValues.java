@@ -34,6 +34,7 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Types;
@@ -200,7 +201,8 @@ public class TransValues extends TreeTranslator {
                     // Synthesize code to allocate factory "product" via: V $this = V.default;
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
                     final JCExpression type = make.Type(currentClass.type);
-                    rhs = make.Select(type, new VarSymbol(STATIC, names._default, currentClass.type, currentClass.sym));
+                    rhs = make.DefaultValue(type);
+                    rhs.type = currentClass.type;
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.init(args);
                     Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
@@ -222,16 +224,6 @@ public class TransValues extends TreeTranslator {
                 currentMethod.setType(factorySym.type);
                 currentMethod.factoryProduct = product;
                 currentClass.sym.members().remove(tree.sym);
-                ClassSymbol refProjection = currentClass.sym.projection;
-                if (refProjection != null) {
-                    MethodSymbol projection = tree.sym.projection;
-                    Assert.check(projection != null);
-                    refProjection.members().remove(projection);
-                    projection = factorySym.clone(refProjection);
-                    projection.projection = factorySym;
-                    factorySym.projection = projection;
-                    refProjection.members().enter(projection);
-                }
                 tree.sym = factorySym;
                 currentClass.sym.members().enter(factorySym);
                 tree.mods.flags |= STATIC;
@@ -335,25 +327,23 @@ public class TransValues extends TreeTranslator {
            V.ref.member to V.member
         */
         fieldAccess.selected = translate(fieldAccess.selected);
-        if (fieldAccess.name != names._class && fieldAccess.name != names._default) {  // TODO: this and super ??
+        if (fieldAccess.name != names._class) {  // TODO: this and super ??
             Symbol sym = TreeInfo.symbol(fieldAccess);
             Symbol sitesym = TreeInfo.symbol(fieldAccess.selected);
-            TypeSymbol selectedType = fieldAccess.selected.type.tsym;
+            Type selectedType = fieldAccess.selected.type;
             if (selectedType.isReferenceProjection()) {
                 switch (sym.kind) {
                     case MTH:
                     case VAR:
                         if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
-                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
                         } else {
                             fieldAccess.selected =
-                                    make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
-                            if (sym.owner.isReferenceProjection()) // is an empty class file.
-                                TreeInfo.setSymbol(fieldAccess, sym.valueProjection());
+                                    make.TypeCast(types.erasure(selectedType.valueProjection()), fieldAccess.selected);
                         }
                         break;
                     case TYP:
-                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
                         break;
                 }
             }

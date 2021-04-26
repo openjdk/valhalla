@@ -129,7 +129,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS)
 // since a GC can happen. At this point all instance variables of the ArrayKlass must be setup.
 void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module_entry, TRAPS) {
   k->initialize_supers(super_klass, NULL, CHECK);
-  k->vtable().initialize_vtable(false, CHECK);
+  k->vtable().initialize_vtable();
 
   // During bootstrapping, before java.base is defined, the module_entry may not be present yet.
   // These classes will be put on a fixup list and their module fields will be patched once
@@ -183,9 +183,7 @@ oop ArrayKlass::component_mirror() const {
   return java_lang_Class::component_mirror(java_mirror());
 }
 
-// JVM support
-
-jint ArrayKlass::compute_modifier_flags(TRAPS) const {
+jint ArrayKlass::compute_modifier_flags() const {
   return JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC;
 }
 
