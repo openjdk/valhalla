@@ -101,6 +101,18 @@ public class Types {
     List<Warner> warnStack = List.nil();
     final Name capturedName;
 
+    /**
+     * If true, the ClassWriter will split a primitive class declaration into two class files
+     * P.ref.class and P.val.class (P.class for pure primitive classes)
+     *
+     * This is the default behavior, can be eoverridden with -XDunifiedValRefClass
+     *
+     * If false, we emit a single class for a primtive class 'P' and the reference projection and
+     * value projection types are encoded in descriptors as LP; and QP; resperctively.
+     */
+
+    public boolean splitPrimitiveClass;
+
     public final Warner noWarnings;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -126,6 +138,7 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        splitPrimitiveClass = options.isUnset("unifiedValRefClass");
     }
     // </editor-fold>
 
@@ -5353,7 +5366,7 @@ public class Types {
             } else {
                 append(externalize(c.flatname));
             }
-            if (ct.isReferenceProjection()) {
+            if (types.splitPrimitiveClass && ct.isReferenceProjection()) {
                 append('$');
                 append(types.names.ref);
             }

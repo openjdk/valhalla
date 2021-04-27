@@ -2687,7 +2687,7 @@ public class ClassReader {
             ClassSymbol referenceProjection = syms.getClass(currentModule, flatname);
             if (referenceProjection != null) {
                 if (referenceProjection.name != names.ref && referenceProjection.owner.kind == PCK) {
-                    readClassFileInternal(referenceProjection);
+                    referenceProjection.complete();
                     ClassType classType = (ClassType) c.type;
                     classType.supertype_field = ((ClassType) referenceProjection.type).supertype_field;
                     classType.interfaces_field = ((ClassType) referenceProjection.type).interfaces_field;

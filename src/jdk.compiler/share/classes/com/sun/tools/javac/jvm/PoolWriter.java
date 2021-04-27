@@ -378,7 +378,7 @@ public class PoolWriter {
                     Name name = ct.hasTag(ARRAY) ?
                             typeSig(ct) :
                             c instanceof ConstantPoolQType ? names.fromString("Q" + new String(externalize(ct.tsym.flatName())) + ";") : names.fromUtf(externalize(ct.tsym.flatName()));
-                    if (ct.isReferenceProjection()) {
+                    if (types.splitPrimitiveClass && ct.isReferenceProjection()) {
                         name = name.append('$', names.ref);
                     }
                     poolbuf.appendByte(tag);
@@ -514,8 +514,8 @@ public class PoolWriter {
         if (typarams.nonEmpty()) {
             signatureGen.assembleParamsSig(typarams);
         }
-        signatureGen.assembleSig(t.isPrimitiveClass() ? t.referenceProjection() : types.supertype(t));
-        if (!t.isPrimitiveClass()) {
+        signatureGen.assembleSig(t.isPrimitiveClass() && types.splitPrimitiveClass ? t.referenceProjection() : types.supertype(t));
+        if (!t.isPrimitiveClass() || !types.splitPrimitiveClass) {
             for (Type i : types.interfaces(t))
                 signatureGen.assembleSig(i);
         }
