@@ -295,7 +295,7 @@ class GraphBuilder {
   // inline types
   void default_value(int klass_index);
   void withfield(int field_index);
-  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* encloding_field = NULL);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);

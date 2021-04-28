@@ -148,6 +148,9 @@ class ValueNumberingVisitor: public InstructionVisitor {
       kill_memory();
     } else {
       kill_field(x->field(), x->needs_patching());
+      if (x->enclosing_field() != NULL) {
+        kill_field(x->enclosing_field(), true);
+      }
     }
   }
   void do_StoreIndexed   (StoreIndexed*    x) { kill_array(x->type()); }
