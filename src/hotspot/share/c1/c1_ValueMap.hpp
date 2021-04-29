@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,6 +148,9 @@ class ValueNumberingVisitor: public InstructionVisitor {
       kill_memory();
     } else {
       kill_field(x->field(), x->needs_patching());
+      if (x->enclosing_field() != NULL) {
+        kill_field(x->enclosing_field(), true);
+      }
     }
   }
   void do_StoreIndexed   (StoreIndexed*    x) { kill_array(x->type()); }

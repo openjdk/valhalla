@@ -416,6 +416,7 @@ StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool 
                        ValueStack* state_before, bool needs_patching)
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   , _value(value)
+  , _enclosing_field(NULL)
 {
   set_flag(NeedsWriteBarrierFlag, as_ValueType(field_type())->is_object());
 #ifdef ASSERT
