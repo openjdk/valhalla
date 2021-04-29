@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,44 +29,43 @@ import jdk.test.lib.Asserts;
 /*
  * @test
  * @summary Test value numbering behaves correctly with flattened fields
- * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile TestC1ValueNumbering.java
- * @run main/othervm -Xcomp -XX:TieredStopAtLevel=1 -ea -XX:+UseGlobalValueNumbering
+ * @library /testlibrary /test/lib
+ * @run main/othervm -Xcomp -XX:TieredStopAtLevel=1 -ea
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC1ValueNumbering::*
  *                   compiler.valhalla.inlinetypes.TestC1ValueNumbering
  */
 
 public class TestC1ValueNumbering {
-  static primitive class Point {
-    int x,y;
-    public Point() {
-        x = 0; y = 0;
+    static primitive class Point {
+        int x,y;
+        public Point() {
+            x = 0; y = 0;
+        }
+        public Point(int x, int y) {
+            this.x = x; this.y = y;
+        }
     }
-    public Point(int x, int y) {
-        this.x = x; this.y = y;
+
+    Point p;
+
+    // Notes on test 1:
+    // 1 - asserts are important create several basic blocks (asserts create branches)
+    // 2 - local variables x, y must be read in the same block as the putfield
+    static void test1() {
+        Point p = new Point(4,5);
+        TestC1ValueNumbering test = new TestC1ValueNumbering();
+        assert test.p.x == 0;
+        assert test.p.y == 0;
+        test.p = p;
+        int x = test.p.x;
+        int y = test.p.y;
+        Asserts.assertEQ(x, 4, "Bad field value");
+        Asserts.assertEQ(y, 5, "Bad field value");
+    }
+
+    public static void main(String[] args) {
+        for (int i = 0; i < 10; i++) {
+            test1();
+        }
     }
   }
-
-  Point p;
-
-  // Notes on test 1:
-  // 1 - asserts are important create several basic blocks (asserts create branches)
-  // 2 - local variables x, y must be read in the same block as the putfield
-  static void test1() {
-    Point p = new Point(4,5);
-    TestC1ValueNumbering test = new TestC1ValueNumbering();
-    assert test.p.x == 0;
-    assert test.p.y == 0;
-    test.p = p;
-    int x = test.p.x;
-    int y = test.p.y;
-    Asserts.assertEQ(x, 4, "Bad field value");
-    Asserts.assertEQ(y, 5, "Bad field value");
-  }
-
-  public static void main(String[] args) {
-    for (int i = 0; i < 10; i++) {
-        test1();
-    }
-  }
-}
