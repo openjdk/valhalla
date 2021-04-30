@@ -425,7 +425,7 @@ PhaseRemoveUseless::PhaseRemoveUseless(PhaseGVN* gvn, Unique_Node_List* worklist
   worklist->remove_useless_nodes(_useful.member_set());
 
   // Disconnect 'useless' nodes that are adjacent to useful nodes
-  C->remove_useless_nodes(_useful);
+  C->disconnect_useless_nodes(_useful, worklist);
 }
 
 //=============================================================================
@@ -1930,6 +1930,13 @@ Node *PhaseCCP::transform( Node *n ) {
   new_node = transform_once(n);     // Check for constant
   _nodes.map( n->_idx, new_node );  // Flag as having been cloned
 
+  // Keep track of nodes that are reachable from the bottom
+  Unique_Node_List useful;
+  useful.push(new_node);
+  if (C->cached_top_node()) {
+    useful.push(C->cached_top_node());
+  }
+
   // Allocate stack of size _nodes.Size()/2 to avoid frequent realloc
   GrowableArray <Node *> trstack(C->live_nodes() >> 1);
 
@@ -1945,11 +1952,18 @@ Node *PhaseCCP::transform( Node *n ) {
           new_input = transform_once(input);   // Check for constant
           _nodes.map( input->_idx, new_input );// Flag as having been cloned
           trstack.push(new_input);
+          useful.push(new_input);
         }
         assert( new_input == clone->in(i), "insanity check");
       }
     }
   }
+
+  // Aggressively remove all useless nodes
+  C->update_dead_node_list(useful);
+  _worklist.remove_useless_nodes(useful.member_set());
+  C->disconnect_useless_nodes(useful, &_worklist);
+
   return new_node;
 }
 

@@ -507,6 +507,15 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
     make_scalar_in_safepoints(igvn);
   }
+  Node* oop = get_oop();
+  if (oop->isa_InlineTypePtr()) {
+    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
+    set_oop(vtptr->get_oop());
+    for (uint i = Values; i < vtptr->req(); ++i) {
+      set_req(i, vtptr->in(i));
+    }
+    return this;
+  }
   return NULL;
 }
 
@@ -836,14 +845,6 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     set_oop(default_oop(*phase, inline_klass()));
     assert(is_allocated(phase), "should now be allocated");
     return this;
-  } else if (oop->isa_InlineTypePtr()) {
-    // Can happen with late inlining
-    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
-    set_oop(vtptr->get_oop());
-    for (uint i = Oop+1; i < vtptr->req(); ++i) {
-      set_req(i, vtptr->in(i));
-    }
-    return this;
   }
 
   if (!is_allocated(phase)) {
@@ -872,7 +873,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
           Node* res = alloc->result_cast();
           if (res != NULL && res->is_CheckCastPP()) {
             // Replace allocation by oop and unlink AllocateNode
-            replace_allocation(igvn, res, get_oop());
+            replace_allocation(igvn, res, oop);
             igvn->replace_input_of(alloc, AllocateNode::InlineTypeNode, igvn->C->top());
             --i; --imax;
           }
