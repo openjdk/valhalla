@@ -438,7 +438,9 @@ void Compile::disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_Lis
     }
   }
 
-  remove_useless_nodes(_macro_nodes,        useful); // remove useless macro and predicate opaq nodes
+  remove_useless_nodes(_macro_nodes,        useful); // remove useless macro nodes
+  remove_useless_nodes(_predicate_opaqs,    useful); // remove useless predicate opaque nodes
+  remove_useless_nodes(_skeleton_predicate_opaqs, useful);
   remove_useless_nodes(_expensive_nodes,    useful); // remove useless expensive nodes
   remove_useless_nodes(_for_post_loop_igvn, useful); // remove useless node recorded for post loop opts IGVN pass
   remove_useless_nodes(_inline_type_nodes,  useful); // remove useless inline type nodes
