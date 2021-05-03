@@ -1429,6 +1429,14 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             return false;
         }
 
+        /**
+         * Does `this' symbolize a primitive class that would, under the translation
+         * scheme in effect be lowered into two class files on a bifurcased basis ??
+         */
+        public boolean isSplitPrimitiveClass(Types types) {
+            return types.splitPrimitiveClass && this.isPrimitiveClass();
+        }
+
         /** Complete the elaboration of this symbol's definition.
          */
         public void complete() throws CompletionFailure {
