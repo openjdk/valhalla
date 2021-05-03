@@ -845,7 +845,7 @@ public class ClassWriter extends ClassFile {
                 !inner.name.isEmpty() ? poolWriter.putName(inner.name) : 0);
             databuf.appendChar(flags);
             icCount++;
-            if (inner.isPrimitiveClass()) {
+            if (inner.isSplitPrimitiveClass(types)) {
                 databuf.appendChar(poolWriter.putClass(inner.type.referenceProjection()));
                 databuf.appendChar(
                         inner.owner.kind == TYP && !inner.name.isEmpty() ? poolWriter.putClass((ClassSymbol)inner.owner) : 0);
@@ -883,7 +883,7 @@ public class ClassWriter extends ClassFile {
     int writeNestMembersIfNeeded(ClassSymbol csym) {
         Set<ClassSymbol> nestedUnique = new LinkedHashSet<>();
         if (csym.owner.kind == PCK) {
-            if (csym.isPrimitiveClass()) {
+            if (csym.isSplitPrimitiveClass(types)) {
                 // reference projection is the host
             } else if (csym.isReferenceProjection()) {
                 ClassSymbol valueProjection = csym.valueProjection();
@@ -899,7 +899,7 @@ public class ClassWriter extends ClassFile {
                 for (ClassSymbol s : nestedUnique) {
                     databuf.appendChar(poolWriter.putClass(s));
                     nmc++;
-                    if (s.isPrimitiveClass() && s.owner.kind != PCK) {
+                    if (s.isSplitPrimitiveClass(types) && s.owner.kind != PCK) {
                         databuf.appendChar(poolWriter.putClass(s.type.referenceProjection()));
                         nmc++;
                     }
@@ -916,10 +916,10 @@ public class ClassWriter extends ClassFile {
      * Write NestHost attribute (if needed)
      */
     int writeNestHostIfNeeded(ClassSymbol csym) {
-        if (csym.owner.kind != PCK || csym.isPrimitiveClass()) {
+        if (csym.owner.kind != PCK || csym.isSplitPrimitiveClass(types)) {
             int alenIdx = writeAttr(names.NestHost);
             ClassSymbol outerMost = csym.outermostClass();
-            if (outerMost.isPrimitiveClass()) {
+            if (outerMost.isSplitPrimitiveClass(types)) {
                 databuf.appendChar(poolWriter.putClass(outerMost.type.referenceProjection()));
             } else {
                 databuf.appendChar(poolWriter.putClass(outerMost));
@@ -1530,7 +1530,7 @@ public class ClassWriter extends ClassFile {
         throws IOException, PoolOverflow, StringOverflow
     {
         JavaFileObject javaFileObject = writeClassInternal(c);
-        if (c.isPrimitiveClass()) {
+        if (c.isSplitPrimitiveClass(types)) {
             writeClassInternal(getReferenceProjection(c));
         }
         return javaFileObject;
@@ -1631,8 +1631,8 @@ public class ClassWriter extends ClassFile {
         databuf.reset();
         poolbuf.reset();
 
-        Type supertype = c.isPrimitiveClass() ? c.type.referenceProjection() : types.supertype(c.type);
-        List<Type> interfaces = c.isPrimitiveClass() ? List.nil() : types.interfaces(c.type);
+        Type supertype = c.isSplitPrimitiveClass(types) ? c.type.referenceProjection() : types.supertype(c.type);
+        List<Type> interfaces = c.isSplitPrimitiveClass(types) ? List.nil() : types.interfaces(c.type);
         List<Type> typarams = c.type.getTypeArguments();
 
         int flags;
