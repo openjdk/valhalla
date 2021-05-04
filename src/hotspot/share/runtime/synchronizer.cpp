@@ -241,7 +241,6 @@ bool volatile ObjectSynchronizer::_is_final_audit = false;
 jlong ObjectSynchronizer::_last_async_deflation_time_ns = 0;
 static uintx _no_progress_cnt = 0;
 
-// TODO The THREAD declarations below should be removed
 #define CHECK_THROW_NOSYNC_IMSE(obj)  \
   if (EnableValhalla && (obj)->mark().is_inline_type()) {  \
     JavaThread* THREAD = current;           \
