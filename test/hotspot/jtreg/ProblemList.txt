@@ -162,7 +162,6 @@ runtime/ReservedStack/ReservedStackTest.java 8231031 generic-all
 
 # Valhalla TODO:
 runtime/CompressedOops/CompressedClassPointers.java 8210258 generic-all
-runtime/RedefineTests/RedefineLeak.java 8205032 generic-all
 runtime/SharedArchiveFile/BootAppendTests.java 8210258 generic-all
 runtime/SharedArchiveFile/CdsDifferentCompactStrings.java 8210258 generic-all
 runtime/SharedArchiveFile/CdsDifferentObjectAlignment.java 8210258 generic-all
