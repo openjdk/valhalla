@@ -51,7 +51,8 @@ public class CheckCachedMirrorTest {
         String classlist[] = new String[] {
             "CheckCachedMirrorApp",            // built-in app loader
             "java/lang/Object id: 1",          // boot loader
-            "Hello id: 2 super: 1 source: " + helloJarPath // custom loader
+            "java/lang/IdentityObject id: 2",  // boot loader
+            "Hello id: 3 super: 1 interfaces: 2 source: " + helloJarPath // custom loader
         };
 
         TestCommon.testDump(appJar, classlist, use_whitebox_jar);
