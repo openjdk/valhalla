@@ -98,10 +98,11 @@ public class ClassListFormatA extends ClassListFormatBase {
             appJar, classlist(
                 "Hello   ",                   // trailing spaces
                 "java/lang/Object\tid:\t1",   // \t instead of ' '
-                "CustomLoadee id: 2 super: 1 source: " + customJarPath,
-                "CustomInterface2_ia id: 3 super: 1 source: " + customJarPath + " ",
-                "CustomInterface2_ib id: 4 super: 1 source: " + customJarPath + "\t\t\r" ,
-                "CustomLoadee2 id: 5 super: 1 interfaces: 3 4 source: " + customJarPath      // preceding spaces
+                "java/lang/IdentityObject id: 2",
+                "CustomLoadee id: 3 super: 1 interfaces: 2 source: " + customJarPath,
+                "CustomInterface2_ia id: 4 super: 1 source: " + customJarPath + " ",
+                "CustomInterface2_ib id: 5 super: 1 source: " + customJarPath + "\t\t\r" ,
+                "CustomLoadee2 id: 6 super: 1 interfaces: 2 4 5 source: " + customJarPath      // preceding spaces
             ));
 
         int _max_allowed_line = 4096; // Must match ClassListParser::_max_allowed_line in C code.
