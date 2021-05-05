@@ -96,7 +96,7 @@ public class ArrayTypeImpl extends ReferenceTypeImpl
         if (sig.isReference()) {
             // It's a reference type
             JNITypeParser parser = new JNITypeParser(componentSignature());
-            List<ReferenceType> list = vm.classesBySignature(componentSignature());
+            List<ReferenceType> list = vm.classesByName(parser.typeName());
             Iterator<ReferenceType> iter = list.iterator();
             while (iter.hasNext()) {
                 ReferenceType type = iter.next();

@@ -3248,7 +3248,6 @@ JDWP "Java(tm) Debug Wire Protocol"
     (Constant BYTE = 'B' "'B' - a byte value (1 byte).")
     (Constant CHAR = 'C' "'C' - a character value (2 bytes).")
     (Constant OBJECT = 'L' "'L' - an object (objectID size).")
-    (Constant INLINE_OBJECT = 'Q' "'Q' - an inline object (objectID size).")
     (Constant FLOAT = 'F' "'F' - a float value (4 bytes).")
     (Constant DOUBLE = 'D' "'D' - a double value (8 bytes).")
     (Constant INT = 'I' "'I' - an int value (4 bytes).")

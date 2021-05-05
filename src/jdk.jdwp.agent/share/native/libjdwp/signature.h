@@ -29,7 +29,6 @@
 #define JVM_TYPE_ASSERT(typeKey)\
 JDI_ASSERT_MSG(JDWP_Tag_OBJECT == typeKey || \
                JDWP_Tag_ARRAY == typeKey || \
-               JDWP_Tag_INLINE_OBJECT == typeKey || \
                JDWP_Tag_BOOLEAN == typeKey || \
                JDWP_Tag_BYTE == typeKey || \
                JDWP_Tag_CHAR == typeKey || \
@@ -48,7 +47,7 @@ static inline jbyte jdwpTag(const char *signature) {
 
 static inline jboolean isReferenceTag(jbyte typeKey) {
     JVM_TYPE_ASSERT(typeKey);
-    return (typeKey == JDWP_TAG(OBJECT)) || (typeKey == JDWP_TAG(ARRAY)) || (typeKey == JDWP_TAG(INLINE_OBJECT));
+    return (typeKey == JDWP_TAG(OBJECT)) || (typeKey == JDWP_TAG(ARRAY));
 }
 
 static inline jboolean isArrayTag(jbyte typeKey) {
