@@ -334,7 +334,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, 
     mov(rbp, rsp);
   }
 #if !defined(_LP64) && defined(COMPILER2)
-  if (UseSSE < 2 && !CompilerConfig::is_c1_only_no_aot_or_jvmci()) {
+  if (UseSSE < 2 && !CompilerConfig::is_c1_only_no_jvmci()) {
       // c2 leaves fpu stack dirty. Clean it on entry
       empty_FPU_stack();
     }
