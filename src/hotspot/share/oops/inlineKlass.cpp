@@ -179,20 +179,18 @@ void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle 
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
 }
 
-Klass* InlineKlass::array_klass_impl(bool or_null, int n, TRAPS) {
+Klass* InlineKlass::array_klass(int n, TRAPS) {
   // Need load-acquire for lock-free read
   if (array_klasses_acquire() == NULL) {
-    if (or_null) return NULL;
-
     ResourceMark rm(THREAD);
-    JavaThread *jt = (JavaThread *)THREAD;
+    JavaThread *jt = THREAD->as_Java_thread();
     {
       // Atomic creation of array_klasses
       MutexLocker ma(THREAD, MultiArray_lock);
 
-      ArrayKlass* k = NULL;
       // Check if update has already taken place
       if (array_klasses() == NULL) {
+        ArrayKlass* k;
         if (flatten_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
@@ -203,17 +201,29 @@ Klass* InlineKlass::array_klass_impl(bool or_null, int n, TRAPS) {
       }
     }
   }
-  // _this will always be set at this point
+  // array_klasses() will always be set at this point
   ArrayKlass* ak = array_klasses();
-  if (or_null) {
-    return ak->array_klass_or_null(n);
-  }
   return ak->array_klass(n, THREAD);
 }
 
-Klass* InlineKlass::array_klass_impl(bool or_null, TRAPS) {
-  return array_klass_impl(or_null, 1, THREAD);
+Klass* InlineKlass::array_klass_or_null(int n) {
+  // Need load-acquire for lock-free read
+  ArrayKlass* ak = array_klasses_acquire();
+  if (ak == NULL) {
+    return NULL;
+  } else {
+    return ak->array_klass_or_null(n);
+  }
 }
+
+Klass* InlineKlass::array_klass(TRAPS) {
+  return array_klass(1, THREAD);
+}
+
+Klass* InlineKlass::array_klass_or_null() {
+  return array_klass_or_null(1);
+}
+
 
 // Inline type arguments are not passed by reference, instead each
 // field of the inline type is passed as an argument. This helper

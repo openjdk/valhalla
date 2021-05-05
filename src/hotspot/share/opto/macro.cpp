@@ -2704,7 +2704,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     Node* layout_val = make_load(NULL, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
     Node* size_in_bytes = ConvI2X(layout_val);
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    Node* fast_oop = bs->obj_allocate(this, allocation_ctl, mem, allocation_ctl, size_in_bytes, io, needgc_ctrl,
+    Node* fast_oop = bs->obj_allocate(this, mem, allocation_ctl, size_in_bytes, io, needgc_ctrl,
                                       fast_oop_ctrl, fast_oop_rawmem,
                                       AllocateInstancePrefetchLines);
     // Allocation succeed, initialize buffered inline instance header firstly,

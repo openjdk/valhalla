@@ -331,15 +331,15 @@ void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
 }
 
 
-Klass* FlatArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
+Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
   if (dim == n) return this;
 
+  // lock-free read needs acquire semantics
   if (higher_dimension_acquire() == NULL) {
-    if (or_null)  return NULL;
 
-    ResourceMark rm;
+    ResourceMark rm(THREAD);
     {
       // Ensure atomic creation of higher dimensions
       MutexLocker mu(THREAD, MultiArray_lock);
@@ -348,29 +348,44 @@ Klass* FlatArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
       if (higher_dimension() == NULL) {
 
         // Create multi-dim klass object and link them together
-        Klass* k =
-          ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+        Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
-        OrderAccess::storestore();
+        // use 'release' to pair with lock-free load
         release_set_higher_dimension(ak);
         assert(ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
-  } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
   }
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
-  if (or_null) {
-    return ak->array_klass_or_null(n);
-  }
+  THREAD->as_Java_thread()->check_possible_safepoint();
   return ak->array_klass(n, THREAD);
 }
 
-Klass* FlatArrayKlass::array_klass_impl(bool or_null, TRAPS) {
-  return array_klass_impl(or_null, dimension() +  1, THREAD);
+Klass* FlatArrayKlass::array_klass_or_null(int n) {
+
+  assert(dimension() <= n, "check order of chain");
+  int dim = dimension();
+  if (dim == n) return this;
+
+  // lock-free read needs acquire semantics
+  if (higher_dimension_acquire() == NULL) {
+    return NULL;
+  }
+
+  ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
+  return ak->array_klass_or_null(n);
 }
+
+Klass* FlatArrayKlass::array_klass(TRAPS) {
+  return array_klass(dimension() +  1, THREAD);
+}
+
+Klass* FlatArrayKlass::array_klass_or_null() {
+  return array_klass_or_null(dimension() +  1);
+}
+
 
 ModuleEntry* FlatArrayKlass::module() const {
   assert(element_klass() != NULL, "FlatArrayKlass returned unexpected NULL bottom_klass");

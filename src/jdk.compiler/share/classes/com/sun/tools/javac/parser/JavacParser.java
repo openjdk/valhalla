@@ -311,11 +311,11 @@ public class JavacParser implements Parser {
                 tk3.test(S.token(lookahead + 3).kind);
     }
 
-    protected boolean peekToken(int lookahead, Filter<TokenKind> tk1, Filter<TokenKind> tk2, Filter<TokenKind> tk3, Filter<TokenKind> tk4) {
-        return tk1.accepts(S.token(lookahead + 1).kind) &&
-                tk2.accepts(S.token(lookahead + 2).kind) &&
-                tk3.accepts(S.token(lookahead + 3).kind) &&
-                tk4.accepts(S.token(lookahead + 4).kind);
+    protected boolean peekToken(int lookahead, Predicate<TokenKind> tk1, Predicate<TokenKind> tk2, Predicate<TokenKind> tk3, Predicate<TokenKind> tk4) {
+        return tk1.test(S.token(lookahead + 1).kind) &&
+                tk2.test(S.token(lookahead + 2).kind) &&
+                tk3.test(S.token(lookahead + 3).kind) &&
+                tk4.test(S.token(lookahead + 4).kind);
     }
 
     @SuppressWarnings("unchecked")
