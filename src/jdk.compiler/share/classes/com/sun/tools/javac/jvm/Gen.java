@@ -2272,10 +2272,10 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
-        // inline widening conversion is a nop, as the VM sees a subtyping relationship.
+        // inline widening conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
+            (!tree.clazz.type.isReferenceProjection() || !types.splitPrimitiveClass || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
@@ -2345,7 +2345,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, !types.splitPrimitiveClass && tree.selected.type.isPrimitiveClass()));
             result = items.makeStackItem(pt);
             return;
         }

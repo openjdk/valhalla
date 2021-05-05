@@ -77,7 +77,6 @@ class RecordComponent;
   f(java_util_concurrent_locks_AbstractOwnableSynchronizer) \
   f(jdk_internal_invoke_NativeEntryPoint) \
   f(jdk_internal_misc_UnsafeConstants) \
-  f(jdk_internal_vm_jni_SubElementSelector) \
   f(java_lang_boxing_object) \
   f(vector_VectorPayload) \
   //end
@@ -1710,31 +1709,6 @@ class java_lang_InternalError : AllStatic {
   static void compute_offsets();
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
-
-class jdk_internal_vm_jni_SubElementSelector : AllStatic {
- private:
-  static int _arrayElementType_offset;
-  static int _subElementType_offset;
-  static int _offset_offset;
-  static int _isInlined_offset;
-  static int _isInlineType_offset;
- public:
-  static Symbol* symbol();
-  static void compute_offsets();
-  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
-
-  static oop getArrayElementType(oop obj);
-  static void setArrayElementType(oop obj, oop type);
-  static oop getSubElementType(oop obj);
-  static void setSubElementType(oop obj, oop type);
-  static int getOffset(oop obj);
-  static void setOffset(oop obj, int offset);
-  static bool getIsInlined(oop obj);
-  static void setIsInlined(oop obj, bool b);
-  static bool getIsInlineType(oop obj);
-  static void setIsInlineType(oop obj, bool b);
-};
-
 
 // Use to declare fields that need to be injected into Java classes
 // for the JVM to use.  The name_index and signature_index are

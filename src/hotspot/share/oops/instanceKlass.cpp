@@ -1005,7 +1005,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
         if (ss.is_reference()) {
           if (ss.is_array()) {
-            ss.skip_array_prefix();
+            continue;
           }
           if (ss.type() == T_INLINE_TYPE) {
             Symbol* symb = ss.as_symbol();

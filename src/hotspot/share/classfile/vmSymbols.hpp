@@ -711,7 +711,6 @@
   template(isSubstitutable_name,                   "isSubstitutable")                                             \
   template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
                                                                                                                   \
-  template(jdk_internal_vm_jni_SubElementSelector, "jdk/internal/vm/jni/SubElementSelector")                      \
   /*end*/
 
 // enum for figuring positions and size of Symbol::_vm_symbols[]
