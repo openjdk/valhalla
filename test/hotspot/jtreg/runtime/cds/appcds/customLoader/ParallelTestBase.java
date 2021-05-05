@@ -55,10 +55,11 @@ public class ParallelTestBase {
 
         for (int i = 0, n=0; i<MAX_CLASSES; i++) {
             int super_id = 1;
+            int identity_object_interf_id = 2;
             if (mode == FINGERPRINT_MODE) {
                 // fingerprint mode -- no need to use the "loader:" option.
-                int id = i + 2;
-                cust_list[i] = cust_classes[i] + " id: " + id + " super: " + super_id + " source: " + customJarPath;
+                int id = i + 3;
+                cust_list[i] = cust_classes[i] + " id: " + id + " super: " + super_id + " interfaces: " + identity_object_interf_id + " source: " + customJarPath;
             } else {
                 throw new RuntimeException("Only FINGERPRINT_MODE is supported");
             }
@@ -75,6 +76,7 @@ public class ParallelTestBase {
                                       "ParallelLoadWatchdog");
             app_list = new String[] {
                 "java/lang/Object id: 1",
+                "java/lang/IdentityObject id: 2",
                 "ParallelLoad",
                 "ParallelLoadThread",
                 "ParallelLoadWatchdog"

@@ -160,44 +160,6 @@ runtime/cds/DeterministicDump.java 8253495 generic-all
 runtime/jni/terminatedThread/TestTerminatedThread.java 8219652 aix-ppc64
 runtime/ReservedStack/ReservedStackTest.java 8231031 generic-all
 
-# Valhalla TODO:
-runtime/CompressedOops/CompressedClassPointers.java 8210258 generic-all
-runtime/SharedArchiveFile/BootAppendTests.java 8210258 generic-all
-runtime/SharedArchiveFile/CdsDifferentCompactStrings.java 8210258 generic-all
-runtime/SharedArchiveFile/CdsDifferentObjectAlignment.java 8210258 generic-all
-runtime/SharedArchiveFile/NonBootLoaderClasses.java 8210258 generic-all
-runtime/SharedArchiveFile/PrintSharedArchiveAndExit.java 8210258 generic-all
-runtime/SharedArchiveFile/SharedArchiveFile.java 8210258 generic-all
-runtime/SharedArchiveFile/SharedStringsDedup.java 8210258 generic-all
-runtime/SharedArchiveFile/SharedStringsRunAuto.java 8210258 generic-all
-runtime/SharedArchiveFile/SharedSymbolTableBucketSize.java 8210258 generic-all
-runtime/SharedArchiveFile/SpaceUtilizationCheck.java 8210258 generic-all
-runtime/SharedArchiveFile/TestInterpreterMethodEntries.java 8210258 generic-all
-runtime/SharedArchiveFile/serviceability/transformRelatedClasses/TransformInterfaceAndImplementor.java 8210258 generic-all
-runtime/SharedArchiveFile/serviceability/transformRelatedClasses/TransformSuperAndSubClasses.java 8210258 generic-all
-runtime/SharedArchiveFile/serviceability/transformRelatedClasses/TransformSuperSubTwoPckgs.java 8210258 generic-all
-runtime/appcds/ClassLoaderTest.java 8210258 generic-all
-runtime/appcds/HelloTest.java 8210258 generic-all
-runtime/appcds/sharedStrings/SharedStringsBasic.java 8210258 generic-all
-
-runtime/cds/appcds/cacheObject/CheckCachedMirrorTest.java 8265719 generic-all
-runtime/cds/appcds/cacheObject/CheckCachedResolvedReferences.java 8265719 generic-all
-runtime/cds/appcds/customLoader/ClassListFormatA.java 8265719 generic-all
-runtime/cds/appcds/customLoader/ClassListFormatD.java 8265719 generic-all
-runtime/cds/appcds/customLoader/ClassListFormatE.java 8265719 generic-all
-runtime/cds/appcds/customLoader/HelloCustom.java 8265719 generic-all
-runtime/cds/appcds/customLoader/HelloCustom_JFR.java 8265719 generic-all
-runtime/cds/appcds/customLoader/LoaderSegregationTest.java 8265719 generic-all
-runtime/cds/appcds/customLoader/ParallelTestMultiFP.java 8265719 generic-all
-runtime/cds/appcds/customLoader/ParallelTestSingleFP.java 8265719 generic-all
-runtime/cds/appcds/customLoader/PrintSharedArchiveAndExit.java 8265719 generic-all
-runtime/cds/appcds/customLoader/ProtectionDomain.java 8265719 generic-all
-runtime/cds/appcds/customLoader/SameNameInTwoLoadersTest.java 8265719 generic-all
-runtime/cds/appcds/customLoader/UnintendedLoadersTest.java 8265719 generic-all
-runtime/cds/appcds/customLoader/UnloadUnregisteredLoaderTest.java 8265719 generic-all
-runtime/cds/appcds/jvmti/transformRelatedClasses/TransformInterfaceImplementorAppCDS.java 8265719 generic-all
-runtime/cds/appcds/jvmti/transformRelatedClasses/TransformSuperSubAppCDS.java 8265719 generic-all
-
 #############################################################################
 
 # :hotspot_serviceability

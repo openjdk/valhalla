@@ -130,16 +130,18 @@ public class TransformRelatedClassesAppCDS extends TransformRelatedClasses {
             return new String[] {
                 "CustomLoaderApp",
                 "java/lang/Object id: 0",
-                parent + " id: 1 super: 0 source: " + customJar,
-                child +  " id: 2 super: 1 source: " + customJar,
+                "java/lang/IdentityObject id: 1",
+                parent + " id: 2 super: 0 interfaces: 1 source: " + customJar,
+                child +  " id: 3 super: 2 source: " + customJar,
             };
 
         case "Implementor-unregistered":
             return new String[] {
                 "CustomLoaderApp",
                 "java/lang/Object id: 0",
-                parent + " id: 1 super: 0 source: " + customJar,
-                child +  " id: 2 super: 0 interfaces: 1 source: " + customJar,
+                "java/lang/IdentityObject id: 1",
+                parent + " id: 2 super: 0 source: " + customJar,
+                child +  " id: 3 super: 0 interfaces: 1 2 source: " + customJar,
             };
 
         default:

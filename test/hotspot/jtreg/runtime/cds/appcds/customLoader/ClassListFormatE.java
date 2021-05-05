@@ -95,11 +95,12 @@ public class ClassListFormatE extends ClassListFormatBase {
             appJar, classlist(
                 "Hello",
                 "java/lang/Object id: 1",
-                "CustomInterface2_ia id: 2 super: 1 source: " + customJarPath,
-                "CustomInterface2_ib id: 3 super: 1 source: " + customJarPath,
-                "CustomLoadee id: 4 super: 1 source: " + customJarPath,
-                "CustomLoadee2 id: 5 super: 4 interfaces: 2 3 source: " + customJarPath
+                "java/lang/IdentityObject id: 2",
+                "CustomInterface2_ia id: 3 super: 1 source: " + customJarPath,
+                "CustomInterface2_ib id: 4 super: 1 source: " + customJarPath,
+                "CustomLoadee id: 5 super: 1 interfaces: 2 source: " + customJarPath,
+                "CustomLoadee2 id: 6 super: 5 interfaces: 2 3 4 source: " + customJarPath
             ),
-            "The specified super class CustomLoadee (id 4) does not match actual super class java.lang.Object");
+            "The specified super class CustomLoadee (id 5) does not match actual super class java.lang.Object");
     }
 }
