@@ -335,7 +335,7 @@
           "print control flow graph to a separate file during compilation") \
                                                                             \
   develop(bool, C1UseDelayedFlattenedFieldReads, true,                      \
-          "Use delaued read of flattened field to reduce buffering")
+          "Use delayed reads of flattened field to reduce buffering")
 
 // end of C1_FLAGS
 
