@@ -1756,7 +1756,7 @@ uint PhaseCCP::_total_constants = 0;
 #endif
 //------------------------------PhaseCCP---------------------------------------
 // Conditional Constant Propagation, ala Wegman & Zadeck
-PhaseCCP::PhaseCCP( PhaseIterGVN *igvn ) : PhaseIterGVN(igvn) {
+PhaseCCP::PhaseCCP(PhaseIterGVN* igvn) : PhaseIterGVN(igvn), _trstack(C->live_nodes() >> 1) {
   NOT_PRODUCT( clear_constants(); )
   assert( _worklist.size() == 0, "" );
   // Clear out _nodes from IterGVN.  Must be clear to transform call.
@@ -1809,6 +1809,11 @@ void PhaseCCP::analyze() {
       n = worklist.remove(C->random() % worklist.size());
     } else {
       n = worklist.pop();
+    }
+    if (n->is_SafePoint()) {
+      // Make sure safepoints are processed by PhaseCCP::transform even if they are
+      // not reachable from the bottom. Otherwise, infinite loops would be removed.
+      _trstack.push(n);
     }
     const Type *t = n->Value(this);
     if (t != type(n)) {
@@ -1931,12 +1936,9 @@ Node *PhaseCCP::transform( Node *n ) {
   _nodes.map( n->_idx, new_node );  // Flag as having been cloned
   _useful.push(new_node); // Keep track of nodes that are reachable from the bottom
 
-  // Allocate stack of size _nodes.Size()/2 to avoid frequent realloc
-  GrowableArray <Node *> trstack(C->live_nodes() >> 1);
-
-  trstack.push(new_node);           // Process children of cloned node
-  while ( trstack.is_nonempty() ) {
-    Node *clone = trstack.pop();
+  _trstack.push(new_node);           // Process children of cloned node
+  while (_trstack.is_nonempty()) {
+    Node* clone = _trstack.pop();
     uint cnt = clone->req();
     for( uint i = 0; i < cnt; i++ ) {          // For all inputs do
       Node *input = clone->in(i);
@@ -1946,14 +1948,21 @@ Node *PhaseCCP::transform( Node *n ) {
           new_input = transform_once(input);   // Check for constant
           _nodes.map( input->_idx, new_input );// Flag as having been cloned
           _useful.push(new_input);
-          trstack.push(new_input);
+          _trstack.push(new_input);
         }
         assert( new_input == clone->in(i), "insanity check");
       }
     }
   }
 
-  // Aggressively remove all useless nodes, similar to PhaseRemoveUseless
+  // The above transformation might lead to subgraphs becoming unreachable from the
+  // bottom while still being reachable from the top. As a result, nodes in that
+  // subgraph are not transformed and their bottom types are not updated, leading to
+  // an inconsistency between bottom_type() and type(). In rare cases, LoadNodes in
+  // such a subgraph, kept alive by InlineTypePtrNodes, might be re-enqueued for IGVN
+  // indefinitely by MemNode::Ideal_common because their address type is inconsistent.
+  // Therefore, we aggressively remove all useless nodes here even before
+  // PhaseIdealLoop::build_loop_late gets a chance to remove them anyway.
   if (C->cached_top_node()) {
     _useful.push(C->cached_top_node());
   }

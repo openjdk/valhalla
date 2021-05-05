@@ -506,6 +506,9 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (phase->C->scalarize_in_safepoints() && can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
     make_scalar_in_safepoints(igvn);
+    if (outcnt() == 0) {
+      return NULL;
+    }
   }
   Node* oop = get_oop();
   if (oop->isa_InlineTypePtr()) {
