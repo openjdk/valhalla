@@ -315,14 +315,6 @@ class VirtualMachineImpl extends MirrorImpl
         return Collections.unmodifiableList(modules);
     }
 
-    private static boolean isReferenceArray(String signature) {
-        int i = signature.lastIndexOf('[');
-        if (i > -1 && signature.charAt(i+1) == 'L') {
-            return true;
-        }
-        return false;
-    }
-
     public List<ReferenceType> classesByName(String className) {
         validateVM();
         return classesBySignature(JNITypeParser.typeNameToSignature(className));
