@@ -311,7 +311,7 @@ public class TestArrays extends InlineTypeTest {
     // Array load out of bounds (upper bound) at compile time
     @Test
     public int test12() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[arraySize];
 
         for (int i = 0; i < arraySize; i++) {
@@ -333,7 +333,7 @@ public class TestArrays extends InlineTypeTest {
     // Array load  out of bounds (lower bound) at compile time
     @Test
     public int test13() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[arraySize];
 
         for (int i = 0; i < arraySize; i++) {
@@ -381,7 +381,7 @@ public class TestArrays extends InlineTypeTest {
     // Array store out of bounds (upper bound) at compile time
     @Test
     public int test15() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[arraySize];
 
         try {
@@ -402,7 +402,7 @@ public class TestArrays extends InlineTypeTest {
     // Array store out of bounds (lower bound) at compile time
     @Test
     public int test16() {
-        int arraySize = Math.abs(rI) % 10;;
+        int arraySize = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[arraySize];
 
         try {

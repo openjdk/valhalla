@@ -411,7 +411,7 @@ void Compile::remove_useless_node(Node* dead) {
 }
 
 // Disconnect all useless nodes by disconnecting those at the boundary.
-void Compile::remove_useless_nodes(Unique_Node_List &useful) {
+void Compile::disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_List* worklist) {
   uint next = 0;
   while (next < useful.size()) {
     Node *n = useful.at(next++);
@@ -434,14 +434,21 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       }
     }
     if (n->outcnt() == 1 && n->has_special_unique_user()) {
-      record_for_igvn(n->unique_out());
+      worklist->push(n->unique_out());
     }
   }
 
-  remove_useless_nodes(_macro_nodes,        useful); // remove useless macro and predicate opaq nodes
+  remove_useless_nodes(_macro_nodes,        useful); // remove useless macro nodes
+  remove_useless_nodes(_predicate_opaqs,    useful); // remove useless predicate opaque nodes
+  remove_useless_nodes(_skeleton_predicate_opaqs, useful);
   remove_useless_nodes(_expensive_nodes,    useful); // remove useless expensive nodes
   remove_useless_nodes(_for_post_loop_igvn, useful); // remove useless node recorded for post loop opts IGVN pass
   remove_useless_nodes(_inline_type_nodes,  useful); // remove useless inline type nodes
+#ifdef ASSERT
+  if (_modified_nodes != NULL) {
+    _modified_nodes->remove_useless_nodes(useful.member_set());
+  }
+#endif
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->eliminate_useless_gc_barriers(useful, this);
