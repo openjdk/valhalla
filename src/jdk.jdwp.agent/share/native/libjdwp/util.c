@@ -297,7 +297,6 @@ util_reset(void)
 jboolean
 isObjectTag(jbyte tag) {
     return (tag == JDWP_TAG(OBJECT)) ||
-           (tag == JDWP_TAG(INLINE_OBJECT)) ||
            (tag == JDWP_TAG(STRING)) ||
            (tag == JDWP_TAG(THREAD)) ||
            (tag == JDWP_TAG(THREAD_GROUP)) ||

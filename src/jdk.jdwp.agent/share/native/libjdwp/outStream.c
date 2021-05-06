@@ -335,7 +335,7 @@ jdwpError
 outStream_writeValue(JNIEnv *env, PacketOutputStream *out,
                      jbyte typeKey, jvalue value)
 {
-    if (typeKey == JDWP_TAG(OBJECT) || typeKey == JDWP_TAG(INLINE_OBJECT)) {
+    if (typeKey == JDWP_TAG(OBJECT)) {
         (void)outStream_writeByte(out, specificTypeKey(env, value.l));
     } else {
         (void)outStream_writeByte(out, typeKey);
