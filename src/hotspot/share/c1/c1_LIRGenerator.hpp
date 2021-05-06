@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -268,6 +268,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32(Intrinsic* x);
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
+  void do_blackhole(Intrinsic* x);
 
   bool inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
@@ -316,8 +317,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
 
   LIR_Opr access_atomic_add_at(DecoratorSet decorators, BasicType type,
                                LIRItem& base, LIRItem& offset, LIRItem& value);
-
-  LIR_Opr access_resolve(DecoratorSet decorators, LIR_Opr obj);
 
   // These need to guarantee JMM volatile semantics are preserved on each platform
   // and requires one implementation per architecture.
