@@ -128,15 +128,16 @@ class InlineKlass: public InstanceKlass {
 
   void cleanup_blobs();
 
-
- protected:
+ public:
   // Returns the array class for the n'th dimension
-  Klass* array_klass_impl(bool or_null, int n, TRAPS);
+  virtual Klass* array_klass(int n, TRAPS);
+  virtual Klass* array_klass_or_null(int n);
 
   // Returns the array class with this class as element type
-  Klass* array_klass_impl(bool or_null, TRAPS);
+  virtual Klass* array_klass(TRAPS);
+  virtual Klass* array_klass_or_null();
 
- public:
+
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
 

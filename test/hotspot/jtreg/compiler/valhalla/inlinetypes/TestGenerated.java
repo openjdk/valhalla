@@ -58,6 +58,14 @@ primitive class MyValue4 {
     int c = 8;
 }
 
+class MyValue4Wrapper {
+    public MyValue4.ref val;
+
+    public MyValue4Wrapper(MyValue4 val) {
+        this.val = val;
+    }
+}
+
 primitive class MyValue5 {
     int b = 2;
 }
@@ -219,6 +227,30 @@ public class TestGenerated {
         }
     }
 
+    void test15() {
+        MyValue4 val = new MyValue4();
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                MyValue4[] array = new MyValue4[1];
+                for (int k = 0; k < 10; ++k) {
+                    array[0] = val;
+                    val = array[0];
+                }
+            }
+        }
+    }
+
+    void test16() {
+        MyValue4 val = MyValue4.default;
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                val = (new MyValue4Wrapper(val)).val;
+                for (int k = 0; k < 10; ++k) {
+                }
+            }
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
@@ -243,6 +275,8 @@ public class TestGenerated {
             t.test12();
             t.test13(array5);
             t.test14(false, MyValue4.default);
+            t.test15();
+            t.test16();
         }
     }
 }

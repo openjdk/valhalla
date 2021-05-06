@@ -1042,7 +1042,7 @@ void GraphBuilder::load_indexed(BasicType type) {
       bool next_needs_patching = !next_field->holder()->is_loaded() ||
                                  !next_field->will_link(method(), Bytecodes::_getfield) ||
                                  PatchALot;
-      can_delay_access = !next_needs_patching;
+      can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
     }
     if (can_delay_access) {
       // potentially optimizable array access, storing information for delayed decision
@@ -1972,7 +1972,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             bool next_needs_patching = !next_field->holder()->is_loaded() ||
                                        !next_field->will_link(method(), Bytecodes::_getfield) ||
                                        PatchALot;
-            can_delay_access = !next_needs_patching;
+            can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
           }
           if (can_delay_access) {
             if (has_pending_load_indexed()) {
@@ -3812,7 +3812,7 @@ bool GraphBuilder::try_inline(ciMethod* callee, bool holder_known, bool ignore_r
 
   // handle intrinsics
   if (callee->intrinsic_id() != vmIntrinsics::_none &&
-      (CheckIntrinsics ? callee->intrinsic_candidate() : true)) {
+      callee->check_intrinsic_candidate()) {
     if (try_inline_intrinsics(callee, ignore_return)) {
       print_inlining(callee, "intrinsic");
       if (callee->has_reserved_stack_access()) {
