@@ -318,8 +318,7 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
                                                          protection_domain,
                                                          CHECK_NULL);
     if (k != NULL) {
-      if ((class_name->is_Q_array_signature() && !k->is_inline_klass()) ||
-          (!class_name->is_Q_array_signature() && k->is_inline_klass())) {
+      if ((class_name->is_Q_array_signature() && !k->is_inline_klass())) {
             THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), "L/Q mismatch on bottom type");
           }
       k = k->array_klass(ndims, CHECK_NULL);

@@ -139,7 +139,7 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        splitPrimitiveClass = options.isUnset("unifiedValRefClass");
+        splitPrimitiveClass = false ; // options.isUnset("unifiedValRefClass"); // Temporarely forcing the default
     }
     // </editor-fold>
 

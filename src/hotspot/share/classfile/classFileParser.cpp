@@ -5879,7 +5879,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (ik->is_inline_klass()) nfields++;
   for (int i = 0; i < nfields; i++) {
     if (((ik->field_access_flags(i) & JVM_ACC_STATIC) == 0)) {
-      if (ik->field_is_inline_type(i)) {
+      if (ik->field_is_null_free_inline_type(i)) {
         Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
         // Inline classes for instance fields must have been pre-loaded
         // Inline classes for static fields might not have been loaded yet

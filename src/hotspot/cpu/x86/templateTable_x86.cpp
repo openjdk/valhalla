@@ -3011,14 +3011,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   } else {
     if (is_static) {
       __ load_heap_oop(rax, field);
-      Label is_inline_type, uninitialized;
+      Label is_null_free_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
-        // field is not an inline type
+      __ test_field_is_null_free_inline_type(flags2, rscratch1, is_null_free_inline_type);
+        // field is not a null free inline type
         __ push(atos);
         __ jmp(Done);
-      // field is an inline type, must not return null even if uninitialized
-      __ bind(is_inline_type);
+      // field is a null free inline type, must not return null even if uninitialized
+      __ bind(is_null_free_inline_type);
         __ testptr(rax, rax);
         __ jcc(Assembler::zero, uninitialized);
           __ push(atos);
@@ -3043,7 +3043,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(Done);
     } else {
       Label is_inlined, nonnull, is_inline_type, rewrite_inline;
-      __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+      __ test_field_is_null_free_inline_type(flags2, rscratch1, is_inline_type);
         // field is not an inline type
         pop_and_check_object(obj);
         __ load_heap_oop(rax, field);
@@ -3392,14 +3392,14 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
       __ pop(atos);
       if (is_static) {
         Label is_inline_type;
-        __ test_field_is_not_inline_type(flags2, rscratch1, is_inline_type);
+        __ test_field_is_not_null_free_inline_type(flags2, rscratch1, is_inline_type);
         __ null_check(rax);
         __ bind(is_inline_type);
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
         Label is_inline_type, is_inlined, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        __ test_field_is_null_free_inline_type(flags2, rscratch1, is_inline_type);
         // Not an inline type
         pop_and_check_object(obj);
         // Store into the field

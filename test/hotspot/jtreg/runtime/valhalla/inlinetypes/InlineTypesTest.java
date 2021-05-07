@@ -144,7 +144,7 @@ public class InlineTypesTest {
         String sig = "()Q" + inlineClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
         final String fieldQSignature = "Q" + inlineClass.getName().replace('.', '/') + ";";
-        final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + "$ref;";
+        final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + ";";
         System.out.println(methodSignature);
         MethodHandle fromExecStackToFields = InstructionHelper.loadCode(
                 LOOKUP,

@@ -602,7 +602,7 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 // ciEnv::is_inline_klass
 //
 // Check if the klass is an inline klass.
-bool ciEnv::is_inline_klass(const constantPoolHandle& cpool, int index) {
+bool ciEnv::has_Q_signature(const constantPoolHandle& cpool, int index) {
   GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 
