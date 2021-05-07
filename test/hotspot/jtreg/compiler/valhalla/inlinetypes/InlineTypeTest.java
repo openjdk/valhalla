@@ -108,10 +108,7 @@ import java.util.function.BooleanSupplier;
 public abstract class InlineTypeTest {
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
-    protected static final int COMP_LEVEL_ANY               = -2;
-    protected static final int COMP_LEVEL_ALL               = -2;
-    protected static final int COMP_LEVEL_AOT               = -1;
-    protected static final int COMP_LEVEL_NONE              =  0;
+    protected static final int COMP_LEVEL_ANY               = -1;
     protected static final int COMP_LEVEL_SIMPLE            =  1;     // C1
     protected static final int COMP_LEVEL_LIMITED_PROFILE   =  2;     // C1, invocation & backedge counters
     protected static final int COMP_LEVEL_FULL_PROFILE      =  3;     // C1, invocation & backedge counters + mdo
