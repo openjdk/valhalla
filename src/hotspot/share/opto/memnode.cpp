@@ -1144,7 +1144,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
       // LoadVector/StoreVector needs additional check to ensure the types match.
       if (store_Opcode() == Op_StoreVector) {
         const TypeVect*  in_vt = st->as_StoreVector()->vect_type();
-        const TypeVect* out_vt = as_LoadVector()->vect_type();
+        const TypeVect* out_vt = is_Load() ? as_LoadVector()->vect_type() : as_StoreVector()->vect_type();
         if (in_vt != out_vt) {
           return NULL;
         }
