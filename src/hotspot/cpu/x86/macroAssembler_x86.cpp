@@ -2739,20 +2739,20 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
   jcc(Assembler::notZero, is_empty_inline_type);
 }
 
-void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline_type) {
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_inline_type);
+  jcc(Assembler::notZero, is_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline_type) {
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, not_inline_type);
+  jcc(Assembler::zero, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined) {

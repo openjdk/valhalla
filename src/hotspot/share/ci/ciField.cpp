@@ -98,12 +98,20 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
     bool ignore;
     // This is not really a class reference; the index always refers to the
     // field's type signature, as a symbol.  Linkage checks do not apply.
-    _type = ciEnv::current(THREAD)->get_klass_by_index(cpool, sig_index, ignore, klass);
+    ciType* type = ciEnv::current(THREAD)->get_klass_by_index(cpool, sig_index, ignore, klass);
+    if (signature->is_Q_signature()) {
+      _type = ciEnv::current(THREAD)->make_null_free_wrapper(type);
+    } else {
+      _type = type;
+    }
   } else {
     _type = ciType::make(field_type);
   }
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
+
+  // this is needed if the field class is not yet loaded.
+  _is_null_free = _signature->is_Q_signature();
 
   // Get the field's declared holder.
   //
@@ -237,6 +245,7 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
   _is_flattened = false;
+  _is_null_free = field->is_null_free();
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -287,6 +296,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flattened = fd->is_inlined();
+  _is_null_free = fd->signature()->is_Q_signature();
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
@@ -371,6 +381,12 @@ ciType* ciField::compute_type() {
 
 ciType* ciField::compute_type_impl() {
   ciKlass* type = CURRENT_ENV->get_klass_by_name_impl(_holder, constantPoolHandle(), _signature, false);
+  ciType* rtype;
+  if (_signature->is_Q_signature()) {
+    rtype = CURRENT_ENV->make_null_free_wrapper(type);
+  } else {
+    rtype = type;
+  }
   if (!type->is_primitive_type() && is_shared()) {
     // We must not cache a pointer to an unshared type, in a shared field.
     bool type_is_also_shared = false;
@@ -382,11 +398,12 @@ ciType* ciField::compute_type_impl() {
       // Currently there is no 'shared' query for array types.
       type_is_also_shared = !ciObjectFactory::is_initialized();
     }
-    if (!type_is_also_shared)
-      return type;              // Bummer.
+    if (!type_is_also_shared) {
+      return rtype;              // Bummer.
+    }
   }
-  _type = type;
-  return type;
+  _type = rtype;
+  return rtype;
 }
 
 
@@ -484,6 +501,7 @@ void ciField::print() {
     _constant_value.print();
   }
   tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
+  tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
   tty->print(">");
 }
 

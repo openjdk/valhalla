@@ -1844,9 +1844,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(!field->is_stable() || !field_value.is_null_or_zero(),
                "stable static w/ default value shouldn't be a constant");
         constant = make_constant(field_value, field);
-      } else if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+      } else if (field_type == T_INLINE_TYPE && field->type()->is_null_free() && field->type()->unwrap()->as_inline_klass()->is_empty()) {
         // Loading from a field of an empty inline type. Just return the default instance.
-        constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+        constant = new Constant(new InstanceConstant(field->type()->unwrap()->as_inline_klass()->default_instance()));
       }
       if (constant != NULL) {
         push(type, append(constant));
@@ -1869,7 +1869,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+      if (field_type == T_INLINE_TYPE && field->type()->unwrap()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         break;
       }
@@ -1887,10 +1887,10 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (!has_pending_field_access() && !has_pending_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
-        if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+        if (field_type == T_INLINE_TYPE && field->type()->is_null_free() && field->type()->unwrap()->as_inline_klass()->is_empty()) {
           // Loading from a field of an empty inline type. Just return the default instance.
           null_check(obj);
-          constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+          constant = new Constant(new InstanceConstant(field->type()->unwrap()->as_inline_klass()->default_instance()));
         } else if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
           ciObject* const_oop = obj_type->constant_value();
           if (!const_oop->is_null_object() && const_oop->is_loaded()) {
@@ -1898,7 +1898,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             if (field_value.is_valid()) {
               if (field->signature()->is_Q_signature() && field_value.is_null_or_zero()) {
                 // Non-flattened inline type field. Replace null by the default value.
-                constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+                constant = new Constant(new InstanceConstant(field->type()->unwrap()->as_inline_klass()->default_instance()));
               } else {
                 constant = make_constant(field_value, field);
               }
@@ -1985,7 +1985,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               set_pending_field_access(dfa);
             }
           } else {
-            ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+            ciInlineKlass* inline_klass = field->type()->unwrap()->as_inline_klass();
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
             bool need_membar = false;
@@ -2042,7 +2042,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+      if (field_type == T_INLINE_TYPE && field->type()->is_null_free() && field->type()->unwrap()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         null_check(obj);
       } else if (!field->is_flattened()) {
@@ -2053,7 +2053,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         }
       } else {
         assert(!needs_patching, "Can't patch flattened inline type field access");
-        ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+        ciInlineKlass* inline_klass = field->type()->unwrap()->as_inline_klass();
         copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);
       }
       break;
@@ -2129,7 +2129,7 @@ void GraphBuilder::withfield(int field_index) {
   }
   if (field_modify->is_flattened()) {
     assert(!needs_patching, "Can't patch flattened inline type field access");
-    ciInlineKlass* vk = field_modify->type()->as_inline_klass();
+    ciInlineKlass* vk = field_modify->type()->unwrap()->as_inline_klass();
     if (!vk->is_empty()) {
       copy_inline_content(vk, val, vk->first_field_offset(), new_instance, offset_modify, state_before, field_modify);
     }
@@ -2478,7 +2478,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   }
 
   Invoke* result = new Invoke(code, result_type, recv, args, target, state_before,
-                              declared_signature->return_type()->is_inlinetype());
+                              declared_signature->return_type()->is_null_free());
   // push result
   append_split(result);
 
@@ -2526,7 +2526,7 @@ void GraphBuilder::new_type_array() {
 void GraphBuilder::new_object_array() {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool null_free = stream()->is_inline_klass();
+  bool null_free = stream()->has_Q_signature();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
   NewArray* n = new NewObjectArray(klass, ipop(), state_before, null_free);
   apush(append_split(n));
@@ -2553,7 +2553,7 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 void GraphBuilder::check_cast(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool null_free = stream()->is_inline_klass();
+  bool null_free = stream()->has_Q_signature();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
   CheckCast* c = new CheckCast(klass, apop(), state_before, null_free);
   apush(append_split(c));
@@ -3579,7 +3579,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false, type->is_inlinetype()));
+    state->store_local(idx, new Local(type, vt, idx, false, type->is_null_free()));
     idx += type->size();
   }
 

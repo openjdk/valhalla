@@ -2055,7 +2055,7 @@ bool LIRGenerator::inline_type_field_access_prolog(AccessField* x, CodeEmitInfo*
   bool could_be_flat = !x->is_static() && x->needs_patching();
   // Deoptimize if we load from a static field with an unloaded type because we need
   // the default value if the field is null.
-  bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->is_loaded();
+  bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->unwrap()->is_loaded();
   assert(!could_be_null || !field->holder()->is_loaded(), "inline type field should be loaded");
   if (could_be_flat || could_be_null) {
     assert(x->needs_patching(), "no deopt required");
@@ -2137,7 +2137,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   if (field->signature()->is_Q_signature()) {
     // Load from non-flattened inline type field requires
     // a null check to replace null with the default value.
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+    ciInlineKlass* inline_klass = field->type()->unwrap()->as_inline_klass();
     assert(inline_klass->is_loaded(), "field klass must be loaded");
 
     ciInstanceKlass* holder = field->holder();

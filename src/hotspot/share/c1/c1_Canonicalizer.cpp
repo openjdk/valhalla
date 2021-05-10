@@ -669,7 +669,8 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
       }
     }
     // checkcast of null returns null for non-inline klasses
-    if (!x->klass()->is_inlinetype() && obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    if (!x->klass()->is_inlinetype() && x->is_null_free()
+        && obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
       set_canonical(obj);
     }
   }

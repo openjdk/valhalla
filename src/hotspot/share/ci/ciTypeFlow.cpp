@@ -598,7 +598,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
   if (!will_link) {
-    if (str->is_inline_klass()) {
+    if (str->has_Q_signature()) {
       trap(str, klass,
            Deoptimization::make_trap_request
            (Deoptimization::Reason_unloaded,
