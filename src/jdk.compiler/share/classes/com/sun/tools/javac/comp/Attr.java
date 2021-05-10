@@ -1610,7 +1610,7 @@ public class Attr extends JCTree.Visitor {
                     // This is the bare minimum we need to verify to make sure code generation doesn't crash.
                     Symbol iterSymbol = rs.resolveInternalMethod(tree.pos(),
                             loopEnv, exprType, names.iterator, List.nil(), List.nil());
-                    if (types.asSuper(iterSymbol.type.getReturnType(), syms.iteratorType.tsym) == null) {
+                    if (types.asSuper(iterSymbol.type.getReturnType().referenceProjectionOrSelf(), syms.iteratorType.tsym) == null) {
                         log.error(tree.pos(),
                                 Errors.ForeachNotApplicableToType(exprType, Fragments.TypeReqArrayOrIterable));
                     }
