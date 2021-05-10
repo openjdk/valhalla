@@ -74,10 +74,6 @@ tier3 = \
     :build \
     :jdk_vector \
     :jdk_rmi \
-    :jdk_beans \
-    :jdk_imageio \
-    :jdk_sound \
-    :jdk_client_sanity \
     :jdk_jfr_tier3
 
 ###############################################################################
@@ -110,8 +106,8 @@ jdk_lang = \
 # valhalla lworld tests
 jdk_valhalla = \
     java/lang/invoke \
-    valhalla \
-    com/sun/jdi/JdbInlineTypesTest.java
+    valhalla 
+
 
 # All of the java.util package
 jdk_util = \

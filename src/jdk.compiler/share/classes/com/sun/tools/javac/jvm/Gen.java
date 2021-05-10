@@ -548,8 +548,8 @@ public class Gen extends JCTree.Visitor {
     private void checkStringConstant(DiagnosticPosition pos, Object constValue) {
         if (nerrs != 0 || // only complain about a long string once
             constValue == null ||
-            !(constValue instanceof String) ||
-            ((String)constValue).length() < PoolWriter.MAX_STRING_LENGTH)
+            !(constValue instanceof String str) ||
+            str.length() < PoolWriter.MAX_STRING_LENGTH)
             return;
         log.error(pos, Errors.LimitString);
         nerrs++;
@@ -842,8 +842,8 @@ public class Gen extends JCTree.Visitor {
 
         @Override
         public void visitIdent(JCIdent tree) {
-            if (tree.sym.owner instanceof ClassSymbol) {
-                poolWriter.putClass((ClassSymbol)tree.sym.owner);
+            if (tree.sym.owner instanceof ClassSymbol classSymbol) {
+                poolWriter.putClass(classSymbol);
             }
         }
 
@@ -906,8 +906,8 @@ public class Gen extends JCTree.Visitor {
 
     public boolean isConstantDynamic(Symbol sym) {
         return sym.kind == VAR &&
-                sym instanceof DynamicVarSymbol &&
-                ((DynamicVarSymbol)sym).isDynamic();
+                sym instanceof DynamicVarSymbol dynamicVarSymbol &&
+                dynamicVarSymbol.isDynamic();
     }
 
     /** Derived visitor method: generate code for a list of method arguments.
@@ -1719,9 +1719,8 @@ public class Gen extends JCTree.Visitor {
 
             while(alts != null && alts.head != null) {
                 JCExpression alt = alts.head;
-                if (alt instanceof JCAnnotatedType) {
-                    JCAnnotatedType a = (JCAnnotatedType)alt;
-                    res = res.prepend(new Pair<>(annotate.fromAnnotations(a.annotations), alt));
+                if (alt instanceof JCAnnotatedType annotatedType) {
+                    res = res.prepend(new Pair<>(annotate.fromAnnotations(annotatedType.annotations), alt));
                 } else {
                     res = res.prepend(new Pair<>(List.nil(), alt));
                 }
@@ -2085,13 +2084,13 @@ public class Gen extends JCTree.Visitor {
             // int variable we can use an incr instruction instead of
             // proceeding further.
             if ((tree.hasTag(PLUS_ASG) || tree.hasTag(MINUS_ASG)) &&
-                l instanceof LocalItem &&
+                l instanceof LocalItem localItem &&
                 tree.lhs.type.getTag().isSubRangeOf(INT) &&
                 tree.rhs.type.getTag().isSubRangeOf(INT) &&
                 tree.rhs.type.constValue() != null) {
                 int ival = ((Number) tree.rhs.type.constValue()).intValue();
                 if (tree.hasTag(MINUS_ASG)) ival = -ival;
-                ((LocalItem)l).incr(ival);
+                localItem.incr(ival);
                 result = l;
                 return;
             }
@@ -2126,9 +2125,9 @@ public class Gen extends JCTree.Visitor {
                 break;
             case PREINC: case PREDEC:
                 od.duplicate();
-                if (od instanceof LocalItem &&
+                if (od instanceof LocalItem localItem &&
                     (operator.opcode == iadd || operator.opcode == isub)) {
-                    ((LocalItem)od).incr(tree.hasTag(PREINC) ? 1 : -1);
+                    localItem.incr(tree.hasTag(PREINC) ? 1 : -1);
                     result = od;
                 } else {
                     od.load();
@@ -2144,10 +2143,10 @@ public class Gen extends JCTree.Visitor {
                 break;
             case POSTINC: case POSTDEC:
                 od.duplicate();
-                if (od instanceof LocalItem &&
+                if (od instanceof LocalItem localItem &&
                     (operator.opcode == iadd || operator.opcode == isub)) {
                     Item res = od.load();
-                    ((LocalItem)od).incr(tree.hasTag(POSTINC) ? 1 : -1);
+                    localItem.incr(tree.hasTag(POSTINC) ? 1 : -1);
                     result = res;
                 } else {
                     Item res = od.load();
@@ -2231,8 +2230,8 @@ public class Gen extends JCTree.Visitor {
             MethodType optype = (MethodType)operator.type;
             int opcode = operator.opcode;
             if (opcode >= if_icmpeq && opcode <= if_icmple &&
-                rhs.type.constValue() instanceof Number &&
-                ((Number) rhs.type.constValue()).intValue() == 0) {
+                    rhs.type.constValue() instanceof Number number &&
+                    number.intValue() == 0) {
                 opcode = opcode + (ifeq - if_icmpeq);
             } else if (opcode >= if_acmpeq && opcode <= if_acmpne &&
                        TreeInfo.isNull(rhs)) {
@@ -2272,10 +2271,10 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
-        // inline widening conversion is a nop, as the VM sees a subtyping relationship.
+        // inline widening conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
+            (!tree.clazz.type.isReferenceProjection() || !types.splitPrimitiveClass || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
@@ -2345,7 +2344,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant)checkDimension(tree.pos(), tree.selected.type));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, !types.splitPrimitiveClass && tree.selected.type.isPrimitiveClass()));
             result = items.makeStackItem(pt);
             return;
         }

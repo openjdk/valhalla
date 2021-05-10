@@ -123,6 +123,7 @@ public class Names {
     public final Name Method;
 
     // package names
+    public final Name java;
     public final Name java_lang;
 
     // module names
@@ -309,6 +310,7 @@ public class Names {
         Method = fromString("Method");
 
         // package names
+        java = fromString("java");
         java_lang = fromString("java.lang");
 
         // module names

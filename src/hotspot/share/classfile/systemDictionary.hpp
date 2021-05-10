@@ -71,7 +71,6 @@ class ClassFileStream;
 class ClassLoadInfo;
 class Dictionary;
 class AllFieldStream;
-class LoaderConstraintTable;
 template <MEMFLAGS F> class HashtableBucket;
 class ResolutionErrorTable;
 class SymbolPropertyTable;
@@ -303,9 +302,6 @@ public:
  private:
   // Static tables owned by the SystemDictionary
 
-  // Constraints on class loaders
-  static LoaderConstraintTable*  _loader_constraints;
-
   // Resolution errors
   static ResolutionErrorTable*   _resolution_errors;
 
@@ -325,8 +321,6 @@ private:
   static OopHandle  _java_system_loader;
   static OopHandle  _java_platform_loader;
 
-  friend class VM_PopulateDumpSharedSpace;
-  static LoaderConstraintTable* constraints() { return _loader_constraints; }
   static ResolutionErrorTable* resolution_errors() { return _resolution_errors; }
   static SymbolPropertyTable* invoke_method_table() { return _invoke_method_table; }
 

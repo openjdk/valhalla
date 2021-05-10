@@ -24,6 +24,10 @@
 
 #include "precompiled.hpp"
 #include <new>
+#include "cds/cdsoffsets.hpp"
+#include "cds/filemap.hpp"
+#include "cds/heapShared.inline.hpp"
+#include "cds/metaspaceShared.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/modules.hpp"
@@ -43,13 +47,10 @@
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
 #include "logging/log.hpp"
-#include "memory/filemap.hpp"
-#include "memory/heapShared.inline.hpp"
 #include "memory/iterator.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/metaspace/testHelpers.hpp"
-#include "memory/metaspaceShared.hpp"
 #include "memory/metaspaceUtils.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -95,9 +96,6 @@
 #include "utilities/exceptions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
-#if INCLUDE_CDS
-#include "prims/cdsoffsets.hpp"
-#endif // INCLUDE_CDS
 #if INCLUDE_G1GC
 #include "gc/g1/g1Arguments.hpp"
 #include "gc/g1/g1CollectedHeap.inline.hpp"
@@ -118,9 +116,6 @@
 #include "jvmci/jvmciEnv.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 #endif
-#if INCLUDE_AOT
-#include "aot/aotLoader.hpp"
-#endif // INCLUDE_AOT
 
 #ifdef LINUX
 #include "osContainer_linux.hpp"
@@ -259,7 +254,7 @@ WB_END
 
 WB_ENTRY(void, WB_ReadFromNoaccessArea(JNIEnv* env, jobject o))
   size_t granularity = os::vm_allocation_granularity();
-  ReservedHeapSpace rhs(100 * granularity, granularity, false);
+  ReservedHeapSpace rhs(100 * granularity, granularity, os::vm_page_size());
   VirtualSpace vs;
   vs.initialize(rhs, 50 * granularity);
 
@@ -286,7 +281,7 @@ WB_END
 static jint wb_stress_virtual_space_resize(size_t reserved_space_size,
                                            size_t magnitude, size_t iterations) {
   size_t granularity = os::vm_allocation_granularity();
-  ReservedHeapSpace rhs(reserved_space_size * granularity, granularity, false);
+  ReservedHeapSpace rhs(reserved_space_size * granularity, granularity, os::vm_page_size());
   VirtualSpace vs;
   if (!vs.initialize(rhs, 0)) {
     tty->print_cr("Failed to initialize VirtualSpace. Can't proceed.");
@@ -1047,7 +1042,7 @@ WB_END
 WB_ENTRY(jboolean, WB_EnqueueInitializerForCompilation(JNIEnv* env, jobject o, jclass klass, jint comp_level))
   InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(klass)));
   Method* clinit = ik->class_initializer();
-  if (clinit == NULL) {
+  if (clinit == NULL || clinit->method_holder()->is_not_initialized()) {
     return false;
   }
   return WhiteBox::compile_method(clinit, comp_level, InvocationEntryBci, THREAD);
@@ -1431,9 +1426,6 @@ WB_END
 
 int WhiteBox::get_blob_type(const CodeBlob* code) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
-  if (code->is_aot()) {
-    return -1;
-  }
   return CodeCache::get_code_heap(code)->code_blob_type();
 }
 
@@ -1491,7 +1483,7 @@ WB_ENTRY(jobjectArray, WB_GetNMethod(JNIEnv* env, jobject o, jobject method, jbo
     return result;
   }
   int comp_level = code->comp_level();
-  int insts_size = comp_level == CompLevel_aot ? code->code_end() - code->code_begin() : code->insts_size();
+  int insts_size = code->insts_size();
 
   ThreadToNativeFromVM ttn(thread);
   jclass clazz = env->FindClass(vmSymbols::java_lang_Object()->as_C_string());
@@ -2320,14 +2312,6 @@ WB_ENTRY(jint, WB_ProtectionDomainRemovedCount(JNIEnv* env, jobject o))
   return (jint) SystemDictionary::pd_cache_table()->removed_entries_count();
 WB_END
 
-WB_ENTRY(jint, WB_AotLibrariesCount(JNIEnv* env, jobject o))
-  jint result = 0;
-#if INCLUDE_AOT
-  result = (jint) AOTLoader::heaps_count();
-#endif
-  return result;
-WB_END
-
 WB_ENTRY(jint, WB_GetKlassMetadataSize(JNIEnv* env, jobject wb, jclass mirror))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(mirror));
   // Return size in bytes.
@@ -2680,7 +2664,6 @@ static JNINativeMethod methods[] = {
   {CC"disableElfSectionCache",    CC"()V",            (void*)&WB_DisableElfSectionCache },
   {CC"resolvedMethodItemsCount",  CC"()J",            (void*)&WB_ResolvedMethodItemsCount },
   {CC"protectionDomainRemovedCount",   CC"()I",       (void*)&WB_ProtectionDomainRemovedCount },
-  {CC"aotLibrariesCount", CC"()I",                    (void*)&WB_AotLibrariesCount },
   {CC"getKlassMetadataSize", CC"(Ljava/lang/Class;)I",(void*)&WB_GetKlassMetadataSize},
 
   {CC"createMetaspaceTestContext", CC"(JJ)J",         (void*)&WB_CreateMetaspaceTestContext},

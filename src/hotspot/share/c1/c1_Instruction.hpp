@@ -879,6 +879,7 @@ LEAF(LoadField, AccessField)
 LEAF(StoreField, AccessField)
  private:
   Value _value;
+  ciField* _enclosing_field;   // enclosing field (the flattened one) for nested fields
 
  public:
   // creation
@@ -888,6 +889,8 @@ LEAF(StoreField, AccessField)
   // accessors
   Value value() const                            { return _value; }
   bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
+  ciField* enclosing_field() const               { return _enclosing_field; }
+  void set_enclosing_field(ciField* field)       { _enclosing_field = field; }
 
   // generic
   virtual void input_values_do(ValueVisitor* f)   { AccessField::input_values_do(f); f->visit(&_value); }

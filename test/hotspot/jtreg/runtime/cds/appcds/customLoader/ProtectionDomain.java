@@ -42,8 +42,9 @@ public class ProtectionDomain {
             "ProtDomainClassForArchive", "ProtDomainNotForArchive");
         String[] classlist = new String[] {
             "java/lang/Object id: 1",
-            "ProtDomain id: 2 super: 1 source: " + appJar,
-            "ProtDomainClassForArchive id: 3 super: 1 source: " + customJar
+            "java/lang/IdentityObject id: 2",
+            "ProtDomain id: 3 super: 1 interfaces: 2 source: " + appJar,
+            "ProtDomainClassForArchive id: 4 super: 1 interfaces: 2 source: " + customJar
         };
 
         TestCommon.testDump(appJar, classlist);

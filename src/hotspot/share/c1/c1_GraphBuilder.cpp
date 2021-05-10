@@ -1042,7 +1042,7 @@ void GraphBuilder::load_indexed(BasicType type) {
       bool next_needs_patching = !next_field->holder()->is_loaded() ||
                                  !next_field->will_link(method(), Bytecodes::_getfield) ||
                                  PatchALot;
-      can_delay_access = !next_needs_patching;
+      can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
     }
     if (can_delay_access) {
       // potentially optimizable array access, storing information for delayed decision
@@ -1780,7 +1780,7 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
   }
 }
 
-void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before) {
+void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field) {
   assert(vk->nof_nonstatic_fields() > 0, "Empty inline type access should be removed");
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
@@ -1789,6 +1789,7 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
     LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
     Value replacement = append(load);
     StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
+    store->set_enclosing_field(enclosing_field);
     append(store);
   }
 }
@@ -1971,7 +1972,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             bool next_needs_patching = !next_field->holder()->is_loaded() ||
                                        !next_field->will_link(method(), Bytecodes::_getfield) ||
                                        PatchALot;
-            can_delay_access = !next_needs_patching;
+            can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching;
           }
           if (can_delay_access) {
             if (has_pending_load_indexed()) {
@@ -2053,7 +2054,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       } else {
         assert(!needs_patching, "Can't patch flattened inline type field access");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-        copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before);
+        copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, field);
       }
       break;
     }
@@ -2109,7 +2110,7 @@ void GraphBuilder::withfield(int field_index) {
         if (field->is_flattened()) {
           ciInlineKlass* vk = field->type()->as_inline_klass();
           if (!vk->is_empty()) {
-            copy_inline_content(vk, obj, offset, new_instance, vk->first_field_offset(), state_before);
+            copy_inline_content(vk, obj, offset, new_instance, vk->first_field_offset(), state_before, field);
           }
         } else {
           LoadField* load = new LoadField(obj, offset, field, false, state_before, false);
@@ -2130,7 +2131,7 @@ void GraphBuilder::withfield(int field_index) {
     assert(!needs_patching, "Can't patch flattened inline type field access");
     ciInlineKlass* vk = field_modify->type()->as_inline_klass();
     if (!vk->is_empty()) {
-      copy_inline_content(vk, val, vk->first_field_offset(), new_instance, offset_modify, state_before);
+      copy_inline_content(vk, val, vk->first_field_offset(), new_instance, offset_modify, state_before, field_modify);
     }
   } else {
     StoreField* store = new StoreField(new_instance, offset_modify, field_modify, val, false, state_before, needs_patching);
@@ -3811,7 +3812,7 @@ bool GraphBuilder::try_inline(ciMethod* callee, bool holder_known, bool ignore_r
 
   // handle intrinsics
   if (callee->intrinsic_id() != vmIntrinsics::_none &&
-      (CheckIntrinsics ? callee->intrinsic_candidate() : true)) {
+      callee->check_intrinsic_candidate()) {
     if (try_inline_intrinsics(callee, ignore_return)) {
       print_inlining(callee, "intrinsic");
       if (callee->has_reserved_stack_access()) {

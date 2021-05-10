@@ -44,9 +44,6 @@ abstract class ValueImpl extends MirrorImpl implements Value {
             if (sig.isPrimitive()) {
                 throw new InvalidTypeException("Can't set a primitive type to null");
             }
-            if (destination.signature().charAt(0) == 'Q') {
-                throw new InvalidTypeException("Can't set an inline type to null");
-            }
             return null;    // no further checking or conversion necessary
         } else {
             return ((ValueImpl)value).prepareForAssignmentTo(destination);

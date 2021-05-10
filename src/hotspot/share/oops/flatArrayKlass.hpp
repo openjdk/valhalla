@@ -43,16 +43,17 @@ class FlatArrayKlass : public ArrayKlass {
   // Constructor
   FlatArrayKlass(Klass* element_klass, Symbol* name);
 
- protected:
-  // Returns the ArrayKlass for n'th dimension.
-  Klass* array_klass_impl(bool or_null, int n, TRAPS);
-
-  // Returns the array class with this class as element type.
-  Klass* array_klass_impl(bool or_null, TRAPS);
-
  public:
 
   FlatArrayKlass() {}
+
+  // Returns the ObjArrayKlass for n'th dimension.
+  virtual Klass* array_klass(int n, TRAPS);
+  virtual Klass* array_klass_or_null(int n);
+
+  // Returns the array class with this class as element type.
+  virtual Klass* array_klass(TRAPS);
+  virtual Klass* array_klass_or_null();
 
   virtual InlineKlass* element_klass() const;
   virtual void set_element_klass(Klass* k);

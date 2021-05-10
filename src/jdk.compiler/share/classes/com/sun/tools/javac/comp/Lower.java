@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1625,11 +1625,10 @@ public class Lower extends TreeTranslator {
         JCTree resource = resources.head;
         JCExpression resourceUse;
         boolean resourceNonNull;
-        if (resource instanceof JCVariableDecl) {
-            JCVariableDecl var = (JCVariableDecl) resource;
-            resourceUse = make.Ident(var.sym).setType(resource.type);
-            resourceNonNull = var.init != null && TreeInfo.skipParens(var.init).hasTag(NEWCLASS);
-            stats.add(var);
+        if (resource instanceof JCVariableDecl variableDecl) {
+            resourceUse = make.Ident(variableDecl.sym).setType(resource.type);
+            resourceNonNull = variableDecl.init != null && TreeInfo.skipParens(variableDecl.init).hasTag(NEWCLASS);
+            stats.add(variableDecl);
         } else {
             Assert.check(resource instanceof JCExpression);
             VarSymbol syntheticTwrVar =
@@ -3108,12 +3107,15 @@ public class Lower extends TreeTranslator {
         if (haveValue == type.isPrimitiveClass())
             return tree;
         if (haveValue) {
-            // widening coversion is a NOP for the VM due to subtyping relationship at class file
-            return tree;
-        } else {
-            // For narrowing conversion, insert a cast which should trigger a null check
-            return (T) make.TypeCast(type, tree);
+            // widening coversion is a NOP for the VM due to subtyping relationship at class file level
+            // where we bifurcate a primitive class into two class files.
+            if (types.splitPrimitiveClass)
+                return tree;
         }
+        // For narrowing conversion, insert a cast which should trigger a null check
+        // For widening conversions, insert a cast if emitting a unified class file.
+        return (T) make.TypeCast(type, tree);
+
     }
 
 

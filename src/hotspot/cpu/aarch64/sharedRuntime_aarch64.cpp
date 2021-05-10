@@ -811,7 +811,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   __ ldr(rscratch1, Address(rmethod, in_bytes(Method::from_compiled_offset())));
 
 #if INCLUDE_JVMCI
-  if (EnableJVMCI || UseAOT) {
+  if (EnableJVMCI) {
     // check if this call should be routed towards a specific entry point
     __ ldr(rscratch2, Address(rthread, in_bytes(JavaThread::jvmci_alternate_call_target_offset())));
     Label no_alternative_target;
@@ -2029,8 +2029,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
-    __ resolve(IS_NOT_NULL, obj_reg);
-
     if (UseBiasedLocking) {
       __ biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, lock_done, &slow_path_lock);
     }
@@ -2186,8 +2184,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     // Get locked oop from the handle we passed to jni
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
-
-    __ resolve(IS_NOT_NULL, obj_reg);
 
     Label done;
 
@@ -2446,7 +2442,7 @@ void SharedRuntime::generate_deopt_blob() {
   // Setup code generation tools
   int pad = 0;
 #if INCLUDE_JVMCI
-  if (EnableJVMCI || UseAOT) {
+  if (EnableJVMCI) {
     pad += 512; // Increase the buffer size when compiling for JVMCI
   }
 #endif
@@ -2521,7 +2517,7 @@ void SharedRuntime::generate_deopt_blob() {
   int implicit_exception_uncommon_trap_offset = 0;
   int uncommon_trap_offset = 0;
 
-  if (EnableJVMCI || UseAOT) {
+  if (EnableJVMCI) {
     implicit_exception_uncommon_trap_offset = __ pc() - start;
 
     __ ldr(lr, Address(rthread, in_bytes(JavaThread::jvmci_implicit_exception_pc_offset())));
@@ -2647,7 +2643,7 @@ void SharedRuntime::generate_deopt_blob() {
   __ reset_last_Java_frame(false);
 
 #if INCLUDE_JVMCI
-  if (EnableJVMCI || UseAOT) {
+  if (EnableJVMCI) {
     __ bind(after_fetch_unroll_info_call);
   }
 #endif
@@ -2810,7 +2806,7 @@ void SharedRuntime::generate_deopt_blob() {
   _deopt_blob = DeoptimizationBlob::create(&buffer, oop_maps, 0, exception_offset, reexecute_offset, frame_size_in_words);
   _deopt_blob->set_unpack_with_exception_in_tls_offset(exception_in_tls_offset);
 #if INCLUDE_JVMCI
-  if (EnableJVMCI || UseAOT) {
+  if (EnableJVMCI) {
     _deopt_blob->set_uncommon_trap_offset(uncommon_trap_offset);
     _deopt_blob->set_implicit_exception_uncommon_trap_offset(implicit_exception_uncommon_trap_offset);
   }

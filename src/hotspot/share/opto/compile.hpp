@@ -90,7 +90,6 @@ class TypeVect;
 class Unique_Node_List;
 class InlineTypeBaseNode;
 class nmethod;
-class WarmCallInfo;
 class Node_Stack;
 struct Final_Reshape_Counts;
 
@@ -295,6 +294,7 @@ class Compile : public Phase {
   bool                  _print_inlining;        // True if we should print inlining for this compilation
   bool                  _print_intrinsics;      // True if we should print intrinsics for this compilation
 #ifndef PRODUCT
+  uint                  _igv_idx;               // Counter for IGV node identifiers
   bool                  _trace_opto_output;
   bool                  _print_ideal;
   bool                  _parsed_irreducible_loop; // True if ciTypeFlow detected irreducible loops during parsing
@@ -383,7 +383,6 @@ class Compile : public Phase {
   // Parsing, optimization
   PhaseGVN*             _initial_gvn;           // Results of parse-time PhaseGVN
   Unique_Node_List*     _for_igvn;              // Initial work-list for next round of Iterative GVN
-  WarmCallInfo*         _warm_calls;            // Sorted work-list for heat-based inlining.
 
   GrowableArray<CallGenerator*> _late_inlines;        // List of CallGenerators to be revisited after main parsing has finished.
   GrowableArray<CallGenerator*> _string_late_inlines; // same but for string operations
@@ -616,6 +615,7 @@ class Compile : public Phase {
   }
 
 #ifndef PRODUCT
+  uint          next_igv_idx()                  { return _igv_idx++; }
   bool          trace_opto_output() const       { return _trace_opto_output; }
   bool          print_ideal() const             { return _print_ideal; }
   bool              parsed_irreducible_loop() const { return _parsed_irreducible_loop; }
@@ -943,13 +943,9 @@ class Compile : public Phase {
 
   void              identify_useful_nodes(Unique_Node_List &useful);
   void              update_dead_node_list(Unique_Node_List &useful);
-  void              remove_useless_nodes (Unique_Node_List &useful);
+  void              disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_List* worklist);
 
   void              remove_useless_node(Node* dead);
-
-  WarmCallInfo*     warm_calls() const          { return _warm_calls; }
-  void          set_warm_calls(WarmCallInfo* l) { _warm_calls = l; }
-  WarmCallInfo* pop_warm_call();
 
   // Record this CallGenerator for inlining at the end of parsing.
   void              add_late_inline(CallGenerator* cg)        {
