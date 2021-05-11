@@ -46,17 +46,21 @@
 #include "runtime/mutexLocker.hpp"
 #include "utilities/macros.hpp"
 
-ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, TRAPS) {
+ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n,
+                                       Klass* k, Symbol* name, bool null_free,
+                                       TRAPS) {
   assert(ObjArrayKlass::header_size() <= InstanceKlass::header_size(),
       "array klasses must be same size as InstanceKlass");
 
   int size = ArrayKlass::static_size(ObjArrayKlass::header_size());
 
-  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name);
+  return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name, null_free);
 }
 
 ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_data,
-                                                      int n, Klass* element_klass, TRAPS) {
+                                                      int n, Klass* element_klass,
+                                                      bool null_free, bool qdesc, TRAPS) {
+  assert(!null_free || (n == 1 && element_klass->is_inline_klass() && qdesc), "null-free unsupported");
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = NULL;
@@ -87,7 +91,11 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
             elem_super->array_klass(CHECK_NULL);
           }
           // Now retry from the beginning
-          ek = element_klass->array_klass(n, CHECK_NULL);
+          if (null_free) {
+            ek = InlineKlass::cast(element_klass)->null_free_inline_array_klass(CHECK_NULL);
+          } else {
+            ek = element_klass->array_klass(n, CHECK_NULL);
+          }
         }  // re-lock
         return ObjArrayKlass::cast(ek);
       }
@@ -98,10 +106,10 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   }
 
   // Create type name for klass.
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, qdesc, CHECK_NULL);
 
   // Initialize instance variables
-  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_NULL);
+  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, null_free, CHECK_NULL);
 
   ModuleEntry* module = oak->module();
   assert(module != NULL, "No module entry for array");
@@ -119,7 +127,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
   return oak;
 }
 
-ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
+ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) : ArrayKlass(name, ID) {
   set_dimension(n);
   set_element_klass(element_klass);
 
@@ -135,8 +143,9 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   set_bottom_klass(bk);
   set_class_loader_data(bk->class_loader_data());
 
-  jint lh = array_layout_helper(T_OBJECT);
-  if (element_klass->is_inline_klass()) {
+  int lh = array_layout_helper(T_OBJECT);
+  if (null_free) {
+    assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
     set_prototype_header(markWord::nullfree_array_prototype());
     assert(prototype_header().is_nullfree_array(), "sanity");
@@ -176,7 +185,7 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be flatArray, check if we have any special storage requirements
-    if (element_klass()->is_inline_klass()) {
+    if (name()->is_Q_array_signature()) {
       return oopFactory::new_flatArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
@@ -338,7 +347,8 @@ Klass* ObjArrayKlass::array_klass(int n, TRAPS) {
       if (higher_dimension() == NULL) {
 
         // Create multi-dim klass object and link them together
-        Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+        Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this,
+                                                          false, this->name()->is_Q_array_signature(), CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load

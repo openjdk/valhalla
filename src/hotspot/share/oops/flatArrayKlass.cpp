@@ -84,10 +84,12 @@ void FlatArrayKlass::set_element_klass(Klass* k) {
   _element_klass = k;
 }
 
-FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
+FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
   assert(UseFlatArray, "Flatten array required");
-  assert(InlineKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
+
+  InlineKlass* element_klass = InlineKlass::cast(eklass);
+  assert(element_klass->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
   /*
    *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...
@@ -123,13 +125,13 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
           elem_super->array_klass(CHECK_NULL);
         }
         // Now retry from the beginning
-        ek = element_klass->array_klass(CHECK_NULL);
+        ek = element_klass->null_free_inline_array_klass(CHECK_NULL);
       }  // re-lock
       return FlatArrayKlass::cast(ek);
     }
   }
 
-  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, true, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
   FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name);
@@ -348,7 +350,7 @@ Klass* FlatArrayKlass::array_klass(int n, TRAPS) {
       if (higher_dimension() == NULL) {
 
         // Create multi-dim klass object and link them together
-        Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
+        Klass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, false, true, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load

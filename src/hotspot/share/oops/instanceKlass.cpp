@@ -1574,7 +1574,8 @@ Klass* InstanceKlass::array_klass(int n, TRAPS) {
 
       // Check if update has already taken place
       if (array_klasses() == NULL) {
-        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
+        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this,
+                                                                  false, false, CHECK_NULL);
         // use 'release' to pair with lock-free load
         release_set_array_klasses(k);
       }
