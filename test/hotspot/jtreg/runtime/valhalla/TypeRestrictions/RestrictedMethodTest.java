@@ -49,12 +49,12 @@ public class RestrictedMethodTest implements RMInterface {
 
   static class Unloaded {
     static public primitive class Complex {
-	    double real = 0;
-	    double imaginary = 0;
+      double real = 0;
+            double imaginary = 0;
     }
 
     void print(@RestrictedType("Qruntime/valhalla/typerestrictions/RestrictedMethodTest$Unloaded$Complex;") Object o) {
-	    System.out.println("print says "+o);
+            System.out.println("print says "+o);
     }
 }
 
@@ -196,13 +196,13 @@ public class RestrictedMethodTest implements RMInterface {
       Unloaded ul = new Unloaded();
       Unloaded.Complex c = new Unloaded.Complex();
       result = null;
-	    ul.print(c);
+            ul.print(c);
       expectNoError(result);
-	    try {
-		    ul.print(new String("string"));
-	    } catch (Throwable t) {
-		    result = t;
-	    }
+            try {
+                    ul.print(new String("string"));
+            } catch (Throwable t) {
+                    result = t;
+            }
       expectICC(result);
     }
   }
