@@ -94,6 +94,7 @@ class StubAssemblerCodeGenClosure: public Closure {
 class Runtime1: public AllStatic {
   friend class VMStructs;
   friend class ArrayCopyStub;
+  friend class SharedRuntime;
 
  public:
   enum StubID {

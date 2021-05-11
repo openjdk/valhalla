@@ -536,32 +536,23 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::restricted_parameter_checks(JavaThread* thread))
   LastFrameAccessor last_frame(thread);
-  Method* caller = last_frame.method();
-  constantPoolHandle cph(THREAD, caller->constants());
-  Method* callee = last_frame.cache_entry()->method_if_resolved(cph);
+  Method* callee = last_frame.method();
   assert(callee != NULL, "Something bad happened");
-  if (callee->has_restricted_method()) {
+  if (callee->has_type_restrictions()) {
     ResourceMark rm(THREAD);
     Symbol* signature = callee->signature();
-    ArgumentCount args(signature);
-    int arg_count = args.size();
-    ResourceArea *area = Thread::current()->resource_area();
-    int* sizes = NEW_ARENA_ARRAY(area, int, arg_count);
-    int i = 0;
+    int arg_idx = 0;
+    int local_idx = callee->is_static() ? 0 : 1;
     for (SignatureStream ss(signature); !ss.at_return_type(); ss.next()) {
-      sizes[i] = parameter_type_word_count(ss.type());
-      i++;
-    }
-    int tos_idx = (int)last_frame.get_frame().interpreter_frame_expression_stack_size() - 3;
-    for (int i = arg_count - 1; i >=0; --i) {
-      Klass* k = callee->restricted_param_type_at(i);
+      Klass* k = callee->restricted_param_type_at(arg_idx);
       if (k != NULL) {
-        oop arg = *(oop*)last_frame.get_frame().interpreter_frame_expression_stack_at(tos_idx);
+        oop arg = *(oop*)last_frame.get_frame().interpreter_frame_local_at(local_idx);
         if (!arg->klass()->is_subtype_of(k)) {
           THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
         }
       }
-      tos_idx -= sizes[i];
+      local_idx += parameter_type_word_count(ss.type());
+      arg_idx++;
     }
   }
 JRT_END
@@ -571,7 +562,7 @@ JRT_ENTRY(void, InterpreterRuntime::restricted_return_value_check(JavaThread* th
   assert(last_frame.bytecode().code() == Bytecodes::_areturn, "Only areturn should have such checks");
   Method* method = last_frame.method();
   constantPoolHandle cph(THREAD, method->constants());
-  if (method->constMethod()->has_restricted_method()) {
+  if (method->constMethod()->has_type_restrictions()) {
     Klass* k = method->restricted_return_value();
     if (k != NULL && !obj->klass()->is_subtype_of(k)) {
       THROW(vmSymbols::java_lang_IncompatibleClassChangeError());

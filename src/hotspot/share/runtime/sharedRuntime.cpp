@@ -1621,6 +1621,10 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread *threa
   // return compiled code entry point after potential safepoints
   address entry = caller_is_c1 ?
     callee_method->verified_inline_code_entry() : callee_method->verified_inline_ro_code_entry();
+  if (caller_is_c1 && callee_method()->has_type_restrictions()) {
+    jint trap_request = Deoptimization::make_trap_request(Deoptimization::Reason_constraint, Deoptimization::Action_make_not_entrant);
+    Runtime1::deoptimize(thread, trap_request);
+  }
   assert(entry != NULL, "Jump to zero!");
   return entry;
 JRT_END

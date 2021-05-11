@@ -2728,7 +2728,7 @@ void TemplateTable::_return(TosState state) {
       Label not_restricted;
       __ get_method(rscratch1);
       __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
-      __ andl(rscratch1, Method::_restricted_method);
+      __ andl(rscratch1, Method::_type_restrictions);
       __ jcc(Assembler::zero, not_restricted);
       Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
       __ movptr(robj, aaddress(0));
@@ -3322,18 +3322,20 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   //                                              Assembler::StoreStore));
 
 
-  Label notRestricted;
-  __ movl(rdx, flags);
-  __ shrl(rdx, ConstantPoolCacheEntry::has_restricted_type_shift);
-  __ andl(rdx, 0x1);
-  __ testl(rdx, rdx);
-  __ jcc(Assembler::zero, notRestricted);
+  if (UseTypeRestrictions) {
+    Label notRestricted;
+    __ movl(rdx, flags);
+    __ shrl(rdx, ConstantPoolCacheEntry::has_restricted_type_shift);
+    __ andl(rdx, 0x1);
+    __ testl(rdx, rdx);
+    __ jcc(Assembler::zero, notRestricted);
 
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::check_restricted_type));
-  __ get_cache_and_index_at_bcp(cache, index, 1);
-  load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::check_restricted_type));
+    __ get_cache_and_index_at_bcp(cache, index, 1);
+    load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
 
-  __ bind(notRestricted);
+    __ bind(notRestricted);
+  }
 
   Label notVolatile, Done;
   __ movl(rdx, flags);
@@ -3931,19 +3933,6 @@ void TemplateTable::fast_xaccess(TosState state) {
 //-----------------------------------------------------------------------------
 // Calls
 
-void TemplateTable::restricted_method_check(Register method) {
-    Label not_restricted;
-  __ movptr(rscratch1, method);
-  __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
-  __ andl(rscratch1, Method::_restricted_method);
-  __ jcc(Assembler::zero, not_restricted);
-  __ restore_bcp();
-  __ push(method);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
-  __ pop(method);
-  __ bind(not_restricted);
-}
-
 void TemplateTable::prepare_invoke(int byte_no,
                                    Register method,  // linked method (or i-klass)
                                    Register index,   // itable index, MethodType, etc.
@@ -4057,7 +4046,6 @@ void TemplateTable::invokevirtual_helper(Register index,
   // profile this call
   __ profile_final_call(rax);
   __ profile_arguments_type(rax, method, rbcp, true);
-  restricted_method_check(method);
   __ jump_from_interpreted(method, rax);
 
   __ bind(notFinal);
@@ -4072,7 +4060,6 @@ void TemplateTable::invokevirtual_helper(Register index,
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
   __ profile_arguments_type(rdx, method, rbcp, true);
-  restricted_method_check(method);
   __ jump_from_interpreted(method, rdx);
 }
 
@@ -4101,7 +4088,6 @@ void TemplateTable::invokespecial(int byte_no) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rax);
 }
 
@@ -4112,7 +4098,6 @@ void TemplateTable::invokestatic(int byte_no) {
   // do the call
   __ profile_call(rax);
   __ profile_arguments_type(rax, rbx, rbcp, false);
-  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rax);
 }
 
@@ -4175,7 +4160,6 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   __ profile_final_call(rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
-  restricted_method_check(rbx);
   __ jump_from_interpreted(rbx, rdx);
   // no return from above
   __ bind(notVFinal);
@@ -4226,8 +4210,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ jcc(Assembler::zero, no_such_method);
 
   __ profile_arguments_type(rdx, rbx, rbcp, true);
-
-  restricted_method_check(rbx);
 
   // do the call
   // rcx: receiver

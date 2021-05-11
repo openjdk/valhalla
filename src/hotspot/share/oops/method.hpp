@@ -71,6 +71,8 @@ class Method : public Metadata {
  friend class VMStructs;
  friend class JVMCIVMStructs;
  friend class TemplateTable;
+ friend class SharedRuntime;
+ friend class TemplateInterpreterGenerator;
  private:
   // If you add a new field that points to any metaspace object, you
   // must add this field to Method::metaspace_pointers_do().
@@ -96,7 +98,7 @@ class Method : public Metadata {
     _c1_needs_stack_repair = 1 << 9,
     _c2_needs_stack_repair = 1 << 10,
     _scoped                = 1 << 11,
-    _restricted_method     = 1 << 12
+    _type_restrictions     = 1 << 12
   };
   mutable u2 _flags;
 
@@ -961,12 +963,12 @@ public:
     _flags = x ? (_flags | _c2_needs_stack_repair) : (_flags & ~_c2_needs_stack_repair);
   }
 
-  void set_restricted_method(bool x) {
-    _flags = x ? (_flags | _restricted_method) : ( _flags & ~_restricted_method);
+  void set_has_type_restrictions(bool x) {
+    _flags = x ? (_flags | _type_restrictions) : ( _flags & ~_type_restrictions);
   }
 
-  bool has_restricted_method() const {
-    return (_flags & _restricted_method) != 0;
+  bool has_type_restrictions() const {
+    return (_flags & _type_restrictions) != 0;
   }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)

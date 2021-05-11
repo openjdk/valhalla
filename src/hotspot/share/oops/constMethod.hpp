@@ -191,7 +191,7 @@ private:
     _has_parameter_annotations = 0x0100,
     _has_type_annotations = 0x0200,
     _has_default_annotations = 0x0400,
-    _has_restricted_method = 0x800
+    _has_type_restrictions = 0x800
   };
 
   // Bit vector of signature
@@ -363,15 +363,15 @@ public:
 
   // RestrictedMethod support
   int restricted_return_value_index() {
-    assert(has_restricted_method(), "");
+    assert(has_type_restrictions(), "");
     return *(restricted_return_type_index_addr());
   }
   int restricted_num_param() {
-    assert(has_restricted_method(), "");
+    assert(has_type_restrictions(), "");
     return *(restricted_num_params_addr());
   }
   int restricted_param_type_index_at(u1 index){
-    assert(has_restricted_method(), "");
+    assert(has_type_restrictions(), "");
     u2* array = restricted_param_type_start();
     return array[index];
   }
@@ -446,8 +446,8 @@ public:
   bool has_default_annotations() const
     { return (_flags & _has_default_annotations) != 0; }
 
-  bool has_restricted_method() const
-    { return (_flags & _has_restricted_method) != 0; }
+  bool has_type_restrictions() const
+    { return (_flags & _has_type_restrictions) != 0; }
 
   AnnotationArray** method_annotations_addr() const;
   AnnotationArray* method_annotations() const  {

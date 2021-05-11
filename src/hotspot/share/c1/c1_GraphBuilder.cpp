@@ -1656,6 +1656,15 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
       break;
   }
 
+  if (UseTypeRestrictions) {
+    if (method()->has_type_restrictions() && method()->restricted_return_value() != NULL) {
+      CheckCast* c = new CheckCast(method()->restricted_return_value(), x, copy_state_before());
+      append_split(c);
+      c->set_incompatible_class_change_check();
+      c->set_direct_compare(method()->restricted_return_value()->as_instance_klass()->is_final());
+    }
+  }
+
   // Check to see whether we are inlining. If so, Return
   // instructions become Gotos to the continuation point.
   if (continuation() != NULL) {
@@ -3051,6 +3060,7 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
   }
 
   bool ignore_return = scope_data()->ignore_return();
+  bool insert_type_restriction_check = method()->has_type_restrictions() && bci == 0;
 
   while (!bailed_out() && last()->as_BlockEnd() == NULL &&
          (code = stream()->next()) != ciBytecodeStream::EOBC() &&
@@ -3071,6 +3081,28 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
     if (push_exception) {
       apush(append(new ExceptionObject()));
       push_exception = false;
+    }
+
+    if (insert_type_restriction_check) {
+      ciSignature* sig = method()->signature();
+      int idx = method()->is_static() ? 0 : 1;
+      for (int i = 0; i < sig->count(); i++) {
+        if (method()->restricted_argument_at(i) != NULL) {
+          ciKlass* restricted_type = method()->restricted_argument_at(i);
+          CheckCast* c = new CheckCast(restricted_type, state()->local_at(idx), copy_state_before());
+          append_split(c);
+          c->set_incompatible_class_change_check();
+          // restricted types must be primitive classes
+          assert(restricted_type->as_instance_klass() != NULL, "Sanity check");
+          assert(restricted_type->as_instance_klass()->is_final(), "Sanity check");
+          c->set_direct_compare(true);
+          // Updating argument information
+          state()->store_local(idx, c);
+        }
+        ciType* type = sig->type_at(i);
+        idx += type->size();
+      }
+      insert_type_restriction_check = false;
     }
 
     // handle bytecode
