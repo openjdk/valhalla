@@ -5572,6 +5572,22 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
   return true;
 }
 
+// Calculate the extra stack space required for packing or unpacking inline
+// args and adjust the stack pointer
+int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
+  // Two additional slots to account for return address
+  int sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
+  sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+  // Save the return address, adjust the stack (make sure it is properly
+  // 16-byte aligned) and copy the return address to the new top of the stack.
+  // The stack will be repaired on return (see MacroAssembler::remove_frame).
+  assert(sp_inc > 0, "sanity");
+  pop(r13);
+  subptr(rsp, sp_inc);
+  push(r13);
+  return sp_inc;
+}
+
 // Read all fields from an inline type buffer and store the field values in registers/stack slots.
 bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
                                           VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
@@ -5643,7 +5659,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                         VMRegPair* from, int from_count, int& from_index, VMReg to,
-                                        RegState reg_state[]) {
+                                        RegState reg_state[], Register val_array) {
   assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "destination must be valid");
 
@@ -5652,13 +5668,14 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
-  Register val_array = rax;
   Register val_obj_tmp = r11;
   Register from_reg_tmp = r14; // Be careful with r14 because it's used for spilling
   Register tmp1 = r10;
   Register tmp2 = r13;
   Register tmp3 = rbx;
   Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
+
+  assert_different_registers(val_obj_tmp, from_reg_tmp, tmp1, tmp2, tmp3, val_array);
 
   if (reg_state[to->value()] == reg_readonly) {
     if (!is_reg_in_unpacked_fields(sig, sig_index, to, from, from_count, from_index)) {

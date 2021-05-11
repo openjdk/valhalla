@@ -533,7 +533,6 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method_ic_miss(JavaThread* current);
   static void allocate_inline_types(JavaThread* current, Method* callee, bool allocate_receiver);
   static oop allocate_inline_types_impl(JavaThread* current, methodHandle callee, bool allocate_receiver, TRAPS);
-  static void apply_post_barriers(JavaThread* current, objArrayOopDesc* array);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 

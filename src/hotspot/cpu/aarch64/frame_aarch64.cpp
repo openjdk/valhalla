@@ -150,12 +150,15 @@ bool frame::safe_for_sender(JavaThread *thread) {
       if (!thread->is_in_full_stack_checked((address)sender_sp)) {
         return false;
       }
-      sender_unextended_sp = sender_sp;
       sender_pc = (address) *(sender_sp-1);
       // Note: frame::sender_sp_offset is only valid for compiled frame
-      saved_fp = (intptr_t*) *(sender_sp - frame::sender_sp_offset);
-    }
+      intptr_t **saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
+      saved_fp = *saved_fp_addr;
 
+      // Repair the sender sp if this is a method with scalarized inline type args
+      sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
+      sender_unextended_sp = sender_sp;
+    }
 
     // If the potential sender is the interpreter then we can do some more checking
     if (Interpreter::contains(sender_pc)) {
@@ -449,21 +452,50 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 
   assert(_cb->frame_size() >= 0, "must have non-zero frame size");
   intptr_t* l_sender_sp = unextended_sp() + _cb->frame_size();
-  intptr_t* unextended_sp = l_sender_sp;
 
-  // the return_address is always the word on the stack
-  address sender_pc = (address) *(l_sender_sp-1);
+#ifdef ASSERT
+  address sender_pc_copy = (address) *(l_sender_sp-1);
+#endif
 
   intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
 
   // assert (sender_sp() == l_sender_sp, "should be");
   // assert (*saved_fp_addr == link(), "should be");
 
+  // Repair the sender sp if the frame has been extended
+  l_sender_sp = repair_sender_sp(l_sender_sp, saved_fp_addr);
+
+  // The return address is always the first word on the stack
+  address sender_pc = (address) *(l_sender_sp-1);
+
+#ifdef ASSERT
+  if (sender_pc != sender_pc_copy) {
+    // When extending the stack in the callee method entry to make room for unpacking of value
+    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
+    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
+    nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
+    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
+  }
+#endif
+
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.
     // For C1, the runtime stub might not have oop maps, so set this flag
     // outside of update_register_map.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
+    bool caller_args = _cb->caller_must_gc_arguments(map->thread());
+#ifdef COMPILER1
+    if (!caller_args) {
+      nmethod* nm = _cb->as_nmethod_or_null();
+      if (nm != NULL && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
+          pc() < nm->verified_inline_entry_point()) {
+        // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
+        // before doing any argument shuffling, so we need to scan the oops
+        // as the caller passes them.
+        caller_args = true;
+      }
+    }
+#endif
+    map->set_include_argument_oops(caller_args);
     if (_cb->oop_maps() != NULL) {
       OopMapSet::update_register_map(this, map);
     }
@@ -475,7 +507,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     update_map_with_saved_link(map, saved_fp_addr);
   }
 
-  return frame(l_sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
+  return frame(l_sender_sp, l_sender_sp, *saved_fp_addr, sender_pc);
 }
 
 //------------------------------------------------------------------------------
@@ -796,6 +828,23 @@ frame::frame(void* sp, void* fp, void* pc) {
 
 void frame::pd_ps() {}
 #endif
+
+// Check for a method with scalarized inline type arguments that needs
+// a stack repair and return the repaired sender stack pointer.
+intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
+  CompiledMethod* cm = _cb->as_compiled_method_or_null();
+  if (cm != NULL && cm->needs_stack_repair()) {
+    // The stack increment resides just below the saved FP on the stack
+    intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
+    assert(*sp_inc_addr % StackAlignmentInBytes == 0, "sp_inc not aligned");
+    int sp_inc = *sp_inc_addr / wordSize;
+    int real_frame_size = _cb->frame_size() + sp_inc;
+    assert(real_frame_size >= _cb->frame_size() && real_frame_size <= 1000000, "invalid frame size");
+    assert(unextended_sp() + real_frame_size == sender_sp + sp_inc, "sanity");
+    sender_sp = unextended_sp() + real_frame_size;
+  }
+  return sender_sp;
+}
 
 void JavaFrameAnchor::make_walkable(JavaThread* thread) {
   // last frame set?
