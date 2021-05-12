@@ -318,10 +318,14 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
                                                          protection_domain,
                                                          CHECK_NULL);
     if (k != NULL) {
-      if ((class_name->is_Q_array_signature() && !k->is_inline_klass())) {
-            THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), "L/Q mismatch on bottom type");
-          }
-      k = k->array_klass(ndims, CHECK_NULL);
+      if (class_name->is_Q_array_signature()) {
+        if (!k->is_inline_klass()) {
+          THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), "L/Q mismatch on bottom type");
+        }
+        k = InlineKlass::cast(k)->null_free_inline_array_klass(ndims, CHECK_NULL);
+      } else {
+        k = k->array_klass(ndims, CHECK_NULL);
+      }
     }
   } else {
     k = Universe::typeArrayKlassObj(t);

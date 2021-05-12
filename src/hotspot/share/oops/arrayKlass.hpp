@@ -56,7 +56,7 @@ class ArrayKlass: public Klass {
   ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
   // Create array_name for element klass
-  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
+  static Symbol* create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS);
 
  public:
   // Instance variables

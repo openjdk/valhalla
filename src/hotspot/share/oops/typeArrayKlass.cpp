@@ -187,7 +187,7 @@ Klass* TypeArrayKlass::array_klass(int n, TRAPS) {
 
       if (higher_dimension() == NULL) {
         Klass* oak = ObjArrayKlass::allocate_objArray_klass(
-              class_loader_data(), dim + 1, this, CHECK_NULL);
+              class_loader_data(), dim + 1, this, false, false, CHECK_NULL);
         ObjArrayKlass* h_ak = ObjArrayKlass::cast(oak);
         h_ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
