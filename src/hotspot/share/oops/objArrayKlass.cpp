@@ -68,7 +68,11 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
     Klass* element_super = element_klass->super();
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
-      super_klass = element_super->array_klass_or_null();
+      if (null_free) {
+        super_klass = element_klass->array_klass_or_null();
+      } else {
+        super_klass = element_super->array_klass_or_null();
+      }
       bool supers_exist = super_klass != NULL;
       // Also, see if the element has secondary supertypes.
       // We need an array type for each.
@@ -80,12 +84,21 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
           break;
         }
       }
+      if (null_free) {
+        if (element_klass->array_klass_or_null() == NULL) {
+          supers_exist = false;
+        }
+      }
       if (!supers_exist) {
         // Oops.  Not allocated yet.  Back out, allocate it, and retry.
         Klass* ek = NULL;
         {
           MutexUnlocker mu(MultiArray_lock);
-          super_klass = element_super->array_klass(CHECK_NULL);
+          if (null_free) {
+            element_klass->array_klass(CHECK_NULL);
+          } else {
+            element_super->array_klass(CHECK_NULL);
+          }
           for( int i = element_supers->length()-1; i >= 0; i-- ) {
             Klass* elem_super = element_supers->at(i);
             elem_super->array_klass(CHECK_NULL);
@@ -130,6 +143,8 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
 ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free) : ArrayKlass(name, ID) {
   set_dimension(n);
   set_element_klass(element_klass);
+
+  assert(!null_free || name->is_Q_array_signature(), "sanity check");
 
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
@@ -185,7 +200,7 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be flatArray, check if we have any special storage requirements
-    if (name()->is_Q_array_signature()) {
+    if (name()->char_at(1) != JVM_SIGNATURE_ARRAY &&  name()->is_Q_array_signature()) {
       return oopFactory::new_flatArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);

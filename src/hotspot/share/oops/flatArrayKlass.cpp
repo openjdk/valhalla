@@ -102,7 +102,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
   Klass* element_super = element_klass->super();
   if (element_super != NULL) {
     // The element type has a direct super.  E.g., String[] has direct super of Object[].
-    super_klass = element_super->array_klass_or_null();
+    super_klass = element_klass->array_klass_or_null();
     bool supers_exist = super_klass != NULL;
     // Also, see if the element has secondary supertypes.
     // We need an array type for each.
@@ -119,7 +119,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
       Klass* ek = NULL;
       {
         MutexUnlocker mu(MultiArray_lock);
-        super_klass = element_super->array_klass(CHECK_NULL);
+        super_klass = element_klass->array_klass(CHECK_NULL);
         for( int i = element_supers->length()-1; i >= 0; i-- ) {
           Klass* elem_super = element_supers->at(i);
           elem_super->array_klass(CHECK_NULL);
@@ -409,25 +409,21 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
   assert(transitive_interfaces == NULL, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
+  assert(elem_supers->length() > 0, "Must at least include the PrimitiveObject interface");
   int num_elem_supers = elem_supers == NULL ? 0 : elem_supers->length();
   int num_secondaries = num_extra_slots + 2 + num_elem_supers;
-  if (num_secondaries == 2) {
-    // Must share this for correct bootstrapping!
-    set_secondary_supers(Universe::the_array_interfaces_array());
-    return NULL;
-  } else {
-    GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+3);
-    secondaries->push(vmClasses::Cloneable_klass());
-    secondaries->push(vmClasses::Serializable_klass());
-    secondaries->push(vmClasses::IdentityObject_klass());
-    for (int i = 0; i < num_elem_supers; i++) {
-      Klass* elem_super = (Klass*) elem_supers->at(i);
-      Klass* array_super = elem_super->array_klass_or_null();
-      assert(array_super != NULL, "must already have been created");
-      secondaries->push(array_super);
-    }
-    return secondaries;
+  GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+4);
+
+  secondaries->push(vmClasses::Cloneable_klass());
+  secondaries->push(vmClasses::Serializable_klass());
+  secondaries->push(vmClasses::IdentityObject_klass());
+  for (int i = 0; i < num_elem_supers; i++) {
+    Klass* elem_super = (Klass*) elem_supers->at(i);
+    Klass* array_super = elem_super->array_klass_or_null();
+    assert(array_super != NULL, "must already have been created");
+    secondaries->push(array_super);
   }
+  return secondaries;
 }
 
 void FlatArrayKlass::print_on(outputStream* st) const {
