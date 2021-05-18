@@ -166,7 +166,6 @@ bool InlineKlass::flatten_array() {
 }
 
 Klass* InlineKlass::null_free_inline_array_klass(int n, TRAPS) {
-  Klass* nullable_array = array_klass(n, CHECK_NULL);
   if (Atomic::load_acquire(adr_null_free_inline_array_klasses()) == NULL) {
     ResourceMark rm(THREAD);
     JavaThread *jt = THREAD->as_Java_thread();
