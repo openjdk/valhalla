@@ -30,6 +30,7 @@
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //
@@ -104,10 +105,36 @@ bool ciArrayKlass::is_leaf_type() {
 ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
-  } else if (element_type->flatten_array()) {
-    return ciFlatArrayKlass::make(element_type->as_klass());
   } else {
-    return ciObjArrayKlass::make(element_type->as_klass());
+    return make(element_type->as_klass(), element_type->is_null_free());
+  }
+}
+
+ciArrayKlass* ciArrayKlass::make(ciKlass* klass, bool null_free) {
+  if (null_free) {
+    if (klass->is_loaded()) {
+      bool is_array_flattened = false;
+      GUARDED_VM_ENTRY(
+        EXCEPTION_CONTEXT;
+        Klass* ak = InlineKlass::cast(klass->get_Klass())->null_free_inline_array_klass(THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+          CLEAR_PENDING_EXCEPTION;
+        } else {
+          if (ak != NULL && ak->is_flatArray_klass()) {
+            is_array_flattened = true;
+          }
+        }
+      )
+      if (is_array_flattened) {
+        return ciFlatArrayKlass::make(klass);
+      } else {
+        return ciObjArrayKlass::make(klass, true);
+      }
+    } else {
+      return ciEnv::unloaded_ciobjarrayklass();
+    }
+  } else {
+    return ciObjArrayKlass::make(klass);
   }
 }
 

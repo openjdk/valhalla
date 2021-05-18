@@ -65,7 +65,7 @@ public class InlineTypeArray {
     }
 
     void testClassForName() {
-        String arrayClsName = "[Lruntime.valhalla.inlinetypes.Point$ref;";
+        String arrayClsName = "[Lruntime.valhalla.inlinetypes.Point;";
         String qarrayClsName = "[Qruntime.valhalla.inlinetypes.Point;";
         try {
             // L-type..

@@ -60,6 +60,7 @@ public:
   virtual ciKlass* element_klass() { return NULL; }
 
   static ciArrayKlass* make(ciType* element_type);
+  static ciArrayKlass* make(ciKlass* klass, bool null_free);
 
   int array_header_in_bytes();
   ciInstance* component_mirror_instance() const;

@@ -27,6 +27,7 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/signature.hpp"
 
@@ -135,11 +136,17 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
+ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool null_free) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
-    Klass* array = element_klass->get_Klass()->array_klass(THREAD);
+    Klass* array;
+    if (null_free) {
+      assert(element_klass->get_Klass()->is_inline_klass(), "Only inline classes can have null free arrays");
+      array = InlineKlass::cast(element_klass->get_Klass())->null_free_inline_array_klass(THREAD);
+    } else {
+      array = element_klass->get_Klass()->array_klass(THREAD);
+    }
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
@@ -162,8 +169,8 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
-  GUARDED_VM_ENTRY(return make_impl(element_klass);)
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool null_free) {
+  GUARDED_VM_ENTRY(return make_impl(element_klass, null_free);)
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {

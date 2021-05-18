@@ -31,6 +31,7 @@
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciFlatArrayKlass
 //
@@ -129,11 +130,11 @@ ciSymbol* ciFlatArrayKlass::construct_array_name(ciSymbol* element_name,
 // Implementation of make.
 ciArrayKlass* ciFlatArrayKlass::make_impl(ciKlass* element_klass) {
   assert(UseFlatArray, "should only be used for flat arrays");
-  assert(element_klass->is_inlinetype(), "element type must be an inline type");
   assert(element_klass->is_loaded(), "unloaded inline klasses are represented by ciInstanceKlass");
+  assert(element_klass->is_inlinetype(), "element type must be an inline type");
   {
     EXCEPTION_CONTEXT;
-    Klass* array = element_klass->get_Klass()->array_klass(THREAD);
+    Klass* array = InlineKlass::cast(element_klass->get_Klass())->null_free_inline_array_klass(THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
