@@ -49,7 +49,7 @@ public class MultiANewArrayTest {
         } catch(Error e) {
             ex = e;
         }
-        Asserts.assertNull(ex, "No ICCE should have been thrown");
+        Asserts.assertNull(ex, "No error should have been thrown");
         ex = null;
     }
 }
