@@ -111,30 +111,21 @@ ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
 }
 
 ciArrayKlass* ciArrayKlass::make(ciKlass* klass, bool null_free) {
-  if (null_free) {
-    if (klass->is_loaded()) {
-      bool is_array_flattened = false;
-      GUARDED_VM_ENTRY(
-        EXCEPTION_CONTEXT;
-        Klass* ak = InlineKlass::cast(klass->get_Klass())->null_free_inline_array_klass(THREAD);
-        if (HAS_PENDING_EXCEPTION) {
-          CLEAR_PENDING_EXCEPTION;
-        } else {
-          if (ak != NULL && ak->is_flatArray_klass()) {
-            is_array_flattened = true;
-          }
-        }
-      )
-      if (is_array_flattened) {
-        return ciFlatArrayKlass::make(klass);
+  if (null_free && klass->is_loaded()) {
+    GUARDED_VM_ENTRY(
+      EXCEPTION_CONTEXT;
+      Klass* ak = InlineKlass::cast(klass->get_Klass())->null_free_inline_array_klass(THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        CLEAR_PENDING_EXCEPTION;
       } else {
-        return ciObjArrayKlass::make(klass, true);
+        if (ak != NULL && ak->is_flatArray_klass()) {
+          return ciFlatArrayKlass::make(klass);
+        }
       }
-    } else {
-      return ciEnv::unloaded_ciobjarrayklass();
-    }
+    )
+    return ciObjArrayKlass::make(klass, true);
   } else {
-    return ciObjArrayKlass::make(klass);
+    return ciObjArrayKlass::make(klass, null_free);
   }
 }
 
