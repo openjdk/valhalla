@@ -142,7 +142,7 @@ arrayOop oopFactory::new_flatArray(Klass* k, int length, TRAPS) {
     oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
   assert(oop == NULL || oop->klass()->is_null_free_array_klass(), "sanity");
-  assert(oop == NULL || oop->is_nullfreeArray(), "sanity");
+  assert(oop == NULL || oop->is_null_free_array(), "sanity");
   return oop;
 }
 

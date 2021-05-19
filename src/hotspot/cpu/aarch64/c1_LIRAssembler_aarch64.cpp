@@ -1630,7 +1630,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     __ br(Assembler::NE, test_mark_word);
     __ load_prototype_header(tmp, op->array()->as_register());
     __ bind(test_mark_word);
-    __ tst(tmp, markWord::nullfree_array_bit_in_place);
+    __ tst(tmp, markWord::null_free_array_bit_in_place);
   } else {
     Register klass = op->tmp()->as_register();
     __ load_klass(klass, op->array()->as_register());

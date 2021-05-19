@@ -162,8 +162,8 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
   if (null_free) {
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
-    set_prototype_header(markWord::nullfree_array_prototype());
-    assert(prototype_header().is_nullfree_array(), "sanity");
+    set_prototype_header(markWord::null_free_array_prototype());
+    assert(prototype_header().is_null_free_array(), "sanity");
   }
   set_layout_helper(lh);
   assert(is_array_klass(), "sanity");
@@ -543,7 +543,7 @@ void ObjArrayKlass::verify_on(outputStream* st) {
 void ObjArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
   guarantee(obj->is_objArray(), "must be objArray");
-  guarantee(obj->is_nullfreeArray() || (!is_null_free_array_klass()), "null-free klass but not object");
+  guarantee(obj->is_null_free_array() || (!is_null_free_array_klass()), "null-free klass but not object");
   objArrayOop oa = objArrayOop(obj);
   for(int index = 0; index < oa->length(); index++) {
     guarantee(oopDesc::is_oop_or_null(oa->obj_at(index)), "should be oop");
