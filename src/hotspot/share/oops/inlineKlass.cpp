@@ -209,20 +209,18 @@ Klass* InlineKlass::null_free_inline_array_klass_or_null() {
   return null_free_inline_array_klass_or_null(1);
 }
 
-
-void InlineKlass::remove_unshareable_info() {
-  InstanceKlass::remove_unshareable_info();
-
-  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
-  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
-  *((address*)adr_pack_handler()) = NULL;
-  *((address*)adr_pack_handler_jobject()) = NULL;
-  *((address*)adr_unpack_handler()) = NULL;
-  assert(pack_handler() == NULL, "pack handler not null");
+void InlineKlass::array_klasses_do(void f(Klass* k)) {
+  InstanceKlass::array_klasses_do(f);
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->array_klasses_do(f);
+  }
 }
 
-void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
+void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
+  InstanceKlass::array_klasses_do(f, THREAD);
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->array_klasses_do(f, THREAD);
+  }
 }
 
 // Inline type arguments are not passed by reference, instead each
@@ -520,6 +518,46 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   return NULL;
 }
 
+// CDS support
+
+void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
+  InstanceKlass::metaspace_pointers_do(it);
+
+  InlineKlass* this_ptr = this;
+  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
+  it->push((Klass**)adr_null_free_inline_array_klasses());
+}
+
+void InlineKlass::remove_unshareable_info() {
+  InstanceKlass::remove_unshareable_info();
+
+  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
+  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
+  *((address*)adr_pack_handler()) = NULL;
+  *((address*)adr_pack_handler_jobject()) = NULL;
+  *((address*)adr_unpack_handler()) = NULL;
+  assert(pack_handler() == NULL, "pack handler not null");
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->remove_unshareable_info();
+  }
+}
+
+void InlineKlass::remove_java_mirror() {
+  InstanceKlass::remove_java_mirror();
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->remove_java_mirror();
+  }
+}
+
+void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
+  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+  }
+}
+
+// oop verify
+
 void InlineKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
   guarantee(prototype_header().is_inline_type(), "Prototype header is not inline type");
@@ -528,11 +566,4 @@ void InlineKlass::verify_on(outputStream* st) {
 void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
   guarantee(obj->mark().is_inline_type(), "Header is not inline type");
-}
-
-void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
-  InstanceKlass::metaspace_pointers_do(it);
-
-  InlineKlass* this_ptr = this;
-  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
 }
