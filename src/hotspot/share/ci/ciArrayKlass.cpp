@@ -117,10 +117,8 @@ ciArrayKlass* ciArrayKlass::make(ciKlass* klass, bool null_free) {
       Klass* ak = InlineKlass::cast(klass->get_Klass())->null_free_inline_array_klass(THREAD);
       if (HAS_PENDING_EXCEPTION) {
         CLEAR_PENDING_EXCEPTION;
-      } else {
-        if (ak != NULL && ak->is_flatArray_klass()) {
-          return ciFlatArrayKlass::make(klass);
-        }
+      } else if (ak != NULL && ak->is_flatArray_klass()) {
+        return ciFlatArrayKlass::make(klass);
       }
     )
     return ciObjArrayKlass::make(klass, true);
