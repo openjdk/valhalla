@@ -129,6 +129,7 @@ class InlineKlass: public InstanceKlass {
   int first_field_offset_old();
 
   virtual void remove_unshareable_info();
+  virtual void remove_java_mirror();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   virtual void metaspace_pointers_do(MetaspaceClosure* it);
 
@@ -140,6 +141,10 @@ class InlineKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
+
+  // Iterators
+  virtual void array_klasses_do(void f(Klass* k));
+  virtual void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
 
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);

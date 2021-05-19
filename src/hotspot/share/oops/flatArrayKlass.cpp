@@ -149,6 +149,11 @@ void FlatArrayKlass::initialize(TRAPS) {
   element_klass()->initialize(THREAD);
 }
 
+void FlatArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
+  ArrayKlass::metaspace_pointers_do(it);
+  it->push(&_element_klass);
+}
+
 // Oops allocation...
 flatArrayOop FlatArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
@@ -424,6 +429,14 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
     secondaries->push(array_super);
   }
   return secondaries;
+}
+
+jint FlatArrayKlass::compute_modifier_flags() const {
+  // The modifier for an flatArray is the same as its element
+  jint element_flags = element_klass()->compute_modifier_flags();
+
+  return (element_flags & (JVM_ACC_PUBLIC | JVM_ACC_PRIVATE | JVM_ACC_PROTECTED))
+                        | (JVM_ACC_ABSTRACT | JVM_ACC_FINAL);
 }
 
 void FlatArrayKlass::print_on(outputStream* st) const {
