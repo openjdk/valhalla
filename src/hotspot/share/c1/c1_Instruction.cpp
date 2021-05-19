@@ -268,7 +268,7 @@ ciType* LoadIndexed::declared_type() const {
 bool StoreIndexed::is_exact_flattened_array_store() const {
   if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL && value()->declared_type() != NULL) {
     ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();
-    ciKlass* actual_klass = value()->declared_type()->as_klass();
+    ciKlass* actual_klass = value()->declared_type()->unwrap()->as_klass();
 
     // The following check can fail with inlining:
     //     void test45_inline(Object[] oa, Object o, int index) { oa[index] = o; }
@@ -290,7 +290,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  return ciArrayKlass::make(klass());
+  return ciArrayKlass::make(klass(), is_null_free());
 }
 
 ciType* NewMultiArray::exact_type() const {

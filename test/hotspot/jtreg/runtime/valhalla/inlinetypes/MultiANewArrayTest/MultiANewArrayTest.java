@@ -49,8 +49,7 @@ public class MultiANewArrayTest {
         } catch(Error e) {
             ex = e;
         }
-        Asserts.assertNotNull(ex, "An ICCE should have been thrown");
-        Asserts.assertEquals(ex.getClass(), IncompatibleClassChangeError.class, "Error is not an ICCE");
+        Asserts.assertNull(ex, "No error should have been thrown");
         ex = null;
     }
 }
