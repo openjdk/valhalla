@@ -1112,6 +1112,7 @@ int ExceptionMessageBuilder::get_NPE_null_slot(int bci) {
     case Bytecodes::_athrow:
     case Bytecodes::_monitorenter:
     case Bytecodes::_monitorexit:
+    case Bytecodes::_checkcast:
       return 0;
     case Bytecodes::_iaload:
     case Bytecodes::_faload:
@@ -1433,6 +1434,11 @@ void ExceptionMessageBuilder::print_NPE_failed_action(outputStream *os, int bci)
         os->print("Cannot invoke \"");
         print_method_name(os, _method, cp_index);
         os->print("\"");
+      } break;
+    case Bytecodes::_checkcast: {
+        int cp_index = Bytes::get_Java_u2(code_base + pos);
+        ConstantPool* cp = _method->constants();
+        os->print("Cannot cast to null-free type \"%s\"", cp->klass_at_noresolve(cp_index)->as_C_string());
       } break;
 
     default:
