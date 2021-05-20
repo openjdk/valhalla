@@ -1748,12 +1748,12 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
                      NULL, NULL);
 
   if (field->signature()->is_Q_signature()) {
-    assert(field->type()->as_inline_klass()->is_loaded(), "Must be");
+    assert(field->type()->unwrap()->as_inline_klass()->is_loaded(), "Must be");
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
-    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+    Constant* default_value = new Constant(new InstanceConstant(field->type()->unwrap()->as_inline_klass()->default_instance()));
     if (default_value->is_pinned()) {
       __ move(LIR_OprFact::value_type(default_value->type()), result);
     } else {
@@ -1773,7 +1773,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
 
   ciInlineKlass* elem_klass = NULL;
   if (field != NULL) {
-    elem_klass = field->type()->as_inline_klass();
+    elem_klass = field->type()->unwrap()->as_inline_klass();
   } else {
     elem_klass = array.value()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
   }
