@@ -663,7 +663,7 @@ public class ClassReader {
                         flavor = L_TypeOf_Q;
                     } else {
                         // We are seeing QFoo; or LFoo; The name itself does not shine any light on default val-refness
-                        flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.L_TypeOf_X;
+                        flavor = prefix == 'L' ? Flavor.L_TypeOf_X : Flavor.Q_TypeOf_X;
                     }
                     t = flavor == L_TypeOf_Q ? enterPrimitiveClass(name) : enterClass(name);
                     outer = new ClassType(outer, List.nil(), t, TypeMetadata.EMPTY, flavor);
