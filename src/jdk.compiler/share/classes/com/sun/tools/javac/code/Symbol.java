@@ -52,6 +52,7 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Kinds.Kind;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.comp.Attr;
@@ -1343,7 +1344,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             this(
                 flags,
                 name,
-                new ClassType(Type.noType, null, null),
+                new ClassType(Type.noType, null, null, TypeMetadata.EMPTY, Flavor.X_Typeof_X),
                 owner);
             this.type.tsym = this;
         }
@@ -1381,7 +1382,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                 erasure_field = new ClassType(types.erasure(type.getEnclosingType()),
                                               List.nil(), this,
                                               type.getMetadata(),
-                                              type.isReferenceProjection());
+                                              type.getFlavor());
             return erasure_field;
         }
 
@@ -1450,6 +1451,24 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                 flags_field |= (PUBLIC|STATIC);
                 this.type = new ErrorType(this, Type.noType);
                 throw ex;
+            } finally {
+                if (this.type != null && this.type.hasTag(CLASS)) {
+                    ClassType ct = (ClassType) this.type;
+                    if (ct.flavor == Flavor.X_Typeof_X) {
+                        // TODO: Discriminate between ref-val defaultness. ATM, we are blind to default favor
+                        ClassType ef = this.erasure_field != null && this.erasure_field.hasTag(CLASS) ?
+                                (ClassType) this.erasure_field : null;
+                        if ((this.flags_field & PRIMITIVE_CLASS) != 0) {
+                            ct.flavor = Flavor.Q_TypeOf_Q;
+                            if (ef != null)
+                                ef.flavor = Flavor.Q_TypeOf_Q;
+                        } else {
+                            ct.flavor = Flavor.L_TypeOf_L;
+                            if (ef != null)
+                                ef.flavor = Flavor.L_TypeOf_L;
+                        }
+                    }
+                }
             }
         }
 
@@ -1627,6 +1646,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                 classType.supertype_field = null;
                 classType.interfaces_field = null;
                 classType.all_interfaces_field = null;
+                classType.flavor = Flavor.X_Typeof_X;
             }
             clearAnnotationMetadata();
         }
