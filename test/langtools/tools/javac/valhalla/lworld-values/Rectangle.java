@@ -28,9 +28,9 @@ public primitive class Rectangle {
     Point topLeft, bottomRight;
 
     static Point origin;
- 
+
     static Rectangle from (Point.ref topLeft, Point.ref bottomRight) {
-        return new Rectangle(topLeft, bottomRight);     
+        return new Rectangle(topLeft, bottomRight);
     }
 
     Rectangle (Point topLeft, Point bottomRight) {
