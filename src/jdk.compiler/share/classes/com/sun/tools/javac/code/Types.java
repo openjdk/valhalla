@@ -288,7 +288,7 @@ public class Types {
                     formals = formals.tail;
                 }
                 if (outer1 == outer && !changed) return t;
-                else return new ClassType(outer1, typarams1.toList(), t.tsym, t.getMetadata(), t.isReferenceProjection()) {
+                else return new ClassType(outer1, typarams1.toList(), t.tsym, t.getMetadata(), t.getFlavor()) {
                     @Override
                     protected boolean needsStripping() {
                         return true;
@@ -1025,7 +1025,7 @@ public class Types {
     }
 
     public boolean isPrimitiveClass(Type t) {
-        return t != null && !t.isReferenceProjection() && t.tsym != null && (t.tsym.flags_field & Flags.PRIMITIVE_CLASS) != 0;
+        return t != null && t.isPrimitiveClass();
     }
 
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
@@ -2578,10 +2578,10 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 // erasure(projection(primitive)) = projection(erasure(primitive))
                 Type erased = eraseClassType(t, recurse);
-                if (t.isReferenceProjection()) {
+                if (erased.hasTag(CLASS) && t.flavor != erased.getFlavor()) {
                     erased = new ClassType(erased.getEnclosingType(),
                             List.nil(), erased.tsym,
-                            erased.getMetadata(), true);
+                            erased.getMetadata(), t.flavor);
                 }
                 return erased;
             }
@@ -2645,8 +2645,6 @@ public class Types {
             bounds = bounds.prepend(syms.objectType);
         }
         long flags = ABSTRACT | PUBLIC | SYNTHETIC | COMPOUND | ACYCLIC;
-        if (isPrimitiveClass(bounds.head))
-            flags |= PRIMITIVE_CLASS;
         ClassSymbol bc =
             new ClassSymbol(flags,
                             Type.moreInfo
@@ -2918,7 +2916,7 @@ public class Types {
                 Type outer1 = classBound(t.getEnclosingType());
                 if (outer1 != t.getEnclosingType())
                     return new ClassType(outer1, t.getTypeArguments(), t.tsym,
-                                         t.getMetadata(), t.isReferenceProjection());
+                                         t.getMetadata(), t.getFlavor());
                 else
                     return t;
             }
@@ -4045,7 +4043,7 @@ public class Types {
             // There is no spec detailing how type annotations are to
             // be inherited.  So set it to noAnnotations for now
             return new ClassType(class1.getEnclosingType(), merged.toList(),
-                                 class1.tsym);
+                                 class1.tsym, TypeMetadata.EMPTY, class1.getFlavor());
         }
 
     /**
@@ -4604,7 +4602,7 @@ public class Types {
 
         if (captured)
             return new ClassType(cls.getEnclosingType(), S, cls.tsym,
-                                 cls.getMetadata(), cls.isReferenceProjection());
+                                 cls.getMetadata(), cls.getFlavor());
         else
             return t;
     }
