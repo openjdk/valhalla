@@ -1079,6 +1079,30 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
              E_Typeof_X;
 
             // We don't seem to need X_Typeof_L or X_Typeof_Q so far.
+
+            // Transform a larval form into a more evolved form
+            public Flavor metamorphose(boolean isPrimtiveClass) {
+
+                switch (this) {
+
+                    case E_Typeof_X:  // stunted form
+                    case L_TypeOf_L:
+                    case L_TypeOf_Q:
+                    case Q_TypeOf_L:
+                    case Q_TypeOf_Q:
+                            // These are fully evolved sealed forms or stunted - no futher transformation
+                            return this;
+                    case L_TypeOf_X:
+                            return isPrimtiveClass ? L_TypeOf_Q : L_TypeOf_L;
+                    case Q_TypeOf_X:
+                            return isPrimtiveClass ? Q_TypeOf_Q : Q_TypeOf_L;
+                    case X_Typeof_X:
+                            // TODO: Discriminate between ref-val defaultness
+                            return isPrimtiveClass ? Q_TypeOf_Q : L_TypeOf_L;
+                    default:
+                            throw new AssertionError("Unexpected class type flavor");
+                }
+            }
         }
 
         /** The enclosing type of this type. If this is the type of an inner
@@ -1301,11 +1325,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public boolean isReferenceProjection() {
-            if (flavor == Flavor.L_TypeOf_X) {
-                if (tsym != null && tsym.isPrimitiveClass()) {
-                    flavor = Flavor.L_TypeOf_Q;
-                } else {
-                    flavor = Flavor.L_TypeOf_L;
+            // gaurd against over-eager and/or inopportune completion
+            if (tsym != null) {
+                if (flavor == Flavor.L_TypeOf_X || tsym.isCompleted()) {
+                    flavor = flavor.metamorphose(tsym.isPrimitiveClass());
                 }
             }
             return flavor == Flavor.L_TypeOf_Q;

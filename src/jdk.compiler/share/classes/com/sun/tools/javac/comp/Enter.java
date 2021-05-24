@@ -475,12 +475,8 @@ public class Enter extends JCTree.Visitor {
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;
-        // TODO: Discriminate between ref-val defaultness. ATM, we are blind to default favor
-        if ((c.flags_field & PRIMITIVE_CLASS) != 0) {
-            ct.flavor = Flavor.Q_TypeOf_Q;
-        } else {
-            ct.flavor = Flavor.L_TypeOf_L;
-        }
+        ct.flavor = ct.flavor.metamorphose((c.flags_field & PRIMITIVE_CLASS) != 0);
+
         if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
             // We are seeing a local or inner class.
             // Set outer_field of this class to closest enclosing class

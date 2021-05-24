@@ -2534,10 +2534,9 @@ public class ClassReader {
 
     private void noticePrimitiveClass(ClassSymbol c) {
         ClassType ct = (ClassType) c.type;
-        ct.flavor = Q_TypeOf_Q;
+        ct.flavor = ct.flavor.metamorphose(true);
         if (c.erasure_field != null) {
-            ClassType ef = (ClassType) c.erasure_field;
-            ef.flavor = Q_TypeOf_Q;
+            ((ClassType) c.erasure_field).flavor = ct.flavor;
         }
     }
 
