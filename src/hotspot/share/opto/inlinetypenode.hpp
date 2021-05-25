@@ -41,6 +41,7 @@ protected:
 
   enum { Control,   // Control input
          Oop,       // Oop of TypeInstPtr
+         Oop2,
          Values     // Nodes corresponding to values of the inline type's fields.
                     // Nodes are connected in increasing order of the index of the field they correspond to.
   };
@@ -108,6 +109,7 @@ private:
     : InlineTypeBaseNode(TypeInlineType::make(vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineType);
     init_req(Oop, oop);
+    init_req(Oop2, oop);
   }
 
   // Checks if the inline type is loaded from memory and if so returns the oop
@@ -124,7 +126,7 @@ public:
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create and initialize by loading the field values from an oop
-  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk);
+  static InlineTypeNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
   // Create and initialize by loading the field values from a flattened field or array
   static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
@@ -159,18 +161,20 @@ class InlineTypePtrNode : public InlineTypeBaseNode {
 private:
   const TypeInstPtr* inline_ptr() const { return type()->isa_instptr(); }
 
-  InlineTypePtrNode(const InlineTypeBaseNode* vt)
-    : InlineTypeBaseNode(TypeInstPtr::make(TypePtr::NotNull, vt->type()->inline_klass()), vt->req()) {
+public:
+  InlineTypePtrNode(const InlineTypeBaseNode* vt, bool null_free = true)
+    : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vt->type()->inline_klass()), vt->req()) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, vt->get_oop());
-    for (uint i = Oop+1; i < vt->req(); i++) {
+    init_req(Oop2, vt->in(2));
+    for (uint i = Values; i < vt->req(); i++) {
       init_req(i, vt->in(i));
     }
   }
 
+  // TODO this needs to be public!!
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
-public:
   virtual int Opcode() const;
 };
 

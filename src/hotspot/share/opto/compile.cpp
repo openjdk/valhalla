@@ -1898,7 +1898,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Make sure that the return value does not keep an otherwise unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
-    for (uint i = 1; i < root()->req(); i++){
+    for (uint i = 1; i < root()->req(); i++) {
       Node* in = root()->in(i);
       if (in->Opcode() == Op_Return) {
         assert(ret == NULL, "only one return");
@@ -1929,6 +1929,9 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       } else {
 #ifdef ASSERT
         for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
+          if (!vt->fast_out(i)->is_InlineTypeBase()) {
+            vt->dump(-2);
+          }
           assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");
         }
 #endif

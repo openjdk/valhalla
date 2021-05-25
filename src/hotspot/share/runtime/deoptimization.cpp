@@ -1066,6 +1066,23 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
 
+    if (sv->get_oop()->is_constant_oop()) {
+      if (sv->get_oop()->as_ConstantOopReadValue()->value().is_null()) {
+        sv->get_oop()->as_ConstantOopReadValue()->print();
+        tty->print_cr("## NULL, skipping allocation");
+        continue;
+      }
+    } else if (sv->get_oop()->is_location()) {
+      //Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
+      //assert(sv->klass()->is)
+      StackValue* value = StackValue::create_stack_value(fr, reg_map, sv->get_oop());
+      if (value->get_obj().is_null()) {
+        value->print();
+        tty->print_cr("## NULL, skipping allocation");
+        continue;
+      }
+    }
+
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
     oop obj = NULL;
 
@@ -1466,7 +1483,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
     Handle obj = sv->value();
-    assert(obj.not_null() || realloc_failures, "reallocation was missed");
+    assert(k->is_inline_klass() || obj.not_null() || realloc_failures, "reallocation was missed");
     if (PrintDeoptimizationDetails) {
       tty->print_cr("reassign fields for object of type %s!", k->name()->as_C_string());
     }
@@ -1578,7 +1595,7 @@ void Deoptimization::print_objects(GrowableArray<ScopeValue*>* objects, bool rea
 void Deoptimization::print_object(Klass* k, Handle obj, bool realloc_failures) {
   tty->print("     object <" INTPTR_FORMAT "> of type ", p2i(obj()));
   k->print_value();
-  assert(obj.not_null() || realloc_failures, "reallocation was missed");
+  //assert(obj.not_null() || realloc_failures, "reallocation was missed");
   if (obj.is_null()) {
     tty->print(" allocation failed");
   } else {

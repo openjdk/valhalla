@@ -1916,6 +1916,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return NULL;                // No change
 
+  // TODO what if one input is the Phi itself? or if there are more complicated phi structures involving loops?
   // If all inputs are inline types of the same type, push the inline type node down
   // through the phi because inline type nodes should be merged through their input values.
   if (req() > 2 && in(1) != NULL && in(1)->is_InlineTypeBase() && (can_reshape || in(1)->is_InlineType())) {

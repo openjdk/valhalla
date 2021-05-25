@@ -2300,6 +2300,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* ne_region = new RegionNode(6);
   Node* null_ctl;
   Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
+  if (not_null_right->is_InlineType()) {
+    // TODO
+    not_null_right = not_null_right->in(1);
+  }
   ne_region->init_req(1, null_ctl);
 
   // First operand is non-null, check if it is an inline type
@@ -2311,6 +2315,10 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // The first operand is an inline type, check if the second operand is non-null
   Node* not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
+  if (not_null_left->is_InlineType()) {
+      // TODO
+    not_null_left = not_null_left->in(1);
+  }
   ne_region->init_req(3, null_ctl);
 
   // Check if both operands are of the same class.
@@ -3491,8 +3499,14 @@ void Parse::do_one_bytecode() {
     b = pop();
     if (b->is_InlineType()) {
       // Return constant false because 'b' is always non-null
+      // TODO could it be that we need a null check here as well?
       c = _gvn.makecon(TypeInt::CC_GT);
     } else {
+      if (b->is_InlineTypePtr()) {
+        //b->dump(2);
+        b = b->in(2);
+        //assert(false, "FAIL");
+      }
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
         inc_sp(1);

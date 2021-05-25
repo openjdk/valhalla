@@ -790,7 +790,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue1.ref[] dst3 = new MyValue1.ref[8];
         MyValue1[]  dst4 = new MyValue1[8];
         src2[0] = testValue1;
-        for (int i = 1; i < 8 ; ++i) {
+        for (int i = 1; i < 8; ++i) {
             src1[i] = testValue1;
             src2[i] = testValue1;
             src3[i] = testValue1;

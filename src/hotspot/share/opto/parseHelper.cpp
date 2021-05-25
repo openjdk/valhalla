@@ -357,6 +357,15 @@ void Parse::do_withfield() {
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
+  } else if (!val->is_InlineTypeBase() && field->type()->is_instance_klass()) {
+    // TODO
+    const Type* type = TypeOopPtr::make_from_klass(field->type()->as_klass());
+    if (type->is_inlinetypeptr()) {
+      Node* ptr = InlineTypeNode::make_from_oop(this, val, type->inline_klass(), false);
+      ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+      ptr->set_req(1, val);
+      val = gvn().transform(ptr);
+    }
   }
 
   // Clone the inline type node and set the new field value

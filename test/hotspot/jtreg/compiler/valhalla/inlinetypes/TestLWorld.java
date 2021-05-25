@@ -35,7 +35,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @key randomness
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /testlibrary /compiler/whitebox /
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestLWorld.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
@@ -3019,7 +3019,7 @@ public class TestLWorld extends InlineTypeTest {
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
     public long test109() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += InterfaceBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3035,7 +3035,7 @@ public class TestLWorld extends InlineTypeTest {
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
     public long test109_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += InterfaceBox.box_sharp(lArr[i]).content.value();
         }
         return res;
@@ -3052,7 +3052,7 @@ public class TestLWorld extends InlineTypeTest {
     @Warmup(10000) // Make sure interface calls are inlined
     public long test110() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += ((WrapperInterface)ObjectBox.box(lArr[i]).content).value();
         }
         return res;
@@ -3068,7 +3068,7 @@ public class TestLWorld extends InlineTypeTest {
     @Warmup(10000) // Make sure interface calls are inlined
     public long test110_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += ((WrapperInterface)ObjectBox.box_sharp(lArr[i]).content).value();
         }
         return res;
@@ -3084,7 +3084,7 @@ public class TestLWorld extends InlineTypeTest {
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
     public long test111() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += RefBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3099,7 +3099,7 @@ public class TestLWorld extends InlineTypeTest {
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
     public long test111_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += RefBox.box_sharp(lArr[i]).content.value();
         }
         return res;
@@ -3115,7 +3115,7 @@ public class TestLWorld extends InlineTypeTest {
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
     public long test112() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += InlineBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3132,7 +3132,7 @@ public class TestLWorld extends InlineTypeTest {
     @Warmup(10000) // Make sure interface calls are inlined
     public long test113() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += GenericBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3148,7 +3148,7 @@ public class TestLWorld extends InlineTypeTest {
     @Warmup(10000) // Make sure interface calls are inlined
     public long test113_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += GenericBox.box_sharp(lArr[i]).content.value();
         }
         return res;

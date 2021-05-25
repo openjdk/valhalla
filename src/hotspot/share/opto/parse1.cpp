@@ -1708,9 +1708,29 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != NULL && t != Type::BOTTOM) {
+        //if (n->is_InlineType() && (!t->isa_inlinetype() && !t->is_inlinetypeptr())) {
         if (n->is_InlineType() && !t->isa_inlinetype()) {
           // Allocate inline type in src block to be able to merge it with oop in target block
-          map()->set_req(j, n->as_InlineType()->buffer(this));
+          Node* buffer = n->as_InlineType()->buffer(this);
+          map()->set_req(j, buffer);
+          if (Verbose) {
+            n->dump(2);
+            tty->print_cr("## BUFFER");
+            buffer->dump(1);
+            tty->print_cr("##");
+          }
+        } else if (t->is_inlinetypeptr() && !n->is_InlineTypeBase()) {
+          // TODO is this the right place?
+          Node* ptr = InlineTypeNode::make_from_oop(this, n, t->inline_klass(), false);
+          ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+          ptr->set_req(1, n);
+          ptr = _gvn.transform(ptr)->as_InlineTypeBase();
+          map()->set_req(j, ptr);
+          if (Verbose) {
+            tty->print_cr("## PTR");
+            ptr->dump(1);
+            tty->print_cr("##");
+          }
         }
         assert(!t->isa_inlinetype() || n->is_InlineType(), "inconsistent typeflow info");
       }
@@ -1815,8 +1835,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       PhiNode* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r) {
         phi = m->as_Phi();
-      } else if (m->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)){
-        phi = m->as_InlineType()->get_oop()->as_Phi();
+      } else if (m->is_InlineTypeBase() && m->as_InlineTypeBase()->has_phi_inputs(r)) {
+        phi = m->as_InlineTypeBase()->get_oop()->as_Phi();
       } else {
         phi = NULL;
       }
@@ -1854,11 +1874,12 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       // It is a bug if we create a phi which sees a garbage value on a live path.
 
       // Merging two inline types?
-      if (phi != NULL && n->is_InlineType()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
-        InlineTypeNode* vtm = m->as_InlineType(); // Current inline type
-        InlineTypeNode* vtn = n->as_InlineType(); // Incoming inline type
+      if (phi != NULL && n->is_InlineTypeBase() && m->is_InlineTypeBase() && n->bottom_type()->inline_klass() == m->bottom_type()->inline_klass()) {
+      //if (phi != NULL && phi->bottom_type()->is_inlinetypeptr()) {
+        InlineTypeBaseNode* vtm = m->as_InlineTypeBase(); // Current inline type
+        InlineTypeBaseNode* vtn = n->as_InlineTypeBase(); // Incoming inline type
         assert(vtm->get_oop() == phi, "Inline type should have Phi input");
         if (TraceOptoParse) {
 #ifdef ASSERT
@@ -2072,8 +2093,9 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   if (o->is_Phi() && o->as_Phi()->region() == region) {
     return o->as_Phi();
   }
-  InlineTypeBaseNode* vt = o->isa_InlineType();
-  if (vt != NULL && vt->has_phi_inputs(region)) {
+  InlineTypeBaseNode* vt = o->isa_InlineTypeBase();
+  // TODO why do we need the is_inlineType check?
+  if (vt != NULL && vt->is_InlineType() && vt->has_phi_inputs(region)) {
     return vt->get_oop()->as_Phi();
   }
 
@@ -2109,7 +2131,8 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     return NULL;
   }
 
-  if (vt != NULL) {
+  if (vt != NULL && (t->is_inlinetypeptr() || t->isa_inlinetype())) {
+    //assert(t->is_inlinetypeptr(), "sanity");
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.

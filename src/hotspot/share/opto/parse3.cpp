@@ -50,9 +50,32 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
+  if (is_field && field_holder->is_inlinetype()) {
+    if (!peek()->is_InlineType()) {
+      peek()->dump(10);
+      assert(false, "FAIL");
+    }
     assert(is_get, "inline type field store not supported");
+    if (Verbose) {
+      tty->print_cr("Folding load from ");
+      peek()->dump(2);
+      tty->print_cr("###");
+    }
     InlineTypeNode* vt = pop()->as_InlineType();
+    Node* value = vt->field_value_by_offset(field->offset());
+    if (value->is_InlineTypeBase() && _gvn.type(value->in(2))->maybe_null()) {
+      //value->dump(3);
+      //assert(false, "FAIL1");
+    }
+    push_node(field->layout_type(), value);
+    return;
+  }
+  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineTypePtr()) {
+    InlineTypePtrNode* vt = peek()->as_InlineTypePtr();
+    vt->dump(5);
+    assert(false, "Unexpected load from inline type ptr");
+    null_check(vt->in(2));
+    pop();
     Node* value = vt->field_value_by_offset(field->offset());
     push_node(field->layout_type(), value);
     return;
@@ -184,6 +207,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     DecoratorSet decorators = IN_HEAP;
     decorators |= field->is_volatile() ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
+
     if (bt == T_INLINE_TYPE) {
       // Load a non-flattened inline type from memory
       if (field_klass->as_inline_klass()->is_scalarizable()) {
@@ -191,7 +215,16 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
       } else {
         ld = null2default(ld, field_klass->as_inline_klass());
       }
-    }
+    } else if (type->is_inlinetypeptr()) {
+      // ld->dump(10);
+       //assert(false, "FAIL");
+      // ld = InlineTypeNode::make_from_oop(this, ld, type->inline_klass(), false);
+      ld->dump(3);
+      Node* ptr = InlineTypeNode::make_from_oop(this, ld, type->inline_klass(), false);
+      ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+      ptr->set_req(1, ld);
+      ld = _gvn.transform(ptr);
+     }
   }
 
   // Adjust Java stack
@@ -237,6 +270,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     return;
   } else if (field->is_flattened()) {
     // Storing to a flattened inline type field.
+    // TODO shouldn't there alway be a cast that guarantees this?
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }

@@ -1189,6 +1189,10 @@ Node* GraphKit::ConvL2I(Node* offset) {
 
 //-------------------------load_object_klass-----------------------------------
 Node* GraphKit::load_object_klass(Node* obj) {
+  // TODO
+  if (obj->is_InlineType()) {
+    obj = obj->in(1);
+  }
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != NULL)  return akls;
@@ -1230,6 +1234,37 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   assert(!assert_null || null_control == NULL, "not both at once");
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
+
+  if (value->is_InlineTypePtr() && null_control == NULL) {
+    // TODO GraphKit::cast_not_null scalarizes this
+    // TODO shouldn't we be able to do the null check in the oop? Merged in InlineTypePtrs should be scalarized, right?
+    null_check(value->in(2));
+/*
+    const Type *t = _gvn.type(value);
+    const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
+    Node *cast = new CastPPNode(value,t_not_null);
+    cast->init_req(0, control());
+    cast = _gvn.transform( cast );
+*/
+    Node* vt = InlineTypeNode::make_from_oop(this, value, _gvn.type(value)->inline_klass());
+
+    // TODO is_Parse() is needed because we should not replace during incremental inlining
+    if (is_Parse() && (null_control == NULL || (*null_control) == top())) {
+      replace_in_map(value, vt);
+    }
+    if (Verbose) {
+      tty->print_cr("## NULL CHECKING");
+      value->dump(8);
+      tty->print_cr("##");
+      vt->dump(2);
+      tty->print_cr("##");
+    }
+    return vt;
+  } else if (_gvn.type(value)->is_inlinetypeptr()) {
+   // tty->print_cr("## NULL CHECKING");
+    //value->dump(2);
+    //tty->print_cr("##");
+  }
 
   // Construct NULL check
   Node *chk = NULL;
@@ -1440,6 +1475,7 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   cast->init_req(0, control());
   cast = _gvn.transform( cast );
 
+  // TODO this should no longer be needed once we scalarize nullable inline types everywhere
   if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
     // Scalarize inline type now that we know it's non-null
     cast = InlineTypeNode::make_from_oop(this, cast, t->inline_klass())->as_ptr(&gvn());
@@ -3466,7 +3502,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (tk->singleton()) {
     ciKlass* klass = NULL;
-    if (from_inline) {
+    if (obj->is_InlineTypeBase()) {
       klass = _gvn.type(obj)->inline_klass();
     } else {
       const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
@@ -3484,7 +3520,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           obj = record_profiled_receiver_for_speculation(obj);
           if (to_inline) {
             obj = null_check(obj);
-            if (toop->inline_klass()->is_scalarizable()) {
+            if (toop->inline_klass()->is_scalarizable() && !obj->is_InlineType()) {
               obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
             }
           }
@@ -3605,7 +3641,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         PreserveJVMState pjvms(this);
         set_control(not_subtype_ctrl);
         Node* obj_klass = NULL;
-        if (from_inline) {
+        if (not_null_obj->is_InlineTypeBase()) {
           obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->inline_klass()));
         } else {
           obj_klass = load_object_klass(not_null_obj);

@@ -96,7 +96,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     @DontCompile
-    public void test1_verifier(boolean warmup) throws Throwable {
+    public void test1_verifier(boolean warmup) {
         long result = test1(null);
         Asserts.assertEquals(result, 0L);
     }
@@ -216,7 +216,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     @Test
-    public void test7() throws Throwable {
+    public void test7() {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
         try {
@@ -234,12 +234,12 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     @DontCompile
-    public void test7_verifier(boolean warmup) throws Throwable {
+    public void test7_verifier(boolean warmup) {
         test7();
     }
 
     @Test
-    public void test8() throws Throwable {
+    public void test8() {
         try {
             valueField1 = (MyValue1) nullField;
             throw new RuntimeException("NullPointerException expected");
@@ -249,7 +249,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     @DontCompile
-    public void test8_verifier(boolean warmup) throws Throwable {
+    public void test8_verifier(boolean warmup) {
         test8();
     }
 
@@ -278,13 +278,13 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // null constant
     @Test
-    public void test10(boolean flag) throws Throwable {
+    public void test10(boolean flag) {
         MyValue1.ref val = flag ? valueField1 : null;
         valueField1 = (MyValue1) val;
     }
 
     @DontCompile
-    public void test10_verifier(boolean warmup) throws Throwable {
+    public void test10_verifier(boolean warmup) {
         test10(true);
         try {
             test10(false);
@@ -296,13 +296,13 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // null constant
     @Test
-    public void test11(boolean flag) throws Throwable {
+    public void test11(boolean flag) {
         MyValue1.ref val = flag ? null : valueField1;
         valueField1 = (MyValue1) val;
     }
 
     @DontCompile
-    public void test11_verifier(boolean warmup) throws Throwable {
+    public void test11_verifier(boolean warmup) {
         test11(false);
         try {
             test11(true);
@@ -959,18 +959,578 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Test NPE when casting constant null to inline type
     @Test()
-    public MyValue1 test40() throws Throwable {
+    public MyValue1 test40() {
         Object NULL = null;
         return (MyValue1)NULL;
     }
 
     @DontCompile
-    public void test40_verifier(boolean warmup) throws Throwable {
+    public void test40_verifier(boolean warmup) {
         try {
             test40();
             throw new RuntimeException("NullPointerException expected");
         } catch (NullPointerException e) {
             // Expected
         }
+    }
+
+
+// TODO
+
+    MyValue1.ref field;
+    MyValue1 flatField;
+
+    // Test scalarization of .ref
+    @Test(failOn = ALLOC_G + ALLOC + STORE)
+    public int test41(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = field;
+        }
+        return val.x;
+    }
+
+    @DontCompile
+    public void test41_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test41(true), field.x);
+        Asserts.assertEquals(test41(false), testValue1.x);
+        if (!warmup) {
+            field = null;
+            try {
+                Asserts.assertEquals(test41(false), testValue1.x);
+                test41(true);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Same as test41 but with call to hash()
+    @Test(failOn = ALLOC + STORE)
+    public long test42(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = field;
+        }
+        return val.hash();
+    }
+
+    @DontCompile
+    public void test42_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test42(true), field.hash());
+        Asserts.assertEquals(test42(false), testValue1.hash());
+        if (!warmup) {
+            field = null;
+            try {
+                Asserts.assertEquals(test42(false), testValue1.hash());
+                test42(true);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test43(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = field;
+        }
+        return val;
+    }
+
+    @DontCompile
+    public void test43_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test43(true).hash(), field.hash());
+        Asserts.assertEquals(test43(false).hash(), testValue1.hash());
+        if (!warmup) {
+            field = null;
+            Asserts.assertEquals(test43(true), null);
+        }
+    }
+
+    // Test scalarization when .ref is referenced in safepoint debug info
+    @Test(failOn = ALLOC + STORE)
+    public int test44(boolean b1, boolean b2) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = field;
+        }
+        if (b2) {
+            // Uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test44"));
+        }
+        return val.x;
+    }
+
+    @DontCompile
+    public void test44_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test44(true, false), field.x);
+        Asserts.assertEquals(test44(false, false), testValue1.x);
+        if (!warmup) {
+            field = null;
+            try {
+                Asserts.assertEquals(test44(false, false), testValue1.x);
+                test44(true, false);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test44(true, true), field.x);
+            Asserts.assertEquals(test44(false, true), testValue1.x);
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test45(boolean b1, boolean b2) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = field;
+        }
+        if (b2) {
+            // Uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test45"));
+        }
+        return val;
+    }
+
+    @DontCompile
+    public void test45_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test45(true, false).hash(), field.hash());
+        Asserts.assertEquals(test45(false, false).hash(), testValue1.hash());
+        if (!warmup) {
+            field = null;
+            Asserts.assertEquals(test45(true, false), null);
+            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test45(true, true).hash(), field.hash());
+            Asserts.assertEquals(test45(false, true).hash(), testValue1.hash());
+        }
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public int test46(boolean b) {
+        MyValue1.ref val = null;
+        if (b) {
+            val = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        return val.x;
+    }
+
+    @DontCompile
+    public void test46_verifier(boolean warmup) {
+        Asserts.assertEquals(test46(true), testValue1.x);
+        try {
+            test46(false);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test47(boolean b) {
+        MyValue1.ref val = null;
+        if (b) {
+            val = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        return val;
+    }
+
+    @DontCompile
+    public void test47_verifier(boolean warmup) {
+        Asserts.assertEquals(test47(true).hash(), testValue1.hash());
+        Asserts.assertEquals(test47(false), null);
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public int test48(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = null;
+        }
+        return val.x;
+    }
+
+    @DontCompile
+    public void test48_verifier(boolean warmup) {
+        Asserts.assertEquals(test48(false), testValue1.x);
+        try {
+            test48(true);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test49(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = null;
+        }
+        return val;
+    }
+
+    @DontCompile
+    public void test49_verifier(boolean warmup) {
+        Asserts.assertEquals(test49(false).hash(), testValue1.hash());
+        Asserts.assertEquals(test49(true), null);
+    }
+
+    public Object test50_helper() {
+        return flatField;
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public void test50(boolean b) {
+        Object o = null;
+        if (b) {
+            o = testValue1;
+        } else {
+            o = test50_helper();
+        }
+        flatField = (MyValue1)o;
+    }
+
+    @DontCompile
+    public void test50_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        flatField = vt;
+        test50(false);
+        Asserts.assertEquals(flatField.hash(), vt.hash());
+        test50(true);
+        Asserts.assertEquals(flatField.hash(), testValue1.hash());
+    }
+
+// TODO register above, add forceinline
+// TODO add version of above tests with MyValue1Wrapper
+    static final primitive class MyValue1Wrapper {
+        final MyValue1.ref vt;
+
+        public MyValue1Wrapper(MyValue1.ref vt) {
+            this.vt = vt;
+        }
+
+        public long hash() {
+            return (vt != null) ? vt.hash() : 0;
+        }
+    }
+
+    MyValue1Wrapper wrapperField;
+
+    @Test(failOn = ALLOC_G + ALLOC + STORE)
+    public long test51(boolean b) {
+        MyValue1Wrapper.ref val = MyValue1Wrapper.default;
+        if (b) {
+            val = wrapperField;
+        }
+        return val.hash();
+    }
+
+    @DontCompile
+    public void test51_verifier(boolean warmup) {
+        wrapperField = new MyValue1Wrapper(testValue1);
+        Asserts.assertEquals(test51(true), wrapperField.hash());
+        Asserts.assertEquals(test51(false), MyValue1Wrapper.default.hash());
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public boolean test52(boolean b) {
+        MyValue1.ref val = MyValue1.default;
+        if (b) {
+            val = null;
+        }
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        return w.vt == null;
+    }
+
+    @DontCompile
+    public void test52_verifier(boolean warmup) {
+        Asserts.assertTrue(test52(true));
+        Asserts.assertFalse(test52(false));
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public boolean test53(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = null;
+        }
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        return w.vt == null;
+    }
+
+    @DontCompile
+    public void test53_verifier(boolean warmup) {
+        Asserts.assertTrue(test53(true));
+        Asserts.assertFalse(test53(false));
+    }
+
+    @Test(failOn = ALLOC + LOAD + STORE)
+    public long test54(boolean b1, boolean b2) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = null;
+        }
+        MyValue1Wrapper.ref w = MyValue1Wrapper.default;
+        if (b2) {
+            w = new MyValue1Wrapper(val);
+        }
+        return w.hash();
+    }
+
+    @DontCompile
+    public void test54_verifier(boolean warmup) {
+        MyValue1Wrapper w = new MyValue1Wrapper(MyValue1.createWithFieldsInline(rI, rL));
+        Asserts.assertEquals(test54(false, false), MyValue1Wrapper.default.hash());
+        Asserts.assertEquals(test54(false, true), w.hash());
+        Asserts.assertEquals(test54(true, false), MyValue1Wrapper.default.hash());
+        Asserts.assertEquals(test54(true, true), 0L);
+    }
+
+// TODO Same as above but with Wrapper
+    @Test(failOn = ALLOC_G + ALLOC + STORE)
+    public int test55(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b) {
+            w = new MyValue1Wrapper(field);
+        }
+        return w.vt.x;
+    }
+
+    @DontCompile
+    public void test55_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test55(true), field.x);
+        Asserts.assertEquals(test55(false), testValue1.x);
+        if (!warmup) {
+            field = null;
+            try {
+                Asserts.assertEquals(test55(false), testValue1.x);
+                test55(true);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @Test(failOn = ALLOC + STORE)
+    public long test56(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b) {
+            w = new MyValue1Wrapper(field);
+        }
+        return w.vt.hash();
+    }
+
+    @DontCompile
+    public void test56_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test56(true), field.hash());
+        Asserts.assertEquals(test56(false), testValue1.hash());
+        if (!warmup) {
+            field = null;
+            try {
+                Asserts.assertEquals(test56(false), testValue1.hash());
+                test56(true);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test57(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b) {
+            w = new MyValue1Wrapper(field);
+        }
+        return w.vt;
+    }
+
+    @DontCompile
+    public void test57_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test57(true).hash(), field.hash());
+        Asserts.assertEquals(test57(false).hash(), testValue1.hash());
+        if (!warmup) {
+            field = null;
+            Asserts.assertEquals(test57(true), null);
+        }
+    }
+
+    // Test scalarization when .ref is referenced in safepoint debug info
+    @Test(failOn = ALLOC + STORE)
+    public int test58(boolean b1, boolean b2) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b1) {
+            w = new MyValue1Wrapper(field);
+        }
+        if (b2) {
+            // Uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test58"));
+        }
+        return w.vt.x;
+    }
+
+    @DontCompile
+    public void test58_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test58(true, false), field.x);
+        Asserts.assertEquals(test58(false, false), testValue1.x);
+        if (!warmup) {
+            field = null;
+            try {
+                Asserts.assertEquals(test58(false, false), testValue1.x);
+                test58(true, false);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test58(true, true), field.x);
+            Asserts.assertEquals(test58(false, true), testValue1.x);
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test59(boolean b1, boolean b2) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b1) {
+            w = new MyValue1Wrapper(field);
+        }
+        if (b2) {
+            // Uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test59"));
+        }
+        return w.vt;
+    }
+
+    @DontCompile
+    public void test59_verifier(boolean warmup) {
+        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test59(true, false).hash(), field.hash());
+        Asserts.assertEquals(test59(false, false).hash(), testValue1.hash());
+        if (!warmup) {
+            field = null;
+            Asserts.assertEquals(test59(true, false), null);
+            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test59(true, true).hash(), field.hash());
+            Asserts.assertEquals(test59(false, true).hash(), testValue1.hash());
+        }
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public int test60(boolean b) {
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
+        if (b) {
+            MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+            w = new MyValue1Wrapper(val);
+        }
+        return w.vt.x;
+    }
+
+    @DontCompile
+    public void test60_verifier(boolean warmup) {
+        Asserts.assertEquals(test60(true), testValue1.x);
+        try {
+            test60(false);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test61(boolean b) {
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
+        if (b) {
+            MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+            w = new MyValue1Wrapper(val);
+        }
+        return w.vt;
+    }
+
+    @DontCompile
+    public void test61_verifier(boolean warmup) {
+        Asserts.assertEquals(test61(true).hash(), testValue1.hash());
+        Asserts.assertEquals(test61(false), null);
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public int test62(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b) {
+            w = new MyValue1Wrapper(null);
+        }
+        return w.vt.x;
+    }
+
+    @DontCompile
+    public void test62_verifier(boolean warmup) {
+        Asserts.assertEquals(test62(false), testValue1.x);
+        try {
+            test62(true);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test63(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
+        if (b) {
+            w = new MyValue1Wrapper(null);
+        }
+        return w.vt;
+    }
+
+    @DontCompile
+    public void test63_verifier(boolean warmup) {
+        Asserts.assertEquals(test63(false).hash(), testValue1.hash());
+        Asserts.assertEquals(test63(true), null);
+    }
+
+    public MyValue1.ref test64_helper() {
+        return flatField;
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    public void test64(boolean b) {
+        MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
+        if (b) {
+            w = new MyValue1Wrapper(testValue1);
+        } else {
+            w = new MyValue1Wrapper(test64_helper());
+        }
+        flatField = w.vt;
+    }
+
+    @DontCompile
+    public void test64_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        flatField = vt;
+        test64(false);
+        Asserts.assertEquals(flatField.hash(), vt.hash());
+        test64(true);
+        Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 }
