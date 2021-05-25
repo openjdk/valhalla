@@ -338,8 +338,10 @@ public class TransValues extends TreeTranslator {
                         if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
                             fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
                         } else {
-                            fieldAccess.selected =
-                                    make.TypeCast(types.erasure(selectedType.valueProjection()), fieldAccess.selected);
+                            if (types.splitPrimitiveClass) {
+                                fieldAccess.selected =
+                                        make.TypeCast(types.erasure(selectedType.valueProjection()), fieldAccess.selected);
+                            } // else members of Foo can be accessed via LFoo or QFoo at the VM level without a cast.
                         }
                         break;
                     case TYP:
