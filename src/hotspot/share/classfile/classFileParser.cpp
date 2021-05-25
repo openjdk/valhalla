@@ -6603,14 +6603,14 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
   }
 
-  if (_class_name == vmSymbols::java_lang_NonTearable() && _loader_data->class_loader() == NULL) {
+  if (_class_name == vmSymbols::java_lang_AtomicAccess() && _loader_data->class_loader() == NULL) {
     // This is the original source of this condition.
-    // It propagates by inheritance, as if testing "instanceof NonTearable".
+    // It propagates by inheritance, as if testing "instanceof AtomicAccess".
     _is_declared_atomic = true;
-  } else if (*ForceNonTearable != '\0') {
+  } else if (*ForceAtomicAccess != '\0') {
     // Allow a command line switch to force the same atomicity property:
     const char* class_name_str = _class_name->as_C_string();
-    if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
+    if (StringUtils::class_list_match(ForceAtomicAccess, class_name_str)) {
       _is_declared_atomic = true;
     }
   }

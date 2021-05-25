@@ -286,7 +286,7 @@ class InstanceKlass: public Klass {
     _misc_has_inline_type_fields              = 1 << 16, // has inline fields and related embedded section is not empty
     _misc_is_empty_inline_type                = 1 << 17, // empty inline type (*)
     _misc_is_naturally_atomic                 = 1 << 18, // loaded/stored in one instruction
-    _misc_is_declared_atomic                  = 1 << 19, // implements jl.NonTearable
+    _misc_is_declared_atomic                  = 1 << 19, // implements j.l.AtomicAccess
     _misc_invalid_inline_super                = 1 << 20, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 21, // invalid super type for an identity type
     _misc_has_injected_identityObject         = 1 << 22, // IdentityObject has been injected by the JVM
@@ -446,11 +446,11 @@ class InstanceKlass: public Klass {
     _misc_flags |= _misc_is_naturally_atomic;
   }
 
-  // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option ForceNonTearable.
+  // Query if this class implements j.l.AtomicAccess or was
+  // mentioned in the JVM option ForceAtomicAccess.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
-  // It inherits from supers along with NonTearable.
+  // It inherits from supers along with AtomicAccess.
   bool is_declared_atomic() const {
     return (_misc_flags & _misc_is_declared_atomic) != 0;
   }

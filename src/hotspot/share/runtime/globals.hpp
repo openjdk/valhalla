@@ -2077,8 +2077,8 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
           "Use bits in the mark word to check for flat/null-free arrays")   \
                                                                             \
-  product(ccstrlist, ForceNonTearable, "", DIAGNOSTIC,                      \
-          "List of inline classes which are forced to be atomic "           \
+  product(ccstrlist, ForceAtomicAccess, "", DIAGNOSTIC,                     \
+          "List of inline classes which are forced to be atomic access "    \
           "(whitespace and commas separate names, "                         \
           "and leading and trailing stars '*' are wildcards)")              \
                                                                             \
