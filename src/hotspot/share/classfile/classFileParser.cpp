@@ -6624,7 +6624,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     set_invalid_inline_super();
   }
 
-  if (!is_inline_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
+  if (EnableValhalla && !is_inline_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
       && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
     _temp_local_interfaces->append(vmClasses::IdentityObject_klass());
     _has_injected_identityObject = true;
@@ -6691,20 +6691,22 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != NULL, "invariant");
 
 
-  for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-    if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE && !fs.access_flags().is_static()) {
-      // Pre-load inline class
-      Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
-          Handle(THREAD, _loader_data->class_loader()),
-          _protection_domain, true, CHECK);
-      assert(klass != NULL, "Sanity check");
-      if (!klass->access_flags().is_inline_type()) {
-        assert(klass->is_instance_klass(), "Sanity check");
-        ResourceMark rm(THREAD);
-          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expects class %s to be an inline type, but it is not",
-                    _class_name->as_C_string(),
-                    InstanceKlass::cast(klass)->external_name()));
+  if (EnableValhalla) {
+    for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
+      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE && !fs.access_flags().is_static()) {
+        // Pre-load inline class
+        Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
+            Handle(THREAD, _loader_data->class_loader()),
+            _protection_domain, true, CHECK);
+        assert(klass != NULL, "Sanity check");
+        if (!klass->access_flags().is_inline_type()) {
+          assert(klass->is_instance_klass(), "Sanity check");
+          ResourceMark rm(THREAD);
+            THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                      err_msg("Class %s expects class %s to be an inline type, but it is not",
+                      _class_name->as_C_string(),
+                      InstanceKlass::cast(klass)->external_name()));
+        }
       }
     }
   }
