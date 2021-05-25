@@ -996,7 +996,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
 
   // Could it be possible to do the following processing only if the
   // class uses inline types?
-  {
+  if (EnableValhalla) {
     ResourceMark rm(THREAD);
     for (int i = 0; i < methods()->length(); i++) {
       Method* m = methods()->at(i);

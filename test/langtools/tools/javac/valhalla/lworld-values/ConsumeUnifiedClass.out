@@ -1,0 +1,3 @@
+ConsumeUnifiedClass.java:36:23: compiler.err.cant.apply.symbol: kindname.constructor, Rectangle, Point,Point, compiler.misc.type.null,compiler.misc.type.null, kindname.class, Rectangle, (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: compiler.misc.type.null, Point))
+ConsumeUnifiedClass.java:38:28: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, Point)
+2 errors

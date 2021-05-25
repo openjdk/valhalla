@@ -43,6 +43,7 @@ import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.TypeMetadata.Annotations;
 import com.sun.tools.javac.code.Types.FunctionDescriptorLookupError;
 import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
@@ -2619,7 +2620,7 @@ public class Attr extends JCTree.Visitor {
                                 syms.boundClass)),
                         restype.tsym,
                         restype.getMetadata(),
-                        restype.isReferenceProjection());
+                        restype.getFlavor());
             } else if (msym != null &&
                     msym.owner == syms.arrayClass &&
                     methodName == names.clone &&
@@ -2821,7 +2822,7 @@ public class Attr extends JCTree.Visitor {
                             clazztype.tsym.type.getTypeArguments(),
                                                clazztype.tsym,
                                                clazztype.getMetadata(),
-                                               clazztype.isReferenceProjection());
+                                               clazztype.getFlavor());
 
                 Env<AttrContext> diamondEnv = localEnv.dup(tree);
                 diamondEnv.info.selectSuper = cdef != null || tree.classDeclRemoved();
@@ -4546,6 +4547,7 @@ public class Attr extends JCTree.Visitor {
                 // except for three situations:
                 owntype = sym.type;
                 if (owntype.hasTag(CLASS)) {
+                    Assert.check(owntype.getFlavor() != Flavor.X_Typeof_X);
                     chk.checkForBadAuxiliaryClassAccess(tree.pos(), env, (ClassSymbol)sym);
                     Type ownOuter = owntype.getEnclosingType();
 
@@ -4553,7 +4555,7 @@ public class Attr extends JCTree.Visitor {
                     // is requested via the .ref notation, then adjust the computed type to
                     // reflect this.
                     if (owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
-                        owntype = new ClassType(owntype.getEnclosingType(), owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), true);
+                        owntype = new ClassType(owntype.getEnclosingType(), owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), Flavor.L_TypeOf_Q);
                     }
 
                     // (b) If the symbol's type is parameterized, erase it
@@ -4583,7 +4585,7 @@ public class Attr extends JCTree.Visitor {
                         if (normOuter != ownOuter)
                             owntype = new ClassType(
                                 normOuter, List.nil(), owntype.tsym,
-                                owntype.getMetadata(), owntype.isReferenceProjection());
+                                owntype.getMetadata(), owntype.getFlavor());
                     }
                 }
                 break;
@@ -4994,7 +4996,7 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
                 owntype = new ClassType(clazzOuter, actuals, clazztype.tsym,
-                                        clazztype.getMetadata(), clazztype.isReferenceProjection());
+                                        clazztype.getMetadata(), clazztype.getFlavor());
             } else {
                 if (formals.length() != 0) {
                     log.error(tree.pos(),

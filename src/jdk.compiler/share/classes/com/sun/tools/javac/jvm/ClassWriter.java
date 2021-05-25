@@ -43,6 +43,7 @@ import com.sun.tools.javac.code.Directive.*;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.file.PathFileObject;
@@ -1543,7 +1544,11 @@ public class ClassWriter extends ClassFile {
             ClassType projectedType;
 
             ClassType ct = (ClassType) c.type;
-            projectedType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null, ct.getMetadata(), false);
+            /* Note, the class type associated with the Primitive$ref.class is NOT a reference projection type. A reference projection
+             * type gets created by using Primitive.ref notation in the source file or while reading in a descriptor of such a type
+             * from the class file. Here we are generating the Primitive$ref.class for the VM's benefit and it is a reference class.
+             */
+            projectedType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null, ct.getMetadata(), Flavor.L_TypeOf_L);
             projectedType.allparams_field = ct.allparams_field;
             projectedType.supertype_field = ct.supertype_field;
 
