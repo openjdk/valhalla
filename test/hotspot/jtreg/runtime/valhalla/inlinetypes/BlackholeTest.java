@@ -39,12 +39,14 @@ public class BlackholeTest {
     }
 
     static MyValue v;
+    static volatile MyValue vv;
 
     public static void main(String[] args) {
         for (int c = 0; c < 5; c++) {
             testNew();
             testDefault();
             testField();
+            testVolatileField();
         }
     }
 
@@ -63,6 +65,12 @@ public class BlackholeTest {
     private static void testField() {
         for (int c = 0; c < 100000; c++) {
             blackhole(v);
+        }
+    }
+
+    private static void testVolatileField() {
+        for (int c = 0; c < 100000; c++) {
+            blackhole(vv);
         }
     }
 
