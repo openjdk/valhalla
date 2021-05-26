@@ -1927,6 +1927,27 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       } else if (vt->is_InlineTypePtr()) {
         igvn.replace_node(vt, vt->get_oop());
       } else {
+        // Check if any users are blackholes. If so, rewrite them to use the individual
+        // components, instead of the inline type node that goes away.
+        for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
+          if (vt->out(i)->is_Blackhole()) {
+            BlackholeNode* bh = vt->out(i)->as_Blackhole();
+
+            // Unlink the old input
+            int idx = bh->find_edge(vt);
+            assert(idx != -1, "The edge should be there");
+            bh->del_req(idx);
+            --i;
+
+            // Add the new inputs to the components
+            for (uint c = 0; c < vt->field_count(); c++) {
+              bh->add_req(vt->field_value(c));
+            }
+
+            // Node modified, record for IGVN
+            igvn.record_for_igvn(bh);
+          }
+        }
 #ifdef ASSERT
         for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
           assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");

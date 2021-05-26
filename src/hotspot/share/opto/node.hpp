@@ -668,6 +668,7 @@ public:
       DEFINE_CLASS_ID(MemBar,      Multi, 3)
         DEFINE_CLASS_ID(Initialize,       MemBar, 0)
         DEFINE_CLASS_ID(MemBarStoreStore, MemBar, 1)
+        DEFINE_CLASS_ID(Blackhole,        MemBar, 2)
 
     DEFINE_CLASS_ID(Mach,  Node, 1)
       DEFINE_CLASS_ID(MachReturn, Mach, 0)
@@ -845,6 +846,7 @@ public:
   DEFINE_CLASS_QUERY(ArrayCopy)
   DEFINE_CLASS_QUERY(BaseCountedLoop)
   DEFINE_CLASS_QUERY(BaseCountedLoopEnd)
+  DEFINE_CLASS_QUERY(Blackhole)
   DEFINE_CLASS_QUERY(Bool)
   DEFINE_CLASS_QUERY(BoxLock)
   DEFINE_CLASS_QUERY(Call)
