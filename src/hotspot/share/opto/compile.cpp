@@ -1941,7 +1941,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
             --i;
 
             if (vt->is_allocated(&igvn)) {
-              // Already has an allocation, blackhole that
+              // Already has the allocated instance, blackhole that
               bh->add_req(vt->get_oop());
             } else {
               // Not allocated yet, blackhole the components
