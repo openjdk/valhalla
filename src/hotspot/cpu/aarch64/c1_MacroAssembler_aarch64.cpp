@@ -353,7 +353,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, 
 
   if (needs_stack_repair) {
     int sp_inc_offset = frame_size_in_bytes - 3 * wordSize;  // Immediately below saved LR and FP
-    save_stack_increment(sp_inc, sp_inc_offset);
+    save_stack_increment(sp_inc, frame_size_in_bytes, sp_inc_offset);
   }
 }
 

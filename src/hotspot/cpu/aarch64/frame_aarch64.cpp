@@ -834,13 +834,12 @@ void frame::pd_ps() {}
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
   CompiledMethod* cm = _cb->as_compiled_method_or_null();
   if (cm != NULL && cm->needs_stack_repair()) {
-    // The stack increment resides just below the saved FP on the stack
+    // The stack increment resides just below the saved FP on the stack and
+    // records the total frame size exluding the two words for saving FP and LR.
     intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
     assert(*sp_inc_addr % StackAlignmentInBytes == 0, "sp_inc not aligned");
-    int sp_inc = *sp_inc_addr / wordSize;
-    int real_frame_size = _cb->frame_size() + sp_inc;
+    int real_frame_size = (*sp_inc_addr / wordSize) + 2;
     assert(real_frame_size >= _cb->frame_size() && real_frame_size <= 1000000, "invalid frame size");
-    assert(unextended_sp() + real_frame_size == sender_sp + sp_inc, "sanity");
     sender_sp = unextended_sp() + real_frame_size;
   }
   return sender_sp;

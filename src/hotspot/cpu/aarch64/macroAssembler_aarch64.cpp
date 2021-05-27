@@ -4828,8 +4828,7 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // | Saved LR #1               |
     // | Saved FP #1               |
     // |---------------------------|
-    // | sp_inc - 2*wordSize bytes |
-    // |   of stack extension for  |
+    // | Extension space for       |
     // |   inline arg (un)packing  |
     // |---------------------------|  <-- start of this method's frame
     // | Saved LR #2               |
@@ -4842,25 +4841,28 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // There are two copies of FP and LR on the stack. They will be identical
     // unless the caller has been deoptimized, in which case LR #1 will be patched
     // to point at the deopt blob, and LR #2 will still point into the old method.
+    //
+    // The sp_inc stack slot holds the total size of the frame including the
+    // extension space minus two words for the saved FP and LR.
 
-    // This pops the stack extension and regular frame in the wrong
-    // order but it doesn't matter because the result is the same.
     ldr(rscratch1, Address(sp, sp_inc_offset));
     add(sp, sp, rscratch1);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
+  } else {
+    remove_frame(initial_framesize);
   }
-
-  remove_frame(initial_framesize);
 }
 
-void MacroAssembler::save_stack_increment(int sp_inc, int sp_inc_offset) {
-  if (sp_inc == 0) {
-    str(zr, Address(sp, sp_inc_offset));
-  } else {
-    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    assert(sp_inc > 2*wordSize, "must include FP/LR space");
-    mov(rscratch1, sp_inc);
-    str(rscratch1, Address(sp, sp_inc_offset));
-  }
+void MacroAssembler::save_stack_increment(int sp_inc, int frame_size, int sp_inc_offset) {
+  int real_frame_size = frame_size + sp_inc;
+  assert(sp_inc == 0 || sp_inc > 2*wordSize, "invalid sp_inc value");
+  assert(real_frame_size >= 2*wordSize, "frame size must include FP/LR space");
+  assert((real_frame_size & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
+
+  // Subtract two words for the saved FP and LR as these will be popped
+  // separately. See remove_frame above.
+  mov(rscratch1, real_frame_size - 2*wordSize);
+  str(rscratch1, Address(sp, sp_inc_offset));
 }
 
 // This method checks if provided byte array contains byte with highest bit set.
@@ -5685,7 +5687,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   build_frame(framesize);
 
   if (C->needs_stack_repair()) {
-    save_stack_increment(sp_inc, C->output()->sp_inc_offset());
+    save_stack_increment(sp_inc, framesize, C->output()->sp_inc_offset());
   }
 
   if (VerifyStackAtCalls) {

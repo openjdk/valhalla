@@ -1269,7 +1269,7 @@ public:
   int extend_stack_for_inline_args(int args_on_stack);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
   VMReg spill_reg_for(VMReg reg);
-  void save_stack_increment(int sp_inc, int sp_inc_offset);
+  void save_stack_increment(int sp_inc, int frame_size, int sp_inc_offset);
 
   void tableswitch(Register index, jint lowbound, jint highbound,
                    Label &jumptable, Label &jumptable_end, int stride = 1) {
