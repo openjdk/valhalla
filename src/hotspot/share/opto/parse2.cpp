@@ -386,11 +386,7 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (!ary_t->is_not_null_free()) {
       // Array is not flattened but may be null free
-      //assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
-      if (!(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact())) {
-        ary->dump(3);
-        assert(false, "FAIL");
-      }
+      assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
       ary = inline_array_null_guard(ary, cast_val, 3, true);
     }
   }
