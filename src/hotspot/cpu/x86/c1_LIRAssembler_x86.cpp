@@ -531,9 +531,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   }
 
   ciMethod* method = compilation()->method();
-  ciType* return_type = method->return_type();
-  if (InlineTypeReturnedAsFields && return_type->is_inlinetype() && return_type->is_null_free()) {
-    ciInlineKlass* vk = return_type->as_inline_klass();
+  if (InlineTypeReturnedAsFields && method->signature()->returns_null_free_inline_type()) {
+    ciInlineKlass* vk = method->return_type()->as_inline_klass();
     if (vk->can_be_returned_as_fields()) {
 #ifndef _LP64
       Unimplemented();

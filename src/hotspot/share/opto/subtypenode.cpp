@@ -82,7 +82,7 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
         // Subtype is not a flat array but supertype is. Must be unrelated.
         unrelated_classes = true;
       } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_null_free() &&
-                 superk->is_obj_array_klass() && superk->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+                 superk->is_array_klass() && superk->as_array_klass()->is_elem_null_free()) {
         // Subtype is not a null-free array but supertype is. Must be unrelated.
         unrelated_classes = true;
       } else if (sub_t->is_ptr()->flatten_array() && (!superk->can_be_inline_klass() || (superk->is_inlinetype() && !superk->flatten_array()))) {

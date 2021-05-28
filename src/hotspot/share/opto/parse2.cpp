@@ -113,7 +113,7 @@ void Parse::array_load(BasicType bt) {
         // Element type is known, cast and load from flattened representation
         ciInlineKlass* vk = elemptr->inline_klass();
         assert(vk->flatten_array() && elemptr->maybe_null(), "never/always flat - should be optimized");
-        ciArrayKlass* array_klass = ciArrayKlass::make(vk);
+        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
         Node* casted_adr = array_element_address(cast, idx, T_INLINE_TYPE, ary_t->size(), control());
@@ -344,7 +344,7 @@ void Parse::array_store(BasicType bt) {
           // Element type is known, cast and store to flattened representation
           sync_kit(ideal);
           assert(vk->flatten_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk);
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));
           Node* casted_adr = array_element_address(casted_ary, idx, T_OBJECT, arytype->size(), control());
@@ -386,7 +386,11 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (!ary_t->is_not_null_free()) {
       // Array is not flattened but may be null free
-      assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
+      //assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
+      if (!(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact())) {
+        ary->dump(3);
+        assert(false, "FAIL");
+      }
       ary = inline_array_null_guard(ary, cast_val, 3, true);
     }
   }

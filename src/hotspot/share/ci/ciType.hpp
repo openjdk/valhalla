@@ -73,7 +73,7 @@ public:
   bool is_classless() const                 { return is_primitive_type(); }
 
   virtual ciType*     unwrap()              { return this; }
-  virtual bool is_null_free() const        { return false; }
+  virtual bool is_null_free() const         { return false; }
 
   const char* name();
   virtual void print_name_on(outputStream* st);

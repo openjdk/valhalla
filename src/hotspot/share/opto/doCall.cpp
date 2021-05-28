@@ -713,7 +713,7 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            if (ct == T_INLINE_TYPE) {
+            if (declared_signature->returns_null_free_inline_type()) {
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
             if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_InlineType()) {
@@ -742,12 +742,10 @@ void Parse::do_call() {
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
     }
 
-    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType()) {
+    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType() &&
+        !gvn().type(peek())->maybe_null() && rtype->as_inline_klass()->is_scalarizable()) {
       Node* retnode = pop();
-      assert(!gvn().type(retnode)->maybe_null(), "should never be null");
-      if (rtype->as_inline_klass()->is_scalarizable()) {
-        retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
-      }
+      retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
       push_node(T_INLINE_TYPE, retnode);
     }
 
