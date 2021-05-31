@@ -2277,7 +2277,7 @@ public class Types {
         } else if (sym == syms.primitiveObjectType.tsym) {
             if (t.isPrimitiveClass() || t.isReferenceProjection())
                 return syms.primitiveObjectType;
-            if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
+            if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym || !t.hasTag(CLASS))
                 return null;
             // else fall through and look for explicit coded super interface
         }

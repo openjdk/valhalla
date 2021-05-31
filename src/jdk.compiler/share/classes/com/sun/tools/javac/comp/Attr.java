@@ -175,7 +175,6 @@ public class Attr extends JCTree.Visitor {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        allowValueMemberCycles = options.isSet("allowValueMemberCycles");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
@@ -223,11 +222,6 @@ public class Attr extends JCTree.Visitor {
      * RFE: 6425594
      */
     boolean useBeforeDeclarationWarning;
-
-    /**
-     * Switch: Allow value type member cycles?
-     */
-    boolean allowValueMemberCycles;
 
     /**
      * Switch: name of source level; used for error reporting.
@@ -1229,6 +1223,12 @@ public class Attr extends JCTree.Visitor {
                         // generated one.
                         log.error(tree.body.stats.head.pos(),
                                   Errors.CallToSuperNotAllowedInEnumCtor(env.enclClass.sym));
+                    } else if ((env.enclClass.sym.flags() & PRIMITIVE_CLASS) != 0 &&
+                        (tree.mods.flags & GENERATEDCONSTR) == 0 &&
+                        TreeInfo.isSuperCall(body.stats.head)) {
+                        // primitive constructors are not allowed to call super directly,
+                        // but tolerate compiler generated ones
+                        log.error(tree.body.stats.head.pos(), Errors.CallToSuperNotAllowedInPrimitiveCtor);
                     }
                     if (env.enclClass.sym.isRecord() && (tree.sym.flags_field & RECORD) != 0) { // we are seeing the canonical constructor
                         List<Name> recordComponentNames = TreeInfo.recordFields(env.enclClass).map(vd -> vd.sym.name);
@@ -1830,7 +1830,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitSynchronized(JCSynchronized tree) {
-        chk.checkRefType(tree.pos(), attribExpr(tree.lock, env), false);
+        chk.checkIdentityType(tree.pos(), attribExpr(tree.lock, env));
         if (env.info.lint.isEnabled(LintCategory.SYNCHRONIZATION) && isValueBased(tree.lock.type)) {
             log.warning(LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
@@ -2580,12 +2580,6 @@ public class Attr extends JCTree.Visitor {
                         case "finalize":
                             if (argSize == 0)
                                 log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
-                            break;
-                        case "hashCode":
-                        case "equals":
-                        case "toString":
-                            if (superCallOnValueReceiver)
-                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(names.fromString("invocation of super." + name)));
                             break;
                     }
                 }
@@ -5255,10 +5249,8 @@ public class Attr extends JCTree.Visitor {
             attribClass(c);
             if (types.isPrimitiveClass(c.type)) {
                 final Env<AttrContext> env = typeEnvs.get(c);
-                if (!allowValueMemberCycles) {
-                    if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
-                        chk.checkNonCyclicMembership((JCClassDecl)env.tree);
-                }
+                if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
+                    chk.checkNonCyclicMembership((JCClassDecl)env.tree);
             }
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);

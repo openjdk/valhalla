@@ -848,6 +848,32 @@ public class Check {
                                 t);
     }
 
+    /** Check that type is an identity type, i.e. not a primitive type
+     *  nor its reference projection. When not discernible statically,
+     *  give it the benefit of doubt and defer to runtime.
+     *
+     *  @param pos           Position to be used for error reporting.
+     *  @param t             The type to be checked.
+     */
+    Type checkIdentityType(DiagnosticPosition pos, Type t) {
+
+        if (t.hasTag(ARRAY))
+            return t;
+
+        if (!t.hasTag(CLASS) || t.isPrimitiveClass() || t.isReferenceProjection())
+            return typeTagError(pos,
+                    diags.fragment(Fragments.TypeReqIdentity),
+                    t);
+
+        /* Not appropriate to check
+         *     if (types.asSuper(t, syms.identityObjectType.tsym) != null)
+         * since jlO, interface types and abstract types may fail that check
+         * at compile time.
+         */
+
+        return t;
+    }
+
     /** Check that type is a reference type, i.e. a class, interface or array type
      *  or a type variable.
      *  @param pos           Position to be used for error reporting.
@@ -2416,8 +2442,7 @@ public class Check {
                 if (l.head.hasTag(VARDEF)) {
                     JCVariableDecl field = (JCVariableDecl) l.head;
                     if (cyclePossible(field.sym)) {
-                        Type fieldType = field.sym.type;
-                        checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
+                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
                     }
                 }
             }
