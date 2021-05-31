@@ -2575,12 +2575,6 @@ public class Attr extends JCTree.Visitor {
                             if (argSize == 0)
                                 log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
                             break;
-                        case "hashCode":
-                        case "equals":
-                        case "toString":
-                            if (superCallOnValueReceiver)
-                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(names.fromString("invocation of super." + name)));
-                            break;
                     }
                 }
             }

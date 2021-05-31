@@ -12,9 +12,6 @@ CheckObjectMethodsUsage.java:23:21: compiler.err.primitive.class.does.not.suppor
 CheckObjectMethodsUsage.java:24:18: compiler.err.primitive.class.does.not.support: notifyAll
 CheckObjectMethodsUsage.java:25:24: compiler.err.primitive.class.does.not.support: notifyAll
 CheckObjectMethodsUsage.java:26:20: compiler.err.primitive.class.does.not.support: clone
-CheckObjectMethodsUsage.java:27:23: compiler.err.primitive.class.does.not.support: invocation of super.hashCode
-CheckObjectMethodsUsage.java:28:23: compiler.err.primitive.class.does.not.support: invocation of super.toString
-CheckObjectMethodsUsage.java:29:21: compiler.err.primitive.class.does.not.support: invocation of super.equals
 - compiler.note.deprecated.filename: CheckObjectMethodsUsage.java
 - compiler.note.deprecated.recompile
-17 errors
+14 errors
