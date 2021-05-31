@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check for cycles through fields declared flattenable.
- * @compile -XDallowValueMemberCycles -XDrawDiagnostics CheckFlattenableCycles.java
+ *
  * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics CheckFlattenableCycles.java
  */
 

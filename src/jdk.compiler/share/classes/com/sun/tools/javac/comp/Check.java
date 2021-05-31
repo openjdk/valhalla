@@ -2416,8 +2416,7 @@ public class Check {
                 if (l.head.hasTag(VARDEF)) {
                     JCVariableDecl field = (JCVariableDecl) l.head;
                     if (cyclePossible(field.sym)) {
-                        Type fieldType = field.sym.type;
-                        checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
+                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
                     }
                 }
             }

@@ -175,7 +175,6 @@ public class Attr extends JCTree.Visitor {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        allowValueMemberCycles = options.isSet("allowValueMemberCycles");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
@@ -223,11 +222,6 @@ public class Attr extends JCTree.Visitor {
      * RFE: 6425594
      */
     boolean useBeforeDeclarationWarning;
-
-    /**
-     * Switch: Allow value type member cycles?
-     */
-    boolean allowValueMemberCycles;
 
     /**
      * Switch: name of source level; used for error reporting.
@@ -5255,10 +5249,8 @@ public class Attr extends JCTree.Visitor {
             attribClass(c);
             if (types.isPrimitiveClass(c.type)) {
                 final Env<AttrContext> env = typeEnvs.get(c);
-                if (!allowValueMemberCycles) {
-                    if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
-                        chk.checkNonCyclicMembership((JCClassDecl)env.tree);
-                }
+                if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
+                    chk.checkNonCyclicMembership((JCClassDecl)env.tree);
             }
         } catch (CompletionFailure ex) {
             chk.completionError(pos, ex);
