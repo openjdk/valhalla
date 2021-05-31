@@ -1223,6 +1223,12 @@ public class Attr extends JCTree.Visitor {
                         // generated one.
                         log.error(tree.body.stats.head.pos(),
                                   Errors.CallToSuperNotAllowedInEnumCtor(env.enclClass.sym));
+                    } else if ((env.enclClass.sym.flags() & PRIMITIVE_CLASS) != 0 &&
+                        (tree.mods.flags & GENERATEDCONSTR) == 0 &&
+                        TreeInfo.isSuperCall(body.stats.head)) {
+                        // primitive constructors are not allowed to call super directly,
+                        // but tolerate compiler generated ones
+                        log.error(tree.body.stats.head.pos(), Errors.CallToSuperNotAllowedInPrimitiveCtor);
                     }
                     if (env.enclClass.sym.isRecord() && (tree.sym.flags_field & RECORD) != 0) { // we are seeing the canonical constructor
                         List<Name> recordComponentNames = TreeInfo.recordFields(env.enclClass).map(vd -> vd.sym.name);
