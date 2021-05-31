@@ -856,6 +856,10 @@ public class Check {
      *  @param t             The type to be checked.
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
+
+        if (t.hasTag(ARRAY))
+            return t;
+
         if (!t.hasTag(CLASS) || t.isPrimitiveClass() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
