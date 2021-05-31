@@ -38,6 +38,7 @@
 InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
   if (vt->is_InlineTypePtr()) {
+    // TODO
     const Type* t = Type::get_const_type(inline_klass());
     gvn->set_type(vt, t);
     vt->as_InlineTypePtr()->set_type(t);
@@ -1014,6 +1015,13 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       --i; --imax;
     }
   }
+}
+
+const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {
+  if (phase->type(in(2))->isa_ptr() && !phase->type(in(2))->is_ptr()->maybe_null()) {
+    return _type->join_speculative(TypePtr::NOTNULL);
+  }
+  return _type;
 }
 
 Node* InlineTypePtrNode::Ideal(PhaseGVN* phase, bool can_reshape) {

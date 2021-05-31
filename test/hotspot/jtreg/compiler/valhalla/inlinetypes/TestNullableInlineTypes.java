@@ -1211,7 +1211,6 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
 // TODO register above, add forceinline
-// TODO add version of above tests with MyValue1Wrapper
     static final primitive class MyValue1Wrapper {
         final MyValue1.ref vt;
 

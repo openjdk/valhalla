@@ -172,6 +172,8 @@ public:
     }
   }
 
+  virtual const Type* Value(PhaseGVN* phase) const;
+
   // TODO this needs to be public!!
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
