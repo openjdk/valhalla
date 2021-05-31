@@ -857,10 +857,7 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.hasTag(ARRAY))
-            return t;
-
-        if (!t.hasTag(CLASS) || t.isPrimitiveClass() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.isPrimitiveClass() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
