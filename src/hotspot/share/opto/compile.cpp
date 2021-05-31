@@ -1928,7 +1928,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
         igvn.replace_node(vt, vt->get_oop());
       } else {
         // Check if any users are blackholes. If so, rewrite them to use either the
-        // allocated box, or individual components, instead of the inline type node
+        // allocated buffer, or individual components, instead of the inline type node
         // that goes away.
         for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
           if (vt->out(i)->is_Blackhole()) {
