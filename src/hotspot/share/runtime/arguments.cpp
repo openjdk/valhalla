@@ -2010,7 +2010,7 @@ bool Arguments::check_vm_args_consistency() {
   }
 #endif
 
-  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypePassFieldsAsArgs)) {
+  if (AMD64_ONLY(false &&) AARCH64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypePassFieldsAsArgs)) {
     FLAG_SET_CMDLINE(InlineTypePassFieldsAsArgs, false);
     warning("InlineTypePassFieldsAsArgs is not supported on this platform");
   }

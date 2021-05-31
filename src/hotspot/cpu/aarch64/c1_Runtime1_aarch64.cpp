@@ -885,7 +885,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           "buffer_inline_args" : "buffer_inline_args_no_receiver";
         StubFrame f(sasm, name, dont_gc_arguments);
         OopMap* map = save_live_registers(sasm);
-        Register method = r1;
+        Register method = r19;   // Incoming
         address entry = (id == buffer_inline_args_id) ?
           CAST_FROM_FN_PTR(address, buffer_inline_args) :
           CAST_FROM_FN_PTR(address, buffer_inline_args_no_receiver);

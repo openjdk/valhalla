@@ -1760,7 +1760,8 @@ public:
                             RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                           VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[]);
+                          RegState reg_state[], Register val_array);
+  int extend_stack_for_inline_args(int args_on_stack);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
   VMReg spill_reg_for(VMReg reg);
 

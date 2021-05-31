@@ -3306,7 +3306,7 @@ void TemplateTable::fast_accessfield(TosState state)
   switch (bytecode()) {
   case Bytecodes::_fast_qgetfield:
     {
-      Register index = r4, klass = r5, inline_klass = r6;
+      Register index = r4, klass = r5, inline_klass = r6, tmp = r7;
       Label is_inlined, nonnull, Done;
       __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
         // field is not inlined
@@ -3316,7 +3316,7 @@ void TemplateTable::fast_accessfield(TosState state)
           __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
                                              ConstantPoolCacheEntry::f1_offset())));
           __ get_inline_type_field_klass(klass, index, inline_klass);
-          __ get_default_value_oop(inline_klass, rscratch1 /* temp */, r0);
+          __ get_default_value_oop(inline_klass, tmp /* temp */, r0);
         __ bind(nonnull);
         __ verify_oop(r0);
         __ b(Done);
@@ -3325,7 +3325,7 @@ void TemplateTable::fast_accessfield(TosState state)
         __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
         __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
                                            ConstantPoolCacheEntry::f1_offset())));
-        __ read_inlined_field(klass, index, r1, inline_klass /* temp */, r0);
+        __ read_inlined_field(klass, index, r1, tmp /* temp */, r0);
         __ verify_oop(r0);
       __ bind(Done);
     }
