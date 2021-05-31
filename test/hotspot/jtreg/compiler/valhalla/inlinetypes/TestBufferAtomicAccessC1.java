@@ -25,12 +25,12 @@
 package compiler.valhalla.inlinetypes;
 
 /**
- * @test TestBufferTearingC1
+ * @test TestBufferAtomicAccessC1
  * @key randomness
  * @summary Additional tests for C1 missing barriers when buffering inline types.
  * @run main/othervm -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
  *                   -XX:TieredStopAtLevel=1
- *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
+ *                   compiler.valhalla.inlinetypes.TestBufferAtomicAccessC1
  */
 
 primitive class Point {
@@ -51,7 +51,7 @@ primitive class Rect {
     }
 }
 
-public class TestBufferTearingC1 {
+public class TestBufferAtomicAccessC1 {
 
     public static Point[] points = new Point[] { new Point(1, 1) };
     public static Rect rect = new Rect(new Point(1, 1), new Point(2, 2));
@@ -99,7 +99,7 @@ public class TestBufferTearingC1 {
     public static void main(String[] args) throws InterruptedException {
         Thread[] threads = new Thread[10];
         for (int i = 0; i < 10; i++) {
-            threads[i] = new Thread(TestBufferTearingC1::checkMissingBarrier);
+            threads[i] = new Thread(TestBufferAtomicAccessC1::checkMissingBarrier);
             threads[i].start();
         }
 
