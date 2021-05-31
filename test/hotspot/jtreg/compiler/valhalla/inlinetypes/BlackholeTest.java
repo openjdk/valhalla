@@ -21,7 +21,7 @@
  * questions.
  */
 
-package runtime.valhalla.inlinetypes;
+package compiler.valhalla.inlinetypes;
 
 /*
  * @test BlackholeTest
@@ -29,8 +29,8 @@ package runtime.valhalla.inlinetypes;
  * @run main/othervm
  *      -Xbatch
  *      -XX:+UnlockExperimentalVMOptions
- *      -XX:CompileCommand=blackhole,runtime/valhalla/inlinetypes/BlackholeTest.blackhole
- *      runtime.valhalla.inlinetypes.BlackholeTest
+ *      -XX:CompileCommand=blackhole,compiler/valhalla/inlinetypes/BlackholeTest.blackhole
+ *      compiler.valhalla.inlinetypes.BlackholeTest
  */
 
 public class BlackholeTest {
