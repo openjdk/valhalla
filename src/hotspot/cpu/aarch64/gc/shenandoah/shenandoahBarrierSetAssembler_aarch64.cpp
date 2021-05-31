@@ -367,7 +367,7 @@ void ShenandoahBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet d
 }
 
 void ShenandoahBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                             Address dst, Register val, Register tmp1, Register tmp2) {
+                                             Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
   bool on_oop = is_reference_type(type);
   if (!on_oop) {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
@@ -392,7 +392,7 @@ void ShenandoahBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet 
                                false /* expand_call */);
 
   if (val == noreg) {
-    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), noreg, noreg, noreg);
+    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), noreg, noreg, noreg, noreg);
   } else {
     iu_barrier(masm, val, tmp1);
     // G1 barrier needs uncompressed oop for region cross check.
@@ -401,7 +401,7 @@ void ShenandoahBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet 
       new_val = rscratch2;
       __ mov(new_val, val);
     }
-    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), val, noreg, noreg);
+    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), val, noreg, noreg, noreg);
   }
 
 }
