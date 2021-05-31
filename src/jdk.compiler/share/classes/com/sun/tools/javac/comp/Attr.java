@@ -1824,7 +1824,7 @@ public class Attr extends JCTree.Visitor {
     }
 
     public void visitSynchronized(JCSynchronized tree) {
-        chk.checkRefType(tree.pos(), attribExpr(tree.lock, env), false);
+        chk.checkIdentityType(tree.pos(), attribExpr(tree.lock, env));
         if (env.info.lint.isEnabled(LintCategory.SYNCHRONIZATION) && isValueBased(tree.lock.type)) {
             log.warning(LintCategory.SYNCHRONIZATION, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
         }
