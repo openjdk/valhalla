@@ -995,8 +995,8 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
                    (r1->is_not_flat() && klass0->is_flat_array_klass())) {
           // One type is a non-flattened array and the other type is a flattened array. Must be unrelated.
           unrelated_classes = true;
-        } else if ((r0->is_not_null_free() && klass1->is_obj_array_klass() && klass1->as_obj_array_klass()->element_klass()->is_inlinetype()) ||
-                   (r1->is_not_null_free() && klass0->is_obj_array_klass() && klass0->as_obj_array_klass()->element_klass()->is_inlinetype())) {
+        } else if ((r0->is_not_null_free() && klass1->is_array_klass() && klass1->as_array_klass()->is_elem_null_free()) ||
+                   (r1->is_not_null_free() && klass0->is_array_klass() && klass0->as_array_klass()->is_elem_null_free())) {
           // One type is a non-null-free array and the other type is a null-free array. Must be unrelated.
           unrelated_classes = true;
         }
@@ -1157,6 +1157,14 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Verify that we understand the situation
   if (con2 != (intptr_t) superklass->super_check_offset())
     return NULL;                // Might be element-klass loading from array klass
+
+  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
+  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
+  // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.
+  if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
+      superklass->as_array_klass()->element_klass()->is_inlinetype()) {
+    return NULL;
+  }
 
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is

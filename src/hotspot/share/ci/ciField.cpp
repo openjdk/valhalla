@@ -98,12 +98,7 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
     bool ignore;
     // This is not really a class reference; the index always refers to the
     // field's type signature, as a symbol.  Linkage checks do not apply.
-    ciType* type = ciEnv::current(THREAD)->get_klass_by_index(cpool, sig_index, ignore, klass);
-    if (signature->is_Q_signature()) {
-      _type = ciEnv::current(THREAD)->make_null_free_wrapper(type);
-    } else {
-      _type = type;
-    }
+    _type = ciEnv::current(THREAD)->get_klass_by_index(cpool, sig_index, ignore, klass);
   } else {
     _type = ciType::make(field_type);
   }
@@ -381,12 +376,6 @@ ciType* ciField::compute_type() {
 
 ciType* ciField::compute_type_impl() {
   ciKlass* type = CURRENT_ENV->get_klass_by_name_impl(_holder, constantPoolHandle(), _signature, false);
-  ciType* rtype;
-  if (_signature->is_Q_signature()) {
-    rtype = CURRENT_ENV->make_null_free_wrapper(type);
-  } else {
-    rtype = type;
-  }
   if (!type->is_primitive_type() && is_shared()) {
     // We must not cache a pointer to an unshared type, in a shared field.
     bool type_is_also_shared = false;
@@ -398,12 +387,11 @@ ciType* ciField::compute_type_impl() {
       // Currently there is no 'shared' query for array types.
       type_is_also_shared = !ciObjectFactory::is_initialized();
     }
-    if (!type_is_also_shared) {
-      return rtype;              // Bummer.
-    }
+    if (!type_is_also_shared)
+      return type;              // Bummer.
   }
-  _type = rtype;
-  return rtype;
+  _type = type;
+  return type;
 }
 
 

@@ -141,7 +141,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   bool must_assert_null = false;
 
   Node* ld = NULL;
-  if (bt == T_INLINE_TYPE && field_klass->as_inline_klass()->is_empty()) {
+  if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
     // Loading from a field of an empty inline type. Just return the default instance.
     ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
   } else if (field->is_flattened()) {
@@ -167,7 +167,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
         assert(type != NULL, "field singleton type must be consistent");
       } else {
         type = TypeOopPtr::make_from_klass(field_klass->as_klass());
-        if (bt == T_INLINE_TYPE && field->is_static()) {
+        if (field->is_null_free() && field->is_static()) {
           // Check if static inline type field is already initialized
           ciInstance* mirror = field->holder()->java_mirror();
           ciObject* val = mirror->field_value(field).as_object();
@@ -184,7 +184,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     DecoratorSet decorators = IN_HEAP;
     decorators |= field->is_volatile() ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
-    if (bt == T_INLINE_TYPE) {
+    if (field->is_null_free()) {
       // Load a non-flattened inline type from memory
       if (field_klass->as_inline_klass()->is_scalarizable()) {
         ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass());
@@ -231,8 +231,8 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
-  assert(bt != T_INLINE_TYPE || val->is_InlineType() || !gvn().type(val)->maybe_null(), "Null store to inline type field");
-  if (bt == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+  assert(!field->is_null_free() || val->is_InlineType() || !gvn().type(val)->maybe_null(), "Null store to inline type field");
+  if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
   } else if (field->is_flattened()) {
@@ -296,13 +296,14 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 void Parse::do_newarray() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
+  bool null_free = iter().has_Q_signature();
 
   // Uncommon Trap when class that array contains is not loaded
   // we need the loaded class for the rest of graph; do not
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass, null_free);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

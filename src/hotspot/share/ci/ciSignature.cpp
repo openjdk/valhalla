@@ -74,9 +74,17 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
 }
 
 // ------------------------------------------------------------------
-// ciSignature::returns_inline_type
+// ciSignature::returns_null_free_inline_type
 bool ciSignature::returns_null_free_inline_type() const {
   GUARDED_VM_ENTRY(return get_symbol()->is_Q_method_signature();)
+}
+
+// ------------------------------------------------------------------
+// ciSignature::is_null_free_at
+//
+// True if we know that the argument at 'index' is null-free.
+bool ciSignature::is_null_free_at(int index) const {
+  return _types.at(index)->is_null_free();
 }
 
 // ------------------------------------------------------------------

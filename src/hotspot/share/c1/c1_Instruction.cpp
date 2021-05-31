@@ -108,7 +108,7 @@ void Instruction::state_values_do(ValueVisitor* f) {
 }
 
 ciType* Instruction::exact_type() const {
-  ciType* t =  declared_type();
+  ciType* t = declared_type();
   if (t != NULL && t->is_klass()) {
     return t->as_klass()->exact_klass();
   }
@@ -138,15 +138,13 @@ bool Instruction::maybe_flattened_array() {
   if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != NULL) {
-      if (type->is_obj_array_klass()) {
-        // Due to array covariance, the runtime type might be a flattened array.
+      if (type->is_obj_array_klass() && !type->as_obj_array_klass()->is_elem_null_free()) {
+        // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flatten_array())) {
           return true;
         }
       } else if (type->is_flat_array_klass()) {
-        ciKlass* element_klass = type->as_flat_array_klass()->element_klass();
-        assert(!element_klass->is_loaded() || element_klass->flatten_array(), "must be flattened");
         return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
@@ -166,8 +164,7 @@ bool Instruction::maybe_null_free_array() {
   if (type != NULL) {
     if (type->is_obj_array_klass()) {
       // Due to array covariance, the runtime type might be a null-free array.
-      ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-      if (element_klass->can_be_inline_klass()) {
+      if (type->as_obj_array_klass()->can_be_inline_array_klass()) {
         return true;
       }
     }
@@ -268,7 +265,7 @@ ciType* LoadIndexed::declared_type() const {
 bool StoreIndexed::is_exact_flattened_array_store() const {
   if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL && value()->declared_type() != NULL) {
     ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();
-    ciKlass* actual_klass = value()->declared_type()->unwrap()->as_klass();
+    ciKlass* actual_klass = value()->declared_type()->as_klass();
 
     // The following check can fail with inlining:
     //     void test45_inline(Object[] oa, Object o, int index) { oa[index] = o; }

@@ -182,7 +182,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   if (tp != NULL && tp->klass() != C->env()->Object_klass()) {
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = NULL;
-    if (tp->klass()->is_inlinetype()) {
+    if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
       // Check inline types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);

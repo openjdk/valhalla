@@ -1747,13 +1747,13 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
                      elm_item, LIR_OprFact::intConst(sub_offset), result,
                      NULL, NULL);
 
-  if (field->signature()->is_Q_signature()) {
-    assert(field->type()->unwrap()->as_inline_klass()->is_loaded(), "Must be");
+  if (field->is_null_free()) {
+    assert(field->type()->as_inline_klass()->is_loaded(), "Must be");
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
-    Constant* default_value = new Constant(new InstanceConstant(field->type()->unwrap()->as_inline_klass()->default_instance()));
+    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
     if (default_value->is_pinned()) {
       __ move(LIR_OprFact::value_type(default_value->type()), result);
     } else {
@@ -1773,7 +1773,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
 
   ciInlineKlass* elem_klass = NULL;
   if (field != NULL) {
-    elem_klass = field->type()->unwrap()->as_inline_klass();
+    elem_klass = field->type()->as_inline_klass();
   } else {
     elem_klass = array.value()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
   }
@@ -2046,7 +2046,7 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
 bool LIRGenerator::inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info) {
   ciField* field = x->field();
   assert(!field->is_flattened(), "Flattened field access should have been expanded");
-  if (!field->signature()->is_Q_signature()) {
+  if (!field->is_null_free()) {
     return true; // Not an inline type field
   }
   // Deoptimize if the access is non-static and requires patching (holder not loaded
@@ -2055,7 +2055,7 @@ bool LIRGenerator::inline_type_field_access_prolog(AccessField* x, CodeEmitInfo*
   bool could_be_flat = !x->is_static() && x->needs_patching();
   // Deoptimize if we load from a static field with an unloaded type because we need
   // the default value if the field is null.
-  bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->unwrap()->is_loaded();
+  bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->is_loaded();
   assert(!could_be_null || !field->holder()->is_loaded(), "inline type field should be loaded");
   if (could_be_flat || could_be_null) {
     assert(x->needs_patching(), "no deopt required");
@@ -2134,10 +2134,10 @@ void LIRGenerator::do_LoadField(LoadField* x) {
                  info ? new CodeEmitInfo(info) : NULL, info);
 
   ciField* field = x->field();
-  if (field->signature()->is_Q_signature()) {
+  if (field->is_null_free()) {
     // Load from non-flattened inline type field requires
     // a null check to replace null with the default value.
-    ciInlineKlass* inline_klass = field->type()->unwrap()->as_inline_klass();
+    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
     assert(inline_klass->is_loaded(), "field klass must be loaded");
 
     ciInstanceKlass* holder = field->holder();
@@ -3051,11 +3051,6 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
       }
     }
     do_update = exact_klass == NULL || ciTypeEntries::valid_ciklass(profiled_k) != exact_klass;
-  }
-
-  // Inline types can't be null
-  if (exact_klass != NULL && exact_klass->is_inlinetype()) {
-    do_null = false;
   }
 
   if (!do_null && !do_update) {

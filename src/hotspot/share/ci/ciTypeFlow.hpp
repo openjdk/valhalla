@@ -839,6 +839,8 @@ public:
                                       return _block_map[rpo]; }
   int inc_next_pre_order()          { return _next_pre_order++; }
 
+  ciType* mark_as_null_free(ciType* type);
+
 private:
   // A work list used during flow analysis.
   Block* _work_list;

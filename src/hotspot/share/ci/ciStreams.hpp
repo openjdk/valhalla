@@ -291,6 +291,14 @@ public:
     }
   }
 
+  bool is_null_free() {
+    if (at_return_type()) {
+      return _sig->returns_null_free_inline_type();
+    } else {
+      return _sig->is_null_free_at(_pos);
+    }
+  }
+
   // next klass in the signature
   ciKlass* next_klass() {
     ciKlass* sig_k;

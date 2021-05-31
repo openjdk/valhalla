@@ -3449,14 +3449,12 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control) {
+Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control, bool null_free) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
-
-  // Check if inline types are involved
   bool from_inline = obj->is_InlineType();
-  bool to_inline = tk->klass()->is_inlinetype();
+  assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit
@@ -3482,20 +3480,20 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         // to the type system as a speculative type.
         if (!from_inline) {
           obj = record_profiled_receiver_for_speculation(obj);
-          if (to_inline) {
+          if (null_free) {
             obj = null_check(obj);
-            if (toop->inline_klass()->is_scalarizable()) {
-              obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
-            }
+          }
+          if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(obj)->maybe_null()) {
+            obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
           }
         }
         return obj;
       case Compile::SSC_always_false:
-        if (from_inline || to_inline) {
+        if (from_inline || null_free) {
           if (!from_inline) {
             null_check(obj);
           }
-          // Inline type is never null. Always throw an exception.
+          // Inline type is null-free. Always throw an exception.
           builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(klass)));
           return top();
         } else {
@@ -3544,7 +3542,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   Node* not_null_obj = NULL;
   if (from_inline) {
     not_null_obj = obj;
-  } else if (to_inline) {
+  } else if (null_free) {
     not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
@@ -3676,8 +3674,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 
   if (!stopped() && !from_inline) {
     res = record_profiled_receiver_for_speculation(res);
-    if (to_inline && toop->inline_klass()->is_scalarizable()) {
-      assert(!gvn().type(res)->maybe_null(), "Inline types are null-free");
+    if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(res)->maybe_null()) {
       res = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
     }
   }
@@ -3740,9 +3737,9 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
   region->init_req(2, control());
   set_control(_gvn.transform(region));
   record_for_igvn(region);
-  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
-  if (val_t == TypePtr::NULL_PTR && !ary_t->is_not_null_free()) {
+  if (val_t == TypePtr::NULL_PTR) {
     // Since we were just successfully storing null, the array can't be null free.
+    const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
     ary_t = ary_t->cast_to_not_null_free();
     Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
     if (safe_for_replace) {
@@ -3935,11 +3932,12 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     assert(klass != NULL, "klass should not be NULL");
     bool xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
-    if (UseFlatArray && klass->is_obj_array_klass()) {
+    if (UseFlatArray && klass->is_obj_array_klass() && !klass->as_obj_array_klass()->is_elem_null_free()) {
+      // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
       can_be_flattened = elem->can_be_inline_klass() && (!elem->is_inlinetype() || elem->flatten_array());
     }
-    if (xklass || (klass->is_array_klass() && !can_be_flattened)) {
+    if (!can_be_flattened && (xklass || klass->is_array_klass())) {
       jint lhelper = klass->layout_helper();
       if (lhelper != Klass::_lh_neutral_value) {
         constant_value = lhelper;
@@ -4323,18 +4321,17 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
   // Inline type array variants:
-  // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue$ref")
-  // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue$val")
-  // - null-free, flattened: MyValue.val[] (ciFlatArrayKlass "[QMyValue$val")
+  // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue")
+  // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
+  // - null-free, flattened: MyValue.val[] (ciFlatArrayKlass "[QMyValue")
   // Check if array is a null-free, non-flattened inline type array
   // that needs to be initialized with the default inline type.
   Node* default_value = NULL;
   Node* raw_default_value = NULL;
   if (ary_ptr != NULL && ary_ptr->klass_is_exact()) {
     // Array type is known
-    ciKlass* elem_klass = ary_ptr->klass()->as_array_klass()->element_klass();
-    if (elem_klass != NULL && elem_klass->is_inlinetype()) {
-      ciInlineKlass* vk = elem_klass->as_inline_klass();
+    if (ary_ptr->klass()->as_array_klass()->is_elem_null_free()) {
+      ciInlineKlass* vk = ary_ptr->klass()->as_array_klass()->element_klass()->as_inline_klass();
       if (!vk->flatten_array()) {
         default_value = InlineTypeNode::default_oop(gvn(), vk);
       }
@@ -4708,7 +4705,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
     if (con_type->is_inlinetypeptr() && con_type->inline_klass()->is_scalarizable()) {
       assert(!con_type->is_zero_type(), "Inline types are null-free");
       con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
-    } else if (con_type->is_zero_type() && field->type()->is_inlinetype()) {
+    } else if (con_type->is_zero_type() && field->is_null_free()) {
       con = InlineTypeNode::default_oop(gvn(), field->type()->as_inline_klass());
     }
     return con;
