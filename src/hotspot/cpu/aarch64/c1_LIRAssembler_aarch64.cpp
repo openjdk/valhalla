@@ -376,10 +376,7 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) 
 int LIR_Assembler::initial_frame_size_in_bytes() const {
   // if rounding, must let FrameMap know!
 
-  // The frame_map records size in slots (32bit word)
-
-  // subtract two words to account for return address and link
-  return (frame_map()->framesize() - (2*VMRegImpl::slots_per_word))  * VMRegImpl::stack_slot_size;
+  return in_bytes(frame_map()->framesize_in_bytes());
 }
 
 
@@ -461,7 +458,8 @@ int LIR_Assembler::emit_unwind_handler() {
   // remove the activation and dispatch to the unwind handler
   __ block_comment("remove_frame and dispatch to the unwind handler");
   int initial_framesize = initial_frame_size_in_bytes();
-  __ remove_frame(initial_framesize, needs_stack_repair(), initial_framesize - wordSize);
+  int sp_inc_offset = initial_framesize - 3*wordSize;  // Below saved FP and LR
+  __ remove_frame(initial_framesize, needs_stack_repair(), sp_inc_offset);
   __ far_jump(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
 
   // Emit the slow path assembly
@@ -528,7 +526,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
 
   // Pop the stack before the safepoint code
   int initial_framesize = initial_frame_size_in_bytes();
-  __ remove_frame(initial_framesize, needs_stack_repair(), initial_framesize - wordSize);
+  int sp_inc_offset = initial_framesize - 3*wordSize;  // Below saved FP and LR
+  __ remove_frame(initial_framesize, needs_stack_repair(), sp_inc_offset);
 
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();

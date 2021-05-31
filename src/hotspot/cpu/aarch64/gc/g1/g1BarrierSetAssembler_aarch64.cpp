@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -193,8 +193,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
                                                   Register tmp,
                                                   Register tmp2) {
   assert(thread == rthread, "must be");
-  assert_different_registers(store_addr, new_val, thread, tmp, tmp2,
-                             rscratch1);
+  assert_different_registers(store_addr, new_val, thread, tmp, rscratch1);
   assert(store_addr != noreg && new_val != noreg && tmp != noreg
          && tmp2 != noreg, "expecting a register");
 
@@ -219,6 +218,8 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ cbz(new_val, done);
 
   // storing region crossing non-NULL, is card already dirty?
+
+  assert_different_registers(store_addr, thread, tmp, tmp2, rscratch1);
 
   const Register card_addr = tmp;
 
@@ -290,17 +291,15 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
 
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool as_normal = (decorators & AS_NORMAL) != 0;
-  assert((decorators & IS_DEST_UNINITIALIZED) == 0, "unsupported");
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
-  bool needs_pre_barrier = as_normal;
+  bool needs_pre_barrier = as_normal && !dest_uninitialized;
   bool needs_post_barrier = (val != noreg && in_heap);
 
-
-   if (tmp3 == noreg) {
-     tmp3 = rscratch2;
-   }
-   // assert_different_registers(val, tmp1, tmp2, tmp3, rscratch1, rscratch2);
-   assert_different_registers(val, tmp1, tmp2, tmp3);
+  if (tmp3 == noreg) {
+    tmp3 = rscratch2;
+  }
+  assert_different_registers(val, tmp1, tmp2, tmp3);
 
   // flatten object address if needed
   if (dst.index() == noreg && dst.offset() == 0) {
@@ -310,7 +309,6 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
   } else {
     __ lea(tmp1, dst);
   }
-
 
   if (needs_pre_barrier) {
       g1_write_barrier_pre(masm,
@@ -329,23 +327,22 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
     Register new_val = val;
     if (needs_post_barrier) {
       if (UseCompressedOops) {
-        // FIXME: Refactor the code to avoid usage of r19 and stay within tmpX
-        new_val = r19;
+        new_val = tmp3;
         __ mov(new_val, val);
       }
-   }
+    }
 
-   BarrierSetAssembler::store_at(masm, decorators, type, Address(tmp1, 0), val, noreg, noreg, noreg);
+    BarrierSetAssembler::store_at(masm, decorators, type, Address(tmp1, 0), val, noreg, noreg, noreg);
 
     if (needs_post_barrier) {
-       g1_write_barrier_post(masm,
-                          tmp1 /* store_adr */,
-                          new_val /* new_val */,
-                          rthread /* thread */,
-                          tmp2 /* tmp */,
-                          tmp3 /* tmp2 */);
-   }
- }
+      g1_write_barrier_post(masm,
+                            tmp1 /* store_adr */,
+                            new_val /* new_val */,
+                            rthread /* thread */,
+                            tmp2 /* tmp */,
+                            tmp3 /* tmp2 */);
+    }
+  }
 
 }
 

@@ -300,7 +300,7 @@ void frame::deoptimize(JavaThread* thread) {
     // Also, if the method is synchronized, we first need to acquire the lock.
     // Don't patch the return pc to delay deoptimization until we enter the method body (the check
     // addedin LIRGenerator::do_Base will detect the pending deoptimization by checking the original_pc).
-#ifdef ASSERT
+#if defined ASSERT && !defined AARCH64   // Stub call site does not look like NativeCall on AArch64
     NativeCall* call = nativeCall_before(this->pc());
     address dest = call->destination();
     assert(dest == Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id) ||

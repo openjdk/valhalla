@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,7 @@
                            const GrowableArray<SigEntry>* sig,
                            int args_passed, int args_on_stack, VMRegPair* regs,
                            int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,
-                           int sp_inc);
+                           int sp_inc, Register val_array);
   bool shuffle_inline_args_spill(bool is_packing, const GrowableArray<SigEntry>* sig, int sig_index,
                                  VMRegPair* regs_from, int from_index, int regs_from_count, RegState* reg_state);
 // };

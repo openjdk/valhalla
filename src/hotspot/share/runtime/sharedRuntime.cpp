@@ -3544,31 +3544,6 @@ JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method
   current->set_vm_result_2(callee()); // TODO: required to keep callee live?
 JRT_END
 
-// TODO remove this once the AARCH64 dependency is gone
-// Iterate over the array of heap allocated inline types and apply the GC post barrier to all reference fields.
-// This is called from the C2I adapter after inline type arguments are heap allocated and initialized.
-JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* current, objArrayOopDesc* array))
-{
-  assert(InlineTypePassFieldsAsArgs, "no reason to call this");
-  assert(oopDesc::is_oop(array), "should be oop");
-  for (int i = 0; i < array->length(); ++i) {
-    instanceOop valueOop = (instanceOop)array->obj_at(i);
-    InlineKlass* vk = InlineKlass::cast(valueOop->klass());
-    if (vk->contains_oops()) {
-      const address dst_oop_addr = ((address) (void*) valueOop);
-      OopMapBlock* map = vk->start_of_nonstatic_oop_maps();
-      OopMapBlock* const end = map + vk->nonstatic_oop_map_count();
-      while (map != end) {
-        address doop_address = dst_oop_addr + map->offset();
-        barrier_set_cast<ModRefBarrierSet>(BarrierSet::barrier_set())->
-          write_ref_array((HeapWord*) doop_address, map->count());
-        map++;
-      }
-    }
-  }
-}
-JRT_END
-
 // We're returning from an interpreted method: load each field into a
 // register following the calling convention
 JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* current, oopDesc* res))
