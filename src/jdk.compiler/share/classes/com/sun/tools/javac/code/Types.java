@@ -2261,23 +2261,30 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
 
+        if (isPrimitiveClass(t)) {
+            // No man may be an island, but the bell tolls for a value.
+            return t.tsym == sym ? t : null;
+        }
+
         if (sym.type == syms.objectType) { //optimization
-            if (!isPrimitiveClass(t))
-                return syms.objectType;
+            return syms.objectType;
         }
         if (sym == syms.identityObjectType.tsym) {
-            // IdentityObject is super interface of every concrete identity class other than jlO
-            if (t.isPrimitiveClass() || t.tsym == syms.objectType.tsym)
+            // IdentityObject is a super interface of every concrete identity class other than jlO
+            if (t.tsym == syms.objectType.tsym)
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
             if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
                 return syms.identityObjectType;
+            }
+            if (implicitIdentityType(t)) {
+                return syms.identityObjectType;
             } // else fall through and look for explicit coded super interface
         } else if (sym == syms.primitiveObjectType.tsym) {
-            if (t.isPrimitiveClass() || t.isReferenceProjection())
+            if (t.isReferenceProjection())
                 return syms.primitiveObjectType;
-            if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym || !t.hasTag(CLASS))
+            if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
                 return null;
             // else fall through and look for explicit coded super interface
         }
@@ -2296,10 +2303,6 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 if (t.tsym == sym)
                     return t;
-
-                // No man may be an island, but the bell tolls for a value.
-                if (isPrimitiveClass(t))
-                    return null;
 
                 Symbol c = t.tsym;
                 if (!seenTypes.add(c)) {
@@ -2345,6 +2348,63 @@ public class Types {
                 return t;
             }
         };
+
+        // where
+        private boolean implicitIdentityType(Type t) {
+            /* An abstract class can be declared to implement either IdentityObject or PrimitiveObject;
+             * or, if it declares a field, an instance initializer, a non-empty constructor, or
+             * a synchronized method, it implicitly implements IdentityObject.
+             */
+            if (!t.tsym.isAbstract())
+                return false;
+
+            for (; t != Type.noType; t = supertype(t)) {
+
+                if (t == null || t.tsym == null || t.tsym.kind == ERR)
+                    return false;
+
+                if  (t.tsym == syms.objectType.tsym)
+                    return false;
+
+                if (!t.tsym.isAbstract()) {
+                    return !t.tsym.isPrimitiveClass();
+                }
+
+                if ((t.tsym.flags() & HASINITBLOCK) != 0) {
+                    return true;
+                }
+
+                // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+                Type encl = t.getEnclosingType();
+                if (encl != null && encl.hasTag(CLASS)) {
+                    return true;
+                }
+                for (Symbol s : t.tsym.members().getSymbols(NON_RECURSIVE)) {
+                    switch (s.kind) {
+                        case VAR:
+                            if ((s.flags() & STATIC) == 0) {
+                                return true;
+                            }
+                            break;
+                        case MTH:
+                            if ((s.flags() & SYNCHRONIZED) != 0) {
+                                return true;
+                            } else if (s.isConstructor()) {
+                                MethodSymbol m = (MethodSymbol)s;
+                                if (m.getParameters().size() > 0) {
+                                    return true;
+                                } else {
+                                    if ((m.flags() & (GENERATEDCONSTR | EMPTYNOARGCONSTR)) == 0) {
+                                        return true;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                }
+            }
+            return false;
+        }
 
     /**
      * Return the base type of t or any of its outer types that starts

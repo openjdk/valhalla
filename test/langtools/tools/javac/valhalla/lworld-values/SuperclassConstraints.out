@@ -1,4 +1,4 @@
-SuperclassConstraints.java:14:15: compiler.err.primitive.class.must.not.implement.identity.object: SuperclassConstraints.I0
+SuperclassConstraints.java:14:15: compiler.err.concrete.supertype.for.primitive.class: SuperclassConstraints.I0, SuperclassConstraints.BadSuper
 SuperclassConstraints.java:44:15: compiler.err.super.field.not.allowed: x, SuperclassConstraints.I6, SuperclassConstraints.SuperWithInstanceField
 SuperclassConstraints.java:76:15: compiler.err.super.no.arg.constructor.must.be.empty: SuperclassConstraints.SuperWithNonEmptyNoArgCtor(), SuperclassConstraints.I9, SuperclassConstraints.SuperWithNonEmptyNoArgCtor
 SuperclassConstraints.java:85:15: compiler.err.super.constructor.cannot.take.arguments: SuperclassConstraints.SuperWithArgedCtor(java.lang.String), SuperclassConstraints.I10, SuperclassConstraints.SuperWithArgedCtor

@@ -8,7 +8,7 @@
 public class ConflictingSuperInterfaceTest {
 
     interface I<T> {}
-    abstract class S implements I<String> {}
+    static abstract class S implements I<String> {}
     primitive static class Foo extends S implements I<Integer> {
         String s = "";
     }
