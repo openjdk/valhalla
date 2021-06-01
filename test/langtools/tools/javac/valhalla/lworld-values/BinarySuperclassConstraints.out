@@ -1,8 +1,8 @@
-BinarySuperclassConstraints.java:14:15: compiler.err.primitive.class.must.not.implement.identity.object: BinarySuperclassConstraints.I0
+BinarySuperclassConstraints.java:14:15: compiler.err.concrete.supertype.for.primitive.class: BinarySuperclassConstraints.I0, SuperclassCollections.BadSuper
 BinarySuperclassConstraints.java:29:15: compiler.err.super.field.not.allowed: x, BinarySuperclassConstraints.I6, SuperclassCollections.SuperWithInstanceField
 BinarySuperclassConstraints.java:38:15: compiler.err.super.no.arg.constructor.must.be.empty: SuperclassCollections.SuperWithNonEmptyNoArgCtor(), BinarySuperclassConstraints.I9, SuperclassCollections.SuperWithNonEmptyNoArgCtor
 BinarySuperclassConstraints.java:40:15: compiler.err.super.constructor.cannot.take.arguments: SuperclassCollections.SuperWithArgedCtor(java.lang.String), BinarySuperclassConstraints.I10, SuperclassCollections.SuperWithArgedCtor
 BinarySuperclassConstraints.java:42:15: compiler.err.super.no.arg.constructor.must.be.empty: SuperclassCollections.SuperWithInstanceInit(), BinarySuperclassConstraints.I11, SuperclassCollections.SuperWithInstanceInit
 BinarySuperclassConstraints.java:44:15: compiler.err.super.method.cannot.be.synchronized: foo(), BinarySuperclassConstraints.I12, SuperclassCollections.SuperWithSynchronizedMethod
-BinarySuperclassConstraints.java:46:15: compiler.err.encl.class.required: SuperclassCollections.InnerSuper
+BinarySuperclassConstraints.java:46:15: compiler.err.super.class.cannot.be.inner: BinarySuperclassConstraints.I13, SuperclassCollections.InnerSuper
 7 errors

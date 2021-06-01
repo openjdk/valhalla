@@ -5415,8 +5415,6 @@ public class Attr extends JCTree.Visitor {
                     env.info.isSerializable = true;
                 }
 
-                attribClassBody(env, c);
-
                 if ((c.flags() & (PRIMITIVE_CLASS | ABSTRACT)) == PRIMITIVE_CLASS) { // for non-intersection, concrete values.
                     Assert.check(env.tree.hasTag(CLASSDEF));
                     JCClassDecl classDecl = (JCClassDecl) env.tree;
@@ -5424,6 +5422,8 @@ public class Attr extends JCTree.Visitor {
                         chk.checkSuperConstraintsOfPrimitiveClass(env.tree.pos(), c);
                     }
                 }
+
+                attribClassBody(env, c);
 
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
                 chk.checkClassOverrideEqualsAndHashIfNeeded(env.tree.pos(), c);
