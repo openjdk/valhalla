@@ -54,7 +54,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestNullableInlineTypes test = new TestNullableInlineTypes();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, Test17Value.class, Test21Value.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, Test17Value.class, Test21Value.class, MyValue1Wrapper.class);
     }
 
     static {
@@ -981,7 +981,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     MyValue1 flatField;
 
     // Test scalarization of .ref
-    @Test(failOn = ALLOC_G + ALLOC + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + STORE + TRAP)
     public int test41(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1008,7 +1008,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     // Same as test41 but with call to hash()
-    @Test(failOn = ALLOC + STORE)
+    @Test(failOn = ALLOC + STORE + TRAP)
     public long test42(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1115,7 +1115,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public int test46(boolean b) {
         MyValue1.ref val = null;
         if (b) {
@@ -1150,7 +1150,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(test47(false), null);
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public int test48(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1189,7 +1189,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return flatField;
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public void test50(boolean b) {
         Object o = null;
         if (b) {
@@ -1210,7 +1210,6 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(flatField.hash(), testValue1.hash());
     }
 
-// TODO register above, add forceinline
     static final primitive class MyValue1Wrapper {
         final MyValue1.ref vt;
 
@@ -1218,6 +1217,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
             this.vt = vt;
         }
 
+        @ForceInline
         public long hash() {
             return (vt != null) ? vt.hash() : 0;
         }
@@ -1225,7 +1225,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     MyValue1Wrapper wrapperField;
 
-    @Test(failOn = ALLOC_G + ALLOC + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + STORE + TRAP)
     public long test51(boolean b) {
         MyValue1Wrapper.ref val = MyValue1Wrapper.default;
         if (b) {
@@ -1241,7 +1241,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(test51(false), MyValue1Wrapper.default.hash());
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public boolean test52(boolean b) {
         MyValue1.ref val = MyValue1.default;
         if (b) {
@@ -1257,7 +1257,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertFalse(test52(false));
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public boolean test53(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1273,7 +1273,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertFalse(test53(false));
     }
 
-    @Test(failOn = ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
     public long test54(boolean b1, boolean b2) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1296,7 +1296,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
 // TODO Same as above but with Wrapper
-    @Test(failOn = ALLOC_G + ALLOC + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + STORE + TRAP)
     public int test55(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1323,7 +1323,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @Test(failOn = ALLOC + STORE)
+    @Test(failOn = ALLOC + STORE + TRAP)
     public long test56(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1434,7 +1434,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public int test60(boolean b) {
         MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
         if (b) {
@@ -1471,7 +1471,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(test61(false), null);
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public int test62(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1512,7 +1512,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return flatField;
     }
 
-    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
     public void test64(boolean b) {
         MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
         if (b) {
@@ -1531,5 +1531,23 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(flatField.hash(), vt.hash());
         test64(true);
         Asserts.assertEquals(flatField.hash(), testValue1.hash());
+    }
+
+    @Test(failOn = ALLOC_G + ALLOC + LOAD + STORE + TRAP)
+    public long test65(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = null;
+        }
+        if (val != null) {
+            return val.hashPrimitive();
+        }
+        return 42;
+    }
+
+    @DontCompile
+    public void test65_verifier(boolean warmup) {
+        Asserts.assertEquals(test65(true), 42L);
+        Asserts.assertEquals(test65(false), MyValue1.createWithFieldsInline(rI, rL).hashPrimitive());
     }
 }

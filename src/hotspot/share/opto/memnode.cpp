@@ -1241,10 +1241,10 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
 
-  if (base != NULL && base->is_InlineTypePtr() && offset > oopDesc::klass_offset_in_bytes() &&
-      !phase->type(base->as_InlineTypePtr()->get_oop())->maybe_null()) {
-    assert(!phase->type(base->as_InlineTypePtr()->get_oop())->maybe_null(), "Could be null");
-    Node* value = base->as_InlineTypePtr()->field_value_by_offset((int)offset, true);
+  // TODO add comment about why uncast is okay
+  InlineTypePtrNode* vt = (base != NULL) ? base->uncast()->isa_InlineTypePtr() : NULL;
+  if (vt != NULL && offset > oopDesc::klass_offset_in_bytes()) {
+    Node* value = vt->field_value_by_offset((int)offset, true);
     if (value->is_InlineType()) {
       // Non-flattened inline type field
       InlineTypeNode* vt = value->as_InlineType();

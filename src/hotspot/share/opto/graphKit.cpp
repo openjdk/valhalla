@@ -1235,10 +1235,10 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
+  // TODO why null_control == NULL?
   if (value->is_InlineTypePtr() && null_control == NULL) {
-    // TODO GraphKit::cast_not_null scalarizes this
-    // TODO shouldn't we be able to do the null check in the oop? Merged in InlineTypePtrs should be scalarized, right?
-    null_check(value->in(2));
+    // TODO use null check_common here?
+    null_check_common(value->in(2), type, assert_null, null_control, speculative);
 /*
     const Type *t = _gvn.type(value);
     const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
@@ -1260,10 +1260,6 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       tty->print_cr("##");
     }
     return vt;
-  } else if (_gvn.type(value)->is_inlinetypeptr()) {
-   // tty->print_cr("## NULL CHECKING");
-    //value->dump(2);
-    //tty->print_cr("##");
   }
 
   // Construct NULL check
@@ -1474,12 +1470,6 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   Node *cast = new CastPPNode(obj,t_not_null);
   cast->init_req(0, control());
   cast = _gvn.transform( cast );
-
-  // TODO this should no longer be needed once we scalarize nullable inline types everywhere
-  if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
-    // Scalarize inline type now that we know it's non-null
-    cast = InlineTypeNode::make_from_oop(this, cast, t->inline_klass())->as_ptr(&gvn());
-  }
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.

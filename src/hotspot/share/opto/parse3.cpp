@@ -219,7 +219,6 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
       // ld->dump(10);
        //assert(false, "FAIL");
       // ld = InlineTypeNode::make_from_oop(this, ld, type->inline_klass(), false);
-      ld->dump(3);
       Node* ptr = InlineTypeNode::make_from_oop(this, ld, type->inline_klass(), false);
       ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
       ptr->set_req(1, ld);

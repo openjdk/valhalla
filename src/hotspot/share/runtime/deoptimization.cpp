@@ -1068,8 +1068,6 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
 
     if (sv->get_oop()->is_constant_oop()) {
       if (sv->get_oop()->as_ConstantOopReadValue()->value().is_null()) {
-        sv->get_oop()->as_ConstantOopReadValue()->print();
-        tty->print_cr("## NULL, skipping allocation");
         continue;
       }
     } else if (sv->get_oop()->is_location()) {
@@ -1077,8 +1075,6 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       //assert(sv->klass()->is)
       StackValue* value = StackValue::create_stack_value(fr, reg_map, sv->get_oop());
       if (value->get_obj().is_null()) {
-        value->print();
-        tty->print_cr("## NULL, skipping allocation");
         continue;
       }
     }

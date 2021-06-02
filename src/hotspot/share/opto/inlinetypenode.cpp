@@ -641,11 +641,16 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
   // values from a heap-allocated version and also save the oop.
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
 
-  if (oop->isa_InlineTypePtr()) {
+  // TODO add a comment about why uncast is okay
+  if (oop->uncast()->isa_InlineTypePtr()) {
     // Can happen with late inlining
-    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
+    InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
     vt->set_oop(vtptr->get_oop());
-    vt->set_req(2, default_oop(gvn, vk));
+    if (null_free) {
+      vt->set_req(2, default_oop(gvn, vk));
+    } else {
+      vt->set_req(2, vtptr->in(2));
+    }
     for (uint i = Values; i < vtptr->req(); ++i) {
       vt->init_req(i, vtptr->in(i));
     }
@@ -690,6 +695,8 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
   } else {
     // Oop can never be null
     Node* init_ctl = kit->control();
+    // TODO move all these into the constructor
+    vt->set_req(2, default_oop(gvn, vk));
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
     assert(vt->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
            AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->is_loaded(&gvn) == oop, "inline type should be loaded");
@@ -778,13 +785,13 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
     Node* value = field_value(i);
-    if (value->is_InlineType()) {
-      InlineTypeNode* vt = value->as_InlineType();
-      if (vt->inline_klass()->is_empty()) {
+    if (value->is_InlineTypeBase()) {
+      InlineTypeBaseNode* vt = value->as_InlineTypeBase();
+      if (vt->type()->inline_klass()->is_empty()) {
         continue;
       } else if (field_is_flattened(i)) {
         // Check inline type field load recursively
-        base = vt->is_loaded(phase, vk, base, offset - vt->inline_klass()->first_field_offset());
+        base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->first_field_offset());
         if (base == NULL) {
           return NULL;
         }
@@ -875,6 +882,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
+      const Type* type2 = kit->gvn().type(parm);
       if (type->is_inlinetype()) {
         // Non-flattened inline type field
         if (type->as_inline_klass()->is_scalarizable()) {
@@ -882,6 +890,11 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
         } else {
           parm = kit->null2default(parm, type->as_inline_klass());
         }
+      } else if (type2->is_inlinetypeptr()) {
+        Node* ptr = InlineTypeNode::make_from_oop(kit, parm, type2->inline_klass(), false);
+        ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+        ptr->set_req(1, parm);
+        parm = kit->gvn().transform(ptr);
       }
       BasicType bt = type->basic_type();
       base_input += type2size[bt];
@@ -1050,6 +1063,7 @@ Node* InlineTypePtrNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     if (useless) {
       PhaseIterGVN* igvn = phase->is_IterGVN();
       igvn->_worklist.push(this);
+      // TODO check all places where we get the oop of a InlineTypePtrNode, we might loose the ability to null check in(2) and we might keep allocations alive
       igvn->replace_in_uses(this, get_oop());
       return NULL;
     }

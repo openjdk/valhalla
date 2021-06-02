@@ -1113,6 +1113,12 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
+  if (in(1)->is_InlineTypePtr() && phase->type(in(2))->isa_ptr()->is_zero_type()) {
+// TODO can we adjust the cast here as well?
+    set_req_X(1, in(1)->in(2), phase);
+    return this;
+  }
+
   // Constant pointer on right?
   const TypeKlassPtr* t2 = phase->type(in(2))->isa_klassptr();
   if (t2 == NULL || !t2->klass_is_exact())

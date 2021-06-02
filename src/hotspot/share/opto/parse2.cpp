@@ -3499,14 +3499,8 @@ void Parse::do_one_bytecode() {
     b = pop();
     if (b->is_InlineType()) {
       // Return constant false because 'b' is always non-null
-      // TODO could it be that we need a null check here as well?
       c = _gvn.makecon(TypeInt::CC_GT);
     } else {
-      if (b->is_InlineTypePtr()) {
-        //b->dump(2);
-        b = b->in(2);
-        //assert(false, "FAIL");
-      }
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {
         inc_sp(1);
