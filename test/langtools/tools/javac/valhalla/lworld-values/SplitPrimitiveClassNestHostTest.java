@@ -42,7 +42,7 @@ public primitive class SplitPrimitiveClassNestHostTest implements java.io.Serial
         // check wiring of super types.
         Class<?> superClass = SplitPrimitiveClassNestHostTest.class.getSuperclass();
         if (!superClass.equals(
-                    SplitPrimitiveClassNestHostTest.class.referenceType().get()))
+                    SplitPrimitiveClassNestHostTest.class.asPrimaryType()))
             throw new AssertionError("Wrong superclass for SplitPrimitiveClassNestHostTest");
 
         Class<?> [] superInterfaces = SplitPrimitiveClassNestHostTest.class.getInterfaces();
@@ -64,7 +64,7 @@ public primitive class SplitPrimitiveClassNestHostTest implements java.io.Serial
 
 
         Class<?> nestHost = SplitPrimitiveClassNestHostTest.class.getNestHost();
-        if (!nestHost.equals(SplitPrimitiveClassNestHostTest.class.referenceType().get()))
+        if (!nestHost.equals(SplitPrimitiveClassNestHostTest.class.asPrimaryType()))
             throw new AssertionError("Wrong nest host: " + nestHost);
 
         Class<?> [] members = nestHost.getNestMembers();
@@ -92,7 +92,7 @@ public primitive class SplitPrimitiveClassNestHostTest implements java.io.Serial
         if (!Arrays.equals(members[2].getNestMembers(), members))
             throw new AssertionError("Wrong nest members for member[2]: " + members[2]);
 
-        if (!members[3].equals(Inner.class.referenceType().get()))
+        if (!members[3].equals(Inner.class.asPrimaryType()))
             throw new AssertionError("Wrong member[3]: " + members[3]);
 
         if (!members[3].getNestHost().equals(nestHost))

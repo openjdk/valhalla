@@ -436,7 +436,8 @@ oop SignatureStream::as_java_mirror(Handle class_loader, Handle protection_domai
   if (klass == NULL) {
     return NULL;
   }
-  return klass->java_mirror();
+  return has_Q_descriptor() ? InlineKlass::cast(klass)->val_mirror()
+                            : klass->java_mirror();
 }
 
 void SignatureStream::skip_to_return_type() {

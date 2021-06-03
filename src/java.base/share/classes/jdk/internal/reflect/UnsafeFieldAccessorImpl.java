@@ -64,7 +64,7 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     }
 
     protected boolean canBeNull() {
-        return !field.getType().isPrimitiveClass();
+        return !field.getType().isPrimitiveClass() || field.getType().isPrimaryType();
     }
 
     protected Object checkValue(Object value) {
@@ -72,7 +72,11 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
             throw new NullPointerException(field + " cannot be set to null");
 
         if (value != null) {
-            if (!field.getType().isAssignableFrom(value.getClass())) {
+            Class<?> type = value.getClass();
+            if (type.isPrimitiveClass()) {
+                type = type.asValueType();
+            }
+            if (!field.getType().isAssignableFrom(type)) {
                 throwSetIllegalArgumentException(value);
             }
         }

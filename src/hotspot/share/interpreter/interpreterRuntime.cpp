@@ -160,7 +160,9 @@ JRT_ENTRY(void, InterpreterRuntime::ldc(JavaThread* current, bool wide))
 
   assert (tag.is_unresolved_klass() || tag.is_klass(), "wrong ldc call");
   Klass* klass = pool->klass_at(index, CHECK);
-  oop java_class = klass->java_mirror();
+  oop java_class = tag.is_Qdescriptor_klass()
+                      ? InlineKlass::cast(klass)->val_mirror()
+                      : klass->java_mirror();
   current->set_vm_result(java_class);
 JRT_END
 

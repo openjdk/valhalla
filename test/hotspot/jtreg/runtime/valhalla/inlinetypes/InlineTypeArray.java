@@ -286,10 +286,10 @@ public class InlineTypeArray {
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
-        assertTrue(myInts instanceof MyInt.ref[]);
+        assertTrue(myInts instanceof MyInt[]);
 
         Class<?> cls = MyInt.class;
-        assertTrue(cls.isPrimitiveClass());
+        assertTrue(cls.isValueType());
         Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");
         assertTrue(arrObj instanceof Comparable[], "Not Comparable array");

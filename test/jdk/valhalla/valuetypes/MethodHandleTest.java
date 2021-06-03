@@ -33,7 +33,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
@@ -87,13 +86,12 @@ public class MethodHandleTest {
         Point p = Point.makePoint(100, 200);
         Line l = Line.makeLine(100, 200, 300, 400);
         test.setValueField("p", mv, p);
-        test.setValueField("nfp", mv, p);
-        test.setValueField("l", mv, l);
         test.setValueField("l", mv, l);
         test.setValueField("staticPoint", null, p);
-        test.setValueField("staticLine", null, l);
-        // staticLine is a nullable field
-        test.setValueField("staticLine", null, null);
+        // the following are nullable fields
+        test.setField("nfp", mv, p, false);
+        test.setField("staticLine", null, l, false);
+        test.setField("staticLine", null, null, false);
     }
 
     @Test
@@ -119,7 +117,7 @@ public class MethodHandleTest {
 
         Class<?> elementType = c.getComponentType();
         if (elementType.isPrimitiveClass()) {
-            assertTrue(elementType == elementType.valueType().get());
+            assertTrue(elementType == elementType.asValueType());
         }
         // set an array element to null
         try {
@@ -192,9 +190,14 @@ public class MethodHandleTest {
      * The field must be flattenable but may or may not be flattened.
      */
     void setValueField(String name, Object obj, Object value) throws Throwable {
+        setField(name, obj, value, true);
+    }
+
+    void setField(String name, Object obj, Object value, boolean isValue) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isPrimitiveClass() || f.getType().valueType().isPresent());
+        assertTrue(f.getType().isPrimitiveClass());
+        assertTrue(f.getType().isValueType() == isValue);
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 
@@ -289,7 +292,7 @@ public class MethodHandleTest {
      */
     void ensureNullable(Field f) throws Throwable {
         assertFalse(Modifier.isStatic(f.getModifiers()));
-        boolean canBeNull = !f.getType().isPrimitiveClass();
+        boolean canBeNull = f.getType().isPrimaryType();
         // test reflection
         try {
             f.set(o, null);

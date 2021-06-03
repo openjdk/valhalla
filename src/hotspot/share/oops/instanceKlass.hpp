@@ -1261,6 +1261,7 @@ public:
 
   // Naming
   const char* signature_name() const;
+  const char* signature_name_of_carrier(char c) const;
 
   // Oop fields (and metadata) iterators
   //

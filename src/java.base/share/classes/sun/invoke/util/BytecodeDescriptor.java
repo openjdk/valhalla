@@ -90,7 +90,8 @@ public class BytecodeDescriptor {
             i[0] = endc+1;
             String name = str.substring(begc, endc).replace('/', '.');
             try {
-                return Class.forName(name, false, loader);
+                Class<?> clz = Class.forName(name, false, loader);
+                return c == 'Q' ? clz.asValueType() : clz.asPrimaryType();
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }

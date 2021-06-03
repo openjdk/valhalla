@@ -59,17 +59,17 @@ public class InlineConstructorTest {
     @Test
     public static void testInlineClassConstructor() throws Exception {
         String cn = INLINE_TYPE.getName();
-        Class<?> c = Class.forName(cn);
+        Class<?> c = Class.forName(cn).asValueType();
 
         assertTrue(c.isPrimitiveClass());
-        assertEquals(c, INLINE_TYPE);
+        assertTrue(c == INLINE_TYPE);
     }
 
     @Test
     public static void constructor() throws Exception {
         Constructor<?> ctor = INLINE_TYPE.getDeclaredConstructor();
         Object o = ctor.newInstance();
-        assertEquals(o.getClass(), INLINE_TYPE);
+        assertTrue(o.getClass() == INLINE_TYPE.asPrimaryType());
     }
 
     // Check that the class has the expected Constructors

@@ -81,7 +81,8 @@ class DirectMethodHandle extends MethodHandle {
         if (!member.isStatic()) {
             if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isObjectConstructor())
                 throw new InternalError(member.toString());
-            mtype = mtype.insertParameterTypes(0, refc);
+            Class<?> receiverType = refc.isPrimitiveClass() ? refc.asValueType() : refc;
+            mtype = mtype.insertParameterTypes(0, receiverType);
         }
         if (!member.isField()) {
             // refKind reflects the original type of lookup via findSpecial or
