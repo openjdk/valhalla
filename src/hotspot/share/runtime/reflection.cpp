@@ -349,7 +349,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    if (k->is_inline_klass()) {
+    if (k->is_inline_klass() && java_lang_Class::is_secondary_mirror(element_mirror)) {
       return oopFactory::new_flatArray(k, length, THREAD);
     } else {
       return oopFactory::new_objArray(k, length, THREAD);
@@ -394,7 +394,11 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
       dim += k_dim;
     }
   }
-  klass = klass->array_klass(dim, CHECK_NULL);
+  if (klass->is_inline_klass() && java_lang_Class::is_secondary_mirror(element_mirror)) {
+    klass = InlineKlass::cast(klass)->null_free_inline_array_klass(dim, CHECK_NULL);
+  } else {
+    klass = klass->array_klass(dim, CHECK_NULL);
+  }
   oop obj = ArrayKlass::cast(klass)->multi_allocate(len, dimensions, CHECK_NULL);
   assert(obj->is_array(), "just checking");
   return arrayOop(obj);
@@ -1185,7 +1189,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror);
   } else if (java_lang_Class::as_Klass(return_type_mirror)->is_inline_klass()) {
-    rtype = T_INLINE_TYPE;
+    rtype = java_lang_Class::is_primary_mirror(return_type_mirror) ? T_OBJECT : T_INLINE_TYPE;
   } else {
     rtype = T_OBJECT;
   }

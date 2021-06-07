@@ -29,11 +29,9 @@
  * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
-
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
@@ -166,7 +164,7 @@ public class ObjectMethods {
             { P1,                   hash(Point.class, 1, 2) },
             { LINE1,                hash(Line.class, Point.makePoint(1, 2), Point.makePoint(3, 4)) },
             { VALUE,                hash(hashCodeComponents(VALUE))},
-            { VALUE1,                hash(hashCodeComponents(VALUE1))},
+            { VALUE1,               hash(hashCodeComponents(VALUE1))},
             { Point.makePoint(0,0), hash(Point.class, 0, 0) },
             { Point.default,        hash(Point.class, 0, 0) },
             { MyValue1.default,     hash(MyValue1.class, Point.default, null) },
@@ -191,6 +189,9 @@ public class ObjectMethods {
                     throw new RuntimeException(e);
                 }
             });
+        if (type.isPrimitiveClass()) {
+            type = type.asValueType();
+        }
         return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
     }
 

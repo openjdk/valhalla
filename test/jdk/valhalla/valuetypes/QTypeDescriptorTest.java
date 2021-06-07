@@ -139,9 +139,7 @@ public class QTypeDescriptorTest {
     @Test(dataProvider = "descriptors")
     public static void testDescriptors(Class<?> defc, String name, Class<?>[] params, boolean found) throws Exception {
         try {
-            // TODO: methods are in the reference projection
-            Class<?> declaringClass = defc /* defc.referenceType().get() */;
-            declaringClass.getDeclaredMethod(name, params);
+            defc.getDeclaredMethod(name, params);
             if (!found) throw new AssertionError("Expected NoSuchMethodException");
         } catch (NoSuchMethodException e) {
             if (found) throw e;
@@ -152,18 +150,18 @@ public class QTypeDescriptorTest {
     static Object[][] methodTypes() {
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
-            { "point",      MethodType.methodType(Point.ref.class),                                     true },
-            { "pointValue", MethodType.methodType(Point.class),                                         true },
-            { "has",        MethodType.methodType(boolean.class, Point.class, Point.ref.class),         true },
-            { "point",      MethodType.methodType(Point.class),                                         false },
-            { "pointValue", MethodType.methodType(Point.ref.class),                                     false },
-            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class),         false },
-            { "point",      MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),             true },
-            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),                 false },
-            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),                 true },
-            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),             false },
-            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint$ref;)Z", loader),     true },
-            { "has",        MethodType.fromMethodDescriptorString("(LPoint$ref;LPoint$ref;)Z", loader), false },
+            { "point",      MethodType.methodType(Point.ref.class),                                      true },
+            { "pointValue", MethodType.methodType(Point.class),                                          true },
+            { "has",        MethodType.methodType(boolean.class, Point.class, Point.ref.class),          true },
+            { "point",      MethodType.methodType(Point.class),                                          false },
+            { "pointValue", MethodType.methodType(Point.ref.class),                                      false },
+            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class),          false },
+            { "point",      MethodType.fromMethodDescriptorString("()LPoint;", loader),        true },
+            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),        false },
+            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),        true },
+            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint;", loader),        false },
+            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint;)Z", loader),true },
+            { "has",        MethodType.fromMethodDescriptorString("(LPoint;LPoint;)Z", loader),false },
         };
     }
 

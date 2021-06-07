@@ -41,13 +41,6 @@ import static org.testng.Assert.*;
 
 public class Reflection {
     @Test
-    public static void sanityTest() {
-        assertTrue(Point.ref.class.getPermittedSubclasses().length == 1);
-        assertTrue(Line.ref.class.getPermittedSubclasses().length == 1);
-        assertTrue(NonFlattenValue.ref.class.getPermittedSubclasses().length == 1);
-    }
-
-    @Test
     public static void testPointClass() throws Exception  {
         Point o = Point.makePoint(10, 20);
         Reflection test = new Reflection(Point.class, "Point", o);
@@ -55,7 +48,6 @@ public class Reflection {
         test.constructor();
         test.accessFieldX(o.x);
         test.checkStaticField("STATIC_FIELD", Object.class);
-        // TODO: static field is in the reference projection
         Class<?> declaringClass = Point.class;
         test.testSetAccessible(declaringClass.getDeclaredField("STATIC_FIELD"));
     }
@@ -85,13 +77,12 @@ public class Reflection {
      */
     @Test
     public static void testMirrors() throws Exception {
-        Class<?> inlineClass = Point.class;
-        assertTrue(inlineClass.isPrimitiveClass());
-        assertFalse(Point.ref.class.isPrimitiveClass());
-        assertEquals(inlineClass.valueType().get(), Point.class);
-        assertEquals(inlineClass.referenceType().get(), Point.ref.class);
-        assertEquals(Point.ref.class.valueType().get(), Point.class);
-        assertEquals(Point.ref.class.referenceType().get(), Point.ref.class);
+        assertTrue(Point.class.isPrimitiveClass());
+        assertTrue(Point.ref.class.isPrimitiveClass());
+        assertFalse(Point.class.isPrimaryType());
+        assertTrue(Point.ref.class.isPrimaryType());
+        assertEquals(Point.class.asValueType(), Point.class);
+        assertEquals(Point.class.asPrimaryType(), Point.ref.class);
 
         Point o = Point.makePoint(10, 20);
         assertTrue(Point.class.isInstance(o));
@@ -117,25 +108,25 @@ public class Reflection {
     @Test
     public static void testClassName() {
         assertEquals(Point.class.getName(), "Point");
-        assertEquals(Point.ref.class.getName(), "Point$ref");
+        assertEquals(Point.ref.class.getName(), "Point");
         assertEquals(Line.class.getName(), "Line");
         assertEquals((new Point[0]).getClass().getName(), "[QPoint;");
-        assertEquals((new Point.ref[0][0]).getClass().getName(), "[[LPoint$ref;");
+        assertEquals((new Point.ref[0][0]).getClass().getName(), "[[LPoint;");
     }
 
     private final Class<?> c;
     private final Constructor<?> ctor;
     private final Object o;
     Reflection(Class<?> type, String cn, Object o) throws Exception {
-        this.c = Class.forName(cn);
-        if (!c.isPrimitiveClass() || c != type) {
-            throw new RuntimeException(cn + " is not an inline class");
+        this.c = Class.forName(cn).asValueType();
+        if (c != type) {
+            throw new RuntimeException(c + " is not a primitive value type");
         }
 
         // V.class, Class.forName, and the type of the object return the primary mirror
-        assertEquals(type, o.getClass());
-        assertEquals(type, c.valueType().get());
-        assertEquals(c, c.valueType().get());
+        assertEquals(type.asPrimaryType(), o.getClass());
+        assertEquals(type, c.asValueType());
+        assertEquals(c, c.asValueType());
 
         this.ctor = c.getDeclaredConstructor();
         this.o = o;
@@ -144,24 +135,20 @@ public class Reflection {
         // test the primary mirror and secondary mirror
         testMirrors(this.c);
         // test array of Q-type and L-type
-        testArray(c.valueType().get());
-        testArray(c.referenceType().get());
+        testArray(c.asValueType());
+        testArray(c.asPrimaryType());
     }
 
     private static void testMirrors(Class<?> c) {
-        Class<?> valType = c.valueType().get();
-        Class<?> refType = c.referenceType().get();
+        Class<?> valType = c.asValueType();
+        Class<?> refType = c.asPrimaryType();
 
-        assertTrue(valType != null);
-        assertEquals(refType.getTypeName(), c.getTypeName() + "$ref");
-        assertEquals(refType.getSimpleName(), c.getSimpleName() + "$ref");
+        assertEquals(refType.getName(), valType.getName());
+        assertEquals(refType.getTypeName(), c.getTypeName() + ".ref");
+        assertEquals(refType.getSimpleName(), c.getSimpleName());
 
-        assertEquals(refType.getName(), valType.getName() + "$ref");
-        assertEquals(refType.getTypeName(), valType.getTypeName() + "$ref");
-        assertEquals(refType.getSimpleName(), valType.getSimpleName() + "$ref");
-
-        assertEquals(valType.referenceType().get(), refType);
-        assertEquals(refType.valueType().get(), valType);
+        assertEquals(valType.asPrimaryType(), refType);
+        assertEquals(refType.asValueType(), valType);
     }
 
     void testArray(Class<?> elementType) {
@@ -169,10 +156,10 @@ public class Reflection {
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.isArray());
         Class<?> componentType = arrayType.getComponentType();
-        assertTrue(componentType.isPrimitiveClass() || componentType.valueType().isPresent());
+        assertTrue(componentType.isPrimitiveClass());
         assertEquals(componentType, elementType);
         // Array is a reference type
-        assertEquals(arrayType.referenceType().get(), arrayType);
+        assertEquals(arrayType.asPrimaryType(), arrayType);
         if (array[0] == null) {
             System.out.println("array[0] = null");
         } else {
@@ -195,12 +182,12 @@ public class Reflection {
     @SuppressWarnings("deprecation")
     void newInstance() throws Exception {
         Object o = c.newInstance();
-        assertEquals(o.getClass(), c);
+        assertEquals(o.getClass(), c.asPrimaryType());
     }
 
     void constructor() throws Exception {
         Object o = ctor.newInstance();
-        assertEquals(o.getClass(), c);
+        assertEquals(o.getClass(), c.asPrimaryType());
     }
 
     void testSetAccessible(Field f) throws Exception {
@@ -222,8 +209,6 @@ public class Reflection {
      */
     void checkStaticField(String name, Class<?> type) throws Exception {
         Class<?> declaringClass = c;
-        // TODO: methods are in the reference projection
-        // Class<?> declaringClass = c.referenceType().get();
         Field f = declaringClass.getDeclaredField(name);
         assertTrue(f.getType() == type);
         checkToString(f);
@@ -234,8 +219,6 @@ public class Reflection {
      */
     void checkInstanceMethod(String name, Class<?> returnType, Class<?>... params) throws Exception {
         Class<?> declaringClass = c;
-        // TODO: methods are in the reference projection
-        // Class<?> declaringClass = c.referenceType().get();
         Method m = declaringClass.getDeclaredMethod(name, params);
         assertTrue(m.getReturnType() == returnType);
         checkToString(m);
@@ -278,8 +261,6 @@ public class Reflection {
             sb.append("final").append(" ");
         }
         sb.append(displayName(m.getReturnType())).append(" ");
-        // TODO: methods are in the reference projection
-        // Class<?> declaringClass = c.referenceType().get();
         Class<?> declaringClass = c;
         sb.append(declaringClass.getName()).append(".").append(m.getName());
         sb.append("(");
@@ -299,6 +280,6 @@ public class Reflection {
             ClassDesc classDesc = type.describeConstable().get();
             return classDesc.displayName();
         }
-        return type.getName();
+        return type.getTypeName();
     }
 }

@@ -142,6 +142,18 @@ class InlineKlass: public InstanceKlass {
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
 
+  // ref and val mirror
+  oop ref_mirror() const { return java_mirror(); }
+  oop val_mirror() const { return java_lang_Class::secondary_mirror(java_mirror()); }
+
+  // naming
+  const char* ref_signature_name() const {
+    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_CLASS);
+  }
+  const char* val_signature_name() const {
+    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_INLINE_TYPE);
+  }
+
   // Iterators
   virtual void array_klasses_do(void f(Klass* k));
   virtual void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);

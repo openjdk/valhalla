@@ -115,7 +115,7 @@ public class StaticInitFactoryTest {
 
         // crack method handle
         MethodHandleInfo minfo = lookup.revealDirect(mh);
-        assertEquals(minfo.getDeclaringClass(), c);
+        assertEquals(minfo.getDeclaringClass(), c.asPrimaryType());
         assertEquals(minfo.getName(), "<init>");
         assertEquals(minfo.getReferenceKind(), MethodHandleInfo.REF_invokeStatic);
         assertEquals(minfo.getMethodType(), mtype);
