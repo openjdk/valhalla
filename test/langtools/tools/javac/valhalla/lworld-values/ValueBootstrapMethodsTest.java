@@ -55,8 +55,7 @@ public class ValueBootstrapMethodsTest {
 
         public String localToString() {
             System.out.println(l);
-            return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
-                                 i, String.valueOf(d), s, l.toString());
+            return String.format("%s@%s", Value.class.getName(), Integer.toHexString(localHashCode()));
         }
 
         @Override

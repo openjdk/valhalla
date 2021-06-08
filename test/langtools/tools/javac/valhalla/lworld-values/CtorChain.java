@@ -55,8 +55,8 @@ public primitive class CtorChain {
     }
 
     public static void main(String [] args) {
-        String o = new CtorChain().toString();
-        if (!o.equals("[CtorChain x1=10 x2=20 x3=30 x4=40 x5=50]"))
+        CtorChain o = new CtorChain();
+        if (!o.toString().equals("CtorChain@" + Integer.toHexString(o.hashCode())))
             throw new AssertionError("Broken");
     }
 }

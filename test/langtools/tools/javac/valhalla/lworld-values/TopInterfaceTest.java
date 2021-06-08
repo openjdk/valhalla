@@ -58,7 +58,7 @@ public class TopInterfaceTest  {
 
         // Check that V's super class is V.ref in class file.
         Class<?> vrefCls = inln_o.getClass().getSuperclass();
-        if (!vrefCls.getCanonicalName().equals("TopInterfaceTest.V$ref"))
+        if (!vrefCls.getCanonicalName().equals("TopInterfaceTest.V.ref"))
             throw new AssertionError("Wrong super type for value type");
 
         // Check that no injection has happened for jlO itself.

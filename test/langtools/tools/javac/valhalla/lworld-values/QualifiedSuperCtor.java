@@ -32,13 +32,17 @@ primitive class A {
     int x = 1000000;
     class Inner { 
         String aDotThis;
+        int aDotThisHash;
         Inner() {
             aDotThis = A.this.toString();
+            aDotThisHash = A.this.hashCode();
         }
 
         String getADotThis() {
             return aDotThis;
         }
+
+        int getADotThisHash() { return aDotThisHash; }
     }
 }
 
@@ -48,7 +52,8 @@ public class QualifiedSuperCtor extends A.Inner {
     }
 
     public static void main(String [] args) {
-        if (!new QualifiedSuperCtor(new A()).getADotThis().equals("[A x=1000000]"))
-            throw new AssertionError("Broken");
+        QualifiedSuperCtor o = new QualifiedSuperCtor(new A());
+        if (!o.getADotThis().equals("A@" + Integer.toHexString(o.getADotThisHash())))
+            throw new AssertionError("Broken" + o.getADotThis() + " " + o.getADotThisHash());
     }
 }

@@ -47,11 +47,11 @@ public class ChainedAssignmentTest {
     }
     public static void main(String[] args) {
         Point p = new Point();
-        if (!p.toString().equals("[ChainedAssignmentTest$Point x=1234 y=1234]"))
+        if (!p.toString().equals("ChainedAssignmentTest$Point@" + Integer.toHexString(p.hashCode())))
             throw new AssertionError("Broken");
 
         LongPoint lp = new LongPoint();
-        if (!lp.toString().equals("[ChainedAssignmentTest$LongPoint x=1234 y=1234]"))
+        if (!lp.toString().equals("ChainedAssignmentTest$LongPoint@" + Integer.toHexString(lp.hashCode())))
             throw new AssertionError("Broken");
     }
 }

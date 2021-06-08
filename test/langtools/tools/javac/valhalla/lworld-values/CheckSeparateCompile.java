@@ -31,8 +31,8 @@
 
 public class CheckSeparateCompile {
 	public static void main(String[] args) {
-		String s = new CheckSeparateCompile0().new O().new M().new I().foo();
-        if (!s.equals("[CheckSeparateCompile0$O$M$I i=0]"))
+        String s = new CheckSeparateCompile0().new O().new M().new I().foo();
+        if (!s.startsWith("CheckSeparateCompile0$O$M$I@"))
             throw new AssertionError(s);
 	}
 }
