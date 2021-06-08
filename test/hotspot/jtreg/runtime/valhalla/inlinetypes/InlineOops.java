@@ -394,7 +394,7 @@ public class InlineOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vtClass = Person.class;
+            Class<?> vtClass = Person.class.asValueType();
 
             System.out.println("vtClass="+vtClass);
 
