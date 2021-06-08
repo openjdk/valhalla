@@ -57,9 +57,9 @@ public class VarArgsArray {
         MyInt[] array1 = new MyInt[] { new MyInt(TOKEN_VALUE) };
         MyInt[] array2 = new MyInt[] { new MyInt(TOKEN_VALUE), new MyInt(TOKEN_VALUE) };
 
-        Method methodARef = getClass().getDeclaredMethod("methodA", MyInt.class);
-        Method methodBRef = getClass().getDeclaredMethod("methodB", MyInt.class, MyInt.class);
-        Method methodCRef = getClass().getDeclaredMethod("methodC", MyInt.class, String.class);
+        Method methodARef = getClass().getDeclaredMethod("methodA", MyInt.class.asValueType());
+        Method methodBRef = getClass().getDeclaredMethod("methodB", MyInt.class.asValueType(), MyInt.class.asValueType());
+        Method methodCRef = getClass().getDeclaredMethod("methodC", MyInt.class.asValueType(), String.class);
 
         // Positive tests...
         methodARef.invoke(this, (Object[])array1);
