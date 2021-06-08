@@ -72,7 +72,7 @@ public class TestIntrinsics extends InlineTypeTest {
         Asserts.assertTrue(test1(java.util.AbstractList.class, java.util.ArrayList.class), "test1_1 failed");
         Asserts.assertTrue(test1(MyValue1.class, MyValue1.class), "test1_2 failed");
         Asserts.assertTrue(test1(MyValue1.class.asValueType(), MyValue1.class.asValueType()), "test1_3 failed");
-        Asserts.assertTrue(test1(MyValue1.class.asValueType(), MyValue1.class.asValueType()), "test1_4 failed");
+        Asserts.assertFalse(test1(MyValue1.class, MyValue1.class.asValueType()), "test1_4 failed");
         Asserts.assertFalse(test1(MyValue1.class.asValueType(), MyValue1.class), "test1_5 failed");
         Asserts.assertTrue(test1(Object.class, java.util.ArrayList.class), "test1_6 failed");
         Asserts.assertTrue(test1(Object.class, MyValue1.class), "test1_7 failed");
