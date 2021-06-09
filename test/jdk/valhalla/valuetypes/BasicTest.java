@@ -32,10 +32,12 @@
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Objects;
 
 import static org.testng.Assert.*;
 
@@ -174,6 +176,7 @@ public class BasicTest {
                 new Object[] { "toRef", Point.ref.class, new Class<?>[] { Object.class }},
         };
     }
+
     @Test(dataProvider = "methods")
     public void testMethod(String name, Class<?> returnType, Class<?>[] paramTypes) throws ReflectiveOperationException {
         Method m = Point.class.getDeclaredMethod(name, paramTypes);
@@ -190,4 +193,33 @@ public class BasicTest {
         assertTrue(ctor.getDeclaringClass() == Point.class.asPrimaryType());
     }
 
+    class C implements IdentityObject { }
+    primitive class T implements PrimitiveObject { }
+
+    @DataProvider(name="intfs")
+    Object[][] intfs() {
+        Point point = new Point(10, 20);
+        Point[] array = new Point[] { point };
+        return new Object[][]{
+                new Object[]{ new BasicTest(), new Class<?>[] { IdentityObject.class }},
+                new Object[]{ point, new Class<?>[] { PrimitiveObject.class }},
+                new Object[]{ new T(), new Class<?>[] { PrimitiveObject.class }},
+                new Object[]{ new C(), new Class<?>[] { IdentityObject.class }},
+                new Object[]{ Objects.newIdentity(), new Class<?>[] { IdentityObject.class }},
+                new Object[]{ array, new Class<?>[] { Cloneable.class, Serializable.class, IdentityObject.class }},
+        };
+    }
+
+    @Test(dataProvider = "intfs")
+    public void testGetInterfaces(Object o, Class<?>[] expectedInterfaces) {
+        Class<?> type = o.getClass();
+        assertEquals(type.getInterfaces(), expectedInterfaces);
+        if (type.isPrimitiveClass()) {
+            assertTrue(PrimitiveObject.class.isAssignableFrom(type));
+            assertTrue(o instanceof PrimitiveObject);
+        } else {
+            assertTrue(IdentityObject.class.isAssignableFrom(type));
+            assertTrue(o instanceof IdentityObject);
+        }
+    }
 }
