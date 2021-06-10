@@ -56,9 +56,9 @@ public class ProjectedArrayDotClass {
                                             Paths.get(System.getProperty("test.classes"),
                                                 "ProjectedArrayDotClass$VT.class").toString() };
         runCheck(params, new String [] {
-        "         3: ldc           #13                 // class \"[LProjectedArrayDotClass$VT$ref;\"",
+        "         3: ldc           #13                 // class \"[LProjectedArrayDotClass$VT;\"",
         "        11: ldc           #21                 // class \"[QProjectedArrayDotClass$VT;\"",
-        "        19: ldc           #13                 // class \"[LProjectedArrayDotClass$VT$ref;\"",
+        "        19: ldc           #13                 // class \"[LProjectedArrayDotClass$VT;\"",
         "        27: ldc           #21                 // class \"[QProjectedArrayDotClass$VT;\"",
          });
 

@@ -89,7 +89,7 @@ public class BoxValCastTest {
              throw new AssertionError("Unexpected javap output: " + splits.length);
         }
         splits = out.split("checkcast", -1);
-        if (splits.length != 4) {
+        if (splits.length != 9) {
              throw new AssertionError("Unexpected javap output: " + splits.length);
         }
     }

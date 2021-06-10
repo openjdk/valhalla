@@ -28,7 +28,6 @@
  * @bug 8265423
  * @summary Experimental support for generating a single class file per primitive class
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile -XDunifiedValRefClass UnifiedPrimitiveClassInnerClassesTest.java
  * @run main UnifiedPrimitiveClassInnerClassesTest
  */
 
