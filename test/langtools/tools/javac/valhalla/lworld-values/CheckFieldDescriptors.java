@@ -50,19 +50,19 @@ public primitive class CheckFieldDescriptors {
                     throw new Exception("Bad descriptor for field1");
             } else if (fld.getName(cls.constant_pool).equals("f2")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors$ref;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors;"))
                     throw new Exception("Bad descriptor for field2");
             } else if (fld.getName(cls.constant_pool).equals("f3")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors$ref;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors;"))
                     throw new Exception("Bad descriptor for field3");
             } else if (fld.getName(cls.constant_pool).equals("a1")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors$ref;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors;"))
                     throw new Exception("Bad descriptor for field4");
             } else if (fld.getName(cls.constant_pool).equals("a2")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors$ref;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors;"))
                     throw new Exception("Bad descriptor for field5");
             } else if (fld.getName(cls.constant_pool).equals("a3")) {
                 fCount++;
