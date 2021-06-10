@@ -140,3 +140,7 @@ address ciInlineKlass::unpack_handler() const {
 InlineKlass* ciInlineKlass::get_InlineKlass() const {
   GUARDED_VM_ENTRY(return to_InlineKlass();)
 }
+
+ciInstance* ciInlineKlass::val_mirror() {
+  GUARDED_VM_ENTRY(return CURRENT_ENV->get_instance(to_InlineKlass()->val_mirror());)
+}

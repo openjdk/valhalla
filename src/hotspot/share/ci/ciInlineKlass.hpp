@@ -90,6 +90,7 @@ public:
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
+  ciInstance* val_mirror();
 };
 
 #endif // SHARE_VM_CI_CIINLINEKLASS_HPP

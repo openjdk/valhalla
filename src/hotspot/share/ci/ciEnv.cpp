@@ -697,7 +697,15 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
     }
     assert (klass->is_instance_klass() || klass->is_array_klass(),
             "must be an instance or array klass ");
-    return ciConstant(T_OBJECT, klass->java_mirror());
+    if (tag.is_unresolved_klass()) {
+      return ciConstant(T_OBJECT, get_unloaded_klass_mirror(klass));
+    } else {
+      if (tag.is_Qdescriptor_klass()) {
+        return ciConstant(T_OBJECT, klass->as_inline_klass()->val_mirror());
+      } else {
+        return ciConstant(T_OBJECT, klass->java_mirror());
+      }
+    }
   } else if (tag.is_method_type()) {
     // must execute Java code to link this CP entry into cache[i].f1
     ciSymbol* signature = get_symbol(cpool->method_type_signature_at(index));
