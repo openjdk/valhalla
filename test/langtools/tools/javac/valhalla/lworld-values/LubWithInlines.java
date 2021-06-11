@@ -43,7 +43,7 @@ public class LubWithInlines {
     }
     public static void main(String [] args) {
         I i = foo(null);
-        if (!i.toString().equals("[LubWithInlines$XNodeWrapper i=42]"))
+        if (!i.toString().equals("LubWithInlines$XNodeWrapper@" + Integer.toHexString(i.hashCode())))
             throw new AssertionError("Unexpected: " + i);
     }
 }

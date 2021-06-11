@@ -26,8 +26,11 @@
  * @test
  * @summary test Object methods on inline types
  * @run testng/othervm -Xint -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ */
+
+/* To be enabled by JDK-8267932
+ * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
  */
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -128,33 +131,28 @@ public class ObjectMethods {
         assertTrue(n1.equals(n2) == isEquals);
     }
 
+
     @DataProvider(name="toStringTests")
     Object[][] toStringTests() {
         return new Object[][] {
-            { Point.makePoint(100, 200), "[Point x=100 y=200]" },
-            { Line.makeLine(1, 2, 3, 4), "[Line p1=[Point x=1 y=2] p2=[Point x=3 y=4]]"},
-            { VALUE,
-              "[Value char_v=z byte_v=1 boolean_v=false int_v=0 short_v=3 long_v=4 double_v=0.0 " +
-              "float_v=0.0 number_v=[Value$IntValue i=10] point_v=[Point x=200 y=200] point_ref=null ref_v=null]" },
-            { VALUE1,
-              "[Value char_v=z byte_v=1 boolean_v=false int_v=0 short_v=3 long_v=4 double_v=0.0 " +
-              "float_v=0.0 number_v=[Value$IntValue i=20] point_v=[Point x=100 y=100] " +
-              "point_ref=[Point x=200 y=200] ref_v=[Point x=300 y=300]]" },
+            { Point.makePoint(100, 200)  },
+            { Line.makeLine(1, 2, 3, 4) },
+            { VALUE },
+            { VALUE1 },
             { new Value.Builder()
                         .setReference(List.of("ref"))
-                        .setNumber(new Value.IntNumber(99)).build(),
-              "[Value char_v=\u0000 byte_v=0 boolean_v=false int_v=0 short_v=0 long_v=0 double_v=0.0 " +
-              "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] point_ref=null ref_v=[ref]]" },
+                        .setNumber(new Value.IntNumber(99)).build() },
             // enclosing instance field `this$0` should be filtered
-            { MyValue1.default, "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
-            { new MyValue1(0,0, null), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
-            { new MyValue1(0,0, P1), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=[Point x=1 y=2]]" },
+            { MyValue1.default },
+            { new MyValue1(0,0, null) },
+            { new MyValue1(0,0, P1) },
         };
     }
 
     @Test(dataProvider="toStringTests")
-    public void testToString(Object o, String s) {
-        assertTrue(o.toString().equals(s), o.toString());
+    public void testToString(Object o) {
+        String expected = String.format("%s@%s", o.getClass().getName(), Integer.toHexString(o.hashCode()));
+        assertEquals(o.toString(), expected);
     }
 
     @DataProvider(name="hashcodeTests")
@@ -175,6 +173,7 @@ public class ObjectMethods {
     @Test(dataProvider="hashcodeTests")
     public void testHashCode(Object o, int hash) {
         assertEquals(o.hashCode(), hash);
+        assertEquals(System.identityHashCode(o), hash);
     }
 
     private static Object[] hashCodeComponents(Object o) {
