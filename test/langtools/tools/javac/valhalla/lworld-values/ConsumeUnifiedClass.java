@@ -27,7 +27,7 @@
  * @test
  * @bug 8266466
  * @summary Enhance javac to consume unified primitive class files
- * @compile -XDunifiedValRefClass -XDallowWithFieldOperator Point.java Rectangle.java
+ * @compile -XDallowWithFieldOperator Point.java Rectangle.java
  * @compile/fail/ref=ConsumeUnifiedClass.out -XDrawDiagnostics ConsumeUnifiedClass.java
  */
 
