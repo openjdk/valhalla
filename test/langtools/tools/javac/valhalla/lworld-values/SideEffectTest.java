@@ -55,12 +55,12 @@ public class SideEffectTest {
         V v = new V();
         if (!v.output.equals("1234"))
             throw new AssertionError("Broken");
-        if (!v.toString().equals("SideEffectTest$V@" + Integer.toHexString(v.hashCode())))
+        if (v.x != 1234)
             throw new AssertionError("Broken");
         v = new V(8765);
         if (!v.output.equals("12349999"))
             throw new AssertionError("Broken");
-        if (!v.toString().equals("SideEffectTest$V@" + Integer.toHexString(v.hashCode())))
+        if (v.x != 8765)
             throw new AssertionError("Broken");
     }
 }

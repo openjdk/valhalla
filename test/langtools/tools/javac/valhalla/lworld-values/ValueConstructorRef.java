@@ -44,7 +44,7 @@ public primitive class ValueConstructorRef {
     public static void main(String [] args) {   
        Supplier<ValueConstructorRef.ref> sx = ValueConstructorRef::new;
     	ValueConstructorRef x = (ValueConstructorRef) sx.get();
-        if (!x.toString().equals("ValueConstructorRef@" + Integer.toHexString(x.hashCode())))
+        if (x.x != 1234 || x.y != 5678)
             throw new AssertionError(x);
     }
 }

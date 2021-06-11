@@ -32,12 +32,12 @@ public class CheckSeparateCompile0 {
         public class M {
             int m = 789;
             public primitive class I {
-                int i = 0;
+                int i = 890;
                 I() {
 
                 }
-                String foo() {
-                    return this.toString();
+                I foo() {
+                    return this;
                 }
             }
             public String toString() {

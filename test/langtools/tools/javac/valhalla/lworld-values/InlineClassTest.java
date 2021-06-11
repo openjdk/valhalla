@@ -33,8 +33,7 @@
 public primitive class InlineClassTest {
     int x = 42;
     public static void main(String [] args) {
-        Object o = new InlineClassTest();
-        if (!o.toString().equals("InlineClassTest@" + Integer.toHexString(o.hashCode())))
+        if (new InlineClassTest().x != 42)
             throw new AssertionError("Unexpected state");
     }
 }

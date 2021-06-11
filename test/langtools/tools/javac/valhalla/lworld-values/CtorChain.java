@@ -55,8 +55,8 @@ public primitive class CtorChain {
     }
 
     public static void main(String [] args) {
-        CtorChain o = new CtorChain();
-        if (!o.toString().equals("CtorChain@" + Integer.toHexString(o.hashCode())))
+        CtorChain cc = new CtorChain();
+        if (cc.x1 != 10 || cc.x2 != 20 || cc.x3 != 30 || cc.x4 != 40 || cc.x5 != 50)
             throw new AssertionError("Broken");
     }
 }
