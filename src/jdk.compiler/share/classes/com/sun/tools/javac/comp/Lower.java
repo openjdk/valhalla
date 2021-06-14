@@ -1140,9 +1140,6 @@ public class Lower extends TreeTranslator {
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
-                if (requireReferenceProjection) {
-                    flatname = flatname.append('$', names.ref);
-                }
                 while (base != null &&
                        TreeInfo.symbol(base) != null &&
                        TreeInfo.symbol(base).kind != PCK) {
