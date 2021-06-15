@@ -2404,7 +2404,7 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitDefaultValue(JCDefaultValue tree) {
-        if (tree.type.asElement().isPrimitiveClass()) {
+        if (tree.type.isPrimitiveClass()) {
             code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
         } else if (tree.type.isReference()) {
             code.emitop0(aconst_null);
