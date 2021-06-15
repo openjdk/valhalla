@@ -2015,7 +2015,7 @@ bool Arguments::check_vm_args_consistency() {
     warning("InlineTypePassFieldsAsArgs is not supported on this platform");
   }
 
-  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypeReturnedAsFields)) {
+  if (AMD64_ONLY(false &&) AARCH64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypeReturnedAsFields)) {
     FLAG_SET_CMDLINE(InlineTypeReturnedAsFields, false);
     warning("InlineTypeReturnedAsFields is not supported on this platform");
   }

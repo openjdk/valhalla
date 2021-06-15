@@ -517,7 +517,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
       address unpack_handler = vk->unpack_handler();
       assert(unpack_handler != NULL, "must be");
       __ far_call(RuntimeAddress(unpack_handler));
-      // At this point, rax points to the value object (for interpreter or C1 caller).
+      // At this point, r0 points to the value object (for interpreter or C1 caller).
       // The fields of the object are copied into registers (for C2 caller).
     }
   }
