@@ -215,6 +215,8 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   head->set_unswitch_count(nct);
   head_clone->set_unswitch_count(nct);
 
+  // TODO: reimplement JDK-8267151, dropped from jdk->lworld merge
+
   // Add test to new "if" outside of loop
   IfNode* invar_iff   = proj_true->in(0)->as_If();
   Node* invar_iff_c   = invar_iff->in(0);

@@ -25,8 +25,9 @@
 #ifndef SHARE_MEMORY_ITERATOR_INLINE_HPP
 #define SHARE_MEMORY_ITERATOR_INLINE_HPP
 
-#include "classfile/classLoaderData.hpp"
 #include "memory/iterator.hpp"
+
+#include "classfile/classLoaderData.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/klass.hpp"
@@ -207,6 +208,8 @@ void Devirtualizer::do_cld(OopClosureType* closure, ClassLoaderData* cld) {
 template <typename OopClosureType>
 class OopOopIterateDispatch : public AllStatic {
 private:
+  typedef void (*FunctionType)(OopClosureType*, oop, Klass*);
+
   class Table {
   private:
     template <typename KlassType, typename T>
@@ -243,7 +246,7 @@ private:
     }
 
   public:
-    void (*_function[KLASS_ID_COUNT])(OopClosureType*, oop, Klass*);
+    FunctionType _function[KLASS_ID_COUNT];
 
     Table(){
       set_init_function<InstanceKlass>();
@@ -259,7 +262,7 @@ private:
   static Table _table;
 public:
 
-  static void (*function(Klass* klass))(OopClosureType*, oop, Klass*) {
+  static FunctionType function(Klass* klass) {
     return _table._function[klass->id()];
   }
 };
@@ -271,6 +274,8 @@ typename OopOopIterateDispatch<OopClosureType>::Table OopOopIterateDispatch<OopC
 template <typename OopClosureType>
 class OopOopIterateBoundedDispatch {
 private:
+  typedef void (*FunctionType)(OopClosureType*, oop, Klass*, MemRegion);
+
   class Table {
   private:
     template <typename KlassType, typename T>
@@ -304,7 +309,7 @@ private:
     }
 
   public:
-    void (*_function[KLASS_ID_COUNT])(OopClosureType*, oop, Klass*, MemRegion);
+    FunctionType _function[KLASS_ID_COUNT];
 
     Table(){
       set_init_function<InstanceKlass>();
@@ -320,7 +325,7 @@ private:
   static Table _table;
 public:
 
-  static void (*function(Klass* klass))(OopClosureType*, oop, Klass*, MemRegion) {
+  static FunctionType function(Klass* klass) {
     return _table._function[klass->id()];
   }
 };
@@ -332,6 +337,8 @@ typename OopOopIterateBoundedDispatch<OopClosureType>::Table OopOopIterateBounde
 template <typename OopClosureType>
 class OopOopIterateBackwardsDispatch {
 private:
+  typedef void (*FunctionType)(OopClosureType*, oop, Klass*);
+
   class Table {
   private:
     template <typename KlassType, typename T>
@@ -365,7 +372,7 @@ private:
     }
 
   public:
-    void (*_function[KLASS_ID_COUNT])(OopClosureType*, oop, Klass*);
+    FunctionType _function[KLASS_ID_COUNT];
 
     Table(){
       set_init_function<InstanceKlass>();
@@ -381,7 +388,7 @@ private:
   static Table _table;
 public:
 
-  static void (*function(Klass* klass))(OopClosureType*, oop, Klass*) {
+  static FunctionType function(Klass* klass) {
     return _table._function[klass->id()];
   }
 };

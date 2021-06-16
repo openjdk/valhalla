@@ -288,9 +288,9 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, BarrierSetC2::Optimization) ||
+    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization) ||
         (src_elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
-         bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, BarrierSetC2::Optimization))) {
+         bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, false, BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
     }
@@ -338,9 +338,9 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(true, elem, true, BarrierSetC2::Optimization) ||
+    if (bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization) ||
         (elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
-         bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization))) {
+         bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
     }
@@ -418,7 +418,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
       }
       const Type* rt = Type::get_const_type(ft);
       const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
-      assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, BarrierSetC2::Optimization), "GC barriers required");
+      assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, false, BarrierSetC2::Optimization), "GC barriers required");
       Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
       Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
       Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, adr_type, rt, bt);
@@ -500,7 +500,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       if (out_mem->outcnt() != 1 || !out_mem->raw_out(0)->is_MergeMem() ||
           out_mem->raw_out(0)->outcnt() != 1 || !out_mem->raw_out(0)->raw_out(0)->is_MemBar()) {
-        assert(bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization), "can only happen with card marking");
+        assert(bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization), "can only happen with card marking");
         return false;
       }
 
@@ -541,7 +541,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       const TypeAryPtr* ary_src = src_type->isa_aryptr();
       BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization) ||
+      assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization) ||
              (ary_src != NULL && elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
 #endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
@@ -832,7 +832,7 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
 
 // As an optimization, choose optimum vector size for copy length known at compile time.
 int ArrayCopyNode::get_partial_inline_vector_lane_count(BasicType type, int const_len) {
-  int lane_count = ArrayCopyPartialInlineSize/type2aelembytes(type);
+  int lane_count = ArrayOperationPartialInlineSize/type2aelembytes(type);
   if (const_len > 0) {
     int size_in_bytes = const_len * type2aelembytes(type);
     if (size_in_bytes <= 16)

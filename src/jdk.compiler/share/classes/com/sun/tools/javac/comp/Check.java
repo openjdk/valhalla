@@ -160,8 +160,7 @@ public class Check {
         deferredLintHandler = DeferredLintHandler.instance(context);
 
         allowRecords = Feature.RECORDS.allowedInSource(source);
-        allowSealed = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
-                Feature.SEALED_CLASSES.allowedInSource(source);
+        allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -1392,6 +1391,9 @@ public class Check {
                 mask = ((sym.owner.flags_field & PRIMITIVE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
             }
+            if ((flags & STRICTFP) != 0) {
+                warnOnExplicitStrictfp(pos);
+            }
             // Imply STRICTFP if owner has STRICTFP set.
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
                 ((flags) & Flags.DEFAULT) != 0)
@@ -1432,6 +1434,9 @@ public class Check {
                 // records can't be declared abstract
                 mask &= ~ABSTRACT;
                 implicit |= FINAL;
+            }
+            if ((flags & STRICTFP) != 0) {
+                warnOnExplicitStrictfp(pos);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
@@ -1493,6 +1498,19 @@ public class Check {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
+    }
+
+    private void warnOnExplicitStrictfp(DiagnosticPosition pos) {
+        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(pos);
+        try {
+            deferredLintHandler.report(() -> {
+                                           if (lint.isEnabled(LintCategory.STRICTFP)) {
+                                               log.warning(LintCategory.STRICTFP,
+                                                           pos, Warnings.Strictfp); }
+                                       });
+        } finally {
+            deferredLintHandler.setPos(prevLintPos);
+        }
     }
 
 
@@ -2478,7 +2496,7 @@ public class Check {
 
     class CycleChecker extends TreeScanner {
 
-        List<Symbol> seenClasses = List.nil();
+        Set<Symbol> seenClasses = new HashSet<>();
         boolean errorFound = false;
         boolean partialCheck = false;
 
@@ -2497,7 +2515,7 @@ public class Check {
                 } else if (sym.kind == TYP) {
                     checkClass(pos, sym, List.nil());
                 }
-            } else {
+            } else if (sym == null || sym.kind != PCK) {
                 //not completed yet
                 partialCheck = true;
             }
@@ -2546,7 +2564,7 @@ public class Check {
                 noteCyclic(pos, (ClassSymbol)c);
             } else if (!c.type.isErroneous()) {
                 try {
-                    seenClasses = seenClasses.prepend(c);
+                    seenClasses.add(c);
                     if (c.type.hasTag(CLASS)) {
                         if (supertypes.nonEmpty()) {
                             scan(supertypes);
@@ -2569,7 +2587,7 @@ public class Check {
                         }
                     }
                 } finally {
-                    seenClasses = seenClasses.tail;
+                    seenClasses.remove(c);
                 }
             }
         }
@@ -3567,7 +3585,6 @@ public class Check {
         return targets.isEmpty() || targets.isPresent() && !targets.get().isEmpty();
     }
 
-    @SuppressWarnings("preview")
     Optional<Set<Name>> getApplicableTargets(JCAnnotation a, Symbol s) {
         Attribute.Array arr = getAttributeTargetAttribute(a.annotationType.type.tsym);
         Name[] targets;

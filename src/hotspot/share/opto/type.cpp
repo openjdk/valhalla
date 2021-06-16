@@ -1167,6 +1167,7 @@ Type::Category Type::category() const {
     case Type::VectorX:
     case Type::VectorY:
     case Type::VectorZ:
+    case Type::VectorMask:
     case Type::AnyPtr:
     case Type::RawPtr:
     case Type::OopPtr:

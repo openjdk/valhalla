@@ -738,8 +738,22 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
     if (is_CallRuntime()) {
       if (con == TypeFunc::Parms) {
         uint ideal_reg = range_cc->field_at(TypeFunc::Parms)->ideal_reg();
-        OptoRegPair regs = match->c_return_value(ideal_reg);
+        OptoRegPair regs = Opcode() == Op_CallLeafVector
+          ? match->vector_return_value(ideal_reg)      // Calls into assembly vector routine
+          : match->c_return_value(ideal_reg);
         RegMask rm = RegMask(regs.first());
+
+        if (Opcode() == Op_CallLeafVector) {
+          // If the return is in vector, compute appropriate regmask taking into account the whole range
+          if(ideal_reg >= Op_VecS && ideal_reg <= Op_VecZ) {
+            if(OptoReg::is_valid(regs.second())) {
+              for (OptoReg::Name r = regs.first(); r <= regs.second(); r = OptoReg::add(r, 1)) {
+                rm.Insert(r);
+              }
+            }
+          }
+        }
+
         if (OptoReg::is_valid(regs.second())) {
           rm.Insert(regs.second());
         }
@@ -1117,6 +1131,12 @@ Node* CallStaticJavaNode::Ideal(PhaseGVN* phase, bool can_reshape) {
         phase->C->prepend_late_inline(cg);
         set_generator(NULL);
       }
+    } else if (iid == vmIntrinsics::_linkToNative) {
+      if (in(TypeFunc::Parms + callee->arg_size() - 1)->Opcode() == Op_ConP /* NEP */
+          && in(TypeFunc::Parms + 1)->Opcode() == Op_ConL /* address */) {
+        phase->C->prepend_late_inline(cg);
+        set_generator(NULL);
+      }
     } else {
       assert(callee->has_member_arg(), "wrong type of call?");
       if (in(TypeFunc::Parms + callee->arg_size() - 1)->Opcode() == Op_ConP) {
@@ -1383,6 +1403,11 @@ void CallRuntimeNode::dump_spec(outputStream *st) const {
   CallNode::dump_spec(st);
 }
 #endif
+uint CallLeafVectorNode::size_of() const { return sizeof(*this); }
+bool CallLeafVectorNode::cmp( const Node &n ) const {
+  CallLeafVectorNode &call = (CallLeafVectorNode&)n;
+  return CallLeafNode::cmp(call) && _num_bits == call._num_bits;
+}
 
 //=============================================================================
 uint CallNativeNode::size_of() const { return sizeof(*this); }
@@ -1459,6 +1484,21 @@ void CallRuntimeNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs
     return;
   }
   SharedRuntime::c_calling_convention(sig_bt, parm_regs, /*regs2=*/nullptr, argcnt);
+}
+
+void CallLeafVectorNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
+#ifdef ASSERT
+  assert(tf()->range()->field_at(TypeFunc::Parms)->is_vect()->length_in_bytes() * BitsPerByte == _num_bits,
+         "return vector size must match");
+  const TypeTuple* d = tf()->domain();
+  for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
+    Node* arg = in(i);
+    assert(arg->bottom_type()->is_vect()->length_in_bytes() * BitsPerByte == _num_bits,
+           "vector argument size must match");
+  }
+#endif
+
+  SharedRuntime::vector_calling_convention(parm_regs, _num_bits, argcnt);
 }
 
 void CallNativeNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
@@ -1563,6 +1603,7 @@ SafePointNode* SafePointNode::next_exception() const {
 //------------------------------Ideal------------------------------------------
 // Skip over any collapsed Regions
 Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  assert(_jvms == NULL || ((uintptr_t)_jvms->map() & 1) || _jvms->map() == this, "inconsistent JVMState");
   return remove_dead_region(phase, can_reshape) ? this : NULL;
 }
 

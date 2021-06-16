@@ -1242,7 +1242,7 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitSwitch(JCSwitch tree) {
-        handleSwitch(tree, tree.selector, tree.cases);
+        handleSwitch(tree, tree.selector, tree.cases, tree.patternSwitch);
     }
 
     @Override
@@ -1287,7 +1287,7 @@ public class Gen extends JCTree.Visitor {
             }
             int prevLetExprStart = code.setLetExprStackPos(code.state.stacksize);
             try {
-                handleSwitch(tree, tree.selector, tree.cases);
+                handleSwitch(tree, tree.selector, tree.cases, tree.patternSwitch);
             } finally {
                 code.setLetExprStackPos(prevLetExprStart);
             }
@@ -1317,9 +1317,11 @@ public class Gen extends JCTree.Visitor {
             return hasTry[0];
         }
 
-    private void handleSwitch(JCTree swtch, JCExpression selector, List<JCCase> cases) {
+    private void handleSwitch(JCTree swtch, JCExpression selector, List<JCCase> cases,
+                              boolean patternSwitch) {
         int limit = code.nextreg;
         Assert.check(!selector.type.hasTag(CLASS));
+        int switchStart = patternSwitch ? code.entryPoint() : -1;
         int startpcCrt = genCrt ? code.curCP() : 0;
         Assert.check(code.isStatementStart());
         Item sel = genExpr(selector, syms.intType);
@@ -1349,9 +1351,9 @@ public class Gen extends JCTree.Visitor {
 
             List<JCCase> l = cases;
             for (int i = 0; i < labels.length; i++) {
-                if (l.head.pats.nonEmpty()) {
-                    Assert.check(l.head.pats.size() == 1);
-                    int val = ((Number)l.head.pats.head.type.constValue()).intValue();
+                if (l.head.labels.head.isExpression()) {
+                    Assert.check(l.head.labels.size() == 1);
+                    int val = ((Number)((JCExpression) l.head.labels.head).type.constValue()).intValue();
                     labels[i] = val;
                     if (val < lo) lo = val;
                     if (hi < val) hi = val;
@@ -1421,6 +1423,12 @@ public class Gen extends JCTree.Visitor {
 
                 // Generate code for the statements in this case.
                 genStats(c.stats, switchEnv, CRT_FLOW_TARGET);
+            }
+
+            if (switchEnv.info.cont != null) {
+                Assert.check(patternSwitch);
+                code.resolve(switchEnv.info.cont);
+                code.resolve(code.branch(goto_), switchStart);
             }
 
             // Resolve all breaks.
