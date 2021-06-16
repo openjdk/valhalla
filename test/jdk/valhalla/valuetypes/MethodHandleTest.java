@@ -149,6 +149,11 @@ public class MethodHandleTest {
     private final Class<?> c;
     private final Object o;
     private final List<String> names;
+    public MethodHandleTest() {
+        this.c = null;
+        this.o = null;
+        this.names = null;
+    }
     public MethodHandleTest(String cn, Object o, String... fields) throws Exception {
         this.c = Class.forName(cn);
         this.o = o;

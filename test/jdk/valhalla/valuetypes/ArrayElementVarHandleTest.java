@@ -39,7 +39,11 @@ public class ArrayElementVarHandleTest {
     private final Class<?> varHandleArrayType;
     private final Class<?> componentType;
     private final VarHandle vh;
-
+    ArrayElementVarHandleTest() {
+        this.varHandleArrayType = null;
+        this.componentType = null;
+        this.vh = null;
+    }
     ArrayElementVarHandleTest(Class<?> arrayType) {
         this.varHandleArrayType = arrayType;
         this.componentType = arrayType.getComponentType();
