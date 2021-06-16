@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary No Serialization support of inline value classes, without a proxy
+ * @summary No Serialization support of primitive classes, without a proxy
  * @build Point Line NonFlattenValue Serialization
  * @run testng/othervm Serialization
  */
@@ -71,7 +71,7 @@ public class Serialization {
         };
     }
 
-    // inline class that DOES NOT implement Serializable should throw NSE
+    // primitive class that DOES NOT implement Serializable should throw NSE
     @Test(dataProvider = "doesNotImplementSerializable")
     public void doesNotImplementSerializable(Object obj) {
         assertThrows(NSE, () -> serialize(obj));
@@ -123,7 +123,7 @@ public class Serialization {
         };
     }
 
-    // inline class that DOES implement Serializable should throw NSE
+    // primitive class that DOES implement Serializable should throw NSE
     @Test(dataProvider = "doesImplementSerializable")
     public void doesImplementSerializable(Object obj) {
         assertThrows(NSE, () -> serialize(obj));
@@ -175,7 +175,7 @@ public class Serialization {
         @Override public void writeExternal(ObjectOutput out) {  }
     }
 
-    // inline classes that DO implement Serializable, but have a serial proxy
+    // primitive classes that DO implement Serializable, but have a serial proxy
     @Test
     public void serializableFooWithProxy() throws Exception {
         SerializableFoo foo = SerializableFoo.make(45);
@@ -234,8 +234,8 @@ public class Serialization {
         return byteStreamFor(className, uid, SC_EXTERNALIZABLE);
     }
 
-    @DataProvider(name = "inlineClasses")
-    public Object[][] inlineClasses() {
+    @DataProvider(name = "classes")
+    public Object[][] classes() {
         return new Object[][] {
             new Object[] { Point.class             },
             new Object[] { SerializablePoint.class }
@@ -244,8 +244,8 @@ public class Serialization {
 
     static final Class<InvalidClassException> ICE = InvalidClassException.class;
 
-    // inline class read directly from a byte stream
-    @Test(dataProvider = "inlineClasses")
+    // primitive class read directly from a byte stream
+    @Test(dataProvider = "classes")
     public void deserialize(Class<?> cls) throws Exception {
         var clsDesc = ObjectStreamClass.lookup(cls);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
