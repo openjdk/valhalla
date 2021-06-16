@@ -729,7 +729,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 #ifdef ASSERT
   // Used to verify that code generated for shared adapters is equivalent
   void save_code   (unsigned char* code, int length);
-  bool compare_code(AdapterHandlerEntry* other);
+  bool compare_code(unsigned char* buffer, int length);
 #endif
 
   //virtual void print_on(outputStream* st) const;  DO NOT USE

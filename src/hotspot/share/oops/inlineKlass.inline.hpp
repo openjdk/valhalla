@@ -37,11 +37,6 @@ inline InlineKlassFixedBlock* InlineKlass::inlineklass_static_block() const {
     return (InlineKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
   }
 
-  InstanceKlass** adr_host = adr_unsafe_anonymous_host();
-  if (adr_host != NULL) {
-    return (InlineKlassFixedBlock*)(adr_host + 1);
-  }
-
   InstanceKlass* volatile* adr_impl = adr_implementor();
   if (adr_impl != NULL) {
     return (InlineKlassFixedBlock*)(adr_impl + 1);

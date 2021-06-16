@@ -1488,9 +1488,9 @@ void CallRuntimeNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs
 
 void CallLeafVectorNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
 #ifdef ASSERT
-  assert(tf()->range()->field_at(TypeFunc::Parms)->is_vect()->length_in_bytes() * BitsPerByte == _num_bits,
+  assert(tf()->range_sig()->field_at(TypeFunc::Parms)->is_vect()->length_in_bytes() * BitsPerByte == _num_bits,
          "return vector size must match");
-  const TypeTuple* d = tf()->domain();
+  const TypeTuple* d = tf()->domain_sig();
   for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
     Node* arg = in(i);
     assert(arg->bottom_type()->is_vect()->length_in_bytes() * BitsPerByte == _num_bits,

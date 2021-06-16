@@ -3793,7 +3793,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
     ciKlass* klass = _gvn.type(klass_node)->is_klassptr()->klass();
-    bool exclude_flat = UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, BarrierSetC2::Parsing) &&
+    bool exclude_flat = UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
                         // Can src array be flat and contain oops?
                         (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
@@ -4552,7 +4552,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
         Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size, /*deoptimize_on_exception=*/true);
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-        if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
+        if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Parsing)) {
           // If it is an oop array, it requires very special treatment,
           // because gc barriers are required when accessing the array.
           Node* is_obja = generate_objArray_guard(obj_klass, (RegionNode*)NULL);

@@ -688,7 +688,7 @@ InlineKlass* Method::returned_inline_type(Thread* thread) const {
   Klass* k = NULL;
   {
     NoSafepointVerifier nsv;
-    k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, thread);
+    k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, thread->as_Java_thread());
   }
   assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
   return InlineKlass::cast(k);

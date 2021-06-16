@@ -743,7 +743,7 @@ void DeoptimizationBlob::print_value_on(outputStream* st) const {
 
 OptimizedEntryBlob::OptimizedEntryBlob(const char* name, int size, CodeBuffer* cb, intptr_t exception_handler_offset,
                      jobject receiver, ByteSize jfa_sp_offset) :
-  BufferBlob(name, size, cb),
+  BufferBlob(name, sizeof(OptimizedEntryBlob), size, cb),
   _exception_handler_offset(exception_handler_offset),
   _receiver(receiver),
   _jfa_sp_offset(jfa_sp_offset) {

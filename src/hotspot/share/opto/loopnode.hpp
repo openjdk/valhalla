@@ -1347,7 +1347,7 @@ public:
   // Create a slow version of the loop by cloning the loop
   // and inserting an if to select fast-slow versions.
   // Return the inserted if.
-  IfNode* create_slow_version_of_loop(IdealLoopTree *loop,
+  ProjNode* create_slow_version_of_loop(IdealLoopTree *loop,
                                         Node_List &old_new,
                                         int opcode,
                                         CloneLoopMode mode);
