@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test Object methods on inline types
+ * @summary test Object methods on primitive classes
  * @run testng/othervm -Xint -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
@@ -88,7 +88,7 @@ public class ObjectMethods {
                               .setNumber(Value.Number.intValue(10)).build(), true},
             { new Value.Builder().setNumber(new Value.IntNumber(10)).build(),
               new Value.Builder().setNumber(new Value.IntNumber(10)).build(), false},
-            // reference classes containing fields of inline type
+            // reference classes containing fields of primitive class
             { MUTABLE_PATH, MutablePath.makePath(10, 20, 30, 40), false},
             { MIXED_VALUES, MIXED_VALUES, true},
             { MIXED_VALUES, new MixedValues(P1, LINE1, MUTABLE_PATH, "value"), false},
@@ -96,13 +96,13 @@ public class ObjectMethods {
             { MyValue1.default, MyValue1.default, true},
             { MyValue1.default, new MyValue1(0,0, null), true},
             { new MyValue1(10, 20, P1), new MyValue1(10, 20, Point.makePoint(1,2)), true},
-            { new IndirectType0(10), new IndirectType0(10), true},
-            { new InlineType1(10),   new InlineType1(10), true},
-            { new InlineType2(10),   new InlineType2(10), true},
-            { new InlineType1(20),   new InlineType2(20), false},
-            { new InlineType2(20),   new InlineType1(20), true},
-            { new IndirectType0(30), new InlineType1(30), true},
-            { new IndirectType0(30), new InlineType2(30), true},
+            { new ReferenceType0(10), new ReferenceType0(10), true},
+            { new ValueType1(10),   new ValueType1(10), true},
+            { new ValueType2(10),   new ValueType2(10), true},
+            { new ValueType1(20),   new ValueType2(20), false},
+            { new ValueType2(20),   new ValueType1(20), true},
+            { new ReferenceType0(30), new ValueType1(30), true},
+            { new ReferenceType0(30), new ValueType2(30), true},
         };
     }
 
@@ -114,13 +114,13 @@ public class ObjectMethods {
     @DataProvider(name="interfaceEqualsTests")
     Object[][] interfaceEqualsTests() {
         return new Object[][]{
-                { new IndirectType0(10), new IndirectType0(10), false, true},
-                { new InlineType1(10),   new InlineType1(10),   true,  true},
-                { new InlineType2(10),   new InlineType2(10),   true,  true},
-                { new InlineType1(20),   new InlineType2(20),   false, false},
-                { new InlineType2(20),   new InlineType1(20),   false, true},
-                { new IndirectType0(30), new InlineType1(30),   false, true},
-                { new IndirectType0(30), new InlineType2(30),   false, true},
+                { new ReferenceType0(10), new ReferenceType0(10), false, true},
+                { new ValueType1(10),   new ValueType1(10),   true,  true},
+                { new ValueType2(10),   new ValueType2(10),   true,  true},
+                { new ValueType1(20),   new ValueType2(20),   false, false},
+                { new ValueType2(20),   new ValueType1(20),   false, true},
+                { new ReferenceType0(30), new ValueType1(30),   false, true},
+                { new ReferenceType0(30), new ValueType2(30),   false, true},
         };
     }
 
@@ -217,9 +217,9 @@ public class ObjectMethods {
         int value();
     }
 
-    static class IndirectType0 implements Number {
+    static class ReferenceType0 implements Number {
         int i;
-        public IndirectType0(int i) {
+        public ReferenceType0(int i) {
             this.i = i;
         }
         public int value() {
@@ -234,9 +234,9 @@ public class ObjectMethods {
         }
     }
 
-    static primitive class InlineType1 implements Number {
+    static primitive class ValueType1 implements Number {
         int i;
-        public InlineType1(int i) {
+        public ValueType1(int i) {
             this.i = i;
         }
         public int value() {
@@ -244,9 +244,9 @@ public class ObjectMethods {
         }
     }
 
-    static primitive class InlineType2 implements Number {
+    static primitive class ValueType2 implements Number {
         int i;
-        public InlineType2(int i) {
+        public ValueType2(int i) {
             this.i = i;
         }
         public int value() {

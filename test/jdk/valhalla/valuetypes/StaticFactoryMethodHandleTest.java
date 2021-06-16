@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle of static init factories
- * @run main/othervm StaticInitFactoryTest
+ * @run main/othervm StaticFactoryMethodHandleTest
  */
 
 import java.lang.invoke.MethodHandle;
@@ -37,7 +37,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 
-public class StaticInitFactoryTest {
+public class StaticFactoryMethodHandleTest {
     static interface Cons {};
 
     static primitive class DefaultConstructor implements Cons {

@@ -31,11 +31,11 @@ import static org.testng.Assert.*;
 
 /*
  * @test
- * @summary Test inline classes with Reference types
- * @run testng/othervm InlineReferenceTest
+ * @summary Test primitive classes with Reference types
+ * @run testng/othervm WeakReferenceTest
  */
 @Test
-public class InlineReferenceTest {
+public class WeakReferenceTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     static void test1() {

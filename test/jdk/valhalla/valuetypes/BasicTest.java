@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test reflection on inline types
+ * @summary test reflection on primitive classes
  * @compile --enable-preview --source ${jdk.version} BasicTest.java
  * @run testng/othervm --enable-preview BasicTest
  */
@@ -37,7 +37,10 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.testng.Assert.*;
 
@@ -99,22 +102,62 @@ public class BasicTest {
         assertTrue(type.isPrimaryType() == isRefType);
     }
 
+    /*
+     * Tests the primary and secondary mirror.
+     */
     @Test
     public void testMirrors() {
         Class<?> refType = Point.class.asPrimaryType();
         Class<?> valType = Point.class.asValueType();
 
         assertTrue(refType == Point.ref.class);
-        // ## ldc not implemented
         assertTrue(valType == Point.val.class);
         assertTrue(refType != valType);
+
         assertTrue(refType.isPrimitiveClass());
         assertTrue(valType.isPrimitiveClass());
+
         assertTrue(refType.isPrimaryType());
+        assertFalse(refType.isValueType());
+
+        assertTrue(valType.isValueType());
         assertFalse(valType.isPrimaryType());
 
+        assertEquals(refType.getName(), valType.getName());
         assertEquals(refType.getName(), "BasicTest$Point");
-        assertEquals(valType.getName(), "BasicTest$Point");
+        assertEquals(refType.getSimpleName(),"Point");
+        assertEquals(valType.getSimpleName(),"Point");
+
+        assertEquals(valType.getTypeName(), "BasicTest$Point");
+        assertEquals(refType.getTypeName(), "BasicTest$Point.ref");
+    }
+
+    /*
+     * Tests subtyping relationship: Point <: Point.ref and Point <: Object
+     *
+     * Class:isAssignableFrom
+     * Class::isInstance
+     * Class::asSubclass
+     */
+    @Test
+    public void testSubtypes() {
+        // Point <: Point.ref and Point <: Object
+        assertTrue(Point.ref.class.isAssignableFrom(Point.class));
+        assertTrue(Object.class.isAssignableFrom(Point.class));
+        assertFalse(Point.class.isAssignableFrom(Point.ref.class));
+        assertTrue(Object.class.isAssignableFrom(Point.ref.class));
+
+        assertTrue(Point.class.asSubclass(Point.ref.class) == Point.class);
+        try {
+            Class<?> c = Point.ref.class.asSubclass(Point.class);
+            fail("Point.ref cannot be cast to Point.class");
+        } catch (ClassCastException e) { }
+
+        Point o = new Point(10, 20);
+        assertTrue(Point.class.isInstance(o));
+        assertTrue(Point.ref.class.isInstance(o));
+        assertFalse(Point.class.isInstance(null));
+        assertFalse(Point.ref.class.isInstance(null));
     }
 
     @DataProvider(name="names")
@@ -122,13 +165,14 @@ public class BasicTest {
         return new Object[][]{
                 new Object[] { "BasicTest$Point", Point.class.asPrimaryType()},
                 new Object[] { "[QBasicTest$Point;", Point[].class},
-                new Object[] { "[LBasicTest$Point;", Point.ref[].class},
+                new Object[] { "[[LBasicTest$Point;", Point.ref[][].class},
         };
     }
     @Test(dataProvider="names")
     public void classForName(String name, Class<?> expected) throws ClassNotFoundException {
         Class<?> type = Class.forName(name);
         assertTrue(type == expected);
+        assertEquals(type.getName(), name);
     }
 
     @Test
@@ -221,5 +265,22 @@ public class BasicTest {
             assertTrue(IdentityObject.class.isAssignableFrom(type));
             assertTrue(o instanceof IdentityObject);
         }
+    }
+
+    @Test
+    public void testNestMembership() {
+        assertTrue(Point.class.getNestHost() == BasicTest.class);
+        assertTrue(T.class.getNestHost() == BasicTest.class);
+        assertTrue(C.class.getNestHost() == BasicTest.class);
+
+        Class<?>[] members = BasicTest.class.getNestMembers();
+        assertEquals(Point.class.getNestMembers(), members);
+        assertEquals(T.class.getNestMembers(), members);
+        assertEquals(C.class.getNestMembers(), members);
+        assertEquals(Arrays.stream(members).collect(Collectors.toSet()),
+                     Set.of(BasicTest.class,
+                            Point.class.asPrimaryType(),
+                            C.class.asPrimaryType(),
+                            T.class.asPrimaryType()));
     }
 }
