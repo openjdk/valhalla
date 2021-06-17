@@ -126,6 +126,11 @@ public class Reflection {
     private final Class<?> c;
     private final Constructor<?> ctor;
     private final Object o;
+    Reflection() throws Exception {
+        this.c = null;
+        this.ctor = null;
+        this.o = null;
+    }
     Reflection(Class<?> type, String cn, Object o) throws Exception {
         this.c = Class.forName(cn);
         if (!c.isPrimitiveClass() || c != type) {

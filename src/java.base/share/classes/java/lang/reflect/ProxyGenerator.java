@@ -92,6 +92,7 @@ final class ProxyGenerator extends ClassWriter {
     /**
      * debugging flag for saving generated class files
      */
+    @SuppressWarnings("removal")
     private static final boolean saveGeneratedFiles =
             java.security.AccessController.doPrivileged(
                     new GetBooleanAction(
@@ -168,6 +169,7 @@ final class ProxyGenerator extends ClassWriter {
      * @param interfaces  proxy interfaces
      * @param accessFlags access flags of the proxy class
      */
+    @SuppressWarnings("removal")
     static byte[] generateProxyClass(ClassLoader loader,
                                      final String name,
                                      List<Class<?>> interfaces,
@@ -453,7 +455,7 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      */
     private byte[] generateClassFile() {
-        visit(V17, accessFlags, dotToSlash(className), null,
+        visit(V18, accessFlags, dotToSlash(className), null,
                 JLR_PROXY, typeNames(interfaces));
 
         /*

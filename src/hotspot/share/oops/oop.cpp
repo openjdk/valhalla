@@ -91,11 +91,11 @@ void oopDesc::verify(oopDesc* oop_desc) {
 
 intptr_t oopDesc::slow_identity_hash() {
   // slow case; we have to acquire the micro lock in order to locate the header
-  Thread* THREAD = Thread::current();
+  Thread* current = Thread::current();
   ResetNoHandleMark rnm; // Might be called from LEAF/QUICK ENTRY
-  HandleMark hm(THREAD);
-  Handle object(THREAD, this);
-  return ObjectSynchronizer::FastHashCode(THREAD, object());
+  HandleMark hm(current);
+  Handle object(current, this);
+  return ObjectSynchronizer::FastHashCode(current, object());
 }
 
 // used only for asserts and guarantees

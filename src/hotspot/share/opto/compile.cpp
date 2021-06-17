@@ -541,7 +541,6 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
                   bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, bool install_code, DirectiveSet* directive)
                 : Phase(Compiler),
                   _compile_id(ci_env->compile_id()),
-                  _save_argument_registers(false),
                   _subsume_loads(subsume_loads),
                   _do_escape_analysis(do_escape_analysis),
                   _install_code(install_code),
@@ -838,12 +837,10 @@ Compile::Compile( ciEnv* ci_env,
                   const char *stub_name,
                   int is_fancy_jump,
                   bool pass_tls,
-                  bool save_arg_registers,
                   bool return_pc,
                   DirectiveSet* directive)
   : Phase(Compiler),
     _compile_id(0),
-    _save_argument_registers(save_arg_registers),
     _subsume_loads(true),
     _do_escape_analysis(false),
     _install_code(true),
@@ -3448,6 +3445,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     frc.inc_java_call_count(); // Count java call site;
   case Op_CallRuntime:
   case Op_CallLeaf:
+  case Op_CallLeafVector:
   case Op_CallNative:
   case Op_CallLeafNoFP: {
     assert (n->is_Call(), "");
@@ -3625,8 +3623,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       }
     }
 #endif
-    // platform dependent reshaping of the address expression
-    reshape_address(n->as_AddP());
     break;
   }
 
@@ -3907,6 +3903,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_StoreVector:
   case Op_LoadVectorGather:
   case Op_StoreVectorScatter:
+  case Op_VectorCmpMasked:
   case Op_VectorMaskGen:
   case Op_LoadVectorMasked:
   case Op_StoreVectorMasked:
@@ -4564,9 +4561,12 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
   }
 
   ciType* superelem = superk;
+  ciType* subelem = subk;
   if (superelem->is_array_klass()) {
-    ciArrayKlass* ak = superelem->as_array_klass();
     superelem = superelem->as_array_klass()->base_element_type();
+  }
+  if (subelem->is_array_klass()) {
+    subelem = subelem->as_array_klass()->base_element_type();
   }
 
   if (!subk->is_interface()) {  // cannot trust static interface types yet
@@ -4574,8 +4574,9 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
       return SSC_always_true;   // (1) false path dead; no dynamic test needed
     }
     if (!(superelem->is_klass() && superelem->as_klass()->is_interface()) &&
+        !(subelem->is_klass() && subelem->as_klass()->is_interface()) &&
         !superk->is_subtype_of(subk)) {
-      return SSC_always_false;
+      return SSC_always_false;  // (2) true path dead; no dynamic test needed
     }
   }
 

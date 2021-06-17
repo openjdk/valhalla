@@ -39,6 +39,11 @@ public class ValueArray {
     private final Class<?> arrayClass;
     private final Class<?> componentType;
     private final Object[] array;
+    ValueArray() {
+        this.arrayClass = null;
+        this.array = null;
+        this.componentType = null;
+    }
     ValueArray(Class<?> arrayClass, Object[] array) {
         this.arrayClass = arrayClass;
         this.array = array;
