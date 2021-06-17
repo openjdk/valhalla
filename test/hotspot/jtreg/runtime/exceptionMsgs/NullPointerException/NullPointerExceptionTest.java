@@ -304,7 +304,7 @@ public class NullPointerExceptionTest {
         } catch (NullPointerException e) {
             checkMessage(e, "oa1[0] = new Object();", e.getMessage(),
                          "Cannot store to object array because " +
-                         (hasDebugInfo ? "\"oa1\"" : "\"<local3>\"") + " is null");
+                         (hasDebugInfo ? "\"oa1\"" : "\"<local3>\"") + " is null or is a null-free array and there's an attempt to store null in it");
         }
         // bastore (boolean)
         try {

@@ -190,7 +190,7 @@ public class InstructionHelper {
         IsolatedMethodBuilder isolatedMethodBuilder = new IsolatedMethodBuilder(className, lookup);
         isolatedMethodBuilder
                 .withSuperclass(Object.class)
-                .withMajorVersion(61)
+                .withMajorVersion(62)
                 .withMinorVersion(0)
                 .withFlags(Flag.ACC_PUBLIC)
                 .withMethod(methodName, type, M ->

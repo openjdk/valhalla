@@ -643,7 +643,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         // Flattening decision to be taken here
         // This code assumes all verification already have been performed
         // (field's type has been loaded and it is an inline klass)
-        Thread* THREAD = Thread::current();
+        JavaThread* THREAD = Thread::current()->as_Java_thread();
         Klass* klass =
             SystemDictionary::resolve_inline_type_field_or_fail(&fs,
                                                                 Handle(THREAD, _class_loader_data->class_loader()),
@@ -652,7 +652,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-        bool too_atomic_to_flatten = vk->is_declared_atomic();
+        bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
         bool too_volatile_to_flatten = fs.access_flags().is_volatile();
         if (vk->is_naturally_atomic()) {
           too_atomic_to_flatten = false;
@@ -744,7 +744,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         // Flattening decision to be taken here
         // This code assumes all verifications have already been performed
         // (field's type has been loaded and it is an inline klass)
-        Thread* THREAD = Thread::current();
+        JavaThread* THREAD = Thread::current()->as_Java_thread();
         Klass* klass =
             SystemDictionary::resolve_inline_type_field_or_fail(&fs,
                 Handle(THREAD, _class_loader_data->class_loader()),
@@ -753,7 +753,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-        bool too_atomic_to_flatten = vk->is_declared_atomic();
+        bool too_atomic_to_flatten = vk->is_declared_atomic() || AlwaysAtomicAccesses;
         bool too_volatile_to_flatten = fs.access_flags().is_volatile();
         if (vk->is_naturally_atomic()) {
           too_atomic_to_flatten = false;

@@ -516,7 +516,7 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
   CompiledMethod* method_code = method->code();
 
   address entry = NULL;
-  if (method_code != NULL && method_code->is_in_use()) {
+  if (method_code != NULL && method_code->is_in_use() && !method_code->is_unloading()) {
     assert(method_code->is_compiled(), "must be compiled");
     // Call to compiled code
     //
@@ -645,7 +645,7 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
   bool caller_is_nmethod = caller_nm->is_nmethod();
   CompiledMethod* m_code = m->code();
   info._callee = m;
-  if (m_code != NULL && m_code->is_in_use()) {
+  if (m_code != NULL && m_code->is_in_use() && !m_code->is_unloading()) {
     info._to_interpreter = false;
     if (caller_nm->is_compiled_by_c1()) {
       info._entry = m_code->verified_inline_entry_point();

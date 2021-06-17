@@ -389,7 +389,7 @@ Symbol* SignatureStream::find_symbol() {
 }
 
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
-  Thread* THREAD = Thread::current();
+  JavaThread* THREAD = Thread::current()->as_Java_thread();
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);

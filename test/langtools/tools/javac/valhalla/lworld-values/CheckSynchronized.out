@@ -1,4 +1,6 @@
 CheckSynchronized.java:9:23: compiler.err.mod.not.allowed.here: synchronized
-CheckSynchronized.java:12:9: compiler.err.type.found.req: CheckSynchronized, (compiler.misc.type.req.ref)
-CheckSynchronized.java:15:9: compiler.err.type.found.req: CheckSynchronized, (compiler.misc.type.req.ref)
-3 errors
+CheckSynchronized.java:12:9: compiler.err.type.found.req: CheckSynchronized, (compiler.misc.type.req.identity)
+CheckSynchronized.java:15:9: compiler.err.type.found.req: CheckSynchronized, (compiler.misc.type.req.identity)
+CheckSynchronized.java:19:9: compiler.err.type.found.req: CheckSynchronized.ref, (compiler.misc.type.req.identity)
+CheckSynchronized.java:23:9: compiler.err.type.found.req: int, (compiler.misc.type.req.identity)
+5 errors

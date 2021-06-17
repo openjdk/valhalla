@@ -27,6 +27,7 @@
 
 #include "code/codeBlob.hpp"
 #include "memory/allocation.hpp"
+#include "prims/vectorSupport.hpp"
 #include "runtime/frame.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/stubCodeGenerator.hpp"
@@ -150,15 +151,6 @@ class StubRoutines: AllStatic {
   static address _atomic_add_entry;
   static address _atomic_add_long_entry;
   static address _fence_entry;
-  static address _d2i_wrapper;
-  static address _d2l_wrapper;
-
-  static jint    _fpu_cntrl_wrd_std;
-  static jint    _fpu_cntrl_wrd_24;
-  static jint    _fpu_cntrl_wrd_trunc;
-  static jint    _mxcsr_std;
-  static jint    _fpu_subnormal_bias1[3];
-  static jint    _fpu_subnormal_bias2[3];
 
   static BufferBlob* _code1;                               // code buffer for initial routines
   static BufferBlob* _code2;                               // code buffer for all other routines
@@ -268,6 +260,10 @@ class StubRoutines: AllStatic {
   static address _load_inline_type_fields_in_regs;
   static address _store_inline_type_fields_to_buf;
 
+  // Vector Math Routines
+  static address _vector_f_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP];
+  static address _vector_d_math[VectorSupport::NUM_VEC_SIZES][VectorSupport::NUM_SVML_OP];
+
  public:
   // Initialization/Testing
   static void    initialize1();                            // must happen before universe::genesis
@@ -324,17 +320,6 @@ class StubRoutines: AllStatic {
   static address atomic_add_entry()                        { return _atomic_add_entry; }
   static address atomic_add_long_entry()                   { return _atomic_add_long_entry; }
   static address fence_entry()                             { return _fence_entry; }
-
-  static address d2i_wrapper()                             { return _d2i_wrapper; }
-  static address d2l_wrapper()                             { return _d2l_wrapper; }
-  static jint    fpu_cntrl_wrd_std()                       { return _fpu_cntrl_wrd_std;   }
-  static address addr_fpu_cntrl_wrd_std()                  { return (address)&_fpu_cntrl_wrd_std;   }
-  static address addr_fpu_cntrl_wrd_24()                   { return (address)&_fpu_cntrl_wrd_24;   }
-  static address addr_fpu_cntrl_wrd_trunc()                { return (address)&_fpu_cntrl_wrd_trunc; }
-  static address addr_mxcsr_std()                          { return (address)&_mxcsr_std; }
-  static address addr_fpu_subnormal_bias1()                { return (address)&_fpu_subnormal_bias1; }
-  static address addr_fpu_subnormal_bias2()                { return (address)&_fpu_subnormal_bias2; }
-
 
   static address select_arraycopy_function(BasicType t, bool aligned, bool disjoint, const char* &name, bool dest_uninitialized);
 

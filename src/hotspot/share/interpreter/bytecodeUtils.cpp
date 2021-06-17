@@ -1173,7 +1173,13 @@ int ExceptionMessageBuilder::get_NPE_null_slot(int bci) {
 
 bool ExceptionMessageBuilder::print_NPE_cause(outputStream* os, int bci, int slot) {
   if (print_NPE_cause0(os, bci, slot, _max_cause_detail, false, " because \"")) {
-    os->print("\" is null");
+    address code_base = _method->constMethod()->code_base();
+    Bytecodes::Code code = Bytecodes::java_code_at(_method, code_base + bci);
+    if (code == Bytecodes::_aastore) {
+      os->print("\" is null or is a null-free array and there's an attempt to store null in it");
+    } else {
+      os->print("\" is null");
+    }
     return true;
   }
   return false;
