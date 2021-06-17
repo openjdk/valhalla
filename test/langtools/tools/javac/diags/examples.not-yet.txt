@@ -221,3 +221,4 @@ compiler.err.super.field.not.allowed
 compiler.err.super.method.cannot.be.synchronized
 compiler.err.super.no.arg.constructor.must.be.empty
 compiler.err.generic.parameterization.with.primitive.class
+compiler.misc.feature.primitive.classes
