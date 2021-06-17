@@ -192,6 +192,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
+                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -232,6 +234,10 @@ public class JavacParser implements Parser {
     /** Switch: are records allowed in this source level?
      */
     boolean allowRecords;
+
+    /** Switch: are primitive classes allowed in this source level?
+     */
+     boolean allowPrimitiveClasses;
 
     /** Switch: are sealed types allowed in this source level?
      */
@@ -2698,7 +2704,6 @@ public class JavacParser implements Parser {
     @SuppressWarnings("fallthrough")
     List<JCStatement> blockStatement() {
         //todo: skip to anchor on error(?)
-        token = recastToken(token);
         Comment dc;
         int pos = token.pos;
         switch (token.kind) {
@@ -2709,7 +2714,6 @@ public class JavacParser implements Parser {
         case CONTINUE: case SEMI: case ELSE: case FINALLY: case CATCH:
         case ASSERT:
             return List.of(parseSimpleStatement());
-        case PRIMITIVE:
         case MONKEYS_AT:
         case FINAL: {
             dc = token.comment(CommentStyle.JAVADOC);
@@ -2798,6 +2802,10 @@ public class JavacParser implements Parser {
                     return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), token.comment(CommentStyle.JAVADOC)));
                 }
             }
+        }
+        if (isPrimitiveModifier()) {
+            dc = token.comment(CommentStyle.JAVADOC);
+            return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
         if (isRecordStart() && allowRecords) {
             dc = token.comment(CommentStyle.JAVADOC);
@@ -3277,7 +3285,6 @@ public class JavacParser implements Parser {
     loop:
         while (true) {
             long flag;
-            token = recastToken(token);
             switch (token.kind) {
             case PRIVATE     : flag = Flags.PRIVATE; break;
             case PROTECTED   : flag = Flags.PROTECTED; break;
@@ -3287,7 +3294,6 @@ public class JavacParser implements Parser {
             case FINAL       : flag = Flags.FINAL; break;
             case ABSTRACT    : flag = Flags.ABSTRACT; break;
             case NATIVE      : flag = Flags.NATIVE; break;
-            case PRIMITIVE   : flag = Flags.PRIMITIVE_CLASS; break;
             case VOLATILE    : flag = Flags.VOLATILE; break;
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
@@ -3304,6 +3310,10 @@ public class JavacParser implements Parser {
                 if (isSealedClassStart(false)) {
                     checkSourceLevel(Feature.SEALED_CLASSES);
                     flag = Flags.SEALED;
+                    break;
+                }
+                if (isPrimitiveModifier()) {
+                    flag = Flags.PRIMITIVE_CLASS;
                     break;
                 }
                 break loop;
@@ -3537,42 +3547,6 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    // Does the given token signal a primitive modifier ? If yes, suitably reclassify token.
-    Token recastToken(Token token) {
-        if (token.kind != IDENTIFIER || token.name() != names.primitive) {
-            return token;
-        }
-        if (peekToken(t->t == PRIVATE ||
-                         t == PROTECTED ||
-                         t == PUBLIC ||
-                         t == STATIC ||
-                         t == TRANSIENT ||
-                         t == FINAL ||
-                         t == ABSTRACT ||
-                         t == NATIVE ||
-                         t == VOLATILE ||
-                         t == SYNCHRONIZED ||
-                         t == STRICTFP ||
-                         t == MONKEYS_AT ||
-                         t == DEFAULT ||
-                         t == BYTE ||
-                         t == SHORT ||
-                         t == CHAR ||
-                         t == INT ||
-                         t == LONG ||
-                         t == FLOAT ||
-                         t == DOUBLE ||
-                         t == BOOLEAN ||
-                         t == CLASS ||
-                         t == INTERFACE ||
-                         t == ENUM ||
-                         t == IDENTIFIER)) { // new value Comparable() {}
-            checkSourceLevel(Feature.PRIMITIVE_CLASSES);
-            return new Token(PRIMITIVE, token.pos, token.endPos, token.comments);
-        }
-        return token;
-    }
-
     Name restrictedTypeName(JCExpression e, boolean shouldWarn) {
         switch (e.getTag()) {
             case IDENT:
@@ -3604,6 +3578,13 @@ public class JavacParser implements Parser {
                 return Source.JDK14;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK14));
+            }
+        }
+        if (name == names.primitive) {
+            if (allowPrimitiveClasses) {
+                return Source.JDK17;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK17));
             }
         }
         if (name == names.sealed) {
@@ -4491,6 +4472,22 @@ public class JavacParser implements Parser {
                     tokenSealed.name() == names.sealed) {
                 checkSourceLevel(Feature.SEALED_CLASSES);
                 return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isPrimitiveModifier() {
+        if (allowPrimitiveClasses && token.kind == IDENTIFIER && token.name() == names.primitive) {
+            Token next = S.token(1);
+            switch (next.kind) {
+                case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
+                case FINAL: case ABSTRACT: case NATIVE: case VOLATILE: case SYNCHRONIZED:
+                case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
+                case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
+                case CLASS: case INTERFACE: case ENUM: case IDENTIFIER: // new primitive Comparable() {}
+                    checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                    return true;
             }
         }
         return false;

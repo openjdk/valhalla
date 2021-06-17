@@ -142,7 +142,6 @@ public class Tokens {
         THROWS("throws"),
         TRANSIENT("transient"),
         TRY("try"),
-        PRIMITIVE(), // a phantom token never returned by the scanner, but can result from a reclassification by the parser.
         VOID("void", Tag.NAMED),
         VOLATILE("volatile"),
         WHILE("while"),
@@ -247,8 +246,6 @@ public class Tokens {
                 return "token.double";
             case ERROR:
                 return "token.bad-symbol";
-            case PRIMITIVE:
-                return "primitive";
             case EOF:
                 return "token.end-of-input";
             case DOT: case COMMA: case SEMI: case LPAREN: case RPAREN:
