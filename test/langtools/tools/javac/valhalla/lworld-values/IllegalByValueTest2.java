@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8209400 8215246
- * @summary Allow anonymous classes to be value types
+ * @summary Allow anonymous classes to be primitive class types
  * @compile/fail/ref=IllegalByValueTest2.out -XDrawDiagnostics -XDdev IllegalByValueTest2.java
  */
 

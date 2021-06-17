@@ -442,6 +442,7 @@ void Compile::disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_Lis
     _modified_nodes->remove_useless_nodes(useful.member_set());
   }
 #endif
+  remove_useless_coarsened_locks(useful);            // remove useless coarsened locks nodes
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->eliminate_useless_gc_barriers(useful, this);
@@ -511,6 +512,12 @@ void Compile::print_compile_messages() {
     tty->print_cr("** Bailout: Recompile without boxing elimination       **");
     tty->print_cr("*********************************************************");
   }
+  if ((_do_locks_coarsening != EliminateLocks) && PrintOpto) {
+    // Recompiling without locks coarsening
+    tty->print_cr("*********************************************************");
+    tty->print_cr("** Bailout: Recompile without locks coarsening         **");
+    tty->print_cr("*********************************************************");
+  }
   if (env()->break_at_compile()) {
     // Open the debugger when compiling this method.
     tty->print("### Breaking when compiling: ");
@@ -538,14 +545,15 @@ debug_only( int Compile::_debug_idx = 100000; )
 
 
 Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
-                  bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, bool install_code, DirectiveSet* directive)
+                  bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing,
+                  bool do_locks_coarsening, bool install_code, DirectiveSet* directive)
                 : Phase(Compiler),
                   _compile_id(ci_env->compile_id()),
-                  _save_argument_registers(false),
                   _subsume_loads(subsume_loads),
                   _do_escape_analysis(do_escape_analysis),
                   _install_code(install_code),
                   _eliminate_boxing(eliminate_boxing),
+                  _do_locks_coarsening(do_locks_coarsening),
                   _method(target),
                   _entry_bci(osr_bci),
                   _stub_function(NULL),
@@ -578,6 +586,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
                   _expensive_nodes   (comp_arena(), 8, 0, NULL),
                   _for_post_loop_igvn(comp_arena(), 8, 0, NULL),
                   _inline_type_nodes (comp_arena(), 8, 0, NULL),
+                  _coarsened_locks   (comp_arena(), 8, 0, NULL),
                   _congraph(NULL),
                   NOT_PRODUCT(_printer(NULL) COMMA)
                   _dead_node_list(comp_arena()),
@@ -838,16 +847,15 @@ Compile::Compile( ciEnv* ci_env,
                   const char *stub_name,
                   int is_fancy_jump,
                   bool pass_tls,
-                  bool save_arg_registers,
                   bool return_pc,
                   DirectiveSet* directive)
   : Phase(Compiler),
     _compile_id(0),
-    _save_argument_registers(save_arg_registers),
     _subsume_loads(true),
     _do_escape_analysis(false),
     _install_code(true),
     _eliminate_boxing(false),
+    _do_locks_coarsening(false),
     _method(NULL),
     _entry_bci(InvocationEntryBci),
     _stub_function(stub_function),
@@ -1927,6 +1935,34 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       } else if (vt->is_InlineTypePtr()) {
         igvn.replace_node(vt, vt->get_oop());
       } else {
+        // Check if any users are blackholes. If so, rewrite them to use either the
+        // allocated buffer, or individual components, instead of the inline type node
+        // that goes away.
+        for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
+          if (vt->out(i)->is_Blackhole()) {
+            BlackholeNode* bh = vt->out(i)->as_Blackhole();
+
+            // Unlink the old input
+            int idx = bh->find_edge(vt);
+            assert(idx != -1, "The edge should be there");
+            bh->del_req(idx);
+            --i;
+
+            if (vt->is_allocated(&igvn)) {
+              // Already has the allocated instance, blackhole that
+              bh->add_req(vt->get_oop());
+            } else {
+              // Not allocated yet, blackhole the components
+              for (uint c = 0; c < vt->field_count(); c++) {
+                bh->add_req(vt->field_value(c));
+              }
+            }
+
+            // Node modified, record for IGVN
+            igvn.record_for_igvn(bh);
+          }
+        }
+
 #ifdef ASSERT
         for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
           assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");
@@ -3420,6 +3456,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     frc.inc_java_call_count(); // Count java call site;
   case Op_CallRuntime:
   case Op_CallLeaf:
+  case Op_CallLeafVector:
   case Op_CallNative:
   case Op_CallLeafNoFP: {
     assert (n->is_Call(), "");
@@ -3597,8 +3634,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       }
     }
 #endif
-    // platform dependent reshaping of the address expression
-    reshape_address(n->as_AddP());
     break;
   }
 
@@ -3879,6 +3914,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_StoreVector:
   case Op_LoadVectorGather:
   case Op_StoreVectorScatter:
+  case Op_VectorCmpMasked:
   case Op_VectorMaskGen:
   case Op_LoadVectorMasked:
   case Op_StoreVectorMasked:
@@ -4536,9 +4572,12 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
   }
 
   ciType* superelem = superk;
+  ciType* subelem = subk;
   if (superelem->is_array_klass()) {
-    ciArrayKlass* ak = superelem->as_array_klass();
     superelem = superelem->as_array_klass()->base_element_type();
+  }
+  if (subelem->is_array_klass()) {
+    subelem = subelem->as_array_klass()->base_element_type();
   }
 
   if (!subk->is_interface()) {  // cannot trust static interface types yet
@@ -4546,8 +4585,9 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
       return SSC_always_true;   // (1) false path dead; no dynamic test needed
     }
     if (!(superelem->is_klass() && superelem->as_klass()->is_interface()) &&
+        !(subelem->is_klass() && subelem->as_klass()->is_interface()) &&
         !superk->is_subtype_of(subk)) {
-      return SSC_always_false;
+      return SSC_always_false;  // (2) true path dead; no dynamic test needed
     }
   }
 
@@ -4924,6 +4964,101 @@ void Compile::add_expensive_node(Node * n) {
     // OptimizeExpensiveOps is off.
     n->set_req(0, NULL);
   }
+}
+
+/**
+ * Track coarsened Lock and Unlock nodes.
+ */
+
+class Lock_List : public Node_List {
+  uint _origin_cnt;
+public:
+  Lock_List(Arena *a, uint cnt) : Node_List(a), _origin_cnt(cnt) {}
+  uint origin_cnt() const { return _origin_cnt; }
+};
+
+void Compile::add_coarsened_locks(GrowableArray<AbstractLockNode*>& locks) {
+  int length = locks.length();
+  if (length > 0) {
+    // Have to keep this list until locks elimination during Macro nodes elimination.
+    Lock_List* locks_list = new (comp_arena()) Lock_List(comp_arena(), length);
+    for (int i = 0; i < length; i++) {
+      AbstractLockNode* lock = locks.at(i);
+      assert(lock->is_coarsened(), "expecting only coarsened AbstractLock nodes, but got '%s'[%d] node", lock->Name(), lock->_idx);
+      locks_list->push(lock);
+    }
+    _coarsened_locks.append(locks_list);
+  }
+}
+
+void Compile::remove_useless_coarsened_locks(Unique_Node_List& useful) {
+  int count = coarsened_count();
+  for (int i = 0; i < count; i++) {
+    Node_List* locks_list = _coarsened_locks.at(i);
+    for (uint j = 0; j < locks_list->size(); j++) {
+      Node* lock = locks_list->at(j);
+      assert(lock->is_AbstractLock(), "sanity");
+      if (!useful.member(lock)) {
+        locks_list->yank(lock);
+      }
+    }
+  }
+}
+
+void Compile::remove_coarsened_lock(Node* n) {
+  if (n->is_AbstractLock()) {
+    int count = coarsened_count();
+    for (int i = 0; i < count; i++) {
+      Node_List* locks_list = _coarsened_locks.at(i);
+      locks_list->yank(n);
+    }
+  }
+}
+
+bool Compile::coarsened_locks_consistent() {
+  int count = coarsened_count();
+  for (int i = 0; i < count; i++) {
+    bool unbalanced = false;
+    bool modified = false; // track locks kind modifications
+    Lock_List* locks_list = (Lock_List*)_coarsened_locks.at(i);
+    uint size = locks_list->size();
+    if (size != locks_list->origin_cnt()) {
+      unbalanced = true; // Some locks were removed from list
+    } else {
+      for (uint j = 0; j < size; j++) {
+        Node* lock = locks_list->at(j);
+        // All nodes in group should have the same state (modified or not)
+        if (!lock->as_AbstractLock()->is_coarsened()) {
+          if (j == 0) {
+            // first on list was modified, the rest should be too for consistency
+            modified = true;
+          } else if (!modified) {
+            // this lock was modified but previous locks on the list were not
+            unbalanced = true;
+            break;
+          }
+        } else if (modified) {
+          // previous locks on list were modified but not this lock
+          unbalanced = true;
+          break;
+        }
+      }
+    }
+    if (unbalanced) {
+      // unbalanced monitor enter/exit - only some [un]lock nodes were removed or modified
+#ifdef ASSERT
+      if (PrintEliminateLocks) {
+        tty->print_cr("=== unbalanced coarsened locks ===");
+        for (uint l = 0; l < size; l++) {
+          locks_list->at(l)->dump();
+        }
+      }
+#endif
+      record_failure(C2Compiler::retry_no_locks_coarsening());
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

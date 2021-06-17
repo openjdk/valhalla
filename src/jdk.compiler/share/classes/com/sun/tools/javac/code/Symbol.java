@@ -1492,7 +1492,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
 
         @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public ElementKind getKind() {
             apiComplete();
             long flags = flags();
@@ -1541,7 +1540,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public List<? extends RecordComponent> getRecordComponents() {
             return recordComponents;
         }
@@ -1726,7 +1724,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             } else if (isResourceVariable()) {
                 return ElementKind.RESOURCE_VARIABLE;
             } else if ((flags & MATCH_BINDING) != 0) {
-                @SuppressWarnings("preview")
                 ElementKind kind = ElementKind.BINDING_VARIABLE;
                 return kind;
             } else {
@@ -1795,7 +1792,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
     }
 
-    @SuppressWarnings("preview")
     public static class RecordComponent extends VarSymbol implements RecordComponentElement {
         public MethodSymbol accessor;
         public JCTree.JCMethodDecl accessorMeth;
@@ -1838,7 +1834,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public ElementKind getKind() {
             return ElementKind.RECORD_COMPONENT;
         }
@@ -1849,7 +1844,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public <R, P> R accept(ElementVisitor<R, P> v, P p) {
             return v.visitRecordComponent(this, p);
         }

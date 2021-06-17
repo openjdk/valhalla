@@ -513,6 +513,9 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* curr
     // JavaCallWrapper::~JavaCallWrapper
     return StubRoutines::catch_exception_entry();
   }
+  if (blob != NULL && blob->is_optimized_entry_blob()) {
+    return ((OptimizedEntryBlob*)blob)->exception_handler();
+  }
   // Interpreted code
   if (Interpreter::contains(return_address)) {
     // The deferred StackWatermarkSet::after_unwind check will be performed in
@@ -789,7 +792,7 @@ JRT_END
 void SharedRuntime::throw_StackOverflowError_common(JavaThread* current, bool delayed) {
   // We avoid using the normal exception construction in this case because
   // it performs an upcall to Java, and we're already out of stack space.
-  Thread* THREAD = current; // For exception processing.
+  JavaThread* THREAD = current; // For exception macros.
   Klass* k = vmClasses::StackOverflowError_klass();
   oop exception_oop = InstanceKlass::cast(k)->allocate_instance(CHECK);
   if (delayed) {
@@ -1051,7 +1054,7 @@ JRT_END
 // put callee has not been invoked yet.  Used by: resolve virtual/static,
 // vtable updates, etc.  Caller frame must be compiled.
 Handle SharedRuntime::find_callee_info(Bytecodes::Code& bc, CallInfo& callinfo, TRAPS) {
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
   ResourceMark rm(current);
 
   // last java frame on stack (which includes native call frames)
@@ -1080,7 +1083,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
                                               CallInfo& callinfo, TRAPS) {
   Handle receiver;
   Handle nullHandle;  // create a handy null handle for exception returns
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
 
   assert(!vfst.at_end(), "Java frame must exist");
 
@@ -1234,7 +1237,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
 }
 
 methodHandle SharedRuntime::find_callee_method(TRAPS) {
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
   ResourceMark rm(current);
   // We need first to check if any Java activations (compiled, interpreted)
   // exist on the stack since last JavaCall.  If not, we need
@@ -1382,7 +1385,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 // Resolves a call.  The compilers generate code for calls that go here
 // and are patched with the real destination of the call.
 methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS) {
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap cbl_map(current, false);
   frame caller_frame = current->last_frame().sender(&cbl_map);
@@ -1487,7 +1490,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
   frame stub_frame = current->last_frame();
   assert(stub_frame.is_runtime_frame(), "sanity check");
   frame caller_frame = stub_frame.sender(&reg_map);
-  assert(!caller_frame.is_interpreted_frame() && !caller_frame.is_entry_frame(), "unexpected frame");
+  assert(!caller_frame.is_interpreted_frame() && !caller_frame.is_entry_frame()  && !caller_frame.is_optimized_entry_frame(), "unexpected frame");
 #endif /* ASSERT */
 
   methodHandle callee_method;
@@ -1520,7 +1523,8 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
   frame caller_frame = stub_frame.sender(&reg_map);
 
   if (caller_frame.is_interpreted_frame() ||
-      caller_frame.is_entry_frame()) {
+      caller_frame.is_entry_frame() ||
+      caller_frame.is_optimized_entry_frame()) {
     Method* callee = current->callee_target();
     guarantee(callee != NULL && callee->is_method(), "bad handshake");
     current->set_vm_result_2(callee);
@@ -1717,7 +1721,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
 }
 
 methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS) {
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
   ResourceMark rm(current);
   CallInfo call_info;
   Bytecodes::Code bc;
@@ -1827,7 +1831,7 @@ static bool clear_ic_at_addr(CompiledMethod* caller_nm, address call_addr, bool 
 // destination from compiled to interpreted.
 //
 methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS) {
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap reg_map(current, false);
   frame stub_frame = current->last_frame();
@@ -2879,6 +2883,9 @@ void CompiledEntrySignature::compute_calling_conventions() {
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
+
+  // TODO: Reimplement JDK-8266015, dropped from jdk->lworld merge
+
   // Use customized signature handler.  Need to lock around updates to
   // the AdapterHandlerTable (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
@@ -3544,31 +3551,6 @@ JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* current, Method
   current->set_vm_result_2(callee()); // TODO: required to keep callee live?
 JRT_END
 
-// TODO remove this once the AARCH64 dependency is gone
-// Iterate over the array of heap allocated inline types and apply the GC post barrier to all reference fields.
-// This is called from the C2I adapter after inline type arguments are heap allocated and initialized.
-JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* current, objArrayOopDesc* array))
-{
-  assert(InlineTypePassFieldsAsArgs, "no reason to call this");
-  assert(oopDesc::is_oop(array), "should be oop");
-  for (int i = 0; i < array->length(); ++i) {
-    instanceOop valueOop = (instanceOop)array->obj_at(i);
-    InlineKlass* vk = InlineKlass::cast(valueOop->klass());
-    if (vk->contains_oops()) {
-      const address dst_oop_addr = ((address) (void*) valueOop);
-      OopMapBlock* map = vk->start_of_nonstatic_oop_maps();
-      OopMapBlock* const end = map + vk->nonstatic_oop_map_count();
-      while (map != end) {
-        address doop_address = dst_oop_addr + map->offset();
-        barrier_set_cast<ModRefBarrierSet>(BarrierSet::barrier_set())->
-          write_ref_array((HeapWord*) doop_address, map->count());
-        map++;
-      }
-    }
-  }
-}
-JRT_END
-
 // We're returning from an interpreted method: load each field into a
 // register following the calling convention
 JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* current, oopDesc* res))
@@ -3695,7 +3677,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
   // It's unsafe to safepoint until we are here
   JRT_BLOCK;
   {
-    Thread* THREAD = current;
+    JavaThread* THREAD = current;
     oop vt = vk->realloc_result(reg_map, handles, CHECK);
     current->set_vm_result(vt);
   }

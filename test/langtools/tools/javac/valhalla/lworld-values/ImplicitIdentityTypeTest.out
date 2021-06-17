@@ -1,0 +1,3 @@
+ImplicitIdentityTypeTest.java:43:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: ImplicitIdentityTypeTest.A, java.lang.IdentityObject)
+ImplicitIdentityTypeTest.java:44:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: ImplicitIdentityTypeTest.B, java.lang.IdentityObject)
+2 errors

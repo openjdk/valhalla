@@ -39,7 +39,7 @@
 class SuperNotAbstract {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -299,7 +299,7 @@ class SuperNotAbstract {
 class SuperHasNonStaticFields {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -559,7 +559,7 @@ class SuperHasNonStaticFields {
 class SuperHasSynchMethod {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -818,7 +818,7 @@ class SuperHasSynchMethod {
 class SuperCtorHasArgs {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1079,7 +1079,7 @@ class SuperCtorHasArgs {
 class SuperCtorIsNotEmpty {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1339,7 +1339,7 @@ class SuperCtorIsNotEmpty {
 class InlineImplementsIdentityObject {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [53] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1603,7 +1603,7 @@ class InlineImplementsIdentityObject {
 class SuperImplementsIdentityObject {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1863,7 +1863,7 @@ class SuperImplementsIdentityObject {
 class SuperIntfImplementsIdentityObject {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A

@@ -455,6 +455,7 @@ public final class Class<T> implements java.io.Serializable,
         throws ClassNotFoundException
     {
         Class<?> caller = null;
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             // Reflective call to get caller class is only needed if a security manager
@@ -524,6 +525,7 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 12.3 Linking of Classes and Interfaces
      * @since 9
      */
+    @SuppressWarnings("removal")
     @CallerSensitive
     public static Class<?> forName(Module module, String name) {
         Objects.requireNonNull(module);
@@ -701,6 +703,7 @@ public final class Class<T> implements java.io.Serializable,
      *          s.checkPackageAccess()} denies access to the package
      *          of this class.
      */
+    @SuppressWarnings("removal")
     @CallerSensitive
     @Deprecated(since="9")
     public T newInstance()
@@ -1006,6 +1009,7 @@ public final class Class<T> implements java.io.Serializable,
         ClassLoader cl = getClassLoader0();
         if (cl == null)
             return null;
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             ClassLoader.checkClassLoaderPermission(cl, Reflection.getCallerClass());
@@ -1469,6 +1473,7 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkMemberAccess(sm, Member.DECLARED,
@@ -1625,6 +1630,7 @@ public final class Class<T> implements java.io.Serializable,
 
             // Perform access check
             final Class<?> enclosingCandidate = enclosingInfo.getEnclosingClass();
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkMemberAccess(sm, Member.DECLARED,
@@ -1672,6 +1678,7 @@ public final class Class<T> implements java.io.Serializable,
         final Class<?> candidate = getDeclaringClass0();
 
         if (candidate != null) {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 candidate.checkPackageAccess(sm,
@@ -1726,6 +1733,7 @@ public final class Class<T> implements java.io.Serializable,
         }
 
         if (enclosingCandidate != null) {
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 enclosingCandidate.checkPackageAccess(sm,
@@ -1839,7 +1847,12 @@ public final class Class<T> implements java.io.Serializable,
             String enclosingName = enclosingClass.getCanonicalName();
             if (enclosingName == null)
                 return ReflectionData.NULL_SENTINEL;
-            return enclosingName + "." + getSimpleName();
+            String simpleName = getSimpleName();
+            return new StringBuilder(enclosingName.length() + simpleName.length() + 1)
+                    .append(enclosingName)
+                    .append('.')
+                    .append(simpleName)
+                    .toString();
         }
     }
 
@@ -1952,6 +1965,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 1.1
      */
+    @SuppressWarnings("removal")
     @CallerSensitive
     public Class<?>[] getClasses() {
         SecurityManager sm = System.getSecurityManager();
@@ -2023,6 +2037,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Field[] getFields() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2113,6 +2128,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Method[] getMethods() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2153,6 +2169,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getConstructors() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2207,6 +2224,7 @@ public final class Class<T> implements java.io.Serializable,
     public Field getField(String name)
         throws NoSuchFieldException, SecurityException {
         Objects.requireNonNull(name);
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2316,6 +2334,7 @@ public final class Class<T> implements java.io.Serializable,
     public Method getMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {
         Objects.requireNonNull(name);
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2360,6 +2379,7 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), true);
@@ -2407,6 +2427,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Class<?>[] getDeclaredClasses() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), false);
@@ -2459,6 +2480,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Field[] getDeclaredFields() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2520,6 +2542,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public RecordComponent[] getRecordComponents() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2590,6 +2613,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Method[] getDeclaredMethods() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2640,6 +2664,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     @CallerSensitive
     public Constructor<?>[] getDeclaredConstructors() throws SecurityException {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2692,6 +2717,7 @@ public final class Class<T> implements java.io.Serializable,
     public Field getDeclaredField(String name)
         throws NoSuchFieldException, SecurityException {
         Objects.requireNonNull(name);
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2756,6 +2782,7 @@ public final class Class<T> implements java.io.Serializable,
     public Method getDeclaredMethod(String name, Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException {
         Objects.requireNonNull(name);
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -2834,6 +2861,7 @@ public final class Class<T> implements java.io.Serializable,
     public Constructor<T> getDeclaredConstructor(Class<?>... parameterTypes)
         throws NoSuchMethodException, SecurityException
     {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
@@ -3080,6 +3108,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.2
      */
     public java.security.ProtectionDomain getProtectionDomain() {
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkPermission(SecurityConstants.GET_PD_PERMISSION);
@@ -3125,7 +3154,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * <p> NOTE: should only be called if a SecurityManager is installed
      */
-    private void checkMemberAccess(SecurityManager sm, int which,
+    private void checkMemberAccess(@SuppressWarnings("removal") SecurityManager sm, int which,
                                    Class<?> caller, boolean checkProxyInterfaces) {
         /* Default policy allows access to all {@link Member#PUBLIC} members,
          * as well as access to classes that have the same class loader as the caller.
@@ -3149,13 +3178,13 @@ public final class Class<T> implements java.io.Serializable,
      *
      * NOTE: this method should only be called if a SecurityManager is active
      */
-    private void checkPackageAccess(SecurityManager sm, final ClassLoader ccl,
+    private void checkPackageAccess(@SuppressWarnings("removal") SecurityManager sm, final ClassLoader ccl,
                                     boolean checkProxyInterfaces) {
         final ClassLoader cl = getClassLoader0();
 
         if (ReflectUtil.needsPackageAccessCheck(ccl, cl)) {
             String pkg = this.getPackageName();
-            if (pkg != null && !pkg.isEmpty()) {
+            if (!pkg.isEmpty()) {
                 // skip the package access check on a proxy class in default proxy package
                 if (!Proxy.isProxyClass(this) || ReflectUtil.isNonPublicProxyClass(this)) {
                     sm.checkPackageAccess(pkg);
@@ -3178,7 +3207,7 @@ public final class Class<T> implements java.io.Serializable,
      *       all classes provided must be loaded by the same ClassLoader
      * NOTE: this method does not support Proxy classes
      */
-    private static void checkPackageAccessForPermittedSubclasses(SecurityManager sm,
+    private static void checkPackageAccessForPermittedSubclasses(@SuppressWarnings("removal") SecurityManager sm,
                                     final ClassLoader ccl, Class<?>[] subClasses) {
         final ClassLoader cl = subClasses[0].getClassLoader0();
 
@@ -3189,7 +3218,7 @@ public final class Class<T> implements java.io.Serializable,
                 if (Proxy.isProxyClass(c))
                     throw new InternalError("a permitted subclass should not be a proxy class: " + c);
                 String pkg = c.getPackageName();
-                if (pkg != null && !pkg.isEmpty()) {
+                if (!pkg.isEmpty()) {
                     packages.add(pkg);
                 }
             }
@@ -3206,7 +3235,7 @@ public final class Class<T> implements java.io.Serializable,
     private String resolveName(String name) {
         if (!name.startsWith("/")) {
             String baseName = getPackageName();
-            if (baseName != null && !baseName.isEmpty()) {
+            if (!baseName.isEmpty()) {
                 int len = baseName.length() + 1 + name.length();
                 StringBuilder sb = new StringBuilder(len);
                 name = sb.append(baseName.replace('.', '/'))
@@ -3874,6 +3903,7 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     // Fetches the factory for reflective objects
+    @SuppressWarnings("removal")
     private static ReflectionFactory getReflectionFactory() {
         if (reflectionFactory == null) {
             reflectionFactory =
@@ -3906,6 +3936,7 @@ public final class Class<T> implements java.io.Serializable,
      * identical to getEnumConstants except that the result is
      * uncloned, cached, and shared by all callers.
      */
+    @SuppressWarnings("removal")
     T[] getEnumConstantsShared() {
         T[] constants = enumConstants;
         if (constants == null) {
@@ -4321,6 +4352,7 @@ public final class Class<T> implements java.io.Serializable,
             return this;
         }
         // returning a different class requires a security check
+        @SuppressWarnings("removal")
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkPackageAccess(sm,
@@ -4413,6 +4445,7 @@ public final class Class<T> implements java.io.Serializable,
         if (members.length > 1) {
             // If we return anything other than the current class we need
             // a security check
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 checkPackageAccess(sm,
@@ -4485,14 +4518,24 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        String typeDesc = isValueType()  ? "Q" : "L";
+        char typeDesc = isPrimitiveClass() ? 'Q' : 'L';
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');
-            return typeDesc + name.substring(0, index).replace('.', '/')
-                       + "." + name.substring(index+1) + ";";
+            return new StringBuilder(name.length() + 2)
+                    .append(typeDesc)
+                    .append(name.substring(0, index).replace('.', '/'))
+                    .append('.')
+                    .append(name, index + 1, name.length())
+                    .append(';')
+                    .toString();
         } else {
-            return typeDesc + getName().replace('.', '/') + ";";
+            String name = getName().replace('.', '/');
+            return new StringBuilder(name.length() + 2)
+                    .append(typeDesc)
+                    .append(name)
+                    .append(';')
+                    .toString();
         }
     }
 
@@ -4584,9 +4627,8 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @jls 8.1 Class Declarations
      * @jls 9.1 Interface Declarations
-     * @since 15
+     * @since 17
      */
-    @jdk.internal.javac.PreviewFeature(feature=jdk.internal.javac.PreviewFeature.Feature.SEALED_CLASSES, reflective=true)
     @CallerSensitive
     public Class<?>[] getPermittedSubclasses() {
         Class<?>[] subClasses;
@@ -4602,6 +4644,7 @@ public final class Class<T> implements java.io.Serializable,
         }
         if (subClasses.length > 0) {
             // If we return some classes we need a security check:
+            @SuppressWarnings("removal")
             SecurityManager sm = System.getSecurityManager();
             if (sm != null) {
                 checkPackageAccessForPermittedSubclasses(sm,
@@ -4633,14 +4676,13 @@ public final class Class<T> implements java.io.Serializable,
      * subclasses; {@link #getPermittedSubclasses()} returns a non-null but
      * possibly empty value for a sealed class or interface.
      *
-     * @return {@code true} if and only if this {@code Class} object represents a sealed class or interface.
+     * @return {@code true} if and only if this {@code Class} object represents
+     * a sealed class or interface.
      *
      * @jls 8.1 Class Declarations
      * @jls 9.1 Interface Declarations
-     * @since 15
+     * @since 17
      */
-    @jdk.internal.javac.PreviewFeature(feature=jdk.internal.javac.PreviewFeature.Feature.SEALED_CLASSES, reflective=true)
-    @SuppressWarnings("preview")
     public boolean isSealed() {
         if (isArray() || isPrimitive()) {
             return false;

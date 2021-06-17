@@ -24,9 +24,10 @@
 #ifndef SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 #define SHARE_GC_Z_ZBARRIERSET_INLINE_HPP
 
+#include "gc/z/zBarrierSet.hpp"
+
 #include "gc/shared/accessBarrierSupport.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
-#include "gc/z/zBarrierSet.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "utilities/debug.hpp"
 
@@ -194,13 +195,13 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_i
   for (const T* const end = src + length; src < end; src++, dst++) {
     const oop elem = ZBarrier::load_barrier_on_oop_field(src);
     if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && elem == NULL) {
-      throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current());
+      throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
       return;
     }
     if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
         (!oopDesc::is_instanceof_or_null(elem, dst_klass))) {
       // Check cast failed
-      throw_array_store_exception(src_obj, dst_obj, Thread::current());
+      throw_array_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
       return;
     }
 
