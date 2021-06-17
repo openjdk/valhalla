@@ -2435,6 +2435,10 @@ public class Flow {
                 JCCase c = l.head;
                 for (JCCaseLabel pat : c.labels) {
                     scan(pat);
+                    if (inits.isReset()) {
+                        inits.assign(initsWhenTrue);
+                        uninits.assign(uninitsWhenTrue);
+                    }
                 }
                 if (l.head.stats.isEmpty() &&
                     l.tail.nonEmpty() &&

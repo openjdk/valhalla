@@ -2757,6 +2757,9 @@ public class JavacParser implements Parser {
                     case PLUSPLUS: case SUBSUB:
                         isYieldStatement = S.token(2).kind != SEMI;
                         break;
+                    case BANG: case TILDE:
+                        isYieldStatement = S.token(1).kind != SEMI;
+                        break;
                     case LPAREN:
                         int lookahead = 2;
                         int balance = 1;

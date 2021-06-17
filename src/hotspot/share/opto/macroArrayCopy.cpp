@@ -1350,6 +1350,8 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
   return TypeRawPtr::BOTTOM;
 }
 
+#undef XTOP
+
 void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   Node* ctrl = ac->in(TypeFunc::Control);
   Node* io = ac->in(TypeFunc::I_O);
