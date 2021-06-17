@@ -33,8 +33,8 @@ public primitive class MethodReference {
     final int x;
     final int y;
     MethodReference() {
-    	x = 1234;
-    	y = 5678;
+        this.x = 1234;
+        this.y = 5678;
     }
 
     public static void main(String... args) {
@@ -44,5 +44,3 @@ public primitive class MethodReference {
             throw new AssertionError(o);
     }
 }
-
-
