@@ -224,6 +224,7 @@ public class Symtab {
     public final Type recordType;
     public final Type identityObjectType;
     public final Type primitiveObjectType;
+    public final Type switchBootstrapsType;
     public final Type valueBasedType;
 
     /** The symbol representing the length field of an array.
@@ -600,6 +601,7 @@ public class Symtab {
         recordType = enterClass("java.lang.Record");
         identityObjectType = enterClass("java.lang.IdentityObject");
         primitiveObjectType = enterClass("java.lang.PrimitiveObject");
+        switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);

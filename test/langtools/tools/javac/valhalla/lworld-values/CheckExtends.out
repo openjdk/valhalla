@@ -1,2 +1,2 @@
-CheckExtends.java:10:22: compiler.err.primitive.class.must.not.implement.identity.object: CheckExtends.NestedValue
+CheckExtends.java:10:22: compiler.err.concrete.supertype.for.primitive.class: CheckExtends.NestedPrimitive, CheckExtends.NestedConcrete
 1 error

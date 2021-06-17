@@ -1,0 +1,3 @@
+DualNonDuplicateErrors.java:17:13: compiler.err.this.exposed.prematurely
+DualNonDuplicateErrors.java:17:12: compiler.err.this.exposed.prematurely
+2 errors

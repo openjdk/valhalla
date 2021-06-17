@@ -1354,7 +1354,9 @@ public:
 class BlackholeNode : public MemBarNode {
 public:
   BlackholeNode(Compile* C, int alias_idx, Node* precedent)
-    : MemBarNode(C, alias_idx, precedent) {}
+    : MemBarNode(C, alias_idx, precedent) {
+    init_class_id(Class_Blackhole);
+  }
   virtual int   Opcode() const;
   virtual uint ideal_reg() const { return 0; } // not matched in the AD file
   const RegMask &in_RegMask(uint idx) const {

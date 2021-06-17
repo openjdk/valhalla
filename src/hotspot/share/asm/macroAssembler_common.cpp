@@ -132,25 +132,12 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
   // Check if we need to extend the stack for unpacking
   int sp_inc = 0;
   if (args_on_stack_cc > args_on_stack) {
-    // Two additional slots to account for return address
-    sp_inc = (args_on_stack_cc + 2) * VMRegImpl::stack_slot_size;
-    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    // Save the return address, adjust the stack (make sure it is properly
-    // 16-byte aligned) and copy the return address to the new top of the stack.
-    // The stack will be repaired on return (see MacroAssembler::remove_frame).
-    assert(sp_inc > 0, "sanity");
-#ifdef X86
-    pop(r13);
-    subptr(rsp, sp_inc);
-    push(r13);
-#else
-    Unimplemented();
-#endif
+    sp_inc = extend_stack_for_inline_args(args_on_stack_cc);
   }
   shuffle_inline_args(false, receiver_only, sig,
                       args_passed, args_on_stack, regs,           // from
                       args_passed_cc, args_on_stack_cc, regs_cc,  // to
-                      sp_inc);
+                      sp_inc, noreg);
   return sp_inc;
 }
 #endif // COMPILER2
@@ -159,7 +146,7 @@ void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only,
                                          const GrowableArray<SigEntry>* sig,
                                          int args_passed, int args_on_stack, VMRegPair* regs,
                                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,
-                                         int sp_inc) {
+                                         int sp_inc, Register val_array) {
   int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
   RegState* reg_state = init_reg_state(regs, args_passed, sp_inc, max_stack);
 
@@ -190,10 +177,11 @@ void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only,
         to_index += step;
         from_index += step;
       } else if (is_packing) {
+        assert(val_array != noreg, "must be");
         VMReg reg_to = regs_to[to_index].first();
         done &= pack_inline_helper(sig, sig_index, vtarg_index,
                                    regs, args_passed, from_index, reg_to,
-                                   reg_state);
+                                   reg_state, val_array);
         vtarg_index++;
         to_index++;
       } else if (!receiver_only || (from_index == 0 && bt == T_VOID)) {

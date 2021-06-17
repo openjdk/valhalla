@@ -861,3 +861,5 @@ void BarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac
 
   phase->replace_node(ac, call);
 }
+
+#undef XTOP

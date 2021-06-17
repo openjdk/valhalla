@@ -33,6 +33,7 @@
 #include "opto/graphKit.hpp"
 #include "opto/macro.hpp"
 #include "opto/runtime.hpp"
+#include "opto/castnode.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/align.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -179,8 +180,8 @@ void PhaseMacroExpand::generate_limit_guard(Node** ctrl, Node* offset, Node* sub
 
 //
 // Partial in-lining handling for smaller conjoint/disjoint array copies having
-// length(in bytes) less than ArrayCopyPartialInlineSize.
-//  if (length <= ArrayCopyPartialInlineSize) {
+// length(in bytes) less than ArrayOperationPartialInlineSize.
+//  if (length <= ArrayOperationPartialInlineSize) {
 //    partial_inlining_block:
 //      mask = Mask_Gen
 //      vload = LoadVectorMasked src , mask
@@ -221,24 +222,27 @@ void PhaseMacroExpand::generate_partial_inlining_block(Node** ctrl, MergeMemNode
   // Return if copy length is greater than partial inline size limit or
   // target does not supports masked load/stores.
   int lane_count = ArrayCopyNode::get_partial_inline_vector_lane_count(type, const_len);
-  if ( const_len > ArrayCopyPartialInlineSize ||
+  if ( const_len > ArrayOperationPartialInlineSize ||
       !Matcher::match_rule_supported_vector(Op_LoadVectorMasked, lane_count, type)  ||
       !Matcher::match_rule_supported_vector(Op_StoreVectorMasked, lane_count, type) ||
       !Matcher::match_rule_supported_vector(Op_VectorMaskGen, lane_count, type)) {
     return;
   }
 
+  int inline_limit = ArrayOperationPartialInlineSize / type2aelembytes(type);
+  Node* casted_length = new CastLLNode(*ctrl, length, TypeLong::make(0, inline_limit, Type::WidenMin));
+  transform_later(casted_length);
   Node* copy_bytes = new LShiftXNode(length, intcon(shift));
   transform_later(copy_bytes);
 
-  Node* cmp_le = new CmpULNode(copy_bytes, longcon(ArrayCopyPartialInlineSize));
+  Node* cmp_le = new CmpULNode(copy_bytes, longcon(ArrayOperationPartialInlineSize));
   transform_later(cmp_le);
   Node* bol_le = new BoolNode(cmp_le, BoolTest::le);
   transform_later(bol_le);
   inline_block  = generate_guard(ctrl, bol_le, NULL, PROB_FAIR);
   stub_block = *ctrl;
 
-  Node* mask_gen =  new VectorMaskGenNode(length, TypeVect::VECTMASK, Type::get_const_basic_type(type));
+  Node* mask_gen =  new VectorMaskGenNode(casted_length, TypeVect::VECTMASK, type);
   transform_later(mask_gen);
 
   unsigned vec_size = lane_count *  type2aelembytes(type);
@@ -731,7 +735,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // At this point we know we do not need type checks on oop stores.
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (!bs->array_copy_requires_gc_barriers(alloc != NULL, copy_type, false, BarrierSetC2::Expansion)) {
+    if (!bs->array_copy_requires_gc_barriers(alloc != NULL, copy_type, false, false, BarrierSetC2::Expansion)) {
       // If we do not need gc barriers, copy using the jint or jlong stub.
       copy_type = LP64_ONLY(UseCompressedOops ? T_INT : T_LONG) NOT_LP64(T_INT);
       assert(type2aelembytes(basic_elem_type) == type2aelembytes(copy_type),
@@ -1277,7 +1281,7 @@ bool PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
 
   Node* result_memory = NULL;
   RegionNode* exit_block = NULL;
-  if (ArrayCopyPartialInlineSize > 0 && is_subword_type(basic_elem_type) &&
+  if (ArrayOperationPartialInlineSize > 0 && is_subword_type(basic_elem_type) &&
     Matcher::vector_width_in_bytes(basic_elem_type) >= 16) {
     generate_partial_inlining_block(ctrl, mem, adr_type, &exit_block, &result_memory,
                                     copy_length, src_start, dest_start, basic_elem_type);
@@ -1316,7 +1320,7 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
 #ifdef ASSERT
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bool needs_barriers = top_dest->elem()->inline_klass()->contains_oops() &&
-                        bs->array_copy_requires_gc_barriers(dest_length != NULL, T_OBJECT, false, BarrierSetC2::Optimization);
+    bs->array_copy_requires_gc_barriers(dest_length != NULL, T_OBJECT, false, false, BarrierSetC2::Optimization);
   assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
 #endif
   int elem_size = top_dest->klass()->as_flat_array_klass()->element_byte_size();
@@ -1345,6 +1349,8 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
   }
   return TypeRawPtr::BOTTOM;
 }
+
+#undef XTOP
 
 void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   Node* ctrl = ac->in(TypeFunc::Control);
@@ -1486,7 +1492,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   if (src_elem != dest_elem || dest_elem == T_VOID ||
       (dest_elem == T_INLINE_TYPE && top_dest->elem()->inline_klass()->contains_oops() &&
-       bs->array_copy_requires_gc_barriers(alloc != NULL, T_OBJECT, false, BarrierSetC2::Optimization))) {
+       bs->array_copy_requires_gc_barriers(alloc != NULL, T_OBJECT, false, false, BarrierSetC2::Optimization))) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
     {
