@@ -4518,7 +4518,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        char typeDesc = isPrimitiveClass() ? 'Q' : 'L';
+        char typeDesc = isValueType() ? 'Q' : 'L';
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');

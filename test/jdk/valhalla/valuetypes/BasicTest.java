@@ -130,6 +130,9 @@ public class BasicTest {
 
         assertEquals(valType.getTypeName(), "BasicTest$Point");
         assertEquals(refType.getTypeName(), "BasicTest$Point.ref");
+
+        assertEquals(valType.descriptorString(), "QBasicTest$Point;");
+        assertEquals(refType.descriptorString(), "LBasicTest$Point;");
     }
 
     /*
