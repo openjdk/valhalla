@@ -178,9 +178,9 @@ public class ObjectMethods {
 
     private static Object[] hashCodeComponents(Object o) {
         Class<?> type = o.getClass();
-        // filter static fields and synthetic fields
+        // filter static fields
         Stream<Object> fields = Arrays.stream(type.getDeclaredFields())
-            .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
+            .filter(f -> !Modifier.isStatic(f.getModifiers()))
             .map(f -> {
                 try {
                     return f.get(o);
