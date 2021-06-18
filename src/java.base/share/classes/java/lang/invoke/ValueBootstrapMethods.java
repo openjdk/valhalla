@@ -107,9 +107,9 @@ public final class ValueBootstrapMethods {
 
         static MethodHandle[] getters(Class<?> type, Comparator<MethodHandle> comparator) {
             Lookup lookup = new MethodHandles.Lookup(type.asPrimaryType());
-            // filter static fields and synthetic fields
+            // filter static fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
-                .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
+                .filter(f -> !Modifier.isStatic(f.getModifiers()))
                 .map(f -> {
                     try {
                         return lookup.unreflectGetter(f);
