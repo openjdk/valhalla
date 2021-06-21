@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,70 +21,47 @@
  * questions.
  */
 
-
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-
 import jdk.test.lib.Asserts;
+import compiler.lib.ir_framework.*;
 
 /*
  * @test
  * @key randomness
  * @summary Verify that C1 performs escape analysis before optimizing withfield bytecode to putfield.
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires os.simpleArch == "x64"
  * @compile -XDallowWithFieldOperator TestWithfieldC1.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestWithfieldC1
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestWithfieldC1
  */
-public class TestWithfieldC1 extends InlineTypeTest {
-    public static final int C1 = COMP_LEVEL_SIMPLE;
-    public static final int C2 = COMP_LEVEL_FULL_OPTIMIZATION;
 
-    public static void main(String[] args) throws Throwable {
-        TestWithfieldC1 test = new TestWithfieldC1();
-        test.run(args, FooValue.class);
-    }
+@ForceCompileClassInitializer
+public class TestWithfieldC1 {
 
-    @Override
-    public int getNumScenarios() {
-        return 5;
-    }
+    public static void main(String[] args) {
+        final Scenario[] scenarios = {
+                new Scenario(0, // C1 only
+                        "-XX:TieredStopAtLevel=1",
+                        "-XX:+TieredCompilation"),
+                new Scenario(1, // C2 only. (Make sure the tests are correctly written)
+                        "-XX:TieredStopAtLevel=4",
+                        "-XX:-TieredCompilation"),
+                new Scenario(2, // interpreter only
+                        "-Xint"),
+                new Scenario(3, // Xcomp Only C1.
+                        "-XX:TieredStopAtLevel=1",
+                        "-XX:+TieredCompilation",
+                        "-Xcomp"),
+                new Scenario(4, // Xcomp Only C2.
+                        "-XX:TieredStopAtLevel=4",
+                        "-XX:-TieredCompilation",
+                        "-Xcomp")
+        };
 
-    @Override
-    public String[] getVMParameters(int scenario) {
-        switch (scenario) {
-        case 0: return new String[] { // C1 only
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-            };
-        case 1: return new String[] { // C2 only. (Make sure the tests are correctly written)
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-            };
-        case 2: return new String[] { // interpreter only
-                "-Xint",
-            };
-        case 3: return new String[] {
-                // Xcomp Only C1.
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-                "-Xcomp",
-            };
-        case 4: return new String[] {
-                // Xcomp Only C2.
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-                "-Xcomp",
-            };
-        }
-        return null;
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .start();
     }
 
     static FooValue.ref foo_static;
@@ -214,19 +191,19 @@ public class TestWithfieldC1 extends InlineTypeTest {
     }
 
     // escape with putstatic
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test1() {
         return FooValue.test1();
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    public void test1_verifier() {
         FooValue v = test1();
         validate_foo_static_and(v);
     }
 
     // escape with putfield
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test2() {
         FooValue v = FooValue.default;
 
@@ -239,8 +216,8 @@ public class TestWithfieldC1 extends InlineTypeTest {
         return v;
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         foo_instance = null;
         FooValue v = test2();
         Asserts.assertEQ(foo_instance.x, 1);
@@ -250,52 +227,52 @@ public class TestWithfieldC1 extends InlineTypeTest {
     }
 
     // escape with function call
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test3() {
         return FooValue.test3();
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         foo_static = null;
         FooValue v = test3();
         validate_foo_static_and(v);
     }
 
     // escape and then branch backwards
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test4() {
         return FooValue.test4();
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         foo_static = null;
         FooValue v = test4();
         validate_foo_static_and(v);
     }
 
     // escape using a different local variable
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test5() {
         return FooValue.test5();
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    public void test5_verifier() {
         foo_static = null;
         FooValue v = test5();
         validate_foo_static_and(v);
     }
 
     // escape using aastore
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test6() {
         return FooValue.test6();
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         foo_static_arr[0] = null;
         FooValue v = test6();
         Asserts.assertEQ(foo_static_arr[0].x, 1);
@@ -305,33 +282,33 @@ public class TestWithfieldC1 extends InlineTypeTest {
     }
 
     // Copying a value into different local slots -- disable withfield optimization
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test7() {
         return FooValue.test7();
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    public void test7_verifier() {
         FooValue v = test7();
         Asserts.assertEQ(v.x, 1);
         Asserts.assertEQ(v.y, 1);
     }
 
     // escape by invoking non-static method
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test8() {
         return FooValue.test8();
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
+    @Run(test = "test8")
+    public void test8_verifier() {
         foo_static = null;
         FooValue v = test8();
         validate_foo_static_and(v);
     }
 
     // duplicate reference with local variables
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test9() {
         FooValue v = FooValue.default;
 
@@ -350,8 +327,8 @@ public class TestWithfieldC1 extends InlineTypeTest {
         return v;
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
+    @Run(test = "test9")
+    public void test9_verifier() {
         foo_instance = null;
         FooValue v = test9();
         Asserts.assertEQ(foo_instance.x, 3);

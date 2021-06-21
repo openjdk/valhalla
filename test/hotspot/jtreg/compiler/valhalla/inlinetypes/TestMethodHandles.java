@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,29 @@
 
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
+import compiler.lib.ir_framework.*;
+import jdk.test.lib.Asserts;
+import sun.hotspot.WhiteBox;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import jdk.test.lib.Asserts;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
  * @test
  * @key randomness
  * @summary Test method handle support for inline types
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires os.simpleArch == "x64"
- * @compile TestMethodHandles.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestMethodHandles
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestMethodHandles
  */
-public class TestMethodHandles extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        // Prevent inlining through MethodHandle linkTo adapters to stress the calling convention
-        case 2: return new String[] {"-DVerifyIR=false", "-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
-        case 4: return new String[] {"-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
-        }
-        return null;
-    }
+
+@ForceCompileClassInitializer
+public class TestMethodHandles {
 
     static {
         try {
@@ -132,9 +126,22 @@ public class TestMethodHandles extends InlineTypeTest {
         }
     }
 
-    public static void main(String[] args) throws Throwable {
-        TestMethodHandles test = new TestMethodHandles();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class);
+    public static void main(String[] args) {
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+
+        // Prevent inlining through MethodHandle linkTo adapters to stress the calling convention
+        scenarios[2].addFlags("-DVerifyIR=false",
+                              "-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName");
+        scenarios[4].addFlags("-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class,
+                                     MyValue3.class,
+                                     MyValue3Inline.class)
+                   .start();
     }
 
     // Everything inlined
@@ -147,14 +154,17 @@ public class TestMethodHandles extends InlineTypeTest {
 
     static final MethodHandle test1_mh;
 
-    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
-    @Test(valid = InlineTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 14 })
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC, STORE, CALL})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+        counts = {ALLOC, "= 1", STORE, "= 14"})
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test1")
+    public void test1_verifier() throws Throwable {
         MyValue3 vt = test1();
         test1_vt.verify(vt);
     }
@@ -173,12 +183,13 @@ public class TestMethodHandles extends InlineTypeTest {
         return (MyValue3)test2_mh.invokeExact(this);
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) throws Throwable {
-        Method helper_m = getClass().getDeclaredMethod("test2_target");
-        if (!warmup && USE_COMPILER && !WHITE_BOX.isMethodCompiled(helper_m, false)) {
-            enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
-            Asserts.assertTrue(WHITE_BOX.isMethodCompiled(helper_m, false), "test2_target not compiled");
+    @Run(test = "test2")
+    public void test2_verifier(RunInfo info) throws Throwable {
+        if (!info.isWarmUp()) {
+            Method helper_m = getClass().getDeclaredMethod("test2_target");
+            if (!TestFramework.isCompiled(helper_m)) {
+                TestFramework.compile(helper_m, CompLevel.C2);
+            }
         }
         MyValue3 vt = test2();
         test2_vt.verify(vt);
@@ -198,12 +209,12 @@ public class TestMethodHandles extends InlineTypeTest {
         return (MyValue3)test3_mh.invokeExact(this);
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test3")
+    public void test3_verifier(RunInfo info) throws Throwable {
         // hack so C2 doesn't know the target of the invoke call
         Class c = Class.forName("java.lang.invoke.DirectMethodHandle");
         Method m = c.getDeclaredMethod("internalMemberName", Object.class);
-        WHITE_BOX.testSetDontInlineMethod(m, warmup);
+        WhiteBox.getWhiteBox().testSetDontInlineMethod(m, info.isWarmUp());
         MyValue3 vt = test3();
         test3_vt.verify(vt);
     }
@@ -228,8 +239,8 @@ public class TestMethodHandles extends InlineTypeTest {
         return (int)test4_mh.invokeExact();
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test4")
+    public void test4_verifier() throws Throwable {
         int i = test4();
         Asserts.assertEQ(i, test4_vt.x);
     }
@@ -247,8 +258,8 @@ public class TestMethodHandles extends InlineTypeTest {
         return (int)test5_mh.invokeExact(this, test5_vt);
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test5")
+    public void test5_verifier() throws Throwable {
         int i = test5();
         Asserts.assertEQ(i, test5_vt.x);
     }
@@ -275,14 +286,15 @@ public class TestMethodHandles extends InlineTypeTest {
 
     static final MethodHandle test6_mh;
 
-    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STORE_INLINE_FIELDS)
-    @Test(valid = InlineTypeReturnedAsFieldsOff)
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC, ALLOCA, STORE, STORE_INLINE_FIELDS})
     public MyValue3 test6() throws Throwable {
         return (MyValue3)test6_mh.invokeExact(this);
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test6")
+    public void test6_verifier() throws Throwable {
         test6_bool = !test6_bool;
         MyValue3 vt = test6();
         vt.verify(test6_bool ? test6_vt1 : test6_vt2);
@@ -314,8 +326,8 @@ public class TestMethodHandles extends InlineTypeTest {
         return ((MyValue2)test7_mh.invokeExact(test7_mh1)).hash();
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test7")
+    public void test7_verifier() throws Throwable {
         test7_bool = !test7_bool;
         long hash = test7();
         Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test7_bool ? 0 : 1), rD+(test7_bool ? 0 : 1)).hash());
@@ -347,8 +359,8 @@ public class TestMethodHandles extends InlineTypeTest {
         return ((MyValue2)test8_mh.invokeExact(test8_mh2)).hash();
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test8")
+    public void test8_verifier() throws Throwable {
         test8_bool = !test8_bool;
         long hash = test8();
         Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test8_bool ? 0 : 1), rD+(test8_bool ? 0 : 1)).hash());
@@ -388,15 +400,16 @@ public class TestMethodHandles extends InlineTypeTest {
 
     static final MethodHandle test9_mh;
 
-    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STORE_INLINE_FIELDS)
-    @Test(valid = InlineTypeReturnedAsFieldsOff)
-    public MyValue3 test9() throws Throwable {
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC, ALLOCA, STORE, STORE_INLINE_FIELDS})
+   public MyValue3 test9() throws Throwable {
         return (MyValue3)test9_mh.invokeExact(this);
     }
 
     static int test9_i = 0;
-    @DontCompile
-    public void test9_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test9")
+    public void test9_verifier() throws Throwable {
         test9_i++;
         test9_bool1 = (test9_i % 2) == 0;
         test9_bool2 = (test9_i % 3) == 0;
@@ -443,8 +456,8 @@ public class TestMethodHandles extends InlineTypeTest {
 
     static int test10_i = 0;
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test10")
+    public void test10_verifier() throws Throwable {
         test10_i++;
         test10_bool1 = (test10_i % 2) == 0;
         test10_bool2 = (test10_i % 3) == 0;
@@ -477,13 +490,13 @@ public class TestMethodHandles extends InlineTypeTest {
     // Check that a buffered inline type returned by a compiled lambda form
     // is properly handled by the caller.
     @Test
-    @Warmup(11000)
     public long test11() throws Throwable {
         return ((MyValue2)test11_mh.invokeExact(test11_mh2)).hash();
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test11")
+    @Warmup(11000)
+    public void test11_verifier() throws Throwable {
         test11_i++;
         long hash = test11();
         boolean b = (test11_i % 100) == 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,38 +23,43 @@
 
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
+import compiler.lib.ir_framework.*;
+import jdk.test.lib.Asserts;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import jdk.test.lib.Asserts;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.ALLOC;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.STORE;
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
  * @summary Test correct handling of nullable inline types.
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestNullableInlineTypes.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestNullableInlineTypes
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
-public class TestNullableInlineTypes extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
-        }
-        return null;
-    }
 
-    public static void main(String[] args) throws Throwable {
-        TestNullableInlineTypes test = new TestNullableInlineTypes();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, Test17Value.class, Test21Value.class);
+@ForceCompileClassInitializer
+public class TestNullableInlineTypes {
+
+    public static void main(String[] args) {
+
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class)
+                   .start();
     }
 
     static {
@@ -95,8 +100,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test1")
+    public void test1_verifier() throws Throwable {
         long result = test1(null);
         Asserts.assertEquals(result, 0L);
     }
@@ -113,8 +118,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         long result = test2(nullField);
         Asserts.assertEquals(result, 0L);
     }
@@ -134,8 +139,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         long result = test3();
         Asserts.assertEquals(result, 0L);
     }
@@ -150,8 +155,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         test4();
     }
 
@@ -171,8 +176,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    public void test5_verifier() {
         MyValue1.ref vt = test5(nullField);
         Asserts.assertEquals((Object)vt, null);
     }
@@ -199,8 +204,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         MyValue1 vt = test6(null);
         Asserts.assertEquals(vt.hash(), testValue1.hash());
     }
@@ -233,8 +238,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test7")
+    public void test7_verifier() throws Throwable {
         test7();
     }
 
@@ -248,8 +253,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test8")
+    public void test8_verifier() throws Throwable {
         test8();
     }
 
@@ -265,8 +270,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         valueField1 = v;
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
+    @Run(test = "test9")
+    public void test9_verifier() {
         test9(true);
         try {
             test9(false);
@@ -283,8 +288,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         valueField1 = (MyValue1) val;
     }
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test10")
+    public void test10_verifier() throws Throwable {
         test10(true);
         try {
             test10(false);
@@ -301,8 +306,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         valueField1 = (MyValue1) val;
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test11")
+    public void test11_verifier() throws Throwable {
         test11(false);
         try {
             test11(true);
@@ -326,8 +331,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         valueField1 = (MyValue1) test12_helper();
     }
 
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
+    @Run(test = "test12")
+    public void test12_verifier() {
         try {
             test12_cnt = 0;
             test12();
@@ -370,8 +375,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         valueField1 = (MyValue1) a.test13_helper();
     }
 
-    @DontCompile
-    public void test13_verifier(boolean warmup) {
+    @Run(test = "test13")
+    public void test13_verifier() {
         A a = new A();
         A b = new B();
         A c = new C();
@@ -413,8 +418,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         test14_inline(va, nullField, index);
     }
 
-    @DontCompile
-    public void test14_verifier(boolean warmup) {
+    @Run(test = "test14")
+    public void test14_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test14(testValue1Array, index);
@@ -452,8 +457,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test15_verifier(boolean warmup) {
+    @Run(test = "test15")
+    public void test15_verifier() {
         test15();
     }
 
@@ -464,14 +469,14 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Test c2c call passing null for an inline type
     @Test
-    @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
     public boolean test16(Object arg) throws Exception {
         Method test16method = getClass().getMethod("test16_dontinline", MyValue1.ref.class);
         return (boolean)test16method.invoke(this, arg);
     }
 
-    @DontCompile
-    public void test16_verifier(boolean warmup) throws Exception {
+    @Run(test = "test16")
+    @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
+    public void test16_verifier() throws Exception {
         boolean res = test16(null);
         Asserts.assertTrue(res);
     }
@@ -496,8 +501,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return b ? vt1 : vt2;
     }
 
-    @DontCompile
-    public void test17_verifier(boolean warmup) {
+    @Run(test = "test17")
+    public void test17_verifier() {
         test17(true);
         test17(false);
     }
@@ -519,14 +524,14 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Test passing null for an inline type
     @Test
-    @Warmup(11000) // Make sure lambda forms get compiled
     public void test18() throws Throwable {
         test18_mh1.invokeExact(nullValue);
         test18_mh2.invokeExact(nullValue);
     }
 
-    @DontCompile
-    public void test18_verifier(boolean warmup) {
+    @Run(test = "test18")
+    @Warmup(11000) // Make sure lambda forms get compiled
+    public void test18_verifier() {
         try {
             test18();
         } catch (Throwable t) {
@@ -549,14 +554,14 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Same as test12 but with non-final mh
     @Test
-    @Warmup(11000) // Make sure lambda forms get compiled
     public void test19() throws Throwable {
         test19_mh1.invokeExact(nullValue);
         test19_mh2.invokeExact(nullValue);
     }
 
-    @DontCompile
-    public void test19_verifier(boolean warmup) {
+    @Run(test = "test19")
+    @Warmup(11000) // Make sure lambda forms get compiled
+    public void test19_verifier() {
         try {
             test19();
         } catch (Throwable t) {
@@ -566,13 +571,13 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Same as test12/13 but with constant null
     @Test
-    @Warmup(11000) // Make sure lambda forms get compiled
     public void test20(MethodHandle mh) throws Throwable {
         mh.invoke(null);
     }
 
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
+    @Run(test = "test20")
+    @Warmup(11000) // Make sure lambda forms get compiled
+    public void test20_verifier() {
         try {
             test20(test18_mh1);
             test20(test18_mh2);
@@ -618,8 +623,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test21_verifier(boolean warmup) {
+    @Run(test = "test21")
+    public void test21_verifier() {
         test21(Test21Value.default);
     }
 
@@ -633,8 +638,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         valueField1 = test22_helper();
     }
 
-    @DontCompile
-    public void test22_verifier(boolean warmup) {
+    @Run(test = "test22")
+    public void test22_verifier() {
         try {
             test22();
             throw new RuntimeException("NullPointerException expected");
@@ -648,8 +653,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         arr[0] = (MyValue1) b;
     }
 
-    @DontCompile
-    public void test23_verifier(boolean warmup) {
+    @Run(test = "test23")
+    public void test23_verifier() {
         MyValue1[] arr = new MyValue1[2];
         MyValue1.ref b = null;
         try {
@@ -667,8 +672,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return (MyValue1) nullBox;
     }
 
-    @DontCompile
-    public void test24_verifier(boolean warmup) {
+    @Run(test = "test24")
+    public void test24_verifier() {
         try {
             test24();
             throw new RuntimeException("NullPointerException expected");
@@ -682,7 +687,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Test that when checkcasting from null-ok to null-free and back to null-ok we
     // keep track of the information that the inline type can never be null.
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test25(boolean b, MyValue1.ref vt1, MyValue1 vt2) {
         vt1 = (MyValue1)vt1;
         Object obj = b ? vt1 : vt2; // We should not allocate here
@@ -690,8 +696,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return ((MyValue1)obj).x;
     }
 
-    @DontCompile
-    public void test25_verifier(boolean warmup) {
+    @Run(test = "test25")
+    public void test25_verifier() {
         int res = test25(true, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
         res = test25(false, testValue1, testValue1);
@@ -699,25 +705,27 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     // Test that chains of casts are folded and don't trigger an allocation
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public MyValue3 test26(MyValue3 vt) {
         return ((MyValue3)((Object)((MyValue3.ref)(MyValue3)((MyValue3.ref)((Object)vt)))));
     }
 
-    @DontCompile
-    public void test26_verifier(boolean warmup) {
+    @Run(test = "test26")
+    public void test26_verifier() {
         MyValue3 vt = MyValue3.create();
         MyValue3 result = test26(vt);
         Asserts.assertEquals(result, vt);
     }
 
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public MyValue3.ref test27(MyValue3.ref vt) {
         return ((MyValue3.ref)((Object)((MyValue3)(MyValue3.ref)((MyValue3)((Object)vt)))));
     }
 
-    @DontCompile
-    public void test27_verifier(boolean warmup) {
+    @Run(test = "test27")
+    public void test27_verifier() {
         MyValue3 vt = MyValue3.create();
         MyValue3 result = (MyValue3) test27(vt);
         Asserts.assertEquals(result, vt);
@@ -738,8 +746,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test28_verifier(boolean warmup) {
+    @Run(test = "test28")
+    public void test28_verifier() {
         MyValue1.ref result = test28(testValue1, null, 0);
         Asserts.assertEquals(result, null);
         result = test28(testValue1, testValue1, 1);
@@ -770,8 +778,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test29_verifier(boolean warmup) {
+    @Run(test = "test29")
+    public void test29_verifier() {
         long result = test29(testValue1, null);
         Asserts.assertEquals(result, testValue1.hash()*98);
         result = test29(testValue1, testValue1);
@@ -795,8 +803,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return test30_callee(nullField);
     }
 
-    @DontCompile
-    public void test30_verifier(boolean warmup) {
+    @Run(test = "test30")
+    public void test30_verifier() {
         long result = test30();
         Asserts.assertEquals(result, 0L);
     }
@@ -816,8 +824,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test31_verifier(boolean warmup) {
+    @Run(test = "test31")
+    public void test31_verifier() {
         test31(null);
     }
 
@@ -828,8 +836,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return constNullField;
     }
 
-    @DontCompile
-    public void test32_verifier(boolean warmup) {
+    @Run(test = "test32")
+    public void test32_verifier() {
         MyValue1.ref result = test32();
         Asserts.assertEquals(result, null);
     }
@@ -853,8 +861,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return test33Val;
     }
 
-    @DontCompile
-    public void test33_verifier(boolean warmup) {
+    @Run(test = "test33")
+    public void test33_verifier() {
         Test33Value2 result = test33();
         Asserts.assertEquals(result, test33Val);
     }
@@ -870,10 +878,10 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test34_verifier(boolean warmup) {
+    @Run(test = "test34")
+    public void test34_verifier(RunInfo info) {
         test34(testValue1);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             test34Val = null;
             test34(testValue1);
             Asserts.assertEquals(test34Val, testValue1);
@@ -892,15 +900,16 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return b ? vt1 : vt2;
     }
 
-    @DontCompile
-    public void test35_verifier(boolean warmup) {
+    @Run(test = "test35")
+    public void test35_verifier() {
         test35(true);
         test35(false);
     }
 
     // Test that when explicitly null checking an inline type, we keep
     // track of the information that the inline type can never be null.
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test37(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
         if (vt1 == null) {
             return 0;
@@ -911,8 +920,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return ((MyValue1)obj).x;
     }
 
-    @DontCompile
-    public void test37_verifier(boolean warmup) {
+    @Run(test = "test37")
+    public void test37_verifier() {
         int res = test37(true, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
         res = test37(false, testValue1, testValue1);
@@ -921,7 +930,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Test that when explicitly null checking an inline type receiver,
     // we keep track of the information that the inline type can never be null.
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test38(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
         vt1.hash(); // Inlined - Explicit null check
         // vt1 should be scalarized because it's always non-null
@@ -930,8 +940,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return ((MyValue1)obj).x;
     }
 
-    @DontCompile
-    public void test38_verifier(boolean warmup) {
+    @Run(test = "test38")
+    public void test38_verifier() {
         int res = test38(true, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
         res = test38(false, testValue1, testValue1);
@@ -940,7 +950,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
 
     // Test that when implicitly null checking an inline type receiver,
     // we keep track of the information that the inline type can never be null.
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test39(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
         vt1.hashInterpreted(); // Not inlined - Implicit null check
         // vt1 should be scalarized because it's always non-null
@@ -949,8 +960,8 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return ((MyValue1)obj).x;
     }
 
-    @DontCompile
-    public void test39_verifier(boolean warmup) {
+    @Run(test = "test39")
+    public void test39_verifier() {
         int res = test39(true, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
         res = test39(false, testValue1, testValue1);
@@ -958,14 +969,14 @@ public class TestNullableInlineTypes extends InlineTypeTest {
     }
 
     // Test NPE when casting constant null to inline type
-    @Test()
+    @Test
     public MyValue1 test40() throws Throwable {
         Object NULL = null;
         return (MyValue1)NULL;
     }
 
-    @DontCompile
-    public void test40_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test40")
+    public void test40_verifier() throws Throwable {
         try {
             test40();
             throw new RuntimeException("NullPointerException expected");

@@ -33,6 +33,8 @@
 
 package compiler.valhalla.inlinetypes;
 
+import compiler.lib.ir_framework.CompLevel;
+import compiler.lib.ir_framework.TestFramework;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
@@ -1804,7 +1806,7 @@ public class TestNewAcmp {
                 // Do some warmup runs
                 runTest(m, args, 1000, nullMode, equalities);
                 // Make sure method is compiled
-                InlineTypeTest.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+                TestFramework.compile(m, CompLevel.ANY);
                 Asserts.assertTrue(WHITE_BOX.isMethodCompiled(m, false), m + " not compiled");
                 // Run again to verify correctness of compiled code
                 runTest(m, args, 1, nullMode, equalities);
