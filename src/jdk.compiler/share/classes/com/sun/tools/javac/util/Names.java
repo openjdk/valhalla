@@ -390,7 +390,7 @@ public class Names {
         makeConcat = fromString("makeConcat");
         makeConcatWithConstants = fromString("makeConcatWithConstants");
 
-        // value types
+        // primitive classes
         dollarValue = fromString("$value");
         ref = fromString("ref");
         val = fromString("val");

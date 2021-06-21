@@ -2492,7 +2492,7 @@ public class Utils {
     }
 
     public boolean isValue(DocTree doctree) {
-        return isKind(doctree, Kind.VALUE);
+        return isKind(doctree, VALUE);
     }
 
     public boolean isVersion(DocTree doctree) {
