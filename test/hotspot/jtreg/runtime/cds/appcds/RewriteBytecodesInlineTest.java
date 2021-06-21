@@ -42,10 +42,10 @@ public class RewriteBytecodesInlineTest {
     String wbJar = JarBuilder.build(true, "WhiteBox", "sun/hotspot/WhiteBox");
     String use_whitebox_jar = "-Xbootclasspath/a:" + wbJar;
 
-    String appJar = JarBuilder.build("dynamic_define", "RewriteBytecodesInline", "Util", "Point", "Point$ref", "WithInlinedField");
+    String appJar = JarBuilder.build("dynamic_define", "RewriteBytecodesInline", "Util", "Point", "WithInlinedField");
     String superClsFile = (new File(System.getProperty("test.classes", "."), "Point.class")).getPath();
 
-    TestCommon.dump(appJar, TestCommon.list("RewriteBytecodesInline", "Point", "Point$ref", "WithInlinedField"),
+    TestCommon.dump(appJar, TestCommon.list("RewriteBytecodesInline", "Point", "WithInlinedField"),
                     // command-line arguments ...
                     use_whitebox_jar);
 
