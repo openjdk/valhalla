@@ -318,7 +318,7 @@ public class Attr extends JCTree.Visitor {
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
                 boolean complain = true;
-                /* Allow updates to instance fields of value classes by any method in the same nest via the
+                /* Allow updates to instance fields of primitive classes by any method in the same nest via the
                    withfield operator -This does not result in mutation of final fields; the code generator
                    would implement `copy on write' semantics via the opcode `withfield'.
                 */
@@ -1320,7 +1320,7 @@ public class Attr extends JCTree.Visitor {
             deferredLintHandler.flush(tree.pos());
             chk.checkDeprecatedAnnotation(tree.pos(), v);
 
-            /* Don't want constant propagation/folding for instance fields of value classes,
+            /* Don't want constant propagation/folding for instance fields of primitive classes,
                as these can undergo updates via copy on write.
             */
             if (tree.init != null) {
@@ -2205,8 +2205,8 @@ public class Attr extends JCTree.Visitor {
                 }
             }
 
-            // Those were all the cases that could result in a primitive. See if primitive boxing and inline
-            // narrowing conversions bring about a convergence.
+            // Those were all the cases that could result in a primitive. See if primitive boxing and primitive
+            // value conversions bring about a convergence.
             condTypes = condTypes.stream()
                                  .map(t -> t.isPrimitive() ? types.boxedClass(t).type
                                          : t.isReferenceProjection() ? t.valueProjection() : t)
@@ -2650,13 +2650,13 @@ public class Attr extends JCTree.Visitor {
 
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null) {
-                /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
+                /* Is this an ill conceived attempt to invoke jlO methods not available on primitive class types ??
                  */
-                boolean superCallOnValueReceiver = types.isPrimitiveClass(env.enclClass.sym.type)
+                boolean superCallOnPrimitiveReceiver = types.isPrimitiveClass(env.enclClass.sym.type)
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                if (types.isPrimitiveClass(qualifier) || superCallOnValueReceiver) {
+                if (types.isPrimitiveClass(qualifier) || superCallOnPrimitiveReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
                     switch (name.toString()) {
@@ -2692,7 +2692,7 @@ public class Attr extends JCTree.Visitor {
                     methodName == names.getClass &&
                     argtypes.isEmpty()) {
                 // as a special case, x.getClass() has type Class<? extends |X|>
-                // Temporary treatment for inline class: Given an inline class V that implements
+                // Temporary treatment for primitive classes: Given a primitive class V that implements
                 // I1, I2, ... In, v.getClass() is typed to be Class<? extends Object & I1 & I2 .. & In>
                 Type wcb;
                 if (qualifierType.isPrimitiveClass()) {
@@ -3056,7 +3056,7 @@ public class Attr extends JCTree.Visitor {
                     for (Type t : clazztype.getTypeArguments()) {
                         rs.checkAccessibleType(env, t);
                     }
-                    chk.checkParameterizationWithValues(tree, clazztype);
+                    chk.checkParameterizationByPrimitiveClass(tree, clazztype);
                 }
 
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers
@@ -3129,7 +3129,7 @@ public class Attr extends JCTree.Visitor {
         // optimization: new Outer() can never be null; skip null check
         if (arg.getTag() == NEWCLASS)
             return arg;
-        // Likewise arg can't be null if it is a value.
+        // Likewise arg can't be null if it is a primitive class instance.
         if (types.isPrimitiveClass(arg.type))
             return arg;
         // optimization: X.this is never null; skip null check
@@ -5537,7 +5537,7 @@ public class Attr extends JCTree.Visitor {
                     env.info.isSerializable = true;
                 }
 
-                if ((c.flags() & (PRIMITIVE_CLASS | ABSTRACT)) == PRIMITIVE_CLASS) { // for non-intersection, concrete values.
+                if ((c.flags() & (PRIMITIVE_CLASS | ABSTRACT)) == PRIMITIVE_CLASS) { // for non-intersection, concrete primitive classes.
                     Assert.check(env.tree.hasTag(CLASSDEF));
                     JCClassDecl classDecl = (JCClassDecl) env.tree;
                     if (classDecl.extending != null) {

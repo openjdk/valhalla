@@ -420,7 +420,7 @@ public class Resolve {
 
         ClassSymbol enclosingCsym = env.enclClass.sym;
         if (sym.kind == MTH || sym.kind == VAR) {
-            /* If any inline types are involved, ask the same question in the reference universe,
+            /* If any primitive class types are involved, ask the same question in the reference universe,
                where the hierarchy is navigable
             */
             if (site.isPrimitiveClass())
@@ -485,7 +485,7 @@ public class Resolve {
         if (sym.kind != MTH || sym.isConstructor() || sym.isStatic())
             return true;
 
-        /* If any inline types are involved, ask the same question in the reference universe,
+        /* If any primitive class types are involved, ask the same question in the reference universe,
            where the hierarchy is navigable
         */
         if (site.isPrimitiveClass())

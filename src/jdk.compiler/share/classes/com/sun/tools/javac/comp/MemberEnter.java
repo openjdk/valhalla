@@ -287,7 +287,7 @@ public class MemberEnter extends JCTree.Visitor {
         VarSymbol v = new VarSymbol(0, tree.name, vartype, enclScope.owner);
         v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;
-        /* Don't want constant propagation/folding for instance fields of value classes,
+        /* Don't want constant propagation/folding for instance fields of primitive classes,
            as these can undergo updates via copy on write.
         */
         if (tree.init != null) {
