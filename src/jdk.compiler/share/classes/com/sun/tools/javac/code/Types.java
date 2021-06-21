@@ -1645,7 +1645,7 @@ public class Types {
 
                     // -----------------------------------  Unspecified behavior ----------------
 
-                    /* If a value class V implements an interface I, then does "? extends I" contain V?
+                    /* If a primitive class V implements an interface I, then does "? extends I" contain V?
                        It seems widening must be applied here to answer yes to compile some common code
                        patterns.
                     */
@@ -2374,7 +2374,7 @@ public class Types {
                     return true;
                 }
 
-                // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+                // No instance fields and no arged constructors both mean inner classes cannot be primitive class supers.
                 Type encl = t.getEnclosingType();
                 if (encl != null && encl.hasTag(CLASS)) {
                     return true;
@@ -2476,7 +2476,7 @@ public class Types {
         if ((sym.flags() & STATIC) != 0)
             return sym.type;
 
-        /* If any inline types are involved, switch over to the reference universe,
+        /* If any primitive class types are involved, switch over to the reference universe,
            where the hierarchy is navigable. V and V.ref have identical membership
            with no bridging needs.
         */

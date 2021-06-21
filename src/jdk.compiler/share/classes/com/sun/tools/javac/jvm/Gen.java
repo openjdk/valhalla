@@ -79,7 +79,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
-    private final TransValues transValues;
+    private final TransPrimitiveClass transPrimitiveClass;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -116,7 +116,7 @@ public class Gen extends JCTree.Visitor {
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
         lower = Lower.instance(context);
-        transValues = TransValues.instance(context);
+        transPrimitiveClass = TransPrimitiveClass.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -1001,7 +1001,7 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isValueFactory()) {
+                    } else if (env.enclMethod.sym.isPrimitiveObjectFactory()) {
                         items.makeLocalItem(env.enclMethod.factoryProduct).load();
                         code.emitop0(areturn);
                     } else {
@@ -2279,7 +2279,7 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
-        // inline widening conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
+        // primitive reference conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
             (!tree.clazz.type.isReferenceProjection() || !types.splitPrimitiveClass || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
@@ -2479,7 +2479,7 @@ public class Gen extends JCTree.Visitor {
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
-            cdef = transValues.translateTopLevelClass(cdef, make);
+            cdef = transPrimitiveClass.translateTopLevelClass(cdef, make);
             generateReferencesToPrunedTree(c);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

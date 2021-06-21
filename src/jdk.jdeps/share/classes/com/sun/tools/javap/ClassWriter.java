@@ -530,7 +530,7 @@ public class ClassWriter extends BasicWriter {
         switch (name) {
             case "<init>":
                 String returnType = getJavaReturnType(d);
-                if (!returnType.equals("void")) { // value static factories
+                if (!returnType.equals("void")) { // static factories for primitive classes
                     print(returnType);
                     print(" ");
                 }

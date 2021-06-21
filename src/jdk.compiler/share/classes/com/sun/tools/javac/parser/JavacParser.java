@@ -3354,7 +3354,7 @@ public class JavacParser implements Parser {
         if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
             pos = Position.NOPOS;
 
-        // Force value classes to be automatically final.
+        // Force primitive classes to be automatically final.
         if ((flags & (Flags.PRIMITIVE_CLASS | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.PRIMITIVE_CLASS) {
             flags |= Flags.FINAL;
         }

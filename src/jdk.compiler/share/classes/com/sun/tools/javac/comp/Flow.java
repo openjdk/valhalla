@@ -1677,8 +1677,8 @@ public class Flow {
         all instance fields are DA.
      */
     enum ThisExposability {
-        ALLOWED,     // Normal Object classes - NOP
-        BANNED,      // Value types           - Error
+        ALLOWED,     // identity Object classes - NOP
+        BANNED,      // primitive classes - Error
     }
 
     /**
