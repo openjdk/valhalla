@@ -823,13 +823,11 @@ public class ClassWriter extends ClassFile {
  * Writing Objects
  **********************************************************************/
 
-    /** Write "inner classes" attribute. If a primitive class happens to be an inner class,
-     *  the reference projection class will also be an inner class.
+    /** Write "inner classes" attribute.
      */
     void writeInnerClasses() {
         int alenIdx = writeAttr(names.InnerClasses);
-        int icCountIdx = beginAttrs();
-        int icCount = 0;
+        databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
             char flags = (char) adjustFlags(inner.flags_field);
@@ -846,19 +844,7 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(
                 !inner.name.isEmpty() ? poolWriter.putName(inner.name) : 0);
             databuf.appendChar(flags);
-            icCount++;
-            if (inner.isSplitPrimitiveClass(types)) {
-                databuf.appendChar(poolWriter.putClass(inner.type.referenceProjection()));
-                databuf.appendChar(
-                        inner.owner.kind == TYP && !inner.name.isEmpty() ? poolWriter.putClass((ClassSymbol)inner.owner) : 0);
-                databuf.appendChar(
-                        !inner.name.isEmpty() ? poolWriter.putName(inner.name.append('$', names.ref)) : 0);
-                flags = (char) ((flags & ~(ACC_PRIMITIVE | FINAL)) | ABSTRACT);
-                databuf.appendChar(flags);
-                icCount++;
-            }
         }
-        endAttrs(icCountIdx, icCount);
         endAttr(alenIdx);
     }
 
@@ -883,33 +869,17 @@ public class ClassWriter extends ClassFile {
      * Write NestMembers attribute (if needed)
      */
     int writeNestMembersIfNeeded(ClassSymbol csym) {
-        Set<ClassSymbol> nestedUnique = new LinkedHashSet<>();
-        if (csym.owner.kind == PCK) {
-            if (csym.isSplitPrimitiveClass(types)) {
-                // reference projection is the host
-            } else if (csym.isReferenceProjection()) {
-                ClassSymbol valueProjection = csym.valueProjection();
-                nestedUnique.add(valueProjection);
-                listNested(valueProjection, nestedUnique);
-            } else {
-                listNested(csym, nestedUnique);
+        ListBuffer<ClassSymbol> nested = new ListBuffer<>();
+        listNested(csym, nested);
+        Set<ClassSymbol> nestedUnique = new LinkedHashSet<>(nested);
+        if (csym.owner.kind == PCK && !nestedUnique.isEmpty()) {
+            int alenIdx = writeAttr(names.NestMembers);
+            databuf.appendChar(nestedUnique.size());
+            for (ClassSymbol s : nestedUnique) {
+                databuf.appendChar(poolWriter.putClass(s));
             }
-            if (!nestedUnique.isEmpty()) {
-                int alenIdx = writeAttr(names.NestMembers);
-                int nmcIdx = beginAttrs();
-                int nmc = 0;
-                for (ClassSymbol s : nestedUnique) {
-                    databuf.appendChar(poolWriter.putClass(s));
-                    nmc++;
-                    if (s.isSplitPrimitiveClass(types) && s.owner.kind != PCK) {
-                        databuf.appendChar(poolWriter.putClass(s.type.referenceProjection()));
-                        nmc++;
-                    }
-                }
-                endAttrs(nmcIdx, nmc);
-                endAttr(alenIdx);
-                return 1;
-            }
+            endAttr(alenIdx);
+            return 1;
         }
         return 0;
     }
@@ -918,21 +888,16 @@ public class ClassWriter extends ClassFile {
      * Write NestHost attribute (if needed)
      */
     int writeNestHostIfNeeded(ClassSymbol csym) {
-        if (csym.owner.kind != PCK || csym.isSplitPrimitiveClass(types)) {
+        if (csym.owner.kind != PCK) {
             int alenIdx = writeAttr(names.NestHost);
-            ClassSymbol outerMost = csym.outermostClass();
-            if (outerMost.isSplitPrimitiveClass(types)) {
-                databuf.appendChar(poolWriter.putClass(outerMost.type.referenceProjection()));
-            } else {
-                databuf.appendChar(poolWriter.putClass(outerMost));
-            }
+            databuf.appendChar(poolWriter.putClass(csym.outermostClass()));
             endAttr(alenIdx);
             return 1;
         }
         return 0;
     }
 
-    private void listNested(Symbol sym, Set<ClassSymbol> seen) {
+    private void listNested(Symbol sym, ListBuffer<ClassSymbol> seen) {
         if (sym.kind != TYP) return;
         ClassSymbol csym = (ClassSymbol)sym;
         if (csym.owner.kind != PCK) {
@@ -1532,66 +1497,8 @@ public class ClassWriter extends ClassFile {
         throws IOException, PoolOverflow, StringOverflow
     {
         JavaFileObject javaFileObject = writeClassInternal(c);
-        if (c.isSplitPrimitiveClass(types)) {
-            writeClassInternal(getReferenceProjection(c));
-        }
         return javaFileObject;
     }
-
-        // where
-        private static ClassSymbol getReferenceProjection(ClassSymbol c) {
-
-            ClassSymbol projection;
-            ClassType projectedType;
-
-            ClassType ct = (ClassType) c.type;
-            /* Note, the class type associated with the Primitive$ref.class is NOT a reference projection type. A reference projection
-             * type gets created by using Primitive.ref notation in the source file or while reading in a descriptor of such a type
-             * from the class file. Here we are generating the Primitive$ref.class for the VM's benefit and it is a reference class.
-             */
-            projectedType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null, ct.getMetadata(), Flavor.L_TypeOf_L);
-            projectedType.allparams_field = ct.allparams_field;
-            projectedType.supertype_field = ct.supertype_field;
-
-            projectedType.interfaces_field = ct.interfaces_field;
-            projectedType.all_interfaces_field = ct.all_interfaces_field;
-            projectedType.projection = null;
-
-            Name projectionName = c.name.append('$', c.name.table.names.ref);
-            long projectionFlags = (c.flags() & ~(PRIMITIVE_CLASS | UNATTRIBUTED | FINAL)) | (ABSTRACT | SEALED);
-
-            projection = new ClassSymbol(projectionFlags, projectionName, projectedType, c.owner) {
-                @Override
-                public boolean isReferenceProjection() {
-                    return true;
-                }
-
-                @Override
-                public ClassSymbol valueProjection() {
-                    return c;
-                }
-            };
-            projection.members_field = WriteableScope.create(projection);
-            for (Symbol s : c.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
-                Symbol clone = null;
-                if (s.kind == MTH) {
-                    MethodSymbol valMethod = (MethodSymbol)s;
-                    MethodSymbol refMethod = valMethod.clone(projection);
-                    clone = refMethod;
-                } else if (s.kind == VAR) {
-                    VarSymbol valVar = (VarSymbol)s;
-                    VarSymbol refVar = valVar.clone(projection);
-                    clone = refVar;
-                }
-                projection.members_field.enter(clone);
-            }
-            projection.completer = Completer.NULL_COMPLETER;
-            projection.sourcefile = c.sourcefile;
-            projection.flatname = c.flatname.append('$', c.name.table.names.ref);
-            projection.permitted = List.of(c);
-            projectedType.tsym = projection;
-            return projection;
-        }
 
     private JavaFileObject writeClassInternal(ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow
@@ -1637,8 +1544,8 @@ public class ClassWriter extends ClassFile {
         databuf.reset();
         poolbuf.reset();
 
-        Type supertype = c.isSplitPrimitiveClass(types) ? c.type.referenceProjection() : types.supertype(c.type);
-        List<Type> interfaces = c.isSplitPrimitiveClass(types) ? List.nil() : types.interfaces(c.type);
+        Type supertype = types.supertype(c.type);
+        List<Type> interfaces = types.interfaces(c.type);
         List<Type> typarams = c.type.getTypeArguments();
 
         int flags;
@@ -1671,37 +1578,33 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(poolWriter.putClass((ClassSymbol)l.head.tsym));
         int fieldsCount = 0;
         int methodsCount = 0;
-        boolean referenceProjection = c.isReferenceProjection();
-        if (!referenceProjection) {
-            for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
-                switch (sym.kind) {
-                    case VAR:
-                        fieldsCount++;
-                        break;
-                    case MTH:
-                        if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
-                        break;
-                    case TYP:
-                        poolWriter.enterInner((ClassSymbol)sym);
-                        break;
-                    default:
-                        Assert.error();
-                }
-            }
 
-            if (c.trans_local != null) {
-                for (ClassSymbol local : c.trans_local) {
-                    poolWriter.enterInner(local);
-                }
+        for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
+            switch (sym.kind) {
+                case VAR:
+                    fieldsCount++;
+                    break;
+                case MTH:
+                    if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
+                    break;
+                case TYP:
+                    poolWriter.enterInner((ClassSymbol)sym);
+                    break;
+                default:
+                    Assert.error();
+            }
+        }
+
+        if (c.trans_local != null) {
+            for (ClassSymbol local : c.trans_local) {
+                poolWriter.enterInner(local);
             }
         }
 
         databuf.appendChar(fieldsCount);
-        if (!referenceProjection)
-            writeFields(c.members());
+        writeFields(c.members());
         databuf.appendChar(methodsCount);
-        if (!referenceProjection)
-            writeMethods(c.members());
+        writeMethods(c.members());
 
         int acountIdx = beginAttrs();
         int acount = 0;

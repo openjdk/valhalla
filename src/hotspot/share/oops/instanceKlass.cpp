@@ -162,7 +162,7 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
-bool InstanceKlass::field_is_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_INLINE_TYPE; }
+bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_INLINE_TYPE; }
 
 // private: called to verify that k is a static member of this nest.
 // We know that k is an instance class in the same package and hence the
@@ -1542,7 +1542,8 @@ Klass* InstanceKlass::array_klass(int n, TRAPS) {
 
       // Check if update has already taken place
       if (array_klasses() == NULL) {
-        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
+        ObjArrayKlass* k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this,
+                                                                  false, false, CHECK_NULL);
         // use 'release' to pair with lock-free load
         release_set_array_klasses(k);
       }
@@ -2868,6 +2869,10 @@ void InstanceKlass::set_source_debug_extension(const char* array, int length) {
 }
 
 const char* InstanceKlass::signature_name() const {
+  return signature_name_of_carrier(JVM_SIGNATURE_CLASS);
+}
+
+const char* InstanceKlass::signature_name_of_carrier(char c) const {
   int hash_len = 0;
   char hash_buf[40];
 
@@ -2879,7 +2884,7 @@ const char* InstanceKlass::signature_name() const {
 
   // Add L or Q as type indicator
   int dest_index = 0;
-  dest[dest_index++] = is_inline_klass() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
+  dest[dest_index++] = c;
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {

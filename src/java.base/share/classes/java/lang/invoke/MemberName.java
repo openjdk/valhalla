@@ -191,10 +191,11 @@ final class MemberName implements Member, Cloneable {
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
+        Class<?> c = clazz.isPrimitiveClass() ? clazz.asValueType() : clazz;
         if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
-            return itype.changeReturnType(clazz);
+            return itype.changeReturnType(c);
         if (!isStatic())
-            return itype.insertParameterTypes(0, clazz);
+            return itype.insertParameterTypes(0, c);
         return itype;
     }
 
@@ -479,7 +480,7 @@ final class MemberName implements Member, Cloneable {
     public boolean isInlineableField()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type.isPrimitiveClass();
+            return type.isValueType();
         }
         return false;
     }

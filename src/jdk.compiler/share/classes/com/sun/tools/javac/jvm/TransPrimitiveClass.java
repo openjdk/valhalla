@@ -322,8 +322,7 @@ public class TransPrimitiveClass extends TreeTranslator {
                 }
             }
         }
-        /* Rewrite any accesses of the form V.ref.member to ((V) V.ref).member OR
-           if a static member is being selected via a V.ref as a TYP, rewrite
+        /* If a static member is being selected via a V.ref as a TYP, rewrite
            V.ref.member to V.member
         */
         fieldAccess.selected = translate(fieldAccess.selected);
@@ -337,11 +336,6 @@ public class TransPrimitiveClass extends TreeTranslator {
                     case VAR:
                         if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
                             fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
-                        } else {
-                            if (types.splitPrimitiveClass) {
-                                fieldAccess.selected =
-                                        make.TypeCast(types.erasure(selectedType.valueProjection()), fieldAccess.selected);
-                            } // else members of Foo can be accessed via LFoo or QFoo at the VM level without a cast.
                         }
                         break;
                     case TYP:

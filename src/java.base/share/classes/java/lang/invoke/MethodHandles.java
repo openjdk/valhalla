@@ -1616,6 +1616,7 @@ public class MethodHandles {
         }
 
         private Lookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
+            assert lookupClass.isPrimaryType();
             assert prevLookupClass == null || ((allowedModes & MODULE) == 0
                     && prevLookupClass.getModule() != lookupClass.getModule());
             assert !lookupClass.isArray() && !lookupClass.isPrimitive();
@@ -3440,14 +3441,15 @@ return mh1;
             assert(ctor.isObjectConstructorOrStaticInitMethod());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
+            Class<?> defc = c.getDeclaringClass();
             if (ctor.isObjectConstructor()) {
                 assert(ctor.getReturnType() == void.class);
-                return lookup.getDirectConstructorNoSecurityManager(ctor.getDeclaringClass(), ctor);
+                return lookup.getDirectConstructorNoSecurityManager(defc, ctor);
             } else {
                 // static init factory is a static method
-                assert(ctor.isMethod() && ctor.getReturnType() == ctor.getDeclaringClass() && ctor.getReferenceKind() == REF_invokeStatic);
+                assert(ctor.isMethod() && ctor.getReturnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
                 assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
-                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), ctor.getDeclaringClass(), ctor, lookup);
+                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
             }
         }
 
@@ -3821,7 +3823,7 @@ return mh1;
 
             // Step 3:
             Class<?> defc = m.getDeclaringClass();
-            if (!fullPrivilegeLookup && defc != refc) {
+            if (!fullPrivilegeLookup && defc.asPrimaryType() != refc.asPrimaryType()) {
                 ReflectUtil.checkPackageAccess(defc);
             }
         }
@@ -3904,12 +3906,12 @@ return mh1;
             int mods = m.getModifiers();
             // check the class first:
             boolean classOK = (Modifier.isPublic(defc.getModifiers()) &&
-                               (defc == refc ||
+                               (defc.asPrimaryType() == refc.asPrimaryType() ||
                                 Modifier.isPublic(refc.getModifiers())));
             if (!classOK && (allowedModes & PACKAGE) != 0) {
                 // ignore previous lookup class to check if default package access
                 classOK = (VerifyAccess.isClassAccessible(defc, lookupClass(), null, FULL_POWER_MODES) &&
-                           (defc == refc ||
+                           (defc.asPrimaryType() == refc.asPrimaryType() ||
                             VerifyAccess.isClassAccessible(refc, lookupClass(), null, FULL_POWER_MODES)));
             }
             if (!classOK)
@@ -3986,7 +3988,6 @@ return mh1;
             if (checkSecurity)
                 checkSecurityManager(refc, method);
             assert(!method.isMethodHandleInvoke());
-
             if (refKind == REF_invokeSpecial &&
                 refc != lookupClass() &&
                 !refc.isInterface() &&
@@ -4309,7 +4310,9 @@ return mh1;
      * <p> When the returned method handle is invoked,
      * the array reference and array index are checked.
      * A {@code NullPointerException} will be thrown if the array reference
-     * is {@code null} and an {@code ArrayIndexOutOfBoundsException} will be
+     * is {@code null} or if the array's element type is a {@link Class#isValueType()
+     * a primitive value type} and attempts to set {@code null} in the
+     * array element.  An {@code ArrayIndexOutOfBoundsException} will be
      * thrown if the index is negative or if it is greater than or equal to
      * the length of the array.
      *
@@ -4320,9 +4323,6 @@ return mh1;
      * @jvms 6.5 {@code aastore} Instruction
      */
     public static MethodHandle arrayElementSetter(Class<?> arrayClass) throws IllegalArgumentException {
-        if (arrayClass.isPrimitiveClass()) {
-            throw new UnsupportedOperationException();
-        }
         return MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.SET);
     }
 

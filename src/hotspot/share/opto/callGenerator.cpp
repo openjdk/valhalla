@@ -1169,12 +1169,12 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
+static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool null_free) {
   PhaseGVN& gvn = kit.gvn();
   Node* arg = kit.argument(arg_nb);
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
-  if (t->as_klass()->is_inlinetype()) {
+  if (t->as_klass()->is_inlinetype() && null_free) {
     sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
   }
   if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
@@ -1282,13 +1282,14 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         const int receiver_skip = target->is_static() ? 0 : 1;
         // Cast receiver to its type.
         if (!target->is_static()) {
-          cast_argument(nargs, 0, signature->accessing_klass(), kit);
+          cast_argument(nargs, 0, signature->accessing_klass(), kit, false);
         }
         // Cast reference arguments to its type.
         for (int i = 0, j = 0; i < signature->count(); i++) {
           ciType* t = signature->type_at(i);
           if (t->is_klass()) {
-            cast_argument(nargs, receiver_skip + j, t, kit);
+            bool null_free = signature->is_null_free_at(i);
+            cast_argument(nargs, receiver_skip + j, t, kit, null_free);
           }
           j += t->size();  // long and double take two slots
         }

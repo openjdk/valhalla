@@ -2282,7 +2282,7 @@ public class Gen extends JCTree.Visitor {
         // primitive reference conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.splitPrimitiveClass || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
+            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type) || true) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
@@ -2352,7 +2352,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, !types.splitPrimitiveClass && tree.selected.type.isPrimitiveClass()));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, tree.selected.type.isPrimitiveClass()));
             result = items.makeStackItem(pt);
             return;
         }

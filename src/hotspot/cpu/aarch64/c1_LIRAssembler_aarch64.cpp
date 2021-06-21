@@ -511,10 +511,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
   ciMethod* method = compilation()->method();
-
-  ciType* return_type = method->return_type();
-  if (InlineTypeReturnedAsFields && return_type->is_inlinetype()) {
-    ciInlineKlass* vk = return_type->as_inline_klass();
+  if (InlineTypeReturnedAsFields && method->signature()->returns_null_free_inline_type()) {
+    ciInlineKlass* vk = method->return_type()->as_inline_klass();
     if (vk->can_be_returned_as_fields()) {
       address unpack_handler = vk->unpack_handler();
       assert(unpack_handler != NULL, "must be");
@@ -1629,7 +1627,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     __ br(Assembler::NE, test_mark_word);
     __ load_prototype_header(tmp, op->array()->as_register());
     __ bind(test_mark_word);
-    __ tst(tmp, markWord::nullfree_array_bit_in_place);
+    __ tst(tmp, markWord::null_free_array_bit_in_place);
   } else {
     Register klass = op->tmp()->as_register();
     __ load_klass(klass, op->array()->as_register());

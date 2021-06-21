@@ -778,4 +778,12 @@ public abstract sealed class Executable extends AccessibleObject
                 getGenericExceptionTypes(),
                 TypeAnnotation.TypeAnnotationTarget.THROWS);
     }
+
+    String getDeclaringClassTypeName() {
+        Class<?> c = getDeclaringClass();
+        if (c.isPrimitiveClass()) {
+            c = c.asValueType();
+        }
+        return c.getTypeName();
+    }
 }

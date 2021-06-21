@@ -865,7 +865,7 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool null_free = false);
 
   // Inline types
   Node* inline_type_test(Node* obj, bool is_inline = true);

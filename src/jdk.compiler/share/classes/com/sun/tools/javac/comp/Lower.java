@@ -1140,9 +1140,6 @@ public class Lower extends TreeTranslator {
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
-                if (types.splitPrimitiveClass && requireReferenceProjection) {
-                    flatname = flatname.append('$', names.ref);
-                }
                 while (base != null &&
                        TreeInfo.symbol(base) != null &&
                        TreeInfo.symbol(base).kind != PCK) {
@@ -3106,12 +3103,6 @@ public class Lower extends TreeTranslator {
         boolean haveValue = tree.type.isPrimitiveClass();
         if (haveValue == type.isPrimitiveClass())
             return tree;
-        if (haveValue) {
-            // widening coversion is a NOP for the VM due to subtyping relationship at class file level
-            // where we bifurcate a primitive class into two class files.
-            if (types.splitPrimitiveClass)
-                return tree;
-        }
         // For narrowing conversion, insert a cast which should trigger a null check
         // For widening conversions, insert a cast if emitting a unified class file.
         return (T) make.TypeCast(type, tree);

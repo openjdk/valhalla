@@ -385,12 +385,8 @@ import static sun.invoke.util.Wrapper.isWrapperType;
      * returns {@code true} if {@code toType} is the same as,
      * or is a superclass or superinterface of, {@code fromType}.
      * <p>
-     * If {@code fromType} is a primitive class, this method returns {@code true}
-     * if {@code toType} is the {@linkplain Class#referenceType() primitive reference type}
-     * of {@code fromType}.
-     * If {@code toType} is a primitive class, this method returns {@code true}
-     * if {@code toType} is the {@linkplain Class#valueType() primitive value type}
-     * of {@code fromType}.
+     * If {@code fromType} and {@code toType} is of the same primitive class,
+     * this method returns {@code true}.
      * <p>
      * Otherwise, this method returns {@code false}.
      *
@@ -403,11 +399,12 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             return true;
         }
 
-        if (!fromType.isPrimitiveClass() && !toType.isPrimitiveClass()) {
-            return false;
+        if (fromType.isPrimitiveClass() && toType.isPrimitiveClass()) {
+            // val projection can be converted to ref projection; or vice verse
+            return fromType.asPrimaryType() == toType.asPrimaryType();
         }
 
-        return fromType.valueType().equals(toType.valueType());
+        return false;
     }
 
     /**

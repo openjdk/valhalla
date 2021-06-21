@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,32 +21,26 @@
  * questions.
  */
 
-import java.lang.ref.WeakReference;
-import java.lang.ref.ReferenceQueue;
-
-import org.testng.annotations.BeforeTest;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-import static org.testng.Assert.*;
-
 /*
  * @test
- * @summary Test inline classes with Reference types
- * @run testng/othervm InlineReferenceTest
+ * @run main MethodReference
+ * @summary test method reference and primitive reference type as the parameter type
  */
-@Test
-public class InlineReferenceTest {
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    static void test1() {
-        Point.ref p = new Point(10,20);
-        WeakReference<Point.ref> r = new WeakReference<>(p);
+import java.util.function.Supplier;
+
+public primitive class MethodReference {
+    final int x;
+    final int y;
+    MethodReference() {
+        this.x = 1234;
+        this.y = 5678;
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
-    static void test2() {
-        ReferenceQueue<Object> q = new ReferenceQueue<>();
-        Point.ref p = new Point(1,2);
-        WeakReference<Point.ref> r = new WeakReference<>(p, q);
+    public static void main(String... args) {
+        Supplier<MethodReference.ref> supplier = MethodReference::new;
+        MethodReference o = (MethodReference) supplier.get();
+        if (o.x != 1234 || o.y != 5678)
+            throw new AssertionError(o);
     }
 }

@@ -38,6 +38,7 @@ class ciObjArrayKlass : public ciArrayKlass {
 private:
   ciKlass* _element_klass;
   ciKlass* _base_element_klass;
+  bool     _null_free;
 
 protected:
   ciObjArrayKlass(Klass* k);
@@ -49,7 +50,7 @@ protected:
     return (ObjArrayKlass*)get_Klass();
   }
 
-  static ciObjArrayKlass* make_impl(ciKlass* element_klass);
+  static ciObjArrayKlass* make_impl(ciKlass* element_klass, bool null_free);
   static ciSymbol* construct_array_name(ciSymbol* element_name,
                                         int       dimension);
 
@@ -72,13 +73,15 @@ public:
   // What kind of ciObject is this?
   bool is_obj_array_klass() const { return true; }
 
-  static ciObjArrayKlass* make(ciKlass* element_klass);
+  static ciObjArrayKlass* make(ciKlass* element_klass, bool null_free = false);
 
   virtual ciKlass* exact_klass();
 
   virtual bool can_be_inline_array_klass() {
     return element_klass()->can_be_inline_klass();
   }
+
+  virtual bool is_elem_null_free() const { return _null_free; }
 };
 
 #endif // SHARE_CI_CIOBJARRAYKLASS_HPP

@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jdk.internal.vm.annotation.Stable;
@@ -889,13 +890,20 @@ class MethodType
     @Override
     public String toString() {
         StringJoiner sj = new StringJoiner(",", "(",
-                ")" + rtype.getSimpleName());
+                ")" + toSimpleName(rtype));
         for (int i = 0; i < ptypes.length; i++) {
-            sj.add(ptypes[i].getSimpleName());
+            sj.add(toSimpleName(ptypes[i]));
         }
         return sj.toString();
     }
 
+    static String toSimpleName(Class<?> c) {
+        if (c.isPrimitiveClass() && c.isPrimaryType()) {
+            return c.getSimpleName() + ".ref";
+        } else {
+            return c.getSimpleName();
+        }
+    }
     /** True if my parameter list is effectively identical to the given full list,
      *  after skipping the given number of my own initial parameters.
      *  In other words, after disregarding {@code skipPos} parameters,

@@ -115,16 +115,15 @@ class oopDesc {
   inline bool is_typeArray()           const;
   inline bool is_inline_type()         const;
   inline bool is_flatArray()           const;
-  inline bool is_nullfreeArray()       const;
+  inline bool is_null_free_array()     const;
 
   // type test operations that don't require inclusion of oop.inline.hpp.
   bool is_instance_noinline()          const;
   bool is_array_noinline()             const;
   bool is_objArray_noinline()          const;
   bool is_typeArray_noinline()         const;
-  bool is_value_noinline()             const;
   bool is_flatArray_noinline()         const;
-  bool is_nullfreeArray_noinline()     const;
+  bool is_null_free_array_noinline()   const;
 
  protected:
   inline oop        as_oop() const { return const_cast<oopDesc*>(this); }

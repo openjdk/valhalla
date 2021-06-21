@@ -420,21 +420,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags() & PRIMITIVE_CLASS) != 0;
     }
 
-    /**
-     * Is this a *derived* reference projection symbol ??
-     */
-    public boolean isReferenceProjection() {
-        return false;
-    }
-
-    /**
-     * If this is the symbol for a reference projection class, what is the class for which
-     * this is a projection ??
-     */
-    public ClassSymbol valueProjection() {
-        return null;
-    }
-
     public boolean isPublic() {
         return (flags_field & Flags.AccessFlags) == PUBLIC;
     }
@@ -545,8 +530,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /** The outermost class which indirectly owns this symbol.
-     * 'outermost' being a lexical construct, should transcend
-     *  projections
      */
     public ClassSymbol outermostClass() {
         Symbol sym = this;
@@ -555,7 +538,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             prev = sym;
             sym = sym.owner;
         }
-        return (ClassSymbol) (prev!= null && prev.isReferenceProjection() ? prev.valueProjection() : prev);
+        return (ClassSymbol) prev;
     }
 
     /** The package which indirectly owns this symbol.
@@ -1429,14 +1412,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                     if (t.tsym == base) return true;
             }
             return false;
-        }
-
-        /**
-         * Does `this' symbolize a primitive class that would, under the translation
-         * scheme in effect be lowered into two class files on a bifurcased basis ??
-         */
-        public boolean isSplitPrimitiveClass(Types types) {
-            return types.splitPrimitiveClass && this.isPrimitiveClass();
         }
 
         /** Complete the elaboration of this symbol's definition.

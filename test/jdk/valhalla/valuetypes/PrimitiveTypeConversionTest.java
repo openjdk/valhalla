@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 
 /*
  * @test
- * @summary test method handles with inline type conversion
- * @run testng/othervm InlineTypeConversionTest
+ * @summary test method handles with primitive narrowing/widening conversion
+ * @run testng/othervm PrimitiveTypeConversionTest
  */
 
 import java.lang.invoke.*;
@@ -35,7 +35,7 @@ import static java.lang.invoke.MethodType.*;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
-public class InlineTypeConversionTest {
+public class PrimitiveTypeConversionTest {
     static primitive class Value {
         Point val;
         Point.ref ref;
@@ -59,9 +59,9 @@ public class InlineTypeConversionTest {
     static final Value VALUE = new Value(new Point(10,10), new Point(20, 20));
 
     @Test
-    public static void inlineWidening() throws Throwable {
+    public static void primitiveWidening() throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        MethodHandle mh1 = lookup.findStatic(InlineTypeConversionTest.class, "narrow", methodType(Value.class, Value.ref.class));
+        MethodHandle mh1 = lookup.findStatic(PrimitiveTypeConversionTest.class, "narrow", methodType(Value.class, Value.ref.class));
         MethodHandle mh2 = mh1.asType(methodType(Value.class, Value.class));
         Object v = mh1.invoke(VALUE);
         assertEquals(v, VALUE);
@@ -77,9 +77,9 @@ public class InlineTypeConversionTest {
     }
 
     @Test
-    public static void inlineNarrowing() throws Throwable {
+    public static void primitiveNarrowing() throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        MethodHandle mh = lookup.findStatic(InlineTypeConversionTest.class, "widen", methodType(Value.ref.class, Value.class));
+        MethodHandle mh = lookup.findStatic(PrimitiveTypeConversionTest.class, "widen", methodType(Value.ref.class, Value.class));
         Object v = mh.invoke(VALUE);
         assertTrue(v == null);
         try {

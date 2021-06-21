@@ -861,7 +861,7 @@ LEAF(LoadField, AccessField)
             ciInlineKlass* inline_klass = NULL, Value default_value = NULL )
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
-    set_null_free(field->signature()->is_Q_signature());
+    set_null_free(field->is_null_free());
   }
 
   ciType* declared_type() const;

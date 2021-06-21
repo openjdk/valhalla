@@ -475,7 +475,8 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      return ciArrayKlass::make(elem_klass);
+      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE;
+      return ciArrayKlass::make(elem_klass, null_free_array);
     }
   }
 
@@ -602,7 +603,7 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 // ciEnv::is_inline_klass
 //
 // Check if the klass is an inline klass.
-bool ciEnv::is_inline_klass(const constantPoolHandle& cpool, int index) {
+bool ciEnv::has_Q_signature(const constantPoolHandle& cpool, int index) {
   GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 

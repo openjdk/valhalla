@@ -4591,6 +4591,13 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
     }
   }
 
+  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
+  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
+  // the klass for [LMyValue. Perform a full test.
+  if (superk->is_obj_array_klass() && !superk->as_array_klass()->is_elem_null_free() &&
+      superk->as_array_klass()->element_klass()->is_inlinetype()) {
+    return SSC_full_test;
+  }
   // If casting to an instance klass, it must have no subtypes
   if (superk->is_interface()) {
     // Cannot trust interfaces yet.

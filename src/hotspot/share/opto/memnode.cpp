@@ -2397,7 +2397,12 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          return TypeKlassPtr::make(ciArrayKlass::make(t));
+          if (t->is_inlinetype()) {
+            // TODO fix with JDK-8267932
+            return LoadNode::Value(phase);
+          } else {
+            return TypeKlassPtr::make(ciArrayKlass::make(t));
+          }
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has NULL for a klass field
@@ -2449,7 +2454,9 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
         if (base_k->is_loaded() && base_k->is_instance_klass()) {
           ciInstanceKlass *ik = base_k->as_instance_klass();
           // See if we can become precise: no subklasses and no interface
-          if (!ik->is_interface() && !ik->has_subklass()) {
+          // Do not fold klass loads from [LMyValue. The runtime type might be [QMyValue due to [QMyValue <: [LMyValue
+          // and the klass for [QMyValue is not equal to the klass for [LMyValue.
+          if (!ik->is_interface() && !ik->has_subklass() && (!ik->is_inlinetype() || ak->is_elem_null_free())) {
             // Add a dependence; if any subclass added we need to recompile
             if (!ik->is_final()) {
               phase->C->dependencies()->assert_leaf_type(ik);

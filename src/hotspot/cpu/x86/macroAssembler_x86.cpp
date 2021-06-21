@@ -2954,20 +2954,20 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
   jcc(Assembler::notZero, is_empty_inline_type);
 }
 
-void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline_type) {
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_inline_type);
+  jcc(Assembler::notZero, is_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline_type) {
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_null_free_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, not_inline_type);
+  jcc(Assembler::zero, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined) {
@@ -3019,7 +3019,7 @@ void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_re
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, true, is_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
 #else
   load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
@@ -3029,7 +3029,7 @@ void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, L
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
 #ifdef _LP64
-  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, false, is_non_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 #else
   load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));

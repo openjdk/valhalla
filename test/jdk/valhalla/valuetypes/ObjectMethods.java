@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,16 +24,17 @@
 
 /*
  * @test
- * @summary test Object methods on inline types
+ * @summary test Object methods on primitive classes
  * @run testng/othervm -Xint -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
 
+/* To be enabled by JDK-8267932
+ * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
+ */
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
@@ -87,7 +88,7 @@ public class ObjectMethods {
                               .setNumber(Value.Number.intValue(10)).build(), true},
             { new Value.Builder().setNumber(new Value.IntNumber(10)).build(),
               new Value.Builder().setNumber(new Value.IntNumber(10)).build(), false},
-            // reference classes containing fields of inline type
+            // reference classes containing fields of primitive class
             { MUTABLE_PATH, MutablePath.makePath(10, 20, 30, 40), false},
             { MIXED_VALUES, MIXED_VALUES, true},
             { MIXED_VALUES, new MixedValues(P1, LINE1, MUTABLE_PATH, "value"), false},
@@ -95,13 +96,13 @@ public class ObjectMethods {
             { MyValue1.default, MyValue1.default, true},
             { MyValue1.default, new MyValue1(0,0, null), true},
             { new MyValue1(10, 20, P1), new MyValue1(10, 20, Point.makePoint(1,2)), true},
-            { new IndirectType0(10), new IndirectType0(10), true},
-            { new InlineType1(10),   new InlineType1(10), true},
-            { new InlineType2(10),   new InlineType2(10), true},
-            { new InlineType1(20),   new InlineType2(20), false},
-            { new InlineType2(20),   new InlineType1(20), true},
-            { new IndirectType0(30), new InlineType1(30), true},
-            { new IndirectType0(30), new InlineType2(30), true},
+            { new ReferenceType0(10), new ReferenceType0(10), true},
+            { new ValueType1(10),   new ValueType1(10), true},
+            { new ValueType2(10),   new ValueType2(10), true},
+            { new ValueType1(20),   new ValueType2(20), false},
+            { new ValueType2(20),   new ValueType1(20), true},
+            { new ReferenceType0(30), new ValueType1(30), true},
+            { new ReferenceType0(30), new ValueType2(30), true},
         };
     }
 
@@ -113,13 +114,13 @@ public class ObjectMethods {
     @DataProvider(name="interfaceEqualsTests")
     Object[][] interfaceEqualsTests() {
         return new Object[][]{
-                { new IndirectType0(10), new IndirectType0(10), false, true},
-                { new InlineType1(10),   new InlineType1(10),   true,  true},
-                { new InlineType2(10),   new InlineType2(10),   true,  true},
-                { new InlineType1(20),   new InlineType2(20),   false, false},
-                { new InlineType2(20),   new InlineType1(20),   false, true},
-                { new IndirectType0(30), new InlineType1(30),   false, true},
-                { new IndirectType0(30), new InlineType2(30),   false, true},
+                { new ReferenceType0(10), new ReferenceType0(10), false, true},
+                { new ValueType1(10),   new ValueType1(10),   true,  true},
+                { new ValueType2(10),   new ValueType2(10),   true,  true},
+                { new ValueType1(20),   new ValueType2(20),   false, false},
+                { new ValueType2(20),   new ValueType1(20),   false, true},
+                { new ReferenceType0(30), new ValueType1(30),   false, true},
+                { new ReferenceType0(30), new ValueType2(30),   false, true},
         };
     }
 
@@ -130,33 +131,28 @@ public class ObjectMethods {
         assertTrue(n1.equals(n2) == isEquals);
     }
 
+
     @DataProvider(name="toStringTests")
     Object[][] toStringTests() {
         return new Object[][] {
-            { Point.makePoint(100, 200), "[Point x=100 y=200]" },
-            { Line.makeLine(1, 2, 3, 4), "[Line p1=[Point x=1 y=2] p2=[Point x=3 y=4]]"},
-            { VALUE,
-              "[Value char_v=z byte_v=1 boolean_v=false int_v=0 short_v=3 long_v=4 double_v=0.0 " +
-              "float_v=0.0 number_v=[Value$IntValue i=10] point_v=[Point x=200 y=200] point_ref=null ref_v=null]" },
-            { VALUE1,
-              "[Value char_v=z byte_v=1 boolean_v=false int_v=0 short_v=3 long_v=4 double_v=0.0 " +
-              "float_v=0.0 number_v=[Value$IntValue i=20] point_v=[Point x=100 y=100] " +
-              "point_ref=[Point x=200 y=200] ref_v=[Point x=300 y=300]]" },
+            { Point.makePoint(100, 200)  },
+            { Line.makeLine(1, 2, 3, 4) },
+            { VALUE },
+            { VALUE1 },
             { new Value.Builder()
                         .setReference(List.of("ref"))
-                        .setNumber(new Value.IntNumber(99)).build(),
-              "[Value char_v=\u0000 byte_v=0 boolean_v=false int_v=0 short_v=0 long_v=0 double_v=0.0 " +
-              "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] point_ref=null ref_v=[ref]]" },
+                        .setNumber(new Value.IntNumber(99)).build() },
             // enclosing instance field `this$0` should be filtered
-            { MyValue1.default, "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
-            { new MyValue1(0,0, null), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
-            { new MyValue1(0,0, P1), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=[Point x=1 y=2]]" },
+            { MyValue1.default },
+            { new MyValue1(0,0, null) },
+            { new MyValue1(0,0, P1) },
         };
     }
 
     @Test(dataProvider="toStringTests")
-    public void testToString(Object o, String s) {
-        assertTrue(o.toString().equals(s), o.toString());
+    public void testToString(Object o) {
+        String expected = String.format("%s@%s", o.getClass().getName(), Integer.toHexString(o.hashCode()));
+        assertEquals(o.toString(), expected);
     }
 
     @DataProvider(name="hashcodeTests")
@@ -166,7 +162,7 @@ public class ObjectMethods {
             { P1,                   hash(Point.class, 1, 2) },
             { LINE1,                hash(Line.class, Point.makePoint(1, 2), Point.makePoint(3, 4)) },
             { VALUE,                hash(hashCodeComponents(VALUE))},
-            { VALUE1,                hash(hashCodeComponents(VALUE1))},
+            { VALUE1,               hash(hashCodeComponents(VALUE1))},
             { Point.makePoint(0,0), hash(Point.class, 0, 0) },
             { Point.default,        hash(Point.class, 0, 0) },
             { MyValue1.default,     hash(MyValue1.class, Point.default, null) },
@@ -177,13 +173,14 @@ public class ObjectMethods {
     @Test(dataProvider="hashcodeTests")
     public void testHashCode(Object o, int hash) {
         assertEquals(o.hashCode(), hash);
+        assertEquals(System.identityHashCode(o), hash);
     }
 
     private static Object[] hashCodeComponents(Object o) {
         Class<?> type = o.getClass();
-        // filter static fields and synthetic fields
+        // filter static fields
         Stream<Object> fields = Arrays.stream(type.getDeclaredFields())
-            .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
+            .filter(f -> !Modifier.isStatic(f.getModifiers()))
             .map(f -> {
                 try {
                     return f.get(o);
@@ -191,6 +188,9 @@ public class ObjectMethods {
                     throw new RuntimeException(e);
                 }
             });
+        if (type.isPrimitiveClass()) {
+            type = type.asValueType();
+        }
         return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
     }
 
@@ -217,9 +217,9 @@ public class ObjectMethods {
         int value();
     }
 
-    static class IndirectType0 implements Number {
+    static class ReferenceType0 implements Number {
         int i;
-        public IndirectType0(int i) {
+        public ReferenceType0(int i) {
             this.i = i;
         }
         public int value() {
@@ -234,9 +234,9 @@ public class ObjectMethods {
         }
     }
 
-    static primitive class InlineType1 implements Number {
+    static primitive class ValueType1 implements Number {
         int i;
-        public InlineType1(int i) {
+        public ValueType1(int i) {
             this.i = i;
         }
         public int value() {
@@ -244,9 +244,9 @@ public class ObjectMethods {
         }
     }
 
-    static primitive class InlineType2 implements Number {
+    static primitive class ValueType2 implements Number {
         int i;
-        public InlineType2(int i) {
+        public ValueType2(int i) {
             this.i = i;
         }
         public int value() {

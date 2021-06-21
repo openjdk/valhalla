@@ -1335,7 +1335,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (field._type == T_INLINE_TYPE) {
+        if (fs.signature()->is_Q_signature()) {
           if (fs.is_inlined()) {
             // Resolve klass of flattened inline type field
             field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));

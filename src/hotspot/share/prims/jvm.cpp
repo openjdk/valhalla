@@ -1173,7 +1173,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
     InstanceKlass* ik = InstanceKlass::cast(klass);
     size = ik->local_interfaces()->length();
   } else {
-    assert(klass->is_objArray_klass() || klass->is_typeArray_klass(), "Illegal mirror klass");
+    assert(klass->is_objArray_klass() || klass->is_typeArray_klass() || klass->is_flatArray_klass(), "Illegal mirror klass");
     size = 3;
   }
 

@@ -129,6 +129,7 @@ public final class Method extends Executable {
            byte[] annotations,
            byte[] parameterAnnotations,
            byte[] annotationDefault) {
+        assert declaringClass.isPrimaryType();
         this.clazz = declaringClass;
         this.name = name;
         this.parameterTypes = parameterTypes;
@@ -418,13 +419,13 @@ public final class Method extends Executable {
     @Override
     void specificToStringHeader(StringBuilder sb) {
         sb.append(getReturnType().getTypeName()).append(' ');
-        sb.append(getDeclaringClass().getTypeName()).append('.');
+        sb.append(getDeclaringClassTypeName()).append('.');
         sb.append(getName());
     }
 
     @Override
     String toShortString() {
-        return "method " + getDeclaringClass().getTypeName() +
+        return "method " + getDeclaringClassTypeName() +
                 '.' + toShortSignature();
     }
 
@@ -487,7 +488,7 @@ public final class Method extends Executable {
     void specificToGenericStringHeader(StringBuilder sb) {
         Type genRetType = getGenericReturnType();
         sb.append(genRetType.getTypeName()).append(' ');
-        sb.append(getDeclaringClass().getTypeName()).append('.');
+        sb.append(getDeclaringClassTypeName()).append('.');
         sb.append(getName());
     }
 
