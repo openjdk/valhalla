@@ -207,7 +207,7 @@ bool oopDesc::is_objArray()  const { return klass()->is_objArray_klass();  }
 bool oopDesc::is_typeArray() const { return klass()->is_typeArray_klass(); }
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
-#if _LP64
+#ifdef _LP64
 bool oopDesc::is_flatArray() const {
   markWord mrk = mark();
   return (mrk.is_unlocked()) ? mrk.is_flat_array() : klass()->is_flatArray_klass();

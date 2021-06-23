@@ -104,6 +104,7 @@ class oopDesc;
 // Format 64-bit quantities.
 #define INT64_FORMAT           "%" PRId64
 #define UINT64_FORMAT          "%" PRIu64
+#define INT64_FORMAT_X         "%" PRIx64
 #define UINT64_FORMAT_X        "%" PRIx64
 #define INT64_FORMAT_W(width)  "%" #width PRId64
 #define UINT64_FORMAT_W(width) "%" #width PRIu64
@@ -117,6 +118,9 @@ class oopDesc;
 #endif
 #ifndef JLONG_FORMAT_W
 #define JLONG_FORMAT_W(width)  INT64_FORMAT_W(width)
+#endif
+#ifndef JLONG_FORMAT_X
+#define JLONG_FORMAT_X         INT64_FORMAT_X
 #endif
 #ifndef JULONG_FORMAT
 #define JULONG_FORMAT          UINT64_FORMAT
