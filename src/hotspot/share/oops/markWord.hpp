@@ -472,6 +472,16 @@ class markWord {
   bool is_null_free_array() const {
     return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
   }
+#else
+  bool is_flat_array() const {
+    fatal("Should not ask this for mark word, ask oopDesc");
+    return false;
+  }
+
+  bool is_null_free_array() const {
+    fatal("Should not ask this for mark word, ask oopDesc");
+    return false;
+  }
 #endif
   // Prototype mark for initialization
   static markWord prototype() {

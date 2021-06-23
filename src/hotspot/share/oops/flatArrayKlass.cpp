@@ -66,8 +66,12 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(
   assert(is_flatArray_klass(), "sanity");
   assert(is_null_free_array_klass(), "sanity");
 
+#ifdef _LP64
   set_prototype_header(markWord::flat_array_prototype());
   assert(prototype_header().is_flat_array(), "sanity");
+#else
+  set_prototype_header(markWord::inline_type_prototype());
+#endif
 
 #ifndef PRODUCT
   if (PrintFlatArrayLayout) {

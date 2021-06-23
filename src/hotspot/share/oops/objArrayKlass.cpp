@@ -162,8 +162,12 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
   if (null_free) {
     assert(n == 1, "Bytecode does not support null-free multi-dim");
     lh = layout_helper_set_null_free(lh);
+#ifdef _LP64
     set_prototype_header(markWord::null_free_array_prototype());
     assert(prototype_header().is_null_free_array(), "sanity");
+#else
+    set_prototype_header(markWord::inline_type_prototype());
+#endif
   }
   set_layout_helper(lh);
   assert(is_array_klass(), "sanity");
