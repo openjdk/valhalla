@@ -298,7 +298,7 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, InlineKlass*
       assert(fd.is_inlined(), "field not flat");
     } else {
       if (log_is_enabled(Trace, valuetypes)) {
-        log_trace(valuetypes)("not a field in %s at offset " JULONG_FORMAT_X,
+        log_trace(valuetypes)("not a field in %s at offset " UINT64_FORMAT_X,
                               p->klass()->external_name(), (uint64_t)offset);
       }
     }
@@ -316,11 +316,11 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, InlineKlass*
       FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
       address dest = (address)((flatArrayOop)p)->value_at_addr(index, vak->layout_helper());
-      log_trace(valuetypes)("%s array type %s index %d element size %d offset " JULONG_FORMAT_X " at " INTPTR_FORMAT,
+      log_trace(valuetypes)("%s array type %s index %d element size %d offset " UINT64_FORMAT_X " at " INTPTR_FORMAT,
                             p->klass()->external_name(), vak->external_name(),
                             index, vak->element_byte_size(), (uint64_t)offset, p2i(dest));
     } else {
-      log_trace(valuetypes)("%s field type %s at offset " JULONG_FORMAT_X,
+      log_trace(valuetypes)("%s field type %s at offset " UINT64_FORMAT_X,
                             p->klass()->external_name(), vk->external_name(), (uint64_t)offset);
     }
   }
