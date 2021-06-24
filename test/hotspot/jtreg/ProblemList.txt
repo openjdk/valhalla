@@ -141,6 +141,20 @@ compiler/codecache/jmx/PoolsIndependenceTest.java 8264632 macosx-x64
 
 compiler/intrinsics/VectorizedMismatchTest.java 8268482 windows-x64
 
+compiler/debug/VerifyAdapterSharing.java 8268946 generic-all
+
+# JDK-8267932 [lworld] JIT support for the L/Q model (step 2)...
+
+compiler/valhalla/inlinetypes/TestIntrinsics.java 8267932 generic-all
+compiler/valhalla/inlinetypes/TestNewAcmp.java 8267932 generic-all
+runtime/valhalla/inlinetypes/InlineOops.java#id4 8267932 generic-all
+runtime/valhalla/inlinetypes/InlineOops.java#id5 8267932 generic-all
+runtime/valhalla/inlinetypes/InlineOops.java#id6 8267932 generic-all
+runtime/valhalla/inlinetypes/InlineOops.java#id7 8267932 generic-all
+runtime/valhalla/inlinetypes/InlineTypeArray.java 8267932 generic-all
+runtime/valhalla/inlinetypes/VarArgsArray.java 8267932 generic-all
+
+
 #############################################################################
 
 # :hotspot_gc
