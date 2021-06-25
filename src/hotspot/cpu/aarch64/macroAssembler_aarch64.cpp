@@ -5707,68 +5707,81 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   // the value of the fields.
   Label skip;
   // We only need a new buffered inline type if a new one is not returned
-  cmp(r0, (u1) 1);
-  br(Assembler::EQ, skip);
+  tbz(r0, 0, skip);
   int call_offset = -1;
 
+  // Be careful not to clobber r1-7 which hold returned fields
+  // Also do not use callee-saved registers as these may be live in the interpreter
+  Register tmp1 = r13, tmp2 = r14, klass = r15, r0_preserved = r12;
+
+  // The following code is similar to allocate_instance but has some slight differences,
+  // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
+  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
   Label slow_case;
+  // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
+  mov(r0_preserved, r0); // save r0 for slow_case since *_allocate may corrupt it when allocation failed
 
-  // Try to allocate a new buffered inline type (from the heap)
-  if (UseTLAB) {
-
-    if (vk != NULL) {
-      // Called from C1, where the return type is statically known.
-      mov(r1, (intptr_t)vk->get_InlineKlass());
-      jint lh = vk->layout_helper();
-      assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
-      mov(r14, lh);
+  if (vk != NULL) {
+    // Called from C1, where the return type is statically known.
+    movptr(klass, (intptr_t)vk->get_InlineKlass());
+    jint obj_size = vk->layout_helper();
+    assert(obj_size != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+    if (UseTLAB) {
+      tlab_allocate(r0, noreg, obj_size, tmp1, tmp2, slow_case);
     } else {
-       // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
-       andr(r1, r0, -2);
-       // get obj size
-       ldrw(r14, Address(rscratch1 /*klass*/, Klass::layout_helper_offset()));
+      eden_allocate(r0, noreg, obj_size, tmp1, slow_case);
     }
-
-    ldr(r13, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-    lea(r14, Address(r13, r14));
-    ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-    cmp(r14, rscratch1);
-    br(Assembler::GT, slow_case);
-    str(r14, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
+  } else {
+    // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
+    andr(klass, r0, -2);
+    ldrw(tmp2, Address(klass, Klass::layout_helper_offset()));
+    if (UseTLAB) {
+      tlab_allocate(r0, tmp2, 0, tmp1, tmp2, slow_case);
+    } else {
+      eden_allocate(r0, tmp2, 0, tmp1, slow_case);
+    }
+  }
+  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+    // 2. Initialize buffered inline instance header
+    Register buffer_obj = r0;
     mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
-    str(rscratch1, Address(r13, oopDesc::mark_offset_in_bytes()));
-
-    store_klass_gap(r13, zr);  // zero klass gap for compressed oops
-
+    str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
+    store_klass_gap(buffer_obj, zr);
+    if (vk == NULL) {
+      // store_klass corrupts klass, so save it for later use (interpreter case only).
+      mov(tmp1, klass);
+    }
+    store_klass(buffer_obj, klass);
+    // 3. Initialize its fields with an inline class specific handler
     if (vk != NULL) {
-      // FIXME -- do the packing in-line to avoid the runtime call
-      mov(r0, r13);
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      // We have our new buffered inline type, initialize its fields with an inline class specific handler
-      ldr(r1, Address(r0, InstanceKlass::adr_inlineklass_fixed_block_offset()));
-      ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
-
-      // Mov new class to r0 and call pack_handler
-      mov(r0, r13);
-      blr(r1);
+      // tmp1 holds klass preserved above
+      ldr(tmp1, Address(tmp1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      ldr(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
+      blr(tmp1);
     }
-    b(skip);
-  }
 
+    membar(Assembler::StoreStore);
+    b(skip);
+  } else {
+    // Must have already branched to slow_case in eden_allocate() above.
+    DEBUG_ONLY(should_not_reach_here());
+  }
   bind(slow_case);
   // We failed to allocate a new inline type, fall back to a runtime
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
+  mov(r0, r0_preserved);
 
   if (from_interpreter) {
     super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
   } else {
-    ldr(rscratch1, RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
-    blr(rscratch1);
+    far_call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
     call_offset = offset();
   }
+  membar(Assembler::StoreStore);
 
   bind(skip);
   return call_offset;

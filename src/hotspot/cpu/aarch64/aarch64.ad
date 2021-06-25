@@ -1767,6 +1767,9 @@ int MachCallRuntimeNode::ret_addr_offset() {
   CodeBlob *cb = CodeCache::find_blob(_entry_point);
   if (cb) {
     return 1 * NativeInstruction::instruction_size;
+  } else if (_entry_point == NULL) {
+    // See CallLeafNoFPIndirect
+    return 1 * NativeInstruction::instruction_size;
   } else {
     return 6 * NativeInstruction::instruction_size;
   }
@@ -3694,6 +3697,17 @@ encode %{
     if (VerifyStackAtCalls) {
       // Check that stack depth is unchanged: find majik cookie on stack
       __ call_Unimplemented();
+    }
+    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
+      // An inline type is returned as fields in multiple registers.
+      // R0 either contains an oop if the inline type is buffered or a pointer
+      // to the corresponding InlineKlass with the lowest bit set to 1. Zero r0
+      // if the lowest bit is set to allow C2 to use the oop after null checking.
+      // r0 &= (r0 & 1) - 1
+      C2_MacroAssembler _masm(&cbuf);
+      __ andr(rscratch1, r0, 0x1);
+      __ sub(rscratch1, rscratch1, 0x1);
+      __ andr(r0, r0, rscratch1);
     }
   %}
 
@@ -16317,8 +16331,28 @@ instruct CallLeafDirect(method meth)
 
 // Call Runtime Instruction
 
+// entry point is null, target holds the address to call
+instruct CallLeafNoFPIndirect(iRegP target)
+%{
+  predicate(n->as_Call()->entry_point() == NULL);
+
+  match(CallLeafNoFP target);
+
+  ins_cost(CALL_COST);
+
+  format %{ "CALL, runtime leaf nofp indirect $target" %}
+
+  ins_encode %{
+    __ blr($target$$Register);
+  %}
+
+  ins_pipe(pipe_class_call);
+%}
+
 instruct CallLeafNoFPDirect(method meth)
 %{
+  predicate(n->as_Call()->entry_point() != NULL);
+
   match(CallLeafNoFP);
 
   effect(USE meth);
