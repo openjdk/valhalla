@@ -2413,18 +2413,10 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       for (int i = n - 1; i >= 0; i--) {
         current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
       }
-      // stack_object_type and target_class_type must be the same inline type.
-      stack_object_type =
-        current_frame->pop_stack(VerificationType::inline_type_check(), CHECK_VERIFY(this));
+      // Check that the receiver is a subtype of the referenced class.
+      current_frame->pop_stack(target_class_type, CHECK_VERIFY(this));
       VerificationType target_inline_type =
         VerificationType::change_ref_to_inline_type(target_class_type);
-      if (!stack_object_type.equals(target_inline_type)) {
-        verify_error(ErrorContext::bad_inline_type(bci,
-            current_frame->stack_top_ctx(),
-            TypeOrigin::cp(index, target_class_type)),
-            "Invalid type on operand stack in withfield instruction");
-        return;
-      }
       current_frame->push_stack(target_inline_type, CHECK_VERIFY(this));
       break;
     }
