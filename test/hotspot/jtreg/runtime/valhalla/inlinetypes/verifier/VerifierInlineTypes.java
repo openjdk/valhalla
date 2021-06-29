@@ -73,6 +73,9 @@ public class VerifierInlineTypes {
         // Test VerifyError is thrown if a defaultvalue's cp entry is not a class.
         runTestVerifyError("defValWrongCPType", "Illegal type at constant pool entry");
 
+        // Test that the verifier doesn't require that a withfield bytecode has a Q type operand.
+        Class newClass = Class.forName("withfieldL");
+
 /*
         // Test that a withfield opcode with an out of bounds cp index causes a VerifyError.
         runTestVerifyError("wthFldBadCP", "Illegal constant pool index");
