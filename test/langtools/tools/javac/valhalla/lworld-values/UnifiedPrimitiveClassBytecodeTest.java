@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -72,14 +73,14 @@ public class UnifiedPrimitiveClassBytecodeTest {
         " 2: anewarray     #11                 // class \"QUnifiedPrimitiveClassBytecodeTest$X;\"",
         " 5: astore_2",
         " 6: bipush        10",
-        " 8: anewarray     #13                 // class UnifiedPrimitiveClassBytecodeTest$X",
+        " 8: anewarray     #1                  // class UnifiedPrimitiveClassBytecodeTest$X",
         "11: astore_1",
         "12: aload_1",
         "13: iconst_0",
         "14: aload_2",
         "15: iconst_0",
         "16: aaload",
-        "17: checkcast     #13                 // class UnifiedPrimitiveClassBytecodeTest$X",
+        "17: checkcast     #1                  // class UnifiedPrimitiveClassBytecodeTest$X",
         "20: aastore",
         "21: aload_2",
         "22: iconst_1",
@@ -90,7 +91,7 @@ public class UnifiedPrimitiveClassBytecodeTest {
         "29: aastore",
         "30: ldc           #11                 // class \"QUnifiedPrimitiveClassBytecodeTest$X;\"",
         "32: astore_3",
-        "33: ldc           #13                 // class UnifiedPrimitiveClassBytecodeTest$X",
+        "33: ldc           #1                  // class UnifiedPrimitiveClassBytecodeTest$X",
         "35: astore_3",
         "36: return",
          });

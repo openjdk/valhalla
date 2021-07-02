@@ -116,6 +116,12 @@ public class PoolWriter {
      * or an array type.
      */
     int putClass(Type t) {
+        /* Their is nothing to be gained by having the pair of class types Foo.ref and Foo.val
+           result in two different CONSTANT_Class_info strucures in the pool. These are
+           indistinguishable at the class file level. Hence we coalesce them here.
+        */
+        if (t.isReferenceProjection())
+            t = t.valueProjection();
         return pool.writeIfNeeded(types.erasure(t));
     }
 
