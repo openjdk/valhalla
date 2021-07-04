@@ -50,6 +50,7 @@ import com.sun.tools.javac.comp.ArgumentAttr.LocalCacheContext;
 import com.sun.tools.javac.comp.Check.CheckContext;
 import com.sun.tools.javac.comp.DeferredAttr.AttrMode;
 import com.sun.tools.javac.comp.MatchBindingsComputer.MatchBindings;
+import com.sun.tools.javac.comp.Resolve.MethodResolutionPhase;
 import com.sun.tools.javac.jvm.*;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.Diamond;
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.DiamondInvalidArg;
@@ -672,7 +673,7 @@ public class Attr extends JCTree.Visitor {
      *  @param env     The environment visitor argument.
      *  @param resultInfo   The result info visitor argument.
      */
-    Type attribTree(JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
+    Type attribTree (JCTree tree, Env<AttrContext> env, ResultInfo resultInfo) {
         Env<AttrContext> prevEnv = this.env;
         ResultInfo prevResult = this.resultInfo;
         try {
@@ -5020,25 +5021,72 @@ public class Attr extends JCTree.Visitor {
         }
 
         // Attribute the qualifier expression, and determine its symbol (if any).
-        Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP_PCK, Type.noType));
+        Type clazztype = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP, Type.noType));
         if (!pkind().contains(KindSelector.TYP_PCK))
-            site = capture(site); // Capture field access
+            clazztype = capture(clazztype); // Capture field access
 
-        Symbol sym = switch (site.getTag()) {
+        if (isPossiblePolyDefault(tree, clazztype)) {
+            var flavor = clazztype.getTag() == CLASS ? clazztype.getFlavor() : Flavor.X_Typeof_X;
+            ClassType site = new ClassType(clazztype.getEnclosingType(),
+                        clazztype.tsym.type.getTypeArguments(),
+                                           clazztype.tsym,
+                                           clazztype.getMetadata(),
+                                           flavor);
+
+            Env<AttrContext> diamondEnv = env.dup(tree);
+            diamondEnv.info.selectSuper = false;
+            diamondEnv.info.pendingResolutionPhase = MethodResolutionPhase.BASIC;
+
+            final TypeSymbol csym = clazztype.tsym;
+            var clazzTypeArgs = csym.type.getTypeArguments();
+            Type constrType = new ForAll(clazzTypeArgs,
+                    new MethodType(List.nil(), csym.type, List.nil(), syms.methodClass));
+
+            MethodSymbol constructor = new MethodSymbol(Flags.SYNTHETIC, names.init, constrType, site.tsym);
+            ResultInfo diamondResult = new ResultInfo(KindSelector.VAL, newMethodTemplate(resultInfo.pt, List.nil(), List.nil()),
+                    defaultPolyContext(tree, csym, resultInfo.checkContext), CheckMode.NO_TREE_UPDATE);
+
+            Type defaultType = checkId(tree, site, constructor, diamondEnv, diamondResult);
+
+            if (defaultType.isErroneous()) {
+                tree.clazz.type = types.createErrorType(clazztype);
+            } else {
+                tree.clazz.type = defaultType.getReturnType();
+            }
+            clazztype = chk.checkClassType(tree.clazz, tree.clazz.type, true);
+            result = check(tree, clazztype, KindSelector.VAL, resultInfo);
+        } else {
+            chk.validate(tree.clazz, env);
+            Symbol sym = switch (clazztype.getTag()) {
                 case WILDCARD -> throw new AssertionError(tree);
-                case PACKAGE -> {
-                    log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
-                            Fragments.Location(Kinds.typeKindName(env.enclClass.type), env.enclClass.type, null)));
-                    yield syms.errSymbol;
-                }
-                case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
-                default -> new VarSymbol(STATIC, names._default, site, site.tsym);
-        };
-
-        if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
-            site = types.skipTypeVars(site, true);
+                case ERROR -> types.createErrorType(names._default, clazztype.tsym, clazztype).tsym;
+                default -> new VarSymbol(STATIC, names._default, clazztype, clazztype.tsym);
+            };
+            if (clazztype.hasTag(TYPEVAR) && sym.kind != ERR) {
+                clazztype = types.skipTypeVars(clazztype, true);
+            }
+            result = tree.type = checkId(tree, clazztype, sym, env, resultInfo);
         }
-        result = checkId(tree, site, sym, env, resultInfo);
+    }
+    // where
+    CheckContext defaultPolyContext(JCDefaultValue tree, TypeSymbol tsym, CheckContext checkContext) {
+        return new Check.NestedCheckContext(checkContext) {
+            @Override
+            public void report(DiagnosticPosition _unused, JCDiagnostic details) {
+                enclosingContext.report(tree.clazz,
+                        diags.fragment(Fragments.CantApplyDiamond1(Fragments.Diamond(tsym), details)));
+            }
+        };
+    }
+    //where
+    boolean isPossiblePolyDefault(JCDefaultValue tree, Type clazztype) {
+        JCTypeApply applyTree = TreeInfo.getTypeApplication(tree.clazz);
+        if (applyTree != null) {
+            return applyTree.arguments.isEmpty();
+        } else {
+            // No type arguments before .default - Consider if the type is generic or not
+            return clazztype == null || clazztype.tsym.type.isParameterized();
+        }
     }
 
     public void visitLiteral(JCLiteral tree) {
