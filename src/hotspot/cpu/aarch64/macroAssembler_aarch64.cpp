@@ -1555,14 +1555,14 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
   cbnz(temp_reg, is_empty_inline_type);
 }
 
-void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline) {
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_inline_type_shift, is_inline);
+  tbnz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, is_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline) {
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbz(flags, ConstantPoolCacheEntry::is_inline_type_shift, not_inline);
+  tbz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened) {
