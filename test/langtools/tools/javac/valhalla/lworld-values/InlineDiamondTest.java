@@ -47,7 +47,7 @@ public class InlineDiamondTest<E> {
         InlineDiamondTest<String> idt = new InlineDiamondTest<>();
         I<String> is = idt.get();
         String toString = is.toString();
-        if (!toString.equals("[InlineDiamondTest$Y x=42]"))
+        if (!toString.equals("InlineDiamondTest$Y@" + Integer.toHexString(is.hashCode())))
             throw new AssertionError("Expected: " + toString);
     }
 }

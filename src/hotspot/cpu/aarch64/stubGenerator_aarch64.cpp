@@ -312,22 +312,27 @@ class StubGenerator: public StubCodeGenerator {
     // T_OBJECT, T_INLINE_TYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
-    __ ldr(j_rarg2, result);
+    // All of j_rargN may be used to return inline type fields so be careful
+    // not to clobber those.
+    // SharedRuntime::generate_buffered_inline_type_adapter() knows the register
+    // assignment of Rresult below.
+    Register Rresult = r14, Rresult_type = r15;
+    __ ldr(Rresult, result);
     Label is_long, is_float, is_double, is_value, exit;
-    __ ldr(j_rarg1, result_type);
-    __ cmp(j_rarg1, (u1)T_OBJECT);
+    __ ldr(Rresult_type, result_type);
+    __ cmp(Rresult_type, (u1)T_OBJECT);
     __ br(Assembler::EQ, is_long);
-    __ cmp(j_rarg1, (u1)T_INLINE_TYPE);
+    __ cmp(Rresult_type, (u1)T_INLINE_TYPE);
     __ br(Assembler::EQ, is_value);
-    __ cmp(j_rarg1, (u1)T_LONG);
+    __ cmp(Rresult_type, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
-    __ cmp(j_rarg1, (u1)T_FLOAT);
+    __ cmp(Rresult_type, (u1)T_FLOAT);
     __ br(Assembler::EQ, is_float);
-    __ cmp(j_rarg1, (u1)T_DOUBLE);
+    __ cmp(Rresult_type, (u1)T_DOUBLE);
     __ br(Assembler::EQ, is_double);
 
     // handle T_INT case
-    __ strw(r0, Address(j_rarg2));
+    __ strw(r0, Address(Rresult));
 
     __ BIND(exit);
 
@@ -376,27 +381,25 @@ class StubGenerator: public StubCodeGenerator {
     __ BIND(is_value);
     if (InlineTypeReturnedAsFields) {
       // Check for flattened return value
-      __ cbz(r0, is_long);
-      // Initialize pre-allocated buffer
-      __ mov(r1, r0);
-      __ andr(r1, r1, -2);
-      __ ldr(r1, Address(r1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
-      __ ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
-      __ ldr(r0, Address(j_rarg2, 0));
-      __ blr(r1);
+      __ tbz(r0, 0, is_long);
+      // Load pack handler address
+      __ andr(rscratch1, r0, -2);
+      __ ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::pack_handler_jobject_offset()));
+      __ blr(rscratch1);
       __ b(exit);
     }
 
     __ BIND(is_long);
-    __ str(r0, Address(j_rarg2, 0));
+    __ str(r0, Address(Rresult, 0));
     __ br(Assembler::AL, exit);
 
     __ BIND(is_float);
-    __ strs(j_farg0, Address(j_rarg2, 0));
+    __ strs(j_farg0, Address(Rresult, 0));
     __ br(Assembler::AL, exit);
 
     __ BIND(is_double);
-    __ strd(j_farg0, Address(j_rarg2, 0));
+    __ strd(j_farg0, Address(Rresult, 0));
     __ br(Assembler::AL, exit);
 
     return start;
@@ -2681,7 +2684,7 @@ class StubGenerator: public StubCodeGenerator {
   //   c_rarg2   - K (key) in little endian int array
   //
   address generate_aescrypt_decryptBlock() {
-    assert(UseAES, "need AES instructions and misaligned SSE support");
+    assert(UseAES, "need AES cryptographic extension support");
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", "aescrypt_decryptBlock");
     Label L_doLast;
@@ -2788,7 +2791,7 @@ class StubGenerator: public StubCodeGenerator {
   //   x0        - input length
   //
   address generate_cipherBlockChaining_encryptAESCrypt() {
-    assert(UseAES, "need AES instructions and misaligned SSE support");
+    assert(UseAES, "need AES cryptographic extension support");
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", "cipherBlockChaining_encryptAESCrypt");
 
@@ -2892,7 +2895,7 @@ class StubGenerator: public StubCodeGenerator {
   //   r0        - input length
   //
   address generate_cipherBlockChaining_decryptAESCrypt() {
-    assert(UseAES, "need AES instructions and misaligned SSE support");
+    assert(UseAES, "need AES cryptographic extension support");
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", "cipherBlockChaining_decryptAESCrypt");
 
@@ -7000,16 +7003,12 @@ class StubGenerator: public StubCodeGenerator {
   // returned to registers or to store returned values to a newly
   // allocated inline type instance.
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
-
-    // Information about frame layout at time of blocking runtime call.
-    // Note that we only have to preserve callee-saved registers since
-    // the compilers are responsible for supplying a continuation point
-    // if they expect all registers to be preserved.
+    // We need to save all registers the calling convention may use so
+    // the runtime calls read or update those registers. This needs to
+    // be in sync with SharedRuntime::java_return_convention().
     // n.b. aarch64 asserts that frame::arg_reg_save_area_bytes == 0
     enum layout {
-      rfp_off = 0, rfp_off2,
-
-      j_rarg7_off, j_rarg7_2,
+      j_rarg7_off = 0, j_rarg7_2,    // j_rarg7 is r0
       j_rarg6_off, j_rarg6_2,
       j_rarg5_off, j_rarg5_2,
       j_rarg4_off, j_rarg4_2,
@@ -7018,50 +7017,32 @@ class StubGenerator: public StubCodeGenerator {
       j_rarg1_off, j_rarg1_2,
       j_rarg0_off, j_rarg0_2,
 
-      j_farg0_off, j_farg0_2,
-      j_farg1_off, j_farg1_2,
-      j_farg2_off, j_farg2_2,
-      j_farg3_off, j_farg3_2,
-      j_farg4_off, j_farg4_2,
-      j_farg5_off, j_farg5_2,
-      j_farg6_off, j_farg6_2,
       j_farg7_off, j_farg7_2,
+      j_farg6_off, j_farg6_2,
+      j_farg5_off, j_farg5_2,
+      j_farg4_off, j_farg4_2,
+      j_farg3_off, j_farg3_2,
+      j_farg2_off, j_farg2_2,
+      j_farg1_off, j_farg1_2,
+      j_farg0_off, j_farg0_2,
 
+      rfp_off, rfp_off2,
       return_off, return_off2,
+
       framesize // inclusive of return address
     };
 
-    int insts_size = 512;
-    int locs_size  = 64;
-
-    CodeBuffer code(name, insts_size, locs_size);
-    OopMapSet* oop_maps  = new OopMapSet();
+    CodeBuffer code(name, 512, 64);
     MacroAssembler* masm = new MacroAssembler(&code);
 
-    address start = __ pc();
+    int frame_size_in_bytes = align_up(framesize*BytesPerInt, 16);
+    assert(frame_size_in_bytes == framesize*BytesPerInt, "misaligned");
+    int frame_size_in_slots = frame_size_in_bytes / BytesPerInt;
+    int frame_size_in_words = frame_size_in_bytes / wordSize;
 
-    const Address f7_save       (rfp, j_farg7_off * wordSize);
-    const Address f6_save       (rfp, j_farg6_off * wordSize);
-    const Address f5_save       (rfp, j_farg5_off * wordSize);
-    const Address f4_save       (rfp, j_farg4_off * wordSize);
-    const Address f3_save       (rfp, j_farg3_off * wordSize);
-    const Address f2_save       (rfp, j_farg2_off * wordSize);
-    const Address f1_save       (rfp, j_farg1_off * wordSize);
-    const Address f0_save       (rfp, j_farg0_off * wordSize);
+    OopMapSet* oop_maps = new OopMapSet();
+    OopMap* map = new OopMap(frame_size_in_slots, 0);
 
-    const Address r0_save      (rfp, j_rarg0_off * wordSize);
-    const Address r1_save      (rfp, j_rarg1_off * wordSize);
-    const Address r2_save      (rfp, j_rarg2_off * wordSize);
-    const Address r3_save      (rfp, j_rarg3_off * wordSize);
-    const Address r4_save      (rfp, j_rarg4_off * wordSize);
-    const Address r5_save      (rfp, j_rarg5_off * wordSize);
-    const Address r6_save      (rfp, j_rarg6_off * wordSize);
-    const Address r7_save      (rfp, j_rarg7_off * wordSize);
-
-    // Generate oop map
-    OopMap* map = new OopMap(framesize, 0);
-
-    map->set_callee_saved(VMRegImpl::stack2reg(rfp_off), rfp->as_VMReg());
     map->set_callee_saved(VMRegImpl::stack2reg(j_rarg7_off), j_rarg7->as_VMReg());
     map->set_callee_saved(VMRegImpl::stack2reg(j_rarg6_off), j_rarg6->as_VMReg());
     map->set_callee_saved(VMRegImpl::stack2reg(j_rarg5_off), j_rarg5->as_VMReg());
@@ -7080,47 +7061,30 @@ class StubGenerator: public StubCodeGenerator {
     map->set_callee_saved(VMRegImpl::stack2reg(j_farg6_off), j_farg6->as_VMReg());
     map->set_callee_saved(VMRegImpl::stack2reg(j_farg7_off), j_farg7->as_VMReg());
 
-    // This is an inlined and slightly modified version of call_VM
-    // which has the ability to fetch the return PC out of
-    // thread-local storage and also sets up last_Java_sp slightly
-    // differently than the real call_VM
+    address start = __ pc();
 
     __ enter(); // Save FP and LR before call
 
-    assert(is_even(framesize/2), "sp not 16-byte aligned");
+    __ stpd(j_farg1, j_farg0, Address(__ pre(sp, -2 * wordSize)));
+    __ stpd(j_farg3, j_farg2, Address(__ pre(sp, -2 * wordSize)));
+    __ stpd(j_farg5, j_farg4, Address(__ pre(sp, -2 * wordSize)));
+    __ stpd(j_farg7, j_farg6, Address(__ pre(sp, -2 * wordSize)));
 
-    // lr and fp are already in place
-    __ sub(sp, rfp, ((unsigned)framesize - 4) << LogBytesPerInt); // prolog
+    __ stp(j_rarg1, j_rarg0, Address(__ pre(sp, -2 * wordSize)));
+    __ stp(j_rarg3, j_rarg2, Address(__ pre(sp, -2 * wordSize)));
+    __ stp(j_rarg5, j_rarg4, Address(__ pre(sp, -2 * wordSize)));
+    __ stp(j_rarg7, j_rarg6, Address(__ pre(sp, -2 * wordSize)));
 
-    __ strd(j_farg7, f7_save);
-    __ strd(j_farg6, f6_save);
-    __ strd(j_farg5, f5_save);
-    __ strd(j_farg4, f4_save);
-    __ strd(j_farg3, f3_save);
-    __ strd(j_farg2, f2_save);
-    __ strd(j_farg1, f1_save);
-    __ strd(j_farg0, f0_save);
-
-    __ str(j_rarg0, r0_save);
-    __ str(j_rarg1, r1_save);
-    __ str(j_rarg2, r2_save);
-    __ str(j_rarg3, r3_save);
-    __ str(j_rarg4, r4_save);
-    __ str(j_rarg5, r5_save);
-    __ str(j_rarg6, r6_save);
-    __ str(j_rarg7, r7_save);
-
-    int frame_complete = __ pc() - start;
+    int frame_complete = __ offset();
 
     // Set up last_Java_sp and last_Java_fp
     address the_pc = __ pc();
     __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
 
     // Call runtime
-    __ mov(c_rarg0, rthread);
     __ mov(c_rarg1, r0);
+    __ mov(c_rarg0, rthread);
 
-    BLOCK_COMMENT("call runtime_entry");
     __ mov(rscratch1, destination);
     __ blr(rscratch1);
 
@@ -7128,47 +7092,37 @@ class StubGenerator: public StubCodeGenerator {
 
     __ reset_last_Java_frame(false);
 
-    __ ldrd(j_farg7, f7_save);
-    __ ldrd(j_farg6, f6_save);
-    __ ldrd(j_farg5, f5_save);
-    __ ldrd(j_farg4, f4_save);
-    __ ldrd(j_farg3, f3_save);
-    __ ldrd(j_farg3, f2_save);
-    __ ldrd(j_farg1, f1_save);
-    __ ldrd(j_farg0, f0_save);
+    __ ldp(j_rarg7, j_rarg6, Address(__ post(sp, 2 * wordSize)));
+    __ ldp(j_rarg5, j_rarg4, Address(__ post(sp, 2 * wordSize)));
+    __ ldp(j_rarg3, j_rarg2, Address(__ post(sp, 2 * wordSize)));
+    __ ldp(j_rarg1, j_rarg0, Address(__ post(sp, 2 * wordSize)));
 
-    __ ldr(j_rarg0, r0_save);
-    __ ldr(j_rarg1, r1_save);
-    __ ldr(j_rarg2, r2_save);
-    __ ldr(j_rarg3, r3_save);
-    __ ldr(j_rarg4, r4_save);
-    __ ldr(j_rarg5, r5_save);
-    __ ldr(j_rarg6, r6_save);
-    __ ldr(j_rarg7, r7_save);
+    __ ldpd(j_farg7, j_farg6, Address(__ post(sp, 2 * wordSize)));
+    __ ldpd(j_farg5, j_farg4, Address(__ post(sp, 2 * wordSize)));
+    __ ldpd(j_farg3, j_farg2, Address(__ post(sp, 2 * wordSize)));
+    __ ldpd(j_farg1, j_farg0, Address(__ post(sp, 2 * wordSize)));
 
     __ leave();
 
     // check for pending exceptions
     Label pending;
     __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
-    __ cmp(rscratch1, (u1)NULL_WORD);
-    __ br(Assembler::NE, pending);
+    __ cbnz(rscratch1, pending);
 
     if (has_res) {
       __ get_vm_result(r0, rthread);
     }
+
     __ ret(lr);
 
     __ bind(pending);
-    __ ldr(r0, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
 
+    // -------------
+    // make sure all code is generated
+    masm->flush();
 
-    // codeBlob framesize is in words (not VMRegImpl::slot_size)
-    int frame_size_in_words = (framesize >> (LogBytesPerWord - LogBytesPerInt));
-    RuntimeStub* stub =
-      RuntimeStub::new_runtime_stub(name, &code, frame_complete, frame_size_in_words, oop_maps, false);
-
+    RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &code, frame_complete, frame_size_in_words, oop_maps, false);
     return stub->entry_point();
   }
 

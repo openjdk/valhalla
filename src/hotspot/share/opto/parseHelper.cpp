@@ -69,6 +69,7 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
 void Parse::do_checkcast() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
+  bool null_free = iter().has_Q_signature();
   Node *obj = peek();
 
   // Throw uncommon trap if class is not loaded or the value we are casting
@@ -76,7 +77,7 @@ void Parse::do_checkcast() {
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
   if (!will_link || (tp && tp->klass() && !tp->klass()->is_loaded())) {
-    assert(!iter().is_inline_klass(), "Inline type should be loaded");
+    assert(!null_free, "Inline type should be loaded");
     if (C->log() != NULL) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
@@ -93,7 +94,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)));
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)), NULL, null_free);
   if (stopped()) {
     return;
   }
@@ -257,8 +258,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
-  // Handle inline type arrays
-  if (elemtype->isa_inlinetype() != NULL || (elemtype->is_inlinetypeptr() && !elemtype->maybe_null())) {
+  if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
@@ -346,11 +346,11 @@ void Parse::do_withfield() {
     assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
     holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
   }
-  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
+  if (!val->is_InlineType() && field->is_null_free()) {
     // Scalarize inline type field value
     assert(!gvn().type(val)->maybe_null(), "Inline types are null-free");
     val = InlineTypeNode::make_from_oop(this, val, gvn().type(val)->inline_klass());
-  } else if (val->is_InlineType() && !field->type()->is_inlinetype()) {
+  } else if (val->is_InlineType() && !field->is_null_free()) {
     // Field value needs to be allocated because it can be merged with an oop.
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);

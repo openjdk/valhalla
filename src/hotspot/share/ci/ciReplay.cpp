@@ -841,7 +841,7 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT: {
-        Thread* THREAD = Thread::current();
+        JavaThread* THREAD = Thread::current()->as_Java_thread();
         bool res = _replay->process_staticfield_reference(string_value, _vt, fd, THREAD);
         assert(res, "should succeed for arrays & objects");
         break;
@@ -854,7 +854,7 @@ class CompileReplay : public StackObj {
           InlineTypeFieldInitializer init_fields(obj, _replay);
           vk->do_nonstatic_fields(&init_fields);
         } else {
-          oop value = vk->allocate_instance(Thread::current());
+          oop value = vk->allocate_instance(Thread::current()->as_Java_thread());
           _vt->obj_field_put(fd->offset(), value);
         }
         break;

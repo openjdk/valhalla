@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +60,7 @@
 class defValBadCP {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -262,7 +262,7 @@ class defValBadMajorVersion {
 class defValWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -363,7 +363,7 @@ class defValWrongCPType {
 class wthFldBadCP {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -481,7 +481,7 @@ class wthFldBadCP {
 class wthFldBadFldVal {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -598,7 +598,7 @@ class wthFldBadFldVal {
 class wthFldBadFldRef {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -817,7 +817,7 @@ class wthFldBadMajorVersion {
 class wthFldWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -936,7 +936,7 @@ class wthFldWrongCPType {
 class wthFldObject {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [22] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -1058,7 +1058,7 @@ class wthFldObject {
 class monEnterVT {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #23; // #1     at 0x0A
@@ -1286,7 +1286,7 @@ class monEnterVT {
 class defValueObj {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #23; // #1     at 0x0A
@@ -1514,7 +1514,7 @@ class defValueObj {
 class withfieldObj {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [23] { // Constant Pool
     ; // first element is empty
     Method #5 #19; // #1     at 0x0A
@@ -1632,3 +1632,142 @@ class withfieldObj {
     } // end ValueTypes
   } // Attributes
 } // end class withfieldObj
+
+
+// This class has a withfield opcode with a non-Q type operand.
+class withfieldL {
+  0xCAFEBABE;
+  0; // minor version
+  62; // version
+  [28] { // Constant Pool
+    ; // first element is empty
+    class #2; // #1     at 0x0A
+    Utf8 "withfieldL"; // #2     at 0x0D
+    class #2; // #3     at 0x17
+    Field #1 #5; // #4     at 0x1A
+    NameAndType #6 #7; // #5     at 0x1F
+    Utf8 "x"; // #6     at 0x24
+    Utf8 "I"; // #7     at 0x28
+    Field #1 #9; // #8     at 0x2C
+    NameAndType #10 #7; // #9     at 0x31
+    Utf8 "y"; // #10     at 0x36
+    class #12; // #11     at 0x3A
+    Utf8 "QwithfieldL;"; // #12     at 0x3D
+    class #14; // #13     at 0x49
+    Utf8 "java/lang/Object"; // #14     at 0x4C
+    Utf8 "makePoint"; // #15     at 0x5F
+    Utf8 "(II)QwithfieldL;"; // #16     at 0x6B
+    Utf8 "Code"; // #17     at 0x7B
+    Utf8 "LineNumberTable"; // #18     at 0x82
+    Utf8 "<init>"; // #19     at 0x94
+    Utf8 "()QwithfieldL;"; // #20     at 0x9D
+    Utf8 "SourceFile"; // #21     at 0xAB
+    Utf8 "X.java"; // #22     at 0xB8
+    Utf8 "NestHost"; // #23     at 0xC1
+    class #25; // #24     at 0xCC
+    Utf8 "X"; // #25     at 0xCF
+    Utf8 "InnerClasses"; // #26     at 0xD3
+    Utf8 "Point"; // #27     at 0xE2
+  } // Constant Pool
+
+  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  #1;// this_cpx
+  #13;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [2] { // Fields
+    {  // field at 0xF4
+      0x0010; // access
+      #6; // name_index       : x
+      #7; // descriptor_index : I
+      [0] { // Attributes
+      } // Attributes
+    }
+    ;
+    {  // field at 0xFC
+      0x0010; // access
+      #10; // name_index       : y
+      #7; // descriptor_index : I
+      [0] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [2] { // Methods
+    {  // method at 0x0106
+      0x0008; // access
+      #15; // name_index       : makePoint
+      #16; // descriptor_index : (II)QwithfieldL;
+      [1] { // Attributes
+        Attr(#17, 62) { // Code at 0x010E
+          2; // max_stack
+          3; // max_locals
+          Bytes[26]{
+            0xCB0001C000034D1A;
+            0x2C5FCC00044D1B2C;
+            0x5FCC00084D2CC000;
+            0x0BB0;
+          }
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#18, 18) { // LineNumberTable at 0x013A
+              [4] { // line_number_table
+                0  4; //  at 0x0146
+                7  5; //  at 0x014A
+                14  6; //  at 0x014E
+                21  7; //  at 0x0152
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method at 0x0152
+      0x000A; // access
+      #19; // name_index       : <init>
+      #20; // descriptor_index : ()QwithfieldL;
+      [1] { // Attributes
+        Attr(#17, 55) { // Code at 0x015A
+          2; // max_stack
+          1; // max_locals
+          Bytes[23]{
+            0xCB00014B032A5FCC;
+            0x0008594BB400082A;
+            0x5FCC00044B2AB0;
+          }
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#18, 14) { // LineNumberTable at 0x0183
+              [3] { // line_number_table
+                0  9; //  at 0x018F
+                4  10; //  at 0x0193
+                21  11; //  at 0x0197
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [3] { // Attributes
+    Attr(#21, 2) { // SourceFile at 0x0199
+      #22;
+    } // end SourceFile
+    ;
+    Attr(#23, 2) { // NestHost at 0x01A1
+      #24; // X at 0x01A9
+    } // end NestHost
+    ;
+    Attr(#26, 10) { // InnerClasses at 0x01A9
+      [1] { // classes
+        #1 #24 #27 280; //  at 0x01B9
+      }
+    } // end InnerClasses
+  } // Attributes
+} // end class withfieldL

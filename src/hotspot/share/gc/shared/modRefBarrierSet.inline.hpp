@@ -25,8 +25,9 @@
 #ifndef SHARE_GC_SHARED_MODREFBARRIERSET_INLINE_HPP
 #define SHARE_GC_SHARED_MODREFBARRIERSET_INLINE_HPP
 
-#include "gc/shared/barrierSet.hpp"
 #include "gc/shared/modRefBarrierSet.hpp"
+
+#include "gc/shared/barrierSet.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.hpp"
@@ -129,13 +130,13 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
       // Apply any required checks
       if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && CompressedOops::is_null(element)) {
         oop_arraycopy_partial_barrier(bs, dst_raw, p);
-        throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current());
+        throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
         return;
       }
       if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
           (!oopDesc::is_instanceof_or_null(CompressedOops::decode(element), bound))) {
         oop_arraycopy_partial_barrier(bs, dst_raw, p);
-        throw_array_store_exception(src_obj, dst_obj, Thread::current());
+        throw_array_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
         return;
       }
       // write

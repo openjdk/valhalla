@@ -268,11 +268,12 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_INLINE_TYPE: {
-    ciInlineKlass* vk = type->as_inline_klass();
-    if (vk->is_scalarizable()) {
+    bool is_null_free = type->is_null_free();
+    ciInlineKlass* vk = type->unwrap()->as_inline_klass();
+    if (vk->is_scalarizable() && is_null_free) {
       return TypeInlineType::make(vk);
     } else {
-      return TypeOopPtr::make_from_klass(vk)->join_speculative(TypePtr::NOTNULL);
+      return TypeOopPtr::make_from_klass(vk)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);
     }
   }
 
@@ -1167,6 +1168,7 @@ Type::Category Type::category() const {
     case Type::VectorX:
     case Type::VectorY:
     case Type::VectorZ:
+    case Type::VectorMask:
     case Type::AnyPtr:
     case Type::RawPtr:
     case Type::OopPtr:
@@ -2085,7 +2087,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       field_array[pos++] = get_const_type(return_type);
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
     } else {
-      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
+      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(sig->returns_null_free_inline_type() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
     }
     break;
   case T_VOID:
@@ -2145,10 +2147,11 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       field_array[pos++] = TypeInt::INT;
       break;
     case T_INLINE_TYPE: {
-      if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields()) {
+      bool is_null_free = sig->is_null_free_at(i);
+      if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields() && is_null_free) {
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
-        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
+        field_array[pos++] = get_const_type(type)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);
       }
       break;
     }
@@ -2446,8 +2449,16 @@ bool TypeAry::ary_must_be_exact() const {
     tinst = _elem->make_ptr()->isa_instptr();
   else
     tinst = _elem->isa_instptr();
-  if (tinst)
-    return tklass->as_instance_klass()->is_final();
+  if (tinst) {
+    if (tklass->as_instance_klass()->is_final()) {
+      // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+      if (tinst->is_inlinetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
   const TypeAryPtr*  tap;
   if (_elem->isa_narrowoop())
     tap = _elem->make_ptr()->isa_aryptr();
@@ -3563,7 +3574,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or inline type array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact);
-    if (etype->is_inlinetypeptr()) {
+    bool null_free = klass->as_array_klass()->is_elem_null_free();
+    if (null_free) {
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
     // Determine null-free/flattened properties
@@ -3575,7 +3587,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     bool not_null_free = !exact_etype->can_be_inline_type();
     bool not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flatten_array());
 
-    bool xk = etype->klass_is_exact();
+    // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+    bool xk = etype->klass_is_exact() && (!etype->is_inlinetypeptr() || null_free);
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -3621,7 +3634,7 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass());
     bool null_free = false;
-    if (etype->is_inlinetypeptr()) {
+    if (klass->as_array_klass()->is_elem_null_free()) {
       null_free = true;
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
@@ -5509,11 +5522,12 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
   // Get element klass
   if (el->isa_instptr()) {
     // Compute object array klass from element klass
-    k_ary = ciArrayKlass::make(el->is_oopptr()->klass());
+    bool null_free = el->is_inlinetypeptr() && el->isa_instptr()->ptr() != TypePtr::TopPTR && !el->isa_instptr()->maybe_null();
+    k_ary = ciArrayKlass::make(el->is_oopptr()->klass(), null_free);
   } else if (el->isa_inlinetype()) {
     // If element type is TypeInlineType::BOTTOM, inline_klass() will be null.
     if (el->inline_klass() != NULL) {
-      k_ary = ciArrayKlass::make(el->inline_klass());
+      k_ary = ciArrayKlass::make(el->inline_klass(), /* null_free */ true);
     }
   } else if ((tary = el->isa_aryptr()) != NULL) {
     // Compute array klass from element klass
@@ -5872,7 +5886,8 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, true) : domain_sig;
   ciSignature* sig = method->signature();
-  bool has_scalar_ret = sig->return_type()->is_inlinetype() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
+  bool has_scalar_ret = sig->returns_null_free_inline_type() && sig->return_type()->is_inlinetype() &&
+                        sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
   const TypeTuple* range_sig = TypeTuple::make_range(sig, false);
   const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);

@@ -227,7 +227,7 @@ final class VarHandles {
             // minimize the performance impact to non-value array.
             // It should be removed when Unsafe::isFlattenedArray is intrinsified.
 
-            return maybeAdapt(componentType.isPrimitiveClass() && UNSAFE.isFlattenedArray(arrayClass)
+            return maybeAdapt(componentType.isValueType() && UNSAFE.isFlattenedArray(arrayClass)
                 ? new VarHandleValues.Array(aoffset, ashift, arrayClass)
                 : new VarHandleReferences.Array(aoffset, ashift, arrayClass));
         }
@@ -700,10 +700,7 @@ final class VarHandles {
 //                @LambdaForm.Compiled
 //                @Hidden
 //                static final <METHOD> throws Throwable {
-//                    if (handle.hasInvokeExactBehavior() && handle.accessModeType(ad.type) != ad.symbolicMethodTypeExact) {
-//                        throw new WrongMethodTypeException("expected " + handle.accessModeType(ad.type) + " but found "
-//                                + ad.symbolicMethodTypeExact);
-//                    }
+//                    handle.checkExactAccessMode(ad);
 //                    if (handle.isDirect() && handle.vform.methodType_table[ad.type] == ad.symbolicMethodTypeErased) {
 //                        <RESULT_ERASED>MethodHandle.linkToStatic(<LINK_TO_STATIC_ARGS>);<RETURN_ERASED>
 //                    } else {
@@ -718,10 +715,7 @@ final class VarHandles {
 //                @LambdaForm.Compiled
 //                @Hidden
 //                static final <METHOD> throws Throwable {
-//                    if (handle.hasInvokeExactBehavior() && handle.accessModeType(ad.type) != ad.symbolicMethodTypeExact) {
-//                        throw new WrongMethodTypeException("expected " + handle.accessModeType(ad.type) + " but found "
-//                                + ad.symbolicMethodTypeExact);
-//                    }
+//                    handle.checkExactAccessMode(ad);
 //                    if (handle.isDirect() && handle.vform.methodType_table[ad.type] == ad.symbolicMethodTypeErased) {
 //                        MethodHandle.linkToStatic(<LINK_TO_STATIC_ARGS>);
 //                    } else if (handle.isDirect() && handle.vform.getMethodType_V(ad.type) == ad.symbolicMethodTypeErased) {

@@ -26,6 +26,8 @@
 #define CPU_X86_MACROASSEMBLER_X86_HPP
 
 #include "asm/assembler.hpp"
+#include "code/vmreg.inline.hpp"
+#include "compiler/oopMap.hpp"
 #include "utilities/macros.hpp"
 #include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
@@ -116,8 +118,8 @@ class MacroAssembler: public Assembler {
   // get_default_value_oop with extra assertion for empty inline klass
   void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
-  void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
-  void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
+  void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
+  void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
 
   // Check oops for special arrays, i.e. flattened and/or null-free
@@ -240,6 +242,22 @@ class MacroAssembler: public Assembler {
   // The pointer will be loaded into the thread register.
   void get_thread(Register thread);
 
+#ifdef _LP64
+  // Support for argument shuffling
+
+  void move32_64(VMRegPair src, VMRegPair dst);
+  void long_move(VMRegPair src, VMRegPair dst);
+  void float_move(VMRegPair src, VMRegPair dst);
+  void double_move(VMRegPair src, VMRegPair dst);
+  void move_ptr(VMRegPair src, VMRegPair dst);
+  void object_move(OopMap* map,
+                   int oop_handle_offset,
+                   int framesize_in_slots,
+                   VMRegPair src,
+                   VMRegPair dst,
+                   bool is_receiver,
+                   int* receiver_offset);
+#endif // _LP64
 
   // Support for VM calls
   //
@@ -1337,21 +1355,21 @@ public:
 
   // Vector compares
   void evpcmpd(KRegister kdst, KRegister mask, XMMRegister nds, XMMRegister src,
-               int comparison, int vector_len) { Assembler::evpcmpd(kdst, mask, nds, src, comparison, vector_len); }
+               int comparison, bool is_signed, int vector_len) { Assembler::evpcmpd(kdst, mask, nds, src, comparison, is_signed, vector_len); }
   void evpcmpd(KRegister kdst, KRegister mask, XMMRegister nds, AddressLiteral src,
-               int comparison, int vector_len, Register scratch_reg);
+               int comparison, bool is_signed, int vector_len, Register scratch_reg);
   void evpcmpq(KRegister kdst, KRegister mask, XMMRegister nds, XMMRegister src,
-               int comparison, int vector_len) { Assembler::evpcmpq(kdst, mask, nds, src, comparison, vector_len); }
+               int comparison, bool is_signed, int vector_len) { Assembler::evpcmpq(kdst, mask, nds, src, comparison, is_signed, vector_len); }
   void evpcmpq(KRegister kdst, KRegister mask, XMMRegister nds, AddressLiteral src,
-               int comparison, int vector_len, Register scratch_reg);
+               int comparison, bool is_signed, int vector_len, Register scratch_reg);
   void evpcmpb(KRegister kdst, KRegister mask, XMMRegister nds, XMMRegister src,
-               int comparison, int vector_len) { Assembler::evpcmpb(kdst, mask, nds, src, comparison, vector_len); }
+               int comparison, bool is_signed, int vector_len) { Assembler::evpcmpb(kdst, mask, nds, src, comparison, is_signed, vector_len); }
   void evpcmpb(KRegister kdst, KRegister mask, XMMRegister nds, AddressLiteral src,
-               int comparison, int vector_len, Register scratch_reg);
+               int comparison, bool is_signed, int vector_len, Register scratch_reg);
   void evpcmpw(KRegister kdst, KRegister mask, XMMRegister nds, XMMRegister src,
-               int comparison, int vector_len) { Assembler::evpcmpw(kdst, mask, nds, src, comparison, vector_len); }
+               int comparison, bool is_signed, int vector_len) { Assembler::evpcmpw(kdst, mask, nds, src, comparison, is_signed, vector_len); }
   void evpcmpw(KRegister kdst, KRegister mask, XMMRegister nds, AddressLiteral src,
-               int comparison, int vector_len, Register scratch_reg);
+               int comparison, bool is_signed, int vector_len, Register scratch_reg);
 
 
   // Emit comparison instruction for the specified comparison predicate.
@@ -1361,10 +1379,17 @@ public:
   void vpmovzxbw(XMMRegister dst, Address src, int vector_len);
   void vpmovzxbw(XMMRegister dst, XMMRegister src, int vector_len) { Assembler::vpmovzxbw(dst, src, vector_len); }
 
-  void vpmovmskb(Register dst, XMMRegister src);
+  void vpmovmskb(Register dst, XMMRegister src, int vector_len = Assembler::AVX_256bit);
 
   void vpmullw(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vpmullw(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
+  void vpmulld(XMMRegister dst, XMMRegister nds, Address src, int vector_len) {
+    Assembler::vpmulld(dst, nds, src, vector_len);
+  };
+  void vpmulld(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+    Assembler::vpmulld(dst, nds, src, vector_len);
+  }
+  void vpmulld(XMMRegister dst, XMMRegister nds, AddressLiteral src, int vector_len, Register scratch_reg);
 
   void vpsubb(XMMRegister dst, XMMRegister nds, XMMRegister src, int vector_len);
   void vpsubb(XMMRegister dst, XMMRegister nds, Address src, int vector_len);
@@ -1760,7 +1785,8 @@ public:
                             RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                           VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[]);
+                          RegState reg_state[], Register val_array);
+  int extend_stack_for_inline_args(int args_on_stack);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
   VMReg spill_reg_for(VMReg reg);
 
@@ -1836,6 +1862,7 @@ public:
   void kernel_crc32_avx512_256B(Register crc, Register buf, Register len, Register key, Register pos,
                                 Register tmp1, Register tmp2, Label& L_barrett, Label& L_16B_reduction_loop,
                                 Label& L_get_last_two_xmms, Label& L_128_done, Label& L_cleanup);
+  void updateBytesAdler32(Register adler32, Register buf, Register length, XMMRegister shuf0, XMMRegister shuf1, ExternalAddress scale);
 #endif // _LP64
 
   // CRC32C code for java.util.zip.CRC32C::updateBytes() intrinsic

@@ -148,7 +148,7 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
-            if (handle.fieldType.isPrimitiveClass())
+            if (handle.fieldType.isValueType())
                 Objects.requireNonNull(value);
             return handle.fieldType.cast(value);
         }
@@ -501,7 +501,7 @@ final class VarHandle$Type$s {
 
 #if[Object]
         static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
-            if (handle.fieldType.isPrimitiveClass())
+            if (handle.fieldType.isValueType())
                 Objects.requireNonNull(value);
             return handle.fieldType.cast(value);
         }
@@ -744,7 +744,7 @@ final class VarHandle$Type$s {
 #if[Reference]
     static VarHandle makeVarHandleValuesArray(Class<?> arrayClass) {
         Class<?> componentType = arrayClass.getComponentType();
-        assert componentType.isPrimitiveClass() && UNSAFE.isFlattenedArray(arrayClass);
+        assert componentType.isValueType() && UNSAFE.isFlattenedArray(arrayClass);
         // should cache these VarHandle for performance
         return VarHandles.makeArrayElementHandle(arrayClass);
     }
@@ -803,7 +803,7 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
-            if (handle.componentType.isPrimitiveClass())
+            if (handle.componentType.isValueType())
                  Objects.requireNonNull(value);
 
             if (handle.arrayType == oarray.getClass()) {

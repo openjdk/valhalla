@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
+ * @summary Basic test for Array::get, Array::set, Arrays::setAll on primitive class array
  * @run testng/othervm -XX:FlatArrayElementMaxSize=-1 ValueArray
  * @run testng/othervm -XX:FlatArrayElementMaxSize=0  ValueArray
  */
@@ -36,107 +36,35 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class ValueArray {
-    private final Class<?> arrayClass;
-    private final Class<?> componentType;
-    private final Object[] array;
-    ValueArray(Class<?> arrayClass, Object[] array) {
-        this.arrayClass = arrayClass;
-        this.array = array;
-        this.componentType = arrayClass.getComponentType();
-        assertTrue(arrayClass.isArray());
-        assertTrue(array.getClass() == arrayClass);
+    @DataProvider(name="elementTypes")
+    static Object[][] elementTypes() {
+        return new Object[][]{
+            new Object[] { Point.class, new Point(0,0) },
+            new Object[] { Point.ref.class, null },
+        };
     }
+    @Test(dataProvider="elementTypes")
+    public void testPrimitiveElementType(Class<?> elementType, Object defaultValue) {
+        assertTrue(elementType.isPrimitiveClass());
+        assertTrue(elementType.isPrimaryType() || defaultValue != null);
 
-    private static Class<?> nullablePointArrayClass() {
-        Object a = new Point.ref[0];
-        return a.getClass();
-    }
+        Object[] array = (Object[])Array.newInstance(elementType, 1);
+        Class<?> arrayType = array.getClass();
+        assertTrue(arrayType.componentType() == elementType);
+        // Array is a reference type
+        assertTrue(arrayType.isArray());
+        assertTrue(arrayType.isPrimaryType());
+        assertEquals(arrayType.asPrimaryType(), arrayType);
+        assertTrue(array[0] == defaultValue);
 
-    void run() {
-        testClassName();
-        testArrayElements();
-
-        if (componentType.isPrimitiveClass()) {
-            Object[] qArray = (Object[]) Array.newInstance(componentType, 0);
-            Object[] lArray = (Object[]) Array.newInstance(componentType.referenceType().get(), 0);
-            testInlineArrayCovariance(componentType, qArray, lArray);
-        }
-    }
-
-    void testClassName() {
-        // test class names
-        String arrayClassName = arrayClass.getName();
-        StringBuilder sb = new StringBuilder();
-        Class<?> c = arrayClass;
-        while (c.isArray()) {
-            sb.append("[");
+        // check the element type of multi-dimensional array
+        Object[][] multiArray = (Object[][])Array.newInstance(elementType, 1, 2, 3);
+        Class<?> c = multiArray.getClass();
+        while (c.getComponentType() != null) {
             c = c.getComponentType();
         }
-        sb.append(c.isPrimitiveClass() ? "Q" : "L").append(c.getName()).append(";");
-        assertEquals(sb.toString(), arrayClassName);
+        assertTrue(c == elementType);
     }
-
-    void testArrayElements() {
-        Object[] array = (Object[]) Array.newInstance(componentType, this.array.length);
-        assertTrue(array.getClass() == arrayClass);
-        assertTrue(array.getClass().getComponentType() == componentType);
-
-        // set elements
-        for (int i=0; i < this.array.length; i++) {
-            Array.set(array, i, this.array[i]);
-        }
-        for (int i=0; i < this.array.length; i++) {
-            Object o = Array.get(array, i);
-            assertEquals(o, this.array[i]);
-        }
-        Arrays.setAll(array, i -> this.array[i]);
-
-        // test nullable
-        if (!componentType.isPrimitiveClass()) {
-            for (int i=0; i < array.length; i++) {
-                Array.set(array, i, null);
-            }
-        } else {
-            for (int i=0; i < array.length; i++) {
-                try {
-                    Array.set(array, i, null);
-                    assertFalse(true, "expect NPE but not thrown");
-                } catch (NullPointerException e) { }
-            }
-        }
-    }
-
-    void testInlineArrayCovariance(Class<?> componentType, Object[] qArray, Object[] lArray) {
-        assertTrue(componentType.isPrimitiveClass());
-
-        // Class.instanceOf (self)
-        assertTrue(qArray.getClass().isInstance(qArray));
-        assertTrue(lArray.getClass().isInstance(lArray));
-
-        // Class.instanceof inline vs indirect
-        assertFalse(qArray.getClass().isInstance(lArray));
-        assertTrue(lArray.getClass().isInstance(qArray));
-
-        // Class.isAssignableFrom (self)
-        assertTrue(qArray.getClass().isAssignableFrom(qArray.getClass()));
-        assertTrue(lArray.getClass().isAssignableFrom(lArray.getClass()));
-
-        // Class.isAssignableFrom inline vs indirect
-        assertTrue(lArray.getClass().isAssignableFrom(qArray.getClass()));
-        assertFalse(qArray.getClass().isAssignableFrom(lArray.getClass()));
-
-        // Class.cast (self)
-        qArray.getClass().cast(qArray);
-        lArray.getClass().cast(lArray);
-
-        // Class.cast inline vs indirect
-        lArray.getClass().cast(qArray);
-        try {
-            qArray.getClass().cast(lArray);
-            assertFalse(true, "cast of Point? to Point should not succeed");
-        } catch (ClassCastException cce) { }
-    }
-
 
     @DataProvider(name="arrayTypes")
     static Object[][] arrayTypes() {
@@ -150,21 +78,118 @@ public class ValueArray {
             new Object[] { Point[][].class,
                            new Point[][] { new Point[] { Point.makePoint(1, 2),
                                                          Point.makePoint(10, 20)}}},
-            new Object[] { nullablePointArrayClass(),
+            new Object[] { Point.ref[].class,
                            new Point.ref[] { Point.makePoint(11, 22),
-                                          Point.makePoint(110, 220),
-                                          null }},
+                                             Point.makePoint(110, 220),
+                                             null }},
             new Object[] { NonFlattenValue[].class,
                            new NonFlattenValue[] { NonFlattenValue.make(1, 2),
                                                    NonFlattenValue.make(10, 20),
                                                    NonFlattenValue.make(100, 200)}},
+            new Object[] { Point[].class,  new Point[0] },
+            new Object[] { Point.ref[].class,  new Point.ref[0] },
         };
     }
 
     @Test(dataProvider="arrayTypes")
-    public static void test(Class<?> arrayClass, Object[] array) {
-        ValueArray test = new ValueArray(arrayClass, array);
-        test.run();
+    public void testArrays(Class<?> arrayClass, Object[] array) {
+        testClassName(arrayClass);
+        testArrayElements(arrayClass, array);
+        Class<?> componentType = arrayClass.componentType();
+        if (componentType.isPrimitiveClass()) {
+            Object[] qArray = (Object[]) Array.newInstance(componentType.asValueType(), 0);
+            Object[] lArray = (Object[]) Array.newInstance(componentType.asPrimaryType(), 0);
+            testArrayCovariance(componentType, qArray, lArray);
+        }
+    }
+
+    /**
+     * Verify the array class's name of the form "[QPoint;" or "[LPoint;"
+     */
+    static void testClassName(Class<?> arrayClass) {
+        // test class names
+        String arrayClassName = arrayClass.getName();
+        StringBuilder sb = new StringBuilder();
+        Class<?> c = arrayClass;
+        while (c.isArray()) {
+            sb.append("[");
+            c = c.getComponentType();
+        }
+        sb.append(c.isValueType() ? "Q" : "L").append(c.getName()).append(";");
+        assertEquals(sb.toString(), arrayClassName);
+    }
+
+    /**
+     * Setting the elements of an array.
+     * NPE will be thrown if null is set on an element in an array of value type
+     */
+    static void testArrayElements(Class<?> arrayClass, Object[] array) {
+        Class<?> componentType = arrayClass.getComponentType();
+        assertTrue(arrayClass.isArray());
+        assertTrue(array.getClass() == arrayClass);
+        Object[] newArray = (Object[]) Array.newInstance(componentType, array.length);
+        assertTrue(newArray.getClass() == arrayClass);
+        assertTrue(newArray.getClass().getComponentType() == componentType);
+
+        // set elements
+        for (int i = 0; i < array.length; i++) {
+            Array.set(newArray, i, array[i]);
+        }
+        for (int i = 0; i < array.length; i++) {
+            Object o = Array.get(newArray, i);
+            assertEquals(o, array[i]);
+        }
+        Arrays.setAll(newArray, i -> array[i]);
+
+        // test nullable
+        if (!componentType.isValueType()) {
+            for (int i = 0; i < newArray.length; i++) {
+                Array.set(newArray, i, null);
+            }
+        } else {
+            for (int i = 0; i < newArray.length; i++) {
+                try {
+                    Array.set(newArray, i, null);
+                    fail("expect NPE but not thrown");
+                } catch (NullPointerException e) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Point[] is a subtype of Point.ref[], which is a subtype of Object[].
+     */
+    static void testArrayCovariance(Class<?> componentType, Object[] qArray, Object[] lArray) {
+        assertTrue(componentType.isPrimitiveClass());
+
+        // Class.instanceOf (self)
+        assertTrue(qArray.getClass().isInstance(qArray));
+        assertTrue(lArray.getClass().isInstance(lArray));
+
+        // Class.isAssignableFrom (self)
+        assertTrue(qArray.getClass().isAssignableFrom(qArray.getClass()));
+        assertTrue(lArray.getClass().isAssignableFrom(lArray.getClass()));
+
+        // V.val[] is a subtype of V.ref[]
+        assertFalse(qArray.getClass().isInstance(lArray));
+        assertTrue(lArray.getClass().isInstance(qArray));
+
+        // V.val[] is a subtype of V.ref[]
+        assertTrue(lArray.getClass().isAssignableFrom(qArray.getClass()));
+        assertFalse(qArray.getClass().isAssignableFrom(lArray.getClass()));
+
+        // Class.cast (self)
+        qArray.getClass().cast(qArray);
+        lArray.getClass().cast(lArray);
+
+        // Class.cast
+        lArray.getClass().cast(qArray);
+        try {
+            qArray.getClass().cast(lArray);
+            fail("cast of Point.ref[] to Point[] should not succeed");
+        } catch (ClassCastException cce) {
+        }
     }
 
     @Test
@@ -186,12 +211,12 @@ public class ValueArray {
         Object o = new Object();
         try {
             Array.get(o, 0);
-            throw new AssertionError("IAE not thrown");
+            fail("IAE not thrown");
         } catch (IllegalArgumentException e) {}
 
         try {
             Array.set(o, 0, o);
-            throw new AssertionError("IAE not thrown");
+            fail("IAE not thrown");
         } catch (IllegalArgumentException e) {}
 
     }
@@ -200,12 +225,6 @@ public class ValueArray {
     static void testPointArray() {
         Point[] qArray = new Point[0];
         Point.ref[] lArray = new Point.ref[0];
-
-        ValueArray test = new ValueArray(Point[].class, qArray);
-        test.run();
-
-        ValueArray test1 = new ValueArray(Point.ref[].class, lArray);
-        test.run();
 
         // language instanceof
         assertTrue(qArray instanceof Point[]);

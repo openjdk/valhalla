@@ -234,7 +234,13 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
             buf.append(printAnnotations(t));
             buf.append(className(t, true, locale));
         }
-        if (t.isReferenceProjection()) {
+        boolean isReferenceProjection;
+        try {
+            isReferenceProjection = t.isReferenceProjection();
+        } catch (CompletionFailure cf) {
+            isReferenceProjection = false; // handle missing types gracefully.
+        }
+        if (isReferenceProjection) {
             buf.append('.');
             buf.append(t.tsym.name.table.names.ref);
         }

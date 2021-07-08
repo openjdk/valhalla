@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary test MethodHandle/VarHandle on inline types
+ * @summary test MethodHandle/VarHandle on primitive classes
  * @modules java.base/java.lang.invoke:open
  * @run testng/othervm -Xint SubstitutabilityTest
  * @run testng/othervm -Xcomp SubstitutabilityTest
@@ -179,7 +179,7 @@ public class SubstitutabilityTest {
 
     /*
      * isSubstitutable method handle invoker requires both parameters are
-     * non-null and of the same inline class.
+     * non-null and of the same primitive class.
      *
      * This verifies ValueBootstrapMethods::isSubstitutable0 that does not
      * throw an exception if any one of parameter is null or if

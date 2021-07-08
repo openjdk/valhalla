@@ -468,8 +468,6 @@ void Canonicalizer::do_CompareOp      (CompareOp*       x) {
 }
 
 
-void Canonicalizer::do_IfInstanceOf(IfInstanceOf*    x) {}
-
 void Canonicalizer::do_IfOp(IfOp* x) {
   // Caution: do not use do_Op2(x) here for now since
   //          we map the condition to the op for now!
@@ -545,6 +543,22 @@ void Canonicalizer::do_Intrinsic      (Intrinsic*       x) {
     if (c != NULL && !c->value()->is_null_object()) {
       ciType* t = c->value()->java_mirror_type();
       set_constant(t->is_primitive_type());
+    }
+    break;
+  }
+  case vmIntrinsics::_getModifiers: {
+    assert(x->number_of_arguments() == 1, "wrong type");
+
+    // Optimize for Foo.class.getModifier()
+    InstanceConstant* c = x->argument_at(0)->type()->as_InstanceConstant();
+    if (c != NULL && !c->value()->is_null_object()) {
+      ciType* t = c->value()->java_mirror_type();
+      if (t->is_klass()) {
+        set_constant(t->as_klass()->modifier_flags());
+      } else {
+        assert(t->is_primitive_type(), "should be a primitive type");
+        set_constant(JVM_ACC_ABSTRACT | JVM_ACC_FINAL | JVM_ACC_PUBLIC);
+      }
     }
     break;
   }
@@ -662,14 +676,14 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
                           klass->as_instance_klass()->is_interface();
       // Interface casts can't be statically optimized away since verifier doesn't
       // enforce interface types in bytecode.
-      if (!is_interface && klass->is_subtype_of(x->klass())) {
+      if (!is_interface && klass->is_subtype_of(x->klass()) && (!x->is_null_free() || obj->is_null_free())) {
         assert(!x->klass()->is_inlinetype() || x->klass() == klass, "Inline klasses can't have subtypes");
         set_canonical(obj);
         return;
       }
     }
-    // checkcast of null returns null for non-inline klasses
-    if (!x->klass()->is_inlinetype() && obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    // checkcast of null returns null for non null-free klasses
+    if (!x->is_null_free() && obj->is_null_obj()) {
       set_canonical(obj);
     }
   }
@@ -683,7 +697,7 @@ void Canonicalizer::do_InstanceOf     (InstanceOf*      x) {
       return;
     }
     // instanceof null returns false
-    if (obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    if (obj->as_Constant() && obj->is_null_obj()) {
       set_constant(0);
     }
   }
@@ -799,23 +813,6 @@ void Canonicalizer::do_If(If* x) {
           set_canonical(canon);
         }
       }
-    } else if (l->as_InstanceOf() != NULL) {
-      // NOTE: Code permanently disabled for now since it leaves the old InstanceOf
-      //       instruction in the graph (it is pinned). Need to fix this at some point.
-      //       It should also be left in the graph when generating a profiled method version or Goto
-      //       has to know that it was an InstanceOf.
-      return;
-      // pattern: If ((obj instanceof klass) cond rc) => simplify to: IfInstanceOf or: Goto
-      InstanceOf* inst = l->as_InstanceOf();
-      BlockBegin* is_inst_sux = x->sux_for(is_true(1, x->cond(), rc)); // successor for instanceof == 1
-      BlockBegin* no_inst_sux = x->sux_for(is_true(0, x->cond(), rc)); // successor for instanceof == 0
-      if (is_inst_sux == no_inst_sux && inst->is_loaded()) {
-        // both successors identical and klass is loaded => simplify to: Goto
-        set_canonical(new Goto(is_inst_sux, x->state_before(), x->is_safepoint()));
-      } else {
-        // successors differ => simplify to: IfInstanceOf
-        set_canonical(new IfInstanceOf(inst->klass(), inst->obj(), true, inst->state_before()->bci(), is_inst_sux, no_inst_sux));
-      }
     }
   } else if (rt == objectNull &&
            (l->as_NewInstance() || l->as_NewArray() ||
@@ -840,23 +837,6 @@ void Canonicalizer::do_TableSwitch(TableSwitch* x) {
       sux = x->sux_at(v - x->lo_key());
     }
     set_canonical(new Goto(sux, x->state_before(), is_safepoint(x, sux)));
-  } else if (x->number_of_sux() == 1) {
-    // NOTE: Code permanently disabled for now since the switch statement's
-    //       tag expression may produce side-effects in which case it must
-    //       be executed.
-    return;
-    // simplify to Goto
-    set_canonical(new Goto(x->default_sux(), x->state_before(), x->is_safepoint()));
-  } else if (x->number_of_sux() == 2) {
-    // NOTE: Code permanently disabled for now since it produces two new nodes
-    //       (Constant & If) and the Canonicalizer cannot return them correctly
-    //       yet. For now we copied the corresponding code directly into the
-    //       GraphBuilder (i.e., we should never reach here).
-    return;
-    // simplify to If
-    assert(x->lo_key() == x->hi_key(), "keys must be the same");
-    Constant* key = new Constant(new IntConstant(x->lo_key()));
-    set_canonical(new If(x->tag(), If::eql, true, key, x->sux_at(0), x->default_sux(), x->state_before(), x->is_safepoint()));
   }
 }
 
@@ -871,23 +851,6 @@ void Canonicalizer::do_LookupSwitch(LookupSwitch* x) {
       }
     }
     set_canonical(new Goto(sux, x->state_before(), is_safepoint(x, sux)));
-  } else if (x->number_of_sux() == 1) {
-    // NOTE: Code permanently disabled for now since the switch statement's
-    //       tag expression may produce side-effects in which case it must
-    //       be executed.
-    return;
-    // simplify to Goto
-    set_canonical(new Goto(x->default_sux(), x->state_before(), x->is_safepoint()));
-  } else if (x->number_of_sux() == 2) {
-    // NOTE: Code permanently disabled for now since it produces two new nodes
-    //       (Constant & If) and the Canonicalizer cannot return them correctly
-    //       yet. For now we copied the corresponding code directly into the
-    //       GraphBuilder (i.e., we should never reach here).
-    return;
-    // simplify to If
-    assert(x->length() == 1, "length must be the same");
-    Constant* key = new Constant(new IntConstant(x->key_at(0)));
-    set_canonical(new If(x->tag(), If::eql, true, key, x->sux_at(0), x->default_sux(), x->state_before(), x->is_safepoint()));
   }
 }
 

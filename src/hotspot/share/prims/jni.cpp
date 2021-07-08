@@ -26,6 +26,7 @@
 
 #include "precompiled.hpp"
 #include "jni.h"
+#include "jni.h"
 #include "jvm.h"
 #include "ci/ciReplay.hpp"
 #include "classfile/altHashing.hpp"
@@ -498,8 +499,18 @@ JNI_ENTRY_NO_PRESERVE(jboolean, jni_IsAssignableFrom(JNIEnv *env, jclass sub, jc
   Klass* sub_klass   = java_lang_Class::as_Klass(sub_mirror);
   Klass* super_klass = java_lang_Class::as_Klass(super_mirror);
   assert(sub_klass != NULL && super_klass != NULL, "invalid arguments to jni_IsAssignableFrom");
-  jboolean ret = sub_klass->is_subtype_of(super_klass) ?
-                   JNI_TRUE : JNI_FALSE;
+  jboolean ret;
+  if (sub_klass == super_klass && sub_klass->is_inline_klass()) {
+    // val type is a subtype of ref type
+    InlineKlass* ik = InlineKlass::cast(sub_klass);
+    if (sub_mirror == super_mirror || (ik->val_mirror() == sub_mirror && ik->ref_mirror() == super_mirror)) {
+      ret = JNI_TRUE;
+    } else {
+      ret = JNI_FALSE;
+    }
+  } else {
+    ret = sub_klass->is_subtype_of(super_klass) ? JNI_TRUE : JNI_FALSE;
+  }
   HOTSPOT_JNI_ISASSIGNABLEFROM_RETURN(ret);
   return ret;
 JNI_END
@@ -3711,7 +3722,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
       if (UseJVMCICompiler) {
         // JVMCI is initialized on a CompilerThread
         if (BootstrapJVMCI) {
-          JavaThread* THREAD = thread;
+          JavaThread* THREAD = thread; // For exception macros.
           JVMCICompiler* compiler = JVMCICompiler::instance(true, CATCH);
           compiler->bootstrap(THREAD);
           if (HAS_PENDING_EXCEPTION) {
@@ -3752,7 +3763,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
     // to continue.
     if (Universe::is_fully_initialized()) {
       // otherwise no pending exception possible - VM will already have aborted
-      JavaThread* THREAD = JavaThread::current();
+      JavaThread* THREAD = JavaThread::current(); // For exception macros.
       if (HAS_PENDING_EXCEPTION) {
         HandleMark hm(THREAD);
         vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));

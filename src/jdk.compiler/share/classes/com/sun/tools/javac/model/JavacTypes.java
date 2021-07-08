@@ -274,7 +274,7 @@ public class JavacTypes implements javax.lang.model.util.Types {
             }
             // TODO: Would like a way to check that type args match formals.
 
-            return (DeclaredType) new Type.ClassType(outer, targs.toList(), sym);
+            return (DeclaredType) new Type.ClassType(outer, targs.toList(), sym, TypeMetadata.EMPTY, sym.type.getFlavor());
         }
 
     /**

@@ -275,21 +275,25 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return t2;
   } else if (t2->equals(top_type())) {
     return t1;
-  } else if (t1->is_primitive_type() || t2->is_primitive_type()) {
+  }
+  // Unwrap after saving nullness information and handling top meets
+  bool null_free1 = t1->is_null_free();
+  bool null_free2 = t2->is_null_free();
+  if (t1->unwrap() == t2->unwrap() && null_free1 == null_free2) {
+    return t1;
+  }
+  t1 = t1->unwrap();
+  t2 = t2->unwrap();
+
+  if (t1->is_primitive_type() || t2->is_primitive_type()) {
     // Special case null_type.  null_type meet any reference type T
-    // is T (except for inline types).  null_type meet null_type is null_type.
+    // is T. null_type meet null_type is null_type.
     if (t1->equals(null_type())) {
-      if (t2->is_inlinetype()) {
-        // Inline types are null-free, return the super type
-        return t2->as_inline_klass()->super();
-      } else if (!t2->is_primitive_type() || t2->equals(null_type())) {
+      if (!t2->is_primitive_type() || t2->equals(null_type())) {
         return t2;
       }
     } else if (t2->equals(null_type())) {
-      if (t1->is_inlinetype()) {
-        // Inline types are null-free, return the super type
-        return t1->as_inline_klass()->super();
-      } else if (!t1->is_primitive_type()) {
+      if (!t1->is_primitive_type()) {
         return t1;
       }
     }
@@ -320,6 +324,8 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // But when (obj/flat)Array meets (obj/flat)Array, we look carefully at element types.
     if ((k1->is_obj_array_klass() || k1->is_flat_array_klass()) &&
         (k2->is_obj_array_klass() || k2->is_flat_array_klass())) {
+      bool null_free = k1->as_array_klass()->is_elem_null_free() &&
+                       k2->as_array_klass()->is_elem_null_free();
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
@@ -327,14 +333,14 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
         elem = type_meet_internal(elem1, elem2, analyzer)->as_klass();
       }
       // Do an easy shortcut if one type is a super of the other.
-      if (elem == elem1) {
-        assert(k1 == ciArrayKlass::make(elem), "shortcut is OK");
+      if (elem == elem1 && !elem->is_inlinetype()) {
+        assert(k1 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
         return k1;
-      } else if (elem == elem2) {
-        assert(k2 == ciArrayKlass::make(elem), "shortcut is OK");
+      } else if (elem == elem2 && !elem->is_inlinetype()) {
+        assert(k2 == ciArrayKlass::make(elem, null_free), "shortcut is OK");
         return k2;
       } else {
-        return ciArrayKlass::make(elem);
+        return ciArrayKlass::make(elem, null_free);
       }
     } else {
       return object_klass;
@@ -343,7 +349,11 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // Must be two plain old instance klasses.
     assert(k1->is_instance_klass(), "previous cases handle non-instances");
     assert(k2->is_instance_klass(), "previous cases handle non-instances");
-    return k1->least_common_ancestor(k2);
+    ciType* result = k1->least_common_ancestor(k2);
+    if (null_free1 && null_free2) {
+      result = analyzer->mark_as_null_free(result);
+    }
+    return result;
   }
 }
 
@@ -405,13 +415,22 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
   // "Push" the method signature into the first few locals.
   state->set_stack_size(-max_locals());
   if (!method()->is_static()) {
-    state->push(method()->holder());
+    ciType* holder = method()->holder();
+    if (holder->is_inlinetype()) {
+      // The receiver is null-free
+      holder = mark_as_null_free(holder);
+    }
+    state->push(holder);
     assert(state->tos() == state->local(0), "");
   }
   for (ciSignatureStream str(method()->signature());
        !str.at_return_type();
        str.next()) {
-    state->push_translate(str.type());
+    ciType* arg = str.type();
+    if (str.is_null_free()) {
+      arg = mark_as_null_free(arg);
+    }
+    state->push_translate(arg);
   }
   // Set the rest of the locals to bottom.
   Cell cell = state->next_cell(state->tos());
@@ -587,7 +606,11 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
-    push_object(element_klass);
+    if (array_klass->is_elem_null_free()) {
+      push(outer()->mark_as_null_free(element_klass));
+    } else {
+      push_object(element_klass);
+    }
   }
 }
 
@@ -597,8 +620,9 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
+  bool null_free = str->has_Q_signature();
   if (!will_link) {
-    if (str->is_inline_klass()) {
+    if (null_free) {
       trap(str, klass,
            Deoptimization::make_trap_request
            (Deoptimization::Reason_unloaded,
@@ -612,8 +636,12 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
       do_null_assert(klass);
     }
   } else {
-    pop_object();
-    push_object(klass);
+    ciType* type = pop_value();
+    if (klass->is_inlinetype() && (null_free || type->is_null_free())) {
+      push(outer()->mark_as_null_free(klass));
+    } else {
+      push_object(klass);
+    }
   }
 }
 
@@ -655,6 +683,9 @@ void ciTypeFlow::StateVector::do_getstatic(ciBytecodeStream* str) {
       // (See bug 4379915.)
       do_null_assert(field_type->as_klass());
     } else {
+      if (field->is_null_free()) {
+        field_type = outer()->mark_as_null_free(field_type);
+      }
       push_translate(field_type);
     }
   }
@@ -722,6 +753,9 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         // See do_getstatic() for similar explanation, as well as bug 4684993.
         do_null_assert(return_type->as_klass());
       } else {
+        if (sigstr.is_null_free()) {
+          return_type = outer()->mark_as_null_free(return_type);
+        }
         push_translate(return_type);
       }
     }
@@ -746,7 +780,11 @@ void ciTypeFlow::StateVector::do_ldc(ciBytecodeStream* str) {
         push_null();
       } else {
         assert(obj->is_instance() || obj->is_array(), "must be java_mirror of klass");
-        push_object(obj->klass());
+        ciType* type = obj->klass();
+        if (type->is_inlinetype()) {
+          type = outer()->mark_as_null_free(type);
+        }
+        push(type);
       }
     } else {
       push_translate(ciType::make(basic_type));
@@ -799,7 +837,7 @@ void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   if (!will_link || str->is_unresolved_klass() || !klass->is_inlinetype()) {
     trap(str, klass, str->get_klass_index());
   } else {
-    push_object(klass);
+    push(outer()->mark_as_null_free(klass));
   }
 }
 
@@ -820,8 +858,7 @@ void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
       assert(type == half_type(type2), "must be 2nd half");
     }
     pop_object();
-    assert(klass->is_inlinetype(), "should be inline type");
-    push_object(klass);
+    push(outer()->mark_as_null_free(klass));
   }
 }
 
@@ -958,7 +995,8 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       if (!will_link) {
         trap(str, element_klass, str->get_klass_index());
       } else {
-        push_object(ciArrayKlass::make(element_klass));
+        bool null_free = str->has_Q_signature();
+        push_object(ciArrayKlass::make(element_klass, null_free));
       }
       break;
     }
@@ -3034,6 +3072,11 @@ void ciTypeFlow::record_failure(const char* reason) {
     // Record the first failure reason.
     _failure_reason = reason;
   }
+}
+
+ciType* ciTypeFlow::mark_as_null_free(ciType* type) {
+  // Wrap the type to carry the information that it is null-free
+  return env()->make_null_free_wrapper(type);
 }
 
 #ifndef PRODUCT

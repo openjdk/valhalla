@@ -475,7 +475,8 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      return ciArrayKlass::make(elem_klass);
+      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE;
+      return ciArrayKlass::make(elem_klass, null_free_array);
     }
   }
 
@@ -602,7 +603,7 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 // ciEnv::is_inline_klass
 //
 // Check if the klass is an inline klass.
-bool ciEnv::is_inline_klass(const constantPoolHandle& cpool, int index) {
+bool ciEnv::has_Q_signature(const constantPoolHandle& cpool, int index) {
   GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 
@@ -667,15 +668,11 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
   } else if (tag.is_string()) {
     oop string = NULL;
     assert(cache_index >= 0, "should have a cache index");
-    if (cpool->is_pseudo_string_at(index)) {
-      string = cpool->pseudo_string_at(index, cache_index);
-    } else {
-      string = cpool->string_at(index, cache_index, THREAD);
-      if (HAS_PENDING_EXCEPTION) {
-        CLEAR_PENDING_EXCEPTION;
-        record_out_of_memory_failure();
-        return ciConstant();
-      }
+    string = cpool->string_at(index, cache_index, THREAD);
+    if (HAS_PENDING_EXCEPTION) {
+      CLEAR_PENDING_EXCEPTION;
+      record_out_of_memory_failure();
+      return ciConstant();
     }
     ciObject* constant = get_object(string);
     if (constant->is_array()) {

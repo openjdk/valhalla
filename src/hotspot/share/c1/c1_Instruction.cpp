@@ -108,7 +108,7 @@ void Instruction::state_values_do(ValueVisitor* f) {
 }
 
 ciType* Instruction::exact_type() const {
-  ciType* t =  declared_type();
+  ciType* t = declared_type();
   if (t != NULL && t->is_klass()) {
     return t->as_klass()->exact_klass();
   }
@@ -138,15 +138,13 @@ bool Instruction::maybe_flattened_array() {
   if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != NULL) {
-      if (type->is_obj_array_klass()) {
-        // Due to array covariance, the runtime type might be a flattened array.
+      if (type->is_obj_array_klass() && !type->as_obj_array_klass()->is_elem_null_free()) {
+        // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flatten_array())) {
           return true;
         }
       } else if (type->is_flat_array_klass()) {
-        ciKlass* element_klass = type->as_flat_array_klass()->element_klass();
-        assert(!element_klass->is_loaded() || element_klass->flatten_array(), "must be flattened");
         return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
@@ -166,8 +164,7 @@ bool Instruction::maybe_null_free_array() {
   if (type != NULL) {
     if (type->is_obj_array_klass()) {
       // Due to array covariance, the runtime type might be a null-free array.
-      ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-      if (element_klass->can_be_inline_klass()) {
+      if (type->as_obj_array_klass()->can_be_inline_array_klass()) {
         return true;
       }
     }
@@ -290,7 +287,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  return ciArrayKlass::make(klass());
+  return ciArrayKlass::make(klass(), is_null_free());
 }
 
 ciType* NewMultiArray::exact_type() const {
@@ -460,7 +457,6 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
 {
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
-  set_flag(TargetIsStrictfpFlag, target_is_loaded() && target->is_strict());
   set_null_free(null_free);
 
   assert(args != NULL, "args must exist");

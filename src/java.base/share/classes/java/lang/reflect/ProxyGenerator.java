@@ -92,6 +92,7 @@ final class ProxyGenerator extends ClassWriter {
     /**
      * debugging flag for saving generated class files
      */
+    @SuppressWarnings("removal")
     private static final boolean saveGeneratedFiles =
             java.security.AccessController.doPrivileged(
                     new GetBooleanAction(
@@ -168,6 +169,7 @@ final class ProxyGenerator extends ClassWriter {
      * @param interfaces  proxy interfaces
      * @param accessFlags access flags of the proxy class
      */
+    @SuppressWarnings("removal")
     static byte[] generateProxyClass(ClassLoader loader,
                                      final String name,
                                      List<Class<?>> interfaces,
@@ -453,7 +455,7 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      */
     private byte[] generateClassFile() {
-        visit(V17, accessFlags, dotToSlash(className), null,
+        visit(V18, accessFlags, dotToSlash(className), null,
                 JLR_PROXY, typeNames(interfaces));
 
         /*
@@ -864,7 +866,7 @@ final class ProxyGenerator extends ClassWriter {
                 }
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isPrimitiveClass()) {
+                if (type.isValueType()) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);
@@ -919,7 +921,7 @@ final class ProxyGenerator extends ClassWriter {
         /**
          * Generate code to invoke the Class.forName with the name of the given
          * class to get its Class object at runtime.  And also generate code
-         * to invoke Class.asPrimaryType if the class is regular value type.
+         * to invoke Class::asValueType if the class is a primitive value type.
          *
          * The code is written to the supplied stream.  Note that the code generated
          * by this method may caused the checked ClassNotFoundException to be thrown.
@@ -929,6 +931,11 @@ final class ProxyGenerator extends ClassWriter {
             mv.visitMethodInsn(INVOKESTATIC,
                     JL_CLASS,
                     "forName", "(Ljava/lang/String;)Ljava/lang/Class;", false);
+            if (cl.isValueType()) {
+              mv.visitMethodInsn(INVOKEVIRTUAL,
+                                 JL_CLASS,
+                                 "asValueType", "()Ljava/lang/Class;", false);
+            }
         }
 
         /**

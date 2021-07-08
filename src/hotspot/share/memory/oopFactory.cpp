@@ -127,10 +127,10 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
   }
 }
 
-arrayOop oopFactory::new_flatArray(Klass* klass, int length, TRAPS) {
-  assert(klass->is_inline_klass(), "Klass must be inline type");
+arrayOop oopFactory::new_flatArray(Klass* k, int length, TRAPS) {
+  InlineKlass* klass = InlineKlass::cast(k);
   // Request flattened, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
-  Klass* array_klass = klass->array_klass(1, CHECK_NULL);
+  Klass* array_klass = klass->null_free_inline_array_klass(CHECK_NULL);
   assert(array_klass->is_null_free_array_klass(), "Expect a null-free array class here");
 
   arrayOop oop;
@@ -142,7 +142,7 @@ arrayOop oopFactory::new_flatArray(Klass* klass, int length, TRAPS) {
     oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
   assert(oop == NULL || oop->klass()->is_null_free_array_klass(), "sanity");
-  assert(oop == NULL || oop->is_nullfreeArray(), "sanity");
+  assert(oop == NULL || oop->is_null_free_array(), "sanity");
   return oop;
 }
 

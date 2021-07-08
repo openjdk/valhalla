@@ -190,7 +190,7 @@ public class InstructionHelper {
         IsolatedMethodBuilder isolatedMethodBuilder = new IsolatedMethodBuilder(className, lookup);
         isolatedMethodBuilder
                 .withSuperclass(Object.class)
-                .withMajorVersion(61)
+                .withMajorVersion(62)
                 .withMinorVersion(0)
                 .withFlags(Flag.ACC_PUBLIC)
                 .withMethod(methodName, type, M ->
@@ -263,14 +263,14 @@ public class InstructionHelper {
                 if (aClass.isArray()) {
                     return classToInternalName(aClass);
                 } else {
-                    return (aClass.isPrimitiveClass() ? "Q" : "L") + classToInternalName(aClass) + ";";
+                    return (aClass.isValueType() ? "Q" : "L") + classToInternalName(aClass) + ";";
                 }
             }
 
             @Override
             public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isPrimitiveClass();
+                return aClass != null && aClass.isValueType();
             }
 
             @Override
@@ -279,7 +279,8 @@ public class InstructionHelper {
                     if (desc.startsWith("[")) {
                         return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
                     } else {
-                        return Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
+                        Class<?> c = Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
+                        return basicTypeHelper.isInlineClass(desc) ? c.asValueType() : c.asPrimaryType();
                     }
                 } catch (ReflectiveOperationException ex) {
                     throw new AssertionError(ex);

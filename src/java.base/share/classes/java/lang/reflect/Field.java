@@ -116,6 +116,7 @@ class Field extends AccessibleObject implements Member {
     /**
      * Package-private constructor
      */
+    @SuppressWarnings("deprecation")
     Field(Class<?> declaringClass,
           String name,
           Class<?> type,
@@ -125,6 +126,7 @@ class Field extends AccessibleObject implements Member {
           String signature,
           byte[] annotations)
     {
+        assert declaringClass.isPrimaryType();
         this.clazz = declaringClass;
         this.name = name;
         this.type = type;
@@ -327,13 +329,21 @@ class Field extends AccessibleObject implements Member {
         int mod = getModifiers();
         return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
             + getType().getTypeName() + " "
-            + getDeclaringClass().getTypeName() + "."
+            + getDeclaringClassTypeName() + "."
             + getName());
     }
 
     @Override
     String toShortString() {
-        return "field " + getDeclaringClass().getTypeName() + "." + getName();
+        return "field " + getDeclaringClassTypeName() + "." + getName();
+    }
+
+    String getDeclaringClassTypeName() {
+        Class<?> c = getDeclaringClass();
+        if (c.isPrimitiveClass()) {
+            c = c.asValueType();
+        }
+        return c.getTypeName();
     }
 
     /**
@@ -361,7 +371,7 @@ class Field extends AccessibleObject implements Member {
         Type fieldType = getGenericType();
         return (((mod == 0) ? "" : (Modifier.toString(mod) + " "))
             + fieldType.getTypeName() + " "
-            + getDeclaringClass().getTypeName() + "."
+            + getDeclaringClassTypeName() + "."
             + getName());
     }
 

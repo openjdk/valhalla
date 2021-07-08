@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -807,7 +807,6 @@ class GraphKit : public Phase {
   public:
   // Helper function to round double arguments before a call
   void round_double_arguments(ciMethod* dest_method);
-  void round_double_result(ciMethod* dest_method);
 
   // rounding for strict float precision conformance
   Node* precision_rounding(Node* n);
@@ -832,7 +831,7 @@ class GraphKit : public Phase {
   Node* sign_extend_byte(Node* in);
   Node* sign_extend_short(Node* in);
 
-  Node* make_native_call(const TypeFunc* call_type, uint nargs, ciNativeEntryPoint* nep);
+  Node* make_native_call(address call_addr, const TypeFunc* call_type, uint nargs, ciNativeEntryPoint* nep);
 
   enum {  // flag values for make_runtime_call
     RC_NO_FP = 1,               // CallLeafNoFPNode
@@ -841,6 +840,7 @@ class GraphKit : public Phase {
     RC_MUST_THROW = 8,          // flag passed to add_safepoint_edges
     RC_NARROW_MEM = 16,         // input memory is same as output
     RC_UNCOMMON = 32,           // freq. expected to be like uncommon trap
+    RC_VECTOR = 64,             // CallLeafVectorNode
     RC_LEAF = 0                 // null value:  no flags set
   };
 
@@ -865,7 +865,7 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool null_free = false);
 
   // Inline types
   Node* inline_type_test(Node* obj, bool is_inline = true);

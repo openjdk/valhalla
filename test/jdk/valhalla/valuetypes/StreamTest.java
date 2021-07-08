@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
+ * @summary Basic test for Array::get, Array::set, Arrays::setAll on primitive class array
  * @compile StreamTest.java
  * @run testng StreamTest
  */
@@ -53,7 +53,7 @@ public class StreamTest {
     }
 
     @Test
-    public void testInlineType() {
+    public void testValueType() {
         Arrays.stream(values)
                 .map(Value.ref::point)
                 .filter(p -> p.x >= 5)

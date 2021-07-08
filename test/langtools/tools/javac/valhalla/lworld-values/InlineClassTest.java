@@ -33,7 +33,7 @@
 public primitive class InlineClassTest {
     int x = 42;
     public static void main(String [] args) {
-        if (!new InlineClassTest().toString().equals("[InlineClassTest x=42]"))
+        if (new InlineClassTest().x != 42)
             throw new AssertionError("Unexpected state");
     }
 }

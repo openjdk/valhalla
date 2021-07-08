@@ -135,7 +135,7 @@ private:
   ciMethod*  get_method_by_index(const constantPoolHandle& cpool,
                                  int method_index, Bytecodes::Code bc,
                                  ciInstanceKlass* loading_klass);
-  bool       is_inline_klass(const constantPoolHandle& cpool,
+  bool       has_Q_signature(const constantPoolHandle& cpool,
                              int klass_index);
 
   // Implementation methods for loading and constant pool access.
@@ -472,6 +472,10 @@ public:
   void dump_replay_data(outputStream* out);
   void dump_replay_data_unsafe(outputStream* out);
   void dump_compile_data(outputStream* out);
+
+  ciWrapper* make_null_free_wrapper(ciType* type) {
+    return _factory->make_null_free_wrapper(type);
+  }
 };
 
 #endif // SHARE_CI_CIENV_HPP

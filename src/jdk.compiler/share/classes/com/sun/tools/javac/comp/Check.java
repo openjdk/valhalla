@@ -160,8 +160,7 @@ public class Check {
         deferredLintHandler = DeferredLintHandler.instance(context);
 
         allowRecords = Feature.RECORDS.allowedInSource(source);
-        allowSealed = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
-                Feature.SEALED_CLASSES.allowedInSource(source);
+        allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -606,7 +605,7 @@ public class Check {
         } else {
             if (found.hasTag(CLASS)) {
                 if (inferenceContext != infer.emptyContext)
-                    checkParameterizationWithValues(pos, found);
+                    checkParameterizationByPrimitiveClass(pos, found);
             }
         }
         if (req.hasTag(ERROR))
@@ -750,7 +749,8 @@ public class Check {
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
             }
-            // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+            // No instance fields and no arged constructors both mean inner classes
+            // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
                 log.error(pos, Errors.SuperClassCannotBeInner(c, st));
@@ -837,15 +837,38 @@ public class Check {
      *  or a type variable.
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
-     *  @param valueOK       If false, a value class does not qualify
+     *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
-    Type checkRefType(DiagnosticPosition pos, Type t, boolean valueOK) {
-        if (t.isReference() && (valueOK || !types.isPrimitiveClass(t)))
+    Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
+        if (t.isReference() && (primitiveClassOK || !types.isPrimitiveClass(t)))
             return t;
         else
             return typeTagError(pos,
                                 diags.fragment(Fragments.TypeReqRef),
                                 t);
+    }
+
+    /** Check that type is an identity type, i.e. not a primitive type
+     *  nor its reference projection. When not discernible statically,
+     *  give it the benefit of doubt and defer to runtime.
+     *
+     *  @param pos           Position to be used for error reporting.
+     *  @param t             The type to be checked.
+     */
+    Type checkIdentityType(DiagnosticPosition pos, Type t) {
+
+        if (t.isPrimitive() || t.isPrimitiveClass() || t.isReferenceProjection())
+            return typeTagError(pos,
+                    diags.fragment(Fragments.TypeReqIdentity),
+                    t);
+
+        /* Not appropriate to check
+         *     if (types.asSuper(t, syms.identityObjectType.tsym) != null)
+         * since jlO, interface types and abstract types may fail that check
+         * at compile time.
+         */
+
+        return t;
     }
 
     /** Check that type is a reference type, i.e. a class, interface or array type
@@ -901,14 +924,15 @@ public class Check {
             return true;
     }
 
-    void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        valueParameterizationChecker.visit(t, pos);
+    void checkParameterizationByPrimitiveClass(DiagnosticPosition pos, Type t) {
+        parameterizationByPrimitiveClassChecker.visit(t, pos);
     }
 
-    /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
+    /** parameterizationByPrimitiveClassChecker: A type visitor that descends down the given type looking for instances of primitive classes
      *  being used as type arguments and issues error against those usages.
      */
-    private final Types.SimpleVisitor<Void, DiagnosticPosition> valueParameterizationChecker = new Types.SimpleVisitor<Void, DiagnosticPosition>() {
+    private final Types.SimpleVisitor<Void, DiagnosticPosition> parameterizationByPrimitiveClassChecker =
+            new Types.SimpleVisitor<Void, DiagnosticPosition>() {
 
         @Override
         public Void visitType(Type t, DiagnosticPosition pos) {
@@ -1099,7 +1123,7 @@ public class Check {
         //upward project the initializer type
         Type varType = types.upward(t, types.captures(t));
         if (varType.hasTag(CLASS)) {
-            checkParameterizationWithValues(pos, varType);
+            checkParameterizationByPrimitiveClass(pos, varType);
         }
         return varType;
     }
@@ -1365,9 +1389,12 @@ public class Check {
             } else if ((sym.owner.flags_field & RECORD) != 0) {
                 mask = RecordMethodFlags;
             } else {
-                // instance methods of value types do not have a monitor associated with their `this'
+                // instance methods of primitive classes do not have a monitor associated with their `this'
                 mask = ((sym.owner.flags_field & PRIMITIVE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
+            }
+            if ((flags & STRICTFP) != 0) {
+                warnOnExplicitStrictfp(pos);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
@@ -1401,7 +1428,7 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or value type
+                // enums can't be declared abstract, final, sealed or non-sealed or primitive
                 mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
@@ -1409,6 +1436,9 @@ public class Check {
                 // records can't be declared abstract
                 mask &= ~ABSTRACT;
                 implicit |= FINAL;
+            }
+            if ((flags & STRICTFP) != 0) {
+                warnOnExplicitStrictfp(pos);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
@@ -1470,6 +1500,19 @@ public class Check {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
+    }
+
+    private void warnOnExplicitStrictfp(DiagnosticPosition pos) {
+        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(pos);
+        try {
+            deferredLintHandler.report(() -> {
+                                           if (lint.isEnabled(LintCategory.STRICTFP)) {
+                                               log.warning(LintCategory.STRICTFP,
+                                                           pos, Warnings.Strictfp); }
+                                       });
+        } finally {
+            deferredLintHandler.setPos(prevLintPos);
+        }
     }
 
 
@@ -2407,7 +2450,7 @@ public class Check {
         }
     }
 
-    // A value class cannot contain a field of its own type either or indirectly.
+    // A primitive class cannot contain a field of its own type either or indirectly.
     void checkNonCyclicMembership(JCClassDecl tree) {
         Assert.check((tree.sym.flags_field & LOCKED) == 0);
         try {
@@ -2416,8 +2459,7 @@ public class Check {
                 if (l.head.hasTag(VARDEF)) {
                     JCVariableDecl field = (JCVariableDecl) l.head;
                     if (cyclePossible(field.sym)) {
-                        Type fieldType = field.sym.type;
-                        checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
+                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
                     }
                 }
             }
@@ -2456,7 +2498,7 @@ public class Check {
 
     class CycleChecker extends TreeScanner {
 
-        List<Symbol> seenClasses = List.nil();
+        Set<Symbol> seenClasses = new HashSet<>();
         boolean errorFound = false;
         boolean partialCheck = false;
 
@@ -2475,7 +2517,7 @@ public class Check {
                 } else if (sym.kind == TYP) {
                     checkClass(pos, sym, List.nil());
                 }
-            } else {
+            } else if (sym == null || sym.kind != PCK) {
                 //not completed yet
                 partialCheck = true;
             }
@@ -2524,7 +2566,7 @@ public class Check {
                 noteCyclic(pos, (ClassSymbol)c);
             } else if (!c.type.isErroneous()) {
                 try {
-                    seenClasses = seenClasses.prepend(c);
+                    seenClasses.add(c);
                     if (c.type.hasTag(CLASS)) {
                         if (supertypes.nonEmpty()) {
                             scan(supertypes);
@@ -2547,7 +2589,7 @@ public class Check {
                         }
                     }
                 } finally {
-                    seenClasses = seenClasses.tail;
+                    seenClasses.remove(c);
                 }
             }
         }
@@ -3545,7 +3587,6 @@ public class Check {
         return targets.isEmpty() || targets.isPresent() && !targets.get().isEmpty();
     }
 
-    @SuppressWarnings("preview")
     Optional<Set<Name>> getApplicableTargets(JCAnnotation a, Symbol s) {
         Attribute.Array arr = getAttributeTargetAttribute(a.annotationType.type.tsym);
         Name[] targets;

@@ -44,7 +44,7 @@ public primitive class RefDotClass {
     public static void main(String[] args) {
         foo(RefDotClass.ref.class);
         String tName = RefDotClass.ref.class.getTypeName();
-        if (!tName.equals("RefDotClass$ref"))
+        if (!tName.equals("RefDotClass.ref"))
             throw new AssertionError("Unexpected type name " + tName);
     }
 }

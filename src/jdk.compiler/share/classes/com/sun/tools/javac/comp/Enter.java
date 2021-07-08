@@ -37,6 +37,7 @@ import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.*;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.main.Option.PkgInfo;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
@@ -326,6 +327,7 @@ public class Enter extends JCTree.Visitor {
             JCPackageDecl pd = tree.getPackage();
             if (pd != null) {
                 tree.packge = pd.packge = syms.enterPackage(tree.modle, TreeInfo.fullName(pd.pid));
+                setPackageSymbols.scan(pd);
                 if (   pd.annotations.nonEmpty()
                     || pkginfoOpt == PkgInfo.ALWAYS
                     || tree.docComments != null) {
@@ -389,6 +391,31 @@ public class Enter extends JCTree.Visitor {
         log.useSource(prev);
         result = null;
     }
+        //where:
+        //set package Symbols to the package expression:
+        private final TreeScanner setPackageSymbols = new TreeScanner() {
+            Symbol currentPackage;
+
+            @Override
+            public void visitIdent(JCIdent tree) {
+                tree.sym = currentPackage;
+                tree.type = currentPackage.type;
+            }
+
+            @Override
+            public void visitSelect(JCFieldAccess tree) {
+                tree.sym = currentPackage;
+                tree.type = currentPackage.type;
+                currentPackage = currentPackage.owner;
+                super.visitSelect(tree);
+            }
+
+            @Override
+            public void visitPackageDef(JCPackageDecl tree) {
+                currentPackage = tree.packge;
+                scan(tree.pid);
+            }
+        };
 
     @Override
     public void visitClassDef(JCClassDecl tree) {
@@ -474,6 +501,8 @@ public class Enter extends JCTree.Visitor {
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;
+        ct.flavor = ct.flavor.metamorphose((c.flags_field & PRIMITIVE_CLASS) != 0);
+
         if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
             // We are seeing a local or inner class.
             // Set outer_field of this class to closest enclosing class

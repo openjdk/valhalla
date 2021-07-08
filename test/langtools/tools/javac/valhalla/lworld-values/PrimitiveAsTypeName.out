@@ -1,0 +1,7 @@
+- compiler.warn.source.no.system.modules.path: 16
+PrimitiveAsTypeName.java:9:18: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
+PrimitiveAsTypeName.java:10:9: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
+PrimitiveAsTypeName.java:11:9: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
+PrimitiveAsTypeName.java:11:31: compiler.err.missing.ret.stmt
+1 error
+4 warnings
