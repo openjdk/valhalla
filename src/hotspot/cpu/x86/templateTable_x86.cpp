@@ -3181,7 +3181,14 @@ void TemplateTable::withfield() {
 
   resolve_cache_and_index(f2_byte, cache, index, sizeof(u2));
 
-  call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), cache);
+  Register cpentry = rbx;
+
+  ByteSize cp_base_offset = ConstantPoolCache::base_offset();
+
+  __ lea(cpentry, Address(cache, index, Address::times_ptr,
+                         in_bytes(cp_base_offset)));
+  __ lea(rax, at_tos());
+  __ call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield2), cpentry, rax);
   // new value type is returned in rbx
   // stack adjustement is returned in rax
   __ verify_oop(rbx);
