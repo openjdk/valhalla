@@ -869,6 +869,7 @@ class GraphKit : public Phase {
 
   // Inline types
   Node* inline_type_test(Node* obj, bool is_inline = true);
+  Node* is_val_mirror(Node* mirror);
   Node* array_lh_test(Node* kls, jint mask, jint val, bool eq = true);
   Node* flat_array_test(Node* ary, bool flat = true);
   Node* null_free_array_test(Node* klass, bool null_free = true);

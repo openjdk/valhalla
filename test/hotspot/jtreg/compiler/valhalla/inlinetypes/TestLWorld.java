@@ -3780,4 +3780,24 @@ public class TestLWorld extends InlineTypeTest {
         int result = test141();
         Asserts.assertEquals(result, 0);
     }
+
+    // Test that virtual calls on inline type receivers are properly inlined
+    @Test(failOn = ALLOC + LOAD + STORE)
+    public long test142() {
+        MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
+        MyInterface val = null;
+
+        for (int i = 0; i < 4; i++) {
+            if ((i % 2) == 0) {
+                val = nonNull;
+            }
+        }
+        return val.hash();
+    }
+
+    @DontCompile
+    public void test142_verifier(boolean warmup) {
+        long res = test142();
+        Asserts.assertEquals(res, testValue2.hash());
+    }
 }

@@ -2387,7 +2387,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      ciType* t = tinst->java_mirror_type();
+      bool null_free = false;
+      ciType* t = tinst->java_mirror_type(&null_free);
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != NULL) {
         // constant oop => constant klass
@@ -2397,12 +2398,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          if (t->is_inlinetype()) {
-            // TODO fix with JDK-8267932
-            return LoadNode::Value(phase);
-          } else {
-            return TypeKlassPtr::make(ciArrayKlass::make(t));
-          }
+          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free));
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has NULL for a klass field

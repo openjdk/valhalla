@@ -267,6 +267,9 @@ void ZBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* a
       // This code will be unreachable
       assert(StressReflectiveCode, "Guard against surprises");
       bt = T_LONG;
+    } else if (ary_ptr->is_flat()) {
+      // Clone flat inline type array
+      bt = T_LONG;
     } else {
       bt = ary_ptr->elem()->array_element_basic_type();
       if (is_reference_type(bt)) {
