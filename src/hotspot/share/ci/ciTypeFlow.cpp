@@ -637,9 +637,8 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     }
   } else {
     ciType* type = pop_value();
-    // TODO javac sometimes emits useless casts
-    // TODO upstream?
     if (type->unwrap() != klass && type->unwrap()->is_subtype_of(klass)) {
+      // Useless cast, propagate more precise type of object
       klass = type->unwrap()->as_klass();
     }
     if (klass->is_inlinetype() && (null_free || type->is_null_free())) {

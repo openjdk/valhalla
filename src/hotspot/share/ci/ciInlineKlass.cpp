@@ -121,6 +121,20 @@ ciInstance* ciInlineKlass::default_instance() const {
   )
 }
 
+ciInstance* ciInlineKlass::ref_instance() const {
+  GUARDED_VM_ENTRY(
+    oop ref_mirror = to_InlineKlass()->ref_mirror();
+    return CURRENT_ENV->get_instance(ref_mirror);
+  )
+}
+
+ciInstance* ciInlineKlass::val_instance() const {
+  GUARDED_VM_ENTRY(
+    oop val_mirror = to_InlineKlass()->val_mirror();
+    return CURRENT_ENV->get_instance(val_mirror);
+  )
+}
+
 bool ciInlineKlass::contains_oops() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->contains_oops();)
 }

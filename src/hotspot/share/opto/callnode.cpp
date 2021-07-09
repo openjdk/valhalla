@@ -733,9 +733,15 @@ void CallNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint 
 // return result(s) along with their RegMask info
 Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask* mask) {
   uint con = proj->_con;
-  const TypeTuple *range_cc = tf()->range_cc();
+  const TypeTuple* range_cc = tf()->range_cc();
   if (con >= TypeFunc::Parms) {
-    if (is_CallRuntime()) {
+    if (tf()->returns_inline_type_as_fields()) {
+      // The call returns multiple values (inline type fields): we
+      // create one projection per returned value.
+      assert(con <= TypeFunc::Parms+1 || InlineTypeReturnedAsFields, "only for multi value return");
+      uint ideal_reg = range_cc->field_at(con)->ideal_reg();
+      return new MachProjNode(this, con, mask[con-TypeFunc::Parms], ideal_reg);
+    } else {
       if (con == TypeFunc::Parms) {
         uint ideal_reg = range_cc->field_at(TypeFunc::Parms)->ideal_reg();
         OptoRegPair regs = Opcode() == Op_CallLeafVector
@@ -763,12 +769,6 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
         assert(range_cc->field_at(TypeFunc::Parms+1) == Type::HALF, "");
         return new MachProjNode(this,con, RegMask::Empty, (uint)OptoReg::Bad);
       }
-    } else {
-      // The Call may return multiple values (inline type fields): we
-      // create one projection per returned value.
-      assert(con <= TypeFunc::Parms+1 || InlineTypeReturnedAsFields, "only for multi value return");
-      uint ideal_reg = range_cc->field_at(con)->ideal_reg();
-      return new MachProjNode(this, con, mask[con-TypeFunc::Parms], ideal_reg);
     }
   }
 

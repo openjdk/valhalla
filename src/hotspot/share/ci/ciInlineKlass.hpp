@@ -85,6 +85,8 @@ public:
   int inline_arg_slots();
   int default_value_offset() const;
   ciInstance* default_instance() const;
+  ciInstance* ref_instance() const;
+  ciInstance* val_instance() const;
   bool contains_oops() const;
   int oop_count() const;
   address pack_handler() const;
