@@ -3680,6 +3680,13 @@ Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
   return _gvn.transform(new BoolNode(cmp, is_inline ? BoolTest::eq : BoolTest::ne));
 }
 
+Node* GraphKit::is_val_mirror(Node* mirror) {
+  Node* p = basic_plus_adr(mirror, java_lang_Class::secondary_mirror_offset());
+  Node* secondary_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+  Node* cmp = _gvn.transform(new CmpPNode(mirror, secondary_mirror));
+  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+}
+
 Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
   Node* lh_adr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
   // Make sure to use immutable memory here to enable hoisting the check out of loops

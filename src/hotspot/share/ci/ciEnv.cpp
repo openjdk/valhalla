@@ -693,7 +693,7 @@ ciConstant ciEnv::get_constant_by_index_impl(const constantPoolHandle& cpool,
     }
     assert (klass->is_instance_klass() || klass->is_array_klass(),
             "must be an instance or array klass ");
-    if (tag.is_unresolved_klass()) {
+    if (!klass->is_loaded()) {
       return ciConstant(T_OBJECT, get_unloaded_klass_mirror(klass));
     } else {
       if (tag.is_Qdescriptor_klass()) {

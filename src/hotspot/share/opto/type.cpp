@@ -4349,13 +4349,13 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type() const {
+ciType* TypeInstPtr::java_mirror_type(bool* is_val_mirror) const {
   // must be a singleton type
   if( const_oop() == NULL )  return NULL;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return NULL;
-  return const_oop()->as_instance()->java_mirror_type();
+  return const_oop()->as_instance()->java_mirror_type(is_val_mirror);
 }
 
 
@@ -5886,8 +5886,7 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, true) : domain_sig;
   ciSignature* sig = method->signature();
-  bool has_scalar_ret = sig->returns_null_free_inline_type() && sig->return_type()->is_inlinetype() &&
-                        sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
+  bool has_scalar_ret = sig->returns_null_free_inline_type() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
   const TypeTuple* range_sig = TypeTuple::make_range(sig, false);
   const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
