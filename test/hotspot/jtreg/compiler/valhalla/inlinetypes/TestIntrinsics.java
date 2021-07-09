@@ -51,7 +51,7 @@ public class TestIntrinsics extends InlineTypeTest {
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
         case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0"};
+        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0"};
         }
         return null;
     }
