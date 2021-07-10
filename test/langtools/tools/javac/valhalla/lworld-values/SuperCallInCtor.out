@@ -1,0 +1,2 @@
+SuperCallInCtor.java:24:13: compiler.err.call.to.super.not.allowed.in.primitive.ctor
+1 error

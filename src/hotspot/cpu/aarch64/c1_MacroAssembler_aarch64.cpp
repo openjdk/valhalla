@@ -349,35 +349,44 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 }
 
 void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, bool needs_stack_repair) {
-  MacroAssembler::build_frame(frame_size_in_bytes + 2 * wordSize);
+  MacroAssembler::build_frame(frame_size_in_bytes);
 
   if (needs_stack_repair) {
-    Unimplemented();
+    int sp_inc_offset = frame_size_in_bytes - 3 * wordSize;  // Immediately below saved LR and FP
+    save_stack_increment(sp_inc, frame_size_in_bytes, sp_inc_offset);
   }
 }
 
 void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_inline_entry_label) {
-  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
-  // Make sure there is enough stack space for this method's activation.
-  // Note that we do this before doing an enter().
-  generate_stack_overflow_check(bang_size_in_bytes);
-
-  guarantee(needs_stack_repair == false, "Stack repair should not be true");
-  if (verified_inline_entry_label != NULL) {
+  if (has_scalarized_args) {
+    // Initialize orig_pc to detect deoptimization during buffering in the entry points
+    str(zr, Address(sp, sp_offset_for_orig_pc - frame_size_in_bytes));
+  }
+  if (!needs_stack_repair && verified_inline_entry_label != NULL) {
     bind(*verified_inline_entry_label);
   }
+
+  // Make sure there is enough stack space for this method's activation.
+  // Note that we do this before creating a frame.
+  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
+  generate_stack_overflow_check(bang_size_in_bytes);
 
   build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
 
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
+
+  if (needs_stack_repair && verified_inline_entry_label != NULL) {
+    // Jump here from the scalarized entry points that require additional stack space
+    // for packing scalarized arguments and therefore already created the frame.
+    bind(*verified_inline_entry_label);
+  }
 }
 
 void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair,
                                      int sp_inc_offset) {
-  MacroAssembler::remove_frame(frame_size_in_bytes + 2 * wordSize,
-                               needs_stack_repair, sp_inc_offset);
+  MacroAssembler::remove_frame(frame_size_in_bytes, needs_stack_repair, sp_inc_offset);
 }
 
 void C1_MacroAssembler::verified_entry() {
@@ -410,7 +419,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // Check if we need to extend the stack for packing
   int sp_inc = 0;
   if (args_on_stack > args_on_stack_cc) {
-    Unimplemented();
+    sp_inc = extend_stack_for_inline_args(args_on_stack);
   }
 
   // Create a temp frame so we can call into the runtime. It must be properly set up to accommodate GC.
@@ -423,8 +432,16 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
 
+  // The runtime call returns the new array in r0 which is also j_rarg7
+  // so we must avoid clobbering that. Temporarily save r0 in a
+  // non-argument register and pass the buffered array in r20 instead.
+  // This is safe because the runtime stub saves all registers.
+  Register val_array = r20;
+  Register tmp1 = r21;
+  mov(tmp1, j_rarg7);
+
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
-  mov(r1, (intptr_t) ces->method());
+  mov(r19, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
     far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
   } else {
@@ -432,16 +449,21 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   }
   int rt_call_offset = offset();
 
+  mov(val_array, r0);
+  mov(j_rarg7, tmp1);
+
   // Remove the temp frame
-  add(sp, sp, frame_size_in_bytes);
+  MacroAssembler::remove_frame(frame_size_in_bytes);
 
   shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
                       args_passed_cc, args_on_stack_cc, regs_cc, // from
                       args_passed, args_on_stack, regs,          // to
-                      sp_inc);
+                      sp_inc, val_array);
 
   if (ces->c1_needs_stack_repair()) {
-    Unimplemented();
+    // Create the real frame. Below jump will then skip over the stack banging and frame
+    // setup code in the verified_inline_entry (which has a different real_frame_size).
+    build_frame_helper(frame_size_in_bytes, sp_inc, true);
   }
 
   b(verified_inline_entry_label);

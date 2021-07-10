@@ -165,9 +165,7 @@ class TypePrinter extends Printer {
                             : "<anonymous class implementing " + s + ">";
             }
             return s;
-        }
-        String s;
-        if (longform) {
+        } else if (longform) {
             String pkg = "";
             for (Symbol psym = sym; psym != null; psym = psym.owner) {
                 if (psym.kind == PCK) {
@@ -175,14 +173,13 @@ class TypePrinter extends Printer {
                     break;
                 }
             }
-            s = fullClassNameAndPackageToClass.apply(
+            return fullClassNameAndPackageToClass.apply(
                     sym.getQualifiedName().toString(),
                     pkg
             );
         } else {
-            s = sym.name.toString();
+            return sym.name.toString();
         }
-        return s;
     }
 
     @Override

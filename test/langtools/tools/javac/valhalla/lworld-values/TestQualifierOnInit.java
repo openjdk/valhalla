@@ -42,7 +42,7 @@ primitive final class TestValue1 {
 public class TestQualifierOnInit {
     static public void main(String[] args) {
         TestValue1 testValue1 = new TestValue1(42);
-        if (!testValue1.toString().equals("[TestValue1 x=42]"))
+        if (testValue1.x != 42)
             throw new AssertionError("unexpected " + testValue1);
     }
 }

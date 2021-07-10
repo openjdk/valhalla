@@ -318,7 +318,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
       // The two references are different, they are not null and they are both inline types,
       // a full substitutability test is required, calling ValueBootstrapMethods.isSubstitutable()
       // (similarly to InterpreterRuntime::is_substitutable)
-      Thread* THREAD = Thread::current();
+      JavaThread* THREAD = Thread::current()->as_Java_thread();
       Handle ha(THREAD, obj1);
       Handle hb(THREAD, obj2);
       JavaValue result(T_BOOLEAN);

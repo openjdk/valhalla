@@ -681,6 +681,11 @@ void MacroAssembler::call_VM_base(Register oop_result,
   // do the call, remove parameters
   MacroAssembler::call_VM_leaf_base(entry_point, number_of_arguments, &l);
 
+  // lr could be poisoned with PAC signature during throw_pending_exception
+  // if it was tail-call optimized by compiler, since lr is not callee-saved
+  // reload it with proper value
+  adr(lr, l);
+
   // reset last Java frame
   // Only interpreter should have to clear fp
   reset_last_Java_frame(true);
@@ -1550,14 +1555,14 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
   cbnz(temp_reg, is_empty_inline_type);
 }
 
-void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline) {
+void MacroAssembler::test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_inline_type_shift, is_inline);
+  tbnz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, is_null_free_inline_type);
 }
 
-void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline) {
+void MacroAssembler::test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free_inline_type) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbz(flags, ConstantPoolCacheEntry::is_inline_type_shift, not_inline);
+  tbz(flags, ConstantPoolCacheEntry::is_null_free_inline_type_shift, not_null_free_inline_type);
 }
 
 void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened) {
@@ -1594,11 +1599,11 @@ void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_re
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, true, is_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, true, is_null_free_array);
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, false, is_non_null_free_array);
+  test_oop_prototype_bit(oop, temp_reg, markWord::null_free_array_bit_in_place, false, is_non_null_free_array);
 }
 
 void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
@@ -4781,7 +4786,8 @@ void MacroAssembler::load_byte_map_base(Register reg) {
 }
 
 void MacroAssembler::build_frame(int framesize) {
-  assert(framesize > 0, "framesize must be > 0");
+  assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");
+  assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     sub(sp, sp, framesize);
     stp(rfp, lr, Address(sp, framesize - 2 * wordSize));
@@ -4800,7 +4806,8 @@ void MacroAssembler::build_frame(int framesize) {
 }
 
 void MacroAssembler::remove_frame(int framesize) {
-  assert(framesize > 0, "framesize must be > 0");
+  assert(framesize >= 2 * wordSize, "framesize must include space for FP/LR");
+  assert(framesize % (2*wordSize) == 0, "must preserve 2*wordSize alignment");
   if (framesize < ((1 << 9) + 2 * wordSize)) {
     ldp(rfp, lr, Address(sp, framesize - 2 * wordSize));
     add(sp, sp, framesize);
@@ -4815,6 +4822,53 @@ void MacroAssembler::remove_frame(int framesize) {
   }
 }
 
+void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset) {
+  if (needs_stack_repair) {
+    // Remove the extension of the caller's frame used for inline type unpacking
+    //
+    // Right now the stack looks like this:
+    //
+    // | Arguments from caller     |
+    // |---------------------------|  <-- caller's SP
+    // | Saved LR #1               |
+    // | Saved FP #1               |
+    // |---------------------------|
+    // | Extension space for       |
+    // |   inline arg (un)packing  |
+    // |---------------------------|  <-- start of this method's frame
+    // | Saved LR #2               |
+    // | Saved FP #2               |
+    // |---------------------------|  <-- FP
+    // | sp_inc                    |
+    // | method locals             |
+    // |---------------------------|  <-- SP
+    //
+    // There are two copies of FP and LR on the stack. They will be identical
+    // unless the caller has been deoptimized, in which case LR #1 will be patched
+    // to point at the deopt blob, and LR #2 will still point into the old method.
+    //
+    // The sp_inc stack slot holds the total size of the frame including the
+    // extension space minus two words for the saved FP and LR.
+
+    ldr(rscratch1, Address(sp, sp_inc_offset));
+    add(sp, sp, rscratch1);
+    ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
+  } else {
+    remove_frame(initial_framesize);
+  }
+}
+
+void MacroAssembler::save_stack_increment(int sp_inc, int frame_size, int sp_inc_offset) {
+  int real_frame_size = frame_size + sp_inc;
+  assert(sp_inc == 0 || sp_inc > 2*wordSize, "invalid sp_inc value");
+  assert(real_frame_size >= 2*wordSize, "frame size must include FP/LR space");
+  assert((real_frame_size & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
+
+  // Subtract two words for the saved FP and LR as these will be popped
+  // separately. See remove_frame above.
+  mov(rscratch1, real_frame_size - 2*wordSize);
+  str(rscratch1, Address(sp, sp_inc_offset));
+}
 
 // This method checks if provided byte array contains byte with highest bit set.
 address MacroAssembler::has_negatives(Register ary1, Register len, Register result) {
@@ -5624,9 +5678,8 @@ void MacroAssembler::get_thread(Register dst) {
 // Moved here from aarch64.ad to support Valhalla code belows
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 
-// n.b. frame size includes space for return pc and rfp
+  // n.b. frame size includes space for return pc and rfp
   const long framesize = C->output()->frame_size_in_bytes();
-  assert(framesize % (2 * wordSize) == 0, "must preserve 2 * wordSize alignment");
 
   // insert a nop at the start of the prolog so we can patch in a
   // branch if we need to invalidate the method later
@@ -5634,12 +5687,12 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 
   int bangsize = C->output()->bang_size_in_bytes();
   if (C->output()->need_stack_bang(bangsize))
-     generate_stack_overflow_check(bangsize);
+    generate_stack_overflow_check(bangsize);
 
   build_frame(framesize);
 
   if (C->needs_stack_repair()) {
-    Unimplemented();
+    save_stack_increment(sp_inc, framesize, C->output()->sp_inc_offset());
   }
 
   if (VerifyStackAtCalls) {
@@ -5654,68 +5707,81 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   // the value of the fields.
   Label skip;
   // We only need a new buffered inline type if a new one is not returned
-  cmp(r0, (u1) 1);
-  br(Assembler::EQ, skip);
+  tbz(r0, 0, skip);
   int call_offset = -1;
 
+  // Be careful not to clobber r1-7 which hold returned fields
+  // Also do not use callee-saved registers as these may be live in the interpreter
+  Register tmp1 = r13, tmp2 = r14, klass = r15, r0_preserved = r12;
+
+  // The following code is similar to allocate_instance but has some slight differences,
+  // e.g. object size is always not zero, sometimes it's constant; storing klass ptr after
+  // allocating is not necessary if vk != NULL, etc. allocate_instance is not aware of these.
   Label slow_case;
+  // 1. Try to allocate a new buffered inline instance either from TLAB or eden space
+  mov(r0_preserved, r0); // save r0 for slow_case since *_allocate may corrupt it when allocation failed
 
-  // Try to allocate a new buffered inline type (from the heap)
-  if (UseTLAB) {
-
-    if (vk != NULL) {
-      // Called from C1, where the return type is statically known.
-      mov(r1, (intptr_t)vk->get_InlineKlass());
-      jint lh = vk->layout_helper();
-      assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
-      mov(r14, lh);
+  if (vk != NULL) {
+    // Called from C1, where the return type is statically known.
+    movptr(klass, (intptr_t)vk->get_InlineKlass());
+    jint obj_size = vk->layout_helper();
+    assert(obj_size != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+    if (UseTLAB) {
+      tlab_allocate(r0, noreg, obj_size, tmp1, tmp2, slow_case);
     } else {
-       // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
-       andr(r1, r0, -2);
-       // get obj size
-       ldrw(r14, Address(rscratch1 /*klass*/, Klass::layout_helper_offset()));
+      eden_allocate(r0, noreg, obj_size, tmp1, slow_case);
     }
-
-    ldr(r13, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
-    lea(r14, Address(r13, r14));
-    ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
-    cmp(r14, rscratch1);
-    br(Assembler::GT, slow_case);
-    str(r14, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
+  } else {
+    // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
+    andr(klass, r0, -2);
+    ldrw(tmp2, Address(klass, Klass::layout_helper_offset()));
+    if (UseTLAB) {
+      tlab_allocate(r0, tmp2, 0, tmp1, tmp2, slow_case);
+    } else {
+      eden_allocate(r0, tmp2, 0, tmp1, slow_case);
+    }
+  }
+  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+    // 2. Initialize buffered inline instance header
+    Register buffer_obj = r0;
     mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
-    str(rscratch1, Address(r13, oopDesc::mark_offset_in_bytes()));
-
-    store_klass_gap(r13, zr);  // zero klass gap for compressed oops
-
+    str(rscratch1, Address(buffer_obj, oopDesc::mark_offset_in_bytes()));
+    store_klass_gap(buffer_obj, zr);
+    if (vk == NULL) {
+      // store_klass corrupts klass, so save it for later use (interpreter case only).
+      mov(tmp1, klass);
+    }
+    store_klass(buffer_obj, klass);
+    // 3. Initialize its fields with an inline class specific handler
     if (vk != NULL) {
-      // FIXME -- do the packing in-line to avoid the runtime call
-      mov(r0, r13);
       far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      // We have our new buffered inline type, initialize its fields with an inline class specific handler
-      ldr(r1, Address(r0, InstanceKlass::adr_inlineklass_fixed_block_offset()));
-      ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
-
-      // Mov new class to r0 and call pack_handler
-      mov(r0, r13);
-      blr(r1);
+      // tmp1 holds klass preserved above
+      ldr(tmp1, Address(tmp1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      ldr(tmp1, Address(tmp1, InlineKlass::pack_handler_offset()));
+      blr(tmp1);
     }
-    b(skip);
-  }
 
+    membar(Assembler::StoreStore);
+    b(skip);
+  } else {
+    // Must have already branched to slow_case in eden_allocate() above.
+    DEBUG_ONLY(should_not_reach_here());
+  }
   bind(slow_case);
   // We failed to allocate a new inline type, fall back to a runtime
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
+  mov(r0, r0_preserved);
 
   if (from_interpreter) {
     super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
   } else {
-    ldr(rscratch1, RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
-    blr(rscratch1);
+    far_call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
     call_offset = offset();
   }
+  membar(Assembler::StoreStore);
 
   bind(skip);
   return call_offset;
@@ -5733,9 +5799,15 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
     }
     if (from->is_reg()) {
       if (to->is_reg()) {
-        mov(to->as_Register(), from->as_Register());
+        if (from->is_Register() && to->is_Register()) {
+          mov(to->as_Register(), from->as_Register());
+        } else if (from->is_FloatRegister() && to->is_FloatRegister()) {
+          fmovd(to->as_FloatRegister(), from->as_FloatRegister());
+        } else {
+          ShouldNotReachHere();
+        }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size;
         Address to_addr = Address(sp, st_off);
         if (from->is_FloatRegister()) {
           if (bt == T_DOUBLE) {
@@ -5749,11 +5821,11 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
         }
       }
     } else {
-      Address from_addr = Address(sp, from->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
+      Address from_addr = Address(sp, from->reg2stack() * VMRegImpl::stack_slot_size);
       if (to->is_reg()) {
         if (to->is_FloatRegister()) {
           if (bt == T_DOUBLE) {
-             ldrd(to->as_FloatRegister(), from_addr);
+            ldrd(to->as_FloatRegister(), from_addr);
           } else {
             assert(bt == T_FLOAT, "must be float");
             ldrs(to->as_FloatRegister(), from_addr);
@@ -5762,7 +5834,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           ldr(to->as_Register(), from_addr);
         }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size;
         ldr(rscratch1, from_addr);
         str(rscratch1, Address(sp, st_off));
       }
@@ -5775,19 +5847,41 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
   return true;
 }
 
+// Calculate the extra stack space required for packing or unpacking inline
+// args and adjust the stack pointer
+int MacroAssembler::extend_stack_for_inline_args(int args_on_stack) {
+  int sp_inc = args_on_stack * VMRegImpl::stack_slot_size;
+  sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+  assert(sp_inc > 0, "sanity");
+
+  // Save a copy of the FP and LR here for deoptimization patching and frame walking
+  stp(rfp, lr, Address(pre(sp, -2 * wordSize)));
+
+  // Adjust the stack pointer. This will be repaired on return by MacroAssembler::remove_frame
+  if (sp_inc < (1 << 9)) {
+    sub(sp, sp, sp_inc);   // Fits in an immediate
+  } else {
+    mov(rscratch1, sp_inc);
+    sub(sp, sp, rscratch1);
+  }
+
+  return sp_inc + 2 * wordSize;  // Account for the FP/LR space
+}
+
 // Read all fields from an inline type oop and store the values in registers/stack slots
 bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
                                           VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
                                           RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
   assert(from->is_valid(), "source must bevalid");
+  Register tmp1 = r10, tmp2 = r11;
   Register fromReg;
   if (from->is_reg()) {
     fromReg = from->as_Register();
   } else {
-    int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-    ldr(r10, Address(sp, st_off));
-    fromReg = r10;
+    int st_off = from->reg2stack() * VMRegImpl::stack_slot_size;
+    ldr(tmp1, Address(sp, st_off));
+    fromReg = tmp1;
   }
 
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
@@ -5802,11 +5896,11 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
     int idx = (int)toReg->value();
     if (reg_state[idx] == reg_readonly) {
-     if (idx != from->value()) {
-       mark_done = false;
-     }
-     done = false;
-     continue;
+      if (idx != from->value()) {
+        mark_done = false;
+      }
+      done = false;
+      continue;
     } else if (reg_state[idx] == reg_written) {
       continue;
     } else {
@@ -5815,7 +5909,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
 
     if (!toReg->is_FloatRegister()) {
-      Register dst = toReg->is_stack() ? r13 : toReg->as_Register();
+      Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
       if (is_reference_type(bt)) {
         load_heap_oop(dst, fromAddr);
       } else {
@@ -5823,7 +5917,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
       }
       if (toReg->is_stack()) {
-        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
         str(dst, Address(sp, st_off));
       }
     } else if (bt == T_DOUBLE) {
@@ -5847,7 +5941,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 // Pack fields back into an inline type oop
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                         VMRegPair* from, int from_count, int& from_index, VMReg to,
-                                        RegState reg_state[]) {
+                                        RegState reg_state[], Register val_array) {
   assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "destination must be valid");
 
@@ -5856,13 +5950,14 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
-  Register val_array = r0;
   Register val_obj_tmp = r11;
   Register from_reg_tmp = r10;
   Register tmp1 = r14;
   Register tmp2 = r13;
-  Register tmp3 = r1;
+  Register tmp3 = r12;
   Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
+
+  assert_different_registers(val_obj_tmp, from_reg_tmp, tmp1, tmp2, tmp3, val_array);
 
   if (reg_state[to->value()] == reg_readonly) {
     if (!is_reg_in_unpacked_fields(sig, sig_index, to, from, from_count, from_index)) {
@@ -5890,7 +5985,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       Register src;
       if (fromReg->is_stack()) {
         src = from_reg_tmp;
-        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
         load_sized_value(src, Address(sp, ld_off), size_in_bytes, /* is_signed */ false);
       } else {
         src = fromReg->as_Register();
@@ -5921,15 +6016,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {
   return (reg->is_FloatRegister()) ? v0->as_VMReg() : r14->as_VMReg();
-}
-
-void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset) {
-  assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
-  if (needs_stack_repair) {
-    Unimplemented();
-  } else {
-    remove_frame(initial_framesize);
-  }
 }
 
 void MacroAssembler::cache_wb(Address line) {
@@ -5987,6 +6073,49 @@ void MacroAssembler::safepoint_isb() {
   }
 #endif
 }
+
+void MacroAssembler::neon_compare(FloatRegister dst, BasicType bt, FloatRegister src1,
+                                  FloatRegister src2, int cond, bool isQ) {
+  SIMD_Arrangement size = esize2arrangement(type2aelembytes(bt), isQ);
+  if (bt == T_FLOAT || bt == T_DOUBLE) {
+    switch (cond) {
+      case BoolTest::eq: fcmeq(dst, size, src1, src2); break;
+      case BoolTest::ne: {
+        fcmeq(dst, size, src1, src2);
+        notr(dst, T16B, dst);
+        break;
+      }
+      case BoolTest::ge: fcmge(dst, size, src1, src2); break;
+      case BoolTest::gt: fcmgt(dst, size, src1, src2); break;
+      case BoolTest::le: fcmge(dst, size, src2, src1); break;
+      case BoolTest::lt: fcmgt(dst, size, src2, src1); break;
+      default:
+        assert(false, "unsupported");
+        ShouldNotReachHere();
+    }
+  } else {
+    switch (cond) {
+      case BoolTest::eq: cmeq(dst, size, src1, src2); break;
+      case BoolTest::ne: {
+        cmeq(dst, size, src1, src2);
+        notr(dst, T16B, dst);
+        break;
+      }
+      case BoolTest::ge: cmge(dst, size, src1, src2); break;
+      case BoolTest::gt: cmgt(dst, size, src1, src2); break;
+      case BoolTest::le: cmge(dst, size, src2, src1); break;
+      case BoolTest::lt: cmgt(dst, size, src2, src1); break;
+      case BoolTest::uge: cmhs(dst, size, src1, src2); break;
+      case BoolTest::ugt: cmhi(dst, size, src1, src2); break;
+      case BoolTest::ult: cmhi(dst, size, src2, src1); break;
+      case BoolTest::ule: cmhs(dst, size, src2, src1); break;
+      default:
+        assert(false, "unsupported");
+        ShouldNotReachHere();
+    }
+  }
+}
+
 
 #ifndef PRODUCT
 void MacroAssembler::verify_cross_modify_fence_not_required() {

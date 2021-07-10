@@ -58,6 +58,7 @@ import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.ClassType;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Check;
@@ -971,7 +972,6 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
      * Computes the set of annotations on the symbol in question.
      * Leave class public for external testing purposes.
      */
-    @SuppressWarnings("preview")
     public static class ComputeAnnotationSet extends
         ElementScanner14<Set<TypeElement>, Set<TypeElement>> {
         final Elements elements;
@@ -1343,7 +1343,7 @@ public class JavacProcessingEnvironment implements ProcessingEnvironment, Closea
                         Kinds.Kind symKind = cs.kind;
                         cs.reset();
                         if (symKind == ERR) {
-                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs);
+                            cs.type = new ClassType(cs.type.getEnclosingType(), null, cs, TypeMetadata.EMPTY, Flavor.X_Typeof_X);
                         }
                         if (cs.isCompleted()) {
                             cs.completer = initialCompleter;

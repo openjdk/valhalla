@@ -137,17 +137,17 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        bool is_final,
                                        bool is_volatile,
                                        bool is_inlined,
-                                       bool is_inline_type) {
+                                       bool is_null_free_inline_type) {
   set_f1(field_holder);
   set_f2(field_offset);
   assert((field_index & field_index_mask) == field_index,
          "field index does not fit in low flag bits");
-  assert(!is_inlined || is_inline_type, "Sanity check");
+  assert(!is_inlined || is_null_free_inline_type, "Sanity check");
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
                   ((is_inlined  ? 1 : 0) << is_inlined_shift) |
-                  ((is_inline_type ? 1 : 0) << is_inline_type_shift),
+                  ((is_null_free_inline_type ? 1 : 0) << is_null_free_inline_type_shift),
                   field_index);
   set_bytecode_1(get_code);
   set_bytecode_2(put_code);
@@ -405,7 +405,7 @@ void ConstantPoolCacheEntry::set_method_handle_common(const constantPoolHandle& 
     guarantee(index >= 0, "Didn't find cpCache entry!");
     int encoded_index = ResolutionErrorTable::encode_cpcache_index(
                           ConstantPool::encode_invokedynamic_index(index));
-    Thread* THREAD = Thread::current();
+    JavaThread* THREAD = JavaThread::current(); // For exception macros.
     ConstantPool::throw_resolution_error(cpool, encoded_index, THREAD);
     return;
   }
@@ -488,7 +488,7 @@ bool ConstantPoolCacheEntry::save_and_throw_indy_exc(
   // Use the resolved_references() lock for this cpCache entry.
   // resolved_references are created for all classes with Invokedynamic, MethodHandle
   // or MethodType constant pool cache entries.
-  JavaThread* current = THREAD->as_Java_thread();
+  JavaThread* current = THREAD;
   objArrayHandle resolved_references(current, cpool->resolved_references());
   assert(resolved_references() != NULL,
          "a resolved_references array should have been created for this class");
@@ -735,12 +735,12 @@ void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
   bool* f2_used = NEW_RESOURCE_ARRAY(bool, length());
   memset(f2_used, 0, sizeof(bool) * length());
 
-  Thread* THREAD = Thread::current();
+  Thread* current = Thread::current();
 
   // Find all the slots that we need to preserve f2
   for (int i = 0; i < ik->methods()->length(); i++) {
     Method* m = ik->methods()->at(i);
-    RawBytecodeStream bcs(methodHandle(THREAD, m));
+    RawBytecodeStream bcs(methodHandle(current, m));
     while (!bcs.is_last_bytecode()) {
       Bytecodes::Code opcode = bcs.raw_next();
       switch (opcode) {

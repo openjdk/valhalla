@@ -58,7 +58,7 @@ public class ObjectMethods {
         }
 
         // getClass()
-        checkGetClass(val, MyInt.class);
+        checkGetClass(val, MyInt.ref.class);
 
         //hashCode()/identityHashCode()
         checkHashCodes(val, sameVal.hashCode());

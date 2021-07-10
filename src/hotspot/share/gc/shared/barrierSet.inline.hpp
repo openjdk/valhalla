@@ -25,6 +25,7 @@
 #define SHARE_GC_SHARED_BARRIERSET_INLINE_HPP
 
 #include "gc/shared/barrierSet.hpp"
+
 #include "oops/accessDecorators.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -52,12 +53,12 @@ inline void BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in
   for (const T* const end = src + length; src < end; src++, dst++) {
     const T elem = *src;
     if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && CompressedOops::is_null(elem)) {
-      throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current());
+      throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
       return;
     }
     if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
         (!oopDesc::is_instanceof_or_null(CompressedOops::decode(elem), dst_klass))) {
-      throw_array_store_exception(src_obj, dst_obj, Thread::current());
+      throw_array_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
       return;
     }
     *dst = elem;

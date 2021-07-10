@@ -232,7 +232,7 @@ static bool rematerialize_objects(JavaThread* thread, int exec_mode, CompiledMet
   if (objects != NULL || vk != NULL) {
     if (exec_mode == Deoptimization::Unpack_none) {
       assert(thread->thread_state() == _thread_in_vm, "assumption");
-      Thread* THREAD = thread;
+      JavaThread* THREAD = thread; // For exception macros.
       // Clear pending OOM if reallocation fails and return true indicating allocation failure
       if (vk != NULL) {
         realloc_failures = Deoptimization::realloc_inline_type_result(vk, map, return_oops, CHECK_AND_CLEAR_(true));
@@ -1335,7 +1335,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (field._type == T_INLINE_TYPE) {
+        if (fs.signature()->is_Q_signature()) {
           if (fs.is_inlined()) {
             // Resolve klass of flattened inline type field
             field._klass = InlineKlass::cast(klass->get_inline_type_field_klass(fs.index()));
@@ -1886,7 +1886,7 @@ JRT_END
 MethodData*
 Deoptimization::get_method_data(JavaThread* thread, const methodHandle& m,
                                 bool create_if_missing) {
-  Thread* THREAD = thread;
+  JavaThread* THREAD = thread; // For exception macros.
   MethodData* mdo = m()->method_data();
   if (mdo == NULL && create_if_missing && !HAS_PENDING_EXCEPTION) {
     // Build an MDO.  Ignore errors like OutOfMemory;
@@ -1924,7 +1924,7 @@ void Deoptimization::load_class_by_index(const constantPoolHandle& constant_pool
       // to the runtime the stack is no longer guarded. Reguard the
       // stack otherwise if we return to the uncommon trap blob and the
       // stack bang causes a stack overflow we crash.
-      JavaThread* jt = THREAD->as_Java_thread();
+      JavaThread* jt = THREAD;
       bool guard_pages_enabled = jt->stack_overflow_state()->reguard_stack_if_needed();
       assert(guard_pages_enabled, "stack banging in uncommon trap blob may cause crash");
     }

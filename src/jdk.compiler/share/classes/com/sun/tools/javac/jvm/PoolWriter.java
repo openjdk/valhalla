@@ -116,6 +116,12 @@ public class PoolWriter {
      * or an array type.
      */
     int putClass(Type t) {
+        /* Their is nothing to be gained by having the pair of class types Foo.ref and Foo.val
+           result in two different CONSTANT_Class_info strucures in the pool. These are
+           indistinguishable at the class file level. Hence we coalesce them here.
+        */
+        if (t.isReferenceProjection())
+            t = t.valueProjection();
         return pool.writeIfNeeded(types.erasure(t));
     }
 
@@ -230,9 +236,6 @@ public class PoolWriter {
      * Enter an inner class into the `innerClasses' set.
      */
     void enterInner(ClassSymbol c) {
-        if (c.isReferenceProjection()) {
-            c = c.valueProjection();
-        }
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
@@ -378,9 +381,6 @@ public class PoolWriter {
                     Name name = ct.hasTag(ARRAY) ?
                             typeSig(ct) :
                             c instanceof ConstantPoolQType ? names.fromString("Q" + new String(externalize(ct.tsym.flatName())) + ";") : names.fromUtf(externalize(ct.tsym.flatName()));
-                    if (types.splitPrimitiveClass && ct.isReferenceProjection()) {
-                        name = name.append('$', names.ref);
-                    }
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {
@@ -514,11 +514,10 @@ public class PoolWriter {
         if (typarams.nonEmpty()) {
             signatureGen.assembleParamsSig(typarams);
         }
-        signatureGen.assembleSig(t.isPrimitiveClass() && types.splitPrimitiveClass ? t.referenceProjection() : types.supertype(t));
-        if (!t.isPrimitiveClass() || !types.splitPrimitiveClass) {
-            for (Type i : types.interfaces(t))
-                signatureGen.assembleSig(i);
-        }
+        signatureGen.assembleSig(types.supertype(t));
+        for (Type i : types.interfaces(t))
+            signatureGen.assembleSig(i);
+
         return signatureGen.toName();
     }
 

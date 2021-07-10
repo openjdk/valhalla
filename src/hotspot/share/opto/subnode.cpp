@@ -464,13 +464,6 @@ Node *SubFNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // return new (phase->C, 3) AddFNode(in(1), phase->makecon( TypeF::make(-t2->getf()) ) );
   }
 
-  // Not associative because of boundary conditions (infinity)
-  if (IdealizedNumerics && !phase->C->method()->is_strict() &&
-      in(2)->is_Add() && in(1) == in(2)->in(1)) {
-    // Convert "x - (x+y)" into "-y"
-    return new SubFNode(phase->makecon(TypeF::ZERO), in(2)->in(2));
-  }
-
   // Cannot replace 0.0-X with -X because a 'fsub' bytecode computes
   // 0.0-0.0 as +0.0, while a 'fneg' bytecode computes -0.0.
   //if( phase->type(in(1)) == TypeF::ZERO )
@@ -504,13 +497,6 @@ Node *SubDNode::Ideal(PhaseGVN *phase, bool can_reshape){
   // Convert "x-c0" into "x+ -c0".
   if( t2->base() == Type::DoubleCon ) { // Might be bottom or top...
     // return new (phase->C, 3) AddDNode(in(1), phase->makecon( TypeD::make(-t2->getd()) ) );
-  }
-
-  // Not associative because of boundary conditions (infinity)
-  if (IdealizedNumerics && !phase->C->method()->is_strict() &&
-      in(2)->is_Add() && in(1) == in(2)->in(1)) {
-    // Convert "x - (x+y)" into "-y"
-    return new SubDNode(phase->makecon(TypeD::ZERO), in(2)->in(2));
   }
 
   // Cannot replace 0.0-X with -X because a 'dsub' bytecode computes
@@ -995,8 +981,8 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
                    (r1->is_not_flat() && klass0->is_flat_array_klass())) {
           // One type is a non-flattened array and the other type is a flattened array. Must be unrelated.
           unrelated_classes = true;
-        } else if ((r0->is_not_null_free() && klass1->is_obj_array_klass() && klass1->as_obj_array_klass()->element_klass()->is_inlinetype()) ||
-                   (r1->is_not_null_free() && klass0->is_obj_array_klass() && klass0->as_obj_array_klass()->element_klass()->is_inlinetype())) {
+        } else if ((r0->is_not_null_free() && klass1->is_array_klass() && klass1->as_array_klass()->is_elem_null_free()) ||
+                   (r1->is_not_null_free() && klass0->is_array_klass() && klass0->as_array_klass()->is_elem_null_free())) {
           // One type is a non-null-free array and the other type is a null-free array. Must be unrelated.
           unrelated_classes = true;
         }
@@ -1157,6 +1143,14 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Verify that we understand the situation
   if (con2 != (intptr_t) superklass->super_check_offset())
     return NULL;                // Might be element-klass loading from array klass
+
+  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
+  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
+  // the klass for [LMyValue. Do not bypass the klass load from the primary supertype array.
+  if (superklass->is_obj_array_klass() && !superklass->as_array_klass()->is_elem_null_free() &&
+      superklass->as_array_klass()->element_klass()->is_inlinetype()) {
+    return NULL;
+  }
 
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is

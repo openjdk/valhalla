@@ -24,12 +24,13 @@
 /**
  * @test
  * @bug 8210122
- * @summary [lworld] javac issues bogus "no comment" doclint warning while compiling value class
+ * @summary [lworld] javac issues bogus "no comment" doclint warning while compiling primitive class
  * @compile -Xdoclint:all -Werror DocLintSyntheticsTest.java
  */
 
 /**
- * Test javadoc
+ * NOTE: This test is not relevant as we don't inject synthetic methods into primitive
+ *       classes anymore, but is still left in just the same.
  */
 public primitive class DocLintSyntheticsTest {
   /** field */

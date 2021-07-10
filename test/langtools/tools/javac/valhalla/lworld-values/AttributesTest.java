@@ -42,7 +42,7 @@ public class AttributesTest {
     }
 
     public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(AttributesTest.class.getResourceAsStream("AttributesTest$1V$ref.class"));
+        ClassFile cls = ClassFile.read(AttributesTest.class.getResourceAsStream("AttributesTest$1V.class"));
 
         if (cls == null) {
             throw new AssertionError("Could not locate the class files");
@@ -53,15 +53,11 @@ public class AttributesTest {
         if (inners == null) {
             throw new AssertionError("Missing inner class attribute");
         }
-        if (inners.number_of_classes != 2) {
+        if (inners.number_of_classes != 1) {
             throw new AssertionError("Unexpected inner class attribute");
         }
         String name = inners.classes[0].getInnerName(cls.constant_pool);
         if (!name.equals("V")) {
-            throw new AssertionError("Unexpected inner class " + name);
-        }
-        name = inners.classes[1].getInnerName(cls.constant_pool);
-        if (!name.equals("V$ref")) {
             throw new AssertionError("Unexpected inner class " + name);
         }
 

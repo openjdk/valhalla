@@ -47,11 +47,12 @@ import sun.reflect.generics.repository.ConstructorRepository;
  *
  * @since 1.8
  */
-public abstract class Executable extends AccessibleObject
-    implements Member, GenericDeclaration {
+public abstract sealed class Executable extends AccessibleObject
+    implements Member, GenericDeclaration permits Constructor, Method {
     /*
      * Only grant package-visibility to the constructor.
      */
+    @SuppressWarnings("deprecation")
     Executable() {}
 
     /**
@@ -776,5 +777,13 @@ public abstract class Executable extends AccessibleObject
                 getDeclaringClass(),
                 getGenericExceptionTypes(),
                 TypeAnnotation.TypeAnnotationTarget.THROWS);
+    }
+
+    String getDeclaringClassTypeName() {
+        Class<?> c = getDeclaringClass();
+        if (c.isPrimitiveClass()) {
+            c = c.asValueType();
+        }
+        return c.getTypeName();
     }
 }

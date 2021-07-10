@@ -1243,14 +1243,10 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
 void GraphBuilder::arithmetic_op(ValueType* type, Bytecodes::Code code, ValueStack* state_before) {
   Value y = pop(type);
   Value x = pop(type);
-  // NOTE: strictfp can be queried from current method since we don't
-  // inline methods with differing strictfp bits
-  Value res = new ArithmeticOp(code, x, y, method()->is_strict(), state_before);
+  Value res = new ArithmeticOp(code, x, y, state_before);
   // Note: currently single-precision floating-point rounding on Intel is handled at the LIRGenerator level
   res = append(res);
-  if (method()->is_strict()) {
-    res = round_fp(res);
-  }
+  res = round_fp(res);
   push(type, res);
 }
 
@@ -1844,7 +1840,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(!field->is_stable() || !field_value.is_null_or_zero(),
                "stable static w/ default value shouldn't be a constant");
         constant = make_constant(field_value, field);
-      } else if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+      } else if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Loading from a field of an empty inline type. Just return the default instance.
         constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
       }
@@ -1869,7 +1865,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         break;
       }
@@ -1887,7 +1883,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (!has_pending_field_access() && !has_pending_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
-        if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+        if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
           // Loading from a field of an empty inline type. Just return the default instance.
           null_check(obj);
           constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
@@ -1896,7 +1892,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           if (!const_oop->is_null_object() && const_oop->is_loaded()) {
             ciConstant field_value = field->constant_value_of(const_oop);
             if (field_value.is_valid()) {
-              if (field->signature()->is_Q_signature() && field_value.is_null_or_zero()) {
+              if (field->is_null_free() && field_value.is_null_or_zero()) {
                 // Non-flattened inline type field. Replace null by the default value.
                 constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
               } else {
@@ -2042,7 +2038,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+      if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
         // Storing to a field of an empty inline type. Ignore.
         null_check(obj);
       } else if (!field->is_flattened()) {
@@ -2224,9 +2220,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
 
   // invoke-special-super
   if (bc_raw == Bytecodes::_invokespecial && !target->is_object_constructor()) {
-    ciInstanceKlass* sender_klass =
-          calling_klass->is_unsafe_anonymous() ? calling_klass->unsafe_anonymous_host() :
-                                                 calling_klass;
+    ciInstanceKlass* sender_klass = calling_klass;
     if (sender_klass->is_interface()) {
       int index = state()->stack_size() - (target->arg_size_no_receiver() + 1);
       Value receiver = state()->stack_at(index);
@@ -2343,8 +2337,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // no point in inlining.
       ciInstanceKlass* declared_interface = callee_holder;
       ciInstanceKlass* singleton = declared_interface->unique_implementor();
-      if (singleton != NULL &&
-          (!target->is_default_method() || target->is_overpass()) /* CHA doesn't support default methods yet. */ ) {
+      if (singleton != NULL) {
         assert(singleton != declared_interface, "not a unique implementor");
         cha_monomorphic_target = target->find_monomorphic_target(calling_klass, declared_interface, singleton);
         if (cha_monomorphic_target != NULL) {
@@ -2379,23 +2372,22 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // by dynamic class loading.  Be sure to test the "static" receiver
       // dest_method here, as opposed to the actual receiver, which may
       // falsely lead us to believe that the receiver is final or private.
-      dependency_recorder()->assert_unique_concrete_method(actual_recv, cha_monomorphic_target);
+      dependency_recorder()->assert_unique_concrete_method(actual_recv, cha_monomorphic_target, callee_holder, target);
     }
     code = Bytecodes::_invokespecial;
   }
 
   // check if we could do inlining
-  if (!PatchALot && Inline && target->is_loaded() &&
-      (klass->is_initialized() || (klass->is_interface() && target->holder()->is_initialized()))
-      && !patch_for_appendix) {
+  if (!PatchALot && Inline && target->is_loaded() && callee_holder->is_linked() && !patch_for_appendix) {
     // callee is known => check if we have static binding
-    if (code == Bytecodes::_invokestatic  ||
+    if ((code == Bytecodes::_invokestatic && callee_holder->is_initialized()) || // invokestatic involves an initialization barrier on resolved klass
         code == Bytecodes::_invokespecial ||
         (code == Bytecodes::_invokevirtual && target->is_final_method()) ||
         code == Bytecodes::_invokedynamic) {
-      ciMethod* inline_target = (cha_monomorphic_target != NULL) ? cha_monomorphic_target : target;
       // static binding => check if callee is ok
-      bool success = try_inline(inline_target, (cha_monomorphic_target != NULL) || (exact_target != NULL), false, code, better_receiver);
+      ciMethod* inline_target = (cha_monomorphic_target != NULL) ? cha_monomorphic_target : target;
+      bool holder_known = (cha_monomorphic_target != NULL) || (exact_target != NULL);
+      bool success = try_inline(inline_target, holder_known, false /* ignore_return */, code, better_receiver);
 
       CHECK_BAILOUT();
       clear_inline_bailout();
@@ -2478,16 +2470,12 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   }
 
   Invoke* result = new Invoke(code, result_type, recv, args, target, state_before,
-                              declared_signature->return_type()->is_inlinetype());
+                              declared_signature->returns_null_free_inline_type());
   // push result
   append_split(result);
 
   if (result_type != voidType) {
-    if (method()->is_strict()) {
-      push(result_type, round_fp(result));
-    } else {
-      push(result_type, result);
-    }
+    push(result_type, round_fp(result));
   }
   if (profile_return() && result_type->is_object_kind()) {
     profile_return_type(result, target);
@@ -2526,7 +2514,7 @@ void GraphBuilder::new_type_array() {
 void GraphBuilder::new_object_array() {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool null_free = stream()->is_inline_klass();
+  bool null_free = stream()->has_Q_signature();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
   NewArray* n = new NewObjectArray(klass, ipop(), state_before, null_free);
   apush(append_split(n));
@@ -2553,7 +2541,7 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 void GraphBuilder::check_cast(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool null_free = stream()->is_inline_klass();
+  bool null_free = stream()->has_Q_signature();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
   CheckCast* c = new CheckCast(klass, apop(), state_before, null_free);
   apush(append_split(c));
@@ -3449,9 +3437,11 @@ BlockBegin* GraphBuilder::setup_start_block(int osr_bci, BlockBegin* std_entry, 
   // necesary if std_entry is also a backward branch target because
   // then phi functions may be necessary in the header block.  It's
   // also necessary when profiling so that there's a single block that
-  // can increment the interpreter_invocation_count.
+  // can increment the the counters.
+  // In addition, with range check elimination, we may need a valid block
+  // that dominates all the rest to insert range predicates.
   BlockBegin* new_header_block;
-  if (std_entry->number_of_preds() > 0 || count_invocations() || count_backedges()) {
+  if (std_entry->number_of_preds() > 0 || count_invocations() || count_backedges() || RangeCheckElimination) {
     new_header_block = header_block(std_entry, BlockBegin::std_entry_flag, state);
   } else {
     new_header_block = std_entry;
@@ -3579,7 +3569,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false, type->is_inlinetype()));
+    state->store_local(idx, new Local(type, vt, idx, false, sig->is_null_free_at(i)));
     idx += type->size();
   }
 
@@ -4153,24 +4143,13 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
       !InlineMethodsWithExceptionHandlers) INLINE_BAILOUT("callee has exception handlers");
   if (callee->is_synchronized() &&
       !InlineSynchronizedMethods         ) INLINE_BAILOUT("callee is synchronized");
-  if (!callee->holder()->is_initialized()) INLINE_BAILOUT("callee's klass not initialized yet");
+  if (!callee->holder()->is_linked())      INLINE_BAILOUT("callee's klass not linked yet");
+  if (bc == Bytecodes::_invokestatic &&
+      !callee->holder()->is_initialized()) INLINE_BAILOUT("callee's klass not initialized yet");
   if (!callee->has_balanced_monitors())    INLINE_BAILOUT("callee's monitors do not match");
 
   // Proper inlining of methods with jsrs requires a little more work.
   if (callee->has_jsrs()                 ) INLINE_BAILOUT("jsrs not handled properly by inliner yet");
-
-  if (strict_fp_requires_explicit_rounding &&
-      method()->is_strict() != callee->is_strict()) {
-#ifdef IA32
-    // If explicit rounding is required, do not inline strict code into non-strict code (or the reverse).
-    // When SSE2 is present, no special handling is needed.
-    if (UseSSE < 2) {
-      INLINE_BAILOUT("caller and callee have different strict fp requirements");
-    }
-#else
-    Unimplemented();
-#endif // IA32
-  }
 
   if (is_profiling() && !callee->ensure_method_data()) {
     INLINE_BAILOUT("mdo allocation failed");
@@ -4234,6 +4213,8 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     // printing
     print_inlining(callee, "inline", /*success*/ true);
   }
+
+  assert(bc != Bytecodes::_invokestatic || callee->holder()->is_initialized(), "required");
 
   // NOTE: Bailouts from this point on, which occur at the
   // GraphBuilder level, do not cause bailout just of the inlining but

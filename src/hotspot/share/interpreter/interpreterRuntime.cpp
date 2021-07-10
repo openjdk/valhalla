@@ -160,7 +160,9 @@ JRT_ENTRY(void, InterpreterRuntime::ldc(JavaThread* current, bool wide))
 
   assert (tag.is_unresolved_klass() || tag.is_klass(), "wrong ldc call");
   Klass* klass = pool->klass_at(index, CHECK);
-  oop java_class = klass->java_mirror();
+  oop java_class = tag.is_Qdescriptor_klass()
+                      ? InlineKlass::cast(klass)->val_mirror()
+                      : klass->java_mirror();
   current->set_vm_result(java_class);
 JRT_END
 
@@ -350,7 +352,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
       field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
     } else { // not inlined
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_inline_type()) {
+      if (voop == NULL && cp_entry->is_null_free_inline_type()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
@@ -380,6 +382,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   // If the class is being initialized, the default value is returned.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
+  assert(klass->field_signature(index)->is_Q_signature(), "Sanity check");
   if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
@@ -549,7 +552,7 @@ void InterpreterRuntime::note_trap_inner(JavaThread* current, int reason,
     MethodData* trap_mdo = trap_method->method_data();
     if (trap_mdo == NULL) {
       ExceptionMark em(current);
-      JavaThread* THREAD = current; // for exception macros
+      JavaThread* THREAD = current; // For exception macros.
       Method::build_interpreter_method_data(trap_method, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         // Only metaspace OOM is expected. No Java code executed.
@@ -893,7 +896,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
 
   {
     JvmtiHideSingleStepping jhss(current);
-    Thread* THREAD = current;  // for exception macros
+    JavaThread* THREAD = current; // For exception macros.
     LinkResolver::resolve_field_access(info, pool, last_frame.get_index_u2_cpcache(bytecode),
                                        m, bytecode, CHECK);
   } // end JvmtiHideSingleStepping
@@ -956,7 +959,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
     info.is_inlined(),
-    info.is_inline_type()
+    info.signature()->is_Q_signature() && info.is_inline_type()
   );
 }
 
@@ -1072,7 +1075,7 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
 
   {
     JvmtiHideSingleStepping jhss(current);
-    Thread* THREAD = current;  // for exception macros
+    JavaThread* THREAD = current; // For exception macros.
     LinkResolver::resolve_invoke(info, receiver, pool,
                                  last_frame.get_index_u2_cpcache(bytecode), bytecode,
                                  CHECK);
@@ -1112,11 +1115,10 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
            info.call_kind() == CallInfo::vtable_call, "");
   }
 #endif
-  // Get sender or sender's unsafe_anonymous_host, and only set cpCache entry to resolved if
-  // it is not an interface.  The receiver for invokespecial calls within interface
+  // Get sender and only set cpCache entry to resolved if it is not an
+  // interface.  The receiver for invokespecial calls within interface
   // methods must be checked for every call.
   InstanceKlass* sender = pool->pool_holder();
-  sender = sender->is_unsafe_anonymous() ? sender->unsafe_anonymous_host() : sender;
 
   switch (info.call_kind()) {
   case CallInfo::direct_call:
@@ -1153,7 +1155,7 @@ void InterpreterRuntime::resolve_invokehandle(JavaThread* current) {
   constantPoolHandle pool(current, last_frame.method()->constants());
   {
     JvmtiHideSingleStepping jhss(current);
-    Thread* THREAD = current;  // for exception macros
+    JavaThread* THREAD = current; // For exception macros.
     LinkResolver::resolve_invoke(info, Handle(), pool,
                                  last_frame.get_index_u2_cpcache(bytecode), bytecode,
                                  CHECK);
@@ -1174,7 +1176,7 @@ void InterpreterRuntime::resolve_invokedynamic(JavaThread* current) {
   int index = last_frame.get_index_u4(bytecode);
   {
     JvmtiHideSingleStepping jhss(current);
-    Thread* THREAD = current;  // for exception macros
+    JavaThread* THREAD = current; // For exception macros.
     LinkResolver::resolve_invoke(info, Handle(), pool,
                                  index, bytecode, CHECK);
   } // end JvmtiHideSingleStepping

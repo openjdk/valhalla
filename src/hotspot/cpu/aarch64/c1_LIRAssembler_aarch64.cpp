@@ -376,10 +376,7 @@ void LIR_Assembler::jobject2reg_with_patching(Register reg, CodeEmitInfo *info) 
 int LIR_Assembler::initial_frame_size_in_bytes() const {
   // if rounding, must let FrameMap know!
 
-  // The frame_map records size in slots (32bit word)
-
-  // subtract two words to account for return address and link
-  return (frame_map()->framesize() - (2*VMRegImpl::slots_per_word))  * VMRegImpl::stack_slot_size;
+  return in_bytes(frame_map()->framesize_in_bytes());
 }
 
 
@@ -461,7 +458,8 @@ int LIR_Assembler::emit_unwind_handler() {
   // remove the activation and dispatch to the unwind handler
   __ block_comment("remove_frame and dispatch to the unwind handler");
   int initial_framesize = initial_frame_size_in_bytes();
-  __ remove_frame(initial_framesize, needs_stack_repair(), initial_framesize - wordSize);
+  int sp_inc_offset = initial_framesize - 3*wordSize;  // Below saved FP and LR
+  __ remove_frame(initial_framesize, needs_stack_repair(), sp_inc_offset);
   __ far_jump(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
 
   // Emit the slow path assembly
@@ -513,22 +511,21 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
   ciMethod* method = compilation()->method();
-
-  ciType* return_type = method->return_type();
-  if (InlineTypeReturnedAsFields && return_type->is_inlinetype()) {
-    ciInlineKlass* vk = return_type->as_inline_klass();
+  if (InlineTypeReturnedAsFields && method->signature()->returns_null_free_inline_type()) {
+    ciInlineKlass* vk = method->return_type()->as_inline_klass();
     if (vk->can_be_returned_as_fields()) {
       address unpack_handler = vk->unpack_handler();
       assert(unpack_handler != NULL, "must be");
       __ far_call(RuntimeAddress(unpack_handler));
-      // At this point, rax points to the value object (for interpreter or C1 caller).
+      // At this point, r0 points to the value object (for interpreter or C1 caller).
       // The fields of the object are copied into registers (for C2 caller).
     }
   }
 
   // Pop the stack before the safepoint code
   int initial_framesize = initial_frame_size_in_bytes();
-  __ remove_frame(initial_framesize, needs_stack_repair(), initial_framesize - wordSize);
+  int sp_inc_offset = initial_framesize - 3*wordSize;  // Below saved FP and LR
+  __ remove_frame(initial_framesize, needs_stack_repair(), sp_inc_offset);
 
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();
@@ -1630,7 +1627,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     __ br(Assembler::NE, test_mark_word);
     __ load_prototype_header(tmp, op->array()->as_register());
     __ bind(test_mark_word);
-    __ tst(tmp, markWord::nullfree_array_bit_in_place);
+    __ tst(tmp, markWord::null_free_array_bit_in_place);
   } else {
     Register klass = op->tmp()->as_register();
     __ load_klass(klass, op->array()->as_register());
@@ -1976,9 +1973,7 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
     switch (code) {
     case lir_add: __ fadds (dest->as_float_reg(), left->as_float_reg(), right->as_float_reg()); break;
     case lir_sub: __ fsubs (dest->as_float_reg(), left->as_float_reg(), right->as_float_reg()); break;
-    case lir_mul_strictfp: // fall through
     case lir_mul: __ fmuls (dest->as_float_reg(), left->as_float_reg(), right->as_float_reg()); break;
-    case lir_div_strictfp: // fall through
     case lir_div: __ fdivs (dest->as_float_reg(), left->as_float_reg(), right->as_float_reg()); break;
     default:
       ShouldNotReachHere();
@@ -1989,9 +1984,7 @@ void LIR_Assembler::arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr
       switch (code) {
       case lir_add: __ faddd (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
       case lir_sub: __ fsubd (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
-      case lir_mul_strictfp: // fall through
       case lir_mul: __ fmuld (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
-      case lir_div_strictfp: // fall through
       case lir_div: __ fdivd (dest->as_double_reg(), left->as_double_reg(), right->as_double_reg()); break;
       default:
         ShouldNotReachHere();

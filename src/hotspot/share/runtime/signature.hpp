@@ -523,6 +523,10 @@ class SignatureStream : public StackObj {
     return true;
   }
 
+  bool has_Q_descriptor() const {
+    return has_envelope() && (_signature->char_at(_begin) == JVM_SIGNATURE_INLINE_TYPE);
+  }
+
   // return the symbol for chars in symbol_begin()..symbol_end()
   Symbol* as_symbol() {
     return find_symbol();

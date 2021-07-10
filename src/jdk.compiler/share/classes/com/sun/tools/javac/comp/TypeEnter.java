@@ -681,7 +681,7 @@ public class TypeEnter implements Completer {
             // Determine supertype.
             Type supertype;
             JCExpression extending;
-            final boolean isValueType = (tree.mods.flags & Flags.PRIMITIVE_CLASS) != 0;
+            final boolean isPrimitiveClass = (tree.mods.flags & Flags.PRIMITIVE_CLASS) != 0;
 
             if (tree.extending != null) {
                 extending = clearTypeParams(tree.extending);
@@ -708,6 +708,9 @@ public class TypeEnter implements Completer {
                 iface = clearTypeParams(iface);
                 Type it = attr.attribBase(iface, baseEnv, false, true, true);
                 if (it.hasTag(CLASS)) {
+                    if (isPrimitiveClass && it.tsym == syms.cloneableType.tsym) {
+                        log.error(tree, Errors.PrimitiveClassMustNotImplementCloneable(ct));
+                    }
                     interfaces.append(it);
                     if (all_interfaces != null) all_interfaces.append(it);
                 } else {

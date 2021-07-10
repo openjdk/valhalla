@@ -30,9 +30,8 @@
  */
 
 public class CheckSeparateCompile {
-	public static void main(String[] args) {
-		String s = new CheckSeparateCompile0().new O().new M().new I().foo();
-        if (!s.equals("[CheckSeparateCompile0$O$M$I i=0]"))
-            throw new AssertionError(s);
-	}
+    public static void main(String[] args) {
+        if (new CheckSeparateCompile0().new O().new M().new I().foo().i != 890)
+            throw new AssertionError("Broken");
+    }
 }

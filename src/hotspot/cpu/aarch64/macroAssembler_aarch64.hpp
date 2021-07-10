@@ -632,8 +632,8 @@ public:
   // get_default_value_oop with extra assertion for empty inline klass
   void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
-  void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
-  void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
+  void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
+  void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened);
 
   // Check oops for special arrays, i.e. flattened and/or null-free
@@ -1116,6 +1116,9 @@ public:
                enum operand_size size,
                bool acquire, bool release, bool weak,
                Register result);
+
+  // SIMD&FP comparison
+  void neon_compare(FloatRegister dst, BasicType bt, FloatRegister src1, FloatRegister src2, int cond, bool isQ);
 private:
   void compare_eq(Register rn, Register rm, enum operand_size size);
 
@@ -1265,9 +1268,11 @@ public:
                             RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                           VMRegPair* from, int from_count, int& from_index, VMReg to,
-                          RegState reg_state[]);
+                          RegState reg_state[], Register val_array);
+  int extend_stack_for_inline_args(int args_on_stack);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
   VMReg spill_reg_for(VMReg reg);
+  void save_stack_increment(int sp_inc, int frame_size, int sp_inc_offset);
 
   void tableswitch(Register index, jint lowbound, jint highbound,
                    Label &jumptable, Label &jumptable_end, int stride = 1) {
