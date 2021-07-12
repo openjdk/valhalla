@@ -39,7 +39,7 @@ import static jdk.test.lib.Asserts.*;
  * @run main/othervm -Xint  -XX:FlatArrayElementMaxSize=0  runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
  * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0  runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceAtomicAccess=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {

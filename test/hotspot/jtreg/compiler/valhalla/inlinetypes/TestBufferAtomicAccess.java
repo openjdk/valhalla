@@ -31,27 +31,27 @@ import jdk.test.lib.Asserts;
 import jdk.internal.misc.Unsafe;
 
 /**
- * @test TestBufferTearing
+ * @test TestBufferAtomicAccess
  * @key randomness
- * @summary Detect tearing on inline type buffer writes due to missing barriers.
+ * @summary Detect atomic access violations on inline type buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestBufferAtomicAccess
  * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestBufferAtomicAccess
  * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestBufferAtomicAccess
  * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.inlinetypes.TestBufferTearing
+ *                   compiler.valhalla.inlinetypes.TestBufferAtomicAccess
  */
 
 primitive class MyValue {
@@ -91,7 +91,7 @@ primitive class MyValue {
     }
 }
 
-public class TestBufferTearing {
+public class TestBufferAtomicAccess {
 
     static MyValue vtField1;
     MyValue vtField2;
@@ -113,9 +113,9 @@ public class TestBufferTearing {
     }
 
     static class Runner extends Thread {
-        TestBufferTearing test;
+        TestBufferAtomicAccess test;
 
-        public Runner(TestBufferTearing test) {
+        public Runner(TestBufferAtomicAccess test) {
             this.test = test;
         }
 
@@ -142,8 +142,9 @@ public class TestBufferTearing {
 
     public static void main(String[] args) throws Exception {
         // Create threads that concurrently update some inline type (array) fields
-        // and check the fields of the inline types for consistency to detect tearing.
-        TestBufferTearing test = new TestBufferTearing();
+        // and check the fields of the inline types for consistency to detect access
+        // atomicity violations.
+        TestBufferAtomicAccess test = new TestBufferAtomicAccess();
         Thread runner = null;
         for (int i = 0; i < 10; ++i) {
             runner = new Runner(test);

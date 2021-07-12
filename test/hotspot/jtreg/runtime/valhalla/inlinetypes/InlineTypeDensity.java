@@ -43,14 +43,14 @@ import jdk.test.lib.Asserts;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
  * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
- *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
+ *                   -Xbootclasspath/a:. -XX:ForceAtomicAccess=*
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
  */
 
 public class InlineTypeDensity {
 
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
-    private static final boolean VM_FLAG_FORCENONTEARABLE = WHITE_BOX.getStringVMFlag("ForceNonTearable").equals("*");
+    private static final boolean VM_FLAG_FORCEATOMICACCESS = WHITE_BOX.getStringVMFlag("ForceAtomicAccess").equals("*");
 
     public InlineTypeDensity() {
         if (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") != -1) {
@@ -306,7 +306,7 @@ public class InlineTypeDensity {
     public void test() {
         ensureArraySizeWin();
         testPrimitiveArraySizesSame();
-        if (!VM_FLAG_FORCENONTEARABLE) {
+        if (!VM_FLAG_FORCEATOMICACCESS) {
           testAlignedSize();
         }
     }

@@ -64,7 +64,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
- *                   -XX:ForceNonTearable=*
+ *                   -XX:ForceAtomicAccess=*
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
  */
 public class InlineTypesTest {
