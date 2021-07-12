@@ -56,7 +56,6 @@ void ciConstant::print() {
   case T_DOUBLE:
     tty->print("%lf", _value._double);
     break;
-  case T_INLINE_TYPE:
   default:
     if (is_reference_type(basic_type())) {
       _value._object->print();

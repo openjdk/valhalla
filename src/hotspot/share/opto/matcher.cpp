@@ -185,48 +185,34 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
 
 // Array of RegMask, one per returned values (inline type instances can
 // be returned as multiple return values, one per field)
-RegMask* Matcher::return_values_mask(const TypeTuple *range) {
+RegMask* Matcher::return_values_mask(const TypeTuple* range) {
   uint cnt = range->cnt() - TypeFunc::Parms;
   if (cnt == 0) {
     return NULL;
   }
   RegMask* mask = NEW_RESOURCE_ARRAY(RegMask, cnt);
+  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, cnt);
+  VMRegPair* vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
 
-  if (!InlineTypeReturnedAsFields) {
-    // Get ideal-register return type
-    uint ireg = range->field_at(TypeFunc::Parms)->ideal_reg();
-    // Get machine return register
-    OptoRegPair regs = return_value(ireg);
+  for (uint i = 0; i < cnt; i++) {
+    sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();
+  }
 
-    // And mask for same
-    mask[0].Clear();
-    mask[0].Insert(regs.first());
-    if (OptoReg::is_valid(regs.second())) {
-      mask[0].Insert(regs.second());
+  int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
+  assert(regs > 0, "should have been tested during graph construction");
+  for (uint i = 0; i < cnt; i++) {
+    mask[i].Clear();
+
+    OptoReg::Name reg1 = OptoReg::as_OptoReg(vm_parm_regs[i].first());
+    if (OptoReg::is_valid(reg1)) {
+      mask[i].Insert(reg1);
     }
-  } else {
-    BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, cnt);
-    VMRegPair* vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
-
-    for (uint i = 0; i < cnt; i++) {
-      sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();
-    }
-
-    int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
-    assert(regs > 0, "should have been tested during graph construction");
-    for (uint i = 0; i < cnt; i++) {
-      mask[i].Clear();
-
-      OptoReg::Name reg1 = OptoReg::as_OptoReg(vm_parm_regs[i].first());
-      if (OptoReg::is_valid(reg1)) {
-        mask[i].Insert(reg1);
-      }
-      OptoReg::Name reg2 = OptoReg::as_OptoReg(vm_parm_regs[i].second());
-      if (OptoReg::is_valid(reg2)) {
-        mask[i].Insert(reg2);
-      }
+    OptoReg::Name reg2 = OptoReg::as_OptoReg(vm_parm_regs[i].second());
+    if (OptoReg::is_valid(reg2)) {
+      mask[i].Insert(reg2);
     }
   }
+
   return mask;
 }
 
@@ -1126,7 +1112,7 @@ Node *Matcher::xform( Node *n, int max_stack ) {
             if (n->is_Proj() && n->in(0) != NULL && n->in(0)->is_Multi()) {       // Projections?
               // Convert to machine-dependent projection
               RegMask* mask = NULL;
-              if (n->in(0)->is_Call()) {
+              if (n->in(0)->is_Call() && n->in(0)->as_Call()->tf()->returns_inline_type_as_fields()) {
                 mask = return_values_mask(n->in(0)->as_Call()->tf()->range_cc());
               }
               m = n->in(0)->as_Multi()->match(n->as_Proj(), this, mask);

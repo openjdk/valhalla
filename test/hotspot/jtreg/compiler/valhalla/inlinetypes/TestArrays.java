@@ -1253,7 +1253,6 @@ public class TestArrays extends InlineTypeTest {
 
     @Test
     public MyValue1[] test51(MyValue1[] va) {
-        // TODO 8244562: Remove cast as workaround once javac is fixed
         Object[] res = Arrays.copyOf(va, va.length, MyValue1[].class);
         return (MyValue1[]) res;
     }
@@ -1273,7 +1272,6 @@ public class TestArrays extends InlineTypeTest {
 
     @Test
     public MyValue1[] test52() {
-        // TODO 8244562: Remove cast as workaround once javac is fixed
         Object[] res = Arrays.copyOf(test52_va, 8, MyValue1[].class);
         return (MyValue1[]) res;
     }
@@ -1289,7 +1287,6 @@ public class TestArrays extends InlineTypeTest {
 
     @Test
     public MyValue1[] test53(Object[] va) {
-        // TODO 8244562: Remove cast as workaround once javac is fixed
         Object[] res = Arrays.copyOf(va, va.length, MyValue1[].class);
         return (MyValue1[]) res;
     }
@@ -1339,7 +1336,6 @@ public class TestArrays extends InlineTypeTest {
 
     @Test
     public MyValue1[] test56(Object[] va) {
-        // TODO 8244562: Remove cast as workaround once javac is fixed
         Object[] res = Arrays.copyOf(va, va.length, MyValue1[].class);
         return (MyValue1[]) res;
     }

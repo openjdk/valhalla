@@ -2884,7 +2884,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
 
-  // TODO: Reimplement JDK-8266015, dropped from jdk->lworld merge
+  // TODO 8268946: Reimplement JDK-8266015, dropped from jdk->lworld merge
 
   // Use customized signature handler.  Need to lock around updates to
   // the AdapterHandlerTable (it is not safe for concurrent readers
@@ -2991,11 +2991,9 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
       }
 
 #ifdef ASSERT
-      if (VerifyAdapterSharing) {
+      // TODO fix with 8268946
+      if (false && VerifyAdapterSharing) {
         if (shared_entry != NULL) {
-          if (!shared_entry->compare_code(buf->code_begin(), buffer.insts_size())) {
-            method->print();
-          }
           assert(shared_entry->compare_code(buf->code_begin(), buffer.insts_size()), "code must match");
           // Release the one just created and return the original
           _adapters->free_entry(entry);

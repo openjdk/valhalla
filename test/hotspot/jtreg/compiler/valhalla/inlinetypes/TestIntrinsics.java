@@ -51,7 +51,7 @@ public class TestIntrinsics extends InlineTypeTest {
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
         case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
+        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0"};
         }
         return null;
     }
@@ -112,7 +112,7 @@ public class TestIntrinsics extends InlineTypeTest {
     public void test3_verifier(boolean warmup) {
         Asserts.assertTrue(test3(Object.class) == null, "test3_1 failed");
         Asserts.assertTrue(test3(MyValue1.ref.class) == MyAbstract.class, "test3_2 failed");
-        Asserts.assertTrue(test3(MyValue1.val.class) == MyValue1.ref.class, "test3_3 failed");
+        Asserts.assertTrue(test3(MyValue1.val.class) == MyAbstract.class, "test3_3 failed");
         Asserts.assertTrue(test3(Class.class) == Object.class, "test3_4 failed");
     }
 
@@ -120,10 +120,8 @@ public class TestIntrinsics extends InlineTypeTest {
     @Test(failOn = LOADK)
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
-        // TODO 8244562: Remove cast as workaround once javac is fixed
-        boolean check2 = (Class<?>)MyValue1.ref.class.getSuperclass() == MyAbstract.class;
-        // TODO 8244562: Remove cast as workaround once javac is fixed
-        boolean check3 = (Class<?>)MyValue1.val.class.getSuperclass() == MyValue1.ref.class;
+        boolean check2 = MyValue1.ref.class.getSuperclass() == MyAbstract.class;
+        boolean check3 = MyValue1.val.class.getSuperclass() == MyAbstract.class;
         boolean check4 = Class.class.getSuperclass() == Object.class;
         return check1 && check2 && check3 && check4;
     }
@@ -469,7 +467,7 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // Load non-flattenable inline type field with unsafe
-    MyValue1.ref test27_vt = MyValue1.createWithFieldsInline(rI, rL);
+    MyValue1.ref test27_vt;
     private static final long TEST27_OFFSET;
     static {
         try {
@@ -481,13 +479,17 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     @Test(failOn=CALL_Unsafe)
-    public MyValue1 test27() {
-        return (MyValue1)U.getReference(this, TEST27_OFFSET);
+    public MyValue1.ref test27() {
+        return (MyValue1.ref)U.getReference(this, TEST27_OFFSET);
     }
 
     @DontCompile
     public void test27_verifier(boolean warmup) {
-        MyValue1 res = test27();
+        test27_vt = null;
+        MyValue1.ref res = test27();
+        Asserts.assertEQ(res, null);
+        test27_vt = MyValue1.createWithFieldsInline(rI, rL);
+        res = test27();
         Asserts.assertEQ(res.hash(), test24_vt.hash());
     }
 
