@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @bug 8223028
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
- * @compile verifierTests.jcod NoNullVT.jcod
+ * @compile verifierTests.jcod
  * @run main/othervm -verify VerifierInlineTypes
  */
 
@@ -73,10 +73,6 @@ public class VerifierInlineTypes {
         // Test VerifyError is thrown if a defaultvalue's cp entry is not a class.
         runTestVerifyError("defValWrongCPType", "Illegal type at constant pool entry");
 
-        // Test that the verifier doesn't require that a withfield bytecode has a Q type operand.
-        Class newClass = Class.forName("withfieldL");
-
-/*
         // Test that a withfield opcode with an out of bounds cp index causes a VerifyError.
         runTestVerifyError("wthFldBadCP", "Illegal constant pool index");
 
@@ -94,19 +90,11 @@ public class VerifierInlineTypes {
         // Test VerifyError is thrown if a withfields's cp entry is not a field.
         runTestVerifyError("wthFldWrongCPType", "Illegal type at constant pool entry");
 
-        // Test that VerifyError is thrown if the class for a withfields's cp fieldref
-        // entry is java.lang.Object and the reference on the stack is an inline type.
-        runTestVerifyError("wthFldObject", "must be identical inline types");
-
-        // Test VerifyError is thrown if a monitorenter's cp entry is an inline type.
-        runTestVerifyError("monEnterVT", "Bad type on operand stack");
-*/
-
-        // Test VerifyError is thrown if a defaultvalue's cp entry is an inline type.
+        // Test VerifyError is thrown if a defaultvalue's cp entry is not an inline type.
         runTestVerifyError("defValueObj", "Illegal type at constant pool entry 4");
 
-        // Test VerifyError is thrown if a withfield's class operand is not an inline type.
-//        runTestVerifyError("withfieldObj", "Bad type on operand stack");
+        // Test that the verifier doesn't require that a withfield bytecode has a Q type operand.
+        Class newClass = Class.forName("withfieldL");
 
         // Test that null is not assignable to an inline type.
         runTestVerifyError("NoNullVT",
