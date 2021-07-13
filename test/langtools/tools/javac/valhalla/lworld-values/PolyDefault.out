@@ -1,0 +1,4 @@
+PolyDefault.java:54:45: compiler.err.prob.found.req: (compiler.misc.cant.apply.diamond.1: (compiler.misc.diamond: PolyDefault), (compiler.misc.infer.no.conforming.instance.exists: E, PolyDefault<E>, java.util.List<java.lang.String>))
+PolyDefault.java:55:29: compiler.err.prob.found.req: (compiler.misc.cant.apply.diamond.1: (compiler.misc.diamond: PolyDefault), (compiler.misc.infer.no.conforming.instance.exists: E, PolyDefault<E>, java.util.List<java.lang.String>))
+PolyDefault.java:56:31: compiler.err.prob.found.req: (compiler.misc.cant.apply.diamond.1: (compiler.misc.diamond: PolyDefault.Foo), (compiler.misc.incompatible.bounds: X, (compiler.misc.eq.bounds: java.lang.String), (compiler.misc.upper.bounds: java.lang.Number)))
+3 errors
