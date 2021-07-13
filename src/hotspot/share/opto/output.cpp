@@ -3160,6 +3160,15 @@ void Scheduling::ComputeRegisterAntidependencies(Block *b) {
           break;
         }
       }
+
+      // Do not allow a CheckCastPP node whose input is a raw pointer to
+      // float past a safepoint.
+      if (m->is_Mach() && m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
+        Node *def = m->in(1);
+        if (def != NULL && def->bottom_type()->base() == Type::RawPtr) {
+          last_safept_node->add_prec(m);
+        }
+      }
     }
 
     if( n->jvms() ) {           // Precedence edge from derived to safept
