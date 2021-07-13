@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,42 +23,46 @@
 
 package compiler.valhalla.inlinetypes;
 
+import jdk.internal.misc.Unsafe;
+import jdk.test.lib.Asserts;
+import compiler.lib.ir_framework.*;
+
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.List;
 
-import jdk.test.lib.Asserts;
-import jdk.internal.misc.Unsafe;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
  * @summary Test intrinsic support for inline types
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @modules java.base/jdk.internal.misc
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestIntrinsics.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestIntrinsics
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestIntrinsics
  */
-public class TestIntrinsics extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0"};
-        }
-        return null;
-    }
 
-    public static void main(String[] args) throws Throwable {
-        TestIntrinsics test = new TestIntrinsics();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
+@ForceCompileClassInitializer
+public class TestIntrinsics {
+
+    public static void main(String[] args) {
+
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        for (Scenario scenario: scenarios) {
+            scenario.addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
+        }
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class)
+                   .start();
     }
 
     // Test correctness of the Class::isAssignableFrom intrinsic
@@ -67,8 +71,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return supercls.isAssignableFrom(subcls);
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    public void test1_verifier() {
         Asserts.assertTrue(test1(java.util.AbstractList.class, java.util.ArrayList.class), "test1_1 failed");
         Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.ref.class), "test1_2 failed");
         Asserts.assertTrue(test1(MyValue1.class, MyValue1.class), "test1_3 failed");
@@ -82,7 +86,8 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // Verify that Class::isAssignableFrom checks with statically known classes are folded
-    @Test(failOn = LOADK)
+    @Test
+    @IR(failOn = {LOADK})
     public boolean test2() {
         boolean check1 = java.util.AbstractList.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check2 = MyValue1.ref.class.isAssignableFrom(MyValue1.ref.class);
@@ -97,8 +102,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return check1 && check2 && check3 && check4 && check5 && check6 && check7 && check8 && check9 && check10;
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         Asserts.assertTrue(test2(), "test2 failed");
     }
 
@@ -108,8 +113,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return cls.getSuperclass();
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         Asserts.assertTrue(test3(Object.class) == null, "test3_1 failed");
         Asserts.assertTrue(test3(MyValue1.ref.class) == MyAbstract.class, "test3_2 failed");
         Asserts.assertTrue(test3(MyValue1.val.class) == MyAbstract.class, "test3_3 failed");
@@ -117,7 +122,8 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // Verify that Class::getSuperclass checks with statically known classes are folded
-    @Test(failOn = LOADK)
+    @Test
+    @IR(failOn = {LOADK})
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
         boolean check2 = MyValue1.ref.class.getSuperclass() == MyAbstract.class;
@@ -126,8 +132,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return check1 && check2 && check3 && check4;
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         Asserts.assertTrue(test4(), "test4 failed");
     }
 
@@ -137,8 +143,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return v.toString();
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    public void test5_verifier() {
         MyValue1 v = MyValue1.createDefaultInline();
         test5(v);
     }
@@ -149,8 +155,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return v.hashCode();
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         int res = test6(v);
         Asserts.assertEQ(res, v.hashCode());
@@ -163,8 +169,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    public void test7_verifier() {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
         Object[] va = test7(MyValue1.class, len);
@@ -179,8 +185,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.isInstance(vt);
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
+    @Run(test = "test8")
+    public void test8_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test8(MyValue1.class, vt);
         Asserts.assertTrue(result);
@@ -193,8 +199,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.isInstance(vt);
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
+    @Run(test = "test9")
+    public void test9_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test9(MyValue2.class, vt);
         Asserts.assertFalse(result);
@@ -208,8 +214,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.cast(vt);
     }
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) {
+    @Run(test = "test10")
+    public void test10_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test10(MyValue1.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -220,8 +226,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.cast(vt);
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) {
+    @Run(test = "test11")
+    public void test11_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
             test11(MyValue2.class, vt);
@@ -235,8 +241,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return MyValue1.class.cast(vt);
     }
 
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
+    @Run(test = "test12")
+    public void test12_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test12(vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -247,8 +253,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return MyValue2.class.cast(vt);
     }
 
-    @DontCompile
-    public void test13_verifier(boolean warmup) {
+    @Run(test = "test13")
+    public void test13_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
             test13(vt);
@@ -266,8 +272,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test14_verifier(boolean warmup) {
+    @Run(test = "test14")
+    public void test14_verifier() {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
         test14(len, hash);
@@ -279,8 +285,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return v.hashCode();
     }
 
-    @DontCompile
-    public void test15_verifier(boolean warmup) {
+    @Run(test = "test15")
+    public void test15_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         int res = test15(v);
         Asserts.assertEQ(res, v.hashCode());
@@ -291,8 +297,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return System.identityHashCode(v);
     }
 
-    @DontCompile
-    public void test16_verifier(boolean warmup) {
+    @Run(test = "test16")
+    public void test16_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         int res = test16(v);
         Asserts.assertEQ(res, System.identityHashCode((Object)v));
@@ -303,8 +309,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return System.identityHashCode(v);
     }
 
-    @DontCompile
-    public void test17_verifier(boolean warmup) {
+    @Run(test = "test17")
+    public void test17_verifier() {
         Integer v = Integer.valueOf(rI);
         int res = test17(v);
         Asserts.assertEQ(res, System.identityHashCode(v));
@@ -315,8 +321,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return System.identityHashCode(v);
     }
 
-    @DontCompile
-    public void test18_verifier(boolean warmup) {
+    @Run(test = "test18")
+    public void test18_verifier() {
         Object v = null;
         int res = test18(v);
         Asserts.assertEQ(res, System.identityHashCode(v));
@@ -329,8 +335,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return res.hashCode();
     }
 
-    @DontCompile
-    public void test19_verifier(boolean warmup) {
+    @Run(test = "test19")
+    public void test19_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         int res = test19(vt, vt, true);
         Asserts.assertEQ(res, vt.hashCode());
@@ -344,8 +350,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return res.toString();
     }
 
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
+    @Run(test = "test20")
+    public void test20_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         String res = test20(vt, vt, true);
         Asserts.assertEQ(res, vt.toString());
@@ -374,20 +380,22 @@ public class TestIntrinsics extends InlineTypeTest {
 
     protected static final String CALL_Unsafe = START + "CallStaticJava" + MID + "# Static  jdk.internal.misc.Unsafe::" + END;
 
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public int test21(MyValue1 v) {
        return U.getInt(v, X_OFFSET);
     }
 
-    @DontCompile
-    public void test21_verifier(boolean warmup) {
+    @Run(test = "test21")
+    public void test21_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         int res = test21(v);
         Asserts.assertEQ(res, v.x);
     }
 
     MyValue1 test22_vt;
-    @Test(failOn=CALL_Unsafe + ALLOC)
+    @Test
+    @IR(failOn = {CALL_Unsafe, ALLOC})
     public void test22(MyValue1 v) {
         v = U.makePrivateBuffer(v);
         U.putInt(v, X_OFFSET, rI);
@@ -395,20 +403,21 @@ public class TestIntrinsics extends InlineTypeTest {
         test22_vt = v;
     }
 
-    @DontCompile
-    public void test22_verifier(boolean warmup) {
+    @Run(test = "test22")
+    public void test22_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         test22(v.setX(v, 0));
         Asserts.assertEQ(test22_vt.hash(), v.hash());
     }
 
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public int test23(MyValue1 v, long offset) {
         return U.getInt(v, offset);
     }
 
-    @DontCompile
-    public void test23_verifier(boolean warmup) {
+    @Run(test = "test23")
+    public void test23_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         int res = test23(v, X_OFFSET);
         Asserts.assertEQ(res, v.x);
@@ -416,13 +425,14 @@ public class TestIntrinsics extends InlineTypeTest {
 
     MyValue1 test24_vt = MyValue1.createWithFieldsInline(rI, rL);
 
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public int test24(long offset) {
         return U.getInt(test24_vt, offset);
     }
 
-    @DontCompile
-    public void test24_verifier(boolean warmup) {
+    @Run(test = "test24")
+    public void test24_verifier() {
         int res = test24(X_OFFSET);
         Asserts.assertEQ(res, test24_vt.x);
     }
@@ -444,8 +454,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return (Test25Value[]) newArray;
     }
 
-    @DontCompile
-    public void test25_verifier(boolean warmup) {
+    @Run(test = "test25")
+    public void test25_verifier() {
         Test25Value vt = new Test25Value();
         test25(vt);
     }
@@ -460,8 +470,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return Array.newInstance(ca[0], 1);
     }
 
-    @DontCompile
-    public void test26_verifier(boolean warmup) {
+    @Run(test = "test26")
+    public void test26_verifier() {
         Object[] res = (Object[])test26();
         Asserts.assertEQ(((MyValue1)res[0]).hashPrimitive(), MyValue1.createDefaultInline().hashPrimitive());
     }
@@ -478,13 +488,14 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue1.ref test27() {
         return (MyValue1.ref)U.getReference(this, TEST27_OFFSET);
     }
 
-    @DontCompile
-    public void test27_verifier(boolean warmup) {
+    @Run(test = "test27")
+    public void test27_verifier() {
         test27_vt = null;
         MyValue1.ref res = test27();
         Asserts.assertEQ(res, null);
@@ -494,13 +505,14 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // Mismatched type
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public int test28(MyValue1 v) {
         return U.getByte(v, X_OFFSET);
     }
 
-    @DontCompile
-    public void test28_verifier(boolean warmup) {
+    @Run(test = "test28")
+    public void test28_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         int res = test28(v);
         if (java.nio.ByteOrder.nativeOrder() == java.nio.ByteOrder.LITTLE_ENDIAN) {
@@ -511,7 +523,8 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // Wrong alignment
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public long test29(MyValue1 v) {
         // Read the field that's guaranteed to not be last in the
         // inline type so we don't read out of bounds.
@@ -521,8 +534,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return U.getLong(v, Y_OFFSET+1);
     }
 
-    @DontCompile
-    public void test29_verifier(boolean warmup) {
+    @Run(test = "test29")
+    public void test29_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         long res = test29(v);
         if (java.nio.ByteOrder.nativeOrder() == java.nio.ByteOrder.LITTLE_ENDIAN) {
@@ -541,7 +554,8 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // getValue to retrieve flattened field from inline type
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue2 test30(MyValue1 v) {
         if (V1_FLATTENED) {
             return U.getValue(v, V1_OFFSET, MyValue2.val.class);
@@ -549,8 +563,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return (MyValue2)U.getReference(v, V1_OFFSET);
     }
 
-    @DontCompile
-    public void test30_verifier(boolean warmup) {
+    @Run(test = "test30")
+    public void test30_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2 res = test30(v);
         Asserts.assertEQ(res.hash(), v.v1.hash());
@@ -570,7 +584,8 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // getValue to retrieve flattened field from object
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue1 test31() {
         if (TEST31_VT_FLATTENED) {
             return U.getValue(this, TEST31_VT_OFFSET, MyValue1.val.class);
@@ -578,15 +593,16 @@ public class TestIntrinsics extends InlineTypeTest {
         return (MyValue1)U.getReference(this, TEST31_VT_OFFSET);
     }
 
-    @DontCompile
-    public void test31_verifier(boolean warmup) {
+    @Run(test = "test31")
+    public void test31_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test31();
         Asserts.assertEQ(res.hash(), test31_vt.hash());
     }
 
     // putValue to set flattened field in object
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public void test32(MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
             U.putValue(this, TEST31_VT_OFFSET, MyValue1.val.class, vt);
@@ -595,8 +611,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test32_verifier(boolean warmup) {
+    @Run(test = "test32")
+    public void test32_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test32(vt);
@@ -616,7 +632,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
     // getValue to retrieve flattened field from array
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue1 test33(MyValue1[] arr) {
         if (TEST33_FLATTENED_ARRAY) {
             return U.getValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.val.class);
@@ -624,8 +641,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return (MyValue1)U.getReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
     }
 
-    @DontCompile
-    public void test33_verifier(boolean warmup) {
+    @Run(test = "test33")
+    public void test33_verifier() {
         MyValue1[] arr = new MyValue1[2];
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         arr[1] = vt;
@@ -634,7 +651,8 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     // putValue to set flattened field in array
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public void test34(MyValue1[] arr, MyValue1 vt) {
         if (TEST33_FLATTENED_ARRAY) {
             U.putValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.val.class, vt);
@@ -643,8 +661,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test34_verifier(boolean warmup) {
+    @Run(test = "test34")
+    public void test34_verifier() {
         MyValue1[] arr = new MyValue1[2];
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test34(arr, vt);
@@ -653,7 +671,8 @@ public class TestIntrinsics extends InlineTypeTest {
 
     // getValue to retrieve flattened field from object with unknown
     // container type
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue1 test35(Object o) {
         if (TEST31_VT_FLATTENED) {
             return U.getValue(o, TEST31_VT_OFFSET, MyValue1.val.class);
@@ -661,8 +680,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return (MyValue1)U.getReference(o, TEST31_VT_OFFSET);
     }
 
-    @DontCompile
-    public void test35_verifier(boolean warmup) {
+    @Run(test = "test35")
+    public void test35_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test35(this);
         Asserts.assertEQ(res.hash(), test31_vt.hash());
@@ -670,7 +689,8 @@ public class TestIntrinsics extends InlineTypeTest {
 
     // getValue to retrieve flattened field from object at unknown
     // offset
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue1 test36(long offset) {
         if (TEST31_VT_FLATTENED) {
             return U.getValue(this, offset, MyValue1.val.class);
@@ -678,8 +698,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return (MyValue1)U.getReference(this, offset);
     }
 
-    @DontCompile
-    public void test36_verifier(boolean warmup) {
+    @Run(test = "test36")
+    public void test36_verifier() {
         test31_vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test36(TEST31_VT_OFFSET);
         Asserts.assertEQ(res.hash(), test31_vt.hash());
@@ -687,7 +707,8 @@ public class TestIntrinsics extends InlineTypeTest {
 
     // putValue to set flattened field in object with unknown
     // container
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public void test37(Object o, MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
             U.putValue(o, TEST31_VT_OFFSET, MyValue1.val.class, vt);
@@ -696,8 +717,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test37_verifier(boolean warmup) {
+    @Run(test = "test37")
+    public void test37_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test37(this, vt);
@@ -706,7 +727,8 @@ public class TestIntrinsics extends InlineTypeTest {
 
     // putValue to set flattened field in object, non inline argument
     // to store
-    @Test(match = { CALL_Unsafe }, matchCount = { 1 })
+    @Test
+    @IR(counts = {CALL_Unsafe, "= 1"})
     public void test38(Object o) {
         if (TEST31_VT_FLATTENED) {
             U.putValue(this, TEST31_VT_OFFSET, MyValue1.val.class, o);
@@ -715,15 +737,16 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test38_verifier(boolean warmup) {
+    @Run(test = "test38")
+    public void test38_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test31_vt = MyValue1.createDefaultInline();
         test38(vt);
         Asserts.assertEQ(vt.hash(), test31_vt.hash());
     }
 
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue1 test39(MyValue1 v) {
         v = U.makePrivateBuffer(v);
         U.putInt(v, X_OFFSET, rI);
@@ -731,8 +754,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return v;
     }
 
-    @DontCompile
-    public void test39_verifier(boolean warmup) {
+    @Run(test = "test39")
+    public void test39_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test39(v.setX(v, 0));
         Asserts.assertEQ(res.hash(), v.hash());
@@ -745,8 +768,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test40_verifier(boolean warmup) {
+    @Run(test = "test40")
+    public void test40_verifier() {
         int len = Math.abs(rI) % 42;
         Object[] va = test40(MyValue1.ref.class, len);
         for (int i = 0; i < len; ++i) {
@@ -760,8 +783,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.isInstance(vt);
     }
 
-    @DontCompile
-    public void test41_verifier(boolean warmup) {
+    @Run(test = "test41")
+    public void test41_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test41(MyValue1.ref.class, vt);
         Asserts.assertTrue(result);
@@ -774,8 +797,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.isInstance(vt);
     }
 
-    @DontCompile
-    public void test42_verifier(boolean warmup) {
+    @Run(test = "test42")
+    public void test42_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test42(MyValue2.ref.class, vt);
         Asserts.assertFalse(result);
@@ -789,8 +812,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.cast(vt);
     }
 
-    @DontCompile
-    public void test43_verifier(boolean warmup) {
+    @Run(test = "test43")
+    public void test43_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test43(MyValue1.ref.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -803,8 +826,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.cast(vt);
     }
 
-    @DontCompile
-    public void test44_verifier(boolean warmup) {
+    @Run(test = "test44")
+    public void test44_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
             test44(MyValue2.ref.class, vt);
@@ -818,8 +841,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return MyValue1.ref.class.cast(vt);
     }
 
-    @DontCompile
-    public void test45_verifier(boolean warmup) {
+    @Run(test = "test45")
+    public void test45_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test45(vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -832,8 +855,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return MyValue2.ref.class.cast(vt);
     }
 
-    @DontCompile
-    public void test46_verifier(boolean warmup) {
+    @Run(test = "test46")
+    public void test46_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         test46(null);
         try {
@@ -848,8 +871,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return MyValue1.val.class.cast(vt);
     }
 
-    @DontCompile
-    public void test47_verifier(boolean warmup) {
+    @Run(test = "test47")
+    public void test47_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test47(vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -865,8 +888,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.cast(vt);
     }
 
-    @DontCompile
-    public void test48_verifier(boolean warmup) {
+    @Run(test = "test48")
+    public void test48_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test48(MyValue1.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -882,8 +905,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return MyValue1.ref.class.cast(vt);
     }
 
-    @DontCompile
-    public void test49_verifier(boolean warmup) {
+    @Run(test = "test49")
+    public void test49_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test49(vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -894,8 +917,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return c.cast(obj);
     }
 
-    @DontCompile
-    public void test50_verifier(boolean warmup) {
+    @Run(test = "test50")
+    public void test50_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va  = new MyValue1[42];
         MyValue1.ref[] vba = new MyValue1.ref[42];
@@ -930,8 +953,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test51_verifier(boolean warmup) {
+    @Run(test = "test51")
+    public void test51_verifier() {
         int len = Math.abs(rI) % 42;
         test51(len);
     }
@@ -958,8 +981,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test52_verifier(boolean warmup) {
+    @Run(test = "test52")
+    public void test52_verifier() {
         test52(1, 1);
         test52(1, 2);
     }
@@ -1002,8 +1025,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test53_verifier(boolean warmup) {
+    @Run(test = "test53")
+    public void test53_verifier() {
         int len = Math.abs(rI) % 42;
         test53(MyValue1[].class, MyValue1.ref[].class, len, 1);
         test53(MyValue1[].class, MyValue1.ref[].class, len, 2);
@@ -1018,7 +1041,6 @@ public class TestIntrinsics extends InlineTypeTest {
     }
 
     @Test()
-    @Warmup(10000) // Fill up the TLAB to trigger slow path allocation
     public MyValue1 test54(MyValue1 v) {
         v = U.makePrivateBuffer(v);
         test54_callee(v);
@@ -1026,8 +1048,9 @@ public class TestIntrinsics extends InlineTypeTest {
         return v;
     }
 
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
+    @Run(test = "test54")
+    @Warmup(10000) // Fill up the TLAB to trigger slow path allocation
+    public void test54_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 res = test54(v.setX(v, 0));
         Asserts.assertEQ(res.hash(), v.hash());
@@ -1036,7 +1059,8 @@ public class TestIntrinsics extends InlineTypeTest {
     static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
 
     // Same as test30 but with constant field holder
-    @Test(failOn=CALL_Unsafe)
+    @Test
+    @IR(failOn = {CALL_Unsafe})
     public MyValue2 test55() {
         if (V1_FLATTENED) {
             return U.getValue(test55_vt, V1_OFFSET, MyValue2.val.class);
@@ -1044,8 +1068,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return (MyValue2)U.getReference(test55_vt, V1_OFFSET);
     }
 
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
+    @Run(test = "test55")
+    public void test55_verifier() {
         MyValue2 res = test55();
         Asserts.assertEQ(res.hash(), test55_vt.v1.hash());
     }
@@ -1059,8 +1083,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test56_verifier(boolean warmup) {
+    @Run(test = "test56")
+    public void test56_verifier() {
         test56(0);
     }
 
@@ -1073,8 +1097,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test57_verifier(boolean warmup) {
+    @Run(test = "test57")
+    public void test57_verifier() {
         test57();
     }
 
@@ -1086,8 +1110,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return obj1 == obj2;
     }
 
-    @DontCompile
-    public void test58_verifier(boolean warmup) throws Exception {
+    @Run(test = "test58")
+    public void test58_verifier() throws Exception {
         boolean res = test58(MyValue1.class, MyValue1.class);
         Asserts.assertTrue(res);
         res = test58(Object.class, MyValue1.class);
@@ -1105,8 +1129,8 @@ public class TestIntrinsics extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test59_verifier(boolean warmup) throws Exception {
+    @Run(test = "test59")
+    public void test59_verifier() throws Exception {
         test59(Integer.class);
         try {
             test59(MyValue1.class);
@@ -1124,8 +1148,8 @@ public class TestIntrinsics extends InlineTypeTest {
         return obj1 == obj2;
     }
 
-    @DontCompile
-    public void test60_verifier(boolean warmup) throws Exception {
+    @Run(test = "test60")
+    public void test60_verifier() throws Exception {
         Asserts.assertTrue(test60(MyValue1.class, MyValue1.class, false, false));
         Asserts.assertFalse(test60(MyValue1.class, MyValue2.class, false, false));
         Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, false, true));

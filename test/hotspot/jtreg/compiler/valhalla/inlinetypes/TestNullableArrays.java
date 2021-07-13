@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,12 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
+import compiler.lib.ir_framework.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
+import static compiler.valhalla.inlinetypes.InlineTypes.rD;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
@@ -31,31 +37,28 @@ import java.util.Arrays;
  * @test
  * @key randomness
  * @summary Test nullable inline type arrays
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestNullableArrays.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestNullableArrays
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestNullableArrays
  */
-public class TestNullableArrays extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
-        case 5: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
-        }
-        return null;
-    }
 
-    public static void main(String[] args) throws Throwable {
-        TestNullableArrays test = new TestNullableArrays();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
+@ForceCompileClassInitializer
+public class TestNullableArrays {
+
+    public static void main(String[] args) {
+
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        scenarios[2].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
+        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
+        scenarios[5].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class)
+                   .start();
     }
 
     // Helper methods
@@ -71,8 +74,12 @@ public class TestNullableArrays extends InlineTypeTest {
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
     // Test nullable inline type array creation and initialization
-    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {ALLOCA, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        counts = {ALLOCA, "= 1"},
+        failOn = LOAD)
     public MyValue1.ref[] test1(int len) {
         MyValue1.ref[] va = new MyValue1.ref[len];
         if (len > 0) {
@@ -84,8 +91,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    public void test1_verifier() {
         int len = Math.abs(rI % 10);
         MyValue1.ref[] va = test1(len);
         if (len > 0) {
@@ -97,22 +104,24 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test creation of an inline type array and element access
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public long test2() {
         MyValue1.ref[] va = new MyValue1.ref[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
         return va[0].hash();
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         long result = test2();
         Asserts.assertEQ(result, hash());
     }
 
     // Test receiving an inline type array from the interpreter,
     // updating its elements in a loop and computing a hash.
-    @Test(failOn = ALLOCA)
+    @Test
+    @IR(failOn = {ALLOCA})
     public long test3(MyValue1.ref[] va) {
         long result = 0;
         for (int i = 0; i < 10; ++i) {
@@ -125,8 +134,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         MyValue1.ref[] va = new MyValue1.ref[10];
         long expected = 0;
         for (int i = 1; i < 10; ++i) {
@@ -144,13 +153,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test returning an inline type array received from the interpreter
-    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue1.ref[] test4(MyValue1.ref[] va) {
         return va;
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         MyValue1.ref[] va = new MyValue1.ref[10];
         for (int i = 0; i < 10; ++i) {
             va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
@@ -187,8 +197,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    public void test5_verifier() {
         MyValue1.ref[] va = test5(true);
         Asserts.assertEQ(va.length, 5);
         Asserts.assertEQ(va[0].hash(), hash(rI, hash()));
@@ -206,27 +216,29 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test creation of inline type array with single element
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public MyValue1.ref test6() {
         MyValue1.ref[] va = new MyValue1.ref[1];
         return va[0];
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         MyValue1.ref[] va = new MyValue1.ref[1];
         MyValue1.ref v = test6();
         Asserts.assertEQ(v, null);
     }
 
     // Test default initialization of inline type arrays
-    @Test(failOn = LOAD)
+    @Test
+    @IR(failOn = LOAD)
     public MyValue1.ref[] test7(int len) {
         return new MyValue1.ref[len];
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    public void test7_verifier() {
         int len = Math.abs(rI % 10);
         MyValue1.ref[] va = test7(len);
         for (int i = 0; i < len; ++i) {
@@ -236,13 +248,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test creation of inline type array with zero length
-    @Test(failOn = ALLOC + LOAD + STORE + LOOP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
     public MyValue1.ref[] test8() {
         return new MyValue1.ref[0];
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
+    @Run(test = "test8")
+    public void test8_verifier() {
         MyValue1.ref[] va = test8();
         Asserts.assertEQ(va.length, 0);
     }
@@ -250,13 +263,14 @@ public class TestNullableArrays extends InlineTypeTest {
     static MyValue1.ref[] test9_va;
 
     // Test that inline type array loaded from field has correct type
-    @Test(failOn = LOOP)
+    @Test
+    @IR(failOn = LOOP)
     public long test9() {
         return test9_va[0].hash();
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
+    @Run(test = "test9")
+    public void test9_verifier() {
         test9_va = new MyValue1.ref[1];
         test9_va[0] = testValue1;
         long result = test9();
@@ -280,8 +294,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return arr;
     }
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) {
+    @Run(test = "test10")
+    public void test10_verifier() {
         MyValue1.ref[][][] arr = test10(2, 3, 4);
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 3; j++) {
@@ -313,8 +327,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) {
+    @Run(test = "test11")
+    public void test11_verifier() {
         MyValue1.ref[][][] arr = new MyValue1.ref[2][3][4];
         long[] res = new long[2*3*4];
         long[] verif = new long[2*3*4];
@@ -353,8 +367,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
+    @Run(test = "test12")
+    public void test12_verifier() {
         Asserts.assertEQ(test12(), rI);
     }
 
@@ -375,8 +389,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test13_verifier(boolean warmup) {
+    @Run(test = "test13")
+    public void test13_verifier() {
         Asserts.assertEQ(test13(), rI);
     }
 
@@ -386,8 +400,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va[index].x;
     }
 
-    @DontCompile
-    public void test14_verifier(boolean warmup) {
+    @Run(test = "test14")
+    public void test14_verifier() {
         int arraySize = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[arraySize];
 
@@ -422,8 +436,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test15_verifier(boolean warmup) {
+    @Run(test = "test15")
+    public void test15_verifier() {
         Asserts.assertEQ(test15(), rI);
     }
 
@@ -443,8 +457,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test16_verifier(boolean warmup) {
+    @Run(test = "test16")
+    public void test16_verifier() {
         Asserts.assertEQ(test16(), rI);
     }
 
@@ -455,8 +469,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va[index].x;
     }
 
-    @DontCompile
-    public void test17_verifier(boolean warmup) {
+    @Run(test = "test17")
+    public void test17_verifier() {
         int arraySize = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[arraySize];
 
@@ -486,8 +500,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va.clone();
     }
 
-    @DontCompile
-    public void test18_verifier(boolean warmup) {
+    @Run(test = "test18")
+    public void test18_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va1 = new MyValue1.ref[len];
         MyValue1[]  va2 = new MyValue1[len];
@@ -511,7 +525,7 @@ public class TestNullableArrays extends InlineTypeTest {
                 Asserts.assertEQ(result2[i].hash(), va2[i].hash());
             }
         }
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test18")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             MyValue1.ref[] result2 = test18(va2);
             for (int i = 0; i < len; ++i) {
                 Asserts.assertEQ(result2[i].hash(), va2[i].hash());
@@ -533,8 +547,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va.clone();
     }
 
-    @DontCompile
-    public void test19_verifier(boolean warmup) {
+    @Run(test = "test19")
+    public void test19_verifier() {
         MyValue1.ref[] result = test19();
         Asserts.assertEQ(result[0], null);
         for (int i = 1; i < test19_orig.length; ++i) {
@@ -548,8 +562,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
+    @Run(test = "test20")
+    public void test20_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] src1 = new MyValue1.ref[len];
         MyValue1.ref[] src2 = new MyValue1.ref[len];
@@ -592,8 +606,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test21_verifier(boolean warmup) {
+    @Run(test = "test21")
+    public void test21_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue2.ref[] src1 = new MyValue2.ref[len];
         MyValue2.ref[] src2 = new MyValue2.ref[len];
@@ -639,8 +653,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst;
     }
 
-    @DontCompile
-    public void test22_verifier(boolean warmup) {
+    @Run(test = "test22")
+    public void test22_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] src1 = new MyValue1.ref[len];
         MyValue1[]  src2 = new MyValue1[len];
@@ -669,8 +683,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst;
     }
 
-    @DontCompile
-    public void test23_verifier(boolean warmup) {
+    @Run(test = "test23")
+    public void test23_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] src1 = new MyValue1.ref[len];
         MyValue1[] src2 = new MyValue1[len];
@@ -696,8 +710,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test24_verifier(boolean warmup) {
+    @Run(test = "test24")
+    public void test24_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] src1 = new MyValue1.ref[len];
         MyValue1.ref[] src2 = new MyValue1.ref[len];
@@ -740,8 +754,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test25_verifier(boolean warmup) {
+    @Run(test = "test25")
+    public void test25_verifier() {
         MyValue2.ref[] src1 = new MyValue2.ref[8];
         MyValue2.ref[] src2 = new MyValue2.ref[8];
         MyValue2[]  src3 = new MyValue2[8];
@@ -779,8 +793,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test26_verifier(boolean warmup) {
+    @Run(test = "test26")
+    public void test26_verifier() {
         MyValue1.ref[] src1 = new MyValue1.ref[8];
         MyValue1.ref[] src2 = new MyValue1.ref[8];
         MyValue1[]  src3 = new MyValue1[8];
@@ -818,8 +832,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 1, dst, 2, 6);
     }
 
-    @DontCompile
-    public void test27_verifier(boolean warmup) {
+    @Run(test = "test27")
+    public void test27_verifier() {
         MyValue1.ref[] src1 = new MyValue1.ref[8];
         MyValue1.ref[] src2 = new MyValue1.ref[8];
         MyValue1[]  src3 = new MyValue1[8];
@@ -854,8 +868,9 @@ public class TestNullableArrays extends InlineTypeTest {
 
     // non escaping allocations
     // TODO 8252027: Make sure this is optimized with ZGC
-    @Test(valid = ZGCOff, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    @Test(valid = ZGCOn)
+    @Test
+    @IR(applyIf = {"UseZGC", "false"},
+        failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public MyValue2.ref test28() {
         MyValue2.ref[] src = new MyValue2.ref[10];
         src[0] = null;
@@ -863,8 +878,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst[0];
     }
 
-    @DontCompile
-    public void test28_verifier(boolean warmup) {
+    @Run(test = "test28")
+    public void test28_verifier() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2.ref result = test28();
         Asserts.assertEQ(result, null);
@@ -872,15 +887,16 @@ public class TestNullableArrays extends InlineTypeTest {
 
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
-    @Test(failOn = ALLOCA + LOOP + TRAP)
+    @Test
+    @IR(failOn = {ALLOCA, LOOP, TRAP})
     public MyValue2.ref test29(MyValue2.ref[] src) {
         MyValue2.ref[] dst = new MyValue2.ref[10];
         System.arraycopy(src, 0, dst, 0, 10);
         return dst[0];
     }
 
-    @DontCompile
-    public void test29_verifier(boolean warmup) {
+    @Run(test = "test29")
+    public void test29_verifier(RunInfo info) {
         MyValue2.ref[] src1 = new MyValue2.ref[10];
         MyValue2.val[] src2 = new MyValue2.val[10];
         for (int i = 0; i < 10; ++i) {
@@ -889,7 +905,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         MyValue2.ref v = test29(src1);
         Asserts.assertEQ(src1[0].hash(), v.hash());
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             v = test29(src2);
             Asserts.assertEQ(src2[0].hash(), v.hash());
         }
@@ -898,7 +914,6 @@ public class TestNullableArrays extends InlineTypeTest {
     // non escaping allocation with uncommon trap that needs
     // eliminated inline type array element as debug info
     @Test
-    @Warmup(10000)
     public MyValue2.ref test30(MyValue2.ref[] src, boolean flag) {
         MyValue2.ref[] dst = new MyValue2.ref[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -906,17 +921,18 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst[0];
     }
 
-    @DontCompile
-    public void test30_verifier(boolean warmup) {
+    @Run(test = "test30")
+    @Warmup(10000)
+    public void test30_verifier(RunInfo info) {
         MyValue2.ref[] src1 = new MyValue2.ref[10];
         MyValue2.val[] src2 = new MyValue2.val[10];
         for (int i = 0; i < 10; ++i) {
             src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
             src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
-        MyValue2.ref v = test30(src1, !warmup);
+        MyValue2.ref v = test30(src1, !info.isWarmUp());
         Asserts.assertEQ(src1[0].hash(), v.hash());
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             v = test30(src2, true);
             Asserts.assertEQ(src2[0].hash(), v.hash());
         }
@@ -926,7 +942,7 @@ public class TestNullableArrays extends InlineTypeTest {
     @Test()
     // TODO 8227588
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    public long test31(boolean b, boolean deopt) {
+    public long test31(boolean b, boolean deopt, Method m) {
         MyValue2.ref[] src = new MyValue2.ref[1];
         if (b) {
             src[0] = MyValue2.createWithFieldsInline(rI, rD);
@@ -935,18 +951,18 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test31"));
+            TestFramework.deoptimize(m);
         }
         return src[0].hash();
     }
 
-    @DontCompile
-    public void test31_verifier(boolean warmup) {
+    @Run(test = "test31")
+    public void test31_verifier(RunInfo info) {
         MyValue2 v1 = MyValue2.createWithFieldsInline(rI, rD);
-        long result1 = test31(true, !warmup);
+        long result1 = test31(true, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result1, v1.hash());
         MyValue2 v2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
-        long result2 = test31(false, !warmup);
+        long result2 = test31(false, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result2, v2.hash());
     }
 
@@ -957,8 +973,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va.clone();
     }
 
-    @DontCompile
-    public void test32_verifier(boolean warmup) {
+    @Run(test = "test32")
+    public void test32_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va1 = new MyValue1.ref[len];
         MyValue1[] va2 = new MyValue1[len];
@@ -983,8 +999,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va.clone();
     }
 
-    @DontCompile
-    public void test33_verifier(boolean warmup) {
+    @Run(test = "test33")
+    public void test33_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new Object[len];
         for (int i = 0; i < len; ++i) {
@@ -1020,14 +1036,14 @@ public class TestNullableArrays extends InlineTypeTest {
         return va.clone();
     }
 
-    @DontCompile
-    public void test34_verifier(boolean warmup) {
+    @Run(test = "test34")
+    public void test34_verifier(RunInfo info) {
         test34(false);
         for (int i = 0; i < 10; i++) { // make sure we do deopt
             Object[] result = test34(true);
             verify(test34_orig, result);
         }
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test34")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             Object[] result = test34(true);
             verify(test34_orig, result);
         }
@@ -1083,15 +1099,11 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    static boolean compile_and_run_again_if_deoptimized(boolean warmup, String test) {
-        if (!warmup) {
-            Method m = tests.get(test);
-            if (USE_COMPILER &&  !WHITE_BOX.isMethodCompiled(m, false)) {
-                if (!InlineTypeArrayFlatten && !XCOMP && !STRESS_CC) {
-                    throw new RuntimeException("Unexpected deoptimization");
-                }
-                enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
-                return true;
+    static boolean compile_and_run_again_if_deoptimized(RunInfo info) {
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            if (TestFramework.isCompiled(m)) {
+                TestFramework.compile(m, CompLevel.C2);
             }
         }
         return false;
@@ -1103,8 +1115,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, len);
     }
 
-    @DontCompile
-    public void test35_verifier(boolean warmup) {
+    @Run(test = "test35")
+    public void test35_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] src = new MyValue1.ref[len];
         MyValue1.ref[] dst = new MyValue1.ref[len];
@@ -1113,7 +1125,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test35(src, dst, src.length);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test35")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test35(src, dst, src.length);
             verify(src, dst);
         }
@@ -1124,8 +1136,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
-    @DontCompile
-    public void test36_verifier(boolean warmup) {
+    @Run(test = "test36")
+    public void test36_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2.ref[] src = new MyValue2.ref[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
@@ -1134,7 +1146,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test36(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test36")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test36(src, dst);
             verify(src, dst);
         }
@@ -1145,8 +1157,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test37_verifier(boolean warmup) {
+    @Run(test = "test37")
+    public void test37_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2.ref[] src = new MyValue2.ref[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
@@ -1155,20 +1167,20 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test37(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test37")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test37(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test38(Object src, MyValue2.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
-    @DontCompile
-    public void test38_verifier(boolean warmup) {
+    @Run(test = "test38")
+    @Warmup(1) // Avoid early compilation
+    public void test38_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
@@ -1177,15 +1189,13 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test38(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestNullableArrays::test38");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test38(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiled(m);
         }
     }
 
@@ -1194,8 +1204,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test39_verifier(boolean warmup) {
+    @Run(test = "test39")
+    public void test39_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2.ref[] src = new MyValue2.ref[len];
         Object[] dst = new Object[len];
@@ -1204,20 +1214,20 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test39(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test39")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test39(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test40(Object[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test40_verifier(boolean warmup) {
+    @Run(test = "test40")
+    @Warmup(1) // Avoid early compilation
+    public void test40_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
@@ -1226,15 +1236,13 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test40(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestNullableArrays::test40");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test40(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiled(m);
         }
     }
 
@@ -1243,8 +1251,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
-    @DontCompile
-    public void test41_verifier(boolean warmup) {
+    @Run(test = "test41")
+    public void test41_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2.ref[] src = new MyValue2.ref[len];
         Object[] dst = new Object[len];
@@ -1253,7 +1261,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test41(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test41")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test41(src, dst);
             verify(src, dst);
         }
@@ -1264,8 +1272,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test42_verifier(boolean warmup) {
+    @Run(test = "test42")
+    public void test42_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
         Object[] dst = new Object[len];
@@ -1274,11 +1282,9 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test42(src, dst);
         verify(src, dst);
-        if (!warmup) {
-            Method m = tests.get("TestNullableArrays::test42");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertCompiled(m);
         }
     }
 
@@ -1288,8 +1294,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test43_verifier(boolean warmup) {
+    @Run(test = "test43")
+    public void test43_verifier(RunInfo info) {
         MyValue1.ref[] src = new MyValue1.ref[8];
         MyValue1.ref[] dst = new MyValue1.ref[8];
         for (int i = 1; i < 8; ++i) {
@@ -1297,7 +1303,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test43(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test43")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test43(src, dst);
             verify(src, dst);
         }
@@ -1308,8 +1314,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test44_verifier(boolean warmup) {
+    @Run(test = "test44")
+    public void test44_verifier(RunInfo info) {
         MyValue2.ref[] src = new MyValue2.ref[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
@@ -1317,7 +1323,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test44(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test44")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test44(src, dst);
             verify(src, dst);
         }
@@ -1328,8 +1334,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test45_verifier(boolean warmup) {
+    @Run(test = "test45")
+    public void test45_verifier(RunInfo info) {
         MyValue2.ref[] src = new MyValue2.ref[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
@@ -1337,20 +1343,20 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test45(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test45")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test45(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test46(Object[] src, MyValue2.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test46_verifier(boolean warmup) {
+    @Run(test = "test46")
+    @Warmup(1) // Avoid early compilation
+    public void test46_verifier(RunInfo info) {
         Object[] src = new Object[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
@@ -1358,15 +1364,13 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test46(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestNullableArrays::test46");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test46(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiled(m);
         }
     }
 
@@ -1375,8 +1379,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test47_verifier(boolean warmup) {
+    @Run(test = "test47")
+    public void test47_verifier(RunInfo info) {
         MyValue2.ref[] src = new MyValue2.ref[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
@@ -1384,20 +1388,20 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test47(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test47")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test47(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test48(Object[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test48_verifier(boolean warmup) {
+    @Run(test = "test48")
+    @Warmup(1) // Avoid early compilation
+    public void test48_verifier(RunInfo info) {
         Object[] src = new Object[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
@@ -1405,15 +1409,13 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test48(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestNullableArrays::test48");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test48(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiled(m);
         }
     }
 
@@ -1422,8 +1424,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test49_verifier(boolean warmup) {
+    @Run(test = "test49")
+    public void test49_verifier(RunInfo info) {
         MyValue2.ref[] src = new MyValue2.ref[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
@@ -1431,7 +1433,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test49(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test49")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test49(src, dst);
             verify(src, dst);
         }
@@ -1442,8 +1444,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test50_verifier(boolean warmup) {
+    @Run(test = "test50")
+    public void test50_verifier(RunInfo info) {
         Object[] src = new Object[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
@@ -1451,11 +1453,9 @@ public class TestNullableArrays extends InlineTypeTest {
         }
         test50(src, dst);
         verify(src, dst);
-        if (!warmup) {
-            Method m = tests.get("TestNullableArrays::test50");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertCompiled(m);
         }
     }
 
@@ -1464,8 +1464,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, MyValue1.ref[].class);
     }
 
-    @DontCompile
-    public void test51_verifier(boolean warmup) {
+    @Run(test = "test51")
+    public void test51_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         for (int i = 1; i < len; ++i) {
@@ -1482,8 +1482,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(test52_va, 8, MyValue1.ref[].class);
     }
 
-    @DontCompile
-    public void test52_verifier(boolean warmup) {
+    @Run(test = "test52")
+    public void test52_verifier() {
         for (int i = 1; i < 8; ++i) {
             test52_va[i] = testValue1;
         }
@@ -1496,8 +1496,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, MyValue1.ref[].class);
     }
 
-    @DontCompile
-    public void test53_verifier(boolean warmup) {
+    @Run(test = "test53")
+    public void test53_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         for (int i = 1; i < len; ++i) {
@@ -1512,8 +1512,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, Object[].class);
     }
 
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
+    @Run(test = "test54")
+    public void test54_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         for (int i = 1; i < len; ++i) {
@@ -1528,8 +1528,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, Object[].class);
     }
 
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
+    @Run(test = "test55")
+    public void test55_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         for (int i = 1; i < len; ++i) {
@@ -1544,8 +1544,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, MyValue1.ref[].class);
     }
 
-    @DontCompile
-    public void test56_verifier(boolean warmup) {
+    @Run(test = "test56")
+    public void test56_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new Object[len];
         for (int i = 1; i < len; ++i) {
@@ -1560,8 +1560,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, klass);
     }
 
-    @DontCompile
-    public void test57_verifier(boolean warmup) {
+    @Run(test = "test57")
+    public void test57_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new MyValue1.ref[len];
         for (int i = 1; i < len; ++i) {
@@ -1576,8 +1576,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, klass);
     }
 
-    @DontCompile
-    public void test58_verifier(boolean warmup) {
+    @Run(test = "test58")
+    public void test58_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         for (int i = 1; i < len; ++i) {
@@ -1587,7 +1587,7 @@ public class TestNullableArrays extends InlineTypeTest {
             Object[] result = test58(va, MyValue1.ref[].class);
             verify(va, result);
         }
-        if (compile_and_run_again_if_deoptimized(warmup, "TestNullableArrays::test58")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             Object[] result = test58(va, MyValue1.ref[].class);
             verify(va, result);
         }
@@ -1598,8 +1598,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length+1, MyValue1.ref[].class);
     }
 
-    @DontCompile
-    public void test59_verifier(boolean warmup) {
+    @Run(test = "test59")
+    public void test59_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         MyValue1.ref[] verif = new MyValue1.ref[len+1];
@@ -1616,8 +1616,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
-    @DontCompile
-    public void test60_verifier(boolean warmup) {
+    @Run(test = "test60")
+    public void test60_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         MyValue1.ref[] verif = new MyValue1.ref[len+1];
@@ -1634,8 +1634,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
-    @DontCompile
-    public void test61_verifier(boolean warmup) {
+    @Run(test = "test61")
+    public void test61_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new Integer[len];
         for (int i = 1; i < len; ++i) {
@@ -1668,8 +1668,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(arr, arr.length+1, arr.getClass());
     }
 
-    @DontCompile
-    public void test62_verifier(boolean warmup) {
+    @Run(test = "test62")
+    public void test62_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         Integer[] oa = new Integer[len];
@@ -1704,8 +1704,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(arr, arr.length+1, arr.getClass());
     }
 
-    @DontCompile
-    public void test63_verifier(boolean warmup) {
+    @Run(test = "test63")
+    public void test63_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         MyValue1.ref[] verif = new MyValue1.ref[len+1];
@@ -1725,8 +1725,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return new MyValue1.ref[8];
     }
 
-    @DontCompile
-    public void test64_verifier(boolean warmup) {
+    @Run(test = "test64")
+    public void test64_verifier() {
         MyValue1.ref[] va = test64();
         for (int i = 0; i < 8; ++i) {
             Asserts.assertEQ(va[i], null);
@@ -1739,8 +1739,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return new MyValue1.ref[32];
     }
 
-    @DontCompile
-    public void test65_verifier(boolean warmup) {
+    @Run(test = "test65")
+    public void test65_verifier() {
         MyValue1.ref[] va = test65();
         for (int i = 0; i < 32; ++i) {
             Asserts.assertEQ(va[i], null);
@@ -1748,15 +1748,16 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Check init store elimination
-    @Test(match = { ALLOCA }, matchCount = { 1 })
+    @Test
+    @IR(counts = {ALLOCA, "= 1"})
     public MyValue1.ref[] test66(MyValue1.ref vt) {
         MyValue1.ref[] va = new MyValue1.ref[1];
         va[0] = vt;
         return va;
     }
 
-    @DontCompile
-    public void test66_verifier(boolean warmup) {
+    @Run(test = "test66")
+    public void test66_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1.ref[] va = test66(vt);
         Asserts.assertEQ(va[0].hashPrimitive(), vt.hashPrimitive());
@@ -1770,8 +1771,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst;
     }
 
-    @DontCompile
-    public void test67_verifier(boolean warmup) {
+    @Run(test = "test67")
+    public void test67_verifier() {
         MyValue1.ref[] va = new MyValue1.ref[16];
         MyValue1.ref[] var = test67(va);
         for (int i = 0; i < 16; ++i) {
@@ -1787,8 +1788,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test68_verifier(boolean warmup) {
+    @Run(test = "test68")
+    public void test68_verifier() {
         MyValue1.ref[] va = test68();
         for (int i = 0; i < 2; ++i) {
             Asserts.assertEQ(va[i], null);
@@ -1804,8 +1805,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test69_verifier(boolean warmup) {
+    @Run(test = "test69")
+    public void test69_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1.ref[] va = new MyValue1.ref[4];
         va[0] = vt;
@@ -1827,8 +1828,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test70_verifier(boolean warmup) {
+    @Run(test = "test70")
+    public void test70_verifier() {
         MyValue1.ref[] va = new MyValue1.ref[2];
         MyValue1.ref[] var = test70(va);
         for (int i = 0; i < 2; ++i) {
@@ -1855,8 +1856,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test71_verifier(boolean warmup) {
+    @Run(test = "test71")
+    public void test71_verifier() {
         test71();
     }
 
@@ -1872,8 +1873,8 @@ public class TestNullableArrays extends InlineTypeTest {
         arr2[0] = element;
     }
 
-    @DontCompile
-    public void test72_verifier(boolean warmup) {
+    @Run(test = "test72")
+    public void test72_verifier() {
         Object[] arr = new Object[1];
         Object elem = new Object();
         test72(arr, true, elem);
@@ -1891,8 +1892,8 @@ public class TestNullableArrays extends InlineTypeTest {
         oa[0] = oa; // The stored value is known to be not flattenable (an Object[])
     }
 
-    @DontCompile
-    public void test73_verifier(boolean warmup) {
+    @Run(test = "test73")
+    public void test73_verifier() {
         MyValue1.ref v0 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1.ref v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
         MyValue1.ref[] arr = new MyValue1.ref[3];
@@ -1928,8 +1929,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return arr.clone();
     }
 
-    @DontCompile
-    public void test74_verifier(boolean warmup) {
+    @Run(test = "test74")
+    public void test74_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         Integer[] oa = new Integer[len];
@@ -1966,8 +1967,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return arr.clone();
     }
 
-    @DontCompile
-    public void test75_verifier(boolean warmup) {
+    @Run(test = "test75")
+    public void test75_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[len];
         MyValue1.ref[] verif = new MyValue1.ref[len];
@@ -2003,8 +2004,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test76_verifier(boolean warmup) {
+    @Run(test = "test76")
+    public void test76_verifier() {
         MyValue1 vt = testValue1;
         Object[] out = new Object[1];
         MyValue1[] vva = new MyValue1[42];
@@ -2050,8 +2051,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test77_verifier(boolean warmup) {
+    @Run(test = "test77")
+    public void test77_verifier() {
         Object[] va = test77(true);
         Asserts.assertEQ(va.length, 5);
         Asserts.assertEQ(((MyValue1)va[0]).hash(), hash(rI, hash()));
@@ -2086,8 +2087,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test78_verifier(boolean warmup) {
+    @Run(test = "test78")
+    public void test78_verifier() {
         MyValue1 vt = testValue1;
         Integer i = Integer.valueOf(42);
         Object[] out = new Object[1];
@@ -2115,13 +2116,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test widening conversions from [Q to [L
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public static MyValue1.ref[] test79(MyValue1[] va) {
         return va;
     }
 
-    @DontCompile
-    public void test79_verifier(boolean warmup) {
+    @Run(test = "test79")
+    public void test79_verifier() {
         MyValue1[] va = new MyValue1[1];
         va[0] = testValue1;
         MyValue1.ref[] res = test79(va);
@@ -2137,13 +2139,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Same as test79 but with explicit cast and Object return
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public static Object[] test80(MyValue1[] va) {
         return (MyValue1.ref[])va;
     }
 
-    @DontCompile
-    public void test80_verifier(boolean warmup) {
+    @Run(test = "test80")
+    public void test80_verifier() {
         MyValue1[] va = new MyValue1[1];
         va[0] = testValue1;
         Object[] res = test80(va);
@@ -2170,8 +2173,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return result[1].hash();
     }
 
-    @DontCompile
-    public void test81_verifier(boolean warmup) {
+    @Run(test = "test81")
+    public void test81_verifier() {
         MyValue1[] va = new MyValue1[2];
         MyValue1.ref[] vaB = new MyValue1.ref[2];
         va[1] = testValue1;
@@ -2214,8 +2217,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return result[1].hash();
     }
 
-    @DontCompile
-    public void test82_verifier(boolean warmup) {
+    @Run(test = "test82")
+    public void test82_verifier() {
         MyValue1[] va = new MyValue1[2];
         MyValue1.ref[] vaB = new MyValue1.ref[2];
         va[1] = testValue1;
@@ -2237,22 +2240,24 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(res, testValue1.hash());
     }
 
-    @Test(failOn = ALLOC + ALLOCA + STORE)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, STORE})
     public static long test83(MyValue1[] va) {
         MyValue1.ref[] result = va;
         return result[0].hash();
     }
 
-    @DontCompile
-    public void test83_verifier(boolean warmup) {
+    @Run(test = "test83")
+    public void test83_verifier() {
         MyValue1[] va = new MyValue1[42];
         va[0] = testValue1;
         long res = test83(va);
         Asserts.assertEquals(res, testValue1.hash());
     }
 
-    @Test(valid = InlineTypeArrayFlattenOn, failOn = ALLOC + LOOP + STORE + TRAP)
-    @Test(valid = InlineTypeArrayFlattenOff)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC, LOOP, STORE, TRAP})
     public static MyValue1.ref[] test84(MyValue1 vt1, MyValue1.ref vt2) {
         MyValue1.ref[] result = new MyValue1[2];
         result[0] = vt1;
@@ -2260,8 +2265,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test84_verifier(boolean warmup) {
+    @Run(test = "test84")
+    public void test84_verifier() {
         MyValue1.ref[] res = test84(testValue1, testValue1);
         Asserts.assertEquals(res[0].hash(), testValue1.hash());
         Asserts.assertEquals(res[1].hash(), testValue1.hash());
@@ -2279,8 +2284,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va[1].hash();
     }
 
-    @DontCompile
-    public void test85_verifier(boolean warmup) {
+    @Run(test = "test85")
+    public void test85_verifier() {
         MyValue1[] va = new MyValue1[2];
         MyValue1.ref[] vab = new MyValue1.ref[2];
         va[1] = testValue1;
@@ -2300,8 +2305,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return va[1].hash();
     }
 
-    @DontCompile
-    public void test86_verifier(boolean warmup) {
+    @Run(test = "test86")
+    public void test86_verifier() {
         MyValue1[] va = new MyValue1[2];
         MyValue1.ref[] vab = new MyValue1.ref[2];
         va[1] = testValue1;
@@ -2331,20 +2336,21 @@ public class TestNullableArrays extends InlineTypeTest {
         return va[0].hash();
     }
 
-    @DontCompile
-    public void test87_verifier(boolean warmup) {
+    @Run(test = "test87")
+    public void test87_verifier() {
         long result = test87();
         Asserts.assertEQ(result, hash());
     }
 
     // Test narrowing conversion from [L to [Q
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public static MyValue1[] test88(MyValue1.ref[] va) {
         return (MyValue1[])va;
     }
 
-    @DontCompile
-    public void test88_verifier(boolean warmup) {
+    @Run(test = "test88")
+    public void test88_verifier() {
         MyValue1[] va = new MyValue1[1];
         va[0] = testValue1;
         MyValue1[] res = test88(va);
@@ -2360,13 +2366,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Same as test88 but with explicit cast and Object argument
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
     public static MyValue1[] test89(Object[] va) {
         return (MyValue1[])va;
     }
 
-    @DontCompile
-    public void test89_verifier(boolean warmup) {
+    @Run(test = "test89")
+    public void test89_verifier() {
         MyValue1[] va = new MyValue1[1];
         va[0] = testValue1;
         MyValue1[] res = test89(va);
@@ -2387,8 +2394,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return (MyValue1.ref[])va;
     }
 
-    @DontCompile
-    public void test90_verifier(boolean warmup) {
+    @Run(test = "test90")
+    public void test90_verifier() {
         MyValue1[] va = new MyValue1[1];
         MyValue1.ref[] vab = new MyValue1.ref[1];
         try {
@@ -2407,8 +2414,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return (MyValue1.ref[])va;
     }
 
-    @DontCompile
-    public void test91_verifier(boolean warmup) {
+    @Run(test = "test91")
+    public void test91_verifier() {
         MyValue1[] va = new MyValue1[1];
         MyValue1.ref[] vab = new MyValue1.ref[1];
         try {
@@ -2428,8 +2435,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 2);
     }
 
-    @DontCompile
-    public void test92_verifier(boolean warmup) {
+    @Run(test = "test92")
+    public void test92_verifier() {
         MyValue1[]  va = new MyValue1[2];
         MyValue1.ref[] vab = new MyValue1.ref[2];
         va[0] = testValue1;
@@ -2444,8 +2451,8 @@ public class TestNullableArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 2);
     }
 
-    @DontCompile
-    public void test93_verifier(boolean warmup) {
+    @Run(test = "test93")
+    public void test93_verifier() {
         MyValue1[]  va = new MyValue1[2];
         MyValue1.ref[] vab = new MyValue1.ref[2];
         va[0] = testValue1;
@@ -2468,8 +2475,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst[0].hash();
     }
 
-    @DontCompile
-    public static void test94_verifier(boolean warmup) {
+    @Run(test = "test94")
+    public static void test94_verifier() {
         long result = test94();
         Asserts.assertEquals(result, MyValue1.default.hash());
     }
@@ -2483,13 +2490,13 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     @Test()
-    @Warmup(0)
     public long test95() {
         return test95_callee();
     }
 
-    @DontCompile
-    public void test95_verifier(boolean warmup) {
+    @Run(test = "test95")
+    @Warmup(0)
+    public void test95_verifier() {
         long result = test95();
         Asserts.assertEQ(result, hash());
     }
@@ -2542,8 +2549,8 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test96_verifier(boolean warmup) {
+    @Run(test = "test96")
+    public void test96_verifier() {
         Complex.ref[][] result = test96(test96_A, test96_B);
         if (test96_R == null) {
             test96_R = result;
@@ -2556,13 +2563,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test loads from vararg arrays
-    @Test(failOn = LOAD_UNKNOWN_INLINE)
+    @Test
+    @IR(failOn = {LOAD_UNKNOWN_INLINE})
     public static Object test97(Object... args) {
         return args[0];
     }
 
-    @DontCompile
-    public static void test97_verifier(boolean warmup) {
+    @Run(test = "test97")
+    public static void test97_verifier() {
         Object obj = new Object();
         Object result = test97(obj);
         Asserts.assertEquals(result, obj);
@@ -2577,8 +2585,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return args[0];
     }
 
-    @DontCompile
-    public static void test98_verifier(boolean warmup) {
+    @Run(test = "test98")
+    public static void test98_verifier(RunInfo info) {
         Object obj = new Object();
         Object result = test98(obj);
         Asserts.assertEquals(result, obj);
@@ -2586,7 +2594,7 @@ public class TestNullableArrays extends InlineTypeTest {
         myInt[0] = rI;
         result = test98((Object[])myInt);
         Asserts.assertEquals(result, rI);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] va = new MyValue1[1];
             MyValue1.ref[] vab = new MyValue1.ref[1];
             result = test98((Object[])va);
@@ -2601,8 +2609,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return args[0];
     }
 
-    @DontCompile
-    public static void test99_verifier(boolean warmup) {
+    @Run(test = "test99")
+    public static void test99_verifier(RunInfo info) {
         Object obj = new Object();
         Object result = test99(obj);
         Asserts.assertEquals(result, obj);
@@ -2610,7 +2618,7 @@ public class TestNullableArrays extends InlineTypeTest {
         myInt[0] = rI;
         result = test99((Object[])myInt);
         Asserts.assertEquals(result, rI);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test99((Object[])null);
                 throw new RuntimeException("No NPE thrown");
@@ -2625,8 +2633,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return args[0];
     }
 
-    @DontCompile
-    public static void test100_verifier(boolean warmup) {
+    @Run(test = "test100")
+    public static void test100_verifier(RunInfo info) {
         Object obj = new Object();
         Object result = test100(obj);
         Asserts.assertEquals(result, obj);
@@ -2634,7 +2642,7 @@ public class TestNullableArrays extends InlineTypeTest {
         myInt[0] = rI;
         result = test100((Object[])myInt);
         Asserts.assertEquals(result, rI);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test100();
                 throw new RuntimeException("No AIOOBE thrown");
@@ -2645,13 +2653,14 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test stores to varag arrays
-    @Test(failOn = STORE_UNKNOWN_INLINE)
+    @Test
+    @IR(failOn = STORE_UNKNOWN_INLINE)
     public static void test101(Object val, Object... args) {
         args[0] = val;
     }
 
-    @DontCompile
-    public static void test101_verifier(boolean warmup) {
+    @Run(test = "test101")
+    public static void test101_verifier() {
         Object obj = new Object();
         test101(obj, obj);
         Integer[] myInt = new Integer[1];
@@ -2666,8 +2675,8 @@ public class TestNullableArrays extends InlineTypeTest {
         args[0] = val;
     }
 
-    @DontCompile
-    public static void test102_verifier(boolean warmup) {
+    @Run(test = "test102")
+    public static void test102_verifier(RunInfo info) {
         Object obj = new Object();
         test102(obj, obj);
         Integer[] myInt = new Integer[1];
@@ -2675,7 +2684,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(myInt[0], rI);
         test102(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] va = new MyValue1[1];
             MyValue1.ref[] vab = new MyValue1.ref[1];
             test102(testValue1, (Object[])va);
@@ -2692,8 +2701,8 @@ public class TestNullableArrays extends InlineTypeTest {
         args[0] = val;
     }
 
-    @DontCompile
-    public static void test103_verifier(boolean warmup) {
+    @Run(test = "test103")
+    public static void test103_verifier(RunInfo info) {
         Object obj = new Object();
         test103(obj, obj);
         Integer[] myInt = new Integer[1];
@@ -2701,7 +2710,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(myInt[0], rI);
         test103(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] va = new MyValue1[1];
             try {
                 test103(null, (Object[])va);
@@ -2717,8 +2726,8 @@ public class TestNullableArrays extends InlineTypeTest {
         args[0] = val;
     }
 
-    @DontCompile
-    public static void test104_verifier(boolean warmup) {
+    @Run(test = "test104")
+    public static void test104_verifier(RunInfo info) {
         Object obj = new Object();
         test104(obj, obj);
         Integer[] myInt = new Integer[1];
@@ -2726,7 +2735,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(myInt[0], rI);
         test104(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test104(testValue1);
                 throw new RuntimeException("No AIOOBE thrown");
@@ -2741,8 +2750,8 @@ public class TestNullableArrays extends InlineTypeTest {
         args[0] = val;
     }
 
-    @DontCompile
-    public static void test105_verifier(boolean warmup) {
+    @Run(test = "test105")
+    public static void test105_verifier(RunInfo info) {
         Object obj = new Object();
         test105(obj, obj);
         Integer[] myInt = new Integer[1];
@@ -2750,7 +2759,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(myInt[0], rI);
         test105(null, (Object[])myInt);
         Asserts.assertEquals(myInt[0], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test105(testValue1, (Object[])null);
                 throw new RuntimeException("No NPE thrown");
@@ -2775,8 +2784,8 @@ public class TestNullableArrays extends InlineTypeTest {
         return Arrays.copyOf(args, args.length, Object[].class);
     }
 
-    @DontCompile
-    public static void test106_verifier(boolean warmup) {
+    @Run(test = "test106")
+    public static void test106_verifier(RunInfo info) {
         Object[] dst = new Object[1];
         Object obj = new Object();
         Object[] result = test106(dst, obj);
@@ -2785,7 +2794,7 @@ public class TestNullableArrays extends InlineTypeTest {
         myInt[0] = rI;
         result = test106(myInt, (Object[])myInt);
         Asserts.assertEquals(result[0], rI);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] va = new MyValue1[1];
             MyValue1.ref[] vab = new MyValue1.ref[1];
             result = test106(va, (Object[])va);
@@ -2814,13 +2823,12 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(res2, MyValue1.default.hash());
     }
 
-    @DontCompile
-    public void test107_verifier(boolean warmup) {
+    @Run(test = "test107")
+    public void test107_verifier() {
         test107();
     }
 
     @Test
-    @Warmup(10000)
     public Object test108(MyValue1.ref[] src, boolean flag) {
         MyValue1.ref[] dst = new MyValue1.ref[8];
         System.arraycopy(src, 1, dst, 2, 6);
@@ -2828,10 +2836,11 @@ public class TestNullableArrays extends InlineTypeTest {
         return dst[2];
     }
 
-    @DontCompile
-    public void test108_verifier(boolean warmup) {
+    @Run(test = "test108")
+    @Warmup(10000)
+    public void test108_verifier(RunInfo info) {
         MyValue1.ref[] src = new MyValue1.ref[8];
-        test108(src, !warmup);
+        test108(src, !info.isWarmUp());
     }
 
     // Test LoadNode::can_see_arraycopy_value optimization
@@ -2844,8 +2853,8 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(src[0], dst[0]);
     }
 
-    @DontCompile
-    public void test109_verifier(boolean warmup) {
+    @Run(test = "test109")
+    public void test109_verifier() {
         test109();
     }
 
@@ -2859,8 +2868,8 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(src[0], dst[0]);
     }
 
-    @DontCompile
-    public void test110_verifier(boolean warmup) {
+    @Run(test = "test110")
+    public void test110_verifier() {
         test110();
     }
 
@@ -2873,8 +2882,8 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEquals(src[0], dst[0]);
     }
 
-    @DontCompile
-    public void test111_verifier(boolean warmup) {
+    @Run(test = "test111")
+    public void test111_verifier() {
         test111();
     }
 }

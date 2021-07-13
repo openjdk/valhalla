@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,35 +23,37 @@
 
 package compiler.valhalla.inlinetypes;
 
+import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import java.lang.reflect.Method;
+
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
  * @summary Test on stack replacement (OSR) with inline types
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestOnStackReplacement.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestOnStackReplacement
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestOnStackReplacement
  */
-public class TestOnStackReplacement extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        case 3: return new String[] {"-XX:FlatArrayElementMaxSize=0"};
-        }
-        return null;
-    }
+
+public class TestOnStackReplacement {
+
 
     public static void main(String[] args) throws Throwable {
-        TestOnStackReplacement test = new TestOnStackReplacement();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class);
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        scenarios[3].addFlags("-XX:FlatArrayElementMaxSize=0");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class,
+                                     MyValue3.class,
+                                     MyValue3Inline.class)
+                   .start();
     }
 
     // Helper methods
@@ -65,7 +67,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
     }
 
     // Test OSR compilation
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public long test1() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = new MyValue1[Math.abs(rI) % 3];
@@ -84,14 +86,16 @@ public class TestOnStackReplacement extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    @Warmup(0)
+    public void test1_verifier() {
         long result = test1();
         Asserts.assertEQ(result, ((Math.abs(rI) % 3) + 1) * hash());
     }
 
     // Test loop peeling
-    @Test(failOn = ALLOC + LOAD + STORE) @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public void test2() {
         MyValue1 v = MyValue1.createWithFieldsInline(0, 1);
         // Trigger OSR compilation and loop peeling
@@ -104,13 +108,14 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    @Warmup(0)
+    public void test2_verifier() {
         test2();
     }
 
     // Test loop peeling and unrolling
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public void test3() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(0, 0);
         MyValue1 v2 = MyValue1.createWithFieldsInline(1, 1);
@@ -125,8 +130,9 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    @Warmup(0)
+    public void test3_verifier() {
         test3();
     }
 
@@ -141,7 +147,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public Object test4() {
         Object vt = test4_init();
         for (int i = 0; i < 50_000; i++) {
@@ -152,8 +158,9 @@ public class TestOnStackReplacement extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    @Warmup(0)
+    public void test4_verifier() {
         test4();
     }
 
@@ -161,7 +168,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
 
     MyValue1.ref nullField;
 
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public void test5() {
         MyValue1.ref vt = nullField;
         for (int i = 0; i < 50_000; i++) {
@@ -171,8 +178,9 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    @Warmup(0)
+    public void test5_verifier() {
         test5();
     }
 
@@ -189,7 +197,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public void test6() {
         Test6Value tmp = new Test6Value();
         for (int i = 0; i < 100; ++i) {
@@ -197,8 +205,9 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    @Warmup(0)
+    public void test6_verifier() {
         test6();
     }
 
@@ -246,7 +255,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public void test7() {
         Test7Value2 tmp = new Test7Value2();
         for (int i = 0; i < 10; ++i) {
@@ -254,8 +263,9 @@ public class TestOnStackReplacement extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    @Warmup(0)
+    public void test7_verifier() {
         test7();
     }
 
@@ -273,7 +283,7 @@ public class TestOnStackReplacement extends InlineTypeTest {
         return test8_vt;
     }
 
-    @Test() @Warmup(2)
+    @Test
     public int test8(int start) {
         MyValue3 vt = test8_callee(start);
         test8_vt.verify(vt);
@@ -284,8 +294,9 @@ public class TestOnStackReplacement extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
+    @Run(test = "test8")
+    @Warmup(2)
+    public void test8_verifier() {
         test8(1);
         test8(50_000);
     }

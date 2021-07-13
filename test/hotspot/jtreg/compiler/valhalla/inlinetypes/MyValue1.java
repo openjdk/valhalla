@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,15 @@
 
 package compiler.valhalla.inlinetypes;
 
+import compiler.lib.ir_framework.DontCompile;
+import compiler.lib.ir_framework.DontInline;
+import compiler.lib.ir_framework.ForceCompileClassInitializer;
+import compiler.lib.ir_framework.ForceInline;
+
+@ForceCompileClassInitializer
 public final primitive class MyValue1 extends MyAbstract {
     static int s;
-    static final long sf = InlineTypeTest.rL;
+    static final long sf = InlineTypes.rL;
     final int x;
     final long y;
     final short z;
@@ -33,7 +39,7 @@ public final primitive class MyValue1 extends MyAbstract {
     final int[] oa;
     final MyValue2 v1;
     final MyValue2 v2;
-    static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypeTest.rI, InlineTypeTest.rD);
+    static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
     final int c;
 
     @ForceInline
@@ -74,8 +80,8 @@ public final primitive class MyValue1 extends MyAbstract {
         v = setO(v, new Integer(x));
         int[] oa = {x};
         v = setOA(v, oa);
-        v = setV1(v, MyValue2.createWithFieldsInline(x, y, InlineTypeTest.rD));
-        v = setV2(v, MyValue2.createWithFieldsInline(x, y, InlineTypeTest.rD+x));
+        v = setV1(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD));
+        v = setV2(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + x));
         v = setC(v, (int)(x+y));
         return v;
     }

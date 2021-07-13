@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,32 +24,30 @@
 package compiler.valhalla.inlinetypes;
 
 import jdk.test.lib.Asserts;
+import compiler.lib.ir_framework.*;
 
-import java.lang.reflect.Method;
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
  * @summary Test calling native methods with inline type arguments from compiled code.
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestJNICalls.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestJNICalls
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestJNICalls
  */
-public class TestJNICalls extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        return null;
-    }
 
-    public static void main(String[] args) throws Throwable {
-        TestJNICalls test = new TestJNICalls();
-        test.run(args, MyValue1.class);
+@ForceCompileClassInitializer
+public class TestJNICalls {
+
+    public static void main(String[] args) {
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class)
+                   .start();
     }
 
     static {
@@ -61,7 +59,6 @@ public class TestJNICalls extends InlineTypeTest {
 
     // Pass an inline type to a native method that calls back into Java code and returns an inline type
     @Test
-    @Warmup(10000) // Make sure native method is compiled
     public MyValue1 test1(MyValue1 vt, boolean callback) {
         if (!callback) {
           return (MyValue1)testMethod1(vt);
@@ -70,8 +67,9 @@ public class TestJNICalls extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    @Warmup(10000) // Make sure native method is compiled
+    public void test1_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 result = test1(vt, false);
         Asserts.assertEQ(result.hash(), vt.hash());
@@ -81,13 +79,13 @@ public class TestJNICalls extends InlineTypeTest {
 
     // Pass an inline type to a native method that calls the hash method and returns the result
     @Test
-    @Warmup(10000) // Make sure native method is compiled
     public long test2(MyValue1 vt) {
         return testMethod2(vt);
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    @Warmup(10000) // Make sure native method is compiled
+    public void test2_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         long result = test2(vt);
         Asserts.assertEQ(result, vt.hash());
@@ -105,13 +103,13 @@ public class TestJNICalls extends InlineTypeTest {
 
     // Call a native method with an inline type receiver
     @Test
-    @Warmup(10000) // Make sure native method is compiled
     public int test3(MyValueWithNative vt) {
         return vt.testMethod3();
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    @Warmup(10000) // Make sure native method is compiled
+    public void test3_verifier() {
         MyValueWithNative vt = new MyValueWithNative(rI);
         int result = test3(vt);
         Asserts.assertEQ(result, rI);

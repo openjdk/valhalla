@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,74 +21,59 @@
  * questions.
  */
 
-
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-
+import compiler.lib.ir_framework.CompLevel;
+import compiler.lib.ir_framework.Run;
+import compiler.lib.ir_framework.Scenario;
+import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
+
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
  * @summary Various tests that are specific for C1.
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires os.simpleArch == "x64"
  * @compile -XDallowWithFieldOperator TestC1.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestC1
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestC1
  */
-public class TestC1 extends InlineTypeTest {
-    public static final int C1 = COMP_LEVEL_SIMPLE;
-    public static final int C2 = COMP_LEVEL_FULL_OPTIMIZATION;
 
-    public static void main(String[] args) throws Throwable {
-        TestC1 test = new TestC1();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class);
-    }
-
-    @Override
-    public int getNumScenarios() {
-        return 5;
-    }
-
-    @Override
-    public String[] getVMParameters(int scenario) {
-        switch (scenario) {
-        case 0: return new String[] { // C1 only
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-            };
-        case 1: return new String[] { // C2 only. (Make sure the tests are correctly written)
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-            };
-        case 2: return new String[] { // interpreter only
-                "-Xint",
-            };
-        case 3: return new String[] {
+public class TestC1 {
+    public static void main(String[] args) {
+        final Scenario[] scenarios = {
+                // C1 only
+                new Scenario(0,
+                             "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation"),
+                // C2 only. (Make sure the tests are correctly written)
+                new Scenario(1,
+                             "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation"),
+                // interpreter only
+                new Scenario(2,
+                             "-Xint"),
                 // Xcomp Only C1.
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-                "-Xcomp",
-            };
-        case 4: return new String[] {
+                new Scenario(3,
+                             "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation", "-Xcomp"),
                 // Xcomp Only C2.
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-                "-Xcomp",
-            };
-        }
-        return null;
+                new Scenario(4,
+                             "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation", "-Xcomp")
+        };
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class,
+                                     MyValue3.class,
+                                     MyValue3Inline.class)
+                   .start();
     }
 
     // JDK-8229799
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public long test1(Object a, Object b, long n) {
         long r;
         n += (a == b) ? 0x5678123456781234L : 0x1234567812345678L;
@@ -96,8 +81,8 @@ public class TestC1 extends InlineTypeTest {
         return n;
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    public void test1_verifier() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1 v2 = MyValue1.createWithFieldsInline(rI, rL+1);
         long r1 = test1(v1, v1, 1);
@@ -116,13 +101,13 @@ public class TestC1 extends InlineTypeTest {
     // JDK-8231961
     // Test that the value numbering optimization does not remove
     // the second load from the buffered array element.
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test2(SimpleValue2[] array) {
         return array[0].value + array[0].value;
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         SimpleValue2[] array = new SimpleValue2[1];
         array[0] = new SimpleValue2(rI);
         int result = test2(array);
@@ -134,13 +119,13 @@ public class TestC1 extends InlineTypeTest {
     // sub-elements of a flattened array without copying the element first
 
     // Test access to a null array
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test3(MyValue2[] array, int index) {
         return array[index].x;
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         NullPointerException npe = null;
         try {
             test3(null, 0);
@@ -151,13 +136,13 @@ public class TestC1 extends InlineTypeTest {
     }
 
     // Test out of bound accesses
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test4(MyValue2[] array, int index) {
         return array[index].x;
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         MyValue2[] array = new MyValue2[2];
         ArrayIndexOutOfBoundsException aioob = null;
         try {
@@ -176,13 +161,13 @@ public class TestC1 extends InlineTypeTest {
     }
 
     // Test 1st level sub-element access to primitive field
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test5(MyValue2[] array, int index) {
         return array[index].x;
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    public void test5_verifier() {
         MyValue2[] array = new MyValue2[2];
         MyValue2 v = new MyValue2(1,(byte)2, new MyValue2Inline(5.0d, 345L));
         array[1] = v;
@@ -191,13 +176,13 @@ public class TestC1 extends InlineTypeTest {
     }
 
     // Test 1st level sub-element access to flattened field
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public MyValue2Inline test6(MyValue2[] array, int index) {
         return array[index].v;
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         MyValue2[] array = new MyValue2[2];
         MyValue2Inline vi = new MyValue2Inline(3.5d, 678L);
         MyValue2 v = new MyValue2(1,(byte)2, vi);
@@ -250,13 +235,13 @@ public class TestC1 extends InlineTypeTest {
         }
     }
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public Big test7(TestValue[] array, int index) {
         return array[index].big;
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    public void test7_verifier() {
         TestValue[] array = new TestValue[7];
         Big b0 = test7(array, 3);
         b0.check(0, 0);
@@ -267,13 +252,13 @@ public class TestC1 extends InlineTypeTest {
     }
 
     // Test 2nd level sub-element access to primitive field
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public byte test8(MyValue1[] array, int index) {
         return array[index].v2.y;
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
+    @Run(test = "test8")
+    public void test8_verifier() {
         MyValue1[] array = new MyValue1[23];
         MyValue2 mv2a = MyValue2.createWithFieldsInline(7, 63L, 8.9d);
         MyValue2 mv2b = MyValue2.createWithFieldsInline(11, 69L, 17.3d);
@@ -290,37 +275,37 @@ public class TestC1 extends InlineTypeTest {
     // (OOB, null pointer)
     static primitive class EmptyType {}
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test9() {
         EmptyType[] array = new EmptyType[10];
         return array[4];
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
+    @Run(test = "test9")
+    public void test9_verifier() {
         EmptyType et = test9();
         Asserts.assertEQ(et, EmptyType.default);
     }
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test10(EmptyType[] array) {
         return array[0];
     }
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) {
+    @Run(test = "test10")
+    public void test10_verifier() {
         EmptyType[] array = new EmptyType[16];
         EmptyType et = test10(array);
         Asserts.assertEQ(et, EmptyType.default);
     }
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test11(EmptyType[] array, int index) {
         return array[index];
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) {
+    @Run(test = "test11")
+    public void test11_verifier() {
         Exception e = null;
         EmptyType[] array = new EmptyType[10];
         try {
@@ -345,13 +330,13 @@ public class TestC1 extends InlineTypeTest {
         Asserts.assertNotNull(e);
     }
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public void test12(EmptyType[] array, int index, EmptyType value) {
         array[index] = value;
     }
 
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
+    @Run(test = "test12")
+    public void test12_verifier() {
         EmptyType[] array = new EmptyType[16];
         test12(array, 2, EmptyType.default);
         Exception e = null;
@@ -376,5 +361,4 @@ public class TestC1 extends InlineTypeTest {
         }
         Asserts.assertNotNull(e);
     }
-
 }
