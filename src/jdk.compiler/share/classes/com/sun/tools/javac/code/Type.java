@@ -250,7 +250,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     }
 
     /**
-     * @return true IFF the receiver is a reference projection of an inline type and false
+     * @return true IFF the receiver is a reference projection of a primitive class type and false
      * for primitives or plain references
      */
     public boolean isReferenceProjection() {
@@ -258,7 +258,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
     }
 
     /**
-     * @return the value projection type IFF the receiver is a reference projection of an inline type
+     * @return the value projection type IFF the receiver is a reference projection of a primitive class type
      * and null otherwise
      */
     public Type valueProjection() {

@@ -1022,7 +1022,9 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       assert(cache_index == _no_index_sentinel, "should not have been set");
       Klass* resolved = klass_at_impl(this_cp, index, CHECK_NULL);
       // ldc wants the java mirror.
-      result_oop = resolved->java_mirror();
+      result_oop = tag.is_Qdescriptor_klass()
+                      ? InlineKlass::cast(resolved)->val_mirror()
+                      : resolved->java_mirror();
       break;
     }
 

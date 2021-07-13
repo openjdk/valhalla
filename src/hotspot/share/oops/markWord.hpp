@@ -137,9 +137,9 @@
 //
 //  64 bits:
 //  --------
-//  unused:1 | <-- hash:31 -->| unused:22 larval:1 age:4 flat_array:1 nullfree_array:1 inline_type:1 lock:2
+//  unused:1 | <-- hash:31 -->| unused:22 larval:1 age:4 flat_array:1 null_free_array:1 inline_type:1 lock:2
 //
-//  The "fast" static type bits (flat_array, nullfree_array, and inline_type)
+//  The "fast" static type bits (flat_array, null_free_array, and inline_type)
 //  are placed lowest next to lock bits to more easily decode forwarding pointers.
 //  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
 //  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
@@ -199,12 +199,12 @@ class markWord {
   static const int biased_lock_bits               = 1; // Valhalla: unused
   // static prototype header bits (fast path instead of klass layout_helper)
   static const int inline_type_bits               = 1;
-  static const int nullfree_array_bits            = LP64_ONLY(1) NOT_LP64(0);
+  static const int null_free_array_bits           = LP64_ONLY(1) NOT_LP64(0);
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
   // instance state
   static const int age_bits                       = 4;
   static const int larval_bits                    = 1;
-  static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - larval_bits - flat_array_bits - nullfree_array_bits;
+  static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - larval_bits - flat_array_bits - null_free_array_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
   static const int unused_gap_bits                = LP64_ONLY(1) NOT_LP64(0); // Valhalla: unused
   static const int epoch_bits                     = 2; // Valhalla: unused
@@ -214,8 +214,8 @@ class markWord {
   static const int lock_shift                     = 0;
   static const int biased_lock_shift              = lock_bits;
   static const int inline_type_shift              = lock_bits;
-  static const int nullfree_array_shift           = inline_type_shift + inline_type_bits;
-  static const int flat_array_shift               = nullfree_array_shift + nullfree_array_bits;
+  static const int null_free_array_shift          = inline_type_shift + inline_type_bits;
+  static const int flat_array_shift               = null_free_array_shift + null_free_array_bits;
   static const int age_shift                      = flat_array_shift + flat_array_bits;
   static const int unused_gap_shift               = age_shift + age_bits; // Valhalla: unused
   static const int larval_shift                   = age_shift + age_bits;
@@ -230,11 +230,11 @@ class markWord {
   static const uintptr_t inline_type_mask         = right_n_bits(lock_bits + inline_type_bits);
   static const uintptr_t inline_type_mask_in_place = inline_type_mask << lock_shift;
   static const uintptr_t inline_type_bit_in_place = 1 << inline_type_shift;
-  static const uintptr_t nullfree_array_mask      = right_n_bits(nullfree_array_bits);
-  static const uintptr_t nullfree_array_mask_in_place = (nullfree_array_mask << nullfree_array_shift) | lock_mask_in_place;
-  static const uintptr_t nullfree_array_bit_in_place = (1 << nullfree_array_shift);
+  static const uintptr_t null_free_array_mask     = right_n_bits(null_free_array_bits);
+  static const uintptr_t null_free_array_mask_in_place = (null_free_array_mask << null_free_array_shift) | lock_mask_in_place;
+  static const uintptr_t null_free_array_bit_in_place  = (1 << null_free_array_shift);
   static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
-  static const uintptr_t flat_array_mask_in_place = (flat_array_mask << flat_array_shift) | nullfree_array_mask_in_place | lock_mask_in_place;
+  static const uintptr_t flat_array_mask_in_place = (flat_array_mask << flat_array_shift) | null_free_array_mask_in_place | lock_mask_in_place;
   static const uintptr_t flat_array_bit_in_place  = (1 << flat_array_shift);
 
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
@@ -260,9 +260,9 @@ class markWord {
   static const uintptr_t biased_lock_pattern      = 5; // Valhalla: unused
 
   static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
-  static const uintptr_t nullfree_array_pattern   = nullfree_array_bit_in_place | unlocked_value;
-  static const uintptr_t flat_array_pattern       = flat_array_bit_in_place | nullfree_array_pattern;
-  static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + nullfree_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
+  static const uintptr_t null_free_array_pattern  = null_free_array_bit_in_place | unlocked_value;
+  static const uintptr_t flat_array_pattern       = flat_array_bit_in_place | null_free_array_pattern;
+  static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + null_free_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
   static const uintptr_t static_prototype_mask_in_place = static_prototype_mask << lock_bits;
   static const uintptr_t static_prototype_value_max = (1 << age_shift) - 1;
 
@@ -469,8 +469,18 @@ class markWord {
     return (mask_bits(value(), flat_array_mask_in_place) == flat_array_pattern);
   }
 
-  bool is_nullfree_array() const {
-    return (mask_bits(value(), nullfree_array_mask_in_place) == nullfree_array_pattern);
+  bool is_null_free_array() const {
+    return (mask_bits(value(), null_free_array_mask_in_place) == null_free_array_pattern);
+  }
+#else
+  bool is_flat_array() const {
+    fatal("Should not ask this for mark word, ask oopDesc");
+    return false;
+  }
+
+  bool is_null_free_array() const {
+    fatal("Should not ask this for mark word, ask oopDesc");
+    return false;
   }
 #endif
   // Prototype mark for initialization
@@ -487,8 +497,8 @@ class markWord {
     return markWord(flat_array_pattern);
   }
 
-  static markWord nullfree_array_prototype() {
-    return markWord(nullfree_array_pattern);
+  static markWord null_free_array_prototype() {
+    return markWord(null_free_array_pattern);
   }
 #endif
     // Helper function for restoration of unmarked mark oops during GC

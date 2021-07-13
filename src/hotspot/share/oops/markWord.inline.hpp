@@ -70,12 +70,19 @@ inline bool markWord::must_be_preserved_for_promotion_failure(const oopDesc* obj
 
 inline markWord markWord::prototype_for_klass(const Klass* klass) {
   markWord prototype_header = klass->prototype_header();
+#ifdef _LP64
   assert(prototype_header == prototype() ||
-         (UseBiasedLocking && prototype_header.has_bias_pattern()) ||
-         prototype_header.is_inline_type() ||
-         prototype_header.is_flat_array() ||
-         prototype_header.is_nullfree_array(), "corrupt prototype header");
-
+         (UseBiasedLocking && prototype_header.has_bias_pattern())
+         || prototype_header.is_inline_type()
+         || prototype_header.is_flat_array()
+         || prototype_header.is_null_free_array()
+         , "corrupt prototype header");
+#else
+  assert(prototype_header == prototype() ||
+         (UseBiasedLocking && prototype_header.has_bias_pattern())
+         || prototype_header.is_inline_type()
+         , "corrupt prototype header");
+#endif
   return prototype_header;
 }
 

@@ -192,6 +192,13 @@ bool InlineTypeBaseNode::field_is_flattened(uint index) const {
   return field->is_flattened();
 }
 
+bool InlineTypeBaseNode::field_is_null_free(uint index) const {
+  assert(index < field_count(), "index out of bounds");
+  ciField* field = inline_klass()->declared_nonstatic_field_at(index);
+  assert(!field->is_flattened() || field->type()->is_inlinetype(), "must be an inline type");
+  return field->is_null_free();
+}
+
 int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
@@ -273,6 +280,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     int offset = holder_offset + field_offset(i);
     Node* value = NULL;
     ciType* ft = field_type(i);
+    bool is_null_free = field_is_null_free(i);
     if (ft->is_inlinetype() && ft->as_inline_klass()->is_empty()) {
       // Loading from a field of an empty inline type. Just return the default instance.
       value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
@@ -293,9 +301,9 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         assert(con_type != NULL, "type not found");
         value = kit->gvn().transform(kit->makecon(con_type));
         // Check type of constant which might be more precise than the static field type
-        if (con_type->is_inlinetypeptr()) {
-          assert(!con_type->is_zero_type(), "Inline types are null-free");
+        if (con_type->is_inlinetypeptr() && !con_type->is_zero_type()) {
           ft = con_type->inline_klass();
+          is_null_free = true;
         }
       } else {
         // Load field value from memory
@@ -309,7 +317,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
       }
-      if (ft->is_inlinetype()) {
+      if (is_null_free) {
         // Loading a non-flattened inline type from memory
         if (ft->as_inline_klass()->is_scalarizable()) {
           value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass());
@@ -539,7 +547,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
     Node* value = NULL;
-    if (field_type->is_inlinetype()) {
+    if (vt->field_is_null_free(i)) {
       ciInlineKlass* field_klass = field_type->as_inline_klass();
       if (field_klass->is_scalarizable()) {
         value = make_default(gvn, field_klass);
@@ -795,7 +803,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
-      if (type->is_inlinetype()) {
+      if (field_is_null_free(i)) {
         // Non-flattened inline type field
         if (type->as_inline_klass()->is_scalarizable()) {
           parm = make_from_oop(kit, parm, type->as_inline_klass());

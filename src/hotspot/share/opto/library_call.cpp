@@ -2516,7 +2516,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->type()->is_inlinetype() && !field->is_flattened()) {
+    if (field != NULL && field->is_null_free() && !field->is_flattened()) {
       // Load a non-flattened inline type from memory
       if (value_type->inline_klass()->is_scalarizable()) {
         p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass());
@@ -3155,10 +3155,6 @@ Node* LibraryCallKit::generate_hidden_class_guard(Node* kls, RegionNode* region)
   return generate_access_flags_guard(kls, JVM_ACC_IS_HIDDEN_CLASS, 0, region);
 }
 
-Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
-  return generate_access_flags_guard(kls, JVM_ACC_INLINE, 0, region);
-}
-
 //-------------------------inline_native_Class_query-------------------
 bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   const Type* return_type = TypeInt::BOOL;
@@ -3367,15 +3363,14 @@ bool LibraryCallKit::inline_Class_cast() {
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
   bool requires_null_check = false;
-  ciType* tm = mirror_con->java_mirror_type();
+  ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
+  // Check for null if casting to QMyValue
+  requires_null_check &= !obj->is_InlineType();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-      // Check for null if casting to .val
-      requires_null_check = !obj->is_InlineType() && tm->as_klass()->is_inlinetype();
-
       int static_res = C->static_subtype_check(tm->as_klass(), obj_klass);
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
@@ -3424,20 +3419,22 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* res = top();
   if (!stopped()) {
     if (EnableValhalla && !obj->is_InlineType() && !requires_null_check) {
-      // Check if we are casting to .val
-      Node* is_val_kls = generate_value_guard(kls, NULL);
-      if (is_val_kls != NULL) {
+      // Check if we are casting to QMyValue
+      Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), NULL);
+      if (ctrl_val_mirror != NULL) {
         RegionNode* r = new RegionNode(3);
         record_for_igvn(r);
         r->init_req(1, control());
 
-        // Casting to .val, check for null
-        set_control(is_val_kls);
-        Node* null_ctr = top();
-        null_check_oop(obj, &null_ctr);
-        region->init_req(_npe_path, null_ctr);
-        r->init_req(2, control());
-
+        // Casting to QMyValue, check for null
+        set_control(ctrl_val_mirror);
+        { // PreserveJVMState because null check replaces obj in map
+          PreserveJVMState pjvms(this);
+          Node* null_ctr = top();
+          null_check_oop(obj, &null_ctr);
+          region->init_req(_npe_path, null_ctr);
+          r->init_req(2, control());
+        }
         set_control(_gvn.transform(r));
       }
     }
@@ -3528,6 +3525,9 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* subk   = klasses[1];  // the argument to isAssignableFrom
     Node* superk = klasses[0];  // the receiver
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
+    // If superc is an inline mirror, we also need to check if superc == subc because LMyValue
+    // is not a subtype of QMyValue but due to subk == superk the subtype check will pass.
+    generate_fair_guard(is_val_mirror(args[0]), prim_region);
     // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }
@@ -4540,7 +4540,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
-      if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Parsing) &&
+      if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
           obj_type->klass()->can_be_inline_array_klass() &&
           (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a

@@ -27,6 +27,7 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/signature.hpp"
 
@@ -53,6 +54,7 @@ ciObjArrayKlass::ciObjArrayKlass(Klass* k) : ciArrayKlass(k) {
   if (!ciObjectFactory::is_initialized()) {
     assert(_element_klass->is_java_lang_Object(), "only arrays of object are shared");
   }
+  _null_free = k->name()->is_Q_array_signature() && k->name()->char_at(1) == JVM_SIGNATURE_INLINE_TYPE;
 }
 
 // ------------------------------------------------------------------
@@ -64,15 +66,16 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
                                  int dimension)
   : ciArrayKlass(array_name,
                  dimension, T_OBJECT) {
-    _base_element_klass = base_element_klass;
-    assert(_base_element_klass->is_instance_klass() ||
-           _base_element_klass->is_type_array_klass() ||
-           _base_element_klass->is_flat_array_klass(), "bad base klass");
-    if (dimension == 1) {
-      _element_klass = base_element_klass;
-    } else {
-      _element_klass = NULL;
-    }
+  _base_element_klass = base_element_klass;
+  assert(_base_element_klass->is_instance_klass() ||
+         _base_element_klass->is_type_array_klass() ||
+         _base_element_klass->is_flat_array_klass(), "bad base klass");
+  if (dimension == 1) {
+    _element_klass = base_element_klass;
+  } else {
+    _element_klass = NULL;
+  }
+  _null_free = array_name->is_Q_array_signature() && array_name->char_at(1) == JVM_SIGNATURE_INLINE_TYPE;
 }
 
 // ------------------------------------------------------------------
@@ -135,11 +138,17 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
+ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool null_free) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
-    Klass* array = element_klass->get_Klass()->array_klass(THREAD);
+    Klass* array;
+    if (null_free) {
+      assert(element_klass->get_Klass()->is_inline_klass(), "Only inline classes can have null free arrays");
+      array = InlineKlass::cast(element_klass->get_Klass())->null_free_inline_array_klass(THREAD);
+    } else {
+      array = element_klass->get_Klass()->array_klass(THREAD);
+    }
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
@@ -162,11 +171,15 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
-  GUARDED_VM_ENTRY(return make_impl(element_klass);)
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool null_free) {
+  GUARDED_VM_ENTRY(return make_impl(element_klass, null_free);)
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
+  // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+  if (!is_elem_null_free() && (!is_loaded() || element_klass()->is_inlinetype())) {
+    return NULL;
+  }
   ciType* base = base_element_type();
   if (base->is_instance_klass()) {
     ciInstanceKlass* ik = base->as_instance_klass();

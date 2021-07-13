@@ -2023,11 +2023,20 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != NULL && const_oop->is_instance()) {
       ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
-      if (mirror_type != NULL && mirror_type->is_inlinetype()) {
-        ciInlineKlass* vk = mirror_type->as_inline_klass();
-        if (off == vk->default_value_offset()) {
-          // Loading a special hidden field that contains the oop of the default inline type
-          const Type* const_oop = TypeInstPtr::make(vk->default_instance());
+      if (mirror_type != NULL) {
+        const Type* const_oop = NULL;
+        ciInlineKlass* vk = mirror_type->is_inlinetype() ? mirror_type->as_inline_klass() : NULL;
+        // Fold default value loads
+        if (vk != NULL && off == vk->default_value_offset()) {
+          const_oop = TypeInstPtr::make(vk->default_instance());
+        }
+        // Fold class mirror loads
+        if (off == java_lang_Class::primary_mirror_offset()) {
+          const_oop = (vk == NULL) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->ref_instance());
+        } else if (off == java_lang_Class::secondary_mirror_offset()) {
+          const_oop = (vk == NULL) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->val_instance());
+        }
+        if (const_oop != NULL) {
           return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
         }
       }
@@ -2387,7 +2396,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      ciType* t = tinst->java_mirror_type();
+      bool null_free = false;
+      ciType* t = tinst->java_mirror_type(&null_free);
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != NULL) {
         // constant oop => constant klass
@@ -2397,7 +2407,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          return TypeKlassPtr::make(ciArrayKlass::make(t));
+          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free));
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has NULL for a klass field
@@ -2449,7 +2459,9 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
         if (base_k->is_loaded() && base_k->is_instance_klass()) {
           ciInstanceKlass *ik = base_k->as_instance_klass();
           // See if we can become precise: no subklasses and no interface
-          if (!ik->is_interface() && !ik->has_subklass()) {
+          // Do not fold klass loads from [LMyValue. The runtime type might be [QMyValue due to [QMyValue <: [LMyValue
+          // and the klass for [QMyValue is not equal to the klass for [LMyValue.
+          if (!ik->is_interface() && !ik->has_subklass() && (!ik->is_inlinetype() || ak->is_elem_null_free())) {
             // Add a dependence; if any subclass added we need to recompile
             if (!ik->is_final()) {
               phase->C->dependencies()->assert_leaf_type(ik);

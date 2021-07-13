@@ -137,9 +137,8 @@ bool oopDesc::is_instance_noinline()          const { return is_instance();     
 bool oopDesc::is_array_noinline()             const { return is_array();               }
 bool oopDesc::is_objArray_noinline()          const { return is_objArray();            }
 bool oopDesc::is_typeArray_noinline()         const { return is_typeArray();           }
-bool oopDesc::is_value_noinline()             const { return is_inline_type();         }
 bool oopDesc::is_flatArray_noinline()         const { return is_flatArray();           }
-bool oopDesc::is_nullfreeArray_noinline()     const { return is_nullfreeArray();       }
+bool oopDesc::is_null_free_array_noinline()   const { return is_null_free_array();     }
 
 bool oopDesc::has_klass_gap() {
   // Only has a klass gap when compressed class pointers are used.

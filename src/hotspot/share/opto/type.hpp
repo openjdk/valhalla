@@ -1265,7 +1265,7 @@ class TypeInstPtr : public TypeOopPtr {
   // If this is a java.lang.Class constant, return the type for it or NULL.
   // Pass to Type::get_const_type to turn it to a type, which will usually
   // be a TypeInstPtr, but may also be a TypeInt::INT for int.class, etc.
-  ciType* java_mirror_type() const;
+  ciType* java_mirror_type(bool* is_val_mirror = NULL) const;
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 
@@ -1351,7 +1351,7 @@ public:
   // Inline type array properties
   bool is_flat()          const { return _ary->_elem->isa_inlinetype() != NULL; }
   bool is_not_flat()      const { return _ary->_not_flat; }
-  bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != NULL && _ary->_elem->make_ptr()->is_inlinetypeptr()); }
+  bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != NULL && _ary->_elem->make_ptr()->is_inlinetypeptr() && !_ary->_elem->make_ptr()->maybe_null()); }
   bool is_not_null_free() const { return _ary->_not_null_free; }
 
   bool is_autobox_cache() const { return _is_autobox_cache; }

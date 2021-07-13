@@ -121,6 +121,7 @@ public final class Constructor<T> extends Executable {
                 String signature,
                 byte[] annotations,
                 byte[] parameterAnnotations) {
+        assert declaringClass.isPrimaryType();
         this.clazz = declaringClass;
         this.parameterTypes = parameterTypes;
         this.exceptionTypes = checkedExceptions;
@@ -359,13 +360,13 @@ public final class Constructor<T> extends Executable {
 
     @Override
     void specificToStringHeader(StringBuilder sb) {
-        sb.append(getDeclaringClass().getTypeName());
+        sb.append(getDeclaringClassTypeName());
     }
 
     @Override
     String toShortString() {
         StringBuilder sb = new StringBuilder("constructor ");
-        sb.append(getDeclaringClass().getTypeName());
+        sb.append(getDeclaringClassTypeName());
         sb.append('(');
         StringJoiner sj = new StringJoiner(",");
         for (Class<?> parameterType : getParameterTypes()) {

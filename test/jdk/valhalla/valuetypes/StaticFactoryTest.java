@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,8 @@
 
 /*
  * @test
- * @summary Test reflection of constructors for inline classes
- * @run testng/othervm InlineConstructorTest
+ * @summary Test reflection of constructors for primitive classes
+ * @run testng/othervm StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;
@@ -39,45 +39,44 @@ import java.util.stream.Collectors;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
-public class InlineConstructorTest {
-
+public class StaticFactoryTest {
     // Target test class
-    static primitive class SimpleInline {
+    static primitive class SimplePrimitive {
         public final int x;
 
-        SimpleInline() {
+        SimplePrimitive() {
             x = -1;
         }
 
-        public SimpleInline(int x) {
+        public SimplePrimitive(int x) {
             this.x = x;
         }
     }
 
-    static final Class<?> INLINE_TYPE = SimpleInline.class;
+    static final Class<?> PRIMITIVE_TYPE = SimplePrimitive.class;
 
     @Test
-    public static void testInlineClassConstructor() throws Exception {
-        String cn = INLINE_TYPE.getName();
-        Class<?> c = Class.forName(cn);
+    public static void testPrimitiveClassConstructor() throws Exception {
+        String cn = PRIMITIVE_TYPE.getName();
+        Class<?> c = Class.forName(cn).asValueType();
 
         assertTrue(c.isPrimitiveClass());
-        assertEquals(c, INLINE_TYPE);
+        assertTrue(c == PRIMITIVE_TYPE);
     }
 
     @Test
     public static void constructor() throws Exception {
-        Constructor<?> ctor = INLINE_TYPE.getDeclaredConstructor();
+        Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
         Object o = ctor.newInstance();
-        assertEquals(o.getClass(), INLINE_TYPE);
+        assertTrue(o.getClass() == PRIMITIVE_TYPE.asPrimaryType());
     }
 
     // Check that the class has the expected Constructors
     @Test
     public static void constructors() throws Exception {
-        Set<String> expectedSig = Set.of("public InlineConstructorTest$SimpleInline(int)",
-                                         "InlineConstructorTest$SimpleInline()");
-        Constructor<? extends Object>[] cons = INLINE_TYPE.getDeclaredConstructors();
+        Set<String> expectedSig = Set.of("public StaticFactoryTest$SimplePrimitive(int)",
+                                         "StaticFactoryTest$SimplePrimitive()");
+        Constructor<? extends Object>[] cons = PRIMITIVE_TYPE.getDeclaredConstructors();
         Set<String> actualSig = Arrays.stream(cons).map(Constructor::toString)
                                       .collect(Collectors.toSet());
         boolean ok = expectedSig.equals(actualSig);
@@ -91,36 +90,36 @@ public class InlineConstructorTest {
     // Check that the constructor and field can be set accessible
     @Test
     public static void setAccessible() throws Exception {
-        Constructor<?> ctor = INLINE_TYPE.getDeclaredConstructor();
+        Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
         ctor.setAccessible(true);
 
-        Field field = INLINE_TYPE.getField("x");
+        Field field = PRIMITIVE_TYPE.getField("x");
         field.setAccessible(true);
     }
 
     // Check that the constructor and field can be set accessible
     @Test
     public static void trySetAccessible() throws Exception {
-        Constructor<?> ctor = INLINE_TYPE.getDeclaredConstructor();
+        Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
         assertTrue(ctor.trySetAccessible());
 
-        Field field = INLINE_TYPE.getField("x");
+        Field field = PRIMITIVE_TYPE.getField("x");
         assertTrue(field.trySetAccessible());
     }
 
     // Check that the final field cannot be modified
     @Test(expectedExceptions = IllegalAccessException.class)
     public static void setFinalField() throws Exception {
-        Field field = INLINE_TYPE.getField("x");
+        Field field = PRIMITIVE_TYPE.getField("x");
         field.setAccessible(true);
-        field.setInt(new SimpleInline(100), 200);
+        field.setInt(new SimplePrimitive(100), 200);
     }
 
 
     // Check that the class does not have a static method with the name <init>
     @Test
     public static void initFactoryNotMethods() {
-        Method[] methods = INLINE_TYPE.getDeclaredMethods();
+        Method[] methods = PRIMITIVE_TYPE.getDeclaredMethods();
         for (Method m : methods) {
             if (Modifier.isStatic(m.getModifiers())) {
                 assertFalse(m.getName().equals("<init>"));

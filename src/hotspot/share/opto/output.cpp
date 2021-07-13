@@ -33,6 +33,7 @@
 #include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/allocation.hpp"
@@ -3322,7 +3323,7 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
       // when loading object fields from the buffered argument. Increase scratch buffer size accordingly.
       int barrier_size = UseZGC ? 200 : (7 DEBUG_ONLY(+ 37));
       for (ciSignatureStream str(C->method()->signature()); !str.at_return_type(); str.next()) {
-        if (str.type()->is_inlinetype() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
+        if (str.is_null_free() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
           size += str.type()->as_inline_klass()->oop_count() * barrier_size;
         }
       }

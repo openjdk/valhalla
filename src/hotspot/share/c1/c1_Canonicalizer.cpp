@@ -676,14 +676,14 @@ void Canonicalizer::do_CheckCast      (CheckCast*       x) {
                           klass->as_instance_klass()->is_interface();
       // Interface casts can't be statically optimized away since verifier doesn't
       // enforce interface types in bytecode.
-      if (!is_interface && klass->is_subtype_of(x->klass())) {
+      if (!is_interface && klass->is_subtype_of(x->klass()) && (!x->is_null_free() || obj->is_null_free())) {
         assert(!x->klass()->is_inlinetype() || x->klass() == klass, "Inline klasses can't have subtypes");
         set_canonical(obj);
         return;
       }
     }
-    // checkcast of null returns null for non-inline klasses
-    if (!x->klass()->is_inlinetype() && obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    // checkcast of null returns null for non null-free klasses
+    if (!x->is_null_free() && obj->is_null_obj()) {
       set_canonical(obj);
     }
   }
@@ -697,7 +697,7 @@ void Canonicalizer::do_InstanceOf     (InstanceOf*      x) {
       return;
     }
     // instanceof null returns false
-    if (obj->as_Constant() && obj->type()->as_ObjectType()->constant_value()->is_null_object()) {
+    if (obj->as_Constant() && obj->is_null_obj()) {
       set_constant(0);
     }
   }

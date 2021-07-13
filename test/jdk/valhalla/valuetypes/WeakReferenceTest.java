@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,32 @@
  * questions.
  */
 
-/**
+import java.lang.ref.WeakReference;
+import java.lang.ref.ReferenceQueue;
+
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
+
+/*
  * @test
- * @bug 8209400 8215246
- * @summary Allow anonymous classes to be value types
- * @run main/othervm -Xverify:none AnonymousValueType
+ * @summary Test primitive classes with Reference types
+ * @run testng/othervm WeakReferenceTest
  */
+@Test
+public class WeakReferenceTest {
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    static void test1() {
+        Point.ref p = new Point(10,20);
+        WeakReference<Point.ref> r = new WeakReference<>(p);
+    }
 
-public class AnonymousValueType {
-    public static void main(String[] args) {
-        Object o = new primitive Comparable<String>() {
-            int x = 10;
-            @Override
-            public int compareTo(String o) {
-                return 0;
-            }
-        };
-        if (!o.toString().equals("AnonymousValueType$1@" + Integer.toHexString(o.hashCode())))
-            throw new AssertionError("Broken");
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    static void test2() {
+        ReferenceQueue<Object> q = new ReferenceQueue<>();
+        Point.ref p = new Point(1,2);
+        WeakReference<Point.ref> r = new WeakReference<>(p, q);
     }
 }

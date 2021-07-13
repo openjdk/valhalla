@@ -35,16 +35,10 @@ import com.sun.tools.classfile.*;
 
 public primitive class SignatureTest<T> implements java.io.Serializable {
     public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(SignatureTest.class.getResourceAsStream("SignatureTest$ref.class"));
+        ClassFile cls = ClassFile.read(SignatureTest.class.getResourceAsStream("SignatureTest.class"));
         Signature_attribute signature = (Signature_attribute) cls.attributes.get(Attribute.Signature);
         String s = signature.getSignature(cls.constant_pool);
         if (!s.equals("<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/io/Serializable;"))
-            throw new AssertionError("Unexpected signature: " + s);
-
-        cls = ClassFile.read(SignatureTest.class.getResourceAsStream("SignatureTest.class"));
-        signature = (Signature_attribute) cls.attributes.get(Attribute.Signature);
-        s = signature.getSignature(cls.constant_pool);
-        if (!s.equals("<T:Ljava/lang/Object;>LSignatureTest$ref<TT;>;"))
             throw new AssertionError("Unexpected signature: " + s);
     }
 }

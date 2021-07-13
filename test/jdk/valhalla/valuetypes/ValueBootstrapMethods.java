@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,11 +60,6 @@ public class ValueBootstrapMethods {
         assertEquals(hash, value.localHashCode());
         assertEquals(hash, value.hashCode());
 
-        Method toString = test.getMethod("toString", valueClass);
-        String s = (String)toString.invoke(null, value);
-        assertEquals(s, value.localToString());
-        assertEquals(s, value.toString());
-
         Method equals = test.getMethod("equals", valueClass, Object.class);
         boolean rc = (boolean)equals.invoke(null, value, value);
         if (!rc) {
@@ -90,12 +85,6 @@ public class ValueBootstrapMethods {
 
         public int localHashCode() {
             return values().hashCode();
-        }
-
-        public String localToString() {
-            System.out.println(l);
-            return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
-                                 i, String.valueOf(d), s, l.toString());
         }
     }
 
@@ -162,21 +151,6 @@ public class ValueBootstrapMethods {
             Type.getMethodDescriptor(Type.BOOLEAN_TYPE, type, Type.getType(Object.class)),
             bootstrap, type);
         mv.visitInsn(IRETURN);
-        mv.visitMaxs(-1, -1);
-        mv.visitEnd();
-
-        mv = cw.visitMethod(
-            ACC_PUBLIC + ACC_STATIC + ACC_FINAL,
-            "toString",
-            Type.getMethodDescriptor(Type.getType(String.class), type),
-            null,
-            null);
-
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitInvokeDynamicInsn("toString",
-            Type.getMethodDescriptor(Type.getType(String.class), type),
-            bootstrap,  type);
-        mv.visitInsn(ARETURN);
         mv.visitMaxs(-1, -1);
         mv.visitEnd();
 

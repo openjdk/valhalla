@@ -531,9 +531,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   }
 
   ciMethod* method = compilation()->method();
-  ciType* return_type = method->return_type();
-  if (InlineTypeReturnedAsFields && return_type->is_inlinetype()) {
-    ciInlineKlass* vk = return_type->as_inline_klass();
+  if (InlineTypeReturnedAsFields && method->signature()->returns_null_free_inline_type()) {
+    ciInlineKlass* vk = method->return_type()->as_inline_klass();
     if (vk->can_be_returned_as_fields()) {
 #ifndef _LP64
       Unimplemented();
@@ -2030,7 +2029,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     __ jccb(Assembler::notZero, test_mark_word);
     __ load_prototype_header(tmp, op->array()->as_register(), rscratch1);
     __ bind(test_mark_word);
-    __ testl(tmp, markWord::nullfree_array_bit_in_place);
+    __ testl(tmp, markWord::null_free_array_bit_in_place);
   } else {
     Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     Register klass = op->tmp()->as_register();

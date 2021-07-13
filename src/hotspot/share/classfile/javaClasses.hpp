@@ -276,6 +276,9 @@ class java_lang_Class : AllStatic {
   static int _class_loader_offset;
   static int _module_offset;
   static int _component_mirror_offset;
+  static int _primary_mirror_offset;
+  static int _secondary_mirror_offset;
+
   static int _name_offset;
   static int _source_file_offset;
   static int _classData_offset;
@@ -290,6 +293,9 @@ class java_lang_Class : AllStatic {
   static void set_protection_domain(oop java_class, oop protection_domain);
   static void set_class_loader(oop java_class, oop class_loader);
   static void set_component_mirror(oop java_class, oop comp_mirror);
+  static void set_primary_mirror(oop java_class, oop comp_mirror);
+  static void set_secondary_mirror(oop java_class, oop comp_mirror);
+
   static void initialize_mirror_fields(Klass* k, Handle mirror, Handle protection_domain,
                                        Handle classData, TRAPS);
   static void set_mirror_module_field(JavaThread* current, Klass* K, Handle mirror, Handle module);
@@ -302,6 +308,7 @@ class java_lang_Class : AllStatic {
                             Handle protection_domain, Handle classData, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
+  static oop  create_secondary_mirror(Klass* k, Handle mirror, TRAPS);
   static void update_archived_primitive_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
   static void update_archived_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
 
@@ -338,6 +345,8 @@ class java_lang_Class : AllStatic {
   static int klass_offset()                { CHECK_INIT(_klass_offset); }
   static int array_klass_offset()          { CHECK_INIT(_array_klass_offset); }
   static int component_mirror_offset()     { CHECK_INIT(_component_mirror_offset); }
+  static int primary_mirror_offset()       { CHECK_INIT(_primary_mirror_offset); }
+  static int secondary_mirror_offset()     { CHECK_INIT(_secondary_mirror_offset); }
   // Support for classRedefinedCount field
   static int classRedefinedCount(oop the_class_mirror);
   static void set_classRedefinedCount(oop the_class_mirror, int value);
@@ -349,6 +358,11 @@ class java_lang_Class : AllStatic {
     set_init_lock(java_class, NULL);
   }
   static oop  component_mirror(oop java_class);
+  static oop  primary_mirror(oop java_class);
+  static oop  secondary_mirror(oop java_class);
+  static bool is_primary_mirror(oop java_class);
+  static bool is_secondary_mirror(oop java_class);
+
   static objArrayOop  signers(oop java_class);
   static void set_signers(oop java_class, objArrayOop signers);
   static oop  class_data(oop java_class);

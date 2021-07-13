@@ -235,7 +235,7 @@ public final class Class<T> implements java.io.Serializable,
     public String toString() {
         return (isPrimitiveClass() ? "primitive " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName();
+               + getName() + (isPrimitiveClass() && isPrimaryType() ? ".ref" : "");
     }
 
     /**
@@ -553,8 +553,21 @@ public final class Class<T> implements java.io.Serializable,
         }
     }
 
+    // set by VM if this class is an exotic type such as primitive class
+    // otherwise, these two fields are null
+    private transient Class<T> primaryType;
+    private transient Class<T> secondaryType;
+
     /**
      * Returns {@code true} if this class is a primitive class.
+     * <p>
+     * Each primitive class has a {@linkplain #isPrimaryType() primary type}
+     * representing the <em>primitive reference type</em> and a
+     * {@linkplain #isValueType() secondary type} representing
+     * the <em>primitive value type</em>.  The primitive reference type
+     * and primitive value type can be obtained by calling the
+     * {@link #asPrimaryType()} and {@link #asValueType} method
+     * of a primitive class respectively.
      *
      * @return {@code true} if this class is a primitive class, otherwise {@code false}
      * @since Valhalla
@@ -564,156 +577,77 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns an {@code Optional<Class>} object representing the <em>primitive value type</em>
-     * of this class if this {@code Class} represents the <em>reference type</em>
-     * of a {@linkplain #isPrimitiveClass() primitive class}.
-     * If this {@code Class} represents the value type of a primitive class,
-     * then this method returns this class.
-     * Otherwise an empty {@link Optional} is returned.
+     * Returns a {@code Class} object representing the primary type
+     * of this class or interface.
+     * <p>
+     * If this {@code Class} object represents a reference type, then
+     * this method returns this class.
+     * <p>
+     * If this {@code Class} object represents a {@linkplain #isPrimitiveClass()
+     * primitive class}, then this method returns the <em>primitive reference type</em>
+     * type of this primitive class.
+     * <p>
+     * If this is a primitive type, then this method returns this class.
      *
-     * @return the {@code Optional<Class>} representing the primitive value type of
-     *         this class if this class is either the value type
-     *         or the reference type of a primitive class;
-     *         an empty {@link Optional} otherwise
+     * @return the {@code Class} representing the primary type of
+     *         this class or interface
      * @since Valhalla
      */
-    public Optional<Class<?>> valueType() {
-        if (isPrimitive() || isInterface() || isArray())
-            return Optional.empty();
-
-        Class<?>[] valRefTypes = getPrimitiveTypes();
-        return valRefTypes.length > 0 ? Optional.of(valRefTypes[0]) : Optional.empty();
+    public Class<?> asPrimaryType() {
+        return isPrimitiveClass() ? primaryType : this;
     }
 
     /**
-     * Returns a {@code Class} object representing the reference type
-     * of this class.
-     * <p>
-     * If this {@code Class} represents a {@linkplain #isPrimitiveClass()
-     * primitive reference type}, then this method
-     * returns the <em>primitive reference type</em> type of this primitive class.
-     * <p>
-     * If this {@code Class} represents the reference type
-     * of a primitive class, then this method returns this class.
-     * <p>
-     * If this class is an identity class, then this method returns this class.
-     * <p>
-     * Otherwise this method returns an empty {@code Optional}.
+     * Returns a {@code Class} object representing the <em>primitive value type</em>
+     * of this class if this class is a {@linkplain #isPrimitiveClass() primitive class}.
      *
-     * @return the {@code Optional<Class>} object representing the reference type for
-     *         this class, if present; an empty {@link Optional} otherwise.
+     * @return the {@code Class} representing the primitive value type of
+     *         this class if this class is a primitive class
+     * @throws UnsupportedOperationException if this class or interface
+     *         is not a primitive class
      * @since Valhalla
      */
-    public Optional<Class<?>> referenceType() {
-        if (isPrimitive()) return Optional.empty();
-        if (isInterface() || isArray()) return Optional.of(this);
-        if (!isPrimitiveClass()) return Optional.of(this);
-
-        Class<?>[] valRefTypes = getPrimitiveTypes();
-        return valRefTypes.length == 2 ? Optional.of(valRefTypes[1]) : Optional.empty();
-    }
-
-    /*
-     * Returns true if this Class object represents a primitive reference
-     * type for a primitive class.
-     *
-     * A primitive reference type must be a sealed abstract class that
-     * permits the primitive value type to extend.  The primitive value type
-     * and primitive reference type for a primitive type must be of the same package.
-     */
-    private boolean isPrimitiveReferenceType() {
-        if (isPrimitive() || isArray() || isInterface() || isPrimitiveClass())
-            return false;
-
-        int mods = getModifiers();
-        if (!Modifier.isAbstract(mods)) {
-            return false;
-        }
-
-        Class<?>[] valRefTypes = getPrimitiveTypes();
-        return valRefTypes.length == 2 && valRefTypes[1] == this;
-    }
-
-    private transient Class<?>[] primitiveTypes;
-    private Class<?>[] getPrimitiveTypes() {
-        if (isPrimitive() || isArray() || isInterface())
-            return null;
-
-        Class<?>[] valRefTypes = primitiveTypes;
-        if (valRefTypes == null) {
-            // So newPrimitiveTypeArray is called without holding any lock to
-            // avoid potential deadlock when multiple threads attempt to
-            // initialize the primitive types for C and E where D is
-            // the superclass of both C and E (which is an error case)
-            valRefTypes = newTypeArrayForPrimitiveClass();
-        }
-        synchronized (this) {
-            // set the value and reference types if not set
-            if (primitiveTypes == null) {
-                primitiveTypes = valRefTypes;
-            }
-        }
-        return primitiveTypes;
-    }
-
-    /*
-     * Returns an array of Class objects whose element at index 0 represents the
-     * primitive value type and element at index 1 represents the
-     * primitive reference type, if present.
-     *
-     * If this Class object is neither a primitive value type nor
-     * a primitive reference type for a primitive class, then an empty array
-     * is returned.
-     */
-    private Class<?>[] newTypeArrayForPrimitiveClass() {
-        if (isPrimitive() || isArray() || isInterface())
-            return null;
-
-        if (isPrimitiveClass()) {
-            Class<?> superClass = getSuperclass();
-            if (superClass != Object.class && superClass.isPrimitiveReferenceType()) {
-                return new Class<?>[] { this, superClass };
-            } else {
-                return new Class<?>[] { this };
-            }
-        } else {
-            Class<?> valType = primitiveValueType();
-            if (valType != null) {
-                return new Class<?>[] { valType, this};
-            } else {
-                return EMPTY_CLASS_ARRAY;
-            }
-        }
-    }
-
-    /*
-     * Returns the primitive value type if this Class represents
-     * a primitive reference type.  If this class is a primitive class
-     * then this method returns this class.  Otherwise, returns null.
-     */
-    private Class<?> primitiveValueType() {
-        if (isPrimitive() || isArray() || isInterface())
-            return null;
-
+    public Class<?> asValueType() {
         if (isPrimitiveClass())
-            return this;
+            return secondaryType;
 
-        int mods = getModifiers();
-        if (!Modifier.isAbstract(mods)) {
-            return null;
-        }
+        throw new UnsupportedOperationException(this.getName() + " is not a primitive class");
+    }
 
-        // A primitive reference type must be a sealed abstract class
-        // that permits the primitive class type to extend.
-        // The primitive class project type and primitive reference type for
-        // a primitive class type must be of the same package.
-        Class<?>[] subclasses = getPermittedSubclasses0();
-        if ((subclasses.length == 1) &&
-                (subclasses[0].isPrimitiveClass()) &&
-                (getPackageName().equals(subclasses[0].getPackageName()))) {
-            return subclasses[0];
+    /**
+     * Returns {@code true} if this {@code Class} object represents the primary type
+     * of this class or interface.
+     * <p>
+     * If this is a primitive type, then this method returns {@code true}.
+     * <p>
+     * If this {@code Class} object represents a reference type, then
+     * this method returns {@code true}.
+     * <p>
+     * If this {@code Class} object represents a {@linkplain #isPrimitiveClass()
+     * primitive} reference type, then this method returns {@code true};
+     * otherwise, this method returns {@code false}.
+     *
+     * @return {@code true} if this {@code Class} object represents
+     * the primary type of this class or interface
+     * @since Valhalla
+     */
+    public boolean isPrimaryType() {
+        if (isPrimitiveClass()) {
+            return this == primaryType;
         }
-        return null;
+        return true;
+    }
+
+    /**
+     * Returns {@code true} if this {@code Class} object represents
+     * a {@linkplain #isPrimitiveClass() primitive} value type.
+     *
+     * @return {@code true} if this {@code Class} object represents the
+     * value type of a primitive class
+     * @since Valhalla
+     */
+    public boolean isValueType() {
+        return isPrimitiveClass() && this == secondaryType;
     }
 
     /**
@@ -860,6 +794,10 @@ public final class Class<T> implements java.io.Serializable,
      * superinterface of, the class or interface represented by the specified
      * {@code Class} parameter. It returns {@code true} if so;
      * otherwise it returns {@code false}. If this {@code Class}
+     * object represents the {@linkplain #isPrimaryType() reference type}
+     * of a {@linkplain #isPrimitiveClass() primitive class}, this method
+     * return {@code true} if the specified {@code Class} parameter represents
+     * the same primitive class. If this {@code Class}
      * object represents a primitive type, this method returns
      * {@code true} if the specified {@code Class} parameter is
      * exactly this {@code Class} object; otherwise it returns
@@ -868,9 +806,9 @@ public final class Class<T> implements java.io.Serializable,
      * <p> Specifically, this method tests whether the type represented by the
      * specified {@code Class} parameter can be converted to the type
      * represented by this {@code Class} object via an identity conversion
-     * or via a widening reference conversion. See <cite>The Java Language
-     * Specification</cite>, sections {@jls 5.1.1} and {@jls 5.1.4},
-     * for details.
+     * or via a widening reference conversion or via a primitive widening
+     * conversion. See <cite>The Java Language Specification</cite>,
+     * sections {@jls 5.1.1} and {@jls 5.1.4}, for details.
      *
      * @param     cls the {@code Class} object to be checked
      * @return    the {@code boolean} value indicating whether objects of the
@@ -1025,7 +963,7 @@ public final class Class<T> implements java.io.Serializable,
      * (new Point[3]).getClass().getName()
      *     returns "[QPoint;"
      * (new Point.ref[3][4]).getClass().getName()
-     *     returns "[[LPoint$ref;"
+     *     returns "[[LPoint;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
@@ -1859,7 +1797,12 @@ public final class Class<T> implements java.io.Serializable,
                 return cl.getTypeName() + "[]".repeat(dimensions);
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
-        return getName();
+        if (isPrimitiveClass()) {
+            // TODO: null-default
+            return isPrimaryType() ? getName() + ".ref" : getName();
+        } else {
+            return getName();
+        }
     }
 
     /**
@@ -4053,16 +3996,16 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this is an {@linkplain #isPrimitiveClass()
-     * primitive class} and the object is {@code null}
+     * @throws NullPointerException if this is an {@linkplain #isValueType()
+     * primitive value type} and the object is {@code null}
      *
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
     @IntrinsicCandidate
     public T cast(Object obj) {
-        if (isPrimitiveClass() && obj == null)
-            throw new NullPointerException(getName() + " is a primitive class");
+        if (isValueType() && obj == null)
+            throw new NullPointerException(getName() + " is a primitive value type");
 
         if (obj != null && !isInstance(obj))
             throw new ClassCastException(cannotCastMsg(obj));
@@ -4575,7 +4518,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        char typeDesc = isPrimitiveClass() ? 'Q' : 'L';
+        char typeDesc = isValueType() ? 'Q' : 'L';
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');

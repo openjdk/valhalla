@@ -27,12 +27,12 @@
 #include "code/vtableStubs.hpp"
 #include "utilities/debug.hpp"
 
-VtableStub* VtableStubs::create_vtable_stub(int vtable_index) {
+VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1) {
   ShouldNotCallThis();
   return NULL;
 }
 
-VtableStub* VtableStubs::create_itable_stub(int vtable_index) {
+VtableStub* VtableStubs::create_itable_stub(int vtable_index, bool caller_is_c1) {
   ShouldNotCallThis();
   return NULL;
 }

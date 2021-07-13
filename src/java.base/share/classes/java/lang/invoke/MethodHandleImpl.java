@@ -1503,10 +1503,6 @@ abstract class MethodHandleImpl {
             public VarHandle insertCoordinates(VarHandle target, int pos, Object... values) {
                 return VarHandles.insertCoordinates(target, pos, values);
             }
-            @Override
-            public String inlineObjectToString(Object o) {
-                return ValueBootstrapMethods.inlineObjectToString(o);
-            }
         });
     }
 

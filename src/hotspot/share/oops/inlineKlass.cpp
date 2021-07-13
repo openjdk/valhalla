@@ -60,6 +60,7 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
+  *((address*)adr_null_free_inline_array_klasses()) = NULL;
   set_prototype_header(markWord::inline_type_prototype());
   assert(is_inline_type_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
@@ -164,24 +165,8 @@ bool InlineKlass::flatten_array() {
   return true;
 }
 
-void InlineKlass::remove_unshareable_info() {
-  InstanceKlass::remove_unshareable_info();
-
-  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
-  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
-  *((address*)adr_pack_handler()) = NULL;
-  *((address*)adr_pack_handler_jobject()) = NULL;
-  *((address*)adr_unpack_handler()) = NULL;
-  assert(pack_handler() == NULL, "pack handler not null");
-}
-
-void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
-  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-}
-
-Klass* InlineKlass::array_klass(int n, TRAPS) {
-  // Need load-acquire for lock-free read
-  if (array_klasses_acquire() == NULL) {
+Klass* InlineKlass::null_free_inline_array_klass(int n, TRAPS) {
+  if (Atomic::load_acquire(adr_null_free_inline_array_klasses()) == NULL) {
     ResourceMark rm(THREAD);
     JavaThread *jt = THREAD->as_Java_thread();
     {
@@ -189,26 +174,26 @@ Klass* InlineKlass::array_klass(int n, TRAPS) {
       MutexLocker ma(THREAD, MultiArray_lock);
 
       // Check if update has already taken place
-      if (array_klasses() == NULL) {
+      if (null_free_inline_array_klasses() == NULL) {
         ArrayKlass* k;
         if (flatten_array()) {
           k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
         } else {
-          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
+          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, true, true, CHECK_NULL);
+
         }
         // use 'release' to pair with lock-free load
-        release_set_array_klasses(k);
+        Atomic::release_store(adr_null_free_inline_array_klasses(), k);
       }
     }
   }
-  // array_klasses() will always be set at this point
-  ArrayKlass* ak = array_klasses();
+  ArrayKlass* ak = null_free_inline_array_klasses();
   return ak->array_klass(n, THREAD);
 }
 
-Klass* InlineKlass::array_klass_or_null(int n) {
+Klass* InlineKlass::null_free_inline_array_klass_or_null(int n) {
   // Need load-acquire for lock-free read
-  ArrayKlass* ak = array_klasses_acquire();
+  ArrayKlass* ak = Atomic::load_acquire(adr_null_free_inline_array_klasses());
   if (ak == NULL) {
     return NULL;
   } else {
@@ -216,14 +201,27 @@ Klass* InlineKlass::array_klass_or_null(int n) {
   }
 }
 
-Klass* InlineKlass::array_klass(TRAPS) {
-  return array_klass(1, THREAD);
+Klass* InlineKlass::null_free_inline_array_klass(TRAPS) {
+  return null_free_inline_array_klass(1, THREAD);
 }
 
-Klass* InlineKlass::array_klass_or_null() {
-  return array_klass_or_null(1);
+Klass* InlineKlass::null_free_inline_array_klass_or_null() {
+  return null_free_inline_array_klass_or_null(1);
 }
 
+void InlineKlass::array_klasses_do(void f(Klass* k)) {
+  InstanceKlass::array_klasses_do(f);
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->array_klasses_do(f);
+  }
+}
+
+void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
+  InstanceKlass::array_klasses_do(f, THREAD);
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->array_klasses_do(f, THREAD);
+  }
+}
 
 // Inline type arguments are not passed by reference, instead each
 // field of the inline type is passed as an argument. This helper
@@ -520,6 +518,46 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   return NULL;
 }
 
+// CDS support
+
+void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
+  InstanceKlass::metaspace_pointers_do(it);
+
+  InlineKlass* this_ptr = this;
+  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
+  it->push((Klass**)adr_null_free_inline_array_klasses());
+}
+
+void InlineKlass::remove_unshareable_info() {
+  InstanceKlass::remove_unshareable_info();
+
+  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
+  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
+  *((address*)adr_pack_handler()) = NULL;
+  *((address*)adr_pack_handler_jobject()) = NULL;
+  *((address*)adr_unpack_handler()) = NULL;
+  assert(pack_handler() == NULL, "pack handler not null");
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->remove_unshareable_info();
+  }
+}
+
+void InlineKlass::remove_java_mirror() {
+  InstanceKlass::remove_java_mirror();
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->remove_java_mirror();
+  }
+}
+
+void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
+  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
+  if (null_free_inline_array_klasses() != NULL) {
+    null_free_inline_array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
+  }
+}
+
+// oop verify
+
 void InlineKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
   guarantee(prototype_header().is_inline_type(), "Prototype header is not inline type");
@@ -528,11 +566,4 @@ void InlineKlass::verify_on(outputStream* st) {
 void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
   guarantee(obj->mark().is_inline_type(), "Header is not inline type");
-}
-
-void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
-  InstanceKlass::metaspace_pointers_do(it);
-
-  InlineKlass* this_ptr = this;
-  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
 }

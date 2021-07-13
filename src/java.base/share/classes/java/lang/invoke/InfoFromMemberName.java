@@ -116,9 +116,10 @@ final class InfoFromMemberName implements MethodHandleInfo {
                 // object constructor
                 throw new IllegalArgumentException("object constructor must be of void return type");
             } else if (MethodHandleNatives.refKindIsMethod(refKind) &&
-                       methodType.returnType() != defc) {
+                       methodType.returnType() != defc.asValueType()) {
+                // TODO: allow to return Object or perhaps one of the supertypes of that class
                 // static init factory
-                throw new IllegalArgumentException("static constructor must be of " + getDeclaringClass().getName());
+                throw new IllegalArgumentException("static constructor must be of " + defc.getName());
             }
 
             return isPublic ? defc.getConstructor(methodType.parameterArray())

@@ -266,11 +266,7 @@ public class Object {
      * @return  a string representation of the object.
      */
     public String toString() {
-        if (getClass().isPrimitiveClass()) {
-            return SharedSecrets.getJavaLangInvokeAccess().inlineObjectToString(this);
-        } else {
-            return getClass().getName() + "@" + Integer.toHexString(hashCode());
-        }
+        return getClass().getName() + "@" + Integer.toHexString(hashCode());
     }
 
     /**

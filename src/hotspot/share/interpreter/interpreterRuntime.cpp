@@ -160,7 +160,9 @@ JRT_ENTRY(void, InterpreterRuntime::ldc(JavaThread* current, bool wide))
 
   assert (tag.is_unresolved_klass() || tag.is_klass(), "wrong ldc call");
   Klass* klass = pool->klass_at(index, CHECK);
-  oop java_class = klass->java_mirror();
+  oop java_class = tag.is_Qdescriptor_klass()
+                      ? InlineKlass::cast(klass)->val_mirror()
+                      : klass->java_mirror();
   current->set_vm_result(java_class);
 JRT_END
 
@@ -350,7 +352,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
       field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
     } else { // not inlined
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_inline_type()) {
+      if (voop == NULL && cp_entry->is_null_free_inline_type()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
@@ -380,6 +382,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   // If the class is being initialized, the default value is returned.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
+  assert(klass->field_signature(index)->is_Q_signature(), "Sanity check");
   if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
@@ -956,7 +959,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* current, Bytecodes::Code by
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
     info.is_inlined(),
-    info.is_inline_type()
+    info.signature()->is_Q_signature() && info.is_inline_type()
   );
 }
 

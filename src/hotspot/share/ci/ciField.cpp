@@ -105,6 +105,9 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
 
+  // this is needed if the field class is not yet loaded.
+  _is_null_free = _signature->is_Q_signature();
+
   // Get the field's declared holder.
   //
   // Note: we actually create a ciInstanceKlass for this klass,
@@ -237,6 +240,7 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
   _is_flattened = false;
+  _is_null_free = field->is_null_free();
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -286,6 +290,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flattened = fd->is_inlined();
+  _is_null_free = fd->signature()->is_Q_signature();
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
@@ -483,6 +488,7 @@ void ciField::print() {
     _constant_value.print();
   }
   tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
+  tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
   tty->print(">");
 }
 

@@ -45,8 +45,8 @@ class ObjArrayKlass : public ArrayKlass {
   Klass* _bottom_klass;             // The one-dimensional type (InstanceKlass or TypeArrayKlass)
 
   // Constructor
-  ObjArrayKlass(int n, Klass* element_klass, Symbol* name);
-  static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, TRAPS);
+  ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool null_free);
+  static ObjArrayKlass* allocate(ClassLoaderData* loader_data, int n, Klass* k, Symbol* name, bool null_free, TRAPS);
  public:
   // For dummy objects
   ObjArrayKlass() {}
@@ -67,7 +67,8 @@ class ObjArrayKlass : public ArrayKlass {
 
   // Allocation
   static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
-                                                int n, Klass* element_klass, TRAPS);
+                                                int n, Klass* element_klass,
+                                                bool null_free, bool qdesc, TRAPS);
 
   objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);

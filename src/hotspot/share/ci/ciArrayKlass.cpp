@@ -30,6 +30,7 @@
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 // ciArrayKlass
 //
@@ -101,13 +102,23 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::base_element_type
 //
 // What type is obtained when this array is indexed as many times as possible?
-ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool null_free) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
-  } else if (element_type->flatten_array()) {
-    return ciFlatArrayKlass::make(element_type->as_klass());
   } else {
-    return ciObjArrayKlass::make(element_type->as_klass());
+    ciKlass* klass = element_type->as_klass();
+    if (null_free && klass->is_loaded()) {
+      GUARDED_VM_ENTRY(
+        EXCEPTION_CONTEXT;
+        Klass* ak = InlineKlass::cast(klass->get_Klass())->null_free_inline_array_klass(THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+          CLEAR_PENDING_EXCEPTION;
+        } else if (ak != NULL && ak->is_flatArray_klass()) {
+          return ciFlatArrayKlass::make(klass);
+        }
+      )
+    }
+    return ciObjArrayKlass::make(klass, null_free);
   }
 }
 

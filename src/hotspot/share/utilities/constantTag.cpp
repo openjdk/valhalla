@@ -101,7 +101,7 @@ jbyte constantTag::error_value() const {
 }
 
 const char* constantTag::internal_name() const {
-  switch (_tag) {
+  switch (value()) {
     case JVM_CONSTANT_Invalid :
       return "Invalid index";
     case JVM_CONSTANT_Class :

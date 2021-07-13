@@ -60,6 +60,7 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_flat_array_klass() const  { return false; }
   virtual bool is_obj_array_klass() const   { return false; }
   virtual bool is_type_array_klass() const  { return false; }
+  virtual bool is_wrapper() const           { return false; }
   virtual bool flatten_array() const        { return false; }
   virtual void dump_replay_data(outputStream* st) { /* do nothing */ }
 
@@ -110,6 +111,10 @@ class ciMetadata: public ciBaseObject {
   ciInlineKlass*           as_inline_klass() {
     assert(is_inlinetype(), "bad cast");
     return (ciInlineKlass*)this;
+  }
+  ciWrapper*               as_wrapper() {
+    assert(is_wrapper(), "bad cast");
+    return (ciWrapper*)this;
   }
 
   Metadata* constant_encoding() { return _metadata; }

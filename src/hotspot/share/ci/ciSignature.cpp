@@ -64,6 +64,9 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
       _return_type = type;
       break;
     }
+    if (type->is_inlinetype() && ss.has_Q_descriptor()) {
+      type = env->make_null_free_wrapper(type);
+    }
     _types.append(type);
     size += type->size();
   }
@@ -71,9 +74,17 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
 }
 
 // ------------------------------------------------------------------
-// ciSignature::returns_inline_type
-bool ciSignature::returns_inline_type() const {
+// ciSignature::returns_null_free_inline_type
+bool ciSignature::returns_null_free_inline_type() const {
   GUARDED_VM_ENTRY(return get_symbol()->is_Q_method_signature();)
+}
+
+// ------------------------------------------------------------------
+// ciSignature::is_null_free_at
+//
+// True if we know that the argument at 'index' is null-free.
+bool ciSignature::is_null_free_at(int index) const {
+  return _types.at(index)->is_null_free();
 }
 
 // ------------------------------------------------------------------

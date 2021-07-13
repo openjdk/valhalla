@@ -605,7 +605,7 @@ public class Check {
         } else {
             if (found.hasTag(CLASS)) {
                 if (inferenceContext != infer.emptyContext)
-                    checkParameterizationWithValues(pos, found);
+                    checkParameterizationByPrimitiveClass(pos, found);
             }
         }
         if (req.hasTag(ERROR))
@@ -749,7 +749,8 @@ public class Check {
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
             }
-            // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+            // No instance fields and no arged constructors both mean inner classes
+            // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
                 log.error(pos, Errors.SuperClassCannotBeInner(c, st));
@@ -836,10 +837,10 @@ public class Check {
      *  or a type variable.
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
-     *  @param valueOK       If false, a value class does not qualify
+     *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
-    Type checkRefType(DiagnosticPosition pos, Type t, boolean valueOK) {
-        if (t.isReference() && (valueOK || !types.isPrimitiveClass(t)))
+    Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
+        if (t.isReference() && (primitiveClassOK || !types.isPrimitiveClass(t)))
             return t;
         else
             return typeTagError(pos,
@@ -923,14 +924,15 @@ public class Check {
             return true;
     }
 
-    void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        valueParameterizationChecker.visit(t, pos);
+    void checkParameterizationByPrimitiveClass(DiagnosticPosition pos, Type t) {
+        parameterizationByPrimitiveClassChecker.visit(t, pos);
     }
 
-    /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
+    /** parameterizationByPrimitiveClassChecker: A type visitor that descends down the given type looking for instances of primitive classes
      *  being used as type arguments and issues error against those usages.
      */
-    private final Types.SimpleVisitor<Void, DiagnosticPosition> valueParameterizationChecker = new Types.SimpleVisitor<Void, DiagnosticPosition>() {
+    private final Types.SimpleVisitor<Void, DiagnosticPosition> parameterizationByPrimitiveClassChecker =
+            new Types.SimpleVisitor<Void, DiagnosticPosition>() {
 
         @Override
         public Void visitType(Type t, DiagnosticPosition pos) {
@@ -1121,7 +1123,7 @@ public class Check {
         //upward project the initializer type
         Type varType = types.upward(t, types.captures(t));
         if (varType.hasTag(CLASS)) {
-            checkParameterizationWithValues(pos, varType);
+            checkParameterizationByPrimitiveClass(pos, varType);
         }
         return varType;
     }
@@ -1387,7 +1389,7 @@ public class Check {
             } else if ((sym.owner.flags_field & RECORD) != 0) {
                 mask = RecordMethodFlags;
             } else {
-                // instance methods of value types do not have a monitor associated with their `this'
+                // instance methods of primitive classes do not have a monitor associated with their `this'
                 mask = ((sym.owner.flags_field & PRIMITIVE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
             }
@@ -1426,7 +1428,7 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or value type
+                // enums can't be declared abstract, final, sealed or non-sealed or primitive
                 mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
@@ -2448,7 +2450,7 @@ public class Check {
         }
     }
 
-    // A value class cannot contain a field of its own type either or indirectly.
+    // A primitive class cannot contain a field of its own type either or indirectly.
     void checkNonCyclicMembership(JCClassDecl tree) {
         Assert.check((tree.sym.flags_field & LOCKED) == 0);
         try {

@@ -105,7 +105,7 @@ public class VerifyAccess {
             return false;
         }
         // Usually refc and defc are the same, but verify defc also in case they differ.
-        if (defc == lookupClass  &&
+        if (defc.asPrimaryType() == lookupClass  &&
             (allowedModes & PRIVATE) != 0)
             return true;        // easy check; all self-access is OK with a private lookup
 
@@ -140,7 +140,7 @@ public class VerifyAccess {
                                  Reflection.areNestMates(defc, lookupClass));
             // for private methods the selected method equals the
             // resolved method - so refc == defc
-            assert (canAccess && refc == defc) || !canAccess;
+            assert (canAccess && refc.asPrimaryType() == defc.asPrimaryType()) || !canAccess;
             return canAccess;
         default:
             throw new IllegalArgumentException("bad modifiers: "+Modifier.toString(mods));
@@ -148,7 +148,7 @@ public class VerifyAccess {
     }
 
     static boolean isRelatedClass(Class<?> refc, Class<?> lookupClass) {
-        return (refc == lookupClass ||
+        return (refc.asPrimaryType() == lookupClass.asPrimaryType() ||
                 isSubClass(refc, lookupClass) ||
                 isSubClass(lookupClass, refc));
     }
@@ -273,7 +273,7 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        if (type == refc) {
+        if (type.asPrimaryType() == refc.asPrimaryType()) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -334,7 +334,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (type == res);
+        return (type.asPrimaryType() == res);
     }
 
     /**

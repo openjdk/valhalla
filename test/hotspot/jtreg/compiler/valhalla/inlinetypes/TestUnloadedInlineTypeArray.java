@@ -394,7 +394,7 @@ public class TestUnloadedInlineTypeArray {
 
     static void verifyTest6() {
         Object n = test6();
-        Asserts.assertEQ(n.toString(), "[MyValue6 foo=124]");
+        Asserts.assertEQ(n.toString(), "MyValue6@" + Integer.toHexString(n.hashCode()));
     }
 
     static Object test6Box() {
@@ -403,7 +403,7 @@ public class TestUnloadedInlineTypeArray {
 
     static void verifyTest6Box() {
         Object n = test6Box();
-        Asserts.assertEQ(n.toString(), "[MyValue6Box foo=124]");
+        Asserts.assertEQ(n.toString(), "MyValue6Box@" + Integer.toHexString(n.hashCode()));
     }
 
     static int test7(MyValue7[][] arr) {

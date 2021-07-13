@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,6 +45,7 @@ public class BasicObjectsTest {
         errors += testIsNull();
         errors += testNonNull();
         errors += testNonNullOf();
+        errors += testNewIdentity();
         if (errors > 0 )
             throw new RuntimeException();
     }
@@ -273,6 +274,21 @@ public class BasicObjectsTest {
             // expected
             errors += npe.getMessage().equals("supplier") ? 0 : 1;
         }
+        return errors;
+    }
+
+    private static int testNewIdentity() {
+        int errors = 0;
+
+        Object o1 = Objects.newIdentity();
+        Object o2 = Objects.newIdentity();
+
+        if (o1 == null || o2 == null)
+            errors += 1;
+
+        if (o1 == o2)
+            errors += 1;
+
         return errors;
     }
 }

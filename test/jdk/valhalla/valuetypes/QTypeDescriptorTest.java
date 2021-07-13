@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@ public class QTypeDescriptorTest {
     static final NonFlattenValue NFV = NonFlattenValue.make(30, 40);
 
     @Test
-    public static void testLambda() {
+    public void testLambda() {
         newArray(Point[]::new, 2);
         newArray(Point[][]::new, 1);
 
@@ -58,7 +58,7 @@ public class QTypeDescriptorTest {
     }
 
     @Test
-    public static void testMethodInvoke() throws Exception {
+    public void testMethodInvoke() throws Exception {
         Class<?> pointQType = Point.class;
         Class<?> nonFlattenValueQType = NonFlattenValue.class;
         Method m = QTypeDescriptorTest.class
@@ -77,8 +77,8 @@ public class QTypeDescriptorTest {
     }
 
     @Test
-    public static void testStaticMethod() throws Throwable {
-        // static method in an inline type with no parameter and void return type
+    public void testStaticMethod() throws Throwable {
+        // static method in a primitive class with no parameter and void return type
         Runnable r = () -> ValueTest.run();
         r.run();
 
@@ -96,7 +96,7 @@ public class QTypeDescriptorTest {
     }
 
     @Test
-    public static void testConstructor() throws Exception {
+    public void testConstructor() throws Exception {
         Constructor<T> ctor = T.class.getDeclaredConstructor(Point[].class);
         Point[] points = new Point[] { P0, P1 };
         T test = (T) ctor.newInstance((Object)points);
@@ -105,7 +105,7 @@ public class QTypeDescriptorTest {
     }
 
     @Test
-    public static void testProxy() throws Exception {
+    public void testProxy() throws Exception {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -137,11 +137,9 @@ public class QTypeDescriptorTest {
     }
 
     @Test(dataProvider = "descriptors")
-    public static void testDescriptors(Class<?> defc, String name, Class<?>[] params, boolean found) throws Exception {
+    public void testDescriptors(Class<?> defc, String name, Class<?>[] params, boolean found) throws Exception {
         try {
-            // TODO: methods are in the reference projection
-            Class<?> declaringClass = defc /* defc.referenceType().get() */;
-            declaringClass.getDeclaredMethod(name, params);
+            defc.getDeclaredMethod(name, params);
             if (!found) throw new AssertionError("Expected NoSuchMethodException");
         } catch (NoSuchMethodException e) {
             if (found) throw e;
@@ -152,23 +150,23 @@ public class QTypeDescriptorTest {
     static Object[][] methodTypes() {
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
-            { "point",      MethodType.methodType(Point.ref.class),                                     true },
-            { "pointValue", MethodType.methodType(Point.class),                                         true },
-            { "has",        MethodType.methodType(boolean.class, Point.class, Point.ref.class),         true },
-            { "point",      MethodType.methodType(Point.class),                                         false },
-            { "pointValue", MethodType.methodType(Point.ref.class),                                     false },
-            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class),         false },
-            { "point",      MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),             true },
-            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),                 false },
-            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),                 true },
-            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),             false },
-            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint$ref;)Z", loader),     true },
-            { "has",        MethodType.fromMethodDescriptorString("(LPoint$ref;LPoint$ref;)Z", loader), false },
+            { "point",      MethodType.methodType(Point.ref.class),                                      true },
+            { "pointValue", MethodType.methodType(Point.class),                                          true },
+            { "has",        MethodType.methodType(boolean.class, Point.class, Point.ref.class),          true },
+            { "point",      MethodType.methodType(Point.class),                                          false },
+            { "pointValue", MethodType.methodType(Point.ref.class),                                      false },
+            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class),          false },
+            { "point",      MethodType.fromMethodDescriptorString("()LPoint;", loader),        true },
+            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),        false },
+            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),        true },
+            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint;", loader),        false },
+            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint;)Z", loader),true },
+            { "has",        MethodType.fromMethodDescriptorString("(LPoint;LPoint;)Z", loader),false },
         };
     }
 
     @Test(dataProvider = "methodTypes")
-    public static void methodHandleLookup(String name, MethodType mtype, boolean found) throws Throwable {
+    public void methodHandleLookup(String name, MethodType mtype, boolean found) throws Throwable {
         try {
             MethodHandles.lookup().findVirtual(NonFlattenValue.class, name, mtype);
             if (!found) throw new AssertionError("Expected NoSuchMethodException");

@@ -102,18 +102,6 @@ public class Types {
     List<Warner> warnStack = List.nil();
     final Name capturedName;
 
-    /**
-     * If true, the ClassWriter will split a primitive class declaration into two class files
-     * P.ref.class and P.val.class (P.class for pure primitive classes)
-     *
-     * This is the default behavior, can be eoverridden with -XDunifiedValRefClass
-     *
-     * If false, we emit a single class for a primtive class 'P' and the reference projection and
-     * value projection types are encoded in descriptors as LP; and QP; resperctively.
-     */
-
-    public boolean splitPrimitiveClass;
-
     public final Warner noWarnings;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -139,7 +127,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        splitPrimitiveClass = options.isUnset("unifiedValRefClass");
     }
     // </editor-fold>
 
@@ -1645,7 +1632,7 @@ public class Types {
 
                     // -----------------------------------  Unspecified behavior ----------------
 
-                    /* If a value class V implements an interface I, then does "? extends I" contain V?
+                    /* If a primitive class V implements an interface I, then does "? extends I" contain V?
                        It seems widening must be applied here to answer yes to compile some common code
                        patterns.
                     */
@@ -1880,7 +1867,7 @@ public class Types {
                     // Sidecast
                     if (s.hasTag(CLASS)) {
                         if ((s.tsym.flags() & INTERFACE) != 0) {
-                            return (dynamicTypeMayImplementAdditionalInterfaces(t.tsym))
+                            return ((t.tsym.flags() & FINAL) == 0)
                                 ? sideCast(t, s, warnStack.head)
                                 : sideCastFinal(t, s, warnStack.head);
                         } else if ((t.tsym.flags() & INTERFACE) != 0) {
@@ -2374,7 +2361,7 @@ public class Types {
                     return true;
                 }
 
-                // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+                // No instance fields and no arged constructors both mean inner classes cannot be primitive class supers.
                 Type encl = t.getEnclosingType();
                 if (encl != null && encl.hasTag(CLASS)) {
                     return true;
@@ -2476,7 +2463,7 @@ public class Types {
         if ((sym.flags() & STATIC) != 0)
             return sym.type;
 
-        /* If any inline types are involved, switch over to the reference universe,
+        /* If any primitive class types are involved, switch over to the reference universe,
            where the hierarchy is navigable. V and V.ref have identical membership
            with no bridging needs.
         */
@@ -4732,7 +4719,7 @@ public class Types {
             to = from;
             from = target;
         }
-        Assert.check(!dynamicTypeMayImplementAdditionalInterfaces(from.tsym));
+        Assert.check((from.tsym.flags() & FINAL) != 0);
         Type t1 = asSuper(from, to.tsym);
         if (t1 == null) return false;
         Type t2 = to;
@@ -4742,10 +4729,6 @@ public class Types {
             (reverse ? giveWarning(t2, t1) : giveWarning(t1, t2)))
             warn.warn(LintCategory.UNCHECKED);
         return true;
-    }
-
-    private boolean dynamicTypeMayImplementAdditionalInterfaces(TypeSymbol tsym) {
-        return (tsym.flags() & FINAL) == 0 && !tsym.isReferenceProjection();
     }
 
     private boolean giveWarning(Type from, Type to) {
@@ -5425,10 +5408,6 @@ public class Types {
                         : c.name);
             } else {
                 append(externalize(c.flatname));
-            }
-            if (types.splitPrimitiveClass && ct.isReferenceProjection()) {
-                append('$');
-                append(types.names.ref);
             }
             if (ct.getTypeArguments().nonEmpty()) {
                 append('<');
