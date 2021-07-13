@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @key randomness
  * @summary Verify that C1 performs escape analysis before optimizing withfield bytecode to putfield.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDallowWithFieldOperator TestWithfieldC1.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions

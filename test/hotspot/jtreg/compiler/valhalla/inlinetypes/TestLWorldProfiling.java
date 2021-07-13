@@ -31,7 +31,7 @@ import java.lang.reflect.Method;
  * @key randomness
  * @summary Test inline type specific profiling
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @requires (os.simpleArch == "x64")
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestLWorldProfiling.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
