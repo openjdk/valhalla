@@ -3865,7 +3865,8 @@ public class TestLWorld {
     }
 
     // Test that virtual calls on inline type receivers are properly inlined
-    @Test(failOn = ALLOC + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test142() {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3878,8 +3879,8 @@ public class TestLWorld {
         return val.hash();
     }
 
-    @DontCompile
-    public void test142_verifier(boolean warmup) {
+    @Run(test = "test142")
+    public void test142_verifier() {
         long res = test142();
         Asserts.assertEquals(res, testValue2.hash());
     }

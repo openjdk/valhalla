@@ -393,7 +393,6 @@ public class TestLWorldProfiling {
         test13(testValue1NotFlatArray, testValue1);
     }
 
-
     // MonomorphicArrayCheck
     @Test
     public void test14(Number[] array, Number v) {

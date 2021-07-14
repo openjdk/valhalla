@@ -43,7 +43,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  */
 
 public class TestUnloadedInlineTypeField {
-    // The test only prevent loading of classes when testing with C1. Load classes
+    // Only prevent loading of classes when testing with C1. Load classes
     // early when executing with C2 to prevent uncommon traps. It's still
     // beneficial to execute this test with C2 because it also checks handling
     // of type mismatches.
@@ -879,7 +879,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     @Run(test = "test20")
-    public void test20_verifier(RunInfo info) {
+    public void test20_verifier() {
         MyValue20 vt = test20();
         Asserts.assertEQ(vt.obj, null);
     }

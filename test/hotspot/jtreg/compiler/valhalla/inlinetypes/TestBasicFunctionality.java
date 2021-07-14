@@ -60,7 +60,6 @@ public class TestBasicFunctionality {
                    .start();
     }
 
-    // Helper methods
     protected long hash() {
         return hash(rI, rL);
     }

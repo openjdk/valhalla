@@ -976,7 +976,6 @@ public class TestArrays {
         }
     }
 
-
     @Test
     public void test38(Object src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, dst.length);

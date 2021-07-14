@@ -116,7 +116,7 @@ public class TestCallingConvention {
     }
 
     @Run(test = "test2")
-    public void test2_verifier(RunInfo info) {
+    public void test2_verifier() {
         MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test2(rI, v, 2*rI);
         Asserts.assertEQ(result, v.hashInterpreted() - rI);
@@ -369,7 +369,6 @@ public class TestCallingConvention {
         test16_vt.verify(vt);
     }
 
-
     // Return inline types in registers from compiled -> compiled
     final MyValue3 test17_vt = MyValue3.create();
     @DontInline
@@ -514,7 +513,7 @@ public class TestCallingConvention {
     }
 
     @Run(test = "test23")
-    public void test23_verifier(RunInfo info) {
+    public void test23_verifier() {
         TestValue23 vt = new TestValue23(rI);
         double res1 = test23(rI, rI, rI, rI, rI, rI,
                             vt, vt, vt, vt, vt, vt, vt, vt,
@@ -534,7 +533,7 @@ public class TestCallingConvention {
     }
 
     @Run(test = "test24")
-    public void test24_verifier(RunInfo info) {
+    public void test24_verifier() {
         MyValue2.ref vt = test24();
         Asserts.assertEQ(vt, null);
     }
@@ -1026,7 +1025,6 @@ public class TestCallingConvention {
         MixedContainer c = test44();
         Asserts.assertEquals(c, new MixedContainer(rI, EmptyContainer.default));
     }
-
 
     // Empty inline type container argument
     @Test

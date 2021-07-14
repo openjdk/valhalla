@@ -96,6 +96,7 @@ public class TestCallingConventionC1 {
         }
 
         @ForceCompile(CompLevel.C1_SIMPLE)
+        @DontInline
         public int func_c1(Point p) {
             return x + y + p.x + p.y;
         }
@@ -173,8 +174,10 @@ public class TestCallingConventionC1 {
     static class MyImplPojo1 implements Intf {
         int field = 1000;
 
+        @DontInline
         @ForceCompile(CompLevel.C1_SIMPLE)
         public int func1(int a, int b)             { return field + a + b + 20; }
+        @DontInline
         @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
@@ -182,8 +185,10 @@ public class TestCallingConventionC1 {
     static class MyImplPojo2 implements Intf {
         int field = 2000;
 
+        @DontInline
         @ForceCompile(CompLevel.C2)
         public int func1(int a, int b)             { return field + a + b + 20; }
+        @DontInline
         @ForceCompile(CompLevel.C2)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
@@ -206,7 +211,8 @@ public class TestCallingConventionC1 {
         @ForceCompile(CompLevel.C1_SIMPLE)
         public int func1(int a, int b) { return field + a + b + 300; }
 
-        @DontInline @ForceCompile(CompLevel.C1_SIMPLE)
+        @DontInline
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
@@ -216,10 +222,12 @@ public class TestCallingConventionC1 {
             field = 12000;
         }
 
-        @DontInline @ForceCompile(CompLevel.C2)
+        @DontInline
+        @ForceCompile(CompLevel.C2)
         public int func1(int a, int b)             { return field + a + b + 300; }
 
-        @DontInline @ForceCompile(CompLevel.C2)
+        @DontInline
+        @ForceCompile(CompLevel.C2)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
@@ -2260,7 +2268,7 @@ public class TestCallingConventionC1 {
     }
 
     @ForceCompile
-    public void test107_verifier(RunInfo info) {
+    public void test107_verifier() {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
@@ -2284,8 +2292,8 @@ public class TestCallingConventionC1 {
 
     @Run(test = "test107")
     @Warmup(0)
-    public void run_test107_verifier(RunInfo info) {
-        test107_verifier(info);
+    public void run_test107_verifier() {
+        test107_verifier();
     }
 
     // Same as test107, except we call MyImplVal2X.func2 (compiled by C1, VVEP_RO != VVEP)
@@ -2295,7 +2303,7 @@ public class TestCallingConventionC1 {
     }
 
     @ForceCompile
-    public void test108_verifier(RunInfo info) {
+    public void test108_verifier() {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
@@ -2319,8 +2327,8 @@ public class TestCallingConventionC1 {
 
     @Run(test = "test108")
     @Warmup(0)
-    public void run_test108_verifier(RunInfo info) {
-        test108_verifier(info);
+    public void run_test108_verifier() {
+        test108_verifier();
     }
 
     // Same as test107, except we call MyImplPojo3.func2 (compiled by C1, VVEP_RO == VEP)
@@ -2330,7 +2338,7 @@ public class TestCallingConventionC1 {
     }
 
     @ForceCompile
-    public void test109_verifier(RunInfo info) {
+    public void test109_verifier() {
         Intf intf1 = new MyImplPojo0();
         Intf intf2 = new MyImplPojo3();
 
@@ -2354,7 +2362,7 @@ public class TestCallingConventionC1 {
 
     @Run(test = "test109")
     @Warmup(0)
-    public void run_test109_verifier(RunInfo info) {
-        test109_verifier(info);
+    public void run_test109_verifier() {
+        test109_verifier();
     }
 }
