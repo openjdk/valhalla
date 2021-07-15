@@ -177,6 +177,7 @@ public class TestCallingConventionC1 {
         @DontInline
         @ForceCompile(CompLevel.C1_SIMPLE)
         public int func1(int a, int b)             { return field + a + b + 20; }
+
         @DontInline
         @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
@@ -188,6 +189,7 @@ public class TestCallingConventionC1 {
         @DontInline
         @ForceCompile(CompLevel.C2)
         public int func1(int a, int b)             { return field + a + b + 20; }
+
         @DontInline
         @ForceCompile(CompLevel.C2)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
