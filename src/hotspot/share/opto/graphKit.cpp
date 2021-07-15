@@ -3108,20 +3108,17 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
     const TypeOopPtr* recv_xtype = tklass->as_instance_type();
     assert(recv_xtype->klass_is_exact(), "");
 
-    if (!receiver_type->higher_equal(recvx_type)) { // ignore redundant casts
-      // Subsume downstream occurrences of receiver with a cast to
-      // recv_xtype, since now we know what the type will be.
-      Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
-      Node* res = _gvn.transform(cast);
-      if (recv_xtype->is_inlinetypeptr() && recv_xtype->inline_klass()->is_scalarizable()) {
-        assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
-        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_ptr(&gvn());
-      }
-
-      (*casted_receiver) = res;
-      // (User must make the replace_in_map call.)
+    // Subsume downstream occurrences of receiver with a cast to
+    // recv_xtype, since now we know what the type will be.
+    Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
+    Node* res = _gvn.transform(cast);
+    if (recv_xtype->is_inlinetypeptr() && recv_xtype->inline_klass()->is_scalarizable()) {
+      assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
+      res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_ptr(&gvn());
     }
-  }
+    (*casted_receiver) = res;
+    // (User must make the replace_in_map call.)
+}
 
   return fail;
 }

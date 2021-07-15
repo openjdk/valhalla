@@ -130,13 +130,13 @@ oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
       // Apply any required checks
       if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && CompressedOops::is_null(element)) {
         oop_arraycopy_partial_barrier(bs, dst_raw, p);
-        throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
+        throw_array_null_pointer_store_exception(src_obj, dst_obj, JavaThread::current());
         return;
       }
       if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
           (!oopDesc::is_instanceof_or_null(CompressedOops::decode(element), bound))) {
         oop_arraycopy_partial_barrier(bs, dst_raw, p);
-        throw_array_store_exception(src_obj, dst_obj, Thread::current()->as_Java_thread());
+        throw_array_store_exception(src_obj, dst_obj, JavaThread::current());
         return;
       }
       // write

@@ -4882,6 +4882,11 @@ void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {
   movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
 }
 
+void MacroAssembler::load_prototype_header(Register dst, Register src, Register tmp) {
+  load_klass(dst, src, tmp);
+  movptr(dst, Address(dst, Klass::prototype_header_offset()));
+}
+
 void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
   assert_different_registers(src, tmp);
   assert_different_registers(dst, tmp);

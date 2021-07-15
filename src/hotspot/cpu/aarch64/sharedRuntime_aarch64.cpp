@@ -2046,7 +2046,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ orr(swap_reg, rscratch1, 1);
     if (EnableValhalla) {
-      assert(!UseBiasedLocking, "Not compatible with biased-locking");
       // Mask inline_type bit such that we go to the slow path if object is an inline type
       __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
     }

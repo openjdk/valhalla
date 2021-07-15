@@ -3832,6 +3832,11 @@ void MacroAssembler::cmp_klass(Register oop, Register trial_klass, Register tmp)
   cmp(trial_klass, tmp);
 }
 
+void MacroAssembler::load_prototype_header(Register dst, Register src) {
+  load_klass(dst, src);
+  ldr(dst, Address(dst, Klass::prototype_header_offset()));
+}
+
 void MacroAssembler::store_klass(Register dst, Register src) {
   // FIXME: Should this be a store release?  concurrent gcs assumes
   // klass length is valid if klass field is not null.

@@ -4355,7 +4355,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   if (vmClasses::Cloneable_klass_loaded()) {
     if (ik->is_subtype_of(vmClasses::Cloneable_klass())) {
       if (ik->is_inline_klass()) {
-        JavaThread *THREAD = Thread::current()->as_Java_thread();
+        JavaThread *THREAD = JavaThread::current();
         throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
         return;
       }

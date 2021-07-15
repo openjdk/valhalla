@@ -89,7 +89,6 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   orr(hdr, hdr, markWord::unlocked_value);
 
   if (EnableValhalla) {
-    assert(!UseBiasedLocking, "Not compatible with biased-locking");
     // Mask always_locked bit such that we go to the slow path if object is an inline type
     andr(hdr, hdr, ~markWord::inline_type_bit_in_place);
   }

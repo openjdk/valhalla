@@ -357,7 +357,7 @@ const char* Runtime1::name_for_address(address entry) {
 static void allocate_instance(JavaThread* current, Klass* klass, TRAPS) {
 #ifndef PRODUCT
   if (PrintC1Statistics) {
-    _new_instance_slowcase_cnt++;
+    Runtime1::_new_instance_slowcase_cnt++;
   }
 #endif
   assert(klass->is_klass(), "not a class");
@@ -377,7 +377,6 @@ JRT_END
 
 // Same as new_instance but throws error for inline klasses
 JRT_ENTRY(void, Runtime1::new_instance_no_inline(JavaThread* current, Klass* klass))
-  NOT_PRODUCT(_new_instance_slowcase_cnt++;)
   if (klass->is_inline_klass()) {
     SharedRuntime::throw_and_post_jvmti_exception(current, vmSymbols::java_lang_InstantiationError());
   } else {

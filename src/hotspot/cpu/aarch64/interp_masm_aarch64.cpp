@@ -852,7 +852,6 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     orr(swap_reg, rscratch1, 1);
     if (EnableValhalla) {
-      assert(!UseBiasedLocking, "Not compatible with biased-locking");
       // Mask inline_type bit such that we go to the slow path if object is an inline type
       andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
     }

@@ -671,7 +671,9 @@ protected:
   void set_is_cloneable();
 
   // inline types and inline type array patterns
-  markWord prototype_header() const     { return _prototype_header; }
+  markWord prototype_header() const {
+    return _prototype_header;
+  }
   static inline markWord default_prototype_header(Klass* k) {
     return (k == NULL) ? markWord::prototype() : k->prototype_header();
   }

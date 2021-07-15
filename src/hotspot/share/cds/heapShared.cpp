@@ -275,7 +275,7 @@ oop HeapShared::archive_heap_object(oop obj) {
     // identity_hash for all shared objects, so they are less likely to be written
     // into during run time, increasing the potential of memory sharing.
     int hash_original = obj->identity_hash();
-    archived_oop->set_mark(markWord::prototype_for_klass(archived_oop->klass()).copy_set_hash(hash_original));
+    archived_oop->set_mark(archived_oop->klass()->prototype_header().copy_set_hash(hash_original));
     assert(archived_oop->mark().is_unlocked(), "sanity");
 
     DEBUG_ONLY(int hash_archived = archived_oop->identity_hash());
@@ -416,7 +416,7 @@ void HeapShared::copy_roots() {
   memset(mem, 0, size * BytesPerWord);
   {
     // This is copied from MemAllocator::finish
-    oopDesc::set_mark(mem, markWord::prototype());
+    oopDesc::set_mark(mem, k->prototype_header());
     oopDesc::release_set_klass(mem, k);
   }
   {

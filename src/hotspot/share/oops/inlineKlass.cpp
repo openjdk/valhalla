@@ -168,7 +168,7 @@ bool InlineKlass::flatten_array() {
 Klass* InlineKlass::null_free_inline_array_klass(int n, TRAPS) {
   if (Atomic::load_acquire(adr_null_free_inline_array_klasses()) == NULL) {
     ResourceMark rm(THREAD);
-    JavaThread *jt = THREAD->as_Java_thread();
+    JavaThread *jt = JavaThread::cast(THREAD);
     {
       // Atomic creation of array_klasses
       MutexLocker ma(THREAD, MultiArray_lock);
