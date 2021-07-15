@@ -1427,8 +1427,7 @@ public class Gen extends JCTree.Visitor {
 
             if (switchEnv.info.cont != null) {
                 Assert.check(patternSwitch);
-                code.resolve(switchEnv.info.cont);
-                code.resolve(code.branch(goto_), switchStart);
+                code.resolve(switchEnv.info.cont, switchStart);
             }
 
             // Resolve all breaks.

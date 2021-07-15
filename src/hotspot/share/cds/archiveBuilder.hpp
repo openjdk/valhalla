@@ -33,7 +33,7 @@
 #include "runtime/os.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/hashtable.hpp"
+#include "utilities/resizeableResourceHash.hpp"
 #include "utilities/resourceHash.hpp"
 
 struct ArchiveHeapOopmapInfo;
@@ -184,8 +184,8 @@ private:
 
   class SrcObjTableCleaner {
   public:
-    bool do_entry(address key, const SourceObjInfo* value) {
-      delete value->ref();
+    bool do_entry(address key, const SourceObjInfo& value) {
+      delete value.ref();
       return true;
     }
   };
@@ -204,7 +204,7 @@ private:
 
   SourceObjList _rw_src_objs;                 // objs to put in rw region
   SourceObjList _ro_src_objs;                 // objs to put in ro region
-  KVHashtable<address, SourceObjInfo, mtClassShared> _src_obj_table;
+  ResizeableResourceHashtable<address, SourceObjInfo, ResourceObj::C_HEAP, mtClassShared> _src_obj_table;
   GrowableArray<Klass*>* _klasses;
   GrowableArray<Symbol*>* _symbols;
   GrowableArray<SpecialRefInfo>* _special_refs;
