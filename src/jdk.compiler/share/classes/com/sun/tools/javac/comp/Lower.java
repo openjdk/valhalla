@@ -2851,7 +2851,12 @@ public class Lower extends TreeTranslator {
         } else {
             tree.clazz = access(c, tree.clazz, enclOp, false);
         }
-        result = tree;
+        if (tree.clazz.type.tsym == syms.objectType.tsym) {
+            Assert.check(tree.def == null && tree.encl == null);
+            result = makeCall(make.Ident(syms.objectsType.tsym), names.newIdentity, List.nil());
+        } else {
+            result = tree;
+        }
     }
 
     // Simplify conditionals with known constant controlling expressions.

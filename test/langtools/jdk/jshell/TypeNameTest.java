@@ -51,7 +51,7 @@ public class TypeNameTest extends KullaTesting {
         assertEval("import java.util.ArrayList;");
         assertEval("import java.util.Arrays;");
 
-        assertType("new Object().getClass().getSuperclass() ", "Class<?>");
+        assertType("new Object() {}.getClass().getSuperclass().getSuperclass() ", "Class<?>");
         assertType("new ArrayList().getClass().getSuperclass()", "Class<?>");
         assertType("new ArrayList().getClass()", "Class<? extends ArrayList>");
         assertType("ArrayList.class", "Class<ArrayList>");

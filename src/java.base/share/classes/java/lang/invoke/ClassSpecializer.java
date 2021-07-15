@@ -155,7 +155,7 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
     private static final Function<Object, Object> CREATE_RESERVATION = new Function<>() {
         @Override
         public Object apply(Object key) {
-            return new Object();
+            return new Object() {};
         }
     };
 
@@ -185,7 +185,8 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         // from the loading and linking a real one below ensures we can never
         // accidentally call computeIfAbsent recursively.
         S speciesData;
-        if (speciesDataOrReservation.getClass() == Object.class) {
+        Class<?> speciesDataOrReservationClass = speciesDataOrReservation.getClass();
+        if (speciesDataOrReservationClass.isAnonymousClass() && speciesDataOrReservationClass.getSuperclass() == Object.class) {
             synchronized (speciesDataOrReservation) {
                 Object existingSpeciesData = cache.get(key);
                 if (existingSpeciesData == speciesDataOrReservation) { // won the race

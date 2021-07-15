@@ -183,7 +183,7 @@ public class BeanLinkerTest {
     public void getPropertyTest(final boolean publicLookup) throws Throwable {
         final MethodType mt = MethodType.methodType(Object.class, Object.class, String.class);
         final CallSite cs = createCallSite(publicLookup, GET_PROPERTY, mt);
-        Assert.assertEquals(cs.getTarget().invoke(new Object(), "class"), Object.class);
+        Assert.assertEquals(cs.getTarget().invoke(new Object(), "class"), java.util.Objects.newIdentity().getClass());
         Assert.assertEquals(cs.getTarget().invoke(new Date(), "class"), Date.class);
     }
 
@@ -198,7 +198,7 @@ public class BeanLinkerTest {
     public void getPropertyTest2(final boolean publicLookup) throws Throwable {
         final MethodType mt = MethodType.methodType(Object.class, Object.class);
         final CallSite cs = createCallSite(publicLookup, GET_PROPERTY, "class", mt);
-        Assert.assertEquals(cs.getTarget().invoke(new Object()), Object.class);
+        Assert.assertEquals(cs.getTarget().invoke(new Object()), java.util.Objects.newIdentity().getClass());
         Assert.assertEquals(cs.getTarget().invoke(new Date()), Date.class);
     }
 

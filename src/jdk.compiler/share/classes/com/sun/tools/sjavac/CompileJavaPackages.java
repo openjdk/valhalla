@@ -208,7 +208,7 @@ public class CompileJavaPackages implements Transformer {
 
         // Prepare compilation calls
         List<Callable<CompilationSubResult>> compilationCalls = new ArrayList<>();
-        final Object lock = new Object();
+        final Object lock = new Object() {};
         for (int i = 0; i < numCompiles; i++) {
             CompileChunk cc = compileChunks[i];
             if (cc.srcs.isEmpty()) {
