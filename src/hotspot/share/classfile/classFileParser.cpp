@@ -721,7 +721,7 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
                 "Bad method name at constant pool index %u in class file %s",
                 name_ref_index, THREAD);
               return;
-            } else if (!Signature::is_void_method(signature)) { // must have void signature.
+            } else if (!Signature::is_void_method(signature) && !EnableValhalla) { // must have void signature (unless inline type).
               throwIllegalSignature("Method", name, signature, CHECK);
             }
           }
@@ -5310,12 +5310,14 @@ void ClassFileParser::verify_legal_name_with_signature(const Symbol* name,
     return;
   }
 
-  int sig_length = signature->utf8_length();
-  if (name->utf8_length() > 0 &&
+  if (!is_inline_type()) {
+    int sig_length = signature->utf8_length();
+    if (name->utf8_length() > 0 &&
       name->char_at(0) == JVM_SIGNATURE_SPECIAL &&
       sig_length > 0 &&
       signature->char_at(sig_length - 1) != JVM_SIGNATURE_VOID) {
-    throwIllegalSignature("Method", name, signature, THREAD);
+      throwIllegalSignature("Method", name, signature, THREAD);
+    }
   }
 }
 
