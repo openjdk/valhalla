@@ -5352,29 +5352,10 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
     // The first non-signature thing better be a ')'
     if ((length > 0) && (*p++ == JVM_SIGNATURE_ENDFUNC)) {
       length--;
-      if (name->utf8_length() > 0 && name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
-        // All static init methods must return the current class
-        if ((length >= 3) && (p[length-1] == JVM_SIGNATURE_ENDCLASS)
-            && name == vmSymbols::object_initializer_name()) {
-          nextp = skip_over_field_signature(p, true, length, CHECK_0);
-          if (nextp && ((int)length == (nextp - p))) {
-            // The actual class will be checked against current class
-            // when the method is defined (see parse_method).
-            // A reference to a static init with a bad return type
-            // will load and verify OK, but will fail to link.
-            return args_size;
-          }
-        }
-        // The distinction between static factory methods and
-        // constructors depends on the JVM_ACC_STATIC modifier.
-        // This distinction must be reflected in a void or non-void
-        // return. For declared methods, the check is in parse_method.
-      } else {
-        // Now we better just have a return value
-        nextp = skip_over_field_signature(p, true, length, CHECK_0);
-        if (nextp && ((int)length == (nextp - p))) {
-          return args_size;
-        }
+      // Now we better just have a return value
+      nextp = skip_over_field_signature(p, true, length, CHECK_0);
+      if (nextp && ((int)length == (nextp - p))) {
+        return args_size;
       }
     }
   }
