@@ -75,7 +75,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 void oopDesc::init_mark() {
-  set_mark(markWord::prototype());
+  set_mark(Klass::default_prototype_header(klass()));
 }
 
 Klass* oopDesc::klass() const {
