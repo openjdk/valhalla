@@ -23,49 +23,52 @@
 
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
+import compiler.lib.ir_framework.*;
+import jdk.test.lib.Asserts;
+import test.java.lang.invoke.lib.InstructionHelper;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import jdk.test.lib.Asserts;
-import test.java.lang.invoke.lib.InstructionHelper;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
  * @test
  * @key randomness
  * @summary Test inline types in LWorld.
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /testlibrary /compiler/whitebox /
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestLWorld.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestLWorld
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
-public class TestLWorld extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        case 2: return new String[] {"-DVerifyIR=false"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
-        }
-        return null;
-    }
 
-    public static void main(String[] args) throws Throwable {
+@ForceCompileClassInitializer
+public class TestLWorld {
+
+    public static void main(String[] args) {
         // Make sure Test140Value is loaded but not linked
         Class<?> class1 = Test140Value.class;
         // Make sure Test141Value is linked but not initialized
         Class<?> class2 = Test141Value.class;
         class2.getDeclaredFields();
 
-        TestLWorld test = new TestLWorld();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class,
-                 MyValue3Inline.class, Test51Value.class);
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        scenarios[2].addFlags("-DVerifyIR=false");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
+        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
+                                     MyValue2Inline.class,
+                                     MyValue3.class,
+                                     MyValue3Inline.class)
+                   .start();
     }
 
     // Helper methods
@@ -98,7 +101,7 @@ public class TestLWorld extends InlineTypeTest {
         return (MyValue1)o;
     }
 
-    @Test()
+    @Test
     public MyValue1 test1() {
         MyValue1 vt = testValue1;
         vt = (MyValue1)test1_dontinline1(vt);
@@ -108,8 +111,8 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    public void test1_verifier() {
         Asserts.assertEQ(test1().hash(), hash());
     }
 
@@ -142,7 +145,7 @@ public class TestLWorld extends InlineTypeTest {
         return (Object)staticValueField4;
     }
 
-    @Test()
+    @Test
     public long test2(MyValue1 vt1, Object vt2) {
         objectField1 = vt1;
         objectField2 = (MyValue1)vt2;
@@ -166,8 +169,8 @@ public class TestLWorld extends InlineTypeTest {
                 staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         long result = test2(vt, vt);
@@ -175,7 +178,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test merging inline types and objects
-    @Test()
+    @Test
     public Object test3(int state) {
         Object res = null;
         if (state == 0) {
@@ -198,8 +201,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         objectField1 = valueField1;
         Object result = null;
         result = test3(0);
@@ -221,7 +224,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test merging inline types and objects in loops
-    @Test()
+    @Test
     public Object test4(int iters) {
         Object res = Integer.valueOf(rI);
         for (int i = 0; i < iters; ++i) {
@@ -234,8 +237,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         Integer result1 = (Integer)test4(0);
         Asserts.assertEQ(result1, rI);
         int iters = (Math.abs(rI) % 10) + 1;
@@ -245,28 +248,30 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test inline types in object variables that are live at safepoint
-    @Test(failOn = ALLOC + STORE + LOOP)
-    public long test5(MyValue1 arg, boolean deopt) {
+    @Test
+    @IR(failOn = {ALLOC, STORE, LOOP})
+    public long test5(MyValue1 arg, boolean deopt, Method m) {
         Object vt1 = MyValue1.createWithFieldsInline(rI, rL);
         Object vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
         Object vt3 = arg;
         Object vt4 = valueField1;
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test5"));
+            TestFramework.deoptimize(m);
         }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
-        long result = test5(valueField1, !warmup);
+    @Run(test = "test5")
+    public void test5_verifier(RunInfo info) {
+        long result = test5(valueField1, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result, 4*hash());
     }
 
     // Test comparing inline types with objects
-    @Test(failOn = LOAD + LOOP)
+    @Test
+    @IR(failOn = {LOAD, LOOP})
     public boolean test6(Object arg) {
         Object vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (Object)valueField1 || vt == objectField1 || vt == null ||
@@ -276,8 +281,8 @@ public class TestLWorld extends InlineTypeTest {
         return false;
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         boolean result = test6(null);
         Asserts.assertFalse(result);
     }
@@ -294,8 +299,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    public void test7_verifier() {
         test7(true);
         test7(false);
     }
@@ -311,8 +316,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
+    @Run(test = "test8")
+    public void test8_verifier() {
         test8(true);
         test8(false);
     }
@@ -328,8 +333,8 @@ public class TestLWorld extends InlineTypeTest {
         return o;
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
+    @Run(test = "test9")
+    public void test9_verifier() {
         test9();
     }
 
@@ -339,7 +344,8 @@ public class TestLWorld extends InlineTypeTest {
         return valueField1;
     }
 
-    @Test(failOn = ALLOC + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public void test10(boolean flag) {
         Object o = null;
         if (flag) {
@@ -350,8 +356,8 @@ public class TestLWorld extends InlineTypeTest {
         valueField1 = (MyValue1)o;
     }
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) {
+    @Run(test = "test10")
+    public void test10_verifier() {
         test10(true);
         test10(false);
     }
@@ -378,7 +384,7 @@ public class TestLWorld extends InlineTypeTest {
         return (MyValue1)o;
     }
 
-    @Test()
+    @Test
     public MyValue1 test11() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         vt = (MyValue1)test11_dontinline1(vt);
@@ -388,8 +394,8 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) {
+    @Run(test = "test11")
+    public void test11_verifier() {
         Asserts.assertEQ(test11().hash(), hash());
     }
 
@@ -411,7 +417,7 @@ public class TestLWorld extends InlineTypeTest {
         return (MyInterface)staticValueField4;
     }
 
-    @Test()
+    @Test
     public long test12(MyValue1 vt1, MyInterface vt2) {
         interfaceField1 = vt1;
         interfaceField2 = (MyValue1)vt2;
@@ -435,8 +441,8 @@ public class TestLWorld extends InlineTypeTest {
                 staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
     }
 
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
+    @Run(test = "test12")
+    public void test12_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         long result = test12(vt, vt);
@@ -457,7 +463,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test merging inline types and interfaces
-    @Test()
+    @Test
     public MyInterface test13(int state) {
         MyInterface res = null;
         if (state == 0) {
@@ -476,8 +482,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test13_verifier(boolean warmup) {
+    @Run(test = "test13")
+    public void test13_verifier() {
         objectField1 = valueField1;
         MyInterface result = null;
         result = test13(0);
@@ -495,7 +501,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test merging inline types and interfaces in loops
-    @Test()
+    @Test
     public MyInterface test14(int iters) {
         MyInterface res = new MyObject1(rI);
         for (int i = 0; i < iters; ++i) {
@@ -508,8 +514,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test14_verifier(boolean warmup) {
+    @Run(test = "test14")
+    public void test14_verifier() {
         MyObject1 result1 = (MyObject1)test14(0);
         Asserts.assertEQ(result1.x, rI);
         int iters = (Math.abs(rI) % 10) + 1;
@@ -519,28 +525,30 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test inline types in interface variables that are live at safepoint
-    @Test(failOn = ALLOC + STORE + LOOP)
-    public long test15(MyValue1 arg, boolean deopt) {
+    @Test
+    @IR(failOn = {ALLOC, STORE, LOOP})
+    public long test15(MyValue1 arg, boolean deopt, Method m) {
         MyInterface vt1 = MyValue1.createWithFieldsInline(rI, rL);
         MyInterface vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyInterface vt3 = arg;
         MyInterface vt4 = valueField1;
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test15"));
+            TestFramework.deoptimize(m);
         }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
     }
 
-    @DontCompile
-    public void test15_verifier(boolean warmup) {
-        long result = test15(valueField1, !warmup);
+    @Run(test = "test15")
+    public void test15_verifier(RunInfo info) {
+        long result = test15(valueField1, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result, 4*hash());
     }
 
     // Test comparing inline types with interfaces
-    @Test(failOn = LOAD + LOOP)
+    @Test
+    @IR(failOn = {LOAD, LOOP})
     public boolean test16(Object arg) {
         MyInterface vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (MyInterface)valueField1 || vt == interfaceField1 || vt == null ||
@@ -550,8 +558,8 @@ public class TestLWorld extends InlineTypeTest {
         return false;
     }
 
-    @DontCompile
-    public void test16_verifier(boolean warmup) {
+    @Run(test = "test16")
+    public void test16_verifier() {
         boolean result = test16(null);
         Asserts.assertFalse(result);
     }
@@ -568,8 +576,8 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test17_verifier(boolean warmup) {
+    @Run(test = "test17")
+    public void test17_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 result = test17(vt, Integer.valueOf(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
@@ -582,8 +590,8 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test18_verifier(boolean warmup) {
+    @Run(test = "test18")
+    public void test18_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 result = test18(vt);
         Asserts.assertEquals(result.hash(), vt.hash());
@@ -600,8 +608,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test19_verifier(boolean warmup) {
+    @Run(test = "test19")
+    public void test19_verifier() {
         test19(valueField1);
     }
 
@@ -616,8 +624,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
+    @Run(test = "test20")
+    public void test20_verifier() {
         test20(valueField1);
     }
 
@@ -638,37 +646,37 @@ public class TestLWorld extends InlineTypeTest {
     private static final Integer[] testIntegerArray = new Integer[42];
 
     // Test load from (flattened) inline type array disguised as object array
-    @Test()
+    @Test
     public Object test21(Object[] oa, int index) {
         return oa[index];
     }
 
-    @DontCompile
-    public void test21_verifier(boolean warmup) {
+    @Run(test = "test21")
+    public void test21_verifier() {
         MyValue1 result = (MyValue1)test21(testValue1Array, Math.abs(rI) % 3);
         Asserts.assertEQ(result.hash(), hash());
     }
 
     // Test load from (flattened) inline type array disguised as interface array
-    @Test()
+    @Test
     public Object test22Interface(MyInterface[] ia, int index) {
         return ia[index];
     }
 
-    @DontCompile
-    public void test22Interface_verifier(boolean warmup) {
+    @Run(test = "test22Interface")
+    public void test22Interface_verifier() {
         MyValue1 result = (MyValue1)test22Interface(testValue1Array, Math.abs(rI) % 3);
         Asserts.assertEQ(result.hash(), hash());
     }
 
     // Test load from (flattened) inline type array disguised as abstract array
-    @Test()
+    @Test
     public Object test22Abstract(MyAbstract[] ia, int index) {
         return ia[index];
     }
 
-    @DontCompile
-    public void test22Abstract_verifier(boolean warmup) {
+    @Run(test = "test22Abstract")
+    public void test22Abstract_verifier() {
         MyValue1 result = (MyValue1)test22Abstract(testValue1Array, Math.abs(rI) % 3);
         Asserts.assertEQ(result.hash(), hash());
     }
@@ -679,13 +687,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test23(Object[] oa, MyValue1 vt, int index) {
         test23_inline(oa, vt, index);
     }
 
-    @DontCompile
-    public void test23_verifier(boolean warmup) {
+    @Run(test = "test23")
+    public void test23_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test23(testValue1Array, vt, index);
@@ -705,13 +713,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test24(Object[] oa, MyValue1 vt, int index) {
         test24_inline(oa, vt, index);
     }
 
-    @DontCompile
-    public void test24_verifier(boolean warmup) {
+    @Run(test = "test24")
+    public void test24_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test24(testIntegerArray, testValue1, index);
@@ -726,13 +734,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test25(Object[] oa, MyValue1 vt, int index) {
         test25_inline(oa, vt, index);
     }
 
-    @DontCompile
-    public void test25_verifier(boolean warmup) {
+    @Run(test = "test25")
+    public void test25_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test25(null, testValue1, index);
@@ -748,13 +756,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test26Interface(MyInterface[] ia, MyValue1 vt, int index) {
       test26Interface_inline(ia, vt, index);
     }
 
-    @DontCompile
-    public void test26Interface_verifier(boolean warmup) {
+    @Run(test = "test26Interface")
+    public void test26Interface_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test26Interface(testValue1Array, vt, index);
@@ -774,13 +782,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test27Interface(MyInterface[] ia, MyValue1 vt, int index) {
         test27Interface_inline(ia, vt, index);
     }
 
-    @DontCompile
-    public void test27Interface_verifier(boolean warmup) {
+    @Run(test = "test27Interface")
+    public void test27Interface_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test27Interface(null, testValue1, index);
@@ -796,13 +804,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test26Abstract(MyAbstract[] ia, MyValue1 vt, int index) {
       test26Abstract_inline(ia, vt, index);
     }
 
-    @DontCompile
-    public void test26Abstract_verifier(boolean warmup) {
+    @Run(test = "test26Abstract")
+    public void test26Abstract_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test26Abstract(testValue1Array, vt, index);
@@ -822,13 +830,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test27Abstract(MyAbstract[] ia, MyValue1 vt, int index) {
         test27Abstract_inline(ia, vt, index);
     }
 
-    @DontCompile
-    public void test27Abstract_verifier(boolean warmup) {
+    @Run(test = "test27Abstract")
+    public void test27Abstract_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test27Abstract(null, testValue1, index);
@@ -844,13 +852,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test28(Object[] oa, Object o, int index) {
         test28_inline(oa, o, index);
     }
 
-    @DontCompile
-    public void test28_verifier(boolean warmup) {
+    @Run(test = "test28")
+    public void test28_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test28(testValue1Array, vt1, index);
@@ -870,13 +878,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test29(Object[] oa, Object o, int index) {
         test29_inline(oa, o, index);
     }
 
-    @DontCompile
-    public void test29_verifier(boolean warmup) {
+    @Run(test = "test29")
+    public void test29_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test29(testValue2Array, testValue1, index);
@@ -892,13 +900,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test30(Object[] oa, Object o, int index) {
         test30_inline(oa, o, index);
     }
 
-    @DontCompile
-    public void test30_verifier(boolean warmup) {
+    @Run(test = "test30")
+    public void test30_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test30(testIntegerArray, testValue1, index);
@@ -914,13 +922,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test31Interface(MyInterface[] ia, MyInterface i, int index) {
         test31Interface_inline(ia, i, index);
     }
 
-    @DontCompile
-    public void test31Interface_verifier(boolean warmup) {
+    @Run(test = "test31Interface")
+    public void test31Interface_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test31Interface(testValue1Array, vt1, index);
@@ -940,13 +948,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test32Interface(MyInterface[] ia, MyInterface i, int index) {
         test32Interface_inline(ia, i, index);
     }
 
-    @DontCompile
-    public void test32Interface_verifier(boolean warmup) {
+    @Run(test = "test32Interface")
+    public void test32Interface_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test32Interface(testValue2Array, testValue1, index);
@@ -962,13 +970,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test31Abstract(MyAbstract[] ia, MyAbstract i, int index) {
         test31Abstract_inline(ia, i, index);
     }
 
-    @DontCompile
-    public void test31Abstract_verifier(boolean warmup) {
+    @Run(test = "test31Abstract")
+    public void test31Abstract_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test31Abstract(testValue1Array, vt1, index);
@@ -988,13 +996,13 @@ public class TestLWorld extends InlineTypeTest {
         ia[index] = i;
     }
 
-    @Test()
+    @Test
     public void test32Abstract(MyAbstract[] ia, MyAbstract i, int index) {
         test32Abstract_inline(ia, i, index);
     }
 
-    @DontCompile
-    public void test32Abstract_verifier(boolean warmup) {
+    @Run(test = "test32Abstract")
+    public void test32Abstract_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test32Abstract(testValue2Array, testValue1, index);
@@ -1010,13 +1018,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test33(Object[] oa, Object o, int index) {
         test33_inline(oa, o, index);
     }
 
-    @DontCompile
-    public void test33_verifier(boolean warmup) {
+    @Run(test = "test33")
+    public void test33_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test33(testValue1Array, null, index);
@@ -1034,13 +1042,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test34(Object[] oa, int index) {
         test34_inline(oa, null, index);
     }
 
-    @DontCompile
-    public void test34_verifier(boolean warmup) {
+    @Run(test = "test34")
+    public void test34_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test34(testValue1Array, index);
@@ -1065,13 +1073,13 @@ public class TestLWorld extends InlineTypeTest {
             return_();
         });
 
-    @Test()
+    @Test
     public void test35(MyValue1[] va, int index) throws Throwable {
         setArrayElementNull.invoke(this, va, index);
     }
 
-    @DontCompile
-    public void test35_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test35")
+    public void test35_verifier() throws Throwable {
         int index = Math.abs(rI) % 3;
         try {
             test35(testValue1Array, index);
@@ -1083,13 +1091,13 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test writing an inline type to a null inline type array
-    @Test()
+    @Test
     public void test36(MyValue1[] va, MyValue1 vt, int index) {
         va[index] = vt;
     }
 
-    @DontCompile
-    public void test36_verifier(boolean warmup) {
+    @Run(test = "test36")
+    public void test36_verifier() {
         int index = Math.abs(rI) % 3;
         try {
             test36(null, testValue1Array[index], index);
@@ -1105,13 +1113,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test37(MyValue1[] va, Object o, int index) {
         test37_inline(va, o, index);
     }
 
-    @DontCompile
-    public void test37_verifier(boolean warmup) {
+    @Run(test = "test37")
+    public void test37_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
         test37(testValue1Array, vt1, index);
@@ -1133,7 +1141,7 @@ public class TestLWorld extends InlineTypeTest {
         return new MyValue1[42];
     }
 
-    @Test()
+    @Test
     public Object[] test38(Object[] oa, Object o, int i1, int i2, int num) {
         Object[] result = null;
         switch (num) {
@@ -1164,8 +1172,8 @@ public class TestLWorld extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test38_verifier(boolean warmup) {
+    @Run(test = "test38")
+    public void test38_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1[] va = new MyValue1[42];
         Object[] result = test38(null, testValue1, index, index, 0);
@@ -1205,7 +1213,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Same as above but merging into Object instead of Object[]
-    @Test()
+    @Test
     public Object test39(Object oa, Object o, int i1, int i2, int num) {
         Object result = null;
         switch (num) {
@@ -1250,8 +1258,8 @@ public class TestLWorld extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test39_verifier(boolean warmup) {
+    @Run(test = "test39")
+    public void test39_verifier() {
         int index = Math.abs(rI) % 3;
         MyValue1[] va = new MyValue1[42];
         Object result = test39(null, testValue1, index, index, 0);
@@ -1290,7 +1298,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test instanceof with inline types and arrays
-    @Test()
+    @Test
     public long test40(Object o, int index) {
         if (o instanceof MyValue1) {
           return ((MyValue1)o).hashInterpreted();
@@ -1308,8 +1316,8 @@ public class TestLWorld extends InlineTypeTest {
         return 0;
     }
 
-    @DontCompile
-    public void test40_verifier(boolean warmup) {
+    @Run(test = "test40")
+    public void test40_verifier() {
         int index = Math.abs(rI) % 3;
         long result = test40(testValue1, 0);
         Asserts.assertEQ(result, testValue1.hash());
@@ -1331,15 +1339,15 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertEQ(o, rI);
     }
 
-    @Test()
+    @Test
     public void test41() {
         MyValue1[] vals = new MyValue1[] {testValue1};
         test41_dontinline(vals[0].oa[0]);
         test41_dontinline(vals[0].oa[0]);
     }
 
-    @DontCompile
-    public void test41_verifier(boolean warmup) {
+    @Run(test = "test41")
+    public void test41_verifier() {
         test41();
     }
 
@@ -1347,26 +1355,26 @@ public class TestLWorld extends InlineTypeTest {
     private static final MyValue1.ref test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
     private static final MyValue1.ref test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
-    @Test()
+    @Test
     public void test42() {
         MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
         Asserts.assertEQ(vals[0].hash(), test42VT1.hash());
         Asserts.assertEQ(vals[1].hash(), test42VT2.hash());
     }
 
-    @DontCompile
-    public void test42_verifier(boolean warmup) {
-        if (!warmup) test42(); // We need -Xcomp behavior
+    @Run(test = "test42")
+    public void test42_verifier(RunInfo info) {
+        if (!info.isWarmUp()) test42(); // We need -Xcomp behavior
     }
 
     // Test for bug in Escape Analysis
-    @Test()
-    public long test43(boolean deopt) {
+    @Test
+    public long test43(boolean deopt, Method m) {
         MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
 
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test43"));
+            TestFramework.deoptimize(m);
             Asserts.assertEQ(vals[0].hash(), test42VT1.hash());
             Asserts.assertEQ(vals[1].hash(), test42VT2.hash());
         }
@@ -1374,9 +1382,9 @@ public class TestLWorld extends InlineTypeTest {
         return vals[0].hash();
     }
 
-    @DontCompile
-    public void test43_verifier(boolean warmup) {
-        test43(!warmup);
+    @Run(test = "test43")
+    public void test43_verifier(RunInfo info) {
+        test43(!info.isWarmUp(), info.getTest());
     }
 
     // Tests writing an array element with a (statically known) incompatible type
@@ -1392,13 +1400,13 @@ public class TestLWorld extends InlineTypeTest {
             return_();
         });
 
-    @Test()
+    @Test
     public void test44(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         setArrayElementIncompatible.invoke(this, va, index, v);
     }
 
-    @DontCompile
-    public void test44_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test44")
+    public void test44_verifier() throws Throwable {
         int index = Math.abs(rI) % 3;
         try {
             test44(testValue1Array, index, testValue2);
@@ -1415,13 +1423,13 @@ public class TestLWorld extends InlineTypeTest {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test45(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         test45_inline(va, v, index);
     }
 
-    @DontCompile
-    public void test45_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test45")
+    public void test45_verifier() throws Throwable {
         int index = Math.abs(rI) % 3;
         try {
             test45(testValue1Array, index, testValue2);
@@ -1439,8 +1447,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj instanceof MyValue1;
     }
 
-    @DontCompile
-    public void test46_verifier(boolean warmup) {
+    @Run(test = "test46")
+    public void test46_verifier() {
         MyValue1 vt = testValue1;
         boolean result = test46(vt);
         Asserts.assertTrue(result);
@@ -1452,8 +1460,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj instanceof MyValue2;
     }
 
-    @DontCompile
-    public void test47_verifier(boolean warmup) {
+    @Run(test = "test47")
+    public void test47_verifier() {
         MyValue1 vt = testValue1;
         boolean result = test47(vt);
         Asserts.assertFalse(result);
@@ -1464,8 +1472,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj instanceof MyValue1;
     }
 
-    @DontCompile
-    public void test48_verifier(boolean warmup) {
+    @Run(test = "test48")
+    public void test48_verifier() {
         MyValue1 vt = testValue1;
         boolean result = test48(vt);
         Asserts.assertTrue(result);
@@ -1476,8 +1484,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj instanceof MyValue2;
     }
 
-    @DontCompile
-    public void test49_verifier(boolean warmup) {
+    @Run(test = "test49")
+    public void test49_verifier() {
         MyValue1 vt = testValue1;
         boolean result = test49(vt);
         Asserts.assertFalse(result);
@@ -1488,8 +1496,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj instanceof MyValue1;
     }
 
-    @DontCompile
-    public void test50_verifier(boolean warmup) {
+    @Run(test = "test50")
+    public void test50_verifier() {
         boolean result = test49(Integer.valueOf(42));
         Asserts.assertFalse(result);
     }
@@ -1573,13 +1581,13 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Same as test2 but with field holder being an inline type
-    @Test()
+    @Test
     public long test51(Test51Value holder, MyValue1 vt1, Object vt2) {
         return holder.test(holder, vt1, vt2);
     }
 
-    @DontCompile
-    public void test51_verifier(boolean warmup) {
+    @Run(test = "test51")
+    public void test51_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         Test51Value holder = new Test51Value();
@@ -1590,56 +1598,56 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Access non-flattened, uninitialized inline type field with inline type holder
-    @Test()
+    @Test
     public void test52(Test51Value holder) {
         if ((Object)holder.valueField5 != null) {
             throw new RuntimeException("Should be null");
         }
     }
 
-    @DontCompile
-    public void test52_verifier(boolean warmup) {
+    @Run(test = "test52")
+    public void test52_verifier() {
         Test51Value vt = Test51Value.default;
         test52(vt);
     }
 
     // Merging inline types of different types
-    @Test()
+    @Test
     public Object test53(Object o, boolean b) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         return b ? vt : o;
     }
 
-    @DontCompile
-    public void test53_verifier(boolean warmup) {
+    @Run(test = "test53")
+    public void test53_verifier() {
         test53(new Object(), false);
         MyValue1 result = (MyValue1)test53(new Object(), true);
         Asserts.assertEQ(result.hash(), hash());
     }
 
-    @Test()
+    @Test
     public Object test54(boolean b) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         return b ? vt : testValue2;
     }
 
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
+    @Run(test = "test54")
+    public void test54_verifier() {
         MyValue1 result1 = (MyValue1)test54(true);
         Asserts.assertEQ(result1.hash(), hash());
         MyValue2 result2 = (MyValue2)test54(false);
         Asserts.assertEQ(result2.hash(), testValue2.hash());
     }
 
-    @Test()
+    @Test
     public Object test55(boolean b) {
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2 vt2 = MyValue2.createWithFieldsInline(rI, rD);
         return b ? vt1 : vt2;
     }
 
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
+    @Run(test = "test55")
+    public void test55_verifier() {
         MyValue1 result1 = (MyValue1)test55(true);
         Asserts.assertEQ(result1.hash(), hash());
         MyValue2 result2 = (MyValue2)test55(false);
@@ -1647,15 +1655,15 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test synchronization on inline types
-    @Test()
+    @Test
     public void test56(Object vt) {
         synchronized (vt) {
             throw new RuntimeException("test56 failed: synchronization on inline type should not succeed");
         }
     }
 
-    @DontCompile
-    public void test56_verifier(boolean warmup) {
+    @Run(test = "test56")
+    public void test56_verifier() {
         try {
             test56(testValue1);
             throw new RuntimeException("test56 failed: no exception thrown");
@@ -1671,13 +1679,13 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @Test()
+    @Test
     public void test57(MyValue1 vt) {
         test57_inline(vt);
     }
 
-    @DontCompile
-    public void test57_verifier(boolean warmup) {
+    @Run(test = "test57")
+    public void test57_verifier() {
         try {
             test57(testValue1);
             throw new RuntimeException("test57 failed: no exception thrown");
@@ -1693,14 +1701,14 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @Test()
+    @Test
     public void test58() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test58_inline(vt);
     }
 
-    @DontCompile
-    public void test58_verifier(boolean warmup) {
+    @Run(test = "test58")
+    public void test58_verifier() {
         try {
             test58();
             throw new RuntimeException("test58 failed: no exception thrown");
@@ -1709,7 +1717,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @Test()
+    @Test
     public void test59(Object o, boolean b) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object sync = b ? vt : o;
@@ -1720,8 +1728,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test59_verifier(boolean warmup) {
+    @Run(test = "test59")
+    public void test59_verifier() {
         test59(new Object(), false);
         try {
             test59(new Object(), true);
@@ -1731,7 +1739,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @Test()
+    @Test
     public void test60(boolean b) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         Object sync = b ? vt : testValue2;
@@ -1740,8 +1748,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test60_verifier(boolean warmup) {
+    @Run(test = "test60")
+    public void test60_verifier() {
         try {
             test60(false);
             throw new RuntimeException("test60 failed: no exception thrown");
@@ -1757,7 +1765,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test catching the IllegalMonitorStateException in compiled code
-    @Test()
+    @Test
     public void test61(Object vt) {
         boolean thrown = false;
         try {
@@ -1772,12 +1780,12 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test61_verifier(boolean warmup) {
+    @Run(test = "test61")
+    public void test61_verifier() {
         test61(testValue1);
     }
 
-    @Test()
+    @Test
     public void test62(Object o) {
         try {
             synchronized (o) { }
@@ -1788,19 +1796,19 @@ public class TestLWorld extends InlineTypeTest {
         throw new RuntimeException("test62 failed: no exception thrown");
     }
 
-    @DontCompile
-    public void test62_verifier(boolean warmup) {
+    @Run(test = "test62")
+    public void test62_verifier() {
         test62(testValue1);
     }
 
     // Test synchronization without any instructions in the synchronized block
-    @Test()
+    @Test
     public void test63(Object o) {
         synchronized (o) { }
     }
 
-    @DontCompile
-    public void test63_verifier(boolean warmup) {
+    @Run(test = "test63")
+    public void test63_verifier() {
         try {
             test63(testValue1);
         } catch (IllegalMonitorStateException ex) {
@@ -1816,13 +1824,13 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @Test()
+    @Test
     public MyInterface test64Interface(MyValue1 vt) {
         return test64Interface_helper(vt);
     }
 
-    @DontCompile
-    public void test64Interface_verifier(boolean warmup) {
+    @Run(test = "test64Interface")
+    public void test64Interface_verifier() {
         test64Interface(testValue1);
     }
 
@@ -1832,60 +1840,60 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @Test()
+    @Test
     public MyAbstract test64Abstract(MyValue1 vt) {
         return test64Abstract_helper(vt);
     }
 
-    @DontCompile
-    public void test64Abstract_verifier(boolean warmup) {
+    @Run(test = "test64Abstract")
+    public void test64Abstract_verifier() {
         test64Abstract(testValue1);
     }
 
     // Array store tests
-    @Test()
+    @Test
     public void test65(Object[] array, MyValue1 vt) {
         array[0] = vt;
     }
 
-    @DontCompile
-    public void test65_verifier(boolean warmup) {
+    @Run(test = "test65")
+    public void test65_verifier() {
         Object[] array = new Object[1];
         test65(array, testValue1);
         Asserts.assertEQ(((MyValue1)array[0]).hash(), testValue1.hash());
     }
 
-    @Test()
+    @Test
     public void test66(Object[] array, MyValue1 vt) {
         array[0] = vt;
     }
 
-    @DontCompile
-    public void test66_verifier(boolean warmup) {
+    @Run(test = "test66")
+    public void test66_verifier() {
         MyValue1[] array = new MyValue1[1];
         test66(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
 
-    @Test()
+    @Test
     public void test67(Object[] array, Object vt) {
         array[0] = vt;
     }
 
-    @DontCompile
-    public void test67_verifier(boolean warmup) {
+    @Run(test = "test67")
+    public void test67_verifier() {
         MyValue1[] array = new MyValue1[1];
         test67(array, testValue1);
         Asserts.assertEQ(array[0].hash(), testValue1.hash());
     }
 
-    @Test()
+    @Test
     public void test68(Object[] array, Integer o) {
         array[0] = o;
     }
 
-    @DontCompile
-    public void test68_verifier(boolean warmup) {
+    @Run(test = "test68")
+    public void test68_verifier() {
         Integer[] array = new Integer[1];
         test68(array, 1);
         Asserts.assertEQ(array[0], Integer.valueOf(1));
@@ -1898,7 +1906,8 @@ public class TestLWorld extends InlineTypeTest {
         return MyValue1.setX(((MyValue1)a), sum);
     }
 
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test69(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1907,8 +1916,8 @@ public class TestLWorld extends InlineTypeTest {
         return result.x;
     }
 
-    @DontCompile
-    public void test69_verifier(boolean warmup) {
+    @Run(test = "test69")
+    public void test69_verifier() {
         int result = test69(testValue1Array);
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
@@ -1920,7 +1929,8 @@ public class TestLWorld extends InlineTypeTest {
         return MyValue1.setX(((MyValue1)a), sum);
     }
 
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test70Interface(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1929,8 +1939,8 @@ public class TestLWorld extends InlineTypeTest {
         return result.x;
     }
 
-    @DontCompile
-    public void test70Interface_verifier(boolean warmup) {
+    @Run(test = "test70Interface")
+    public void test70Interface_verifier() {
         int result = test70Interface(testValue1Array);
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
@@ -1942,7 +1952,8 @@ public class TestLWorld extends InlineTypeTest {
         return MyValue1.setX(((MyValue1)a), sum);
     }
 
-    @Test(failOn = ALLOC + STORE)
+    @Test
+    @IR(failOn = {ALLOC, STORE})
     public int test70Abstract(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1951,8 +1962,8 @@ public class TestLWorld extends InlineTypeTest {
         return result.x;
     }
 
-    @DontCompile
-    public void test70Abstract_verifier(boolean warmup) {
+    @Run(test = "test70Abstract")
+    public void test70Abstract_verifier() {
         int result = test70Abstract(testValue1Array);
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
@@ -1974,8 +1985,8 @@ public class TestLWorld extends InlineTypeTest {
         return test71_inline(null);
     }
 
-    @DontCompile
-    public void test71_verifier(boolean warmup) {
+    @Run(test = "test71")
+    public void test71_verifier() {
         MyValue1 vt = test71();
         Asserts.assertEquals(vt.hash(), hash());
     }
@@ -1992,14 +2003,14 @@ public class TestLWorld extends InlineTypeTest {
     public void unused(Test72Value vt) { }
 
     @Test
-    @Warmup(0)
     public int test72() {
         Test72Value vt = Test72Value.default;
         return vt.get();
     }
 
-    @DontCompile
-    public void test72_verifier(boolean warmup) {
+    @Run(test = "test72")
+    @Warmup(0)
+    public void test72_verifier() {
         int result = test72();
         Asserts.assertEquals(result, 0);
     }
@@ -2010,8 +2021,8 @@ public class TestLWorld extends InlineTypeTest {
         return va[0];
     }
 
-    @DontCompile
-    public void test73_verifier(boolean warmup) {
+    @Run(test = "test73")
+    public void test73_verifier() {
         MyValue1 vt = (MyValue1)test73(testValue1Array);
         Asserts.assertEquals(testValue1Array[0].hash(), vt.hash());
     }
@@ -2021,8 +2032,8 @@ public class TestLWorld extends InlineTypeTest {
         va[0] = vt;
     }
 
-    @DontCompile
-    public void test74_verifier(boolean warmup) {
+    @Run(test = "test74")
+    public void test74_verifier() {
         MyValue1[] va = new MyValue1[1];
         test74(va, testValue1);
         Asserts.assertEquals(va[0].hash(), testValue1.hash());
@@ -2042,8 +2053,8 @@ public class TestLWorld extends InlineTypeTest {
         return arr[0];
     }
 
-    @DontCompile
-    public void test75_verifier(boolean warmup) {
+    @Run(test = "test75")
+    public void test75_verifier() {
         test75(42);
     }
 
@@ -2058,8 +2069,8 @@ public class TestLWorld extends InlineTypeTest {
         return test76_helper(i);
     }
 
-    @DontCompile
-    public void test76_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test76")
+    public void test76_verifier() throws Throwable {
         try {
             test76(null);
             throw new RuntimeException("NullPointerException expected");
@@ -2081,8 +2092,8 @@ public class TestLWorld extends InlineTypeTest {
         return test77_helper(i);
     }
 
-    @DontCompile
-    public void test77_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test77")
+    public void test77_verifier() throws Throwable {
         try {
             test77(Integer.valueOf(42));
             throw new RuntimeException("ClassCastException expected");
@@ -2104,8 +2115,8 @@ public class TestLWorld extends InlineTypeTest {
         return test78_helper(i);
     }
 
-    @DontCompile
-    public void test78_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test78")
+    public void test78_verifier() throws Throwable {
         try {
             test78(null); // Should not throw
         } catch (Exception e) {
@@ -2124,8 +2135,8 @@ public class TestLWorld extends InlineTypeTest {
         return test79_helper(i);
     }
 
-    @DontCompile
-    public void test79_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test79")
+    public void test79_verifier() throws Throwable {
         try {
             test79(Integer.valueOf(42));
             throw new RuntimeException("ClassCastException expected");
@@ -2169,8 +2180,8 @@ public class TestLWorld extends InlineTypeTest {
         return small.i + small.big.l0 + smallDefault.i + smallDefault.big.l29 + big.l0 + bigDefault.l29;
     }
 
-    @DontCompile
-    public void test80_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test80")
+    public void test80_verifier() throws Throwable {
         long result = test80();
         Asserts.assertEQ(result, rI + 2*rL);
     }
@@ -2180,7 +2191,8 @@ public class TestLWorld extends InlineTypeTest {
         return vt.x;
     }
 
-    @Test(failOn = ALLOC + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public int test81()  {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         int result = 0;
@@ -2194,8 +2206,8 @@ public class TestLWorld extends InlineTypeTest {
         return result;
     }
 
-    @DontCompile
-    public void test81_verifier(boolean warmup) {
+    @Run(test = "test81")
+    public void test81_verifier() {
         int result = test81();
         Asserts.assertEQ(result, 10*rI);
     }
@@ -2206,11 +2218,11 @@ public class TestLWorld extends InlineTypeTest {
         dst[0] = v;
     }
 
-    @DontCompile
-    public void test82_verifier(boolean warmup) {
+    @Run(test = "test82")
+    public void test82_verifier(RunInfo info) {
         MyValue2[] dst = new MyValue2[1];
         test82(dst, testValue2);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test82(dst, null);
                 throw new RuntimeException("No ArrayStoreException thrown");
@@ -2221,7 +2233,6 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(10000)
     public void test83(Object[] dst, Object v, boolean flag) {
         if (dst == null) { // null check
         }
@@ -2234,12 +2245,13 @@ public class TestLWorld extends InlineTypeTest {
         dst[0] = v;
     }
 
-    @DontCompile
-    public void test83_verifier(boolean warmup) {
+    @Run(test = "test83")
+    @Warmup(10000)
+    public void test83_verifier(RunInfo info) {
         MyValue2[] dst = new MyValue2[1];
         test83(dst, testValue2, false);
         test83(dst, testValue2, true);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test83(dst, null, true);
                 throw new RuntimeException("No ArrayStoreException thrown");
@@ -2249,98 +2261,104 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    private void rerun_and_recompile_for(String name, int num, Runnable test) {
-        Method m = tests.get(name);
-
+    private void rerun_and_recompile_for(Method m, int num, Runnable test) {
         for (int i = 1; i < num; i++) {
             test.run();
 
-            if (!WHITE_BOX.isMethodCompiled(m, false)) {
-                enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+            if (!TestFramework.isCompiled(m)) {
+                TestFramework.compile(m, CompLevel.C2);
             }
         }
     }
 
     // Tests for the Loop Unswitching optimization
     // Should make 2 copies of the loop, one for non flattened arrays, one for other cases.
-    @Test(match = { COUNTEDLOOP_MAIN }, matchCount = { 2 } )
-    @Warmup(0)
+    @Test
+    @IR(counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test84(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
     }
 
-    @DontCompile
-    public void test84_verifier(boolean warmup) {
+    @Run(test = "test84")
+    @Warmup(0)
+    public void test84_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[100];
         Arrays.fill(src, testValue2);
         MyValue2[] dst = new MyValue2[100];
-        rerun_and_recompile_for("TestLWorld::test84", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () ->  { test84(src, dst);
                                          Asserts.assertTrue(Arrays.equals(src, dst)); });
     }
 
-    @Test(valid = G1GCOn, match = { COUNTEDLOOP, LOAD_UNKNOWN_INLINE }, matchCount = { 2, 1 } )
-    @Test(valid = G1GCOff, match = { COUNTEDLOOP_MAIN, LOAD_UNKNOWN_INLINE }, matchCount = { 2, 4 } )
-    @Warmup(0)
+    @Test
+    @IR(applyIf = {"UseG1GC", "true"},
+        counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
+    @IR(applyIf = {"UseG1GC", "false"},
+        counts = {COUNTEDLOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 4"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
     }
 
-    @DontCompile
-    public void test85_verifier(boolean warmup) {
+    @Run(test = "test85")
+    @Warmup(0)
+    public void test85_verifier(RunInfo info) {
         Object[] src = new Object[100];
         Arrays.fill(src, new Object());
         src[0] = null;
         Object[] dst = new Object[100];
-        rerun_and_recompile_for("TestLWorld::test85", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test85(src, dst);
                                         Asserts.assertTrue(Arrays.equals(src, dst)); });
     }
 
-    @Test(valid = G1GCOn, match = { COUNTEDLOOP }, matchCount = { 2 } )
-    @Test(valid = G1GCOff, match = { COUNTEDLOOP_MAIN }, matchCount = { 2 } )
-    @Warmup(0)
+    @Test
+    @IR(applyIf = {"UseG1GC", "true"},
+        counts = {COUNTEDLOOP, "= 2"})
+    @IR(applyIf = {"UseG1GC", "false"},
+        counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
     }
 
-    @DontCompile
-    public void test86_verifier(boolean warmup) {
+    @Run(test = "test86")
+    @Warmup(0)
+    public void test86_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[100];
         Arrays.fill(src, testValue2);
         Object[] dst = new Object[100];
-        rerun_and_recompile_for("TestLWorld::test86", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test86(src, dst);
                                         Asserts.assertTrue(Arrays.equals(src, dst)); });
     }
 
-    @Test(match = { COUNTEDLOOP_MAIN }, matchCount = { 2 } )
-    @Warmup(0)
+    @Test
+    @IR(counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test87(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
         }
     }
 
-    @DontCompile
-    public void test87_verifier(boolean warmup) {
+    @Run(test = "test87")
+    @Warmup(0)
+    public void test87_verifier(RunInfo info) {
         Object[] src = new Object[100];
         Arrays.fill(src, testValue2);
         MyValue2[] dst = new MyValue2[100];
 
-        rerun_and_recompile_for("TestLWorld::test87", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test87(src, dst);
                                         Asserts.assertTrue(Arrays.equals(src, dst)); });
     }
 
-    @Test(match = { COUNTEDLOOP_MAIN }, matchCount = { 2 } )
-    @Warmup(0)
+    @Test
+    @IR(counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];
@@ -2348,8 +2366,9 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test88_verifier(boolean warmup) {
+    @Run(test = "test88")
+    @Warmup(0)
+    public void test88_verifier(RunInfo info) {
         MyValue2[] src1 = new MyValue2[100];
         Arrays.fill(src1, testValue2);
         MyValue2[] dst1 = new MyValue2[100];
@@ -2357,7 +2376,7 @@ public class TestLWorld extends InlineTypeTest {
         Arrays.fill(src2, new Object());
         Object[] dst2 = new Object[100];
 
-        rerun_and_recompile_for("TestLWorld::test88", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test88(src1, dst1, src2, dst2);
                                         Asserts.assertTrue(Arrays.equals(src1, dst1));
                                         Asserts.assertTrue(Arrays.equals(src2, dst2)); });
@@ -2368,8 +2387,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj.getClass() == Integer.class;
     }
 
-    @DontCompile
-    public void test89_verifier(boolean warmup) {
+    @Run(test = "test89")
+    public void test89_verifier() {
         Asserts.assertTrue(test89(Integer.valueOf(42)));
         Asserts.assertFalse(test89(new Object()));
     }
@@ -2379,8 +2398,8 @@ public class TestLWorld extends InlineTypeTest {
         return (Integer)obj;
     }
 
-    @DontCompile
-    public void test90_verifier(boolean warmup) {
+    @Run(test = "test90")
+    public void test90_verifier() {
         test90(Integer.valueOf(42));
         try {
             test90(new Object());
@@ -2395,8 +2414,8 @@ public class TestLWorld extends InlineTypeTest {
         return obj.getClass() == MyValue2[].class;
     }
 
-    @DontCompile
-    public void test91_verifier(boolean warmup) {
+    @Run(test = "test91")
+    public void test91_verifier() {
         Asserts.assertTrue(test91(new MyValue2[1]));
         Asserts.assertFalse(test91(new Object()));
     }
@@ -2408,8 +2427,9 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @Warmup(10000)
-    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 2 }, failOn = LOAD_UNKNOWN_INLINE + ALLOC_G + MEMBAR)
+    @Test
+    @IR(counts = {CLASS_CHECK_TRAP, "= 2"},
+        failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public Object test92(Object[] array) {
         // Dummy loops to ensure we run enough passes of split if
         for (int i = 0; i < 2; i++) {
@@ -2422,8 +2442,9 @@ public class TestLWorld extends InlineTypeTest {
         return (Integer)array[0];
     }
 
-    @DontCompile
-    public void test92_verifier(boolean warmup) {
+    @Run(test = "test92")
+    @Warmup(10000)
+    public void test92_verifier() {
         Object[] array = new Object[1];
         array[0] = 0x42;
         Object result = test92(array);
@@ -2434,7 +2455,6 @@ public class TestLWorld extends InlineTypeTest {
     // precedes will never succeed and the flat array branch should
     // trigger an uncommon trap.
     @Test
-    @Warmup(10000)
     public Object test93(Object[] array) {
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
@@ -2445,16 +2465,17 @@ public class TestLWorld extends InlineTypeTest {
         return v;
     }
 
-    @DontCompile
-    public void test93_verifier(boolean warmup) {
-        if (warmup) {
+    @Run(test = "test93")
+    @Warmup(10000)
+    public void test93_verifier(RunInfo info) {
+        if (info.isWarmUp()) {
             Object[] array = new Object[1];
             array[0] = 0x42;
             Object result = test93(array);
             Asserts.assertEquals(result, 0x42);
         } else {
             Object[] array = new Test92Value[1];
-            Method m = tests.get("TestLWorld::test93");
+            Method m = info.getTest();
             int extra = 3;
             for (int j = 0; j < extra; j++) {
                 for (int i = 0; i < 10; i++) {
@@ -2463,17 +2484,19 @@ public class TestLWorld extends InlineTypeTest {
                     } catch (ClassCastException cce) {
                     }
                 }
-                boolean compiled = isCompiledByC2(m);
-                Asserts.assertTrue(!USE_COMPILER || XCOMP || STRESS_CC || TEST_C1 || !ProfileInterpreter || compiled || (j != extra-1));
-                if (!compiled) {
-                    enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+                boolean compiled = TestFramework.isCompiled(m);
+                boolean compilationSkipped = info.isCompilationSkipped();
+                Asserts.assertTrue(compilationSkipped || compiled || (j != extra-1));
+                if (!compilationSkipped && !compiled) {
+                    TestFramework.compile(m, CompLevel.ANY);
                 }
             }
         }
     }
 
-    @Warmup(10000)
-    @Test(match = { CLASS_CHECK_TRAP, LOOP }, matchCount = { 2, 1 }, failOn = LOAD_UNKNOWN_INLINE + ALLOC_G + MEMBAR)
+    @Test
+    @IR(counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
+        failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public int test94(Object[] array) {
         int res = 0;
         for (int i = 1; i < 4; i *= 2) {
@@ -2483,8 +2506,9 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test94_verifier(boolean warmup) {
+    @Run(test = "test94")
+    @Warmup(10000)
+    public void test94_verifier() {
         Object[] array = new Object[4];
         array[0] = 0x42;
         array[1] = 0x42;
@@ -2494,14 +2518,14 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertEquals(result, 0x42 * 2);
     }
 
-    @Warmup(10000)
     @Test
     public boolean test95(Object o1, Object o2) {
         return o1 == o2;
     }
 
-    @DontCompile
-    public void test95_verifier(boolean warmup) {
+    @Run(test = "test95")
+    @Warmup(10000)
+    public void test95_verifier() {
         Object o1 = new Object();
         Object o2 = new Object();
         Asserts.assertTrue(test95(o1, o1));
@@ -2510,19 +2534,19 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertFalse(test95(o1, o2));
     }
 
-    @Warmup(10000)
     @Test
     public boolean test96(Object o1, Object o2) {
         return o1 == o2;
     }
 
-    @DontCompile
-    public void test96_verifier(boolean warmup) {
+    @Run(test = "test96")
+    @Warmup(10000)
+    public void test96_verifier(RunInfo info) {
         Object o1 = new Object();
         Object o2 = new Object();
         Asserts.assertTrue(test96(o1, o1));
         Asserts.assertFalse(test96(o1, o2));
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             Asserts.assertTrue(test96(null, null));
             Asserts.assertFalse(test96(o1, null));
         }
@@ -2550,7 +2574,7 @@ public class TestLWorld extends InlineTypeTest {
         return (MyValue1)o;
     }
 
-    @Test()
+    @Test
     public MyValue1 test97() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         vt = (MyValue1)test97_dontinline1(vt);
@@ -2560,8 +2584,8 @@ public class TestLWorld extends InlineTypeTest {
         return vt;
     }
 
-    @DontCompile
-    public void test97_verifier(boolean warmup) {
+    @Run(test = "test97")
+    public void test97_verifier() {
         Asserts.assertEQ(test97().hash(), hash());
     }
 
@@ -2583,7 +2607,7 @@ public class TestLWorld extends InlineTypeTest {
         return (MyAbstract)staticValueField4;
     }
 
-    @Test()
+    @Test
     public long test98(MyValue1 vt1, MyAbstract vt2) {
         abstractField1 = vt1;
         abstractField2 = (MyValue1)vt2;
@@ -2607,8 +2631,8 @@ public class TestLWorld extends InlineTypeTest {
                 staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
     }
 
-    @DontCompile
-    public void test98_verifier(boolean warmup) {
+    @Run(test = "test98")
+    public void test98_verifier() {
         MyValue1 vt = testValue1;
         MyValue1 def = MyValue1.createDefaultDontInline();
         long result = test98(vt, vt);
@@ -2629,7 +2653,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test merging inline types and abstract classes
-    @Test()
+    @Test
     public MyAbstract test99(int state) {
         MyAbstract res = null;
         if (state == 0) {
@@ -2648,8 +2672,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test99_verifier(boolean warmup) {
+    @Run(test = "test99")
+    public void test99_verifier() {
         objectField1 = valueField1;
         MyAbstract result = null;
         result = test99(0);
@@ -2667,7 +2691,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test merging inline types and abstract classes in loops
-    @Test()
+    @Test
     public MyAbstract test100(int iters) {
         MyAbstract res = new MyObject2(rI);
         for (int i = 0; i < iters; ++i) {
@@ -2680,8 +2704,8 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test100_verifier(boolean warmup) {
+    @Run(test = "test100")
+    public void test100_verifier() {
         MyObject2 result1 = (MyObject2)test100(0);
         Asserts.assertEQ(result1.x, rI);
         int iters = (Math.abs(rI) % 10) + 1;
@@ -2691,28 +2715,30 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test inline types in abstract class variables that are live at safepoint
-    @Test(failOn = ALLOC + STORE + LOOP)
-    public long test101(MyValue1 arg, boolean deopt) {
+    @Test
+    @IR(failOn = {ALLOC, STORE, LOOP})
+    public long test101(MyValue1 arg, boolean deopt, Method m) {
         MyAbstract vt1 = MyValue1.createWithFieldsInline(rI, rL);
         MyAbstract vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyAbstract vt3 = arg;
         MyAbstract vt4 = valueField1;
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test101"));
+            TestFramework.deoptimize(m);
         }
         return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
                ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
     }
 
-    @DontCompile
-    public void test101_verifier(boolean warmup) {
-        long result = test101(valueField1, !warmup);
+    @Run(test = "test101")
+    public void test101_verifier(RunInfo info) {
+        long result = test101(valueField1, !info.isWarmUp(), info.getTest());
         Asserts.assertEQ(result, 4*hash());
     }
 
     // Test comparing inline types with abstract classes
-    @Test(failOn = LOAD + LOOP)
+    @Test
+    @IR(failOn = {LOAD, LOOP})
     public boolean test102(Object arg) {
         MyAbstract vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (MyAbstract)valueField1 || vt == abstractField1 || vt == null ||
@@ -2722,8 +2748,8 @@ public class TestLWorld extends InlineTypeTest {
         return false;
     }
 
-    @DontCompile
-    public void test102_verifier(boolean warmup) {
+    @Run(test = "test102")
+    public void test102_verifier() {
         boolean result = test102(null);
         Asserts.assertFalse(result);
     }
@@ -2742,13 +2768,15 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Loading from an abstract class array does not require a flatness check if the abstract class has a non-static field
-    @Test(failOn = ALLOC_G + MEMBAR + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR, ALLOCA_G,
+                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors1 test103(NoValueImplementors1[] array, int i) {
         return array[i];
     }
 
-    @DontCompile
-    public void test103_verifier(boolean warmup) {
+    @Run(test = "test103")
+    public void test103_verifier() {
         NoValueImplementors1[] array1 = new NoValueImplementors1[3];
         MyObject3[] array2 = new MyObject3[3];
         MyObject4[] array3 = new MyObject4[3];
@@ -2763,7 +2791,9 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Storing to an abstract class array does not require a flatness/null check if the abstract class has a non-static field
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G,
+                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors1 test104(NoValueImplementors1[] array, NoValueImplementors1 v, MyObject3 o, int i) {
         array[0] = v;
         array[1] = array[0];
@@ -2771,8 +2801,8 @@ public class TestLWorld extends InlineTypeTest {
         return array[i];
     }
 
-    @DontCompile
-    public void test104_verifier(boolean warmup) {
+    @Run(test = "test104")
+    public void test104_verifier() {
         MyObject4 v = new MyObject4();
         MyObject3 o = new MyObject3();
         NoValueImplementors1[] array1 = new NoValueImplementors1[3];
@@ -2807,13 +2837,15 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Loading from an abstract class array does not require a flatness check if the abstract class has no inline implementor
-    @Test(failOn = ALLOC_G + MEMBAR + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR, ALLOCA_G,
+                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors2 test105(NoValueImplementors2[] array, int i) {
         return array[i];
     }
 
-    @DontCompile
-    public void test105_verifier(boolean warmup) {
+    @Run(test = "test105")
+    public void test105_verifier() {
         NoValueImplementors2[] array1 = new NoValueImplementors2[3];
         MyObject5[] array2 = new MyObject5[3];
         NoValueImplementors2 result = test105(array1, 0);
@@ -2824,7 +2856,9 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Storing to an abstract class array does not require a flatness/null check if the abstract class has no inline implementor
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G,
+                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors2 test106(NoValueImplementors2[] array, NoValueImplementors2 v, MyObject5 o, int i) {
         array[0] = v;
         array[1] = array[0];
@@ -2832,8 +2866,8 @@ public class TestLWorld extends InlineTypeTest {
         return array[i];
     }
 
-    @DontCompile
-    public void test106_verifier(boolean warmup) {
+    @Run(test = "test106")
+    public void test106_verifier() {
         MyObject5 v = new MyObject5();
         NoValueImplementors2[] array1 = new NoValueImplementors2[3];
         MyObject5[] array2 = new MyObject5[3];
@@ -2853,9 +2887,13 @@ public class TestLWorld extends InlineTypeTest {
     // More tests for the Loop Unswitching optimization (similar to test84 and following)
     Object oFld1, oFld2;
 
-    @Test(valid = G1GCOn, failOn = STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, LOAD_UNKNOWN_INLINE }, matchCount = { 2, 2 } )
-    @Test(valid = G1GCOff, failOn = STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, LOAD_UNKNOWN_INLINE }, matchCount = { 3, 2 } )
-    @Warmup(0)
+    @Test
+    @IR(applyIf = {"UseG1GC", "true"},
+        failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
+        counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
+    @IR(applyIf = {"UseG1GC", "false"},
+        failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
+        counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
     public void test107(Object[] src1, Object[] src2) {
         for (int i = 0; i < src1.length; i++) {
             oFld1 = src1[i];
@@ -2863,14 +2901,15 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test107_verifier(boolean warmup) {
+    @Run(test = "test107")
+    @Warmup(0)
+    public void test107_verifier(RunInfo info) {
         MyValue2[] src1 = new MyValue2[100];
         Arrays.fill(src1, testValue2);
         Object[] src2 = new Object[100];
         Object obj = new Object();
         Arrays.fill(src2, obj);
-        rerun_and_recompile_for("TestLWorld::test107", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test107(src1, src2);
                                         Asserts.assertEquals(oFld1, testValue2);
                                         Asserts.assertEquals(oFld2, obj);
@@ -2879,9 +2918,13 @@ public class TestLWorld extends InlineTypeTest {
                                         Asserts.assertEquals(oFld2, testValue2);  });
     }
 
-    @Test(valid = G1GCOn, failOn = LOAD_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, STORE_UNKNOWN_INLINE }, matchCount = { 4, 9 } )
-    @Test(valid = G1GCOff, failOn = LOAD_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, STORE_UNKNOWN_INLINE }, matchCount = { 4, 12 } )
-    @Warmup(0)
+    @Test
+    @IR(applyIf = {"UseG1GC", "true"},
+            failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
+            counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
+    @IR(applyIf = {"UseG1GC", "false"},
+            failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
+            counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
     public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {
         for (int i = 0; i < dst1.length; i++) {
             dst1[i] = o1;
@@ -2889,12 +2932,13 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test108_verifier(boolean warmup) {
+    @Run(test = "test108")
+    @Warmup(0)
+    public void test108_verifier(RunInfo info) {
         MyValue2[] dst1 = new MyValue2[100];
         Object[] dst2 = new Object[100];
         Object o1 = new Object();
-        rerun_and_recompile_for("TestLWorld::test108", 10,
+        rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test108(dst1, dst2, testValue2, o1);
                                         for (int i = 0; i < dst1.length; i++) {
                                             Asserts.assertEquals(dst1[i], testValue2);
@@ -2919,6 +2963,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
+    @ForceCompileClassInitializer
     static primitive class LongWrapper implements WrapperInterface {
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
@@ -3015,8 +3060,9 @@ public class TestLWorld extends InlineTypeTest {
     long[] lArr = {0L, rL, 0L, rL, 0L, rL, 0L, rL, 0L, rL};
 
     // Test removal of allocations when inline type instance is wrapped into box object
-    @Warmup(10000) // Make sure interface calls are inlined
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test109() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3025,14 +3071,16 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test109_verifier(boolean warmup) {
+    @Run(test = "test109")
+    @Warmup(10000) // Make sure interface calls are inlined
+    public void test109_verifier() {
         long res = test109();
         Asserts.assertEquals(res, 5*rL);
     }
 
-    @Warmup(10000) // Make sure interface calls are inlined
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test109_sharp() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3041,15 +3089,17 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test109_sharp_verifier(boolean warmup) {
+    @Run(test = "test109_sharp")
+    @Warmup(10000) // Make sure interface calls are inlined
+    public void test109_sharp_verifier() {
         long res = test109_sharp();
         Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with ObjectBox
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000) // Make sure interface calls are inlined
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test110() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3058,14 +3108,16 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test110_verifier(boolean warmup) {
+    @Run(test = "test110")
+    @Warmup(10000) // Make sure interface calls are inlined
+    public void test110_verifier() {
         long res = test110();
         Asserts.assertEquals(res, 5*rL);
     }
 
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000) // Make sure interface calls are inlined
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test110_sharp() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3074,14 +3126,17 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test110_sharp_verifier(boolean warmup) {
+    @Run(test = "test110_sharp")
+    @Warmup(10000) // Make sure interface calls are inlined
+    public void test110_sharp_verifier() {
         long res = test110_sharp();
         Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with RefBox
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test111() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3090,13 +3145,15 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test111_verifier(boolean warmup) {
+    @Run(test = "test111")
+    public void test111_verifier() {
         long res = test111();
         Asserts.assertEquals(res, 5*rL);
     }
 
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test111_sharp() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3105,14 +3162,16 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test111_sharp_verifier(boolean warmup) {
+    @Run(test = "test111_sharp")
+    public void test111_sharp_verifier() {
         long res = test111_sharp();
         Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with InlineBox
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test112() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3121,15 +3180,16 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test112_verifier(boolean warmup) {
+    @Run(test = "test112")
+    public void test112_verifier() {
         long res = test112();
         Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with GenericBox
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000) // Make sure interface calls are inlined
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test113() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3138,14 +3198,16 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test113_verifier(boolean warmup) {
+    @Run(test = "test113")
+    @Warmup(10000) // Make sure interface calls are inlined
+    public void test113_verifier() {
         long res = test113();
         Asserts.assertEquals(res, 5*rL);
     }
 
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000) // Make sure interface calls are inlined
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
         for (int i = 0 ; i < lArr.length; i++) {
@@ -3154,8 +3216,9 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test113_sharp_verifier(boolean warmup) {
+    @Run(test = "test113_sharp")
+    @Warmup(10000) // Make sure interface calls are inlined
+    public void test113_sharp_verifier() {
         long res = test113_sharp();
         Asserts.assertEquals(res, 5*rL);
     }
@@ -3211,8 +3274,9 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Same as tests above but with ZERO hidden in field of another inline type
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000)
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test114() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3221,15 +3285,17 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test114_verifier(boolean warmup) {
+    @Run(test = "test114")
+    @Warmup(10000)
+    public void test114_verifier() {
         long res = test114();
         Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test114 but with .default instead of ZERO field
-    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000)
+    @Test
+    @IR(failOn = {ALLOC_G, MEMBAR},
+        counts = {PREDICATE_TRAP, "= 1"})
     public long test115() {
         long res = 0;
         for (int i = 0; i < lArr.length; i++) {
@@ -3238,8 +3304,9 @@ public class TestLWorld extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test115_verifier(boolean warmup) {
+    @Run(test = "test115")
+    @Warmup(10000)
+    public void test115_verifier() {
         long res = test115();
         Asserts.assertEquals(res, 5*rL);
     }
@@ -3250,7 +3317,8 @@ public class TestLWorld extends InlineTypeTest {
            MyValueEmpty.ref fEmpty4 = MyValueEmpty.default;
 
     // Test fields loads/stores with empty inline types
-    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE, TRAP})
     public void test116() {
         fEmpty1 = fEmpty4;
         fEmpty2 = fEmpty1;
@@ -3258,8 +3326,8 @@ public class TestLWorld extends InlineTypeTest {
         fEmpty4 = fEmpty3;
     }
 
-    @DontCompile
-    public void test116_verifier(boolean warmup) {
+    @Run(test = "test116")
+    public void test116_verifier() {
         test116();
         Asserts.assertEquals(fEmpty1, fEmpty2);
         Asserts.assertEquals(fEmpty2, fEmpty3);
@@ -3267,15 +3335,16 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test array loads/stores with empty inline types
-    @Test(failOn = ALLOC + ALLOC_G)
+    @Test
+    @IR(failOn = {ALLOC, ALLOC_G})
     public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty.ref[] arr2) {
         arr1[0] = arr2[0];
         arr2[0] = new MyValueEmpty();
         return arr1[0];
     }
 
-    @DontCompile
-    public void test117_verifier(boolean warmup) {
+    @Run(test = "test117")
+    public void test117_verifier() {
         MyValueEmpty[] arr1 = new MyValueEmpty[]{MyValueEmpty.default};
         MyValueEmpty res = test117(arr1, arr1);
         Asserts.assertEquals(res, MyValueEmpty.default);
@@ -3283,13 +3352,14 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test acmp with empty inline types
-    @Test(failOn = ALLOC + ALLOC_G)
+    @Test
+    @IR(failOn = {ALLOC, ALLOC_G})
     public boolean test118(MyValueEmpty v1, MyValueEmpty.ref v2, Object o1) {
         return (v1 == v2) && (v2 == o1);
     }
 
-    @DontCompile
-    public void test118_verifier(boolean warmup) {
+    @Run(test = "test118")
+    public void test118_verifier() {
         boolean res = test118(MyValueEmpty.default, MyValueEmpty.default, new MyValueEmpty());
         Asserts.assertTrue(res);
     }
@@ -3305,60 +3375,62 @@ public class TestLWorld extends InlineTypeTest {
 
     // Test re-allocation of empty inline type array during deoptimization
     @Test
-    public void test119(boolean deopt) {
+    public void test119(boolean deopt, Method m) {
         MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
         EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
         MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
         if (deopt) {
             // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test119"));
+            TestFramework.deoptimize(m);
         }
         Asserts.assertEquals(array1[0], MyValueEmpty.default);
         Asserts.assertEquals(array2[0], EmptyContainer.default);
         Asserts.assertEquals(array3[0], MixedContainer.default);
     }
 
-    @DontCompile
-    public void test119_verifier(boolean warmup) {
-        test119(!warmup);
+    @Run(test = "test119")
+    public void test119_verifier(RunInfo info) {
+        test119(!info.isWarmUp(), info.getTest());
     }
 
     // Test removal of empty inline type field stores
-    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + FIELD_ACCESS + NULL_CHECK_TRAP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
     public void test120(MyValueEmpty empty) {
         fEmpty1 = empty;
         fEmpty3 = empty;
         // fEmpty2 and fEmpty4 could be null, store can't be removed
     }
 
-    @DontCompile
-    public void test120_verifier(boolean warmup) {
+    @Run(test = "test120")
+    public void test120_verifier() {
         test120(MyValueEmpty.default);
         Asserts.assertEquals(fEmpty1, MyValueEmpty.default);
         Asserts.assertEquals(fEmpty2, MyValueEmpty.default);
     }
 
     // Test removal of empty inline type field loads
-    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + FIELD_ACCESS + NULL_CHECK_TRAP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
     public boolean test121() {
         return fEmpty1.equals(fEmpty3);
         // fEmpty2 and fEmpty4 could be null, load can't be removed
     }
 
-    @DontCompile
-    public void test121_verifier(boolean warmup) {
+    @Run(test = "test121")
+    public void test121_verifier() {
         boolean res = test121();
         Asserts.assertTrue(res);
     }
 
     // Verify that empty inline type field loads check for null holder
-    @Test()
+    @Test
     public MyValueEmpty test122(TestLWorld t) {
         return t.fEmpty3;
     }
 
-    @DontCompile
-    public void test122_verifier(boolean warmup) {
+    @Run(test = "test122")
+    public void test122_verifier() {
         MyValueEmpty res = test122(this);
         Asserts.assertEquals(res, MyValueEmpty.default);
         try {
@@ -3370,13 +3442,13 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Verify that empty inline type field stores check for null holder
-    @Test()
+    @Test
     public void test123(TestLWorld t) {
         t.fEmpty3 = MyValueEmpty.default;
     }
 
-    @DontCompile
-    public void test123_verifier(boolean warmup) {
+    @Run(test = "test123")
+    public void test123_verifier() {
         test123(this);
         Asserts.assertEquals(fEmpty3, MyValueEmpty.default);
         try {
@@ -3389,33 +3461,35 @@ public class TestLWorld extends InlineTypeTest {
 
     // acmp doesn't need substitutability test when one input is known
     // not to be a value type
-    @Test(failOn = SUBSTITUTABILITY_TEST)
+    @Test
+    @IR(failOn = SUBSTITUTABILITY_TEST)
     public boolean test124(Integer o1, Object o2) {
         return o1 == o2;
     }
 
-    @DontCompile
-    public void test124_verifier(boolean warmup) {
+    @Run(test = "test124")
+    public void test124_verifier() {
         test124(42, 42);
         test124(42, testValue1);
     }
 
     // acmp doesn't need substitutability test when one input null
-    @Test(failOn = SUBSTITUTABILITY_TEST)
+    @Test
+    @IR(failOn = {SUBSTITUTABILITY_TEST})
     public boolean test125(Object o1) {
         Object o2 = null;
         return o1 == o2;
     }
 
-    @DontCompile
-    public void test125_verifier(boolean warmup) {
+    @Run(test = "test125")
+    public void test125_verifier() {
         test125(testValue1);
         test125(null);
     }
 
     // Test inline type that can only be scalarized after loop opts
-    @Test(failOn = ALLOC + LOAD + STORE)
-    @Warmup(10000)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test126(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2.ref val = null;
@@ -3433,19 +3507,20 @@ public class TestLWorld extends InlineTypeTest {
         return 0;
     }
 
-    @DontCompile
-    public void test126_verifier(boolean warmup) {
+    @Run(test = "test126")
+    @Warmup(10000)
+    public void test126_verifier(RunInfo info) {
         long res = test126(false);
         Asserts.assertEquals(res, 0L);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             res = test126(true);
             Asserts.assertEquals(res, testValue2.hash());
         }
     }
 
     // Same as test126 but with interface type
-    @Test(failOn = ALLOC + LOAD + STORE)
-    @Warmup(10000)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test127(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3463,19 +3538,20 @@ public class TestLWorld extends InlineTypeTest {
         return 0;
     }
 
-    @DontCompile
-    public void test127_verifier(boolean warmup) {
+    @Run(test = "test127")
+    @Warmup(10000)
+    public void test127_verifier(RunInfo info) {
         long res = test127(false);
         Asserts.assertEquals(res, 0L);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             res = test127(true);
             Asserts.assertEquals(res, testValue2.hash());
         }
     }
 
     // Test inline type that can only be scalarized after CCP
-    @Test(failOn = ALLOC + LOAD + STORE)
-    @Warmup(10000)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test128(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2.ref val = null;
@@ -3493,19 +3569,20 @@ public class TestLWorld extends InlineTypeTest {
         return 0;
     }
 
-    @DontCompile
-    public void test128_verifier(boolean warmup) {
+    @Run(test = "test128")
+    @Warmup(10000)
+    public void test128_verifier(RunInfo info) {
         long res = test128(false);
         Asserts.assertEquals(res, 0L);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             res = test128(true);
             Asserts.assertEquals(res, testValue2.hash());
         }
     }
 
     // Same as test128 but with interface type
-    @Test(failOn = ALLOC + LOAD + STORE)
-    @Warmup(10000)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test129(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3523,11 +3600,12 @@ public class TestLWorld extends InlineTypeTest {
         return 0;
     }
 
-    @DontCompile
-    public void test129_verifier(boolean warmup) {
+    @Run(test = "test129")
+    @Warmup(10000)
+    public void test129_verifier(RunInfo info) {
         long res = test129(false);
         Asserts.assertEquals(res, 0L);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             res = test129(true);
             Asserts.assertEquals(res, testValue2.hash());
         }
@@ -3539,7 +3617,7 @@ public class TestLWorld extends InlineTypeTest {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
-    @Test()
+    @Test
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -3547,8 +3625,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test130_verifier(boolean warmup) {
+    @Run(test = "test130")
+    public void test130_verifier() {
         try {
             test130();
             throw new RuntimeException("test130 failed: no exception thrown");
@@ -3563,7 +3641,7 @@ public class TestLWorld extends InlineTypeTest {
         return testValue1;
     }
 
-    @Test()
+    @Test
     public void test131() {
         Object obj = test131_inlinee();
         synchronized (obj) {
@@ -3571,8 +3649,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test131_verifier(boolean warmup) {
+    @Run(test = "test131")
+    public void test131_verifier() {
         try {
             test131();
             throw new RuntimeException("test131 failed: no exception thrown");
@@ -3582,8 +3660,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test locking on object that is known to be an inline type only after CCP
-    @Test()
-    @Warmup(10000)
+    @Test
     public void test132() {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         Object obj = Integer.valueOf(42);
@@ -3598,8 +3675,9 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test132_verifier(boolean warmup) {
+    @Run(test = "test132")
+    @Warmup(10000)
+    public void test132_verifier() {
         try {
             test132();
             throw new RuntimeException("test132 failed: no exception thrown");
@@ -3609,7 +3687,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test conditional locking on inline type and non-escaping object
-    @Test()
+    @Test
     public void test133(boolean b) {
         Object obj = b ? Integer.valueOf(42) : MyValue2.createWithFieldsInline(rI, rD);
         synchronized (obj) {
@@ -3619,8 +3697,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test133_verifier(boolean warmup) {
+    @Run(test = "test133")
+    public void test133_verifier() {
         test133(true);
         try {
             test133(false);
@@ -3631,7 +3709,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Variant with non-scalarized inline type
-    @Test()
+    @Test
     public static void test134(boolean b) {
         Object obj = null;
         if (b) {
@@ -3642,8 +3720,8 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test134_verifier(boolean warmup) {
+    @Run(test = "test134")
+    public void test134_verifier() {
         try {
             test134(true);
             throw new RuntimeException("test134 failed: no exception thrown");
@@ -3653,19 +3731,21 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test that acmp of the same inline object is removed
-    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test135() {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         return val == val;
     }
 
-    @DontCompile
-    public void test135_verifier(boolean warmup) {
+    @Run(test = "test135")
+    public void test135_verifier() {
         Asserts.assertTrue(test135());
     }
 
     // Same as test135 but with .ref
-    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test136(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -3674,8 +3754,8 @@ public class TestLWorld extends InlineTypeTest {
         return val == val;
     }
 
-    @DontCompile
-    public void test136_verifier(boolean warmup) {
+    @Run(test = "test136")
+    public void test136_verifier() {
         Asserts.assertTrue(test136(false));
         Asserts.assertTrue(test136(true));
     }
@@ -3688,20 +3768,22 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Test that acmp of different inline objects with same content is removed
-    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test137(int i) {
         SimpleInlineType val1 = new SimpleInlineType(i);
         SimpleInlineType val2 = new SimpleInlineType(i);
         return val1 == val2;
     }
 
-    @DontCompile
-    public void test137_verifier(boolean warmup) {
+    @Run(test = "test137")
+    public void test137_verifier() {
         Asserts.assertTrue(test137(rI));
     }
 
     // Same as test137 but with .ref
-    @Test(failOn = ALLOC + LOAD + STORE + NULL_CHECK_TRAP + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test138(int i, boolean b) {
         SimpleInlineType.ref val1 = new SimpleInlineType(i);
         SimpleInlineType.ref val2 = new SimpleInlineType(i);
@@ -3712,8 +3794,8 @@ public class TestLWorld extends InlineTypeTest {
         return val1 == val2;
     }
 
-    @DontCompile
-    public void test138_verifier(boolean warmup) {
+    @Run(test = "test138")
+    public void test138_verifier() {
         Asserts.assertTrue(test138(rI, false));
         Asserts.assertTrue(test138(rI, true));
     }
@@ -3727,14 +3809,15 @@ public class TestLWorld extends InlineTypeTest {
         Test139Value value = Test139Value.default;
     }
 
-    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
     public MyValueEmpty test139() {
         Test139Wrapper w = new Test139Wrapper();
         return w.value.empty;
     }
 
-    @DontCompile
-    public void test139_verifier(boolean warmup) {
+    @Run(test = "test139")
+    public void test139_verifier() {
         MyValueEmpty empty = test139();
         Asserts.assertEquals(empty, MyValueEmpty.default);
     }
@@ -3748,14 +3831,14 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(0)
     public int test140() {
         Test140Value vt = Test140Value.default;
         return vt.get();
     }
 
-    @DontCompile
-    public void test140_verifier(boolean warmup) {
+    @Run(test = "test140")
+    @Warmup(0)
+    public void test140_verifier() {
         int result = test140();
         Asserts.assertEquals(result, 0);
     }
@@ -3769,20 +3852,21 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(0)
     public int test141() {
         Test141Value vt = Test141Value.default;
         return vt.get();
     }
 
-    @DontCompile
-    public void test141_verifier(boolean warmup) {
+    @Run(test = "test141")
+    @Warmup(0)
+    public void test141_verifier() {
         int result = test141();
         Asserts.assertEquals(result, 0);
     }
 
     // Test that virtual calls on inline type receivers are properly inlined
-    @Test(failOn = ALLOC + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test142() {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3795,8 +3879,8 @@ public class TestLWorld extends InlineTypeTest {
         return val.hash();
     }
 
-    @DontCompile
-    public void test142_verifier(boolean warmup) {
+    @Run(test = "test142")
+    public void test142_verifier() {
         long res = test142();
         Asserts.assertEquals(res, testValue2.hash());
     }

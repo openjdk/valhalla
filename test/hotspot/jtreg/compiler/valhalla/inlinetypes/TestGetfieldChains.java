@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,103 +21,88 @@
  * questions.
  */
 
-
 package compiler.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
-import java.lang.reflect.Method;
-import java.nio.file.NoSuchFileException;
-import java.util.Arrays;
-
+import compiler.lib.ir_framework.CompLevel;
+import compiler.lib.ir_framework.Run;
+import compiler.lib.ir_framework.Scenario;
+import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
+
 
 /*
  * @test
  * @key randomness
  * @summary Verify that chains of getfields on flattened fields are correctly optimized
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires os.simpleArch == "x64"
- * @compile TestGetfieldChains.java NamedRectangle.java Rectangle.java Point.java GetfieldChains.jcod
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestGetfieldChains
+ * @compile GetfieldChains.jcod
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
  */
 
-public class TestGetfieldChains extends InlineTypeTest {
-    public static final int C1 = COMP_LEVEL_SIMPLE;
-    public static final int C2 = COMP_LEVEL_FULL_OPTIMIZATION;
+public class TestGetfieldChains {
 
-    public static void main(String[] args) throws Throwable {
-        TestGetfieldChains test = new TestGetfieldChains();
-        test.run(args, TestGetfieldChains.class);
+    public static void main(String[] args) {
+
+        final Scenario[] scenarios = {
+                new Scenario(0,
+                        // C1 only
+                        "-XX:TieredStopAtLevel=1",
+                        "-XX:+TieredCompilation"),
+                new Scenario(1,
+                        // C2 only. (Make sure the tests are correctly written)
+                        "-XX:TieredStopAtLevel=4",
+                        "-XX:-TieredCompilation",
+                        "-XX:-OmitStackTraceInFastThrow"),
+                new Scenario(2,
+                        // interpreter only
+                        "-Xint"),
+                new Scenario(3,
+                        // Xcomp Only C1.
+                        "-XX:TieredStopAtLevel=1",
+                        "-XX:+TieredCompilation",
+                        "-Xcomp"),
+                new Scenario(4,
+                        // Xcomp Only C2.
+                        "-XX:TieredStopAtLevel=4",
+                        "-XX:-TieredCompilation",
+                        "-XX:-OmitStackTraceInFastThrow",
+                        "-Xcomp")
+        };
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .start();
     }
 
-    @Override
-    public int getNumScenarios() {
-        return 5;
-    }
-
-    @Override
-    public String[] getVMParameters(int scenario) {
-        switch (scenario) {
-        case 0: return new String[] { // C1 only
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-            };
-        case 1: return new String[] { // C2 only. (Make sure the tests are correctly written)
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-                "-XX:-OmitStackTraceInFastThrow",
-            };
-        case 2: return new String[] { // interpreter only
-                "-Xint",
-            };
-        case 3: return new String[] {
-                // Xcomp Only C1.
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-                "-Xcomp",
-            };
-        case 4: return new String[] {
-                // Xcomp Only C2.
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-                "-XX:-OmitStackTraceInFastThrow",
-                "-Xcomp",
-            };
-        }
-        return null;
-    }
 
     // Simple chain of getfields ending with primitive field
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test1() {
         return NamedRectangle.getP1X(new NamedRectangle());
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
+    @Run(test = "test1")
+    public void test1_verifier() {
         int res = test1();
         Asserts.assertEQ(res, 4);
     }
 
     // Simple chain of getfields ending with a flattened field
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public Point test2() {
         return NamedRectangle.getP1(new NamedRectangle());
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
+    @Run(test = "test2")
+    public void test2_verifier() {
         Point p = test2();
         Asserts.assertEQ(p.x, 4);
         Asserts.assertEQ(p.y, 7);
     }
 
     // Chain of getfields but the initial receiver is null
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public NullPointerException test3() {
         NullPointerException npe = null;
         try {
@@ -128,8 +113,8 @@ public class TestGetfieldChains extends InlineTypeTest {
         return npe;
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
+    @Run(test = "test3")
+    public void test3_verifier() {
         NullPointerException npe = test3();
         Asserts.assertNE(npe, null);
         StackTraceElement st = npe.getStackTrace()[0];
@@ -138,7 +123,7 @@ public class TestGetfieldChains extends InlineTypeTest {
     }
 
     // Chain of getfields but one getfield in the middle of the chain trigger an illegal access
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public IllegalAccessError test4() {
         IllegalAccessError iae = null;
         try {
@@ -149,8 +134,8 @@ public class TestGetfieldChains extends InlineTypeTest {
         return iae;
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier() {
         IllegalAccessError iae = test4();
         Asserts.assertNE(iae, null);
         StackTraceElement st = iae.getStackTrace()[0];
@@ -160,7 +145,7 @@ public class TestGetfieldChains extends InlineTypeTest {
     }
 
     // Chain of getfields but the last getfield trigger a NoSuchFieldError
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public NoSuchFieldError test5() {
         NoSuchFieldError nsfe = null;
         try {
@@ -171,8 +156,8 @@ public class TestGetfieldChains extends InlineTypeTest {
         return nsfe;
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
+    @Run(test = "test5")
+    public void test5_verifier() {
         NoSuchFieldError nsfe = test5();
         Asserts.assertNE(nsfe, null);
         StackTraceElement st = nsfe.getStackTrace()[0];
@@ -191,26 +176,26 @@ public class TestGetfieldChains extends InlineTypeTest {
         EmptyContainer container1 = new EmptyContainer();
     }
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test6() {
         Container c = new Container();
         return c.container1.et;
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
+    @Run(test = "test6")
+    public void test6_verifier() {
         EmptyType et = test6();
         Asserts.assertEQ(et, EmptyType.default);
     }
 
-    @Test(compLevel=C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public EmptyType test7() {
         Container[] ca = new Container[10];
         return ca[3].container0.et;
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
+    @Run(test = "test7")
+    public void test7_verifier() {
         EmptyType et = test7();
         Asserts.assertEQ(et, EmptyType.default);
     }
