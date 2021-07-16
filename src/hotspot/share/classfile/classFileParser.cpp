@@ -5177,7 +5177,8 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
         p = skip_over_field_name(bytes, true, length);
         legal = (p != NULL) && ((p - bytes) == (int)length);
       }
-    } else if (_major_version >= CONSTANT_CLASS_DESCRIPTORS && bytes[length - 1] == ';' ) {
+    } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
+                   && bytes[length - 1] == ';' ) {
       // Support for L...; and Q...; descriptors
       legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
