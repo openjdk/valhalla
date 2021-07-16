@@ -8,7 +8,7 @@
 public class FlattenableNegativeTest {
     primitive final class V.val {
         final int x = 10;
-        
+
         primitive final class X.val {
             final V.val v = null;  // Error: initialization illegal
             final V.val v2 = v;    // OK, null not constant propagated.
