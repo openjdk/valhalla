@@ -19,7 +19,7 @@ public class WithFieldOperatorTest {
             x = 10;
             v = V.val.default;
         }
-        
+
         X.val getX(int xVal, WithFieldOperatorTest wfot) {
             X.val x = X.val.default;
             x = __WithField(new Y(), null);  // not a variable at all.
@@ -29,7 +29,7 @@ public class WithFieldOperatorTest {
             x = __WithField(this, this); // not a field
             x = __WithField(X.this, this); // not a field
             x = __WithField(x.x, 12.0); // float cannot be assigned to int
-            x = __WithField(x.v, null); // null cannot be assigned to value 
+            x = __WithField(x.v, null); // null cannot be assigned to value
             return x;
         }
     }

@@ -17,7 +17,7 @@ final primitive class TypeRelationsNegativeTest.val {
         x = xq;
         x = (TypeRelationsNegativeTest) xq;
         x = (TypeRelationsNegativeTest.val) xq;
- 
+
         TypeRelationsNegativeTest.val [] xa = new TypeRelationsNegativeTest.val[] { null }; // error
         TypeRelationsNegativeTest [] xqa = new TypeRelationsNegativeTest.ref[] { null };
 
