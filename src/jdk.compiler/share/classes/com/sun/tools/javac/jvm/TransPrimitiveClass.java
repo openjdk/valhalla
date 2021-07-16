@@ -27,15 +27,13 @@ package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Scope.LookupKind;
-import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol;
-import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
-import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ClassType;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
@@ -192,7 +190,10 @@ public class TransPrimitiveClass extends TreeTranslator {
                    is passed as an argument into the <init> method, the primitive static factory must allocate the
                    instance that forms the `product' by itself. We do that by injecting a prologue here.
                 */
-                VarSymbol product = currentMethod.factoryProduct = new VarSymbol(0, names.dollarValue, currentClass.sym.type, currentMethod.sym); // TODO: owner needs rewiring
+                ClassType productType = (ClassType) currentClass.sym.erasure(types);
+                if (currentClass.sym.isReferenceFavoringPrimitiveClass())
+                    productType = new ClassType(productType.getEnclosingType(), List.nil(), productType.tsym, productType.getMetadata(), Flavor.Q_TypeOf_L);
+                VarSymbol product = currentMethod.factoryProduct = new VarSymbol(0, names.dollarValue, productType, currentMethod.sym); // TODO: owner needs rewiring
                 JCExpression rhs;
 
                 final Name name = TreeInfo.name(call.meth);
@@ -200,9 +201,9 @@ public class TransPrimitiveClass extends TreeTranslator {
                 if (names._super.equals(name)) { // "initial" constructor.
                     // Synthesize code to allocate factory "product" via: V $this = V.default;
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
-                    final JCExpression type = make.Type(currentClass.type);
+                    final JCExpression type = make.Type(productType);
                     rhs = make.DefaultValue(type);
-                    rhs.type = currentClass.type;
+                    rhs.type = productType;
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.init(args);
                     Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
@@ -335,11 +336,11 @@ public class TransPrimitiveClass extends TreeTranslator {
                     case MTH:
                     case VAR:
                         if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
-                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
+                            fieldAccess.selected = make.Type(types.erasure(selectedType.asValueType()));
                         }
                         break;
                     case TYP:
-                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection()));
+                        fieldAccess.selected = make.Type(types.erasure(selectedType.asValueType()));
                         break;
                 }
             }
@@ -350,7 +351,7 @@ public class TransPrimitiveClass extends TreeTranslator {
     // Translate a reference style instance creation attempt on a primitive class to a static factory call.
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (types.isPrimitiveClass(tree.clazz.type)) {
+        if (tree.clazz.type.tsym.isPrimitiveClass()) {
             // Enclosing instances or anonymous classes should have been eliminated by now.
             Assert.check(tree.encl == null && tree.def == null);
             tree.args = translate(tree.args);
@@ -383,13 +384,13 @@ public class TransPrimitiveClass extends TreeTranslator {
 
     private MethodSymbol getPrimitiveObjectFactory(MethodSymbol init) {
         Assert.check(init.name.equals(names.init));
-        Assert.check(types.isPrimitiveClass(init.owner.type));
+        Assert.check(init.owner.isPrimitiveClass());
         MethodSymbol factory = init2factory.get(init);
         if (factory != null)
             return factory;
 
         MethodType factoryType = new MethodType(init.erasure(types).getParameterTypes(),
-                                                init.owner.type,
+                                                init.owner.type.asValueType(),
                                                 init.type.getThrownTypes(),
                                                 init.owner.type.tsym);
         factory = new MethodSymbol(init.flags_field | STATIC,

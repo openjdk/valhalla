@@ -43,15 +43,14 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.comp.LambdaToMethod;
 import com.sun.tools.javac.jvm.ClassFile;
-import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -1212,7 +1211,8 @@ public class Types {
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
                 return sup.tsym == s.tsym
-                    && (t.tsym != s.tsym || t.isReferenceProjection() == s.isReferenceProjection())
+                    && (t.tsym != s.tsym ||
+                        (t.isReferenceProjection() == s.isReferenceProjection() && t.isValueProjection() == s.isValueProjection()))
                      // Check type variable containment
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
@@ -1459,6 +1459,7 @@ public class Types {
                 }
                 return t.tsym == s.tsym
                     && t.isReferenceProjection() == s.isReferenceProjection()
+                    && t.isValueProjection() == s.isValueProjection()
                     && visit(getEnclosingType(t), getEnclosingType(s))
                     && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
@@ -1466,7 +1467,7 @@ public class Types {
                 private Type getEnclosingType(Type t) {
                     Type et = t.getEnclosingType();
                     if (et.isReferenceProjection()) {
-                        et = et.valueProjection();
+                        et = et.asValueType();
                     }
                     return et;
                 }
@@ -2262,7 +2263,7 @@ public class Types {
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
-            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+            if (t.hasTag(CLASS) && !t.tsym.isPrimitiveClass() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
                 return syms.identityObjectType;
             }
             if (implicitIdentityType(t)) {
@@ -2625,10 +2626,18 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 // erasure(projection(primitive)) = projection(erasure(primitive))
                 Type erased = eraseClassType(t, recurse);
-                if (erased.hasTag(CLASS) && t.flavor != erased.getFlavor()) {
+                Flavor wantedFlavor = t.flavor;
+                if (t.isIntersection()) {
+                    IntersectionClassType ict = (IntersectionClassType) t;
+                    Type firstExplicitBound = ict.getExplicitComponents().head;
+                    if (firstExplicitBound.hasTag(CLASS))
+                        wantedFlavor = firstExplicitBound.getFlavor();
+                    // Todo: Handle Type variable case.
+                }
+                if (erased.hasTag(CLASS) && wantedFlavor != erased.getFlavor()) {
                     erased = new ClassType(erased.getEnclosingType(),
                             List.nil(), erased.tsym,
-                            erased.getMetadata(), t.flavor);
+                            erased.getMetadata(), wantedFlavor);
                 }
                 return erased;
             }

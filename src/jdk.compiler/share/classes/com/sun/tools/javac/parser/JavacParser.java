@@ -2375,7 +2375,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~(Flags.FINAL | Flags.REFERENCE_FAVORING) : mods.flags;
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             if (typeArgs == null) {
@@ -2446,7 +2446,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL);
+            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL | Flags.REFERENCE_FAVORING);
             if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
@@ -2455,7 +2455,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
+                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~(Flags.FINAL | Flags.REFERENCE_FAVORING) : mods.flags;
                 log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             return newClass;
@@ -3989,6 +3989,16 @@ public class JavacParser implements Parser {
         int pos = token.pos;
         accept(CLASS);
         Name name = typeName();
+
+        if ((mods.flags & Flags.PRIMITIVE_CLASS) != 0) {
+            if (token.kind == DOT) {
+                final Token pastDot = S.token(1);
+                if (pastDot.kind == IDENTIFIER && pastDot.name() == names.val) {
+                    nextToken(); nextToken(); // discard .val
+                    mods.flags |= Flags.REFERENCE_FAVORING;
+                }
+            }
+        }
 
         List<JCTypeParameter> typarams = typeParametersOpt();
 
