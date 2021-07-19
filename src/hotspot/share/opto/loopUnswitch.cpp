@@ -303,7 +303,6 @@ IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
 
   // Add test to new "if" outside of loop
   IfNode* unswitch_iff = unswitch_iffs.at(0)->as_If();
-  Node* unswitch_iff_c = unswitch_iff->in(0);
   BoolNode* bol = unswitch_iff->in(1)->as_Bool();
   if (unswitch_iffs.size() > 1) {
     // Flattened array checks are used on array access to switch between
@@ -316,9 +315,9 @@ IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
     // slow loop (false proj) as it can have a mix of flattened/legacy accesses.
     assert(bol->_test._test == BoolTest::ne, "IfTrue proj must point to flat array");
     bol = bol->clone()->as_Bool();
-    register_new_node(bol, unswitch_iff_c);
+    register_new_node(bol, entry);
     FlatArrayCheckNode* cmp = bol->in(1)->clone()->as_FlatArrayCheck();
-    register_new_node(cmp, unswitch_iff_c);
+    register_new_node(cmp, entry);
     bol->set_req(1, cmp);
     // Combine all checks into a single one that fails if one array is flattened
     assert(cmp->req() == 3, "unexpected number of inputs for FlatArrayCheck");
