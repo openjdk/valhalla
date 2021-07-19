@@ -341,7 +341,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> c = parameterTypes[i];
             if (!isPrimitive(c)) {
-                asm.emitConstantPoolUTF8(getClassName(c, false));
+                asm.emitConstantPoolUTF8(getClassName(c, true));
                 asm.emitConstantPoolClass(asm.cpi());
             }
         }
