@@ -5777,7 +5777,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
       ptr = NotNull;
     // Now we find the LCA of Java classes
     ciKlass* k = this_klass->least_common_ancestor(tkls_klass);
-    return make(ptr, k, off, false, is_not_flat, is_not_null_free);
+    return make(ptr, k, off, this->flatten_array() && tkls->flatten_array(), is_not_flat, is_not_null_free);
   } // End of case KlassPtr
 
   } // End of switch
