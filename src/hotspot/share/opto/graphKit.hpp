@@ -657,7 +657,7 @@ class GraphKit : public Phase {
                              BasicType bt,
                              DecoratorSet decorators);
 
-  void access_clone(Node* src_base, Node* dst_base, Node* countx, bool is_array);
+  void access_clone(Node* src, Node* dst, Node* size, bool is_array);
 
   // Return addressing for an array element.
   Node* array_element_address(Node* ary, Node* idx, BasicType elembt,
