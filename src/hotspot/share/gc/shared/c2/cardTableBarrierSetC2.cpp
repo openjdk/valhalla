@@ -125,8 +125,8 @@ void CardTableBarrierSetC2::post_barrier(GraphKit* kit,
   kit->final_sync(ideal);
 }
 
-void CardTableBarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const {
-  BarrierSetC2::clone(kit, src_base, dst_base, countx, is_array);
+void CardTableBarrierSetC2::clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const {
+  BarrierSetC2::clone(kit, src, dst, size, is_array);
   const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
 
   // If necessary, emit some card marks afterwards.  (Non-arrays only.)
@@ -141,7 +141,7 @@ void CardTableBarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base,
     int raw_adr_idx = Compile::AliasIdxRaw;
     post_barrier(kit, kit->control(),
                  kit->memory(raw_adr_type),
-                 dst_base,
+                 dst,
                  no_particular_field,
                  raw_adr_idx,
                  no_particular_value,
