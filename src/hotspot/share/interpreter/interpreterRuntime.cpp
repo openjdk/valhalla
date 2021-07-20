@@ -306,6 +306,7 @@ JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPo
   current->set_vm_result(res);
 JRT_END
 
+// withfield support used by aarch64 but not x86 (see withfield2 below)
 JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCache* cp_cache))
   LastFrameAccessor last_frame(current);
   // Getting the InlineKlass
@@ -329,7 +330,11 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   jint tos_idx = f.interpreter_frame_expression_stack_size() - 1;
   int vt_offset = type2size[field_type];
   oop old_value = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx - vt_offset);
-  assert(old_value != NULL && oopDesc::is_oop(old_value) && old_value->is_inline_type(),"Verifying receiver");
+  if (old_value == NULL) {
+    THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
+  }
+  assert(oopDesc::is_oop(old_value), "Verifying receiver");
+  assert(old_value->klass()->is_inline_klass(), "Must have been checked during resolution");
   Handle old_value_h(THREAD, old_value);
 
   // Creating new value by copying the one passed in argument
@@ -366,6 +371,79 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   // returning result
   current->set_vm_result(new_value_h());
   return return_offset;
+JRT_END
+
+// withfield support for x86, avoiding costly calls to retrieve last Java frame
+JRT_ENTRY(int, InterpreterRuntime::withfield2(JavaThread* current, ConstantPoolCacheEntry* cpe, uintptr_t ptr))
+  oop obj = NULL;
+  int recv_offset = type2size[as_BasicType(cpe->flag_state())];
+  assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");
+  int ret_adj = (recv_offset + type2size[T_OBJECT] )* AbstractInterpreter::stackElementSize;
+  obj = (oopDesc*)(((uintptr_t*)ptr)[recv_offset * Interpreter::stackElementWords]);
+  if (obj == NULL) {
+    THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
+  }
+  assert(oopDesc::is_oop(obj), "Verifying receiver");
+  assert(obj->klass()->is_inline_klass(), "Must have been checked during resolution");
+  instanceHandle old_value_h(THREAD, (instanceOop)obj);
+  oop ref = NULL;
+  if (cpe->flag_state() == atos) {
+    ref = *(oopDesc**)ptr;
+  }
+  Handle ref_h(THREAD, ref);
+  InlineKlass* ik = InlineKlass::cast(old_value_h()->klass());
+  instanceOop new_value = ik->allocate_instance_buffer(CHECK_(ret_adj));
+  Handle new_value_h = Handle(THREAD, new_value);
+  ik->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
+  int offset = cpe->f2_as_offset();
+  switch(cpe->flag_state()) {
+    case ztos:
+      new_value_h()->bool_field_put(offset, (jboolean)(*(jint*)ptr));
+      break;
+    case btos:
+      new_value_h()->byte_field_put(offset, (jbyte)(*(jint*)ptr));
+      break;
+    case ctos:
+      new_value_h()->char_field_put(offset, (jchar)(*(jint*)ptr));
+      break;
+    case stos:
+      new_value_h()->short_field_put(offset, (jshort)(*(jint*)ptr));
+      break;
+    case itos:
+      new_value_h()->int_field_put(offset, (*(jint*)ptr));
+      break;
+    case ltos:
+      new_value_h()->long_field_put(offset, *(jlong*)ptr);
+      break;
+    case ftos:
+      new_value_h()->float_field_put(offset, *(jfloat*)ptr);
+      break;
+    case dtos:
+      new_value_h()->double_field_put(offset, *(jdouble*)ptr);
+      break;
+    case atos:
+      {
+        if (cpe->is_null_free_inline_type())  {
+          if (!cpe->is_inlined()) {
+              if (ref_h() == NULL) {
+                THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
+              }
+              new_value_h()->obj_field_put(offset, ref_h());
+            } else {
+              int field_index = cpe->field_index();
+              InlineKlass* field_ik = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
+              field_ik->write_inlined_field(new_value_h(), offset, ref_h(), CHECK_(ret_adj));
+            }
+        } else {
+          new_value_h()->obj_field_put(offset, ref_h());
+        }
+      }
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+  current->set_vm_result(new_value_h());
+  return ret_adj;
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, int index))
