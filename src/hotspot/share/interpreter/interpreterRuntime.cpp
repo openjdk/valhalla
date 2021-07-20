@@ -306,6 +306,7 @@ JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPo
   current->set_vm_result(res);
 JRT_END
 
+// withfield support used by aarch64 but not x86 (see withfield2 below)
 JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCache* cp_cache))
   LastFrameAccessor last_frame(current);
   // Getting the InlineKlass
@@ -372,6 +373,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   return return_offset;
 JRT_END
 
+// withfield support for x86, avoiding costly calls to retrieve last Java frame
 JRT_ENTRY(int, InterpreterRuntime::withfield2(JavaThread* current, ConstantPoolCacheEntry* cpe, uintptr_t ptr))
   oop obj = NULL;
   int recv_offset = type2size[as_BasicType(cpe->flag_state())];
