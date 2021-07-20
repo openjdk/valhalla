@@ -117,9 +117,9 @@ public class T8031967 {
         }
 
         code.append(".addGap(1)\n" +
-                    ".addComponent(new Object())\n" +
+                    ".addComponent(new Object() {})\n" +
                     ".addGap(1)\n" +
-                    ".addComponent(new Object())");
+                    ".addComponent(new Object() {})");
     }
 
     class JavaSource extends SimpleJavaFileObject {

@@ -1,2 +1,3 @@
 InvalidRepAnnoOnCast.java:19:17: compiler.err.invalid.repeatable.annotation.not.applicable.in.context: InvalidRepAnnoOnCast.TC
-1 error
+InvalidRepAnnoOnCast.java:19:37: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.anonymous.class: java.lang.Object, @InvalidRepAnnoOnCast.T(1),@InvalidRepAnnoOnCast.T(2) java.lang.String)
+2 errors
