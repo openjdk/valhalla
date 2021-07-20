@@ -36,10 +36,10 @@
 package compiler.escapeAnalysis;
 
 public class TestGetClass {
-    static Object obj = new Object();
+    static Object obj = new Object() {};
 
     public static boolean test() {
-        if (obj.getClass() == Object.class) {
+        if (obj.getClass().getSuperclass() == Object.class) {
             synchronized (obj) {
                 return true;
             }

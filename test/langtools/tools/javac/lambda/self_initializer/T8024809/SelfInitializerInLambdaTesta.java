@@ -9,7 +9,7 @@ public class SelfInitializerInLambdaTesta {
 
     final Runnable r1 = ()->System.out.println(r1);
 
-    final Object lock = new Object();
+    final Object lock = new Object() {};
 
     final Runnable r2 = ()->{
         System.out.println(r2);

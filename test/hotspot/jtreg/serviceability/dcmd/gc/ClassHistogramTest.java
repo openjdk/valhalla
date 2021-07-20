@@ -80,7 +80,7 @@ public class ClassHistogramTest {
         output.shouldMatch("^\\s+\\d+:\\s+\\d+\\s+\\d+\\s+java.lang.String " + moduleRegex + "\\s*$");
 
         /* Require at least one java.lang.Object */
-        output.shouldMatch("^\\s+\\d+:\\s+\\d+\\s+\\d+\\s+java.lang.Object " + moduleRegex + "\\s*$");
+        output.shouldMatch("^\\s+\\d+:\\s+\\d+\\s+\\d+\\s+java.util.Objects\\$1 " + moduleRegex + "\\s*$");
 
         /* Require at exactly one TestClass[] */
         output.shouldMatch("^\\s+\\d+:\\s+1\\s+\\d+\\s+" +

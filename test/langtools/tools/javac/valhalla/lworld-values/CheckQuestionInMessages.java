@@ -9,6 +9,6 @@
 import java.util.List;
 
 primitive class X {
-    List<X.ref> ls = new Object();
+    List<X.ref> ls = new Object() {};
     X.ref[] xa = new Object[10];  // no support for Object.ref yet, but they are the same.
 }
