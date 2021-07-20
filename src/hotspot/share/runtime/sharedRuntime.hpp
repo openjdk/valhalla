@@ -737,7 +737,6 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   void print_adapter_on(outputStream* st) const;
 };
 
-// TODO
 class CompiledEntrySignature;
 
 class AdapterHandlerLibrary: public AllStatic {
