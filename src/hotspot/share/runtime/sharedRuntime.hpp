@@ -443,7 +443,8 @@ class SharedRuntime: AllStatic {
                                                       const GrowableArray<SigEntry>* sig_cc_ro,
                                                       const VMRegPair* regs_cc_ro,
                                                       AdapterFingerPrint* fingerprint,
-                                                      AdapterBlob*& new_adapter);
+                                                      AdapterBlob*& new_adapter,
+                                                      bool allocate_code_blob);
 
   static void gen_i2c_adapter(MacroAssembler *_masm,
                               int comp_args_on_stack,
@@ -729,12 +730,15 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 #ifdef ASSERT
   // Used to verify that code generated for shared adapters is equivalent
   void save_code   (unsigned char* code, int length);
-  bool compare_code(unsigned char* buffer, int length);
+  bool compare_code(AdapterHandlerEntry* other);
 #endif
 
   //virtual void print_on(outputStream* st) const;  DO NOT USE
   void print_adapter_on(outputStream* st) const;
 };
+
+// TODO
+class CompiledEntrySignature;
 
 class AdapterHandlerLibrary: public AllStatic {
   friend class SharedRuntime;
@@ -751,8 +755,7 @@ class AdapterHandlerLibrary: public AllStatic {
   static BufferBlob* buffer_blob();
   static void initialize();
   static AdapterHandlerEntry* create_adapter(AdapterBlob*& new_adapter,
-                                             int total_args_passed,
-                                             BasicType* sig_bt,
+                                             CompiledEntrySignature& ces,
                                              bool allocate_code_blob);
   static AdapterHandlerEntry* get_simple_adapter(const methodHandle& method);
  public:
@@ -794,7 +797,6 @@ class CompiledEntrySignature : public StackObj {
 
   bool _c1_needs_stack_repair;
   bool _c2_needs_stack_repair;
-  bool _has_scalarized_args;
 
 public:
   Method* method()                     const { return _method; }
@@ -820,12 +822,12 @@ public:
   bool has_inline_arg()                const { return _num_inline_args > 0; }
   bool has_inline_recv()               const { return _has_inline_recv; }
 
-  bool has_scalarized_args()           const { return _has_scalarized_args; }
+  bool has_scalarized_args()           const { return _sig != _sig_cc; }
   bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
 
-  CompiledEntrySignature(Method* method);
+  CompiledEntrySignature(Method* method = NULL);
   void compute_calling_conventions();
 
 private:
