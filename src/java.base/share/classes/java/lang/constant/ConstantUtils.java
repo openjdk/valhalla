@@ -147,6 +147,7 @@ class ConstantUtils {
     private static final char JVM_SIGNATURE_BYTE = 'B';
     private static final char JVM_SIGNATURE_CHAR = 'C';
     private static final char JVM_SIGNATURE_CLASS = 'L';
+    private static final char JVM_SIGNATURE_VALUE_TYPE = 'Q';
     private static final char JVM_SIGNATURE_ENDCLASS = ';';
     private static final char JVM_SIGNATURE_ENUM = 'E';
     private static final char JVM_SIGNATURE_FLOAT = 'F';
@@ -186,7 +187,8 @@ class ConstantUtils {
                 case JVM_SIGNATURE_DOUBLE:
                     return index - start + 1;
                 case JVM_SIGNATURE_CLASS:
-                    // Skip leading 'L' and ignore first appearance of ';'
+                case JVM_SIGNATURE_VALUE_TYPE:
+                    // Skip leading 'L' or 'Q' and ignore first appearance of ';'
                     index++;
                     int indexOfSemi = descriptor.indexOf(';', index);
                     if (indexOfSemi != -1) {
@@ -213,6 +215,62 @@ class ConstantUtils {
             }
         }
         return 0;
+    }
+
+    /**
+     * Returns the basic type of the given descriptor.  If {@code verifyClassName}
+     * is true, then this method will validate that the characters at [start, end)
+     * within the given string describe a valid field type descriptor.
+     *
+     * @return the character represents the basic type that the descriptor string
+     * references
+     * @throws IllegalArgumentException if the descriptor string is not valid
+     */
+    static char basicType(String descriptor, int start, int end, boolean verifyClassName) {
+        int arrayDim = 0;
+        int index = start;
+        while (index < end) {
+            char c = descriptor.charAt(index);
+            switch (c) {
+                case JVM_SIGNATURE_VOID:
+                case JVM_SIGNATURE_BOOLEAN:
+                case JVM_SIGNATURE_BYTE:
+                case JVM_SIGNATURE_CHAR:
+                case JVM_SIGNATURE_SHORT:
+                case JVM_SIGNATURE_INT:
+                case JVM_SIGNATURE_FLOAT:
+                case JVM_SIGNATURE_LONG:
+                case JVM_SIGNATURE_DOUBLE:
+                    return c;
+                case JVM_SIGNATURE_CLASS:
+                case JVM_SIGNATURE_VALUE_TYPE:
+                    index++;
+                    int indexOfSemi = descriptor.indexOf(';', index);
+                    if (indexOfSemi != -1) {
+                        if (verifyClassName) {
+                            String unqualifiedName = descriptor.substring(index, indexOfSemi);
+                            boolean legal = verifyUnqualifiedClassName(unqualifiedName);
+                            if (!legal) {
+                                throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
+                            }
+                        }
+                        return c;
+                    }
+                    throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
+                case JVM_SIGNATURE_ARRAY:
+                    arrayDim++;
+                    if (arrayDim > MAX_ARRAY_TYPE_DESC_DIMENSIONS) {
+                        throw new IllegalArgumentException(String.format("Cannot create an array type descriptor with more than %d dimensions",
+                                ConstantUtils.MAX_ARRAY_TYPE_DESC_DIMENSIONS));
+                    }
+                    // The rest of what's there better be a legal descriptor
+                    index++;
+                    break;
+                default:
+                    throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
+            }
+        }
+        throw new IllegalArgumentException(String.format("not a valid type descriptor: %s", descriptor));
     }
 
     static boolean verifyUnqualifiedClassName(String name) {
