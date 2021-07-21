@@ -254,42 +254,6 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result(obj);
 JRT_END
 
-void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicType type) {
-  switch (type) {
-  case T_BOOLEAN:
-    instance()->bool_field_put(offset, (jboolean)*((int*)addr));
-    break;
-  case T_CHAR:
-    instance()->char_field_put(offset, (jchar) *((int*)addr));
-    break;
-  case T_FLOAT:
-    instance()->float_field_put(offset, (jfloat)*((float*)addr));
-    break;
-  case T_DOUBLE:
-    instance()->double_field_put(offset, (jdouble)*((double*)addr));
-    break;
-  case T_BYTE:
-    instance()->byte_field_put(offset, (jbyte)*((int*)addr));
-    break;
-  case T_SHORT:
-    instance()->short_field_put(offset, (jshort)*((int*)addr));
-    break;
-  case T_INT:
-    instance()->int_field_put(offset, (jint)*((int*)addr));
-    break;
-  case T_LONG:
-    instance()->long_field_put(offset, (jlong)*((long long*)addr));
-    break;
-  case T_OBJECT:
-  case T_ARRAY:
-  case T_INLINE_TYPE:
-    fatal("Should not be handled with this method");
-    break;
-  default:
-    fatal("Unsupported BasicType");
-  }
-}
-
 JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPool* pool, int index))
   // Getting the InlineKlass
   Klass* k = pool->klass_at(index, CHECK);
@@ -306,75 +270,7 @@ JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPo
   current->set_vm_result(res);
 JRT_END
 
-// withfield support used by aarch64 but not x86 (see withfield2 below)
-JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCache* cp_cache))
-  LastFrameAccessor last_frame(current);
-  // Getting the InlineKlass
-  int index = ConstantPool::decode_cpcache_index(last_frame.get_index_u2_cpcache(Bytecodes::_withfield));
-  ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(index);
-  assert(cp_entry->is_resolved(Bytecodes::_withfield), "Should have been resolved");
-  Klass* klass = cp_entry->f1_as_klass();
-  assert(klass->is_inline_klass(), "withfield only applies to inline types");
-  InlineKlass* vklass = InlineKlass::cast(klass);
-
-  // Getting Field information
-  int offset = cp_entry->f2_as_index();
-  int field_index = cp_entry->field_index();
-  int field_offset = cp_entry->f2_as_offset();
-  Symbol* field_signature = vklass->field_signature(field_index);
-  BasicType field_type = Signature::basic_type(field_signature);
-  int return_offset = (type2size[field_type] + type2size[T_OBJECT]) * AbstractInterpreter::stackElementSize;
-
-  // Getting old value
-  frame& f = last_frame.get_frame();
-  jint tos_idx = f.interpreter_frame_expression_stack_size() - 1;
-  int vt_offset = type2size[field_type];
-  oop old_value = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx - vt_offset);
-  if (old_value == NULL) {
-    THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
-  }
-  assert(oopDesc::is_oop(old_value), "Verifying receiver");
-  assert(old_value->klass()->is_inline_klass(), "Must have been checked during resolution");
-  Handle old_value_h(THREAD, old_value);
-
-  // Creating new value by copying the one passed in argument
-  instanceOop new_value = vklass->allocate_instance_buffer(
-      CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
-  Handle new_value_h = Handle(THREAD, new_value);
-  vklass->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
-
-  // Updating the field specified in arguments
-  if (field_type == T_ARRAY || field_type == T_OBJECT) {
-    oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-    assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
-    new_value_h()->obj_field_put(field_offset, aoop);
-  } else if (field_type == T_INLINE_TYPE) {
-    if (cp_entry->is_inlined()) {
-      oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
-      InlineKlass* field_vk = InlineKlass::cast(vklass->get_inline_type_field_klass(field_index));
-      assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
-      field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
-    } else { // not inlined
-      oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_null_free_inline_type()) {
-        THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
-      }
-      assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
-      new_value_h()->obj_field_put(field_offset, voop);
-    }
-  } else { // not T_OBJECT nor T_ARRAY nor T_INLINE_TYPE
-    intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
-    copy_primitive_argument(addr, new_value_h, field_offset, field_type);
-  }
-
-  // returning result
-  current->set_vm_result(new_value_h());
-  return return_offset;
-JRT_END
-
-// withfield support for x86, avoiding costly calls to retrieve last Java frame
-JRT_ENTRY(int, InterpreterRuntime::withfield2(JavaThread* current, ConstantPoolCacheEntry* cpe, uintptr_t ptr))
+JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCacheEntry* cpe, uintptr_t ptr))
   oop obj = NULL;
   int recv_offset = type2size[as_BasicType(cpe->flag_state())];
   assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");

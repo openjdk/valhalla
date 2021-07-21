@@ -3188,9 +3188,9 @@ void TemplateTable::withfield() {
   __ lea(cpentry, Address(cache, index, Address::times_ptr,
                          in_bytes(cp_base_offset)));
   __ lea(rax, at_tos());
-  __ call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield2), cpentry, rax);
+  __ call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), cpentry, rax);
   // new value type is returned in rbx
-  // stack adjustement is returned in rax
+  // stack adjustment is returned in rax
   __ verify_oop(rbx);
   __ addptr(rsp, rax);
   __ movptr(rax, rbx);
