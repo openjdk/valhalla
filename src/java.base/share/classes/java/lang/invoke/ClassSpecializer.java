@@ -152,12 +152,14 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         return new IllegalArgumentException(message, cause);
     }
 
-    private static final Function<Object, Object> CREATE_RESERVATION = new Function<>() {
-        @Override
-        public Object apply(Object key) {
-            return new Object();
-        }
-    };
+    private static class CacheHolder {
+        static final Function<Object, Object> CREATE = new Function<>() {
+            @Override
+            public Object apply(Object key) {
+                return new CacheHolder();
+            }
+        };
+    }
 
     public final S findSpecies(K key) {
         // Note:  Species instantiation may throw VirtualMachineError because of
@@ -180,12 +182,12 @@ abstract class ClassSpecializer<T,K,S extends ClassSpecializer<T,K,S>.SpeciesDat
         // concrete class if ever.
         // The concrete class is published via SpeciesData instance
         // returned here only after the class and species data are linked together.
-        Object speciesDataOrReservation = cache.computeIfAbsent(key, CREATE_RESERVATION);
+        Object speciesDataOrReservation = cache.computeIfAbsent(key, CacheHolder.CREATE);
         // Separating the creation of a placeholder SpeciesData instance above
         // from the loading and linking a real one below ensures we can never
         // accidentally call computeIfAbsent recursively.
         S speciesData;
-        if (speciesDataOrReservation.getClass() == Object.class) {
+        if (speciesDataOrReservation.getClass() == CacheHolder.class) {
             synchronized (speciesDataOrReservation) {
                 Object existingSpeciesData = cache.get(key);
                 if (existingSpeciesData == speciesDataOrReservation) { // won the race

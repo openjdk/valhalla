@@ -1347,10 +1347,10 @@ public:
   // Create a slow version of the loop by cloning the loop
   // and inserting an if to select fast-slow versions.
   // Return the inserted if.
-  ProjNode* create_slow_version_of_loop(IdealLoopTree *loop,
-                                        Node_List &old_new,
-                                        int opcode,
-                                        CloneLoopMode mode);
+  IfNode* create_slow_version_of_loop(IdealLoopTree *loop,
+                                      Node_List &old_new,
+                                      Node_List &unswitch_iffs,
+                                      CloneLoopMode mode);
 
   // Clone a loop and return the clone head (clone_loop_head).
   // Added nodes include int(1), int(0) - disconnected, If, IfTrue, IfFalse,

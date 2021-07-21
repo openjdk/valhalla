@@ -56,6 +56,7 @@ import static com.sun.tools.javac.resources.CompilerProperties.Fragments.Diamond
 import static com.sun.tools.javac.resources.CompilerProperties.Fragments.DiamondInvalidArgs;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -2830,6 +2831,9 @@ public class Attr extends JCTree.Visitor {
             clazztype = TreeInfo.isEnumInit(env.tree) ?
                 attribIdentAsEnumType(env, (JCIdent)clazz) :
                 attribType(clazz, env);
+            if (clazztype.tsym == syms.objectType.tsym && cdef == null && !tree.classDeclRemoved()) {
+                log.note(tree.pos(), Notes.CantInstantiateObjectDirectly);
+            }
         } finally {
             env.info.isNewClass = false;
         }
