@@ -64,7 +64,6 @@ typedef jint            jsize;
 
 #ifdef __cplusplus
 
-class _jvaluetype {};
 class _jobject {};
 class _jclass : public _jobject {};
 class _jthrowable : public _jobject {};
@@ -80,7 +79,6 @@ class _jfloatArray : public _jarray {};
 class _jdoubleArray : public _jarray {};
 class _jobjectArray : public _jarray {};
 
-typedef _jvaluetype *jvaluetype;
 typedef _jobject *jobject;
 typedef _jclass *jclass;
 typedef _jthrowable *jthrowable;
@@ -98,10 +96,8 @@ typedef _jobjectArray *jobjectArray;
 
 #else
 
-struct _jvaluetype;
 struct _jobject;
 
-typedef struct _jvaluetype *jvaluetype;
 typedef struct _jobject *jobject;
 typedef jobject jclass;
 typedef jobject jthrowable;
@@ -131,7 +127,6 @@ typedef union jvalue {
     jfloat   f;
     jdouble  d;
     jobject  l;
-    jvaluetype q;
 } jvalue;
 
 struct _jfieldID;
