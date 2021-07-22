@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,24 +21,8 @@
  * questions.
  */
 
-import java.util.Objects;
+// key: compiler.note.cant.instantiate.object.directly
 
-public primitive class Point {
-    static final Object STATIC_FIELD = Objects.newIdentity();
-    public int x;
-    public int y;
-    public static Point makePoint(int x, int y) {
-        return new Point(x, y);
-    }
-
-    Point() {
-        this.x = 10;
-        this.y = 20;
-    }
-
-    public Point(int x, int y) {
-        this.x = x;
-        this.y = y;
-    }
-
+class CantInstantiateObjectDirectly {
+    { new Object(); }
 }

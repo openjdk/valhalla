@@ -1763,8 +1763,8 @@ Node* GraphKit::access_atomic_add_at(Node* obj,
   }
 }
 
-void GraphKit::access_clone(Node* src_base, Node* dst_base, Node* countx, bool is_array) {
-  return _barrier_set->clone(this, src_base, dst_base, countx, is_array);
+void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
+  return _barrier_set->clone(this, src, dst, size, is_array);
 }
 
 //-------------------------array_element_address-------------------------

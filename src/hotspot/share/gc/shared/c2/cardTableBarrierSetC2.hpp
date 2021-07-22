@@ -42,7 +42,7 @@ protected:
   Node* byte_map_base_node(GraphKit* kit) const;
 
 public:
-  virtual void clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const;
+  virtual void clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const;
   virtual bool is_gc_barrier_node(Node* node) const;
   virtual void eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const;
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const;

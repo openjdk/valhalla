@@ -570,6 +570,8 @@ public final class Class<T> implements java.io.Serializable,
      * of a primitive class respectively.
      *
      * @return {@code true} if this class is a primitive class, otherwise {@code false}
+     * @see #asPrimaryType()
+     * @see #asValueType()
      * @since Valhalla
      */
     public boolean isPrimitiveClass() {
@@ -580,14 +582,15 @@ public final class Class<T> implements java.io.Serializable,
      * Returns a {@code Class} object representing the primary type
      * of this class or interface.
      * <p>
-     * If this {@code Class} object represents a reference type, then
-     * this method returns this class.
+     * If this {@code Class} object represents a primitive type or an array type,
+     * then this method returns this class.
      * <p>
      * If this {@code Class} object represents a {@linkplain #isPrimitiveClass()
      * primitive class}, then this method returns the <em>primitive reference type</em>
      * type of this primitive class.
      * <p>
-     * If this is a primitive type, then this method returns this class.
+     * Otherwise, this {@code Class} object represents a non-primitive class or interface
+     * and this method returns this class.
      *
      * @return the {@code Class} representing the primary type of
      *         this class or interface
@@ -601,8 +604,11 @@ public final class Class<T> implements java.io.Serializable,
      * Returns a {@code Class} object representing the <em>primitive value type</em>
      * of this class if this class is a {@linkplain #isPrimitiveClass() primitive class}.
      *
-     * @return the {@code Class} representing the primitive value type of
-     *         this class if this class is a primitive class
+     * @apiNote Alternatively, this method returns null if this class is not
+     *          a primitive class rather than throwing UOE.
+     *
+     * @return the {@code Class} representing the {@linkplain #isValueType()
+     * primitive value type} of this class if this class is a primitive class
      * @throws UnsupportedOperationException if this class or interface
      *         is not a primitive class
      * @since Valhalla
@@ -618,14 +624,16 @@ public final class Class<T> implements java.io.Serializable,
      * Returns {@code true} if this {@code Class} object represents the primary type
      * of this class or interface.
      * <p>
-     * If this is a primitive type, then this method returns {@code true}.
-     * <p>
-     * If this {@code Class} object represents a reference type, then
-     * this method returns {@code true}.
+     * If this {@code Class} object represents a primitive type or an array type,
+     * then this method returns {@code true}.
      * <p>
      * If this {@code Class} object represents a {@linkplain #isPrimitiveClass()
-     * primitive} reference type, then this method returns {@code true};
-     * otherwise, this method returns {@code false}.
+     * primitive}, then this method returns {@code true} if this {@code Class}
+     * object represents a primitive reference type, or returns {@code false}
+     * if this {@code Class} object represents a primitive value type.
+     * <p>
+     * If this {@code Class} object represents a non-primitive class or interface,
+     * then this method returns {@code true}.
      *
      * @return {@code true} if this {@code Class} object represents
      * the primary type of this class or interface
@@ -3996,7 +4004,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this is an {@linkplain #isValueType()
+     * @throws NullPointerException if this class is an {@linkplain #isValueType()
      * primitive value type} and the object is {@code null}
      *
      * @since 1.5

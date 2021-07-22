@@ -24,6 +24,8 @@
  */
 package java.lang.constant;
 
+import sun.invoke.util.Wrapper;
+
 import java.lang.invoke.MethodHandles;
 
 import static java.lang.constant.ConstantUtils.dropFirstAndLastChar;
@@ -32,11 +34,12 @@ import static java.util.Objects.requireNonNull;
 
 /**
  * A <a href="package-summary.html#nominal">nominal descriptor</a> for a class,
- * interface, or array type.  A {@linkplain ReferenceClassDescImpl} corresponds to a
+ * interface, or array type.  A {@linkplain ClassDescImpl} corresponds to a
  * {@code Constant_Class_info} entry in the constant pool of a classfile.
  */
-final class ReferenceClassDescImpl implements ClassDesc {
+final class ClassDescImpl implements ClassDesc {
     private final String descriptor;
+    private final boolean isValue;
 
     /**
      * Creates a {@linkplain ClassDesc} from a descriptor string for a class or
@@ -47,13 +50,14 @@ final class ReferenceClassDescImpl implements ClassDesc {
      * field descriptor string, or does not describe a class or interface type
      * @jvms 4.3.2 Field Descriptors
      */
-    ReferenceClassDescImpl(String descriptor) {
+    ClassDescImpl(String descriptor) {
         requireNonNull(descriptor);
         int len = ConstantUtils.skipOverFieldSignature(descriptor, 0, descriptor.length(), false);
         if (len == 0 || len == 1
             || len != descriptor.length())
             throw new IllegalArgumentException(String.format("not a valid reference type descriptor: %s", descriptor));
         this.descriptor = descriptor;
+        this.isValue = ConstantUtils.basicType(descriptor, 0, descriptor.length(), false) == 'Q';
     }
 
     @Override
@@ -73,6 +77,12 @@ final class ReferenceClassDescImpl implements ClassDesc {
             return lookup.findClass(descriptorString());
         else {
             Class<?> clazz = lookup.findClass(internalToBinary(dropFirstAndLastChar(c.descriptorString())));
+            if (isValue) {
+                if (!clazz.isPrimitiveClass()) {
+                    throw new LinkageError(clazz.getName() + " is not a primitive class");
+                }
+                clazz = clazz.asValueType();
+            }
             for (int i = 0; i < depth; i++)
                 clazz = clazz.arrayType();
             return clazz;
@@ -80,8 +90,8 @@ final class ReferenceClassDescImpl implements ClassDesc {
     }
 
     /**
-     * Returns {@code true} if this {@linkplain ReferenceClassDescImpl} is
-     * equal to another {@linkplain ReferenceClassDescImpl}.  Equality is
+     * Returns {@code true} if this {@linkplain ClassDescImpl} is
+     * equal to another {@linkplain ClassDescImpl}.  Equality is
      * determined by the two class descriptors having equal class descriptor
      * strings.
      *

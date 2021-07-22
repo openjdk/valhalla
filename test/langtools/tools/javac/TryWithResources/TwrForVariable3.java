@@ -6,7 +6,7 @@
 public class TwrForVariable3 implements AutoCloseable {
     public static void main(String... args) {
         TwrForVariable3 v1 = new TwrForVariable3();
-        Object v2 = new Object();
+        Object v2 = new Object() {};
         Object v3 = new Object() {
             public void close() {
             }

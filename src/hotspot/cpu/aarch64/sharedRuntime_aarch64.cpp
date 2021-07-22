@@ -961,7 +961,7 @@ static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
 
 
 // ---------------------------------------------------------------
-AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
+AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                                             int comp_args_on_stack,
                                                             const GrowableArray<SigEntry>* sig,
                                                             const VMRegPair* regs,
@@ -970,7 +970,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             const GrowableArray<SigEntry>* sig_cc_ro,
                                                             const VMRegPair* regs_cc_ro,
                                                             AdapterFingerPrint* fingerprint,
-                                                            AdapterBlob*& new_adapter) {
+                                                            AdapterBlob*& new_adapter,
+                                                            bool allocate_code_blob) {
 
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
@@ -1035,9 +1036,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   // The c2i adapter might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
-
-  bool caller_must_gc_arguments = (regs != regs_cc);
-  new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
+  if (allocate_code_blob) {
+    bool caller_must_gc_arguments = (regs != regs_cc);
+    new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
+  }
 
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
