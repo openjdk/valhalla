@@ -311,8 +311,7 @@ public sealed interface ClassDesc
             return Wrapper.forBasicType(descriptorString().charAt(0)).primitiveSimpleName();
         else if (isClassOrInterface()) {
             return descriptorString().substring(Math.max(1, descriptorString().lastIndexOf('/') + 1),
-                                                descriptorString().length() - 1) +
-                   (isValueType() ? "" : ".ref");
+                                                descriptorString().length() - 1);
         }
         else if (isArray()) {
             int depth = ConstantUtils.arrayDepth(descriptorString());

@@ -44,9 +44,9 @@ public class ValueConstantDesc {
     static Object[][] descs() {
         return new Object[][]{
             new Object[] { Point.class,     ClassDesc.ofDescriptor("Q" + NAME + ";"), NAME},
-            new Object[] { Point.ref.class, ClassDesc.ofDescriptor("L" + NAME + ";"), NAME + ".ref"},
+            new Object[] { Point.ref.class, ClassDesc.ofDescriptor("L" + NAME + ";"), NAME},
             new Object[] { Point[].class,   ClassDesc.ofDescriptor("[Q" + NAME + ";"), NAME + "[]"},
-            new Object[] { Point.ref[][].class, ClassDesc.ofDescriptor("[[L" + NAME + ";"), NAME + ".ref[][]"},
+            new Object[] { Point.ref[][].class, ClassDesc.ofDescriptor("[[L" + NAME + ";"), NAME + "[][]"},
         };
     }
 
