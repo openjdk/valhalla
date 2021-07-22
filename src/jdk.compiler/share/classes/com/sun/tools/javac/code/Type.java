@@ -251,7 +251,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
     /**
      * @return true IFF the receiver is a reference projection type of a *value favoring* primitive class
-     * and false otherwise. Or in other words, is this a class type non-redundantly notated with .ref ??
+     * and false otherwise.
      */
     public boolean isReferenceProjection() {
         return false;
@@ -266,7 +266,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
     /**
      * @return true IFF the receiver is a value projection of a *reference favoring* primitive class type
-     * and false otherwise. Or in other words, is this a class type non-redundantly notated with .val ??
+     * and false otherwise.
      */
     public boolean isValueProjection() {
         return false;
@@ -1055,8 +1055,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             L_TypeOf_L,
 
             /**
-             * Reference projection type of a primitive-favoring aka primitive-default
-             * plain vanilla primitive class type,
+             * A primitive reference type:  (Assosiated primitive class could be either
+             * reference default or value-default)
              */
             L_TypeOf_Q,
 
