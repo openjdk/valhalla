@@ -43,6 +43,7 @@ import com.sun.tools.javac.comp.Resolve.MethodResolutionPhase;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.tree.JCTree.JCConditional;
+import com.sun.tools.javac.tree.JCTree.JCDefaultValue;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCLambda;
 import com.sun.tools.javac.tree.JCTree.JCLambda.ParameterKind;
@@ -321,6 +322,16 @@ public class ArgumentAttr extends JCTree.Visitor {
     public void visitNewClass(JCNewClass that) {
         if (TreeInfo.isDiamond(that)) {
             processArg(that, speculativeTree -> new ResolvedConstructorType(that, env, speculativeTree));
+        } else {
+            //not a poly expression, just call Attr
+            setResult(that, attr.attribTree(that, env, attr.unknownExprInfo));
+        }
+    }
+
+    @Override
+    public void visitDefaultValue(JCDefaultValue that) {
+        if (TreeInfo.isPossiblePolyDefault(that, that.type)) {
+            processArg(that, speculativeTree -> new ResolvedDefaultType(that, env, speculativeTree));
         } else {
             //not a poly expression, just call Attr
             setResult(that, attr.attribTree(that, env, attr.unknownExprInfo));
@@ -715,6 +726,36 @@ public class ArgumentAttr extends JCTree.Visitor {
         @Override
         ArgumentType<JCNewClass> dup(JCNewClass tree, Env<AttrContext> env) {
             return new ResolvedConstructorType(tree, env, speculativeTree, speculativeTypes);
+        }
+    }
+
+    /**
+     * Argument type for default values.
+     */
+    class ResolvedDefaultType extends ResolvedMemberType<JCDefaultValue> {
+
+        public ResolvedDefaultType(JCExpression tree, Env<AttrContext> env, JCDefaultValue speculativeTree) {
+            this(tree, env, speculativeTree, new HashMap<>());
+        }
+
+        public ResolvedDefaultType(JCExpression tree, Env<AttrContext> env, JCDefaultValue speculativeTree, Map<ResultInfo, Type> speculativeTypes) {
+            super(tree, env, speculativeTree, speculativeTypes);
+        }
+
+        @Override
+        ResultInfo resultInfo(ResultInfo resultInfo) {
+            return resultInfo.dup(attr.defaultPolyContext(speculativeTree, speculativeTree.clazz.type.tsym, resultInfo.checkContext));
+        }
+
+        @Override
+        Type methodType() {
+            return (speculativeTree.defaultValueConstructor != null) ?
+                    speculativeTree.defaultValueConstructor.baseType() : syms.errType;
+        }
+
+        @Override
+        ArgumentType<JCDefaultValue> dup(JCDefaultValue tree, Env<AttrContext> env) {
+            return new ResolvedDefaultType(tree, env, speculativeTree, speculativeTypes);
         }
     }
 

@@ -5025,7 +5025,7 @@ public class Attr extends JCTree.Visitor {
         if (!pkind().contains(KindSelector.TYP_PCK))
             clazztype = capture(clazztype); // Capture field access
 
-        if (isPossiblePolyDefault(tree, clazztype)) {
+        if (TreeInfo.isPossiblePolyDefault(tree, clazztype)) {
             var flavor = clazztype.getTag() == CLASS ? clazztype.getFlavor() : Flavor.X_Typeof_X;
             ClassType site = new ClassType(clazztype.getEnclosingType(),
                         clazztype.tsym.type.getTypeArguments(),
@@ -5039,7 +5039,7 @@ public class Attr extends JCTree.Visitor {
 
             final TypeSymbol csym = clazztype.tsym;
             var clazzTypeArgs = csym.type.getTypeArguments();
-            Type constrType = new ForAll(clazzTypeArgs,
+            Type constrType = tree.defaultValueConstructor = new ForAll(clazzTypeArgs,
                     new MethodType(List.nil(), csym.type, List.nil(), syms.methodClass));
 
             MethodSymbol constructor = new MethodSymbol(Flags.SYNTHETIC, names.init, constrType, site.tsym);
@@ -5051,6 +5051,7 @@ public class Attr extends JCTree.Visitor {
             if (defaultType.isErroneous()) {
                 tree.clazz.type = types.createErrorType(clazztype);
             } else {
+            	tree.defaultValueConstructor = types.createMethodTypeWithReturn(defaultType, syms.voidType);
                 tree.clazz.type = defaultType.getReturnType();
             }
             clazztype = chk.checkClassType(tree.clazz, tree.clazz.type, true);
@@ -5077,16 +5078,6 @@ public class Attr extends JCTree.Visitor {
                         diags.fragment(Fragments.CantApplyDiamond1(Fragments.Diamond(tsym), details)));
             }
         };
-    }
-    //where
-    boolean isPossiblePolyDefault(JCDefaultValue tree, Type clazztype) {
-        JCTypeApply applyTree = TreeInfo.getTypeApplication(tree.clazz);
-        if (applyTree != null) {
-            return applyTree.arguments.isEmpty();
-        } else {
-            // No type arguments before .default - Consider if the type is generic or not
-            return clazztype == null || clazztype.tsym.type.isParameterized();
-        }
     }
 
     public void visitLiteral(JCLiteral tree) {

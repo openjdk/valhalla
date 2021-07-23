@@ -1407,7 +1407,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      */
     public static class JCDefaultValue extends JCPolyExpression implements DefaultValueTree {
         public JCExpression clazz;
-
+		public Type defaultValueConstructor; // Possible parameterized type of "constructor" 
         protected JCDefaultValue(JCExpression clazz) {
             this.clazz = clazz;
         }
