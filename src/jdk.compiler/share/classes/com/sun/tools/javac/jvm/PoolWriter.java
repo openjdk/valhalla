@@ -120,8 +120,8 @@ public class PoolWriter {
            result in two different CONSTANT_Class_info strucures in the pool. These are
            indistinguishable at the class file level. Hence we coalesce them here.
         */
-        if (t.isReferenceProjection())
-            t = t.valueProjection();
+        if (t.tsym.isPrimitiveClass())
+            t = t.asValueType();
         return pool.writeIfNeeded(types.erasure(t));
     }
 

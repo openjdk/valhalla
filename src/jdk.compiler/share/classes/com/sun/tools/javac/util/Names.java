@@ -144,6 +144,7 @@ public class Names {
     public final Name Enum;
     public final Name Exceptions;
     public final Name InnerClasses;
+    public final Name JavaFlags;
     public final Name LineNumberTable;
     public final Name LocalVariableTable;
     public final Name LocalVariableTypeTable;
@@ -333,6 +334,7 @@ public class Names {
         Exceptions = fromString("Exceptions");
         InnerClasses = fromString("InnerClasses");
         LineNumberTable = fromString("LineNumberTable");
+        JavaFlags = fromString("JavaFlags");
         LocalVariableTable = fromString("LocalVariableTable");
         LocalVariableTypeTable = fromString("LocalVariableTypeTable");
         MethodParameters = fromString("MethodParameters");

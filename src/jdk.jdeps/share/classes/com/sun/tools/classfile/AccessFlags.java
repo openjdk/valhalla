@@ -39,6 +39,7 @@ import java.util.Set;
  */
 public class AccessFlags {
     public static final int ACC_PUBLIC        = 0x0001; // class, inner, field, method
+    public static final int ACC_REF_DEFAULT   = 0x0001; // javac extra
     public static final int ACC_PRIVATE       = 0x0002; //        inner, field, method
     public static final int ACC_PROTECTED     = 0x0004; //        inner, field, method
     public static final int ACC_STATIC        = 0x0008; //        inner, field, method
@@ -60,7 +61,7 @@ public class AccessFlags {
     public static final int ACC_MANDATED      = 0x8000; //                          method parameter
     public static final int ACC_MODULE        = 0x8000; // class
 
-    public static enum Kind { Class, InnerClass, Field, Method}
+    public static enum Kind { Class, InnerClass, Field, Method, JavacExtra}
 
     AccessFlags(ClassReader cr) throws IOException {
         this(cr.readUnsignedShort());
