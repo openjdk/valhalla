@@ -95,12 +95,13 @@ public class LoaderConstraintsTest  {
         String src = " source: " + appJar;
         String classList[] =
             TestCommon.concat(loaderClasses,
+                              "java/lang/IdentityObject id: 0",
                               "java/lang/Object id: 1",
-                              mainClass + " id: 2 super: 1" + src,
+                              mainClass + " id: 2 super: 1 interfaces: 0" + src,
                               httpHandlerClass + " id: 3",
-                              "MyHttpHandler id: 5 super: 1 interfaces: 3" + src,
+                              "MyHttpHandler id: 5 super: 1 interfaces: 3 0" + src,
                               "MyHttpHandlerB id: 6 super: 1 interfaces: 3" + src,
-                              "MyHttpHandlerC id: 7 super: 1 interfaces: 3" + src);
+                              "MyHttpHandlerC id: 7 super: 1 interfaces: 3 0" + src);
         TestCommon.dump(loaderJar, classList, "-Xlog:cds");
 
         String cmdLine[] =
