@@ -29,14 +29,24 @@
  * @summary [lworld] default value creation should not impose raw types on users.
  * @run main PolyDefaultArgs
  */
-
 public primitive class PolyDefaultArgs<T> {
 
-    static void m(PolyDefaultArgs<String> ls) { }
+    static void m(PolyDefaultArgs<String> p) { }
+
+    static <T>void check(PolyDefaultArgs.ref<T> rp) {
+    	if (rp != null) {
+    		throw new RuntimeException("reference projection must be null");
+    	}
+    }
 
     public static void main(String [] args) {
+        // Ensure that the arguments to m() can be inferred
         m(new PolyDefaultArgs<>()); // OK
         m(PolyDefaultArgs<String>.default); // OK
         m(PolyDefaultArgs.default); // Now also OK
+
+        // Ensure that the default of a reference type is null
+        check(PolyDefaultArgs.ref<String>.default);
+        check(PolyDefaultArgs.ref.default);
     }
 }

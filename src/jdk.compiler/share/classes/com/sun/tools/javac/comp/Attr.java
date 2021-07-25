@@ -5037,14 +5037,13 @@ public class Attr extends JCTree.Visitor {
             diamondEnv.info.selectSuper = false;
             diamondEnv.info.pendingResolutionPhase = MethodResolutionPhase.BASIC;
 
-            final TypeSymbol csym = clazztype.tsym;
-            var clazzTypeArgs = csym.type.getTypeArguments();
+			var clazzTypeArgs = site.getTypeArguments();
             Type constrType = tree.defaultValueConstructor = new ForAll(clazzTypeArgs,
-                    new MethodType(List.nil(), csym.type, List.nil(), syms.methodClass));
+                    new MethodType(List.nil(), site, List.nil(), syms.methodClass));
 
             MethodSymbol constructor = new MethodSymbol(Flags.SYNTHETIC, names.init, constrType, site.tsym);
             ResultInfo diamondResult = new ResultInfo(KindSelector.VAL, newMethodTemplate(resultInfo.pt, List.nil(), List.nil()),
-                    defaultPolyContext(tree, csym, resultInfo.checkContext), CheckMode.NO_TREE_UPDATE);
+                    defaultPolyContext(tree, clazztype.tsym, resultInfo.checkContext), CheckMode.NO_TREE_UPDATE);
 
             Type defaultType = checkId(tree, site, constructor, diamondEnv, diamondResult);
 
