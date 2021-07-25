@@ -5037,7 +5037,7 @@ public class Attr extends JCTree.Visitor {
             diamondEnv.info.selectSuper = false;
             diamondEnv.info.pendingResolutionPhase = MethodResolutionPhase.BASIC;
 
-			var clazzTypeArgs = site.getTypeArguments();
+            var clazzTypeArgs = site.getTypeArguments();
             Type constrType = tree.defaultValueConstructor = new ForAll(clazzTypeArgs,
                     new MethodType(List.nil(), site, List.nil(), syms.methodClass));
 
@@ -5050,7 +5050,7 @@ public class Attr extends JCTree.Visitor {
             if (defaultType.isErroneous()) {
                 tree.clazz.type = types.createErrorType(clazztype);
             } else {
-            	tree.defaultValueConstructor = types.createMethodTypeWithReturn(defaultType, syms.voidType);
+                tree.defaultValueConstructor = types.createMethodTypeWithReturn(defaultType, syms.voidType);
                 tree.clazz.type = defaultType.getReturnType();
             }
             clazztype = chk.checkClassType(tree.clazz, tree.clazz.type, true);
