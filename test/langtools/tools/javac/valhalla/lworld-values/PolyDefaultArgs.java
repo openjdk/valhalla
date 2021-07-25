@@ -34,9 +34,9 @@ public primitive class PolyDefaultArgs<T> {
     static void m(PolyDefaultArgs<String> p) { }
 
     static <T>void check(PolyDefaultArgs.ref<T> rp) {
-    	if (rp != null) {
-    		throw new RuntimeException("reference projection must be null");
-    	}
+    if (rp != null) {
+            throw new RuntimeException("reference projection must be null");
+        }
     }
 
     public static void main(String [] args) {
