@@ -31,7 +31,7 @@ import compiler.lib.ir_framework.*;
  * @key randomness
  * @summary Verify that C1 performs escape analysis before optimizing withfield bytecode to putfield.
  * @library /test/lib /
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDallowWithFieldOperator TestWithfieldC1.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestWithfieldC1
  */

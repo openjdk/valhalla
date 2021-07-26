@@ -40,7 +40,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @key randomness
  * @summary Test method handle support for inline types
  * @library /test/lib /
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestMethodHandles
  */
 

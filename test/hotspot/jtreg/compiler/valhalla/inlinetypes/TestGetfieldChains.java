@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  * @key randomness
  * @summary Verify that chains of getfields on flattened fields are correctly optimized
  * @library /test/lib /
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile GetfieldChains.jcod
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestGetfieldChains
  */

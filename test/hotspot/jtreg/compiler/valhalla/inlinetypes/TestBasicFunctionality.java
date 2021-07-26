@@ -36,7 +36,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @key randomness
  * @summary Test the basic inline type implementation in C2
  *
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @library /test/lib /
  * @compile InlineTypes.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestBasicFunctionality
