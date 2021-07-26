@@ -4259,11 +4259,11 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       subtype = this_klass;
       subtype_exact = below_centerline(ptr) ? (this_xk && tinst_xk) : (this_xk || tinst_xk);
       flat_array = below_centerline(ptr) ? (this_flatten_array && tinst_flatten_array) : (this_flatten_array || tinst_flatten_array);
-    } else if(!tinst_xk && this_klass->is_subtype_of(tinst_klass) && (!tinst_flatten_array || this_flatten_array)) {
+    } else if (!tinst_xk && this_klass->is_subtype_of(tinst_klass) && (!tinst_flatten_array || this_flatten_array)) {
       subtype = this_klass;     // Pick subtyping class
       subtype_exact = this_xk;
       flat_array = this_flatten_array;
-    } else if(!this_xk && tinst_klass->is_subtype_of(this_klass) && (!this_flatten_array || tinst_flatten_array)) {
+    } else if (!this_xk && tinst_klass->is_subtype_of(this_klass) && (!this_flatten_array || tinst_flatten_array)) {
       subtype = tinst_klass;    // Pick subtyping class
       subtype_exact = tinst_xk;
       flat_array = tinst_flatten_array;
@@ -4319,7 +4319,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
     // Now we find the LCA of Java classes
     ciKlass* k = this_klass->least_common_ancestor(tinst_klass);
-    return make(ptr, k, false, NULL, off, false, instance_id, speculative, depth);
+    return make(ptr, k, false, NULL, off, flatten_array() && tinst->flatten_array(), instance_id, speculative, depth);
   } // End of case InstPtr
 
   case InlineType: {
@@ -5777,7 +5777,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
       ptr = NotNull;
     // Now we find the LCA of Java classes
     ciKlass* k = this_klass->least_common_ancestor(tkls_klass);
-    return make(ptr, k, off, false, is_not_flat, is_not_null_free);
+    return make(ptr, k, off, this->flatten_array() && tkls->flatten_array(), is_not_flat, is_not_null_free);
   } // End of case KlassPtr
 
   } // End of switch

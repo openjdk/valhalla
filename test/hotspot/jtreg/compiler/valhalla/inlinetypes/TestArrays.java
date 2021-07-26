@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,43 +23,44 @@
 
 package compiler.valhalla.inlinetypes;
 
+import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import java.lang.invoke.*;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
  * @test
  * @key randomness
  * @summary Test inline type arrays
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestArrays.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestArrays
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestArrays
  */
-public class TestArrays extends InlineTypeTest {
-    // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
-    @Override
-    public String[] getExtraVMParameters(int scenario) {
-        switch (scenario) {
-        case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
-        case 5: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
-        }
-        return null;
+
+@ForceCompileClassInitializer
+public class TestArrays {
+
+    public static void main(String[] args) {
+        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        scenarios[2].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast");
+        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
+        scenarios[5].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .addHelperClasses(MyValue1.class, MyValue2.class, MyValue2Inline.class)
+                   .start();
     }
 
-    public static void main(String[] args) throws Throwable {
-        TestArrays test = new TestArrays();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
-    }
-
-    // Helper methods
+    // Helper methods and classes
 
     protected long hash() {
         return hash(rI, rL);
@@ -67,773 +68,6 @@ public class TestArrays extends InlineTypeTest {
 
     protected long hash(int x, long y) {
         return MyValue1.createWithFieldsInline(x, y).hash();
-    }
-
-    // Test inline type array creation and initialization
-    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
-    public MyValue1[] test1(int len) {
-        MyValue1[] va = new MyValue1[len];
-        for (int i = 0; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
-        }
-        return va;
-    }
-
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
-        int len = Math.abs(rI % 10);
-        MyValue1[] va = test1(len);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(va[i].hash(), hash());
-        }
-    }
-
-    // Test creation of an inline type array and element access
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    public long test2() {
-        MyValue1[] va = new MyValue1[1];
-        va[0] = MyValue1.createWithFieldsInline(rI, rL);
-        return va[0].hash();
-    }
-
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
-        long result = test2();
-        Asserts.assertEQ(result, hash());
-    }
-
-    // Test receiving an inline type array from the interpreter,
-    // updating its elements in a loop and computing a hash.
-    @Test(failOn = ALLOCA)
-    public long test3(MyValue1[] va) {
-        long result = 0;
-        for (int i = 0; i < 10; ++i) {
-            result += va[i].hash();
-            va[i] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
-        }
-        return result;
-    }
-
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
-        MyValue1[] va = new MyValue1[10];
-        long expected = 0;
-        for (int i = 0; i < 10; ++i) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
-            expected += va[i].hash();
-        }
-        long result = test3(va);
-        Asserts.assertEQ(expected, result);
-        for (int i = 0; i < 10; ++i) {
-            if (va[i].hash() != hash(rI + 1, rL + 1)) {
-                Asserts.assertEQ(va[i].hash(), hash(rI + 1, rL + 1));
-            }
-        }
-    }
-
-    // Test returning an inline type array received from the interpreter
-    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
-    public MyValue1[] test4(MyValue1[] va) {
-        return va;
-    }
-
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
-        MyValue1[] va = new MyValue1[10];
-        for (int i = 0; i < 10; ++i) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
-        }
-        va = test4(va);
-        for (int i = 0; i < 10; ++i) {
-            Asserts.assertEQ(va[i].hash(), hash(rI + i, rL + i));
-        }
-    }
-
-    // Merge inline type arrays created from two branches
-    @Test
-    public MyValue1[] test5(boolean b) {
-        MyValue1[] va;
-        if (b) {
-            va = new MyValue1[5];
-            for (int i = 0; i < 5; ++i) {
-                va[i] = MyValue1.createWithFieldsInline(rI, rL);
-            }
-        } else {
-            va = new MyValue1[10];
-            for (int i = 0; i < 10; ++i) {
-                va[i] = MyValue1.createWithFieldsInline(rI + i, rL + i);
-            }
-        }
-        long sum = va[0].hashInterpreted();
-        if (b) {
-            va[0] = MyValue1.createWithFieldsDontInline(rI, sum);
-        } else {
-            va[0] = MyValue1.createWithFieldsDontInline(rI + 1, sum + 1);
-        }
-        return va;
-    }
-
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
-        MyValue1[] va = test5(true);
-        Asserts.assertEQ(va.length, 5);
-        Asserts.assertEQ(va[0].hash(), hash(rI, hash()));
-        for (int i = 1; i < 5; ++i) {
-            Asserts.assertEQ(va[i].hash(), hash());
-        }
-        va = test5(false);
-        Asserts.assertEQ(va.length, 10);
-        Asserts.assertEQ(va[0].hash(), hash(rI + 1, hash(rI, rL) + 1));
-        for (int i = 1; i < 10; ++i) {
-            Asserts.assertEQ(va[i].hash(), hash(rI + i, rL + i));
-        }
-    }
-
-    // Test creation of inline type array with single element
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    public MyValue1 test6() {
-        MyValue1[] va = new MyValue1[1];
-        return va[0];
-    }
-
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
-        MyValue1[] va = new MyValue1[1];
-        MyValue1 v = test6();
-        Asserts.assertEQ(v.hashPrimitive(), va[0].hashPrimitive());
-    }
-
-    // Test default initialization of inline type arrays
-    @Test(failOn = LOAD)
-    public MyValue1[] test7(int len) {
-        return new MyValue1[len];
-    }
-
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
-        int len = Math.abs(rI % 10);
-        MyValue1[] va = new MyValue1[len];
-        MyValue1[] var = test7(len);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
-        }
-    }
-
-    // Test creation of inline type array with zero length
-    @Test(failOn = ALLOC + LOAD + STORE + LOOP + TRAP)
-    public MyValue1[] test8() {
-        return new MyValue1[0];
-    }
-
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
-        MyValue1[] va = test8();
-        Asserts.assertEQ(va.length, 0);
-    }
-
-    static MyValue1[] test9_va;
-
-    // Test that inline type array loaded from field has correct type
-    @Test(failOn = LOOP)
-    public long test9() {
-        return test9_va[0].hash();
-    }
-
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
-        test9_va = new MyValue1[1];
-        test9_va[0] = MyValue1.createWithFieldsInline(rI, rL);
-        long result = test9();
-        Asserts.assertEQ(result, hash());
-    }
-
-    // Multi-dimensional arrays
-    @Test
-    public MyValue1[][][] test10(int len1, int len2, int len3) {
-        MyValue1[][][] arr = new MyValue1[len1][len2][len3];
-        for (int i = 0; i < len1; i++) {
-            for (int j = 0; j < len2; j++) {
-                for (int k = 0; k < len3; k++) {
-                    arr[i][j][k] = MyValue1.createWithFieldsDontInline(rI + i , rL + j + k);
-                }
-            }
-        }
-        return arr;
-    }
-
-    @DontCompile
-    public void test10_verifier(boolean warmup) {
-        MyValue1[][][] arr = test10(2, 3, 4);
-        for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < 3; j++) {
-                for (int k = 0; k < 4; k++) {
-                    Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i , rL + j + k).hash());
-                }
-            }
-        }
-    }
-
-    @Test
-    public void test11(MyValue1[][][] arr, long[] res) {
-        int l = 0;
-        for (int i = 0; i < arr.length; i++) {
-            for (int j = 0; j < arr[i].length; j++) {
-                for (int k = 0; k < arr[i][j].length; k++) {
-                    res[l] = arr[i][j][k].hash();
-                    l++;
-                }
-            }
-        }
-    }
-
-    @DontCompile
-    public void test11_verifier(boolean warmup) {
-        MyValue1[][][] arr = new MyValue1[2][3][4];
-        long[] res = new long[2*3*4];
-        long[] verif = new long[2*3*4];
-        int l = 0;
-        for (int i = 0; i < 2; i++) {
-            for (int j = 0; j < 3; j++) {
-                for (int k = 0; k < 4; k++) {
-                    arr[i][j][k] = MyValue1.createWithFieldsDontInline(rI + i, rL + j + k);
-                    verif[l] = arr[i][j][k].hash();
-                    l++;
-                }
-            }
-        }
-        test11(arr, res);
-        for (int i = 0; i < verif.length; i++) {
-            Asserts.assertEQ(res[i], verif[i]);
-        }
-    }
-
-    // Array load out of bounds (upper bound) at compile time
-    @Test
-    public int test12() {
-        int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[arraySize];
-
-        for (int i = 0; i < arraySize; i++) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
-        }
-
-        try {
-            return va[arraySize + 1].x;
-        } catch (ArrayIndexOutOfBoundsException e) {
-            return rI;
-        }
-    }
-
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
-        Asserts.assertEQ(test12(), rI);
-    }
-
-    // Array load  out of bounds (lower bound) at compile time
-    @Test
-    public int test13() {
-        int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[arraySize];
-
-        for (int i = 0; i < arraySize; i++) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL);
-        }
-
-        try {
-            return va[-arraySize].x;
-        } catch (ArrayIndexOutOfBoundsException e) {
-            return rI;
-        }
-    }
-
-    @DontCompile
-    public void test13_verifier(boolean warmup) {
-        Asserts.assertEQ(test13(), rI);
-    }
-
-    // Array load out of bound not known to compiler (both lower and upper bound)
-    @Test
-    public int test14(MyValue1[] va, int index)  {
-        return va[index].x;
-    }
-
-    @DontCompile
-    public void test14_verifier(boolean warmup) {
-        int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[arraySize];
-
-        for (int i = 0; i < arraySize; i++) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
-        }
-
-        int result;
-        for (int i = -20; i < 20; i++) {
-            try {
-                result = test14(va, i);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                result = rI;
-            }
-            Asserts.assertEQ(result, rI);
-        }
-    }
-
-    // Array store out of bounds (upper bound) at compile time
-    @Test
-    public int test15() {
-        int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[arraySize];
-
-        try {
-            for (int i = 0; i <= arraySize; i++) {
-                va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
-            }
-            return rI - 1;
-        } catch (ArrayIndexOutOfBoundsException e) {
-            return rI;
-        }
-    }
-
-    @DontCompile
-    public void test15_verifier(boolean warmup) {
-        Asserts.assertEQ(test15(), rI);
-    }
-
-    // Array store out of bounds (lower bound) at compile time
-    @Test
-    public int test16() {
-        int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[arraySize];
-
-        try {
-            for (int i = -1; i <= arraySize; i++) {
-                va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
-            }
-            return rI - 1;
-        } catch (ArrayIndexOutOfBoundsException e) {
-            return rI;
-        }
-    }
-
-    @DontCompile
-    public void test16_verifier(boolean warmup) {
-        Asserts.assertEQ(test16(), rI);
-    }
-
-    // Array store out of bound not known to compiler (both lower and upper bound)
-    @Test
-    public int test17(MyValue1[] va, int index, MyValue1 vt)  {
-        va[index] = vt;
-        return va[index].x;
-    }
-
-    @DontCompile
-    public void test17_verifier(boolean warmup) {
-        int arraySize = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[arraySize];
-
-        for (int i = 0; i < arraySize; i++) {
-            va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
-        }
-
-        MyValue1 vt = MyValue1.createWithFieldsDontInline(rI + 1, rL);
-        int result;
-        for (int i = -20; i < 20; i++) {
-            try {
-                result = test17(va, i, vt);
-            } catch (ArrayIndexOutOfBoundsException e) {
-                result = rI + 1;
-            }
-            Asserts.assertEQ(result, rI + 1);
-        }
-
-        for (int i = 0; i < arraySize; i++) {
-            Asserts.assertEQ(va[i].x, rI + 1);
-        }
-    }
-
-    // clone() as stub call
-    @Test
-    public MyValue1[] test18(MyValue1[] va) {
-        return va.clone();
-    }
-
-    @DontCompile
-    public void test18_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[len];
-        for (int i = 0; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        MyValue1[] result = test18(va);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(result[i].hash(), va[i].hash());
-        }
-    }
-
-    // clone() as series of loads/stores
-    static MyValue1[] test19_orig = null;
-
-    @Test
-    public MyValue1[] test19() {
-        MyValue1[] va = new MyValue1[8];
-        for (int i = 0; i < va.length; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test19_orig = va;
-
-        return va.clone();
-    }
-
-    @DontCompile
-    public void test19_verifier(boolean warmup) {
-        MyValue1[] result = test19();
-        for (int i = 0; i < test19_orig.length; ++i) {
-            Asserts.assertEQ(result[i].hash(), test19_orig[i].hash());
-        }
-    }
-
-    // arraycopy() of inline type array with oop fields
-    @Test
-    public void test20(MyValue1[] src, MyValue1[] dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
-    }
-
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue1[] src = new MyValue1[len];
-        MyValue1[] dst = new MyValue1[len];
-        for (int i = 0; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test20(src, dst);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    // arraycopy() of inline type array with no oop field
-    @Test
-    public void test21(MyValue2[] src, MyValue2[] dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
-    }
-
-    @DontCompile
-    public void test21_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue2[] src = new MyValue2[len];
-        MyValue2[] dst = new MyValue2[len];
-        for (int i = 0; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-        }
-        test21(src, dst);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    // arraycopy() of inline type array with oop field and tightly
-    // coupled allocation as dest
-    @Test
-    public MyValue1[] test22(MyValue1[] src) {
-        MyValue1[] dst = new MyValue1[src.length];
-        System.arraycopy(src, 0, dst, 0, src.length);
-        return dst;
-    }
-
-    @DontCompile
-    public void test22_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue1[] src = new MyValue1[len];
-        for (int i = 0; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        MyValue1[] dst = test22(src);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    // arraycopy() of inline type array with oop fields and tightly
-    // coupled allocation as dest
-    @Test
-    public MyValue1[] test23(MyValue1[] src) {
-        MyValue1[] dst = new MyValue1[src.length + 10];
-        System.arraycopy(src, 0, dst, 5, src.length);
-        return dst;
-    }
-
-    @DontCompile
-    public void test23_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue1[] src = new MyValue1[len];
-        for (int i = 0; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        MyValue1[] dst = test23(src);
-        for (int i = 5; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    // arraycopy() of inline type array passed as Object
-    @Test
-    public void test24(MyValue1[] src, Object dst) {
-        System.arraycopy(src, 0, dst, 0, src.length);
-    }
-
-    @DontCompile
-    public void test24_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue1[] src = new MyValue1[len];
-        MyValue1[] dst1 = new MyValue1[len];
-        Object[] dst2 = new Object[len];
-        for (int i = 0; i < len; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test24(src, dst1);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst1[i].hash());
-        }
-        test24(src, dst2);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), ((MyValue1)dst2[i]).hash());
-        }
-    }
-
-    // short arraycopy() with no oop field
-    @Test
-    public void test25(MyValue2[] src, MyValue2[] dst) {
-        System.arraycopy(src, 0, dst, 0, 8);
-    }
-
-    @DontCompile
-    public void test25_verifier(boolean warmup) {
-        MyValue2[] src = new MyValue2[8];
-        MyValue2[] dst = new MyValue2[8];
-        for (int i = 0; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-        }
-        test25(src, dst);
-        for (int i = 0; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    // short arraycopy() with oop fields
-    @Test
-    public void test26(MyValue1[] src, MyValue1[] dst) {
-        System.arraycopy(src, 0, dst, 0, 8);
-    }
-
-    @DontCompile
-    public void test26_verifier(boolean warmup) {
-        MyValue1[] src = new MyValue1[8];
-        MyValue1[] dst = new MyValue1[8];
-        for (int i = 0; i < 8; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test26(src, dst);
-        for (int i = 0; i < 8; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
-        }
-    }
-
-    // short arraycopy() with oop fields and offsets
-    @Test
-    public void test27(MyValue1[] src, MyValue1[] dst) {
-        System.arraycopy(src, 1, dst, 2, 6);
-    }
-
-    @DontCompile
-    public void test27_verifier(boolean warmup) {
-        MyValue1[] src = new MyValue1[8];
-        MyValue1[] dst = new MyValue1[8];
-        for (int i = 0; i < 8; ++i) {
-            src[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        test27(src, dst);
-        for (int i = 2; i < 8; ++i) {
-            Asserts.assertEQ(src[i-1].hash(), dst[i].hash());
-        }
-    }
-
-    // non escaping allocations
-    // TODO 8252027: Make sure this is optimized with ZGC
-    @Test(valid = ZGCOff, failOn = ALLOCA + LOOP + LOAD + TRAP)
-    @Test(valid = ZGCOn)
-    public MyValue2 test28() {
-        MyValue2[] src = new MyValue2[10];
-        src[0] = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2[] dst = (MyValue2[])src.clone();
-        return dst[0];
-    }
-
-    @DontCompile
-    public void test28_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2 result = test28();
-        Asserts.assertEQ(result.hash(), v.hash());
-    }
-
-    // non escaping allocations
-    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
-    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    @Test(valid = InlineTypeArrayFlattenOn, failOn = ALLOCA + LOOP + LOAD + TRAP)
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOCA + LOOP + TRAP)
-    public MyValue2 test29(MyValue2[] src) {
-        MyValue2[] dst = new MyValue2[10];
-        System.arraycopy(src, 0, dst, 0, 10);
-        return dst[0];
-    }
-
-    @DontCompile
-    public void test29_verifier(boolean warmup) {
-        MyValue2[] src = new MyValue2[10];
-        for (int i = 0; i < 10; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-        }
-        MyValue2 v = test29(src);
-        Asserts.assertEQ(src[0].hash(), v.hash());
-    }
-
-    // non escaping allocation with uncommon trap that needs
-    // eliminated inline type array element as debug info
-    @Test
-    @Warmup(10000)
-    public MyValue2 test30(MyValue2[] src, boolean flag) {
-        MyValue2[] dst = new MyValue2[10];
-        System.arraycopy(src, 0, dst, 0, 10);
-        if (flag) { }
-        return dst[0];
-    }
-
-    @DontCompile
-    public void test30_verifier(boolean warmup) {
-        MyValue2[] src = new MyValue2[10];
-        for (int i = 0; i < 10; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
-        }
-        MyValue2 v = test30(src, !warmup);
-        Asserts.assertEQ(src[0].hash(), v.hash());
-    }
-
-    // non escaping allocation with memory phi
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    public long test31(boolean b, boolean deopt) {
-        MyValue2[] src = new MyValue2[1];
-        if (b) {
-            src[0] = MyValue2.createWithFieldsInline(rI, rD);
-        } else {
-            src[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
-        }
-        if (deopt) {
-            // uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test31"));
-        }
-        return src[0].hash();
-    }
-
-    @DontCompile
-    public void test31_verifier(boolean warmup) {
-        MyValue2 v1 = MyValue2.createWithFieldsInline(rI, rD);
-        long result1 = test31(true, !warmup);
-        Asserts.assertEQ(result1, v1.hash());
-        MyValue2 v2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
-        long result2 = test31(false, !warmup);
-        Asserts.assertEQ(result2, v2.hash());
-    }
-
-    // Tests with Object arrays and clone/arraycopy
-    // clone() as stub call
-    @Test
-    public Object[] test32(Object[] va) {
-        return va.clone();
-    }
-
-    @DontCompile
-    public void test32_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        MyValue1[] va = new MyValue1[len];
-        for (int i = 0; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        MyValue1[] result = (MyValue1[])test32(va);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
-        }
-    }
-
-    @Test
-    public Object[] test33(Object[] va) {
-        return va.clone();
-    }
-
-    @DontCompile
-    public void test33_verifier(boolean warmup) {
-        int len = Math.abs(rI) % 10;
-        Object[] va = new Object[len];
-        for (int i = 0; i < len; ++i) {
-            va[i] = MyValue1.createWithFieldsInline(rI, rL);
-        }
-        Object[] result = test33(va);
-        for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
-            // Check that array has correct properties (null-ok)
-            result[i] = null;
-        }
-    }
-
-    // clone() as series of loads/stores
-    static Object[] test34_orig = null;
-
-    @ForceInline
-    public Object[] test34_helper(boolean flag) {
-        Object[] va = null;
-        if (flag) {
-            va = new MyValue1[8];
-            for (int i = 0; i < va.length; ++i) {
-                va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
-            }
-        } else {
-            va = new Object[8];
-        }
-        return va;
-    }
-
-    @Test
-    public Object[] test34(boolean flag) {
-        Object[] va = test34_helper(flag);
-        test34_orig = va;
-        return va.clone();
-    }
-
-    @DontCompile
-    public void test34_verifier(boolean warmup) {
-        test34(false);
-        for (int i = 0; i < 10; i++) { // make sure we do deopt
-            Object[] result = test34(true);
-            verify(test34_orig, result);
-            // Check that array has correct properties (null-free)
-            try {
-                result[0] = null;
-                throw new RuntimeException("Should throw NullPointerException");
-            } catch (NullPointerException e) {
-                // Expected
-            }
-        }
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test34")) {
-            Object[] result = test34(true);
-            verify(test34_orig, result);
-            // Check that array has correct properties (null-free)
-            try {
-                result[0] = null;
-                throw new RuntimeException("Should throw NullPointerException");
-            } catch (NullPointerException e) {
-                // Expected
-            }
-        }
     }
 
     static void verify(Object[] src, Object[] dst) {
@@ -872,18 +106,807 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    static boolean compile_and_run_again_if_deoptimized(boolean warmup, String test) {
-        if (!warmup) {
-            Method m = tests.get(test);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false)) {
-                if (!InlineTypeArrayFlatten && !XCOMP && !STRESS_CC) {
-                    throw new RuntimeException("Unexpected deoptimization");
-                }
-                enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
-                return true;
+    static boolean compile_and_run_again_if_deoptimized(RunInfo info) {
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            if (TestFramework.isCompiled(m)) {
+                TestFramework.compile(m, CompLevel.C2);
             }
         }
         return false;
+    }
+
+    primitive static class NotFlattenable {
+        private final Object o1 = null;
+        private final Object o2 = null;
+        private final Object o3 = null;
+        private final Object o4 = null;
+        private final Object o5 = null;
+        private final Object o6 = null;
+    }
+
+    // Test inline type array creation and initialization
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {ALLOCA, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        counts = {ALLOCA, "= 1"},
+        failOn = LOAD)
+    public MyValue1[] test1(int len) {
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
+        }
+        return va;
+    }
+
+    @Run(test = "test1")
+    public void test1_verifier() {
+        int len = Math.abs(rI % 10);
+        MyValue1[] va = test1(len);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(va[i].hash(), hash());
+        }
+    }
+
+    // Test creation of an inline type array and element access
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    public long test2() {
+        MyValue1[] va = new MyValue1[1];
+        va[0] = MyValue1.createWithFieldsInline(rI, rL);
+        return va[0].hash();
+    }
+
+    @Run(test = "test2")
+    public void test2_verifier() {
+        long result = test2();
+        Asserts.assertEQ(result, hash());
+    }
+
+    // Test receiving an inline type array from the interpreter,
+    // updating its elements in a loop and computing a hash.
+    @Test
+    @IR(failOn = ALLOCA)
+    public long test3(MyValue1[] va) {
+        long result = 0;
+        for (int i = 0; i < 10; ++i) {
+            result += va[i].hash();
+            va[i] = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        }
+        return result;
+    }
+
+    @Run(test = "test3")
+    public void test3_verifier() {
+        MyValue1[] va = new MyValue1[10];
+        long expected = 0;
+        for (int i = 0; i < 10; ++i) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
+            expected += va[i].hash();
+        }
+        long result = test3(va);
+        Asserts.assertEQ(expected, result);
+        for (int i = 0; i < 10; ++i) {
+            if (va[i].hash() != hash(rI + 1, rL + 1)) {
+                Asserts.assertEQ(va[i].hash(), hash(rI + 1, rL + 1));
+            }
+        }
+    }
+
+    // Test returning an inline type array received from the interpreter
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    public MyValue1[] test4(MyValue1[] va) {
+        return va;
+    }
+
+    @Run(test = "test4")
+    public void test4_verifier() {
+        MyValue1[] va = new MyValue1[10];
+        for (int i = 0; i < 10; ++i) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL + i);
+        }
+        va = test4(va);
+        for (int i = 0; i < 10; ++i) {
+            Asserts.assertEQ(va[i].hash(), hash(rI + i, rL + i));
+        }
+    }
+
+    // Merge inline type arrays created from two branches
+    @Test
+    public MyValue1[] test5(boolean b) {
+        MyValue1[] va;
+        if (b) {
+            va = new MyValue1[5];
+            for (int i = 0; i < 5; ++i) {
+                va[i] = MyValue1.createWithFieldsInline(rI, rL);
+            }
+        } else {
+            va = new MyValue1[10];
+            for (int i = 0; i < 10; ++i) {
+                va[i] = MyValue1.createWithFieldsInline(rI + i, rL + i);
+            }
+        }
+        long sum = va[0].hashInterpreted();
+        if (b) {
+            va[0] = MyValue1.createWithFieldsDontInline(rI, sum);
+        } else {
+            va[0] = MyValue1.createWithFieldsDontInline(rI + 1, sum + 1);
+        }
+        return va;
+    }
+
+    @Run(test = "test5")
+    public void test5_verifier() {
+        MyValue1[] va = test5(true);
+        Asserts.assertEQ(va.length, 5);
+        Asserts.assertEQ(va[0].hash(), hash(rI, hash()));
+        for (int i = 1; i < 5; ++i) {
+            Asserts.assertEQ(va[i].hash(), hash());
+        }
+        va = test5(false);
+        Asserts.assertEQ(va.length, 10);
+        Asserts.assertEQ(va[0].hash(), hash(rI + 1, hash(rI, rL) + 1));
+        for (int i = 1; i < 10; ++i) {
+            Asserts.assertEQ(va[i].hash(), hash(rI + i, rL + i));
+        }
+    }
+
+    // Test creation of inline type array with single element
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    public MyValue1 test6() {
+        MyValue1[] va = new MyValue1[1];
+        return va[0];
+    }
+
+    @Run(test = "test6")
+    public void test6_verifier() {
+        MyValue1[] va = new MyValue1[1];
+        MyValue1 v = test6();
+        Asserts.assertEQ(v.hashPrimitive(), va[0].hashPrimitive());
+    }
+
+    // Test default initialization of inline type arrays
+    @Test
+    @IR(failOn = LOAD)
+    public MyValue1[] test7(int len) {
+        return new MyValue1[len];
+    }
+
+    @Run(test = "test7")
+    public void test7_verifier() {
+        int len = Math.abs(rI % 10);
+        MyValue1[] va = new MyValue1[len];
+        MyValue1[] var = test7(len);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(va[i].hashPrimitive(), var[i].hashPrimitive());
+        }
+    }
+
+    // Test creation of inline type array with zero length
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
+    public MyValue1[] test8() {
+        return new MyValue1[0];
+    }
+
+    @Run(test = "test8")
+    public void test8_verifier() {
+        MyValue1[] va = test8();
+        Asserts.assertEQ(va.length, 0);
+    }
+
+    static MyValue1[] test9_va;
+
+    // Test that inline type array loaded from field has correct type
+    @Test
+    @IR(failOn = LOOP)
+    public long test9() {
+        return test9_va[0].hash();
+    }
+
+    @Run(test = "test9")
+    public void test9_verifier() {
+        test9_va = new MyValue1[1];
+        test9_va[0] = MyValue1.createWithFieldsInline(rI, rL);
+        long result = test9();
+        Asserts.assertEQ(result, hash());
+    }
+
+    // Multi-dimensional arrays
+    @Test
+    public MyValue1[][][] test10(int len1, int len2, int len3) {
+        MyValue1[][][] arr = new MyValue1[len1][len2][len3];
+        for (int i = 0; i < len1; i++) {
+            for (int j = 0; j < len2; j++) {
+                for (int k = 0; k < len3; k++) {
+                    arr[i][j][k] = MyValue1.createWithFieldsDontInline(rI + i , rL + j + k);
+                }
+            }
+        }
+        return arr;
+    }
+
+    @Run(test = "test10")
+    public void test10_verifier() {
+        MyValue1[][][] arr = test10(2, 3, 4);
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 3; j++) {
+                for (int k = 0; k < 4; k++) {
+                    Asserts.assertEQ(arr[i][j][k].hash(), MyValue1.createWithFieldsDontInline(rI + i , rL + j + k).hash());
+                }
+            }
+        }
+    }
+
+    @Test
+    public void test11(MyValue1[][][] arr, long[] res) {
+        int l = 0;
+        for (int i = 0; i < arr.length; i++) {
+            for (int j = 0; j < arr[i].length; j++) {
+                for (int k = 0; k < arr[i][j].length; k++) {
+                    res[l] = arr[i][j][k].hash();
+                    l++;
+                }
+            }
+        }
+    }
+
+    @Run(test = "test11")
+    public void test11_verifier() {
+        MyValue1[][][] arr = new MyValue1[2][3][4];
+        long[] res = new long[2*3*4];
+        long[] verif = new long[2*3*4];
+        int l = 0;
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 3; j++) {
+                for (int k = 0; k < 4; k++) {
+                    arr[i][j][k] = MyValue1.createWithFieldsDontInline(rI + i, rL + j + k);
+                    verif[l] = arr[i][j][k].hash();
+                    l++;
+                }
+            }
+        }
+        test11(arr, res);
+        for (int i = 0; i < verif.length; i++) {
+            Asserts.assertEQ(res[i], verif[i]);
+        }
+    }
+
+    // Array load out of bounds (upper bound) at compile time
+    @Test
+    public int test12() {
+        int arraySize = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[arraySize];
+
+        for (int i = 0; i < arraySize; i++) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
+        }
+
+        try {
+            return va[arraySize + 1].x;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return rI;
+        }
+    }
+
+    @Run(test = "test12")
+    public void test12_verifier() {
+        Asserts.assertEQ(test12(), rI);
+    }
+
+    // Array load  out of bounds (lower bound) at compile time
+    @Test
+    public int test13() {
+        int arraySize = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[arraySize];
+
+        for (int i = 0; i < arraySize; i++) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI + i, rL);
+        }
+
+        try {
+            return va[-arraySize].x;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return rI;
+        }
+    }
+
+    @Run(test = "test13")
+    public void test13_verifier() {
+        Asserts.assertEQ(test13(), rI);
+    }
+
+    // Array load out of bound not known to compiler (both lower and upper bound)
+    @Test
+    public int test14(MyValue1[] va, int index)  {
+        return va[index].x;
+    }
+
+    @Run(test = "test14")
+    public void test14_verifier() {
+        int arraySize = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[arraySize];
+
+        for (int i = 0; i < arraySize; i++) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
+        }
+
+        int result;
+        for (int i = -20; i < 20; i++) {
+            try {
+                result = test14(va, i);
+            } catch (ArrayIndexOutOfBoundsException e) {
+                result = rI;
+            }
+            Asserts.assertEQ(result, rI);
+        }
+    }
+
+    // Array store out of bounds (upper bound) at compile time
+    @Test
+    public int test15() {
+        int arraySize = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[arraySize];
+
+        try {
+            for (int i = 0; i <= arraySize; i++) {
+                va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
+            }
+            return rI - 1;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return rI;
+        }
+    }
+
+    @Run(test = "test15")
+    public void test15_verifier() {
+        Asserts.assertEQ(test15(), rI);
+    }
+
+    // Array store out of bounds (lower bound) at compile time
+    @Test
+    public int test16() {
+        int arraySize = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[arraySize];
+
+        try {
+            for (int i = -1; i <= arraySize; i++) {
+                va[i] = MyValue1.createWithFieldsDontInline(rI + 1, rL);
+            }
+            return rI - 1;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return rI;
+        }
+    }
+
+    @Run(test = "test16")
+    public void test16_verifier() {
+        Asserts.assertEQ(test16(), rI);
+    }
+
+    // Array store out of bound not known to compiler (both lower and upper bound)
+    @Test
+    public int test17(MyValue1[] va, int index, MyValue1 vt)  {
+        va[index] = vt;
+        return va[index].x;
+    }
+
+    @Run(test = "test17")
+    public void test17_verifier() {
+        int arraySize = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[arraySize];
+
+        for (int i = 0; i < arraySize; i++) {
+            va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
+        }
+
+        MyValue1 vt = MyValue1.createWithFieldsDontInline(rI + 1, rL);
+        int result;
+        for (int i = -20; i < 20; i++) {
+            try {
+                result = test17(va, i, vt);
+            } catch (ArrayIndexOutOfBoundsException e) {
+                result = rI + 1;
+            }
+            Asserts.assertEQ(result, rI + 1);
+        }
+
+        for (int i = 0; i < arraySize; i++) {
+            Asserts.assertEQ(va[i].x, rI + 1);
+        }
+    }
+
+    // clone() as stub call
+    @Test
+    public MyValue1[] test18(MyValue1[] va) {
+        return va.clone();
+    }
+
+    @Run(test = "test18")
+    public void test18_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = test18(va);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(result[i].hash(), va[i].hash());
+        }
+    }
+
+    // clone() as series of loads/stores
+    static MyValue1[] test19_orig = null;
+
+    @Test
+    public MyValue1[] test19() {
+        MyValue1[] va = new MyValue1[8];
+        for (int i = 0; i < va.length; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test19_orig = va;
+
+        return va.clone();
+    }
+
+    @Run(test = "test19")
+    public void test19_verifier() {
+        MyValue1[] result = test19();
+        for (int i = 0; i < test19_orig.length; ++i) {
+            Asserts.assertEQ(result[i].hash(), test19_orig[i].hash());
+        }
+    }
+
+    // arraycopy() of inline type array with oop fields
+    @Test
+    public void test20(MyValue1[] src, MyValue1[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @Run(test = "test20")
+    public void test20_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        MyValue1[] dst = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test20(src, dst);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of inline type array with no oop field
+    @Test
+    public void test21(MyValue2[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @Run(test = "test21")
+    public void test21_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue2[] src = new MyValue2[len];
+        MyValue2[] dst = new MyValue2[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+        }
+        test21(src, dst);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of inline type array with oop field and tightly
+    // coupled allocation as dest
+    @Test
+    public MyValue1[] test22(MyValue1[] src) {
+        MyValue1[] dst = new MyValue1[src.length];
+        System.arraycopy(src, 0, dst, 0, src.length);
+        return dst;
+    }
+
+    @Run(test = "test22")
+    public void test22_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] dst = test22(src);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of inline type array with oop fields and tightly
+    // coupled allocation as dest
+    @Test
+    public MyValue1[] test23(MyValue1[] src) {
+        MyValue1[] dst = new MyValue1[src.length + 10];
+        System.arraycopy(src, 0, dst, 5, src.length);
+        return dst;
+    }
+
+    @Run(test = "test23")
+    public void test23_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] dst = test23(src);
+        for (int i = 5; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // arraycopy() of inline type array passed as Object
+    @Test
+    public void test24(MyValue1[] src, Object dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @Run(test = "test24")
+    public void test24_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] src = new MyValue1[len];
+        MyValue1[] dst1 = new MyValue1[len];
+        Object[] dst2 = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test24(src, dst1);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst1[i].hash());
+        }
+        test24(src, dst2);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), ((MyValue1)dst2[i]).hash());
+        }
+    }
+
+    // short arraycopy() with no oop field
+    @Test
+    public void test25(MyValue2[] src, MyValue2[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @Run(test = "test25")
+    public void test25_verifier() {
+        MyValue2[] src = new MyValue2[8];
+        MyValue2[] dst = new MyValue2[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+        }
+        test25(src, dst);
+        for (int i = 0; i < 8; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // short arraycopy() with oop fields
+    @Test
+    public void test26(MyValue1[] src, MyValue1[] dst) {
+        System.arraycopy(src, 0, dst, 0, 8);
+    }
+
+    @Run(test = "test26")
+    public void test26_verifier() {
+        MyValue1[] src = new MyValue1[8];
+        MyValue1[] dst = new MyValue1[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test26(src, dst);
+        for (int i = 0; i < 8; ++i) {
+            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+        }
+    }
+
+    // short arraycopy() with oop fields and offsets
+    @Test
+    public void test27(MyValue1[] src, MyValue1[] dst) {
+        System.arraycopy(src, 1, dst, 2, 6);
+    }
+
+    @Run(test = "test27")
+    public void test27_verifier() {
+        MyValue1[] src = new MyValue1[8];
+        MyValue1[] dst = new MyValue1[8];
+        for (int i = 0; i < 8; ++i) {
+            src[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        test27(src, dst);
+        for (int i = 2; i < 8; ++i) {
+            Asserts.assertEQ(src[i-1].hash(), dst[i].hash());
+        }
+    }
+
+    // non escaping allocations
+    // TODO 8252027: Make sure this is optimized with ZGC
+    @Test
+    @IR(applyIf = {"UseZGC", "false"},
+        failOn = {ALLOCA, LOOP, LOAD, TRAP})
+    public MyValue2 test28() {
+        MyValue2[] src = new MyValue2[10];
+        src[0] = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2[] dst = (MyValue2[])src.clone();
+        return dst[0];
+    }
+
+    @Run(test = "test28")
+    public void test28_verifier() {
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2 result = test28();
+        Asserts.assertEQ(result.hash(), v.hash());
+    }
+
+    // non escaping allocations
+    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
+    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOCA, LOOP, LOAD, TRAP})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = {ALLOCA, LOOP, TRAP})
+    public MyValue2 test29(MyValue2[] src) {
+        MyValue2[] dst = new MyValue2[10];
+        System.arraycopy(src, 0, dst, 0, 10);
+        return dst[0];
+    }
+
+    @Run(test = "test29")
+    public void test29_verifier() {
+        MyValue2[] src = new MyValue2[10];
+        for (int i = 0; i < 10; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+        }
+        MyValue2 v = test29(src);
+        Asserts.assertEQ(src[0].hash(), v.hash());
+    }
+
+    // non escaping allocation with uncommon trap that needs
+    // eliminated inline type array element as debug info
+    @Test
+    public MyValue2 test30(MyValue2[] src, boolean flag) {
+        MyValue2[] dst = new MyValue2[10];
+        System.arraycopy(src, 0, dst, 0, 10);
+        if (flag) { }
+        return dst[0];
+    }
+
+    @Run(test = "test30")
+    @Warmup(10000)
+    public void test30_verifier(RunInfo info) {
+        MyValue2[] src = new MyValue2[10];
+        for (int i = 0; i < 10; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+        }
+        MyValue2 v = test30(src, !info.isWarmUp());
+        Asserts.assertEQ(src[0].hash(), v.hash());
+    }
+
+
+    // non escaping allocation with memory phi
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE, TRAP})
+    public long test31(boolean b, boolean deopt, Method m) {
+        MyValue2[] src = new MyValue2[1];
+        if (b) {
+            src[0] = MyValue2.createWithFieldsInline(rI, rD);
+        } else {
+            src[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        }
+        if (deopt) {
+            // uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return src[0].hash();
+    }
+
+    @Run(test = "test31")
+    public void test31_verifier(RunInfo info) {
+        MyValue2 v1 = MyValue2.createWithFieldsInline(rI, rD);
+        long result1 = test31(true, !info.isWarmUp(), info.getTest());
+        Asserts.assertEQ(result1, v1.hash());
+        MyValue2 v2 = MyValue2.createWithFieldsInline(rI + 1, rD + 1);
+        long result2 = test31(false, !info.isWarmUp(), info.getTest());
+        Asserts.assertEQ(result2, v2.hash());
+    }
+
+    // Tests with Object arrays and clone/arraycopy
+    // clone() as stub call
+    @Test
+    public Object[] test32(Object[] va) {
+        return va.clone();
+    }
+
+    @Run(test = "test32")
+    public void test32_verifier() {
+        int len = Math.abs(rI) % 10;
+        MyValue1[] va = new MyValue1[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        MyValue1[] result = (MyValue1[])test32(va);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+        }
+    }
+
+    @Test
+    public Object[] test33(Object[] va) {
+        return va.clone();
+    }
+
+    @Run(test = "test33")
+    public void test33_verifier() {
+        int len = Math.abs(rI) % 10;
+        Object[] va = new Object[len];
+        for (int i = 0; i < len; ++i) {
+            va[i] = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        Object[] result = test33(va);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
+            // Check that array has correct properties (null-ok)
+            result[i] = null;
+        }
+    }
+
+    // clone() as series of loads/stores
+    static Object[] test34_orig = null;
+
+    @ForceInline
+    public Object[] test34_helper(boolean flag) {
+        Object[] va = null;
+        if (flag) {
+            va = new MyValue1[8];
+            for (int i = 0; i < va.length; ++i) {
+                va[i] = MyValue1.createWithFieldsDontInline(rI, rL);
+            }
+        } else {
+            va = new Object[8];
+        }
+        return va;
+    }
+
+    @Test
+    public Object[] test34(boolean flag) {
+        Object[] va = test34_helper(flag);
+        test34_orig = va;
+        return va.clone();
+    }
+
+    @Run(test = "test34")
+    public void test34_verifier(RunInfo info) {
+        test34(false);
+        for (int i = 0; i < 10; i++) { // make sure we do deopt
+            Object[] result = test34(true);
+            verify(test34_orig, result);
+            // Check that array has correct properties (null-free)
+            try {
+                result[0] = null;
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+        if (compile_and_run_again_if_deoptimized(info)) {
+            Object[] result = test34(true);
+            verify(test34_orig, result);
+            // Check that array has correct properties (null-free)
+            try {
+                result[0] = null;
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // arraycopy() of inline type array of unknown size
@@ -892,8 +915,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, len);
     }
 
-    @DontCompile
-    public void test35_verifier(boolean warmup) {
+    @Run(test = "test35")
+    public void test35_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue1[] src = new MyValue1[len];
         MyValue1[] dst1 = new MyValue1[len];
@@ -905,7 +928,7 @@ public class TestArrays extends InlineTypeTest {
         verify(src, dst1);
         test35(src, dst2, src.length);
         verify(src, dst2);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test35")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test35(src, dst1, src.length);
             verify(src, dst1);
         }
@@ -916,8 +939,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
-    @DontCompile
-    public void test36_verifier(boolean warmup) {
+    @Run(test = "test36")
+    public void test36_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2[] src = new MyValue2[len];
         MyValue2[] dst = new MyValue2[len];
@@ -926,7 +949,7 @@ public class TestArrays extends InlineTypeTest {
         }
         test36(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test36")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test36(src, dst);
             verify(src, dst);
         }
@@ -937,8 +960,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test37_verifier(boolean warmup) {
+    @Run(test = "test37")
+    public void test37_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2[] src = new MyValue2[len];
         MyValue2[] dst = new MyValue2[len];
@@ -947,20 +970,20 @@ public class TestArrays extends InlineTypeTest {
         }
         test37(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test37")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test37(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test38(Object src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
-    @DontCompile
-    public void test38_verifier(boolean warmup) {
+    @Run(test = "test38")
+    @Warmup(1) // Avoid early compilation
+    public void test38_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
         MyValue2[] dst = new MyValue2[len];
@@ -969,15 +992,13 @@ public class TestArrays extends InlineTypeTest {
         }
         test38(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestArrays::test38");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test38(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiledByC2(m);
         }
     }
 
@@ -986,8 +1007,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test39_verifier(boolean warmup) {
+    @Run(test = "test39")
+    public void test39_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2[] src = new MyValue2[len];
         Object[] dst = new Object[len];
@@ -996,20 +1017,20 @@ public class TestArrays extends InlineTypeTest {
         }
         test39(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test39")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test39(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test40(Object[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test40_verifier(boolean warmup) {
+    @Run(test = "test40")
+    @Warmup(1) // Avoid early compilation
+    public void test40_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
         MyValue2[] dst = new MyValue2[len];
@@ -1018,15 +1039,13 @@ public class TestArrays extends InlineTypeTest {
         }
         test40(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestArrays::test40");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test40(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiledByC2(m);
         }
     }
 
@@ -1035,8 +1054,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, dst.length);
     }
 
-    @DontCompile
-    public void test41_verifier(boolean warmup) {
+    @Run(test = "test41")
+    public void test41_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue2[] src = new MyValue2[len];
         Object[] dst = new Object[len];
@@ -1045,7 +1064,7 @@ public class TestArrays extends InlineTypeTest {
         }
         test41(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test41")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test41(src, dst);
             verify(src, dst);
         }
@@ -1056,8 +1075,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test42_verifier(boolean warmup) {
+    @Run(test = "test42")
+    public void test42_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         Object[] src = new Object[len];
         Object[] dst = new Object[len];
@@ -1066,11 +1085,8 @@ public class TestArrays extends InlineTypeTest {
         }
         test42(src, dst);
         verify(src, dst);
-        if (!warmup) {
-            Method m = tests.get("TestArrays::test42");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+        if (!info.isWarmUp()) {
+            TestFramework.assertCompiledByC2(info.getTest());
         }
     }
 
@@ -1080,8 +1096,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test43_verifier(boolean warmup) {
+    @Run(test = "test43")
+    public void test43_verifier(RunInfo info) {
         MyValue1[] src = new MyValue1[8];
         MyValue1[] dst = new MyValue1[8];
         for (int i = 0; i < 8; ++i) {
@@ -1089,7 +1105,7 @@ public class TestArrays extends InlineTypeTest {
         }
         test43(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test43")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test43(src, dst);
             verify(src, dst);
         }
@@ -1100,8 +1116,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test44_verifier(boolean warmup) {
+    @Run(test = "test44")
+    public void test44_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 0; i < 8; ++i) {
@@ -1109,7 +1125,7 @@ public class TestArrays extends InlineTypeTest {
         }
         test44(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test44")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test44(src, dst);
             verify(src, dst);
         }
@@ -1120,8 +1136,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test45_verifier(boolean warmup) {
+    @Run(test = "test45")
+    public void test45_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 0; i < 8; ++i) {
@@ -1129,20 +1145,20 @@ public class TestArrays extends InlineTypeTest {
         }
         test45(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test45")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test45(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test46(Object[] src, MyValue2[] dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test46_verifier(boolean warmup) {
+    @Run(test = "test46")
+    @Warmup(1) // Avoid early compilation
+    public void test46_verifier(RunInfo info) {
         Object[] src = new Object[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 0; i < 8; ++i) {
@@ -1150,15 +1166,13 @@ public class TestArrays extends InlineTypeTest {
         }
         test46(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestArrays::test46");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test46(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiledByC2(m);
         }
     }
 
@@ -1167,8 +1181,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test47_verifier(boolean warmup) {
+    @Run(test = "test47")
+    public void test47_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[8];
         Object[] dst = new Object[8];
         for (int i = 0; i < 8; ++i) {
@@ -1176,20 +1190,20 @@ public class TestArrays extends InlineTypeTest {
         }
         test47(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test47")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test47(src, dst);
             verify(src, dst);
         }
     }
 
     @Test
-    @Warmup(1) // Avoid early compilation
     public void test48(Object[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test48_verifier(boolean warmup) {
+    @Run(test = "test48")
+    @Warmup(1) // Avoid early compilation
+    public void test48_verifier(RunInfo info) {
         Object[] src = new Object[8];
         MyValue2[] dst = new MyValue2[8];
         for (int i = 0; i < 8; ++i) {
@@ -1197,15 +1211,13 @@ public class TestArrays extends InlineTypeTest {
         }
         test48(src, dst);
         verify(dst, src);
-        if (!warmup) {
-            Method m = tests.get("TestArrays::test48");
-            assertDeoptimizedByC2(m);
-            enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertDeoptimizedByC2(m);
+            TestFramework.compile(m, CompLevel.C2);
             test48(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+            TestFramework.assertCompiledByC2(m);
         }
     }
 
@@ -1214,8 +1226,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test49_verifier(boolean warmup) {
+    @Run(test = "test49")
+    public void test49_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[8];
         Object[] dst = new Object[8];
         for (int i = 0; i < 8; ++i) {
@@ -1223,7 +1235,7 @@ public class TestArrays extends InlineTypeTest {
         }
         test49(src, dst);
         verify(src, dst);
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test49")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             test49(src, dst);
             verify(src, dst);
         }
@@ -1234,8 +1246,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, 8);
     }
 
-    @DontCompile
-    public void test50_verifier(boolean warmup) {
+    @Run(test = "test50")
+    public void test50_verifier(RunInfo info) {
         Object[] src = new Object[8];
         Object[] dst = new Object[8];
         for (int i = 0; i < 8; ++i) {
@@ -1243,11 +1255,9 @@ public class TestArrays extends InlineTypeTest {
         }
         test50(src, dst);
         verify(src, dst);
-        if (!warmup) {
-            Method m = tests.get("TestArrays::test50");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
-                throw new RuntimeException("unexpected deoptimization");
-            }
+        if (!info.isWarmUp()) {
+            Method m = info.getTest();
+            TestFramework.assertCompiledByC2(m);
         }
     }
 
@@ -1257,8 +1267,8 @@ public class TestArrays extends InlineTypeTest {
         return (MyValue1[]) res;
     }
 
-    @DontCompile
-    public void test51_verifier(boolean warmup) {
+    @Run(test = "test51")
+    public void test51_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1276,8 +1286,8 @@ public class TestArrays extends InlineTypeTest {
         return (MyValue1[]) res;
     }
 
-    @DontCompile
-    public void test52_verifier(boolean warmup) {
+    @Run(test = "test52")
+    public void test52_verifier() {
         for (int i = 0; i < 8; ++i) {
             test52_va[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
@@ -1291,8 +1301,8 @@ public class TestArrays extends InlineTypeTest {
         return (MyValue1[]) res;
     }
 
-    @DontCompile
-    public void test53_verifier(boolean warmup) {
+    @Run(test = "test53")
+    public void test53_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1307,8 +1317,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, Object[].class);
     }
 
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
+    @Run(test = "test54")
+    public void test54_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1323,8 +1333,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, Object[].class);
     }
 
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
+    @Run(test = "test55")
+    public void test55_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1340,8 +1350,8 @@ public class TestArrays extends InlineTypeTest {
         return (MyValue1[]) res;
     }
 
-    @DontCompile
-    public void test56_verifier(boolean warmup) {
+    @Run(test = "test56")
+    public void test56_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new Object[len];
         for (int i = 0; i < len; ++i) {
@@ -1351,13 +1361,13 @@ public class TestArrays extends InlineTypeTest {
         verify(result, va);
     }
 
-   @Test
+    @Test
     public Object[] test57(Object[] va, Class klass) {
         return Arrays.copyOf(va, va.length, klass);
     }
 
-    @DontCompile
-    public void test57_verifier(boolean warmup) {
+    @Run(test = "test57")
+    public void test57_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1372,8 +1382,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length, klass);
     }
 
-    @DontCompile
-    public void test58_verifier(boolean warmup) {
+    @Run(test = "test58")
+    public void test58_verifier(RunInfo info) {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1383,7 +1393,7 @@ public class TestArrays extends InlineTypeTest {
             Object[] result = test58(va, MyValue1[].class);
             verify(va, result);
         }
-        if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test58")) {
+        if (compile_and_run_again_if_deoptimized(info)) {
             Object[] result = test58(va, MyValue1[].class);
             verify(va, result);
         }
@@ -1394,8 +1404,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length+1, MyValue1[].class);
     }
 
-    @DontCompile
-    public void test59_verifier(boolean warmup) {
+    @Run(test = "test59")
+    public void test59_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         MyValue1[] verif = new MyValue1[len+1];
@@ -1412,8 +1422,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
-    @DontCompile
-    public void test60_verifier(boolean warmup) {
+    @Run(test = "test60")
+    public void test60_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         MyValue1[] verif = new MyValue1[len+1];
@@ -1430,8 +1440,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(va, va.length+1, klass);
     }
 
-    @DontCompile
-    public void test61_verifier(boolean warmup) {
+    @Run(test = "test61")
+    public void test61_verifier() {
         int len = Math.abs(rI) % 10;
         Object[] va = new Integer[len];
         for (int i = 0; i < len; ++i) {
@@ -1464,8 +1474,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(arr, arr.length+1, arr.getClass());
     }
 
-    @DontCompile
-    public void test62_verifier(boolean warmup) {
+    @Run(test = "test62")
+    public void test62_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         Integer[] oa = new Integer[len];
@@ -1500,8 +1510,8 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(arr, arr.length+1, arr.getClass());
     }
 
-    @DontCompile
-    public void test63_verifier(boolean warmup) {
+    @Run(test = "test63")
+    public void test63_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         MyValue1[] verif = new MyValue1[len+1];
@@ -1521,8 +1531,8 @@ public class TestArrays extends InlineTypeTest {
         return new MyValue1[8];
     }
 
-    @DontCompile
-    public void test64_verifier(boolean warmup) {
+    @Run(test = "test64")
+    public void test64_verifier() {
         MyValue1[] va = new MyValue1[8];
         MyValue1[] var = test64();
         for (int i = 0; i < 8; ++i) {
@@ -1536,8 +1546,8 @@ public class TestArrays extends InlineTypeTest {
         return new MyValue1[32];
     }
 
-    @DontCompile
-    public void test65_verifier(boolean warmup) {
+    @Run(test = "test65")
+    public void test65_verifier() {
         MyValue1[] va = new MyValue1[32];
         MyValue1[] var = test65();
         for (int i = 0; i < 32; ++i) {
@@ -1546,15 +1556,16 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Check init store elimination
-    @Test(match = { ALLOCA }, matchCount = { 1 })
+    @Test
+    @IR(counts = {ALLOCA, "= 1"})
     public MyValue1[] test66(MyValue1 vt) {
         MyValue1[] va = new MyValue1[1];
         va[0] = vt;
         return va;
     }
 
-    @DontCompile
-    public void test66_verifier(boolean warmup) {
+    @Run(test = "test66")
+    public void test66_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1[] va = test66(vt);
         Asserts.assertEQ(va[0].hashPrimitive(), vt.hashPrimitive());
@@ -1568,8 +1579,8 @@ public class TestArrays extends InlineTypeTest {
         return dst;
     }
 
-    @DontCompile
-    public void test67_verifier(boolean warmup) {
+    @Run(test = "test67")
+    public void test67_verifier() {
         MyValue1[] va = new MyValue1[16];
         MyValue1[] var = test67(va);
         for (int i = 0; i < 16; ++i) {
@@ -1585,8 +1596,8 @@ public class TestArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test68_verifier(boolean warmup) {
+    @Run(test = "test68")
+    public void test68_verifier() {
         MyValue1[] va = new MyValue1[2];
         MyValue1[] var = test68();
         for (int i = 0; i < 2; ++i) {
@@ -1603,8 +1614,8 @@ public class TestArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test69_verifier(boolean warmup) {
+    @Run(test = "test69")
+    public void test69_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1[] va = new MyValue1[4];
         va[0] = vt;
@@ -1626,8 +1637,8 @@ public class TestArrays extends InlineTypeTest {
         return va;
     }
 
-    @DontCompile
-    public void test70_verifier(boolean warmup) {
+    @Run(test = "test70")
+    public void test70_verifier() {
         MyValue1[] va = new MyValue1[2];
         MyValue1[] var = test70(va);
         for (int i = 0; i < 2; ++i) {
@@ -1650,8 +1661,8 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test71_verifier(boolean warmup) {
+    @Run(test = "test71")
+    public void test71_verifier() {
         test71();
     }
 
@@ -1667,8 +1678,8 @@ public class TestArrays extends InlineTypeTest {
         arr2[0] = element;
     }
 
-    @DontCompile
-    public void test72_verifier(boolean warmup) {
+    @Run(test = "test72")
+    public void test72_verifier() {
         Object[] arr = new Object[1];
         Object elem = new Object();
         test72(arr, true, elem);
@@ -1686,8 +1697,8 @@ public class TestArrays extends InlineTypeTest {
         oa[0] = oa; // The stored value is known to be not flattenable (an Object[])
     }
 
-    @DontCompile
-    public void test73_verifier(boolean warmup) {
+    @Run(test = "test73")
+    public void test73_verifier() {
         MyValue1 v0 = MyValue1.createWithFieldsDontInline(rI, rL);
         MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
         MyValue1[] arr = new MyValue1[3];
@@ -1706,13 +1717,13 @@ public class TestArrays extends InlineTypeTest {
 
     // Tests invoking unloaded method with inline type array in signature
     @Test
-    @Warmup(0)
     public void test74(MethodHandle m, MyValue1[] va) throws Throwable {
         m.invoke(va);
     }
 
-    @DontCompile
-    public void test74_verifier(boolean warmup) throws Throwable {
+    @Run(test = "test74")
+    @Warmup(0)
+    public void test74_verifier() throws Throwable {
         MethodHandle m = MethodHandles.lookup().findStatic(TestArrays.class, "test74Callee", MethodType.methodType(void.class, MyValue1[].class));
         MyValue1[] va = new MyValue1[0];
         test74(m, va);
@@ -1739,8 +1750,8 @@ public class TestArrays extends InlineTypeTest {
         return arr.clone();
     }
 
-    @DontCompile
-    public void test75_verifier(boolean warmup) {
+    @Run(test = "test75")
+    public void test75_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         Integer[] oa = new Integer[len];
@@ -1777,8 +1788,8 @@ public class TestArrays extends InlineTypeTest {
         return arr.clone();
     }
 
-    @DontCompile
-    public void test76_verifier(boolean warmup) {
+    @Run(test = "test76")
+    public void test76_verifier() {
         int len = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[len];
         MyValue1[] verif = new MyValue1[len];
@@ -1817,8 +1828,8 @@ public class TestArrays extends InlineTypeTest {
     }
 
 
-    @DontCompile
-    public void test77_verifier(boolean warmup) {
+    @Run(test = "test77")
+    public void test77_verifier() {
         test77();
     }
 
@@ -1837,23 +1848,26 @@ public class TestArrays extends InlineTypeTest {
         return x;
     }
 
-    @DontCompile
-    public void test78_verifier(boolean warmup) {
+    @Run(test = "test78")
+    public void test78_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         Asserts.assertEQ(test78(v, 1), v.hash());
     }
 
     // Verify that casting an array element to a non-flattenable type marks the array as not-flat
-    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_INLINE }, matchCount = { 1, 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {ALLOC_G, "= 1", LOAD_UNKNOWN_INLINE, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
     public Object test79(Object[] array, int i) {
         Integer i1 = (Integer)array[0];
         Object o = array[1];
         return array[i];
     }
 
-    @DontCompile
-    public void test79_verifier(boolean warmup) {
+    @Run(test = "test79")
+    public void test79_verifier() {
         Integer i = Integer.valueOf(rI);
         Integer[] array = new Integer[2];
         array[1] = i;
@@ -1861,26 +1875,20 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(result, i);
     }
 
-    primitive static class NotFlattenable {
-        private final Object o1 = null;
-        private final Object o2 = null;
-        private final Object o3 = null;
-        private final Object o4 = null;
-        private final Object o5 = null;
-        private final Object o6 = null;
-    }
-
     // Same as test79 but with not-flattenable inline type
-    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_INLINE }, matchCount = { 1, 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {ALLOC_G, "= 1", LOAD_UNKNOWN_INLINE, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE})
     public Object test80(Object[] array, int i) {
         NotFlattenable vt = (NotFlattenable)array[0];
         Object o = array[1];
         return array[i];
     }
 
-    @DontCompile
-    public void test80_verifier(boolean warmup) {
+    @Run(test = "test80")
+    public void test80_verifier() {
         NotFlattenable vt = new NotFlattenable();
         NotFlattenable[] array = new NotFlattenable[2];
         array[1] = vt;
@@ -1889,7 +1897,8 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Verify that writing an object of a non-inline, non-null type to an array marks the array as not-null-free and not-flat
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test81(Object[] array, Integer v, Object o, int i) {
         if (v == null) {
           return null;
@@ -1900,8 +1909,8 @@ public class TestArrays extends InlineTypeTest {
         return array[i];
     }
 
-    @DontCompile
-    public void test81_verifier(boolean warmup) {
+    @Run(test = "test81")
+    public void test81_verifier() {
         Integer i = Integer.valueOf(rI);
         Integer[] array1 = new Integer[3];
         Object[] array2 = new Object[3];
@@ -1918,8 +1927,11 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Verify that writing an object of a non-flattenable inline type to an array marks the array as not-flat
-    @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE)
-    @Test(valid = InlineTypePassFieldsAsArgsOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE)
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE})
     public Object test82(Object[] array, NotFlattenable vt, Object o, int i) {
         array[0] = vt;
         array[1] = array[0];
@@ -1927,8 +1939,8 @@ public class TestArrays extends InlineTypeTest {
         return array[i];
     }
 
-    @DontCompile
-    public void test82_verifier(boolean warmup) {
+    @Run(test = "test82")
+    public void test82_verifier() {
         NotFlattenable vt = new NotFlattenable();
         NotFlattenable[] array1 = new NotFlattenable[3];
         Object[] array2 = new Object[3];
@@ -1945,15 +1957,19 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Verify that casting an array element to a non-inline type type marks the array as not-null-free and not-flat
-    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_INLINE }, matchCount = { 1, 1 }, failOn = ALLOCA_G + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {ALLOC_G, "= 1", LOAD_UNKNOWN_INLINE, "= 1"},
+        failOn = {ALLOCA_G, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+            failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public void test83(Object[] array, Object o) {
         Integer i = (Integer)array[0];
         array[1] = o;
     }
 
-    @DontCompile
-    public void test83_verifier(boolean warmup) {
+    @Run(test = "test83")
+    public void test83_verifier() {
         Integer i = Integer.valueOf(rI);
         Integer[] array1 = new Integer[2];
         Object[] array2 = new Object[2];
@@ -1964,15 +1980,17 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Verify that writing constant null into an array marks the array as not-null-free and not-flat
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE, match = { INLINE_ARRAY_NULL_GUARD }, matchCount = { 1 })
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 1"})
     public Object test84(Object[] array, int i) {
         array[0] = null;
         array[1] = null;
         return array[i];
     }
 
-    @DontCompile
-    public void test84_verifier(boolean warmup) {
+    @Run(test = "test84")
+    public void test84_verifier(RunInfo info) {
         NotFlattenable.ref[] array1 = new NotFlattenable.ref[2];
         Object[] array2 = new Object[2];
         Object result = test84(array1, 0);
@@ -1981,7 +1999,7 @@ public class TestArrays extends InlineTypeTest {
         result = test84(array2, 1);
         Asserts.assertEquals(array2[0], null);
         Asserts.assertEquals(result, null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             NotFlattenable[] array3 = new NotFlattenable[2];
             try {
                 test84(array3, 1);
@@ -1993,7 +2011,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test84 but with branches
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE, match = { INLINE_ARRAY_NULL_GUARD }, matchCount = { 2 })
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test85(Object[] array, Object o, boolean b) {
         if (b) {
             array[0] = null;
@@ -2003,8 +2023,8 @@ public class TestArrays extends InlineTypeTest {
         array[1] = o;
     }
 
-    @DontCompile
-    public void test85_verifier(boolean warmup) {
+    @Run(test = "test85")
+    public void test85_verifier(RunInfo info) {
         Integer i = Integer.valueOf(rI);
         Integer[] array1 = new Integer[2];
         Object[] array2 = new Object[2];
@@ -2016,7 +2036,7 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEquals(array2[1], i);
         test85(array2, null, false);
         Asserts.assertEquals(array2[1], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             NotFlattenable[] array3 = new NotFlattenable[2];
             try {
                 test85(array3, null, true);
@@ -2028,7 +2048,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test85 but with not-flattenable inline type array
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE, match = { INLINE_ARRAY_NULL_GUARD }, matchCount = { 2 })
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test86(NotFlattenable.ref[] array, NotFlattenable.ref o, boolean b) {
         if (b) {
             array[0] = null;
@@ -2038,15 +2060,15 @@ public class TestArrays extends InlineTypeTest {
         array[1] = o;
     }
 
-    @DontCompile
-    public void test86_verifier(boolean warmup) {
+    @Run(test = "test86")
+    public void test86_verifier(RunInfo info) {
         NotFlattenable vt = new NotFlattenable();
         NotFlattenable.ref[] array1 = new NotFlattenable.ref[2];
         test86(array1, vt, true);
         Asserts.assertEquals(array1[1], vt);
         test86(array1, null, false);
         Asserts.assertEquals(array1[1], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             NotFlattenable[] array2 = new NotFlattenable[2];
             try {
                 test86(array2, null, true);
@@ -2058,7 +2080,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test85 but with inline type array
-    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE, match = { INLINE_ARRAY_NULL_GUARD }, matchCount = { 2 })
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test87(MyValue1.ref[] array, MyValue1.ref o, boolean b) {
         if (b) {
             array[0] = null;
@@ -2068,15 +2092,15 @@ public class TestArrays extends InlineTypeTest {
         array[1] = o;
     }
 
-    @DontCompile
-    public void test87_verifier(boolean warmup) {
+    @Run(test = "test87")
+    public void test87_verifier(RunInfo info) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1.ref[] array1 = new MyValue1.ref[2];
         test87(array1, vt, true);
         Asserts.assertEquals(array1[1], vt);
         test87(array1, null, false);
         Asserts.assertEquals(array1[1], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] array2 = new MyValue1[2];
             try {
                 test87(array2, null, true);
@@ -2093,15 +2117,15 @@ public class TestArrays extends InlineTypeTest {
         array[0] = v;
     }
 
-    @DontCompile
-    public void test88_verifier(boolean warmup) {
+    @Run(test = "test88")
+    public void test88_verifier(RunInfo info) {
         Integer[] array1 = new Integer[1];
         Object[] array2 = new Object[1];
         test88(array1, null);
         Asserts.assertEquals(array1[0], null);
         test88(array2, null);
         Asserts.assertEquals(array2[0], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] array3 = new MyValue1[1];
             try {
                 test88(array3, null);
@@ -2118,12 +2142,12 @@ public class TestArrays extends InlineTypeTest {
         array[0] = (MyValue1.ref)o;
     }
 
-    @DontCompile
-    public void test89_verifier(boolean warmup) {
+    @Run(test = "test89")
+    public void test89_verifier(RunInfo info) {
         MyValue1.ref[] array1 = new MyValue1.ref[1];
         test89(array1, null);
         Asserts.assertEquals(array1[0], null);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             MyValue1[] array2 = new MyValue1[1];
             try {
                 test89(array2, null);
@@ -2153,8 +2177,8 @@ public class TestArrays extends InlineTypeTest {
         return b;
     }
 
-    @DontCompile
-    public void test90_verifier(boolean warmup) {
+    @Run(test = "test90")
+    public void test90_verifier() {
         Asserts.assertEQ(test90(), true);
     }
 
@@ -2184,7 +2208,6 @@ public class TestArrays extends InlineTypeTest {
 
     // Test anti-dependencies between loads and stores from flattened array
     @Test
-    @Warmup(0)
     public int test91(Test91Value[] array, int lo, int val) {
         int i = 3;
         while (lo < i) {
@@ -2195,8 +2218,9 @@ public class TestArrays extends InlineTypeTest {
         return val;
     }
 
-    @DontCompile
-    public void test91_verifier(boolean warmup) {
+    @Run(test = "test91")
+    @Warmup(0)
+    public void test91_verifier() {
         Test91Value[] array = new Test91Value[5];
         for (int i = 0; i < 5; ++i) {
             array[i] = new Test91Value(i);
@@ -2213,8 +2237,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, src.length);
     }
 
-    @DontCompile
-    public void test92_verifier(boolean warmup) {
+    @Run(test = "test92")
+    public void test92_verifier() {
         MyValue1[] a = new MyValue1[1];
         MyValue1[] b = new MyValue1[1];
         try {
@@ -2234,7 +2258,6 @@ public class TestArrays extends InlineTypeTest {
 
     // Same as test30 but accessing all elements of the non-escaping array
     @Test
-    @Warmup(10000)
     public long test93(MyValue2[] src, boolean flag) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -2243,13 +2266,14 @@ public class TestArrays extends InlineTypeTest {
                dst[5].hash() + dst[6].hash() + dst[7].hash() + dst[8].hash() + dst[9].hash();
     }
 
-    @DontCompile
-    public void test93_verifier(boolean warmup) {
+    @Run(test = "test93")
+    @Warmup(10000)
+    public void test93_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[10];
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
-        long res = test93(src, !warmup);
+        long res = test93(src, !info.isWarmUp());
         long expected = 0;
         for (int i = 0; i < 10; ++i) {
             expected += src[i].hash();
@@ -2259,7 +2283,6 @@ public class TestArrays extends InlineTypeTest {
 
     // Same as test93 but with variable source array offset
     @Test
-    @Warmup(10000)
     public long test94(MyValue2[] src, int i, boolean flag) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, i, dst, 0, 1);
@@ -2268,21 +2291,23 @@ public class TestArrays extends InlineTypeTest {
                dst[5].hash() + dst[6].hash() + dst[7].hash() + dst[8].hash() + dst[9].hash();
     }
 
-    @DontCompile
-    public void test94_verifier(boolean warmup) {
+    @Run(test = "test94")
+    @Warmup(10000)
+    public void test94_verifier(RunInfo info) {
         MyValue2[] src = new MyValue2[10];
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         for (int i = 0; i < 10; ++i) {
-            long res = test94(src, i, !warmup);
+            long res = test94(src, i, !info.isWarmUp());
             long expected = src[i].hash() + 9*MyValue2.default.hash();
             Asserts.assertEQ(res, expected);
         }
     }
 
     // Test propagation of not null-free/flat information
-    @Test(failOn = CHECKCAST_ARRAY)
+    @Test
+    @IR(failOn = CHECKCAST_ARRAY)
     public MyValue1[] test95(Object[] array) {
         array[0] = null;
         // Always throws a ClassCastException because we just successfully
@@ -2290,8 +2315,8 @@ public class TestArrays extends InlineTypeTest {
         return (MyValue1[])array;
     }
 
-    @DontCompile
-    public void test95_verifier(boolean warmup) {
+    @Run(test = "test95")
+    public void test95_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         Integer[] array2 = new Integer[1];
         try {
@@ -2309,7 +2334,8 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test95 but with cmp user of cast result
-    @Test(failOn = CHECKCAST_ARRAY)
+    @Test
+    @IR(failOn = CHECKCAST_ARRAY)
     public boolean test96(Object[] array) {
         array[0] = null;
         // Always throws a ClassCastException because we just successfully
@@ -2318,8 +2344,8 @@ public class TestArrays extends InlineTypeTest {
         return casted != null;
     }
 
-    @DontCompile
-    public void test96_verifier(boolean warmup) {
+    @Run(test = "test96")
+    public void test96_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         Integer[] array2 = new Integer[1];
         try {
@@ -2337,7 +2363,8 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test95 but with instanceof instead of cast
-    @Test(failOn = CHECKCAST_ARRAY)
+    @Test
+    @IR(failOn = CHECKCAST_ARRAY)
     public boolean test97(Object[] array) {
         array[0] = 42;
         // Always throws a ClassCastException because we just successfully stored
@@ -2345,8 +2372,8 @@ public class TestArrays extends InlineTypeTest {
         return array instanceof MyValue1[];
     }
 
-    @DontCompile
-    public void test97_verifier(boolean warmup) {
+    @Run(test = "test97")
+    public void test97_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         Integer[] array2 = new Integer[1];
         try {
@@ -2360,8 +2387,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test95 but with non-flattenable store
-    @Test(valid = InlineTypeArrayFlattenOn, failOn = CHECKCAST_ARRAY)
-    @Test(valid = InlineTypeArrayFlattenOff)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = CHECKCAST_ARRAY)
     public MyValue1[] test98(Object[] array) {
         array[0] = NotFlattenable.default;
         // Always throws a ClassCastException because we just successfully stored a
@@ -2369,8 +2397,8 @@ public class TestArrays extends InlineTypeTest {
         return (MyValue1[])array;
     }
 
-    @DontCompile
-    public void test98_verifier(boolean warmup) {
+    @Run(test = "test98")
+    public void test98_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = new NotFlattenable[1];
         try {
@@ -2388,8 +2416,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test98 but with cmp user of cast result
-    @Test(valid = InlineTypeArrayFlattenOn, failOn = CHECKCAST_ARRAY)
-    @Test(valid = InlineTypeArrayFlattenOff)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = CHECKCAST_ARRAY)
     public boolean test99(Object[] array) {
         array[0] = NotFlattenable.default;
         // Always throws a ClassCastException because we just successfully stored a
@@ -2398,8 +2427,8 @@ public class TestArrays extends InlineTypeTest {
         return casted != null;
     }
 
-    @DontCompile
-    public void test99_verifier(boolean warmup) {
+    @Run(test = "test99")
+    public void test99_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = new NotFlattenable[1];
         try {
@@ -2417,8 +2446,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Same as test98 but with instanceof instead of cast
-    @Test(valid = InlineTypeArrayFlattenOn, failOn = CHECKCAST_ARRAY)
-    @Test(valid = InlineTypeArrayFlattenOff)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = CHECKCAST_ARRAY)
     public boolean test100(Object[] array) {
         array[0] = NotFlattenable.default;
         // Always throws a ClassCastException because we just successfully stored a
@@ -2426,8 +2456,8 @@ public class TestArrays extends InlineTypeTest {
         return array instanceof MyValue1[];
     }
 
-    @DontCompile
-    public void test100_verifier(boolean warmup) {
+    @Run(test = "test100")
+    public void test100_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = new NotFlattenable[1];
         try {
@@ -2441,13 +2471,14 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Test that CHECKCAST_ARRAY matching works as expected
-    @Test(match = { CHECKCAST_ARRAY }, matchCount = { 1 })
+    @Test
+    @IR(counts = { CHECKCAST_ARRAY, "= 1" })
     public boolean test101(Object[] array) {
         return array instanceof MyValue1[];
     }
 
-    @DontCompile
-    public void test101_verifier(boolean warmup) {
+    @Run(test = "test101")
+    public void test101_verifier() {
         MyValue1[] array1 = new MyValue1[1];
         NotFlattenable[] array2 = new NotFlattenable[1];
         Asserts.assertTrue(test101(array1));
@@ -2479,62 +2510,69 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Arraycopy with constant source and destination arrays
-    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = INTRINSIC_SLOW_PATH)
     public void test102() {
         System.arraycopy(val_src, 0, obj_dst, 0, 8);
     }
 
-    @DontCompile
-    public void test102_verifier(boolean warmup) {
+    @Run(test = "test102")
+    public void test102_verifier() {
         test102();
         verify(val_src, obj_dst);
     }
 
     // Same as test102 but with MyValue2[] dst
-    @Test(failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(failOn = INTRINSIC_SLOW_PATH)
     public void test103() {
         System.arraycopy(val_src, 0, val_dst, 0, 8);
     }
 
-    @DontCompile
-    public void test103_verifier(boolean warmup) {
+    @Run(test = "test103")
+    public void test103_verifier() {
         test103();
         verify(val_src, val_dst);
     }
 
     // Same as test102 but with Object[] src
-    @Test(failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(failOn = INTRINSIC_SLOW_PATH)
     public void test104() {
         System.arraycopy(obj_src, 0, obj_dst, 0, 8);
     }
 
-    @DontCompile
-    public void test104_verifier(boolean warmup) {
+    @Run(test = "test104")
+    public void test104_verifier() {
         test104();
         verify(obj_src, obj_dst);
     }
 
     // Same as test103 but with Object[] src
-    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
     public void test105() {
         System.arraycopy(obj_src, 0, val_dst, 0, 8);
     }
 
-    @DontCompile
-    public void test105_verifier(boolean warmup) {
+    @Run(test = "test105")
+    public void test105_verifier() {
         test105();
         verify(obj_src, val_dst);
     }
 
     // Same as test103 but with Object[] src containing null
-    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
     public void test105_null() {
         System.arraycopy(obj_null_src, 0, val_dst, 0, 8);
     }
 
-    @DontCompile
-    public void test105_null_verifier(boolean warmup) {
+    @Run(test = "test105_null")
+    public void test105_null_verifier() {
         try {
             test105_null();
             throw new RuntimeException("NullPointerException expected");
@@ -2545,62 +2583,68 @@ public class TestArrays extends InlineTypeTest {
 
     // Below tests are equal to test102-test105 but hide the src/dst types until
     // after the arraycopy intrinsic is emitted (with incremental inlining).
-
-    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = INTRINSIC_SLOW_PATH)
     public void test106() {
         System.arraycopy(get_val_src(), 0, get_obj_dst(), 0, 8);
     }
 
-    @DontCompile
-    public void test106_verifier(boolean warmup) {
+    @Run(test = "test106")
+    public void test106_verifier() {
         test106();
         verify(val_src, obj_dst);
     }
 
     // TODO 8251971: Should be optimized but we are bailing out because
     // at parse time it looks as if src could be flat and dst could be not flat.
-    @Test(valid = InlineTypeArrayFlattenOn)
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = INTRINSIC_SLOW_PATH)
     public void test107() {
         System.arraycopy(get_val_src(), 0, get_val_dst(), 0, 8);
     }
 
-    @DontCompile
-    public void test107_verifier(boolean warmup) {
+    @Run(test = "test107")
+    public void test107_verifier() {
         test107();
         verify(val_src, val_dst);
     }
 
-    @Test(failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(failOn = INTRINSIC_SLOW_PATH)
     public void test108() {
         System.arraycopy(get_obj_src(), 0, get_obj_dst(), 0, 8);
     }
 
-    @DontCompile
-    public void test108_verifier(boolean warmup) {
+    @Run(test = "test108")
+    public void test108_verifier() {
         test108();
         verify(obj_src, obj_dst);
     }
 
-    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
     public void test109() {
         System.arraycopy(get_obj_src(), 0, get_val_dst(), 0, 8);
     }
 
-    @DontCompile
-    public void test109_verifier(boolean warmup) {
+    @Run(test = "test109")
+    public void test109_verifier() {
         test109();
         verify(obj_src, val_dst);
     }
 
-    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH, "= 1"})
     public void test109_null() {
         System.arraycopy(get_obj_null_src(), 0, get_val_dst(), 0, 8);
     }
 
-    @DontCompile
-    public void test109_null_verifier(boolean warmup) {
+    @Run(test = "test109_null")
+    public void test109_null_verifier() {
         try {
             test109_null();
             throw new RuntimeException("NullPointerException expected");
@@ -2610,62 +2654,69 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Arrays.copyOf with constant source and destination arrays
-    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test110() {
         return Arrays.copyOf(val_src, 8, Object[].class);
     }
 
-    @DontCompile
-    public void test110_verifier(boolean warmup) {
+    @Run(test = "test110")
+    public void test110_verifier() {
         Object[] res = test110();
         verify(val_src, res);
     }
 
     // Same as test110 but with MyValue2[] dst
-    @Test(failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    @Test
+    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test111() {
         return Arrays.copyOf(val_src, 8, MyValue2[].class);
     }
 
-    @DontCompile
-    public void test111_verifier(boolean warmup) {
+    @Run(test = "test111")
+    public void test111_verifier() {
         Object[] res = test111();
         verify(val_src, res);
     }
 
     // Same as test110 but with Object[] src
-    @Test(failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    @Test
+    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test112() {
         return Arrays.copyOf(obj_src, 8, Object[].class);
     }
 
-    @DontCompile
-    public void test112_verifier(boolean warmup) {
+    @Run(test = "test112")
+    public void test112_verifier() {
         Object[] res = test112();
         verify(obj_src, res);
     }
 
     // Same as test111 but with Object[] src
-    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH + "|" + CLASS_CHECK_TRAP, " = 1"})
     public Object[] test113() {
         return Arrays.copyOf(obj_src, 8, MyValue2[].class);
     }
 
-    @DontCompile
-    public void test113_verifier(boolean warmup) {
+    @Run(test = "test113")
+    public void test113_verifier() {
         Object[] res = test113();
         verify(obj_src, res);
     }
 
     // Same as test111 but with Object[] src containing null
-    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH + "|" + CLASS_CHECK_TRAP, " = 1"})
     public Object[] test113_null() {
         return Arrays.copyOf(obj_null_src, 8, MyValue2[].class);
     }
 
-    @DontCompile
-    public void test113_null_verifier(boolean warmup) {
+    @Run(test = "test113_null")
+    public void test113_null_verifier() {
         try {
             test113_null();
             throw new RuntimeException("NullPointerException expected");
@@ -2677,61 +2728,68 @@ public class TestArrays extends InlineTypeTest {
     // Below tests are equal to test110-test113 but hide the src/dst types until
     // after the arraycopy intrinsic is emitted (with incremental inlining).
 
-    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {INTRINSIC_SLOW_PATH, "= 1"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test114() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
     }
 
-    @DontCompile
-    public void test114_verifier(boolean warmup) {
+    @Run(test = "test114")
+    public void test114_verifier() {
         Object[] res = test114();
         verify(val_src, res);
     }
 
     // TODO 8251971: Should be optimized but we are bailing out because
     // at parse time it looks as if src could be flat and dst could be not flat
-    @Test(valid = InlineTypeArrayFlattenOn)
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test115() {
         return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
     }
 
-    @DontCompile
-    public void test115_verifier(boolean warmup) {
+    @Run(test = "test115")
+    public void test115_verifier() {
         Object[] res = test115();
         verify(val_src, res);
     }
 
-    @Test(failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    @Test
+    @IR(failOn = {INTRINSIC_SLOW_PATH, CLASS_CHECK_TRAP})
     public Object[] test116() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
     }
 
-    @DontCompile
-    public void test116_verifier(boolean warmup) {
+    @Run(test = "test116")
+    public void test116_verifier() {
         Object[] res = test116();
         verify(obj_src, res);
     }
 
-    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH + "|" + CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117() {
         return Arrays.copyOf((Object[])get_obj_src(), 8, get_val_class());
     }
 
-    @DontCompile
-    public void test117_verifier(boolean warmup) {
+    @Run(test = "test117")
+    public void test117_verifier() {
         Object[] res = test117();
         verify(obj_src, res);
     }
 
-    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    @Test
+    @IR(counts = {INTRINSIC_SLOW_PATH + "|" + CLASS_CHECK_TRAP, " = 1"})
     public Object[] test117_null() {
         return Arrays.copyOf((Object[])get_obj_null_src(), 8, get_val_class());
     }
 
-    @DontCompile
-    public void test117_null_verifier(boolean warmup) {
+    @Run(test = "test117_null")
+    public void test117_null_verifier() {
         try {
             test117_null();
             throw new RuntimeException("NullPointerException expected");
@@ -2742,13 +2800,15 @@ public class TestArrays extends InlineTypeTest {
 
     // Some more Arrays.copyOf tests with only constant class
 
-    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 1 }, failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
+        failOn = INTRINSIC_SLOW_PATH)
     public Object[] test118(Object[] src) {
         return Arrays.copyOf(src, 8, MyValue2[].class);
     }
 
-    @DontCompile
-    public void test118_verifier(boolean warmup) {
+    @Run(test = "test118")
+    public void test118_verifier() {
         Object[] res = test118(obj_src);
         verify(obj_src, res);
         res = test118(val_src);
@@ -2766,21 +2826,23 @@ public class TestArrays extends InlineTypeTest {
         return Arrays.copyOf(src, 8, Object[].class);
     }
 
-    @DontCompile
-    public void test119_verifier(boolean warmup) {
+    @Run(test = "test119")
+    public void test119_verifier() {
         Object[] res = test119(obj_src);
         verify(obj_src, res);
         res = test119(val_src);
         verify(val_src, res);
     }
 
-    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 1 }, failOn = INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(counts = {CLASS_CHECK_TRAP, "= 1"},
+        failOn = INTRINSIC_SLOW_PATH)
     public Object[] test120(Object[] src) {
         return Arrays.copyOf(src, 8, Integer[].class);
     }
 
-    @DontCompile
-    public void test120_verifier(boolean warmup) {
+    @Run(test = "test120")
+    public void test120_verifier() {
         Integer[] arr = new Integer[8];
         for (int i = 0; i < 8; ++i) {
             arr[i] = rI + i;
@@ -2796,13 +2858,13 @@ public class TestArrays extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public Object[] test121(Object[] src) {
         return Arrays.copyOf(src, 8, MyValue2[].class);
     }
 
-    @DontCompile
-    public void test121_verifier(boolean warmup) {
+    @Run(test = "test121")
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public void test121_verifier() {
         Object[] res = test121(obj_src);
         verify(obj_src, res);
         res = test121(val_src);
@@ -2816,13 +2878,13 @@ public class TestArrays extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public Object[] test122(Object[] src) {
         return Arrays.copyOf(src, 8, get_val_class());
     }
 
-    @DontCompile
-    public void test122_verifier(boolean warmup) {
+    @Run(test = "test122")
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public void test122_verifier() {
         Object[] res = test122(obj_src);
         verify(obj_src, res);
         res = test122(val_src);
@@ -2836,13 +2898,13 @@ public class TestArrays extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public Object[] test123(Object[] src) {
         return Arrays.copyOf(src, 8, Integer[].class);
     }
 
-    @DontCompile
-    public void test123_verifier(boolean warmup) {
+    @Run(test = "test123")
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public void test123_verifier() {
         Integer[] arr = new Integer[8];
         for (int i = 0; i < 8; ++i) {
             arr[i] = rI + i;
@@ -2858,13 +2920,13 @@ public class TestArrays extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public Object[] test124(Object[] src) {
         return Arrays.copyOf(src, 8, get_int_class());
     }
 
-    @DontCompile
-    public void test124_verifier(boolean warmup) {
+    @Run(test = "test124")
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public void test124_verifier() {
         Integer[] arr = new Integer[8];
         for (int i = 0; i < 8; ++i) {
             arr[i] = rI + i;
@@ -2880,13 +2942,13 @@ public class TestArrays extends InlineTypeTest {
     }
 
     @Test
-    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
     public Object[] test125(Object[] src, Class klass) {
         return Arrays.copyOf(src, 8, klass);
     }
 
-    @DontCompile
-    public void test125_verifier(boolean warmup) {
+    @Run(test = "test125")
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public void test125_verifier() {
         Integer[] arr = new Integer[8];
         for (int i = 0; i < 8; ++i) {
             arr[i] = rI + i;
@@ -2917,15 +2979,20 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
+
     // Verify that clone from (flat) inline type array not containing oops is always optimized.
-    @Test(valid = InlineTypeArrayFlattenOn, match = { JLONG_ARRAYCOPY }, matchCount = { 1 }, failOn = CHECKCAST_ARRAYCOPY + CLONE_INTRINSIC_SLOW_PATH)
-    @Test(valid = InlineTypeArrayFlattenOff, failOn = CLONE_INTRINSIC_SLOW_PATH)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {JLONG_ARRAYCOPY, "= 1"},
+        failOn = {CHECKCAST_ARRAYCOPY, CLONE_INTRINSIC_SLOW_PATH})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        failOn = CLONE_INTRINSIC_SLOW_PATH)
     public Object[] test126(MyValue2[] src) {
         return src.clone();
     }
 
-    @DontCompile
-    public void test126_verifier(boolean warmup) {
+    @Run(test = "test126")
+    public void test126_verifier() {
         Object[] res = test126(val_src);
         verify(val_src, res);
     }
@@ -2936,8 +3003,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, len);
     }
 
-    @DontCompile
-    public void test127_verifier(boolean warmup) {
+    @Run(test = "test127")
+    public void test127_verifier() {
         test127(val_src, obj_dst, 8);
         verify(val_src, obj_dst);
         test127(val_src, val_dst, 8);
@@ -2953,14 +3020,16 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Verify that copyOf with known source and unknown destination class is optimized
-    @Test(valid = InlineTypeArrayFlattenOn, match = { JLONG_ARRAYCOPY }, matchCount = { 1 }, failOn = CHECKCAST_ARRAYCOPY)
-    @Test(valid = InlineTypeArrayFlattenOff)
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {JLONG_ARRAYCOPY, "= 1"},
+        failOn = CHECKCAST_ARRAYCOPY)
     public Object[] test128(MyValue2[] src, Class klass) {
         return Arrays.copyOf(src, 8, klass);
     }
 
-    @DontCompile
-    public void test128_verifier(boolean warmup) {
+    @Run(test = "test128")
+    public void test128_verifier() {
         Object[] res = test128(val_src, MyValue2[].class);
         verify(val_src, res);
         res = test128(val_src, Object[].class);
@@ -2979,8 +3048,8 @@ public class TestArrays extends InlineTypeTest {
         System.arraycopy(src, 0, dst, 0, len);
     }
 
-    @DontCompile
-    public void test129_verifier(boolean warmup) {
+    @Run(test = "test129")
+    public void test129_verifier() {
         try {
             test129(new Object(), new Object[0], 0);
             throw new RuntimeException("ArrayStoreException expected");
@@ -2996,14 +3065,15 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Empty inline type array access
-    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public MyValueEmpty test130(MyValueEmpty[] array) {
         array[0] = new MyValueEmpty();
         return array[1];
     }
 
-    @DontCompile
-    public void test130_verifier(boolean warmup) {
+    @Run(test = "test130")
+    public void test130_verifier() {
         MyValueEmpty[] array = new MyValueEmpty[2];
         MyValueEmpty empty = test130(array);
         Asserts.assertEquals(array[0], MyValueEmpty.default);
@@ -3015,14 +3085,15 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Empty inline type container array access
-    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public MyValueEmpty test131(EmptyContainer[] array) {
         array[0] = new EmptyContainer();
         return array[1].empty;
     }
 
-    @DontCompile
-    public void test131_verifier(boolean warmup) {
+    @Run(test = "test131")
+    public void test131_verifier() {
         EmptyContainer[] array = new EmptyContainer[2];
         MyValueEmpty empty = test131(array);
         Asserts.assertEquals(array[0], EmptyContainer.default);
@@ -3036,8 +3107,8 @@ public class TestArrays extends InlineTypeTest {
         return array[1];
     }
 
-    @DontCompile
-    public void test132_verifier(boolean warmup) {
+    @Run(test = "test132")
+    public void test132_verifier() {
         Object[] array = new MyValueEmpty[2];
         Object empty = test132(array);
         Asserts.assertEquals(array[0], MyValueEmpty.default);
@@ -3055,8 +3126,8 @@ public class TestArrays extends InlineTypeTest {
         return array[1];
     }
 
-    @DontCompile
-    public void test133_verifier(boolean warmup) {
+    @Run(test = "test133")
+    public void test133_verifier() {
         Object[] array = new EmptyContainer[2];
         Object empty = test133(array);
         Asserts.assertEquals(array[0], EmptyContainer.default);
@@ -3068,15 +3139,16 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Non-escaping empty inline type array access
-    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE})
     public static MyValueEmpty test134(MyValueEmpty val) {
         MyValueEmpty[] array = new MyValueEmpty[1];
         array[0] = val;
         return array[0];
     }
 
-    @DontCompile
-    public void test134_verifier(boolean warmup) {
+    @Run(test = "test134")
+    public void test134_verifier() {
         MyValueEmpty empty = test134(MyValueEmpty.default);
         Asserts.assertEquals(empty, MyValueEmpty.default);
     }
@@ -3088,8 +3160,8 @@ public class TestArrays extends InlineTypeTest {
         return array[1];
     }
 
-    @DontCompile
-    public void test135_verifier(boolean warmup) {
+    @Run(test = "test135")
+    public void test135_verifier() {
         MyValue1[] array1 = new MyValue1[2];
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         synchronized (array1) {
@@ -3117,8 +3189,8 @@ public class TestArrays extends InlineTypeTest {
         return res;
     }
 
-    @DontCompile
-    public void test136_verifier(boolean warmup) {
+    @Run(test = "test136")
+    public void test136_verifier() {
         MyValue1[] array1 = new MyValue1[2];
         array1[1] = MyValue1.createWithFieldsInline(rI, rL);
         Object res = test136(array1, array1[1]);
@@ -3142,8 +3214,8 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test137_verifier(boolean warmup) {
+    @Run(test = "test137")
+    public void test137_verifier() {
         MyValue1[] array1 = new MyValue1[100];
         Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
         Integer[] array2 = new Integer[100];
@@ -3185,8 +3257,8 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test138_verifier(boolean warmup) {
+    @Run(test = "test138")
+    public void test138_verifier() {
         MyValue1[] array1 = new MyValue1[100];
         Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
         Integer[] array2 = new Integer[100];
@@ -3207,7 +3279,9 @@ public class TestArrays extends InlineTypeTest {
     }
 
     // Test load from array that is only known to be non-inline after parsing
-    @Test(failOn = ALLOC + ALLOCA + ALLOC_G + ALLOCA_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
+                  STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test139() {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3219,14 +3293,16 @@ public class TestArrays extends InlineTypeTest {
         return array[0];
     }
 
-    @DontCompile
-    public void test139_verifier(boolean warmup) {
+    @Run(test = "test139")
+    public void test139_verifier() {
         Object res = test139();
         Asserts.assertEquals(res, null);
     }
 
     // Test store to array that is only known to be non-inline after parsing
-    @Test(failOn = ALLOC + ALLOCA + ALLOC_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP,
+                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test140(Object val) {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3239,8 +3315,8 @@ public class TestArrays extends InlineTypeTest {
         return array;
     }
 
-    @DontCompile
-    public void test140_verifier(boolean warmup) {
+    @Run(test = "test140")
+    public void test140_verifier() {
         Object[] res = test140(rI);
         Asserts.assertEquals(res[0], rI);
         res = test140(null);
@@ -3249,8 +3325,8 @@ public class TestArrays extends InlineTypeTest {
 
     // Test load from array that is only known to be inline after parsing
     // TODO 8255938
-    // @Test(failOn = ALLOC + ALLOCA + ALLOC_G + ALLOCA_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
     @Test
+    // @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test141() {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3262,16 +3338,16 @@ public class TestArrays extends InlineTypeTest {
         return array[0];
     }
 
-    @DontCompile
-    public void test141_verifier(boolean warmup) {
+    @Run(test = "test141")
+    public void test141_verifier() {
         Object res = test141();
         Asserts.assertEquals(res, MyValue1.default);
     }
 
     // Test store to array that is only known to be inline after parsing
     // TODO 8255938
-    // @Test(failOn = ALLOC + ALLOCA + ALLOC_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
     @Test
+    // @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test142(Object val) {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3284,11 +3360,11 @@ public class TestArrays extends InlineTypeTest {
         return array;
     }
 
-    @DontCompile
-    public void test142_verifier(boolean warmup) {
+    @Run(test = "test142")
+    public void test142_verifier(RunInfo info) {
         Object[] res = test142(MyValue1.default);
         Asserts.assertEquals(res[0], MyValue1.default);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             try {
                 test142(null);
                 throw new RuntimeException("Should throw NullPointerException");
@@ -3313,7 +3389,6 @@ public class TestArrays extends InlineTypeTest {
 
     // Test that triggers an anti dependency failure when array mark word is loaded from immutable memory
     @Test
-    @Warmup(0)
     public void test143() {
         MyInterface143[] arr = array143;
         int tmp = arr.length;
@@ -3324,14 +3399,14 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test143_verifier(boolean warmup) {
+    @Run(test = "test143")
+    @Warmup(0)
+    public void test143_verifier() {
         test143();
     }
 
     // Same as test143 but with two flat array checks that are unswitched
     @Test
-    @Warmup(0)
     public void test144() {
         MyInterface143[] arr1 = array143;
         MyInterface143[] arr2 = array143;
@@ -3344,8 +3419,9 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test144_verifier(boolean warmup) {
+    @Run(test = "test144")
+    @Warmup(0)
+    public void test144_verifier() {
         test144();
     }
 
@@ -3355,16 +3431,16 @@ public class TestArrays extends InlineTypeTest {
         return array[0];
     }
 
-    @DontCompile
-    public void test145_verifier(boolean warmup) {
+    @Run(test = "test145")
+    public void test145_verifier() {
         Object[] array = new EmptyContainer[1];
         EmptyContainer empty = (EmptyContainer)test145(array);
         Asserts.assertEquals(empty, EmptyContainer.default);
     }
 
     // Test that non-flattened array does not block inline type scalarization
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE)
-    @Warmup(50000)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
     public void test146(boolean b) {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2[] array = { vt };
@@ -3377,14 +3453,15 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test146_verifier(boolean warmup) {
+    @Run(test = "test146")
+    @Warmup(50000)
+    public void test146_verifier() {
         test146(true);
     }
 
     // Test that non-flattened array does not block inline type scalarization
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE)
-    @Warmup(50000)
+    @Test
+    @IR(failOn = {ALLOC, ALLOCA, LOOP, LOAD, STORE})
     public int test147(boolean deopt) {
         // Both vt and array should be scalarized
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
@@ -3408,9 +3485,10 @@ public class TestArrays extends InlineTypeTest {
         return array[0].x;
     }
 
-    @DontCompile
-    public void test147_verifier(boolean warmup) {
-        int res = test147(!warmup);
-        Asserts.assertEquals(res, MyValue2.createWithFieldsInline(rI, rD).x + (warmup ? 0 : 42));
+    @Run(test = "test147")
+    @Warmup(50000)
+    public void test147_verifier(RunInfo info) {
+        int res = test147(!info.isWarmUp());
+        Asserts.assertEquals(res, MyValue2.createWithFieldsInline(rI, rD).x + (info.isWarmUp() ? 0 : 42));
     }
 }

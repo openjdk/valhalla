@@ -980,6 +980,7 @@ int ExceptionMessageBuilder::do_instruction(int bci) {
       break;
     }
 
+    case Bytecodes::_withfield:
     case Bytecodes::_putstatic:
     case Bytecodes::_putfield: {
       int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
@@ -1133,6 +1134,7 @@ int ExceptionMessageBuilder::get_NPE_null_slot(int bci) {
     case Bytecodes::_lastore:
     case Bytecodes::_dastore:
       return 3;
+    case Bytecodes::_withfield:
     case Bytecodes::_putfield: {
         int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
         ConstantPool* cp = _method->constants();
@@ -1429,6 +1431,7 @@ void ExceptionMessageBuilder::print_NPE_failed_action(outputStream *os, int bci)
         Symbol* name = cp->symbol_at(name_index);
         os->print("Cannot read field \"%s\"", name->as_C_string());
       } break;
+    case Bytecodes::_withfield:
     case Bytecodes::_putfield: {
         int cp_index = Bytes::get_native_u2(code_base + pos) DEBUG_ONLY(+ ConstantPool::CPCACHE_INDEX_TAG);
         os->print("Cannot assign field \"%s\"", get_field_name(_method, cp_index));

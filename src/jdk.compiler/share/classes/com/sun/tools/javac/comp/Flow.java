@@ -2183,7 +2183,7 @@ public class Flow {
                         firstadr = nextadr;
                         this.thisExposability = ALLOWED;
                     } else {
-                        if (types.isPrimitiveClass(tree.sym.owner.type))
+                        if (tree.sym.owner.isPrimitiveClass())
                             this.thisExposability = BANNED;
                         else
                             this.thisExposability = ALLOWED;

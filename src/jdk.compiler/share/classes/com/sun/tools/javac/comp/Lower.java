@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Kinds.KindSelector;
 import com.sun.tools.javac.code.Scope.WriteableScope;
-import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.main.Option.PkgInfo;
@@ -1137,6 +1136,8 @@ public class Lower extends TreeTranslator {
                 // Make sure not to lose type fidelity due to symbol sharing between projections
                 boolean requireReferenceProjection =
                         tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref && tree.type.isReferenceProjection();
+                boolean requireValueProjection =
+                        tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.val && tree.type.isValueProjection();
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
@@ -1154,12 +1155,16 @@ public class Lower extends TreeTranslator {
                     ((JCIdent) tree).name = flatname;
                     if (requireReferenceProjection) {
                         tree.setType(tree.type.referenceProjection());
+                    } else if (requireValueProjection) {
+                        tree.setType(tree.type.asValueType());
                     }
                 } else {
                     ((JCFieldAccess) tree).selected = base;
                     ((JCFieldAccess) tree).name = flatname;
                     if (requireReferenceProjection) {
                         tree.setType(tree.type.referenceProjection());
+                    } else if (requireValueProjection) {
+                        tree.setType(tree.type.asValueType());
                     }
                 }
             }
@@ -2851,7 +2856,12 @@ public class Lower extends TreeTranslator {
         } else {
             tree.clazz = access(c, tree.clazz, enclOp, false);
         }
-        result = tree;
+        if (tree.clazz.type.tsym == syms.objectType.tsym) {
+            Assert.check(tree.def == null && tree.encl == null);
+            result = makeCall(make.Ident(syms.objectsType.tsym), names.newIdentity, List.nil());
+        } else {
+            result = tree;
+        }
     }
 
     // Simplify conditionals with known constant controlling expressions.
