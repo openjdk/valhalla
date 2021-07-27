@@ -2892,7 +2892,7 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
       result = mem;
     }
 
-    if (result == this) {
+    if (result == this && phase->type(val)->is_zero_type()) {
       // the store may also apply to zero-bits in an earlier object
       Node* prev_mem = find_previous_store(phase);
       // Steps (a), (b):  Walk past independent stores to find an exact match.
@@ -2901,15 +2901,7 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
         if (prev_val != NULL && prev_val == val) {
           // prev_val and val might differ by a cast; it would be good
           // to keep the more informative of the two.
-          if (phase->type(val)->is_zero_type()) {
-            result = mem;
-          } else if (prev_mem->is_Proj() && prev_mem->in(0)->is_Initialize()) {
-            InitializeNode* init = prev_mem->in(0)->as_Initialize();
-            AllocateNode* alloc = init->allocation();
-            if (alloc != NULL && alloc->in(AllocateNode::DefaultValue) == val) {
-              result = mem;
-            }
-          }
+          result = mem;
         }
       }
     }
