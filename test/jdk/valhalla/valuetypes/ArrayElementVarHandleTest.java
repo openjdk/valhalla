@@ -113,7 +113,7 @@ public class ArrayElementVarHandleTest {
     public void testPointArrayVarHandle()  throws Throwable {
         // Point[] <: Point.ref[] <: Object
         Point[] array1 = (Point[]) newArray(Point[].class, POINTS.length);
-        assertTrue(array1.getClass().componentType() == Point.class);
+        assertTrue(array1.getClass().componentType() == Point.class.asValueType());
         setElements(array1, POINTS);
 
         Point[] array3 = new Point[POINTS.length];
@@ -146,7 +146,7 @@ public class ArrayElementVarHandleTest {
     @Test
     public void testLineVarHandle() throws Throwable {
         Line[] array1 = (Line[])newArray(Line[].class, LINES.length);
-        assertTrue(array1.getClass().componentType() == Line.class);
+        assertTrue(array1.getClass().componentType() == Line.class.asValueType());
         setElements(array1, LINES);
 
         Line[] array3 = new Line[LINES.length];
@@ -159,7 +159,7 @@ public class ArrayElementVarHandleTest {
     @Test
     public void testNonFlattenedValueVarHandle() throws Throwable {
         NonFlattenValue[] array1 = (NonFlattenValue[])newArray(NonFlattenValue[].class, NFV_ARRAY.length);
-        assertTrue(array1.getClass().componentType() == NonFlattenValue.class);
+        assertTrue(array1.getClass().componentType() == NonFlattenValue.class.asValueType());
         setElements(array1, NFV_ARRAY);
 
         NonFlattenValue[] array3 = new NonFlattenValue[POINTS.length];

@@ -64,21 +64,21 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessPoint.class, "final_v", Point.class);
+                VarHandleTestMethodHandleAccessPoint.class, "final_v", Point.class.asValueType());
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessPoint.class, "v", Point.class);
+                VarHandleTestMethodHandleAccessPoint.class, "v", Point.class.asValueType());
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessPoint.class, "static_final_v", Point.class);
+            VarHandleTestMethodHandleAccessPoint.class, "static_final_v", Point.class.asValueType());
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessPoint.class, "static_v", Point.class);
+            VarHandleTestMethodHandleAccessPoint.class, "static_v", Point.class.asValueType());
 
         vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
 
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "point_v", Point.class);
+                    Value.class, "point_v", Point.class.asValueType());
     }
 
 

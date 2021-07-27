@@ -112,7 +112,7 @@ public class TestDeoptimizationWhenBuffering {
             Class<?> clazz = TestDeoptimizationWhenBuffering.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(MyValue1.class);
+            MethodType mt = MethodType.methodType(MyValue1.class.asValueType());
             test9_mh = lookup.findStatic(clazz, "test9Callee", mt);
             test10_mh = lookup.findStatic(clazz, "test10Callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -206,7 +206,7 @@ public class TestDeoptimizationWhenBuffering {
             Asserts.assertEQ(args[0], "C1", "unsupported mode");
             Method m = MyValue1.class.getMethod("testWithField", int.class);
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
-            m = TestDeoptimizationWhenBuffering.class.getMethod("test3Callee", MyValue1.class);
+            m = TestDeoptimizationWhenBuffering.class.getMethod("test3Callee", MyValue1.class.asValueType());
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
             m = TestDeoptimizationWhenBuffering.class.getMethod("test9Callee");
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);

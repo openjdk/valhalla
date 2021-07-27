@@ -11,7 +11,7 @@ public class ClassLiteralTypingNegativeTest {
         final int value = 0;
 
         public static void main(String[] args) {
-            Class<? extends Foo.ref> cFooRef = Foo.class; // Error
+            Class<? extends Foo.ref> cFooRef = Foo.class.asValueType(); // Error
             cFooRef = new Foo().getClass(); // Error
             cFooRef = Foo.ref.class; // OK.
             cFooRef = Foo.val.class; // Error.
@@ -28,7 +28,7 @@ public class ClassLiteralTypingNegativeTest {
         final int value = 0;
 
         public static void main(String[] args) {
-            Class<? extends Bar.ref> cBarRef = Bar.class; // Error
+            Class<? extends Bar.ref> cBarRef = Bar.class.asValueType(); // Error
             cBarRef = new Bar().getClass(); // Error
             cBarRef = Bar.ref.class; // OK.
             cBarRef = Bar.val.class; // Error.

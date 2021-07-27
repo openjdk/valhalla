@@ -64,34 +64,34 @@ public class StaticFactoryMethodHandleTest {
 
     public static void main(String... args) throws Throwable {
         // test default static init factory
-        MethodType mtype0 = MethodType.methodType(DefaultConstructor.class);
-        MethodHandle mh0 = staticInitFactory(DefaultConstructor.class, mtype0);
+        MethodType mtype0 = MethodType.methodType(DefaultConstructor.class.asValueType());
+        MethodHandle mh0 = staticInitFactory(DefaultConstructor.val.class, mtype0);
         DefaultConstructor o0 = (DefaultConstructor)mh0.invokeExact();
         assertEquals(o0, new DefaultConstructor());
-        assertEquals(o0, newInstance(DefaultConstructor.class, 0, mh0.type().parameterArray()));
+        assertEquals(o0, newInstance(DefaultConstructor.val.class, 0, mh0.type().parameterArray()));
 
         // test 1-arg static init factory
-        MethodType mtype1 = MethodType.methodType(ConstructorWithArgs.class, int.class);
-        MethodHandle mh1 = staticInitFactory(ConstructorWithArgs.class, mtype1);
+        MethodType mtype1 = MethodType.methodType(ConstructorWithArgs.class.asValueType(), int.class);
+        MethodHandle mh1 = staticInitFactory(ConstructorWithArgs.val.class, mtype1);
         ConstructorWithArgs o1 = (ConstructorWithArgs)mh1.invokeExact(1);
         assertEquals(o1, new ConstructorWithArgs(1));
-        assertEquals(o1, newInstance(ConstructorWithArgs.class, Modifier.PUBLIC, mh1.type().parameterArray(), 1));
+        assertEquals(o1, newInstance(ConstructorWithArgs.val.class, Modifier.PUBLIC, mh1.type().parameterArray(), 1));
 
 
         // test 2-arg static init factory
-        MethodType mtype2 = MethodType.methodType(ConstructorWithArgs.class, int.class, int.class);
-        MethodHandle mh2 = staticInitFactory(ConstructorWithArgs.class, mtype2);
+        MethodType mtype2 = MethodType.methodType(ConstructorWithArgs.class.asValueType(), int.class, int.class);
+        MethodHandle mh2 = staticInitFactory(ConstructorWithArgs.val.class, mtype2);
         ConstructorWithArgs o2 = (ConstructorWithArgs)mh2.invokeExact(1, 2);
         assertEquals(o2, new ConstructorWithArgs(1, 2));
-        assertEquals(o2, newInstance(ConstructorWithArgs.class, 0, mh2.type().parameterArray(), 1, 2));
+        assertEquals(o2, newInstance(ConstructorWithArgs.val.class, 0, mh2.type().parameterArray(), 1, 2));
 
 
         // test 3-arg static init factory
-        MethodType mtype3 = MethodType.methodType(ConstructorWithArgs.class, int.class, int.class, int.class);
-        MethodHandle mh3 = staticInitFactory(ConstructorWithArgs.class, mtype3);
+        MethodType mtype3 = MethodType.methodType(ConstructorWithArgs.class.asValueType(), int.class, int.class, int.class);
+        MethodHandle mh3 = staticInitFactory(ConstructorWithArgs.val.class, mtype3);
         ConstructorWithArgs o3 = (ConstructorWithArgs)mh3.invokeExact(1, 2, 3);
         assertEquals(o3, new ConstructorWithArgs(1, 2, 3));
-        assertEquals(o3, newInstance(ConstructorWithArgs.class, Modifier.PRIVATE, mh3.type().parameterArray(), 1, 2, 3));
+        assertEquals(o3, newInstance(ConstructorWithArgs.val.class, Modifier.PRIVATE, mh3.type().parameterArray(), 1, 2, 3));
     }
 
     /*
@@ -108,7 +108,7 @@ public class StaticFactoryMethodHandleTest {
         //
         MethodHandle mh = lookup.findStatic(c, "<init>", mtype);
         try {
-            lookup.findConstructor(DefaultConstructor.class, mtype);
+            lookup.findConstructor(DefaultConstructor.class.asValueType(), mtype);
             throw new RuntimeException("findConstructor should not find the static init factory");
         } catch (NoSuchMethodException e) {
         }

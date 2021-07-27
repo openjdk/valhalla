@@ -4104,7 +4104,15 @@ public class Lower extends TreeTranslator {
             tree.selected.hasTag(SELECT) &&
             TreeInfo.name(tree.selected) == names._super &&
             !types.isDirectSuperInterface(((JCFieldAccess)tree.selected).selected.type.tsym, currentClass);
+        /* JDK-8269956: Where a reflective (class) literal is needed, the unqualified Point.class is
+         * always the "primary" mirror - representing the primitive reference runtime type - thereby
+         * always matching the behavior of Object::getClass
+         */
+        boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isPrimitiveReferenceType();
         tree.selected = translate(tree.selected);
+        if (needPrimaryMirror && tree.selected.type.isPrimitiveClass()) {
+            tree.selected.setType(tree.selected.type.referenceProjection());
+        }
         if (tree.name == names._class) {
             result = classOf(tree.selected);
         }
