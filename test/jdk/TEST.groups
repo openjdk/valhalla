@@ -106,7 +106,7 @@ jdk_lang = \
 # valhalla lworld tests
 jdk_valhalla = \
     java/lang/invoke \
-    valhalla 
+    valhalla
 
 
 # All of the java.util package
@@ -281,8 +281,7 @@ jdk_tools = \
     :svc_tools
 
 jdk_jfr = \
-    jdk/jfr \
-    -jdk/jfr/event/runtime/TestBiasedLockRevocationEvents.java
+    jdk/jfr
 
 jdk_jfr_tier3 = \
     jdk/jfr/event/metadata/TestLookForUntestedEvents.java
