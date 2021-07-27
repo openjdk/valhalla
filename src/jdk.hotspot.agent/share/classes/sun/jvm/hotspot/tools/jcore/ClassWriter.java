@@ -352,11 +352,15 @@ public class ClassWriter implements /* imports */ ClassConstants
     protected void writeInterfaces() throws IOException {
         KlassArray interfaces = klass.getLocalInterfaces();
         final int len = interfaces.length();
+        int nb_interfaces = len;
+        if (klass.hasInjectedIdentityObject() || klass.hasInjectedPrimitiveObject()) {
+            nb_interfaces--;
+        }
 
-        if (DEBUG) debugMessage("number of interfaces = " + len);
+        if (DEBUG) debugMessage("number of interfaces = " + nb_interfaces);
 
         // write interfaces count
-        dos.writeShort((short) len);
+        dos.writeShort((short) nb_interfaces);
         for (int i = 0; i < len; i++) {
            Klass k = interfaces.getAt(i);
            Short index = (Short) classToIndex.get(k.getName().asString());
