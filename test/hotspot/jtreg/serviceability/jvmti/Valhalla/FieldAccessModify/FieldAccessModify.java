@@ -51,7 +51,7 @@ public class FieldAccessModify {
         public String toString() {
             return "MyPrimitive { fld1=" + MyPrimitive_fld1 + ", fld2=" + MyPrimitive_fld2 + "}";
         }
-        
+
     }
 
     private static class InstanceHolder {
@@ -68,7 +68,7 @@ public class FieldAccessModify {
 
     private static primitive class PrimitiveHolder {
         public MyPrimitive PrimitiveHolder_fld1;
-        
+
         public PrimitiveHolder(int v) {
             PrimitiveHolder_fld1 = MyPrimitive.create(v, v + 200);
         }

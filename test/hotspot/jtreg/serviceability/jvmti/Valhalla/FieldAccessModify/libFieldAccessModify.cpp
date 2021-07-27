@@ -46,7 +46,7 @@ static void reportError(const char *msg, int err) {
 }
 
 static void printJValue(const char *prefix, JNIEnv *jni_env, char signature_type, jvalue value) {
-    // print new_value to ensure the value is valid 
+    // print new_value to ensure the value is valid
     // use String.valueOf(...) to get string representation
     /*
     Z boolean
