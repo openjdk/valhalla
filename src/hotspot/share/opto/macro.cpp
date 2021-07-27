@@ -1077,11 +1077,6 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(init->outcnt() <= 2, "only a control and memory projection expected");
         Node *ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
         if (ctrl_proj != NULL) {
-          // Inline type buffer allocations are followed by a membar
-          Node* membar_after = ctrl_proj->unique_ctrl_out();
-          if (inline_alloc && membar_after->Opcode() == Op_MemBarCPUOrder) {
-            membar_after->as_MemBar()->remove(&_igvn);
-          }
           _igvn.replace_node(ctrl_proj, init->in(TypeFunc::Control));
 #ifdef ASSERT
           // If the InitializeNode has no memory out, it will die, and tmp will become NULL
