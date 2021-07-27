@@ -11052,8 +11052,7 @@ instruct MoveL2D_reg_reg(regD dst, rRegL src) %{
 instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                   Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
-            (UseAVX <= 2 || !VM_Version::supports_avx512vlbw()));
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX <= 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11112,8 +11111,7 @@ instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                             Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
-            (UseAVX <= 2 || !VM_Version::supports_avx512vlbw()));
+  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() && (UseAVX <= 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11170,9 +11168,9 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
                        Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
-            UseAVX > 2 && VM_Version::supports_avx512vlbw() && !n->in(2)->in(1)->bottom_type()->is_long()->is_con());
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
+  ins_cost(125);
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
 
   format %{ $$template
@@ -11230,9 +11228,9 @@ instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_Reg
 instruct rep_stos_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
                                  Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
-            UseAVX > 2 && VM_Version::supports_avx512vlbw() && !n->in(2)->in(1)->bottom_type()->is_long()->is_con());
+  predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
+  ins_cost(125);
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
 
   format %{ $$template
@@ -11291,8 +11289,7 @@ instruct rep_stos_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktm
 instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                         Universe dummy, rFlagsReg cr)
 %{
-  predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
-            UseAVX <= 2);
+  predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX <= 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11341,8 +11338,7 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                                   Universe dummy, rFlagsReg cr)
 %{
-  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
-            UseAVX <= 2);
+  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() && (UseAVX <= 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, USE_KILL val, KILL cr);
 
@@ -11389,8 +11385,7 @@ instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_Reg
 instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
                              Universe dummy, rFlagsReg cr)
 %{
-  predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
-            UseAVX > 2);
+  predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
 
@@ -11440,8 +11435,7 @@ instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, r
 instruct rep_stos_large_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
                                        Universe dummy, rFlagsReg cr)
 %{
-  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() &&
-            UseAVX > 2);
+  predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
   match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base, TEMP tmp, TEMP ktmp, USE_KILL val, KILL cr);
 
@@ -11492,8 +11486,9 @@ instruct rep_stos_large_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kR
 instruct rep_stos_im(immL cnt, rRegP base, regD tmp, rax_RegL val, kReg ktmp, Universe dummy, rFlagsReg cr)
 %{
   predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() &&
-            (UseAVX > 2 && VM_Version::supports_avx512vlbw() && n->in(2)->in(1)->bottom_type()->is_long()->is_con()));
+            ((UseAVX > 2) && VM_Version::supports_avx512vlbw()));
   match(Set dummy (ClearArray (Binary cnt base) val));
+  ins_cost(100);
   effect(TEMP tmp, USE_KILL val, TEMP ktmp, KILL cr);
   format %{ "clear_mem_imm $base , $cnt  \n\t" %}
   ins_encode %{
