@@ -57,8 +57,8 @@ static void printJValue(const char *prefix, JNIEnv *jni_env, char signature_type
     J long
     F float
     D double
-    L fully-qualified-class ;			fully-qualified-class
-    [ type								type[]
+    L fully-qualified-class ;   fully-qualified-class
+    [ type                      type[]
     */
     char signature[64] = {};
     if (signature_type == 'Q' || signature_type == 'L') {
