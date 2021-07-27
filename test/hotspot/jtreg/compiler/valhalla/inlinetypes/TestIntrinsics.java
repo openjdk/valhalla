@@ -59,7 +59,7 @@ public class TestIntrinsics {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addHelperClasses(MyValue1.class.asValueType(),
+                   .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class)
                    .start();

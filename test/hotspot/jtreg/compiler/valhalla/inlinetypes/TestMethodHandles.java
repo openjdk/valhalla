@@ -136,10 +136,10 @@ public class TestMethodHandles {
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
-                   .addHelperClasses(MyValue1.class.asValueType(),
-                                     MyValue2.class.asValueType(),
+                   .addHelperClasses(MyValue1.class,
+                                     MyValue2.class,
                                      MyValue2Inline.class,
-                                     MyValue3.class.asValueType(),
+                                     MyValue3.class,
                                      MyValue3Inline.class)
                    .start();
     }
