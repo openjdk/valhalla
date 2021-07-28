@@ -2691,15 +2691,10 @@ public class Attr extends JCTree.Visitor {
                     methodName == names.getClass &&
                     argtypes.isEmpty()) {
                 // as a special case, x.getClass() has type Class<? extends |X|>
-                // Temporary treatment for primitive classes: Given a primitive class V that implements
-                // I1, I2, ... In, v.getClass() is typed to be Class<? extends Object & I1 & I2 .. & In>
-                Type wcb;
-                if (qualifierType.isPrimitiveClass()) {
-                    List<Type> bounds = List.of(syms.objectType).appendList(((ClassSymbol) qualifierType.tsym).getInterfaces());
-                    wcb = bounds.size() > 1 ? types.makeIntersectionType(bounds) : syms.objectType;
-                } else {
-                    wcb = types.erasure(qualifierType);
-                }
+                // Special treatment for primitive classes: Given an expression v of type V where
+                // V is a primitive class, v.getClass() is typed to be Class<? extends |V.ref|>
+                Type wcb = types.erasure(qualifierType.isPrimitiveClass() ?
+                                                qualifierType.referenceProjection() : qualifierType);
                 return new ClassType(restype.getEnclosingType(),
                         List.of(new WildcardType(wcb,
                                 BoundKind.EXTENDS,

@@ -12,11 +12,11 @@ public class ClassLiteralTypingNegativeTest {
 
         public static void main(String[] args) {
             Class<? extends Foo> cFooRef = Foo.val.class; // Error
-            cFooRef = ((Foo.val) new Foo()).getClass(); // Error
+            cFooRef = ((Foo.val) new Foo()).getClass(); // OK
             cFooRef = Foo.class; // OK.
             cFooRef = Foo.val.class; // Error.
             Foo.val xv = new Foo();
-            cFooRef = xv.getClass(); // Error
+            cFooRef = xv.getClass(); // OK
             Foo xr = new Foo();
             cFooRef = xr.getClass(); // OK.
         }
@@ -29,11 +29,11 @@ public class ClassLiteralTypingNegativeTest {
 
         public static void main(String[] args) {
             Class<? extends Bar> cBarRef = Bar.val.class; // Error
-            cBarRef = ((Bar.val) new Bar()).getClass(); // Error
+            cBarRef = ((Bar.val) new Bar()).getClass(); // OK
             cBarRef = Bar.class; // OK.
             cBarRef = Bar.val.class; // Error.
             Bar.val xv = new Bar();
-            cBarRef = xv.getClass(); // Error
+            cBarRef = xv.getClass(); // OK.
             Bar xr = new Bar();
             cBarRef = xr.getClass(); // OK.
         }
