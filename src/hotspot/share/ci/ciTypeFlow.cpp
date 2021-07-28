@@ -637,7 +637,7 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     }
   } else {
     ciType* type = pop_value();
-    if (type->is_loaded() && type->unwrap() != klass && type->unwrap()->is_subtype_of(klass)) {
+    if (type->unwrap() != klass && klass->is_loaded() && type->unwrap()->is_subtype_of(klass)) {
       // Useless cast, propagate more precise type of object
       klass = type->unwrap()->as_klass();
     }
