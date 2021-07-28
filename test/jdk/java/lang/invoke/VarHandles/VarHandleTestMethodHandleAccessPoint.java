@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,8 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
+    static final Class<?> type = Point.class.asValueType();
+
     static final Point static_final_v = Point.getInstance(1,1);
 
     static Point static_v;
@@ -64,21 +66,21 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessPoint.class, "final_v", Point.class.asValueType());
+                VarHandleTestMethodHandleAccessPoint.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessPoint.class, "v", Point.class.asValueType());
+                VarHandleTestMethodHandleAccessPoint.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessPoint.class, "static_final_v", Point.class.asValueType());
+            VarHandleTestMethodHandleAccessPoint.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessPoint.class, "static_v", Point.class.asValueType());
+            VarHandleTestMethodHandleAccessPoint.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
 
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "point_v", Point.class.asValueType());
+                    Value.class, "point_v", type);
     }
 
 
@@ -681,31 +683,31 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
             final int ci = i;
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
-                checkIOOBE(am, () -> {
+                checkAIOOBE(am, () -> {
                     Point x = (Point) hs.get(am).invokeExact(array, ci);
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
-                checkIOOBE(am, () -> {
+                checkAIOOBE(am, () -> {
                     hs.get(am).invokeExact(array, ci, Point.getInstance(1,1));
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
-                checkIOOBE(am, () -> {
+                checkAIOOBE(am, () -> {
                     boolean r = (boolean) hs.get(am).invokeExact(array, ci, Point.getInstance(1,1), Point.getInstance(2,2));
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
-                checkIOOBE(am, () -> {
+                checkAIOOBE(am, () -> {
                     Point r = (Point) hs.get(am).invokeExact(array, ci, Point.getInstance(2,2), Point.getInstance(1,1));
                 });
             }
 
             for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
-                checkIOOBE(am, () -> {
+                checkAIOOBE(am, () -> {
                     Point o = (Point) hs.get(am).invokeExact(array, ci, Point.getInstance(1,1));
                 });
             }

@@ -44,6 +44,8 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestAccessLong extends VarHandleBaseTest {
+    static final Class<?> type = long.class;
+
     static final long static_final_v = 0x0123456789ABCDEFL;
 
     static long static_v;
@@ -79,19 +81,19 @@ public class VarHandleTestAccessLong extends VarHandleBaseTest {
         VarHandle vh;
         try {
             vh = MethodHandles.lookup().findVarHandle(
-                    VarHandleTestAccessLong.class, "final_v" + postfix, long.class);
+                    VarHandleTestAccessLong.class, "final_v" + postfix, type);
             vhs.add(vh);
 
             vh = MethodHandles.lookup().findVarHandle(
-                    VarHandleTestAccessLong.class, "v" + postfix, long.class);
+                    VarHandleTestAccessLong.class, "v" + postfix, type);
             vhs.add(vh);
 
             vh = MethodHandles.lookup().findStaticVarHandle(
-                VarHandleTestAccessLong.class, "static_final_v" + postfix, long.class);
+                VarHandleTestAccessLong.class, "static_final_v" + postfix, type);
             vhs.add(vh);
 
             vh = MethodHandles.lookup().findStaticVarHandle(
-                VarHandleTestAccessLong.class, "static_v" + postfix, long.class);
+                VarHandleTestAccessLong.class, "static_v" + postfix, type);
             vhs.add(vh);
 
             if (same) {
@@ -110,21 +112,21 @@ public class VarHandleTestAccessLong extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessLong.class, "final_v", long.class);
+                VarHandleTestAccessLong.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessLong.class, "v", long.class);
+                VarHandleTestAccessLong.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestAccessLong.class, "static_final_v", long.class);
+            VarHandleTestAccessLong.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestAccessLong.class, "static_v", long.class);
+            VarHandleTestAccessLong.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(long[].class);
 
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "long_v", long.class);
+                    Value.class, "long_v", type);
     }
 
 
@@ -209,7 +211,7 @@ public class VarHandleTestAccessLong extends VarHandleBaseTest {
 
     @Test(dataProvider = "typesProvider")
     public void testTypes(VarHandle vh, List<Class<?>> pts) {
-        assertEquals(vh.varType(), long.class);
+        assertEquals(vh.varType(), type);
 
         assertEquals(vh.coordinateTypes(), pts);
 
@@ -221,12 +223,12 @@ public class VarHandleTestAccessLong extends VarHandleBaseTest {
     public void testLookupInstanceToStatic() {
         checkIAE("Lookup of static final field to instance final field", () -> {
             MethodHandles.lookup().findStaticVarHandle(
-                    VarHandleTestAccessLong.class, "final_v", long.class);
+                    VarHandleTestAccessLong.class, "final_v", type);
         });
 
         checkIAE("Lookup of static field to instance field", () -> {
             MethodHandles.lookup().findStaticVarHandle(
-                    VarHandleTestAccessLong.class, "v", long.class);
+                    VarHandleTestAccessLong.class, "v", type);
         });
     }
 
@@ -234,12 +236,12 @@ public class VarHandleTestAccessLong extends VarHandleBaseTest {
     public void testLookupStaticToInstance() {
         checkIAE("Lookup of instance final field to static final field", () -> {
             MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessLong.class, "static_final_v", long.class);
+                VarHandleTestAccessLong.class, "static_final_v", type);
         });
 
         checkIAE("Lookup of instance field to static field", () -> {
             vhStaticField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessLong.class, "static_v", long.class);
+                VarHandleTestAccessLong.class, "static_v", type);
         });
     }
 
