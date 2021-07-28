@@ -270,6 +270,7 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_getEventWriter();
 #endif
   bool inline_native_Class_query(vmIntrinsics::ID id);
+  bool inline_primitive_Class_conversion(vmIntrinsics::ID id);
   bool inline_native_subtype_check();
   bool inline_native_getLength();
   bool inline_array_copyOf(bool is_copyOfRange);
