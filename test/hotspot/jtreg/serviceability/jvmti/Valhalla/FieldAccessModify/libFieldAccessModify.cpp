@@ -91,7 +91,7 @@ static void handleNotification(jvmtiEnv *jvmti, JNIEnv *jni_env,
     jobject object,
     jfieldID field,
     jclass field_klass,
-    int modified,
+    bool modified,
     jlocation location)
 {
     jvmtiError err;
@@ -205,7 +205,7 @@ onFieldAccess(jvmtiEnv *jvmti_env,
     if (disableAccessEvent) {
         return;
     }
-    handleNotification(jvmti_env, jni_env, method, object, field, field_klass, 0, location);
+    handleNotification(jvmti_env, jni_env, method, object, field, field_klass, false, location);
 }
 
 static void JNICALL
@@ -222,7 +222,7 @@ onFieldModification(jvmtiEnv *jvmti_env,
 {
     disableAccessEvent = true;
 
-    handleNotification(jvmti_env, jni_env, method, object, field, field_klass, 1, location);
+    handleNotification(jvmti_env, jni_env, method, object, field, field_klass, true, location);
 
     printJValue("new value", jni_env, signature_type, new_value);
 
