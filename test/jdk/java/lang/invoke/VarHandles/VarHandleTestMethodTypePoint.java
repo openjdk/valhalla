@@ -66,16 +66,16 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodTypePoint.class, "final_v", Point.class);
+                VarHandleTestMethodTypePoint.class, "final_v", Point.class.asValueType());
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodTypePoint.class, "v", Point.class);
+                VarHandleTestMethodTypePoint.class, "v", Point.class.asValueType());
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodTypePoint.class, "static_final_v", Point.class);
+            VarHandleTestMethodTypePoint.class, "static_final_v", Point.class.asValueType());
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodTypePoint.class, "static_v", Point.class);
+            VarHandleTestMethodTypePoint.class, "static_v", Point.class.asValueType());
 
         vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
     }
@@ -649,15 +649,15 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class)).
                     invokeExact((VarHandleTestMethodTypePoint) null);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class)).
                     invokeExact(Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                Point x = (Point) hs.get(am, methodType(Point.class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), int.class)).
                     invokeExact(0);
             });
             // Incorrect return type
@@ -671,11 +671,11 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
         }
@@ -683,11 +683,11 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType())).
                     invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                hs.get(am, methodType(void.class, Class.class, Point.class)).
+                hs.get(am, methodType(void.class, Class.class, Point.class.asValueType())).
                     invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
@@ -695,7 +695,7 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                hs.get(am, methodType(void.class, int.class, Point.class)).
+                hs.get(am, methodType(void.class, int.class, Point.class.asValueType())).
                     invokeExact(0, Point.getInstance(1,1));
             });
             // Incorrect arity
@@ -704,7 +704,7 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Point.class, Class.class)).
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Class.class)).
                     invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
         }
@@ -712,23 +712,23 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Class.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Class.class, Point.class.asValueType())).
                     invokeExact(recv, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Class.class)).
                     invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class , Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class , Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
@@ -737,85 +737,85 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             checkNPE(() -> { // null receiver
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Class.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Class.class, Point.class.asValueType())).
                     invokeExact(recv, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Class.class)).
                     invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                Point x = (Point) hs.get(am, methodType(Point.class, int.class , Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), int.class , Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class , Point.class, Point.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class , Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class , Point.class, Point.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class , Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             checkNPE(() -> { // null receiver
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Point.class.asValueType())).
                     invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class, Point.class.asValueType())).
                     invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                Point x = (Point) hs.get(am, methodType(Point.class, int.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), int.class, Point.class.asValueType())).
                     invokeExact(0, Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType())).
                     invokeExact(recv, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class.asValueType())).
                     invokeExact(recv, Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), VarHandleTestMethodTypePoint.class, Point.class.asValueType())).
                     invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
         }
@@ -1187,18 +1187,18 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, Point.class, Class.class)).
+                hs.get(am, methodType(void.class, Point.class.asValueType(), Class.class)).
                     invokeExact(Point.getInstance(1,1), Void.class);
             });
         }
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, Point.class.asValueType())).
                     invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point.class.asValueType(), Class.class)).
                     invokeExact(Point.getInstance(1,1), Void.class);
             });
             // Incorrect arity
@@ -1207,7 +1207,7 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point.class, Point.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
@@ -1215,29 +1215,29 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             // Incorrect argument types
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class, Point.class.asValueType())).
                     invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(Point.getInstance(1,1), Void.class);
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, Point.class, Point.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point.class, Point.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, Point.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
@@ -1245,25 +1245,25 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             // Incorrect argument types
             hs.checkWMTEOrCCE(() -> { // value reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class)).
                     invokeExact(Void.class);
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, Point.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, Point.class.asValueType())).
                     invokeExact(Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point.class.asValueType())).
                     invokeExact(Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(Point.getInstance(1,1), Void.class);
             });
         }
@@ -1861,19 +1861,19 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class)).
                     invokeExact((Point[]) null, 0);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class, int.class)).
                     invokeExact(Void.class, 0);
             });
             checkWMTE(() -> { // array primitive class
-                Point x = (Point) hs.get(am, methodType(Point.class, int.class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), int.class, int.class)).
                     invokeExact(0, 0);
             });
             checkWMTE(() -> { // index reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, Class.class)).
                     invokeExact(array, Void.class);
             });
             // Incorrect return type
@@ -1887,11 +1887,11 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
         }
@@ -1899,11 +1899,11 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                hs.get(am, methodType(void.class, Point[].class, int.class, Point.class)).
+                hs.get(am, methodType(void.class, Point[].class, int.class, Point.class.asValueType())).
                     invokeExact((Point[]) null, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                hs.get(am, methodType(void.class, Class.class, int.class, Point.class)).
+                hs.get(am, methodType(void.class, Class.class, int.class, Point.class.asValueType())).
                     invokeExact(Void.class, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
@@ -1911,11 +1911,11 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                hs.get(am, methodType(void.class, int.class, int.class, Point.class)).
+                hs.get(am, methodType(void.class, int.class, int.class, Point.class.asValueType())).
                     invokeExact(0, 0, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                hs.get(am, methodType(void.class, Point[].class, Class.class, Point.class)).
+                hs.get(am, methodType(void.class, Point[].class, Class.class, Point.class.asValueType())).
                     invokeExact(array, Void.class, Point.getInstance(1,1));
             });
             // Incorrect arity
@@ -1931,27 +1931,27 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact((Point[]) null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Class.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Class.class, Point.class.asValueType())).
                     invokeExact(array, 0, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class.asValueType(), Class.class)).
                     invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, Class.class, Point.class, Point.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, Class.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
@@ -1960,7 +1960,7 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Point.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
@@ -1968,45 +1968,45 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact((Point[]) null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, int.class, Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Class.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Class.class, Point.class.asValueType())).
                     invokeExact(array, 0, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Point.class.asValueType(), Class.class)).
                     invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                Point x = (Point) hs.get(am, methodType(Point.class, int.class, int.class, Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), int.class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, Class.class, Point.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, Class.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class, Point.class, Point.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Point.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class.asValueType(), Point.class.asValueType())).
                     invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Point.class.asValueType(), Point.class.asValueType(), Class.class)).
                     invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
@@ -2014,41 +2014,41 @@ public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Point.class.asValueType())).
                     invokeExact((Point[]) null, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, int.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Class.class, int.class, Point.class.asValueType())).
                     invokeExact(Void.class, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                Point x = (Point) hs.get(am, methodType(Point.class, int.class, int.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), int.class, int.class, Point.class.asValueType())).
                     invokeExact(0, 0, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, Class.class, Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, Class.class, Point.class.asValueType())).
                     invokeExact(array, Void.class, Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class, Point.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class, Point.class.asValueType())).
                     invokeExact(array, 0, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class.asValueType())).
                     invokeExact(array, 0, Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                Point x = (Point) hs.get(am, methodType(Point.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType())).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class.asValueType(), Point[].class, int.class, Point.class.asValueType(), Class.class)).
                     invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
         }

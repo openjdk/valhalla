@@ -4403,6 +4403,16 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute the qualifier expression, and determine its symbol (if any).
         Type site = attribTree(tree.selected, env, new ResultInfo(skind, Type.noType));
+        Assert.check(site == tree.selected.type);
+        if (tree.name == names._class && site.isPrimitiveClass()) {
+            /* JDK-8269956: Where a reflective (class) literal is needed, the unqualified Point.class is
+             * always the "primary" mirror - representing the primitive reference runtime type - thereby
+             * always matching the behavior of Object::getClass
+             */
+             if (!tree.selected.hasTag(SELECT) || ((JCFieldAccess) tree.selected).name != names.val) {
+                 tree.selected.setType(site = site.referenceProjection());
+             }
+        }
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
 

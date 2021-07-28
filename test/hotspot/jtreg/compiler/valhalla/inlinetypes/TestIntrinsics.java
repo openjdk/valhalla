@@ -75,14 +75,14 @@ public class TestIntrinsics {
     public void test1_verifier() {
         Asserts.assertTrue(test1(java.util.AbstractList.class, java.util.ArrayList.class), "test1_1 failed");
         Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.ref.class), "test1_2 failed");
-        Asserts.assertTrue(test1(MyValue1.class, MyValue1.class), "test1_3 failed");
-        Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.class), "test1_4 failed");
-        Asserts.assertFalse(test1(MyValue1.class, MyValue1.ref.class), "test1_5 failed");
+        Asserts.assertTrue(test1(MyValue1.class.asValueType(), MyValue1.class.asValueType()), "test1_3 failed");
+        Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.class.asValueType()), "test1_4 failed");
+        Asserts.assertFalse(test1(MyValue1.class.asValueType(), MyValue1.ref.class), "test1_5 failed");
         Asserts.assertTrue(test1(Object.class, java.util.ArrayList.class), "test1_6 failed");
         Asserts.assertTrue(test1(Object.class, MyValue1.ref.class), "test1_7 failed");
-        Asserts.assertTrue(test1(Object.class, MyValue1.class), "test1_8 failed");
+        Asserts.assertTrue(test1(Object.class, MyValue1.class.asValueType()), "test1_8 failed");
         Asserts.assertTrue(!test1(MyValue1.ref.class, Object.class), "test1_9 failed");
-        Asserts.assertTrue(!test1(MyValue1.class, Object.class), "test1_10 failed");
+        Asserts.assertTrue(!test1(MyValue1.class.asValueType(), Object.class), "test1_10 failed");
     }
 
     // Verify that Class::isAssignableFrom checks with statically known classes are folded
@@ -91,14 +91,14 @@ public class TestIntrinsics {
     public boolean test2() {
         boolean check1 = java.util.AbstractList.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check2 = MyValue1.ref.class.isAssignableFrom(MyValue1.ref.class);
-        boolean check3 = MyValue1.class.isAssignableFrom(MyValue1.class);
-        boolean check4 = MyValue1.ref.class.isAssignableFrom(MyValue1.class);
-        boolean check5 = !MyValue1.class.isAssignableFrom(MyValue1.ref.class);
+        boolean check3 = MyValue1.class.asValueType().isAssignableFrom(MyValue1.class.asValueType());
+        boolean check4 = MyValue1.ref.class.isAssignableFrom(MyValue1.class.asValueType());
+        boolean check5 = !MyValue1.class.asValueType().isAssignableFrom(MyValue1.ref.class);
         boolean check6 = Object.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check7 = Object.class.isAssignableFrom(MyValue1.ref.class);
-        boolean check8 = Object.class.isAssignableFrom(MyValue1.class);
+        boolean check8 = Object.class.isAssignableFrom(MyValue1.class.asValueType());
         boolean check9 = !MyValue1.ref.class.isAssignableFrom(Object.class);
-        boolean check10 = !MyValue1.class.isAssignableFrom(Object.class);
+        boolean check10 = !MyValue1.class.asValueType().isAssignableFrom(Object.class);
         return check1 && check2 && check3 && check4 && check5 && check6 && check7 && check8 && check9 && check10;
     }
 
@@ -173,7 +173,7 @@ public class TestIntrinsics {
     public void test7_verifier() {
         int len = Math.abs(rI) % 42;
         long hash = MyValue1.createDefaultDontInline().hashPrimitive();
-        Object[] va = test7(MyValue1.class, len);
+        Object[] va = test7(MyValue1.class.asValueType(), len);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }
@@ -188,7 +188,7 @@ public class TestIntrinsics {
     @Run(test = "test8")
     public void test8_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        boolean result = test8(MyValue1.class, vt);
+        boolean result = test8(MyValue1.class.asValueType(), vt);
         Asserts.assertTrue(result);
         result = test8(MyValue1.ref.class, vt);
         Asserts.assertTrue(result);
@@ -217,7 +217,7 @@ public class TestIntrinsics {
     @Run(test = "test10")
     public void test10_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        Object result = test10(MyValue1.class, vt);
+        Object result = test10(MyValue1.class.asValueType(), vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
     }
 
@@ -238,7 +238,7 @@ public class TestIntrinsics {
 
     @Test()
     public Object test12(MyValue1 vt) {
-        return MyValue1.class.cast(vt);
+        return MyValue1.class.asValueType().cast(vt);
     }
 
     @Run(test = "test12")
@@ -366,11 +366,11 @@ public class TestIntrinsics {
     private static final boolean V1_FLATTENED;
     static {
         try {
-            Field xField = MyValue1.class.getDeclaredField("x");
+            Field xField = MyValue1.class.asValueType().getDeclaredField("x");
             X_OFFSET = U.objectFieldOffset(xField);
-            Field yField = MyValue1.class.getDeclaredField("y");
+            Field yField = MyValue1.class.asValueType().getDeclaredField("y");
             Y_OFFSET = U.objectFieldOffset(yField);
-            Field v1Field = MyValue1.class.getDeclaredField("v1");
+            Field v1Field = MyValue1.class.asValueType().getDeclaredField("v1");
             V1_OFFSET = U.objectFieldOffset(v1Field);
             V1_FLATTENED = U.isFlattened(v1Field);
         } catch (Exception e) {
@@ -788,7 +788,7 @@ public class TestIntrinsics {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test41(MyValue1.ref.class, vt);
         Asserts.assertTrue(result);
-        result = test41(MyValue1.class, vt);
+        result = test41(MyValue1.class.asValueType(), vt);
         Asserts.assertTrue(result);
     }
 
@@ -891,10 +891,10 @@ public class TestIntrinsics {
     @Run(test = "test48")
     public void test48_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
-        Object result = test48(MyValue1.class, vt);
+        Object result = test48(MyValue1.class.asValueType(), vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         try {
-            test48(MyValue1.class, null);
+            test48(MyValue1.class.asValueType(), null);
             throw new RuntimeException("should have thrown");
         } catch (NullPointerException npe) {
         }
@@ -922,7 +922,7 @@ public class TestIntrinsics {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va  = new MyValue1[42];
         MyValue1.ref[] vba = new MyValue1.ref[42];
-        Object result = test50(MyValue1.class, vt);
+        Object result = test50(MyValue1.class.asValueType(), vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test50(MyValue1.ref.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
@@ -933,7 +933,7 @@ public class TestIntrinsics {
         result = test50(MyValue1.ref[].class, va);
         Asserts.assertEQ(result, va);
         try {
-            test50(MyValue1.class, null);
+            test50(MyValue1.class.asValueType(), null);
             throw new RuntimeException("should have thrown");
         } catch (NullPointerException npe) {
         }
@@ -1112,11 +1112,11 @@ public class TestIntrinsics {
 
     @Run(test = "test58")
     public void test58_verifier() throws Exception {
-        boolean res = test58(MyValue1.class, MyValue1.class);
+        boolean res = test58(MyValue1.class.asValueType(), MyValue1.class.asValueType());
         Asserts.assertTrue(res);
-        res = test58(Object.class, MyValue1.class);
+        res = test58(Object.class, MyValue1.class.asValueType());
         Asserts.assertFalse(res);
-        res = test58(MyValue1.class, Object.class);
+        res = test58(MyValue1.class.asValueType(), Object.class);
         Asserts.assertFalse(res);
     }
 
@@ -1133,7 +1133,7 @@ public class TestIntrinsics {
     public void test59_verifier() throws Exception {
         test59(Integer.class);
         try {
-            test59(MyValue1.class);
+            test59(MyValue1.class.asValueType());
             throw new RuntimeException("test59 failed: synchronization on inline type should not succeed");
         } catch (IllegalMonitorStateException e) {
 
@@ -1150,10 +1150,10 @@ public class TestIntrinsics {
 
     @Run(test = "test60")
     public void test60_verifier() throws Exception {
-        Asserts.assertTrue(test60(MyValue1.class, MyValue1.class, false, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue2.class, false, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, false, true));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, false));
-        Asserts.assertFalse(test60(MyValue1.class, MyValue1.class, true, true));
+        Asserts.assertTrue(test60(MyValue1.class.asValueType(), MyValue1.class.asValueType(), false, false));
+        Asserts.assertFalse(test60(MyValue1.class.asValueType(), MyValue2.class, false, false));
+        Asserts.assertFalse(test60(MyValue1.class.asValueType(), MyValue1.class.asValueType(), false, true));
+        Asserts.assertFalse(test60(MyValue1.class.asValueType(), MyValue1.class.asValueType(), true, false));
+        Asserts.assertFalse(test60(MyValue1.class.asValueType(), MyValue1.class.asValueType(), true, true));
     }
 }

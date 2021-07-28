@@ -59,8 +59,8 @@ public class QTypeDescriptorTest {
 
     @Test
     public void testMethodInvoke() throws Exception {
-        Class<?> pointQType = Point.class;
-        Class<?> nonFlattenValueQType = NonFlattenValue.class;
+        Class<?> pointQType = Point.class.asValueType();
+        Class<?> nonFlattenValueQType = NonFlattenValue.class.asValueType();
         Method m = QTypeDescriptorTest.class
             .getDeclaredMethod("toLine", pointQType, nonFlattenValueQType);
         makeLine(m, P0, NFV);
@@ -126,13 +126,13 @@ public class QTypeDescriptorTest {
     @DataProvider
     static Object[][] descriptors() {
         return new Object[][]{
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.class, NonFlattenValue.class},     true},
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.ref.class, NonFlattenValue.class}, false},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.class.asValueType(), NonFlattenValue.class.asValueType()},     true},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.ref.class, NonFlattenValue.class.asValueType()}, false},
             { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point[].class },                         true},
-            { NonFlattenValue.class, "point",      null,                                                     true},
-            { NonFlattenValue.class, "pointValue", null,                                                     true},
-            { NonFlattenValue.class, "has",        new Class<?>[] { Point.class, Point.ref.class},           true},
-            { NonFlattenValue.class, "has",        new Class<?>[] { Point.class, Point.class},               false},
+            { NonFlattenValue.class.asValueType(), "point",      null,                                                     true},
+            { NonFlattenValue.class.asValueType(), "pointValue", null,                                                     true},
+            { NonFlattenValue.class.asValueType(), "has",        new Class<?>[] { Point.class.asValueType(), Point.ref.class},           true},
+            { NonFlattenValue.class.asValueType(), "has",        new Class<?>[] { Point.class.asValueType(), Point.class.asValueType()},               false},
         };
     }
 
@@ -151,11 +151,11 @@ public class QTypeDescriptorTest {
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
             { "point",      MethodType.methodType(Point.ref.class),                                      true },
-            { "pointValue", MethodType.methodType(Point.class),                                          true },
-            { "has",        MethodType.methodType(boolean.class, Point.class, Point.ref.class),          true },
-            { "point",      MethodType.methodType(Point.class),                                          false },
+            { "pointValue", MethodType.methodType(Point.class.asValueType()),                                          true },
+            { "has",        MethodType.methodType(boolean.class, Point.class.asValueType(), Point.ref.class),          true },
+            { "point",      MethodType.methodType(Point.class.asValueType()),                                          false },
             { "pointValue", MethodType.methodType(Point.ref.class),                                      false },
-            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class),          false },
+            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class.asValueType()),          false },
             { "point",      MethodType.fromMethodDescriptorString("()LPoint;", loader),        true },
             { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),        false },
             { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),        true },
@@ -168,7 +168,7 @@ public class QTypeDescriptorTest {
     @Test(dataProvider = "methodTypes")
     public void methodHandleLookup(String name, MethodType mtype, boolean found) throws Throwable {
         try {
-            MethodHandles.lookup().findVirtual(NonFlattenValue.class, name, mtype);
+            MethodHandles.lookup().findVirtual(NonFlattenValue.class.asValueType(), name, mtype);
             if (!found) throw new AssertionError("Expected NoSuchMethodException");
         } catch (NoSuchMethodException e) {
             if (found) throw e;
