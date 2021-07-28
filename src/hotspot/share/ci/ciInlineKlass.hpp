@@ -92,6 +92,7 @@ public:
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;
+  ciInstance* ref_mirror();
   ciInstance* val_mirror();
 };
 
