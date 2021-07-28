@@ -585,7 +585,7 @@ address ProgrammableUpcallHandler::generate_optimized_upcall_stub(jobject receiv
   const ABIDescriptor abi = ForeignGlobals::parse_abi_descriptor(jabi);
   const CallRegs conv = ForeignGlobals::parse_call_regs(jconv);
   assert(conv._rets_length <= 1, "no multi reg returns");
-  CodeBuffer buffer("upcall_stub_linkToNative", /* code_size = */ 1024, /* locs_size = */ 1024);
+  CodeBuffer buffer("upcall_stub_linkToNative", /* code_size = */ 2048, /* locs_size = */ 1024);
 
   int register_size = sizeof(uintptr_t);
   int buffer_alignment = xmm_reg_size;

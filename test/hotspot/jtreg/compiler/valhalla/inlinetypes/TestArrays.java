@@ -1627,7 +1627,7 @@ public class TestArrays {
     }
 
     // A store with a default value can be eliminated: same as test68
-    // but store is farther away from allocation
+    // but store is further away from allocation
     @Test
     public MyValue1[] test70(MyValue1[] other) {
         other[1] = other[0];
