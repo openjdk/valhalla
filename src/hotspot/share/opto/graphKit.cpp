@@ -3149,7 +3149,7 @@ Node* GraphKit::subtype_check_receiver(Node* receiver, ciKlass* klass,
   if (!stopped() && !klass->is_interface()) {
     const TypeOopPtr* receiver_type = _gvn.type(receiver)->isa_oopptr();
     const TypeOopPtr* recv_type = tklass->cast_to_exactness(false)->is_klassptr()->as_instance_type();
-    if (!receiver_type->higher_equal(recv_type)) { // ignore redundant casts
+    if (receiver_type != NULL && !receiver_type->higher_equal(recv_type)) { // ignore redundant casts
       Node* cast = new CheckCastPPNode(control(), receiver, recv_type);
       (*casted_receiver) = _gvn.transform(cast);
     }
