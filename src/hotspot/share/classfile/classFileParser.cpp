@@ -712,7 +712,8 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
               throwIllegalSignature("Method", name, signature, CHECK);
             }
           }
-          // If a class method name begins with '<', it must be "<init>" and have void signature.
+          // If a class method name begins with '<', it must be "<init>" and have void signature
+          // unless it's an inline type.
           const unsigned int name_len = name->utf8_length();
           if (tag == JVM_CONSTANT_Methodref && name_len != 0 &&
               name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
@@ -721,8 +722,12 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
                 "Bad method name at constant pool index %u in class file %s",
                 name_ref_index, THREAD);
               return;
-            } else if (!Signature::is_void_method(signature) && !EnableValhalla) { // must have void signature (unless inline type).
-              throwIllegalSignature("Method", name, signature, CHECK);
+            } else if (!Signature::is_void_method(signature)) {
+              // if return type is non-void then it cannot be a basic primitive
+              // and primitve types must be supported.
+              if (!signature->ends_with(JVM_SIGNATURE_ENDCLASS) || !EnableValhalla) {
+                throwIllegalSignature("Method", name, signature, CHECK);
+              }
             }
           }
         }
