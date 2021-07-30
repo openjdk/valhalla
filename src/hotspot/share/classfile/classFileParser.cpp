@@ -4155,10 +4155,8 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
   const InstanceKlass* super_klass = NULL;
 
   if (super_class_index == 0) {
-    check_property(_class_name == vmSymbols::java_lang_Object()
-                   || (_access_flags.get_flags() & JVM_ACC_INLINE),
-                   "Invalid superclass index %u in class file %s",
-                   super_class_index,
+    check_property(_class_name == vmSymbols::java_lang_Object(),
+                   "Invalid superclass index 0 in class file %s",
                    CHECK_NULL);
   } else {
     check_property(valid_klass_reference_at(super_class_index),
