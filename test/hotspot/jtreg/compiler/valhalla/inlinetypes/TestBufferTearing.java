@@ -101,10 +101,10 @@ public class TestBufferTearing {
 
     static {
         try {
-            Class<?> clazz = MyValue.class;
+            Class<?> clazz = MyValue.class.asValueType();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(MyValue.class);
+            MethodType mt = MethodType.methodType(MyValue.class.asValueType());
             incrementAndCheck_mh = lookup.findVirtual(clazz, "incrementAndCheck", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();

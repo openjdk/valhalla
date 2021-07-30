@@ -156,14 +156,14 @@ public class ObjectMethods {
     Object[][] hashcodeTests() {
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return new Object[][]{
-            { P1,                   hash(Point.class, 1, 2) },
-            { LINE1,                hash(Line.class, Point.makePoint(1, 2), Point.makePoint(3, 4)) },
+            { P1,                   hash(Point.class.asValueType(), 1, 2) },
+            { LINE1,                hash(Line.class.asValueType(), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
             { VALUE,                hash(hashCodeComponents(VALUE))},
             { VALUE1,               hash(hashCodeComponents(VALUE1))},
-            { Point.makePoint(0,0), hash(Point.class, 0, 0) },
-            { Point.default,        hash(Point.class, 0, 0) },
-            { MyValue1.default,     hash(MyValue1.class, Point.default, null) },
-            { new MyValue1(0, 0, null), hash(MyValue1.class, Point.makePoint(0,0), null) },
+            { Point.makePoint(0,0), hash(Point.class.asValueType(), 0, 0) },
+            { Point.default,        hash(Point.class.asValueType(), 0, 0) },
+            { MyValue1.default,     hash(MyValue1.class.asValueType(), Point.default, null) },
+            { new MyValue1(0, 0, null), hash(MyValue1.class.asValueType(), Point.makePoint(0,0), null) },
         };
     }
 

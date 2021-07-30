@@ -76,7 +76,7 @@ public class UninitializedValueTest {
 
         // field of primitive value type must be non-null
         Field f1 = v.getClass().getDeclaredField("empty");
-        assertTrue(f1.getType() == EmptyValue.class);
+        assertTrue(f1.getType() == EmptyValue.class.asValueType());
         EmptyValue empty = (EmptyValue)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
     }
@@ -90,12 +90,12 @@ public class UninitializedValueTest {
 
         // field of primitive value type type must be non-null
         Field f1 = v.getClass().getDeclaredField("empty");
-        assertTrue(f1.getType() == EmptyValue.class);
+        assertTrue(f1.getType() == EmptyValue.class.asValueType());
         EmptyValue empty = (EmptyValue)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
         Field f2 = v.getClass().getDeclaredField("vempty");
-        assertTrue(f2.getType() == EmptyValue.class);
+        assertTrue(f2.getType() == EmptyValue.class.asValueType());
         EmptyValue vempty = (EmptyValue)f2.get(v);
         assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
 
@@ -108,7 +108,7 @@ public class UninitializedValueTest {
     @Test
     public void testMethodHandleValue() throws Throwable {
         Value v = new Value();
-        MethodHandle mh = MethodHandles.lookup().findGetter(Value.class, "empty", EmptyValue.class);
+        MethodHandle mh = MethodHandles.lookup().findGetter(Value.class.asValueType(), "empty", EmptyValue.class.asValueType());
         EmptyValue empty = (EmptyValue) mh.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
     }
@@ -116,20 +116,20 @@ public class UninitializedValueTest {
     @Test
     public void testMethodHandleMutableValue() throws Throwable {
         MutableValue v = new MutableValue();
-        MethodHandle getter = MethodHandles.lookup().findGetter(MutableValue.class, "empty", EmptyValue.class);
+        MethodHandle getter = MethodHandles.lookup().findGetter(MutableValue.class, "empty", EmptyValue.class.asValueType());
         EmptyValue empty = (EmptyValue) getter.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
-        MethodHandle getter1 = MethodHandles.lookup().findGetter(MutableValue.class, "vempty", EmptyValue.class);
+        MethodHandle getter1 = MethodHandles.lookup().findGetter(MutableValue.class, "vempty", EmptyValue.class.asValueType());
         EmptyValue vempty = (EmptyValue) getter1.invokeExact(v);
         assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
 
-        MethodHandle setter = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyValue.class);
+        MethodHandle setter = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyValue.class.asValueType());
         setter.invokeExact(v, new EmptyValue());
         empty = (EmptyValue) getter.invokeExact(v);
         assertTrue(empty == new EmptyValue());
 
-        MethodHandle setter1 = MethodHandles.lookup().findSetter(MutableValue.class, "vempty", EmptyValue.class);
+        MethodHandle setter1 = MethodHandles.lookup().findSetter(MutableValue.class, "vempty", EmptyValue.class.asValueType());
         setter1.invokeExact(v, new EmptyValue());
         vempty = (EmptyValue) getter1.invokeExact(v);
         assertTrue(vempty == new EmptyValue());
@@ -152,7 +152,7 @@ public class UninitializedValueTest {
     @Test(expectedExceptions = { NullPointerException.class})
     public void nonNullableField_MethodHandle() throws Throwable {
         MutableValue v = new MutableValue();
-        MethodHandle mh = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyValue.class);
+        MethodHandle mh = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyValue.class.asValueType());
         EmptyValue.ref e = null;
         EmptyValue empty = (EmptyValue) mh.invokeExact(v, (EmptyValue)e);
     }

@@ -43,7 +43,7 @@ public class ValueConstantDesc {
     @DataProvider(name="descs")
     static Object[][] descs() {
         return new Object[][]{
-            new Object[] { Point.class,     ClassDesc.ofDescriptor("Q" + NAME + ";"), NAME},
+            new Object[] { Point.class.asValueType(),     ClassDesc.ofDescriptor("Q" + NAME + ";"), NAME},
             new Object[] { Point.ref.class, ClassDesc.ofDescriptor("L" + NAME + ";"), NAME},
             new Object[] { Point[].class,   ClassDesc.ofDescriptor("[Q" + NAME + ";"), NAME + "[]"},
             new Object[] { Point.ref[][].class, ClassDesc.ofDescriptor("[[L" + NAME + ";"), NAME + "[][]"},
@@ -68,7 +68,7 @@ public class ValueConstantDesc {
     @DataProvider(name="componentTypes")
     static Object[][] componentTypes() {
         return new Object[][]{
-            new Object[] { Point.class },
+            new Object[] { Point.class.asValueType() },
             new Object[] { Point.ref.class }
         };
     }
@@ -88,7 +88,7 @@ public class ValueConstantDesc {
     @DataProvider(name="valueDesc")
     static Object[][] valueDesc() {
         return new Object[][]{
-                new Object[] { Point.class,         "Q" + NAME + ";"},
+                new Object[] { Point.class.asValueType(),         "Q" + NAME + ";"},
                 new Object[] { Point.ref.class,     "L" + NAME + ";"},
                 new Object[] { Point[].class,       "[Q" + NAME + ";"},
                 new Object[] { Point.ref[][].class, "[[L" + NAME + ";"},

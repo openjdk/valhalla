@@ -2691,15 +2691,10 @@ public class Attr extends JCTree.Visitor {
                     methodName == names.getClass &&
                     argtypes.isEmpty()) {
                 // as a special case, x.getClass() has type Class<? extends |X|>
-                // Temporary treatment for primitive classes: Given a primitive class V that implements
-                // I1, I2, ... In, v.getClass() is typed to be Class<? extends Object & I1 & I2 .. & In>
-                Type wcb;
-                if (qualifierType.isPrimitiveClass()) {
-                    List<Type> bounds = List.of(syms.objectType).appendList(((ClassSymbol) qualifierType.tsym).getInterfaces());
-                    wcb = bounds.size() > 1 ? types.makeIntersectionType(bounds) : syms.objectType;
-                } else {
-                    wcb = types.erasure(qualifierType);
-                }
+                // Special treatment for primitive classes: Given an expression v of type V where
+                // V is a primitive class, v.getClass() is typed to be Class<? extends |V.ref|>
+                Type wcb = types.erasure(qualifierType.isPrimitiveClass() ?
+                                                qualifierType.referenceProjection() : qualifierType);
                 return new ClassType(restype.getEnclosingType(),
                         List.of(new WildcardType(wcb,
                                 BoundKind.EXTENDS,
@@ -4399,6 +4394,16 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute the qualifier expression, and determine its symbol (if any).
         Type site = attribTree(tree.selected, env, new ResultInfo(skind, Type.noType));
+        Assert.check(site == tree.selected.type);
+        if (tree.name == names._class && site.isPrimitiveClass()) {
+            /* JDK-8269956: Where a reflective (class) literal is needed, the unqualified Point.class is
+             * always the "primary" mirror - representing the primitive reference runtime type - thereby
+             * always matching the behavior of Object::getClass
+             */
+             if (!tree.selected.hasTag(SELECT) || ((JCFieldAccess) tree.selected).name != names.val) {
+                 tree.selected.setType(site = site.referenceProjection());
+             }
+        }
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
 

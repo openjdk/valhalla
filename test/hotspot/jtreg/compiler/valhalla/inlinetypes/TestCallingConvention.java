@@ -51,14 +51,14 @@ public class TestCallingConvention {
             Class<?> clazz = TestCallingConvention.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(MyValue2.class, boolean.class);
+            MethodType mt = MethodType.methodType(MyValue2.class.asValueType(), boolean.class);
             test32_mh = lookup.findVirtual(clazz, "test32_interp", mt);
 
             mt = MethodType.methodType(Object.class, boolean.class);
             test33_mh = lookup.findVirtual(clazz, "test33_interp", mt);
 
             mt = MethodType.methodType(int.class);
-            test37_mh = lookup.findVirtual(Test37Value.class, "test", mt);
+            test37_mh = lookup.findVirtual(Test37Value.class.asValueType(), "test", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -290,7 +290,7 @@ public class TestCallingConvention {
     public long test13_interp(MyValue2 v, MyValue1[] va, boolean deopt) {
         if (deopt) {
             // uncommon trap
-            deoptimize("test13", MyValue2.class, MyValue1[].class, boolean.class, long.class);
+            deoptimize("test13", MyValue2.class.asValueType(), MyValue1[].class, boolean.class, long.class);
         }
         return v.hash() + va[0].hash() + va[1].hash();
     }

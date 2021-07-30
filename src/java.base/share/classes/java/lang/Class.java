@@ -596,6 +596,7 @@ public final class Class<T> implements java.io.Serializable,
      *         this class or interface
      * @since Valhalla
      */
+    @IntrinsicCandidate
     public Class<?> asPrimaryType() {
         return isPrimitiveClass() ? primaryType : this;
     }
@@ -613,6 +614,7 @@ public final class Class<T> implements java.io.Serializable,
      *         is not a primitive class
      * @since Valhalla
      */
+    @IntrinsicCandidate
     public Class<?> asValueType() {
         if (isPrimitiveClass())
             return secondaryType;

@@ -5616,6 +5616,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 
 // Move a value between registers/stack slots and update the reg_state
 bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
+  assert(from->is_valid() && to->is_valid(), "source and destination must be valid");
   if (reg_state[to->value()] == reg_written) {
     return true; // Already written
   }
@@ -5700,7 +5701,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
                                           VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
                                           RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
-  assert(from->is_valid(), "source must bevalid");
+  assert(from->is_valid(), "source must be valid");
   Register tmp1 = r10, tmp2 = r11;
   Register fromReg;
   if (from->is_reg()) {
@@ -5717,6 +5718,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
   VMReg toReg;
   BasicType bt;
   while (stream.next(toReg, bt)) {
+    assert(toReg->is_valid(), "destination must be valid");
     int off = sig->at(stream.sig_index())._offset;
     assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
@@ -5801,6 +5803,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   VMReg fromReg;
   BasicType bt;
   while (stream.next(fromReg, bt)) {
+    assert(fromReg->is_valid(), "source must be valid");
     int off = sig->at(stream.sig_index())._offset;
     assert(off > 0, "offset in object should be positive");
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
