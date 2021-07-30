@@ -2074,7 +2074,7 @@ void GraphBuilder::withfield(int field_index) {
   Value val = pop(type);
   Value obj = apop();
 
-  if (!holder->is_loaded()) {
+  if (!holder->is_loaded() || !holder->is_inlinetype()) {
     apush(append_split(new Deoptimize(holder, state_before)));
     return;
   }
@@ -2083,7 +2083,6 @@ void GraphBuilder::withfield(int field_index) {
   const bool needs_patching = !field_modify->will_link(method(), Bytecodes::_withfield) ||
                               (!field_modify->is_flattened() && PatchALot);
   const int offset_modify = !needs_patching ? field_modify->offset() : -1;
-  assert(holder->is_inlinetype(), "must be an inline klass");
 
   scope()->set_wrote_final();
   scope()->set_wrote_fields();
