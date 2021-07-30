@@ -407,23 +407,23 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
         }
       }
     }
-  } else {
-    // Hoist constant load inputs as well.
-    for (uint i = 1; i < best->req(); ++i) {
-      Node* n = best->in(i);
-      if (n->is_Con() && get_block_for_node(n) == get_block_for_node(best)) {
-        get_block_for_node(n)->find_remove(n);
-        block->add_inst(n);
-        map_node_to_block(n, block);
-        // Constant loads may kill flags (for example, when XORing a register).
-        // Check for flag-killing projections that also need to be hoisted.
-        for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++) {
-          Node* proj = n->fast_out(j);
-          if (proj->is_MachProj()) {
-            get_block_for_node(proj)->find_remove(proj);
-            block->add_inst(proj);
-            map_node_to_block(proj, block);
-          }
+  }
+
+  // Hoist constant load inputs as well.
+  for (uint i = 1; i < best->req(); ++i) {
+    Node* n = best->in(i);
+    if (n->is_Con() && get_block_for_node(n) == get_block_for_node(best)) {
+      get_block_for_node(n)->find_remove(n);
+      block->add_inst(n);
+      map_node_to_block(n, block);
+      // Constant loads may kill flags (for example, when XORing a register).
+      // Check for flag-killing projections that also need to be hoisted.
+      for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++) {
+        Node* proj = n->fast_out(j);
+        if (proj->is_MachProj()) {
+          get_block_for_node(proj)->find_remove(proj);
+          block->add_inst(proj);
+          map_node_to_block(proj, block);
         }
       }
     }
