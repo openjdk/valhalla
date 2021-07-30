@@ -130,7 +130,8 @@ private:
     return align_object_size((intptr_t)size_in_words);
   }
 
-  inline int object_size();
+ public:
+  inline int object_size(const TypeArrayKlass* tk) const;
 };
 
 #endif // SHARE_OOPS_TYPEARRAYOOP_HPP
