@@ -3909,7 +3909,6 @@ public class TestLWorld {
     @Run(test = "test143")
     @Warmup(10000)
     public void test143_verifier() throws Throwable {
-        intField = 42;
         try {
             test143();
             throw new RuntimeException("IncompatibleClassChangeError expected");
