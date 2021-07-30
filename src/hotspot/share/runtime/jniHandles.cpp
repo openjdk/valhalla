@@ -209,7 +209,7 @@ jobjectRefType JNIHandles::handle_type(Thread* thread, jobject handle) {
       // Not in global storage.  Might be a local handle.
       if (is_local_handle(thread, handle) ||
           (thread->is_Java_thread() &&
-           is_frame_handle(thread->as_Java_thread(), handle))) {
+           is_frame_handle(JavaThread::cast(thread), handle))) {
         result = JNILocalRefType;
       }
       break;
@@ -304,7 +304,7 @@ void JNIHandles::verify() {
 bool JNIHandles::current_thread_in_native() {
   Thread* thread = Thread::current();
   return (thread->is_Java_thread() &&
-          thread->as_Java_thread()->thread_state() == _thread_in_native);
+          JavaThread::cast(thread)->thread_state() == _thread_in_native);
 }
 
 bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
@@ -318,7 +318,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
       // The two references are different, they are not null and they are both inline types,
       // a full substitutability test is required, calling ValueBootstrapMethods.isSubstitutable()
       // (similarly to InterpreterRuntime::is_substitutable)
-      JavaThread* THREAD = Thread::current()->as_Java_thread();
+      JavaThread* THREAD = JavaThread::current();
       Handle ha(THREAD, obj1);
       Handle hb(THREAD, obj2);
       JavaValue result(T_BOOLEAN);

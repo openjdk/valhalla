@@ -1875,17 +1875,6 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(address, phase);
-  if (alloc != NULL && mem->is_Proj() &&
-      mem->in(0) != NULL &&
-      mem->in(0) == alloc->initialization() &&
-      Opcode() == Op_LoadX &&
-      alloc->initialization()->proj_out_or_null(0) != NULL) {
-    InitializeNode* init = alloc->initialization();
-    Node* control = init->proj_out(0);
-    return alloc->make_ideal_mark(phase, control, mem);
-  }
-
   return progress ? this : NULL;
 }
 
@@ -2186,7 +2175,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     }
   }
   Node* alloc = is_new_object_mark_load(phase);
-  if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
+  if (alloc != NULL) {
     if (EnableValhalla) {
       // The mark word may contain property bits (inline, flat, null-free)
       Node* klass_node = alloc->in(AllocateNode::KlassNode);
@@ -3441,7 +3430,8 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
 
 void MemBarNode::remove(PhaseIterGVN *igvn) {
   if (outcnt() != 2) {
-    return;
+    assert(Opcode() == Op_Initialize, "Only seen when there are no use of init memory");
+    assert(outcnt() == 1, "Only control then");
   }
   if (trailing_store() || trailing_load_store()) {
     MemBarNode* leading = leading_membar();
@@ -3450,8 +3440,12 @@ void MemBarNode::remove(PhaseIterGVN *igvn) {
       leading->remove(igvn);
     }
   }
-  igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
-  igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+  if (proj_out_or_null(TypeFunc::Memory) != NULL) {
+    igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
+  }
+  if (proj_out_or_null(TypeFunc::Control) != NULL) {
+    igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+  }
 }
 
 //------------------------------Ideal------------------------------------------

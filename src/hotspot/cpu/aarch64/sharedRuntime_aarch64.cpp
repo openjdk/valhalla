@@ -2044,15 +2044,10 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
-    if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, lock_done, &slow_path_lock);
-    }
-
     // Load (object->mark() | 1) into swap_reg %r0
     __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ orr(swap_reg, rscratch1, 1);
     if (EnableValhalla) {
-      assert(!UseBiasedLocking, "Not compatible with biased-locking");
       // Mask inline_type bit such that we go to the slow path if object is an inline type
       __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
     }
@@ -2201,11 +2196,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
     Label done;
-
-    if (UseBiasedLocking) {
-      __ biased_locking_exit(obj_reg, old_hdr, done);
-    }
-
     // Simple recursive lock?
 
     __ ldr(rscratch1, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));

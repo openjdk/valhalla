@@ -59,7 +59,7 @@ public class LockDuringDump {
 
         for (int i = 0; i < 2; i++) {
             // i = 0 -- dump without agent
-            // i = 1 -- dump with agent = disable BiasedLocking
+            // i = 1 -- dump with agent
 
             String agentArg   = (i == 0) ? "-showversion" : "-javaagent:" + agentJar;
             String agentArg2  = (i == 0) ? "-showversion" : "-XX:+AllowArchivingWithJavaAgent";

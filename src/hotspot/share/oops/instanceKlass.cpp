@@ -76,7 +76,6 @@
 #include "prims/methodComparator.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
@@ -548,15 +547,10 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
     }
     _java_fields_count = parser.java_fields_count();
 
-    assert(NULL == _methods, "underlying memory not zeroed?");
-    assert(is_instance_klass(), "is layout incorrect?");
-    assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
+  assert(NULL == _methods, "underlying memory not zeroed?");
+  assert(is_instance_klass(), "is layout incorrect?");
+  assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
 
-  // Set biased locking bit for all instances of this class; it will be
-  // cleared if revocation occurs too often for this type
-  if (UseBiasedLocking && BiasedLocking::enabled()) {
-    set_prototype_header(markWord::biased_locking_prototype());
-  }
   if (has_inline_type_fields()) {
     _inline_type_field_klasses = (const Klass**) adr_inline_type_field_klasses();
   }
@@ -733,7 +727,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   set_annotations(NULL);
 
   if (Arguments::is_dumping_archive()) {
-    SystemDictionaryShared::remove_dumptime_info(this);
+    SystemDictionaryShared::handle_class_unloading(this);
   }
 }
 
@@ -1014,6 +1008,9 @@ bool InstanceKlass::link_class_impl(TRAPS) {
 
     if (!is_linked()) {
       if (!is_rewritten()) {
+        if (is_shared()) {
+          assert(!verified_at_dump_time(), "must be");
+        }
         {
           bool verify_ok = verify_code(THREAD);
           if (!verify_ok) {
@@ -1045,9 +1042,11 @@ bool InstanceKlass::link_class_impl(TRAPS) {
       // initialize_vtable and initialize_itable need to be rerun
       // for a shared class if
       // 1) the class is loaded by custom class loader or
-      // 2) the class is loaded by built-in class loader but failed to add archived loader constraints
+      // 2) the class is loaded by built-in class loader but failed to add archived loader constraints or
+      // 3) the class was not verified during dump time
       bool need_init_table = true;
-      if (is_shared() && SystemDictionaryShared::check_linking_constraints(THREAD, this)) {
+      if (is_shared() && verified_at_dump_time() &&
+          SystemDictionaryShared::check_linking_constraints(THREAD, this)) {
         need_init_table = false;
       }
       if (need_init_table) {
@@ -2551,7 +2550,8 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
 void InstanceKlass::remove_unshareable_info() {
 
-  if (can_be_verified_at_dumptime()) {
+  if (is_linked()) {
+    assert(can_be_verified_at_dumptime(), "must be");
     // Remember this so we can avoid walking the hierarchy at runtime.
     set_verified_at_dump_time();
   }
@@ -2691,15 +2691,9 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
     array_klasses()->restore_unshareable_info(ClassLoaderData::the_null_class_loader_data(), Handle(), CHECK);
   }
 
-  // Initialize current biased locking state.
-  if (UseBiasedLocking && BiasedLocking::enabled() && !is_inline_klass()) {
-    set_prototype_header(markWord::biased_locking_prototype());
-  }
-
   // Initialize @ValueBased class annotation
   if (DiagnoseSyncOnValueBasedClasses && has_value_based_class_annotation()) {
     set_is_value_based();
-    set_prototype_header(markWord::prototype());
   }
 }
 
@@ -2774,7 +2768,7 @@ void InstanceKlass::unload_class(InstanceKlass* ik) {
   ClassLoadingService::notify_class_unloaded(ik);
 
   if (Arguments::is_dumping_archive()) {
-    SystemDictionaryShared::remove_dumptime_info(ik);
+    SystemDictionaryShared::handle_class_unloading(ik);
   }
 
   if (log_is_enabled(Info, class, unload)) {
@@ -3813,7 +3807,7 @@ void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,
     } else if (loader_data == ClassLoaderData::the_null_class_loader_data()) {
       Thread* current = Thread::current();
       Klass* caller = current->is_Java_thread() ?
-        current->as_Java_thread()->security_get_caller_class(1):
+        JavaThread::cast(current)->security_get_caller_class(1):
         NULL;
       // caller can be NULL, for example, during a JVMTI VM_Init hook
       if (caller != NULL) {

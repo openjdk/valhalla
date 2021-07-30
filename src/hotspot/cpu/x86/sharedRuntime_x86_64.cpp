@@ -169,6 +169,10 @@ class RegisterSaver {
   static void restore_result_registers(MacroAssembler* masm);
 };
 
+// Register is a class, but it would be assigned numerical value.
+// "0" is assigned for rax. Thus we need to ignore -Wnonnull.
+PRAGMA_DIAG_PUSH
+PRAGMA_NONNULL_IGNORED
 OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words, bool save_vectors) {
   int off = 0;
   int num_xmm_regs = XMMRegisterImpl::number_of_registers;
@@ -361,6 +365,7 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
 
   return map;
 }
+PRAGMA_DIAG_POP
 
 void RegisterSaver::restore_live_registers(MacroAssembler* masm, bool restore_vectors) {
   int num_xmm_regs = XMMRegisterImpl::number_of_registers;
@@ -2329,17 +2334,12 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ movptr(obj_reg, Address(oop_handle_reg, 0));
 
-    if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, rscratch2, false, lock_done, &slow_path_lock);
-    }
-
     // Load immediate 1 into swap_reg %rax
     __ movl(swap_reg, 1);
 
     // Load (object->mark() | 1) into swap_reg %rax
     __ orptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     if (EnableValhalla) {
-      assert(!UseBiasedLocking, "Not compatible with biased-locking");
       // Mask inline_type bit such that we go to the slow path if object is an inline type
       __ andptr(swap_reg, ~((int) markWord::inline_type_bit_in_place));
     }
@@ -2490,11 +2490,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ movptr(obj_reg, Address(oop_handle_reg, 0));
 
     Label done;
-
-    if (UseBiasedLocking) {
-      __ biased_locking_exit(obj_reg, old_hdr, done);
-    }
-
     // Simple recursive lock?
 
     __ cmpptr(Address(rsp, lock_slot_offset * VMRegImpl::stack_slot_size), (int32_t)NULL_WORD);
