@@ -42,7 +42,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
 
@@ -1079,6 +1079,7 @@ public class TestLWorld {
     }
 
     @Run(test = "test35")
+    @Warmup(10000)
     public void test35_verifier() throws Throwable {
         int index = Math.abs(rI) % 3;
         try {
@@ -1406,6 +1407,7 @@ public class TestLWorld {
     }
 
     @Run(test = "test44")
+    @Warmup(10000)
     public void test44_verifier() throws Throwable {
         int index = Math.abs(rI) % 3;
         try {
@@ -3908,5 +3910,35 @@ public class TestLWorld {
     public void test142_verifier() {
         long res = test142();
         Asserts.assertEquals(res, testValue2.hash());
+    }
+
+    public int intField;
+
+    private static final MethodHandle withfieldWithInvalidHolder = InstructionHelper.loadCode(MethodHandles.lookup(),
+        "withfieldWithInvalidHolder",
+        MethodType.methodType(void.class, TestLWorld.class, int.class),
+        CODE -> {
+            CODE.
+            aload_0().
+            iload_1().
+            withfield(TestLWorld.class, "intField", "I").
+            return_();
+        });
+
+    // Test withfield on identity class
+    @Test
+    public void test143() throws Throwable {
+        withfieldWithInvalidHolder.invoke(this, 0);
+    }
+
+    @Run(test = "test143")
+    @Warmup(10000)
+    public void test143_verifier() throws Throwable {
+        try {
+            test143();
+            throw new RuntimeException("IncompatibleClassChangeError expected");
+        } catch (IncompatibleClassChangeError e) {
+            // Expected
+        }
     }
 }

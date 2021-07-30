@@ -27,7 +27,7 @@
  * @summary test scenarios where getfield, putfield, and withfield access the
  *          same constant pool field_ref and test other withfield error cases.
  * @compile withfieldTests.jcod
- * @run main/othervm -Xverify:remote -Xint RunWithfieldTests
+ * @run main/othervm -Xverify:remote RunWithfieldTests
  */
 
 public class RunWithfieldTests {
