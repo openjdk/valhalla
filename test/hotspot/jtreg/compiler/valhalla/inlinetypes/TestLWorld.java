@@ -2958,6 +2958,7 @@ public class TestLWorld {
 
         final static WrapperInterface ZERO = new LongWrapper(0);
 
+        @ForceInline
         static WrapperInterface wrap(long val) {
             return (val == 0L) ? ZERO : new LongWrapper(val);
         }
@@ -2968,14 +2969,17 @@ public class TestLWorld {
         final static LongWrapper ZERO = new LongWrapper(0);
         private long val;
 
+        @ForceInline
         LongWrapper(long val) {
             this.val = val;
         }
 
+        @ForceInline
         static LongWrapper wrap(long val) {
             return (val == 0L) ? ZERO : new LongWrapper(val);
         }
 
+        @ForceInline
         public long value() {
             return val;
         }
@@ -2984,14 +2988,17 @@ public class TestLWorld {
     static class InterfaceBox {
         WrapperInterface content;
 
+        @ForceInline
         InterfaceBox(WrapperInterface content) {
             this.content = content;
         }
 
+        @ForceInline
         static InterfaceBox box_sharp(long val) {
             return new InterfaceBox(LongWrapper.wrap(val));
         }
 
+        @ForceInline
         static InterfaceBox box(long val) {
             return new InterfaceBox(WrapperInterface.wrap(val));
         }
@@ -3000,14 +3007,17 @@ public class TestLWorld {
     static class ObjectBox {
         Object content;
 
+        @ForceInline
         ObjectBox(Object content) {
             this.content = content;
         }
 
+        @ForceInline
         static ObjectBox box_sharp(long val) {
             return new ObjectBox(LongWrapper.wrap(val));
         }
 
+        @ForceInline
         static ObjectBox box(long val) {
             return new ObjectBox(WrapperInterface.wrap(val));
         }
@@ -3016,14 +3026,17 @@ public class TestLWorld {
     static class RefBox {
         LongWrapper.ref content;
 
+        @ForceInline
         RefBox(LongWrapper.ref content) {
             this.content = content;
         }
 
+        @ForceInline
         static RefBox box_sharp(long val) {
             return new RefBox(LongWrapper.wrap(val));
         }
 
+        @ForceInline
         static RefBox box(long val) {
             return new RefBox((LongWrapper.ref)WrapperInterface.wrap(val));
         }
@@ -3032,10 +3045,12 @@ public class TestLWorld {
     static class InlineBox {
         LongWrapper content;
 
+        @ForceInline
         InlineBox(long val) {
             this.content = LongWrapper.wrap(val);
         }
 
+        @ForceInline
         static InlineBox box(long val) {
             return new InlineBox(val);
         }
@@ -3044,12 +3059,14 @@ public class TestLWorld {
     static class GenericBox<T> {
         T content;
 
+        @ForceInline
         static GenericBox<LongWrapper.ref> box_sharp(long val) {
             GenericBox<LongWrapper.ref> res = new GenericBox<>();
             res.content = LongWrapper.wrap(val);
             return res;
         }
 
+        @ForceInline
         static GenericBox<WrapperInterface> box(long val) {
             GenericBox<WrapperInterface> res = new GenericBox<>();
             res.content = WrapperInterface.wrap(val);
@@ -3228,10 +3245,12 @@ public class TestLWorld {
 
         static final InlineWrapper.ref ZERO = new InlineWrapper(0);
 
+        @ForceInline
         public static WrapperInterface2 wrap(long val) {
             return (val == 0) ? ZERO.content : new LongWrapper2(val);
         }
 
+        @ForceInline
         public static WrapperInterface2 wrap_default(long val) {
             return (val == 0) ? LongWrapper2.default : new LongWrapper2(val);
         }
@@ -3240,10 +3259,12 @@ public class TestLWorld {
     static primitive class LongWrapper2 implements WrapperInterface2 {
         private long val;
 
+        @ForceInline
         public LongWrapper2(long val) {
             this.val = val;
         }
 
+        @ForceInline
         public long value() {
             return val;
         }
@@ -3252,6 +3273,7 @@ public class TestLWorld {
     static primitive class InlineWrapper {
         WrapperInterface2 content;
 
+        @ForceInline
         public InlineWrapper(long val) {
             content = new LongWrapper2(val);
         }
@@ -3260,14 +3282,17 @@ public class TestLWorld {
     static class InterfaceBox2 {
         WrapperInterface2 content;
 
+        @ForceInline
         public InterfaceBox2(long val, boolean def) {
             this.content = def ? WrapperInterface2.wrap_default(val) : WrapperInterface2.wrap(val);
         }
 
+        @ForceInline
         static InterfaceBox2 box(long val) {
             return new InterfaceBox2(val, false);
         }
 
+        @ForceInline
         static InterfaceBox2 box_default(long val) {
             return new InterfaceBox2(val, true);
         }
