@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,8 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestAccessPoint extends VarHandleBaseTest {
+    static final Class<?> type = Point.class.asValueType();
+
     static final Point static_final_v = Point.getInstance(1,1);
 
     static Point static_v;
@@ -80,19 +82,19 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         VarHandle vh;
         try {
             vh = MethodHandles.lookup().findVarHandle(
-                    VarHandleTestAccessPoint.class, "final_v" + postfix, Point.class.asValueType());
+                    VarHandleTestAccessPoint.class, "final_v" + postfix, type);
             vhs.add(vh);
 
             vh = MethodHandles.lookup().findVarHandle(
-                    VarHandleTestAccessPoint.class, "v" + postfix, Point.class.asValueType());
+                    VarHandleTestAccessPoint.class, "v" + postfix, type);
             vhs.add(vh);
 
             vh = MethodHandles.lookup().findStaticVarHandle(
-                VarHandleTestAccessPoint.class, "static_final_v" + postfix, Point.class.asValueType());
+                VarHandleTestAccessPoint.class, "static_final_v" + postfix, type);
             vhs.add(vh);
 
             vh = MethodHandles.lookup().findStaticVarHandle(
-                VarHandleTestAccessPoint.class, "static_v" + postfix, Point.class.asValueType());
+                VarHandleTestAccessPoint.class, "static_v" + postfix, type);
             vhs.add(vh);
 
             if (same) {
@@ -111,22 +113,22 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessPoint.class, "final_v", Point.class.asValueType());
+                VarHandleTestAccessPoint.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessPoint.class, "v", Point.class.asValueType());
+                VarHandleTestAccessPoint.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestAccessPoint.class, "static_final_v", Point.class.asValueType());
+            VarHandleTestAccessPoint.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestAccessPoint.class, "static_v", Point.class.asValueType());
+            VarHandleTestAccessPoint.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
         vhArrayObject = MethodHandles.arrayElementVarHandle(Object[].class);
 
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "point_v", Point.class.asValueType());
+                    Value.class, "point_v", type);
     }
 
 
@@ -211,7 +213,7 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
 
     @Test(dataProvider = "typesProvider")
     public void testTypes(VarHandle vh, List<Class<?>> pts) {
-        assertEquals(vh.varType(), Point.class.asValueType());
+        assertEquals(vh.varType(), type);
 
         assertEquals(vh.coordinateTypes(), pts);
 
@@ -223,12 +225,12 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
     public void testLookupInstanceToStatic() {
         checkIAE("Lookup of static final field to instance final field", () -> {
             MethodHandles.lookup().findStaticVarHandle(
-                    VarHandleTestAccessPoint.class, "final_v", Point.class.asValueType());
+                    VarHandleTestAccessPoint.class, "final_v", type);
         });
 
         checkIAE("Lookup of static field to instance field", () -> {
             MethodHandles.lookup().findStaticVarHandle(
-                    VarHandleTestAccessPoint.class, "v", Point.class.asValueType());
+                    VarHandleTestAccessPoint.class, "v", type);
         });
     }
 
@@ -236,12 +238,12 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
     public void testLookupStaticToInstance() {
         checkIAE("Lookup of instance final field to static final field", () -> {
             MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessPoint.class, "static_final_v", Point.class.asValueType());
+                VarHandleTestAccessPoint.class, "static_final_v", type);
         });
 
         checkIAE("Lookup of instance field to static field", () -> {
             vhStaticField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestAccessPoint.class, "static_v", Point.class.asValueType());
+                VarHandleTestAccessPoint.class, "static_v", type);
         });
     }
 
@@ -1161,79 +1163,79 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         for (int i : new int[]{-1, Integer.MIN_VALUE, 10, 11, Integer.MAX_VALUE}) {
             final int ci = i;
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point x = (Point) vh.get(array, ci);
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 vh.set(array, ci, Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point x = (Point) vh.getVolatile(array, ci);
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 vh.setVolatile(array, ci, Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point x = (Point) vh.getAcquire(array, ci);
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 vh.setRelease(array, ci, Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point x = (Point) vh.getOpaque(array, ci);
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 vh.setOpaque(array, ci, Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 boolean r = vh.compareAndSet(array, ci, Point.getInstance(1,1), Point.getInstance(2,2));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point r = (Point) vh.compareAndExchange(array, ci, Point.getInstance(2,2), Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point r = (Point) vh.compareAndExchangeAcquire(array, ci, Point.getInstance(2,2), Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point r = (Point) vh.compareAndExchangeRelease(array, ci, Point.getInstance(2,2), Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 boolean r = vh.weakCompareAndSetPlain(array, ci, Point.getInstance(1,1), Point.getInstance(2,2));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 boolean r = vh.weakCompareAndSet(array, ci, Point.getInstance(1,1), Point.getInstance(2,2));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 boolean r = vh.weakCompareAndSetAcquire(array, ci, Point.getInstance(1,1), Point.getInstance(2,2));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 boolean r = vh.weakCompareAndSetRelease(array, ci, Point.getInstance(1,1), Point.getInstance(2,2));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point o = (Point) vh.getAndSet(array, ci, Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point o = (Point) vh.getAndSetAcquire(array, ci, Point.getInstance(1,1));
             });
 
-            checkIOOBE(() -> {
+            checkAIOOBE(() -> {
                 Point o = (Point) vh.getAndSetRelease(array, ci, Point.getInstance(1,1));
             });
 
