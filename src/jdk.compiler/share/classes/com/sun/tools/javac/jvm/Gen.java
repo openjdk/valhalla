@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.jvm;
 
-import com.sun.tools.javac.code.Types.UniqueType;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -1067,7 +1066,7 @@ public class Gen extends JCTree.Visitor {
             // If method is not static, create a new local variable address
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
-                Type selfType = meth.owner.type;
+                Type selfType = meth.owner.isPrimitiveClass() ? meth.owner.type.asValueType() : meth.owner.type;
                 if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
@@ -1427,8 +1426,7 @@ public class Gen extends JCTree.Visitor {
 
             if (switchEnv.info.cont != null) {
                 Assert.check(patternSwitch);
-                code.resolve(switchEnv.info.cont);
-                code.resolve(code.branch(goto_), switchStart);
+                code.resolve(switchEnv.info.cont, switchStart);
             }
 
             // Resolve all breaks.
@@ -2282,7 +2280,7 @@ public class Gen extends JCTree.Visitor {
         // primitive reference conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type) || true) &&
+            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.asValueType(), tree.expr.type) || true) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {

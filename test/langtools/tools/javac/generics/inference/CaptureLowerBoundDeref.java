@@ -19,6 +19,6 @@ class CaptureLowerBoundDeref {
     <T> K<T> m(I<? extends T> arg) { return null; }
 
     void test(Wrapper<?> w) {
-        m(w.get()).take(new Object());
+        m(w.get()).take(new Object() {});
     }
 }

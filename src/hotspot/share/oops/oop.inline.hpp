@@ -32,7 +32,7 @@
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/compressedOops.inline.hpp"
-#include "oops/markWord.inline.hpp"
+#include "oops/markWord.hpp"
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/globals.hpp"
@@ -46,6 +46,11 @@
 
 markWord oopDesc::mark() const {
   uintptr_t v = HeapAccess<MO_RELAXED>::load_at(as_oop(), mark_offset_in_bytes());
+  return markWord(v);
+}
+
+markWord oopDesc::mark_acquire() const {
+  uintptr_t v = HeapAccess<MO_ACQUIRE>::load_at(as_oop(), mark_offset_in_bytes());
   return markWord(v);
 }
 
@@ -75,7 +80,7 @@ markWord oopDesc::cas_set_mark(markWord new_mark, markWord old_mark, atomic_memo
 }
 
 void oopDesc::init_mark() {
-  set_mark(markWord::prototype_for_klass(klass()));
+  set_mark(Klass::default_prototype_header(klass()));
 }
 
 Klass* oopDesc::klass() const {
@@ -267,10 +272,6 @@ bool oopDesc::is_locked() const {
 
 bool oopDesc::is_unlocked() const {
   return mark().is_unlocked();
-}
-
-bool oopDesc::has_bias_pattern() const {
-  return mark().has_bias_pattern();
 }
 
 // Used only for markSweep, scavenging

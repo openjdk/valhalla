@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2490,3 +2490,81 @@ class OldClassWithQArraySig {
     } // end SourceFile
   } // Attributes
 } // end class OldClassWithQArraySig
+
+
+// This class has a super_cpx of zero.  This should cause a ClassFormatError
+// exception when this class is loaded.
+class SuperIsZero {
+  0xCAFEBABE;
+  0; // minor version
+  62; // version
+  [15] { // Constant Pool
+    ; // first element is empty
+    class #2; // #1     at 0x0A
+    Utf8 "SuperIsZero"; // #2     at 0x0D
+    Field #1 #4; // #3     at 0x1A
+    NameAndType #5 #6; // #4     at 0x1F
+    Utf8 "x"; // #5     at 0x24
+    Utf8 "I"; // #6     at 0x28
+    class #8; // #7     at 0x2C
+    Utf8 "java/lang/Object"; // #8     at 0x2F
+    Utf8 "<init>"; // #9     at 0x42
+    Utf8 "()QSuperIsZero;"; // #10     at 0x4B
+    Utf8 "Code"; // #11     at 0x5C
+    Utf8 "LineNumberTable"; // #12     at 0x63
+    Utf8 "SourceFile"; // #13     at 0x75
+    Utf8 "SuperIsZero.java"; // #14     at 0x82
+  } // Constant Pool
+
+  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  #1;// this_cpx
+  #0;// super_cpx // !!! changed 7 to 0
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [1] { // Fields
+    {  // field at 0x9E
+      0x0010; // access
+      #5; // name_index       : x
+      #6; // descriptor_index : I
+      [0] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [1] { // Methods
+    {  // method at 0xA8
+      0x0009; // access
+      #9; // name_index       : <init>
+      #10; // descriptor_index : ()QSuperIsZero;
+      [1] { // Attributes
+        Attr(#11, 45) { // Code at 0xB0
+          2; // max_stack
+          1; // max_locals
+          Bytes[13]{
+            0xCB00014B082A5FCC;
+            0x00034B2AB0;
+          }
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#12, 14) { // LineNumberTable at 0xCF
+              [3] { // line_number_table
+                0  4; //  at 0xDB
+                4  5; //  at 0xDF
+                11  6; //  at 0xE3
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [1] { // Attributes
+    Attr(#13, 2) { // SourceFile at 0xE5
+      #14;
+    } // end SourceFile
+  } // Attributes
+} // end class SuperIsZero

@@ -512,6 +512,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
 
+  case vmIntrinsics::_asPrimaryType:
+  case vmIntrinsics::_asValueType:              return inline_primitive_Class_conversion(intrinsic_id());
+
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
   case vmIntrinsics::_intBitsToFloat:
@@ -1037,16 +1040,17 @@ bool LibraryCallKit::inline_preconditions_checkIndex(BasicType bt) {
                   Deoptimization::Action_make_not_entrant);
   }
 
+  if (stopped()) {
+    // Length is known to be always negative during compilation and the IR graph so far constructed is good so return success
+    return true;
+  }
+
   // length is now known postive, add a cast node to make this explicit
   jlong upper_bound = _gvn.type(length)->is_integer(bt)->hi_as_long();
   Node* casted_length = ConstraintCastNode::make(control(), length, TypeInteger::make(0, upper_bound, Type::WidenMax, bt), bt);
   casted_length = _gvn.transform(casted_length);
   replace_in_map(length, casted_length);
   length = casted_length;
-
-  if (stopped()) {
-    return false;
-  }
 
   // Use an unsigned comparison for the range check itself
   Node* rc_cmp = _gvn.transform(CmpNode::make(index, length, bt, true));
@@ -1066,7 +1070,8 @@ bool LibraryCallKit::inline_preconditions_checkIndex(BasicType bt) {
   }
 
   if (stopped()) {
-    return false;
+    // Range check is known to always fail during compilation and the IR graph so far constructed is good so return success
+    return true;
   }
 
   // index is now known to be >= 0 and < length, cast it
@@ -2516,7 +2521,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->type()->is_inlinetype() && !field->is_flattened()) {
+    if (field != NULL && field->is_null_free() && !field->is_flattened()) {
       // Load a non-flattened inline type from memory
       if (value_type->inline_klass()->is_scalarizable()) {
         p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass());
@@ -3155,10 +3160,6 @@ Node* LibraryCallKit::generate_hidden_class_guard(Node* kls, RegionNode* region)
   return generate_access_flags_guard(kls, JVM_ACC_IS_HIDDEN_CLASS, 0, region);
 }
 
-Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
-  return generate_access_flags_guard(kls, JVM_ACC_INLINE, 0, region);
-}
-
 //-------------------------inline_native_Class_query-------------------
 bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   const Type* return_type = TypeInt::BOOL;
@@ -3345,6 +3346,35 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   return true;
 }
 
+//-------------------------inline_primitive_Class_conversion-------------------
+// public Class<T> java.lang.Class.asPrimaryType();
+// public Class<T> java.lang.Class.asValueType()
+bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
+  Node* mirror = argument(0); // Receiver Class
+  const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
+  if (mirror_con == NULL) {
+    return false;
+  }
+
+  bool is_val_mirror = true;
+  ciType* tm = mirror_con->java_mirror_type(&is_val_mirror);
+  if (tm != NULL) {
+    Node* result = mirror;
+    if (id == vmIntrinsics::_asPrimaryType && is_val_mirror) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->ref_mirror()));
+    } else if (id == vmIntrinsics::_asValueType) {
+      if (!tm->is_inlinetype()) {
+        return false; // Throw UnsupportedOperationException
+      } else if (!is_val_mirror) {
+        result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->val_mirror()));
+      }
+    }
+    set_result(result);
+    return true;
+  }
+  return false;
+}
+
 //-------------------------inline_Class_cast-------------------
 bool LibraryCallKit::inline_Class_cast() {
   Node* mirror = argument(0); // Class
@@ -3367,15 +3397,14 @@ bool LibraryCallKit::inline_Class_cast() {
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
   bool requires_null_check = false;
-  ciType* tm = mirror_con->java_mirror_type();
+  ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
+  // Check for null if casting to QMyValue
+  requires_null_check &= !obj->is_InlineType();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-      // Check for null if casting to .val
-      requires_null_check = !obj->is_InlineType() && tm->as_klass()->is_inlinetype();
-
       int static_res = C->static_subtype_check(tm->as_klass(), obj_klass);
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
@@ -3424,20 +3453,22 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* res = top();
   if (!stopped()) {
     if (EnableValhalla && !obj->is_InlineType() && !requires_null_check) {
-      // Check if we are casting to .val
-      Node* is_val_kls = generate_value_guard(kls, NULL);
-      if (is_val_kls != NULL) {
+      // Check if we are casting to QMyValue
+      Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), NULL);
+      if (ctrl_val_mirror != NULL) {
         RegionNode* r = new RegionNode(3);
         record_for_igvn(r);
         r->init_req(1, control());
 
-        // Casting to .val, check for null
-        set_control(is_val_kls);
-        Node* null_ctr = top();
-        null_check_oop(obj, &null_ctr);
-        region->init_req(_npe_path, null_ctr);
-        r->init_req(2, control());
-
+        // Casting to QMyValue, check for null
+        set_control(ctrl_val_mirror);
+        { // PreserveJVMState because null check replaces obj in map
+          PreserveJVMState pjvms(this);
+          Node* null_ctr = top();
+          null_check_oop(obj, &null_ctr);
+          region->init_req(_npe_path, null_ctr);
+          r->init_req(2, control());
+        }
         set_control(_gvn.transform(r));
       }
     }
@@ -3528,6 +3559,9 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* subk   = klasses[1];  // the argument to isAssignableFrom
     Node* superk = klasses[0];  // the receiver
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
+    // If superc is an inline mirror, we also need to check if superc == subc because LMyValue
+    // is not a subtype of QMyValue but due to subk == superk the subtype check will pass.
+    generate_fair_guard(is_val_mirror(args[0]), prim_region);
     // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }
@@ -4092,8 +4126,8 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   Node* header = make_load(no_ctrl, header_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
 
   // Test the header to see if it is unlocked.
-  // This also serves as guard against inline types (they have the always_locked_pattern set).
-  Node *lock_mask      = _gvn.MakeConX(markWord::biased_lock_mask_in_place);
+  // This also serves as guard against inline types
+  Node *lock_mask      = _gvn.MakeConX(markWord::inline_type_mask_in_place);
   Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
   Node *unlocked_val   = _gvn.MakeConX(markWord::unlocked_value);
   Node *chk_unlocked   = _gvn.transform(new CmpXNode( lmasked_header, unlocked_val));
@@ -4429,14 +4463,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   }
 
   Node* size = _gvn.transform(obj_size);
-  // Exclude the header but include array length to copy by 8 bytes words.
-  // Can't use base_offset_in_bytes(bt) since basic type is unknown.
-  int base_off = BarrierSetC2::arraycopy_payload_base_offset(is_array);
-  Node* countx = size;
-  countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
-  countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
-
-  access_clone(obj, alloc_obj, countx, is_array);
+  access_clone(obj, alloc_obj, size, is_array);
 
   // Do not let reads from the cloned object float above the arraycopy.
   if (alloc != NULL) {
@@ -4540,7 +4567,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
-      if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Parsing) &&
+      if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
           obj_type->klass()->can_be_inline_array_klass() &&
           (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
@@ -4760,6 +4787,36 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     Node* alloc_mem = alloc->in(TypeFunc::Memory);
     C->gvn_replace_by(callprojs->fallthrough_ioproj, alloc->in(TypeFunc::I_O));
     C->gvn_replace_by(init->proj_out(TypeFunc::Memory), alloc_mem);
+
+    // The CastIINode created in GraphKit::new_array (in AllocateArrayNode::make_ideal_length) must stay below
+    // the allocation (i.e. is only valid if the allocation succeeds):
+    // 1) replace CastIINode with AllocateArrayNode's length here
+    // 2) Create CastIINode again once allocation has moved (see below) at the end of this method
+    //
+    // Multiple identical CastIINodes might exist here. Each GraphKit::load_array_length() call will generate
+    // new separate CastIINode (arraycopy guard checks or any array length use between array allocation and ararycopy)
+    Node* init_control = init->proj_out(TypeFunc::Control);
+    Node* alloc_length = alloc->Ideal_length();
+#ifdef ASSERT
+    Node* prev_cast = NULL;
+#endif
+    for (uint i = 0; i < init_control->outcnt(); i++) {
+      Node* init_out = init_control->raw_out(i);
+      if (init_out->is_CastII() && init_out->in(TypeFunc::Control) == init_control && init_out->in(1) == alloc_length) {
+#ifdef ASSERT
+        if (prev_cast == NULL) {
+          prev_cast = init_out;
+        } else {
+          if (prev_cast->cmp(*init_out) == false) {
+            prev_cast->dump();
+            init_out->dump();
+            assert(false, "not equal CastIINode");
+          }
+        }
+#endif
+        C->gvn_replace_by(init_out, alloc_length);
+      }
+    }
     C->gvn_replace_by(init->proj_out(TypeFunc::Control), alloc->in(0));
 
     // move the allocation here (after the guards)
@@ -4791,6 +4848,8 @@ void LibraryCallKit::arraycopy_move_allocation_here(AllocateArrayNode* alloc, No
     dest->set_req(0, control());
     Node* destx = _gvn.transform(dest);
     assert(destx == dest, "where has the allocation result gone?");
+
+    array_ideal_length(alloc, ary_type, true);
   }
 }
 
@@ -5650,12 +5709,11 @@ bool LibraryCallKit::inline_vectorizedMismatch() {
   if (do_partial_inline) {
     assert(elem_bt != T_ILLEGAL, "sanity");
 
-    const TypeVect* vt = TypeVect::make(elem_bt, inline_limit);
-
     if (Matcher::match_rule_supported_vector(Op_VectorMaskGen,    inline_limit, elem_bt) &&
         Matcher::match_rule_supported_vector(Op_LoadVectorMasked, inline_limit, elem_bt) &&
         Matcher::match_rule_supported_vector(Op_VectorCmpMasked,  inline_limit, elem_bt)) {
 
+      const TypeVect* vt = TypeVect::make(elem_bt, inline_limit);
       Node* cmp_length = _gvn.transform(new CmpINode(length, intcon(inline_limit)));
       Node* bol_gt     = _gvn.transform(new BoolNode(cmp_length, BoolTest::gt));
 
@@ -6721,7 +6779,7 @@ bool LibraryCallKit::inline_base64_decodeBlock() {
   address stubAddr;
   const char *stubName;
   assert(UseBASE64Intrinsics, "need Base64 intrinsics support");
-  assert(callee()->signature()->size() == 6, "base64_decodeBlock has 6 parameters");
+  assert(callee()->signature()->size() == 7, "base64_decodeBlock has 7 parameters");
   stubAddr = StubRoutines::base64_decodeBlock();
   stubName = "decodeBlock";
 
@@ -6733,6 +6791,7 @@ bool LibraryCallKit::inline_base64_decodeBlock() {
   Node* dest = argument(4);
   Node* dest_offset = argument(5);
   Node* isURL = argument(6);
+  Node* isMIME = argument(7);
 
   src = must_be_not_null(src, true);
   dest = must_be_not_null(dest, true);
@@ -6745,7 +6804,7 @@ bool LibraryCallKit::inline_base64_decodeBlock() {
   Node* call = make_runtime_call(RC_LEAF,
                                  OptoRuntime::base64_decodeBlock_Type(),
                                  stubAddr, stubName, TypePtr::BOTTOM,
-                                 src_start, src_offset, len, dest_start, dest_offset, isURL);
+                                 src_start, src_offset, len, dest_start, dest_offset, isURL, isMIME);
   Node* result = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   set_result(result);
   return true;

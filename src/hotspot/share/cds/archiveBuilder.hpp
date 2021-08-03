@@ -33,7 +33,7 @@
 #include "runtime/os.hpp"
 #include "utilities/bitMap.hpp"
 #include "utilities/growableArray.hpp"
-#include "utilities/hashtable.hpp"
+#include "utilities/resizeableResourceHash.hpp"
 #include "utilities/resourceHash.hpp"
 
 struct ArchiveHeapOopmapInfo;
@@ -184,8 +184,8 @@ private:
 
   class SrcObjTableCleaner {
   public:
-    bool do_entry(address key, const SourceObjInfo* value) {
-      delete value->ref();
+    bool do_entry(address key, const SourceObjInfo& value) {
+      delete value.ref();
       return true;
     }
   };
@@ -204,7 +204,7 @@ private:
 
   SourceObjList _rw_src_objs;                 // objs to put in rw region
   SourceObjList _ro_src_objs;                 // objs to put in ro region
-  KVHashtable<address, SourceObjInfo, mtClassShared> _src_obj_table;
+  ResizeableResourceHashtable<address, SourceObjInfo, ResourceObj::C_HEAP, mtClassShared> _src_obj_table;
   GrowableArray<Klass*>* _klasses;
   GrowableArray<Symbol*>* _symbols;
   GrowableArray<SpecialRefInfo>* _special_refs;
@@ -221,7 +221,7 @@ private:
                           GrowableArray<MemRegion>* closed_heap_regions,
                           GrowableArray<MemRegion>* open_heap_regions);
   void print_bitmap_region_stats(size_t size, size_t total_size);
-  void print_heap_region_stats(GrowableArray<MemRegion> *heap_mem,
+  void print_heap_region_stats(GrowableArray<MemRegion>* regions,
                                const char *name, size_t total_size);
 
   // For global access.

@@ -853,7 +853,7 @@ public class TreeMaker implements JCTree.Factory {
             default: {
                 if (t.isReferenceProjection()) {
                     // For parameterized types, we want V.ref<A1 ... An> not V<A1 ... An>.ref
-                    JCExpression vp = Type(t.valueProjection());
+                    JCExpression vp = Type(t.asValueType());
                     if (vp.hasTag(Tag.TYPEAPPLY)) {
                         // vp now is V<A1 ... An>, build V.ref<A1 ... An>
                         JCFieldAccess f = (JCFieldAccess) Select(((JCTypeApply) vp).clazz, t.tsym);
@@ -862,6 +862,19 @@ public class TreeMaker implements JCTree.Factory {
                     } else {
                         JCFieldAccess f = (JCFieldAccess) Select(vp, t.tsym);
                         f.name = names.ref;
+                        tp = f;
+                    }
+                } else if (t.isValueProjection()) {
+                    // For parameterized types, we want V.val<A1 ... An> not V<A1 ... An>.val
+                    JCExpression vp = Type(t.referenceProjection());
+                    if (vp.hasTag(Tag.TYPEAPPLY)) {
+                        // vp now is V<A1 ... An>, build V.val<A1 ... An>
+                        JCFieldAccess f = (JCFieldAccess) Select(((JCTypeApply) vp).clazz, t.tsym);
+                        f.name = names.val;
+                        tp = TypeApply(f, ((JCTypeApply) vp).arguments);
+                    } else {
+                        JCFieldAccess f = (JCFieldAccess) Select(vp, t.tsym);
+                        f.name = names.val;
                         tp = f;
                     }
                 } else {

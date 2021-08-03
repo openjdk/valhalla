@@ -101,6 +101,39 @@
  *
  * @comment BLOCK BEGIN NON EXCLUSIVE TESTCASES {
  *
+ * @run main/othervm/native
+ *                  -agentlib:IterateHeapWithEscapeAnalysisEnabled
+ *                  -XX:+UnlockDiagnosticVMOptions
+ *                  -Xms256m -Xmx256m
+ *                  -XX:CompileCommand=dontinline,*::dontinline_*
+ *                  -XX:+PrintCompilation
+ *                  -XX:+PrintInlining
+ *                  -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ *                  -Xbatch
+ *                  -XX:+DoEscapeAnalysis -XX:+EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks
+ *                  IterateHeapWithEscapeAnalysisEnabled
+ * @run main/othervm/native
+ *                  -agentlib:IterateHeapWithEscapeAnalysisEnabled
+ *                  -XX:+UnlockDiagnosticVMOptions
+ *                  -Xms256m -Xmx256m
+ *                  -XX:CompileCommand=dontinline,*::dontinline_*
+ *                  -XX:+PrintCompilation
+ *                  -XX:+PrintInlining
+ *                  -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ *                  -Xbatch
+ *                  -XX:+DoEscapeAnalysis -XX:-EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks
+ *                  IterateHeapWithEscapeAnalysisEnabled
+ * @run main/othervm/native
+ *                  -agentlib:IterateHeapWithEscapeAnalysisEnabled
+ *                  -XX:+UnlockDiagnosticVMOptions
+ *                  -Xms256m -Xmx256m
+ *                  -XX:CompileCommand=dontinline,*::dontinline_*
+ *                  -XX:+PrintCompilation
+ *                  -XX:+PrintInlining
+ *                  -XX:+WhiteBoxAPI -Xbootclasspath/a:.
+ *                  -Xbatch
+ *                  -XX:-DoEscapeAnalysis -XX:-EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks
+ *                  IterateHeapWithEscapeAnalysisEnabled
  *
  * @comment } BLOCK END NON EXCLUSIVE TESTCASES
  */

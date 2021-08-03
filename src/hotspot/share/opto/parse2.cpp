@@ -185,7 +185,7 @@ void Parse::array_load(BasicType bt) {
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
         // Prevent any use of the newly allocated inline type before it is fully initialized
-        alloc_obj = new CastPPNode(alloc_obj, _gvn.type(alloc_obj), true);
+        alloc_obj = new CastPPNode(alloc_obj, _gvn.type(alloc_obj), ConstraintCastNode::StrongDependency);
         alloc_obj->set_req(0, control());
         alloc_obj = _gvn.transform(alloc_obj);
 

@@ -350,7 +350,7 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     assert(k1->is_instance_klass(), "previous cases handle non-instances");
     assert(k2->is_instance_klass(), "previous cases handle non-instances");
     ciType* result = k1->least_common_ancestor(k2);
-    if (null_free1 && null_free2) {
+    if (null_free1 && null_free2 && result->is_inlinetype()) {
       result = analyzer->mark_as_null_free(result);
     }
     return result;
@@ -637,6 +637,10 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     }
   } else {
     ciType* type = pop_value();
+    if (type->unwrap() != klass && klass->is_loaded() && type->unwrap()->is_subtype_of(klass)) {
+      // Useless cast, propagate more precise type of object
+      klass = type->unwrap()->as_klass();
+    }
     if (klass->is_inlinetype() && (null_free || type->is_null_free())) {
       push(outer()->mark_as_null_free(klass));
     } else {
@@ -1579,7 +1583,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
 // ------------------------------------------------------------------
 // ciTypeFlow::StateVector::print_cell_on
 void ciTypeFlow::StateVector::print_cell_on(outputStream* st, Cell c) const {
-  ciType* type = type_at(c);
+  ciType* type = type_at(c)->unwrap();
   if (type == top_type()) {
     st->print("top");
   } else if (type == bottom_type()) {

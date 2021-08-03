@@ -74,7 +74,7 @@ public class BasicTest {
     @DataProvider(name="constants")
     static Object[][] constants() {
         return new Object[][]{
-            new Object[] { Point.class, Point.class.asValueType()},
+            new Object[] { Point.class, Point.class.asPrimaryType()},
             new Object[] { Point.val.class, Point.class.asValueType()},
             new Object[] { Point.ref.class, Point.class.asPrimaryType()},
         };
@@ -145,21 +145,21 @@ public class BasicTest {
     @Test
     public void testSubtypes() {
         // Point <: Point.ref and Point <: Object
-        assertTrue(Point.ref.class.isAssignableFrom(Point.class));
-        assertTrue(Object.class.isAssignableFrom(Point.class));
-        assertFalse(Point.class.isAssignableFrom(Point.ref.class));
+        assertTrue(Point.ref.class.isAssignableFrom(Point.class.asValueType()));
+        assertTrue(Object.class.isAssignableFrom(Point.class.asValueType()));
+        assertFalse(Point.class.asValueType().isAssignableFrom(Point.ref.class));
         assertTrue(Object.class.isAssignableFrom(Point.ref.class));
 
-        assertTrue(Point.class.asSubclass(Point.ref.class) == Point.class);
+        assertTrue(Point.class.asValueType().asSubclass(Point.ref.class) == Point.class.asValueType());
         try {
-            Class<?> c = Point.ref.class.asSubclass(Point.class);
+            Class<?> c = Point.ref.class.asSubclass(Point.class.asValueType());
             fail("Point.ref cannot be cast to Point.class");
         } catch (ClassCastException e) { }
 
         Point o = new Point(10, 20);
-        assertTrue(Point.class.isInstance(o));
+        assertTrue(Point.class.asValueType().isInstance(o));
         assertTrue(Point.ref.class.isInstance(o));
-        assertFalse(Point.class.isInstance(null));
+        assertFalse(Point.class.asValueType().isInstance(null));
         assertFalse(Point.ref.class.isInstance(null));
     }
 

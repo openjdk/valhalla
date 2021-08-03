@@ -16,5 +16,5 @@ class InvalidRepAnnoOnCast {
     @Target(ElementType.TYPE_PARAMETER)
     @interface TC { T[] value(); }
 
-    String s = (@T(1) @T(2) String) new Object();
+    String s = (@T(1) @T(2) String) new Object() {};
 }

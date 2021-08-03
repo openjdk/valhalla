@@ -39,7 +39,7 @@ public class ValueArray {
     @DataProvider(name="elementTypes")
     static Object[][] elementTypes() {
         return new Object[][]{
-            new Object[] { Point.class, new Point(0,0) },
+            new Object[] { Point.class.asValueType(), new Point(0,0) },
             new Object[] { Point.ref.class, null },
         };
     }

@@ -53,7 +53,19 @@ inline bool Klass::is_loader_alive() const {
 
 inline void Klass::set_prototype_header(markWord header) {
   assert(!is_inline_klass() || header.is_inline_type(), "Unexpected prototype");
-  assert(!UseBiasedLocking || !header.has_bias_pattern() || is_instance_klass(), "biased locking currently only supported for Java instances");
+  assert(_prototype_header.value() == 0 || _prototype_header == markWord::prototype(),
+         "Prototype already set");
+#ifdef _LP64
+    assert(header == markWord::prototype() ||
+           header.is_inline_type() ||
+           header.is_flat_array() ||
+           header.is_null_free_array(),
+           "unknown prototype header");
+#else
+    assert(header == markWord::prototype() ||
+           header.is_inline_type(),
+           "unknown prototype header");
+#endif
   _prototype_header = header;
 }
 

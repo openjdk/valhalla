@@ -2071,11 +2071,16 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
     assert(storestore->is_MemBarStoreStore(), "");
     Node* alloc = storestore->in(MemBarNode::Precedent)->in(0);
     if (alloc->is_Allocate() && not_global_escape(alloc)) {
-      MemBarNode* mb = MemBarNode::make(C, Op_MemBarCPUOrder, Compile::AliasIdxBot);
-      mb->init_req(TypeFunc::Memory,  storestore->in(TypeFunc::Memory));
-      mb->init_req(TypeFunc::Control, storestore->in(TypeFunc::Control));
-      igvn->register_new_node_with_optimizer(mb);
-      igvn->replace_node(storestore, mb);
+      if (alloc->in(AllocateNode::InlineTypeNode) != NULL) {
+        // Non-escaping inline type buffer allocations don't require a membar
+        storestore->as_MemBar()->remove(_igvn);
+      } else {
+        MemBarNode* mb = MemBarNode::make(C, Op_MemBarCPUOrder, Compile::AliasIdxBot);
+        mb->init_req(TypeFunc::Memory,  storestore->in(TypeFunc::Memory));
+        mb->init_req(TypeFunc::Control, storestore->in(TypeFunc::Control));
+        igvn->register_new_node_with_optimizer(mb);
+        igvn->replace_node(storestore, mb);
+      }
     }
   }
 }

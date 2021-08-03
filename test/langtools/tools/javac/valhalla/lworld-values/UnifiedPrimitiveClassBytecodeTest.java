@@ -46,7 +46,7 @@ public class UnifiedPrimitiveClassBytecodeTest {
             xra = new X.ref[10];
             xra[0] = xa[0];
             xa[1] = xra[0];
-            Class<?> c = X.class;
+            Class<?> c = X.val.class;
             c = X.ref.class;
         }
     }

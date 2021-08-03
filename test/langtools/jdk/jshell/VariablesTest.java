@@ -509,7 +509,7 @@ public class VariablesTest extends KullaTesting {
         assertVarDeclRedefNoInit("double", "d", "3.1415926", "0.0");
         assertVarDeclRedefNoInit("boolean", "n", "true", "false");
         assertVarDeclRedefNoInit("char", "c", "'x'", "'\\000'");
-        assertVarDeclRedefNoInit("Object", "o", "new Object()", IGNORE_VALUE, "null");
+        assertVarDeclRedefNoInit("Object", "o", "new String()", IGNORE_VALUE, "null");
         assertVarDeclRedefNoInit("String", "s", "\"hi\"", "null");
     }
 

@@ -36,7 +36,6 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -1349,8 +1348,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     Label done;
 
     const Register swap_reg = rax; // Must use rax for cmpxchg instruction
-    const Register tmp_reg = rbx; // Will be passed to biased_locking_enter to avoid a
-                                  // problematic case where tmp_reg = no_reg.
+    const Register tmp_reg = rbx;
     const Register obj_reg = LP64_ONLY(c_rarg3) NOT_LP64(rcx); // Will contain the oop
     const Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
@@ -1371,17 +1369,12 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
       jcc(Assembler::notZero, slow_case);
     }
 
-    if (UseBiasedLocking) {
-      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp_reg, rklass_decode_tmp, false, done, &slow_case);
-    }
-
     // Load immediate 1 into swap_reg %rax
     movl(swap_reg, (int32_t)1);
 
     // Load (object->mark() | 1) into swap_reg %rax
     orptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     if (EnableValhalla) {
-      assert(!UseBiasedLocking, "Not compatible with biased-locking");
       // Mask inline_type bit such that we go to the slow path if object is an inline type
       andptr(swap_reg, ~((int) markWord::inline_type_bit_in_place));
     }
@@ -1394,10 +1387,6 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 
     lock();
     cmpxchgptr(lock_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-    if (PrintBiasedLockingStatistics) {
-      cond_inc32(Assembler::zero,
-                 ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
-    }
     jcc(Assembler::zero, done);
 
     const int zero_bits = LP64_ONLY(7) NOT_LP64(3);
@@ -1434,11 +1423,6 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 
     // Save the test result, for recursive case, the result is zero
     movptr(Address(lock_reg, mark_offset), swap_reg);
-
-    if (PrintBiasedLockingStatistics) {
-      cond_inc32(Assembler::zero,
-                 ExternalAddress((address) BiasedLocking::fast_path_entry_count_addr()));
-    }
     jcc(Assembler::zero, done);
 
     bind(slow_case);
@@ -1489,10 +1473,6 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
 
     // Free entry
     movptr(Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()), (int32_t)NULL_WORD);
-
-    if (UseBiasedLocking) {
-      biased_locking_exit(obj_reg, header_reg, done);
-    }
 
     // Load the old header from BasicLock structure
     movptr(header_reg, Address(swap_reg,

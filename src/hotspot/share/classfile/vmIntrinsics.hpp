@@ -237,6 +237,10 @@ class methodHandle;
    do_signature(currentThread_signature,                         "()Ljava/lang/Thread;")                                \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
+  do_intrinsic(_asPrimaryType,            java_lang_Class,        asPrimaryType_name, void_class_signature,      F_R)   \
+   do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
+  do_intrinsic(_asValueType,              java_lang_Class,        asValueType_name, void_class_signature,        F_R)   \
+   do_name(     asValueType_name,                                "asValueType")                                         \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
   do_intrinsic(_isInstance,               java_lang_Class,        isInstance_name, object_boolean_signature,     F_RN)  \
@@ -453,7 +457,7 @@ class methodHandle;
   do_class(java_util_Base64_Decoder, "java/util/Base64$Decoder")                                                        \
   do_intrinsic(_base64_decodeBlock, java_util_Base64_Decoder, decodeBlock_name, decodeBlock_signature, F_R)             \
    do_name(decodeBlock_name, "decodeBlock")                                                                             \
-   do_signature(decodeBlock_signature, "([BII[BIZ)I")                                                                   \
+   do_signature(decodeBlock_signature, "([BII[BIZZ)I")                                                                   \
                                                                                                                         \
   /* support for com.sun.crypto.provider.GHASH */                                                                       \
   do_class(com_sun_crypto_provider_ghash, "com/sun/crypto/provider/GHASH")                                              \

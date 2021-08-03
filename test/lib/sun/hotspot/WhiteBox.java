@@ -324,7 +324,7 @@ public class WhiteBox {
     makeMethodNotCompilable0(method, compLevel, isOsr);
   }
   public        int     getMethodCompilationLevel(Executable method) {
-    return getMethodCompilationLevel(method, false /*not ost*/);
+    return getMethodCompilationLevel(method, false /*not osr*/);
   }
   private native int     getMethodCompilationLevel0(Executable method, boolean isOsr);
   public         int     getMethodCompilationLevel(Executable method, boolean isOsr) {
@@ -619,7 +619,10 @@ public class WhiteBox {
 
   // Handshakes
   public native int handshakeWalkStack(Thread t, boolean all_threads);
+  public native boolean handshakeReadMonitors(Thread t);
   public native void asyncHandshakeWalkStack(Thread t);
+
+  public native void lockAndBlock(boolean suspender);
 
   // Returns true on linux if library has the noexecstack flag set.
   public native boolean checkLibSpecifiesNoexecstack(String libfilename);

@@ -1,0 +1,9 @@
+CheckMultiDimensionalArrayStore.java:21:43: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
+CheckMultiDimensionalArrayStore.java:22:30: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
+CheckMultiDimensionalArrayStore.java:24:38: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
+CheckMultiDimensionalArrayStore.java:25:31: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.V)
+CheckMultiDimensionalArrayStore.java:42:51: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.R.val)
+CheckMultiDimensionalArrayStore.java:43:34: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.R.val)
+CheckMultiDimensionalArrayStore.java:45:42: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.R.val)
+CheckMultiDimensionalArrayStore.java:46:31: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckMultiDimensionalArrayStore.R.val)
+8 errors
