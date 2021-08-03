@@ -23,14 +23,6 @@
 
 #warn
 
-#if[Value]
-/*
- * @test
- * @bug 8156486
- * @run testng/othervm VarHandleTestMethodType$Type$
- * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false VarHandleTestMethodType$Type$
- */
-#else[Value]
 /*
  * @test
  * @bug 8156486
@@ -39,7 +31,6 @@
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false VarHandleTestMethodType$Type$
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodType$Type$
  */
-#end[Value]
 
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
