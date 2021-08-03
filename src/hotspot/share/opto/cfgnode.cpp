@@ -1936,8 +1936,9 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
     if (i == req()) {
       InlineTypeBaseNode* vt = in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
-      for (uint i = 2; i < req(); ++i) {
-        vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, i == (req()-1));
+      for (i = 2; i < req(); ++i) {
+        bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
+        vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, transform);
       }
       return vt;
     }
