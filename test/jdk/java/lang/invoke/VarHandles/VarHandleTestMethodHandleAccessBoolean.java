@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccessBoolean
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessBoolean
  */
 
 import org.testng.annotations.BeforeClass;

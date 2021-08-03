@@ -25,11 +25,7 @@
 
 /*
  * @test
-#if[Value]
- * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccess$Type$
-#else[Value]
  * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccess$Type$
-#end[Value]
  */
 
 import org.testng.annotations.BeforeClass;
