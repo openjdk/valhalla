@@ -3942,7 +3942,7 @@ public class TestLWorld {
         }
     }
 
-    // Test merging of buffer default and non-default inline types
+    // Test merging of buffered default and non-default inline types
     @Test
     public Object test144(int i) {
         if (i == 0) {
