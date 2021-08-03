@@ -3941,4 +3941,23 @@ public class TestLWorld {
             // Expected
         }
     }
+
+    // Test merging of buffered default and non-default inline types
+    @Test
+    public Object test144(int i) {
+        if (i == 0) {
+            return MyValue1.default;
+        } else if (i == 1) {
+            return testValue1;
+        } else {
+            return MyValue1.default;
+        }
+    }
+
+    @Run(test = "test144")
+    public void test144_verifier() {
+        Asserts.assertEquals(test144(0), MyValue1.default);
+        Asserts.assertEquals(test144(1), testValue1);
+        Asserts.assertEquals(test144(2), MyValue1.default);
+    }
 }

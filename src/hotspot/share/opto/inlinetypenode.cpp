@@ -42,6 +42,7 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
   const Type* phi_type = Type::get_const_type(inline_klass());
   PhiNode* oop = PhiNode::make(region, vt->get_oop(), phi_type);
   gvn->set_type(oop, phi_type);
+  gvn->record_for_igvn(oop);
   vt->set_oop(oop);
 
   // Create a PhiNode each for merging the field values
@@ -55,10 +56,12 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
       phi_type = Type::get_const_type(type);
       value = PhiNode::make(region, value, phi_type);
       gvn->set_type(value, phi_type);
+      gvn->record_for_igvn(value);
     }
     vt->set_field_value(i, value);
   }
   gvn->set_type(vt, vt->bottom_type());
+  gvn->record_for_igvn(vt);
   return vt;
 }
 
@@ -90,7 +93,6 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
   phi->set_req(pnum, other->get_oop());
   if (transform) {
     set_oop(gvn->transform(phi));
-    gvn->record_for_igvn(phi);
   }
   // Merge field values
   for (uint i = 0; i < field_count(); ++i) {
@@ -104,7 +106,6 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
     }
     if (transform) {
       set_field_value(i, gvn->transform(val1));
-      gvn->record_for_igvn(val1);
     }
   }
   return this;
