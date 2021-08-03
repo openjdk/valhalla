@@ -3162,7 +3162,11 @@ void Scheduling::ComputeRegisterAntidependencies(Block *b) {
       }
 
       // Do not allow a CheckCastPP node whose input is a raw pointer to
-      // float past a safepoint.
+      // float past a safepoint.  This can occur when a buffered inline
+      // type is allocated in a loop and the CheckCastPP from that
+      // allocation is reused outside the loop.  If the use inside the
+      // loop is scalarized the CheckCastPP will no longer be connected
+      // to the loop safepoint.  See JDK-8264340.
       if (m->is_Mach() && m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
         Node *def = m->in(1);
         if (def != NULL && def->bottom_type()->base() == Type::RawPtr) {
