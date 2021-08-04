@@ -28,7 +28,6 @@ package com.sun.tools.javac.comp;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Type.UndetVar.UndetVarListener;
 import com.sun.tools.javac.code.Types.TypeMapping;
-import com.sun.tools.javac.comp.Attr.CheckMode;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.tree.JCTree;
@@ -1168,7 +1167,7 @@ public class Infer {
         IS_SUBTYPE() {
             @Override
             boolean apply(Type op1, Type op2, Warner warn, Types types) {
-                return types.isSubtypeUnchecked(op1, op2, warn);
+                return types.isBoundedBy(op1, op2, warn, (t, s, w) -> types.isSubtypeUnchecked(t, s, w));
             }
         },
         IS_SAME_TYPE() {

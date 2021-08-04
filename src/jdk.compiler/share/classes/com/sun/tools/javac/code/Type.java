@@ -1943,12 +1943,34 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public Type lower;
 
+        public boolean universal = false;
+
+        public boolean createdFromUniversalTypeVar = false;
+
+        /** if this type variable is universal then it will also have a link to a pure reference
+         *  type variable, it is important to know that a universal type variable and its
+         *  corresponding referenceTypeVar share the same tsym. So if it is needed to double check if
+         *  a type variable is universal or not, we need to check its type not the type of its tsym
+         */
+        public TypeVar referenceProjection = null;
+
+        /** link back to universal type var when applicable, this field will have a value if this current
+         *  type variable was derived form a type variable declaration using the .ref suffix, once the code
+         *  is more mature we can fold fields referenceTypeVar and universalTypeVar
+         */
+        public TypeVar universalTypeVar = null;
+
         public TypeVar(Name name, Symbol owner, Type lower) {
+            this(name, owner, lower, false);
+        }
+
+        public TypeVar(Name name, Symbol owner, Type lower, boolean universal) {
             super(null, TypeMetadata.EMPTY);
             Assert.checkNonNull(lower);
             tsym = new TypeVariableSymbol(0, name, this, owner);
             this.setUpperBound(null);
             this.lower = lower;
+            this.universal = universal;
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
@@ -1957,10 +1979,16 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower,
                        TypeMetadata metadata) {
+            this(tsym, bound, lower, metadata, false);
+        }
+
+        public TypeVar(TypeSymbol tsym, Type bound, Type lower,
+                       TypeMetadata metadata, boolean universal) {
             super(tsym, metadata);
             Assert.checkNonNull(lower);
             this.setUpperBound(bound);
             this.lower = lower;
+            this.universal = universal;
         }
 
         @Override
@@ -2021,6 +2049,26 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitTypeVariable(this, p);
         }
+
+        public boolean isUniversal() {
+            return universal;
+        }
+
+        @Override
+        public Type withTypeVar(Type t) {
+            if (t.hasTag(TYPEVAR) &&
+                    ((TypeVar)t).createdFromUniversalTypeVar &&
+                    referenceProjection != null) {
+                return referenceProjection;
+            }
+            return this;
+        }
+
+        public void createReferenceProjection() {
+            referenceProjection = new TypeVar(tsym, _bound, lower, metadata, false);
+            referenceProjection.createdFromUniversalTypeVar = true;
+            referenceProjection.universalTypeVar = this;
+        }
     }
 
     /** A captured type variable comes from wildcards which can have
@@ -2040,6 +2088,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             this.lower = Assert.checkNonNull(lower);
             this.setUpperBound(upper);
             this.wildcard = wildcard;
+            this.universal = upper.hasTag(TYPEVAR) && ((TypeVar)upper).universal ||
+                    lower.hasTag(TYPEVAR) && ((TypeVar)lower).universal;
         }
 
         public CapturedType(TypeSymbol tsym,
@@ -2050,6 +2100,8 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                             TypeMetadata metadata) {
             super(tsym, bound, lower, metadata);
             this.wildcard = wildcard;
+            this.universal = upper.hasTag(TYPEVAR) && ((TypeVar)upper).universal ||
+                    lower.hasTag(TYPEVAR) && ((TypeVar)lower).universal;
         }
 
         @Override

@@ -61,6 +61,7 @@ public @interface PreviewFeature {
 
     public enum Feature {
         SWITCH_PATTERN_MATCHING,
+        UNIVERSAL_TVARS,
         /**
          * A key for testing.
          */

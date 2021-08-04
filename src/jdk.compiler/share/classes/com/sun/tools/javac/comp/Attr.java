@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Predicate;
 
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
@@ -174,6 +175,8 @@ public class Attr extends JCTree.Visitor {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowPatternSwitch = (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH)) &&
                              Feature.PATTERN_SWITCH.allowedInSource(source);
+        allowUniversalTVars = (!preview.isPreview(Feature.UNIVERSAL_TVARS) || preview.isEnabled()) &&
+                Feature.UNIVERSAL_TVARS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
 
@@ -221,6 +224,10 @@ public class Attr extends JCTree.Visitor {
     /** Are patterns in switch allowed
      */
     private final boolean allowPatternSwitch;
+
+    /** Are universal tvars allowed?
+     */
+    private final boolean allowUniversalTVars;
 
     /**
      * Switch: warn about use of variable before declaration?
@@ -812,8 +819,12 @@ public class Attr extends JCTree.Visitor {
      *  Check that all the types are references.
      */
     List<Type> attribTypes(List<JCExpression> trees, Env<AttrContext> env) {
+        return attribTypes(trees, env, i -> false);
+    }
+
+    List<Type> attribTypes(List<JCExpression> trees, Env<AttrContext> env, Predicate<JCExpression> valueOK) {
         List<Type> types = attribAnyTypes(trees, env);
-        return chk.checkRefTypes(trees, types);
+        return chk.checkRefTypes(trees, types, valueOK);
     }
 
     /**
@@ -2645,7 +2656,7 @@ public class Attr extends JCTree.Visitor {
             Symbol msym = TreeInfo.symbol(tree.meth);
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
-            chk.checkRefTypes(tree.typeargs, typeargtypes);
+            chk.checkRefTypes(tree.typeargs, typeargtypes, false);
 
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null) {
@@ -2655,7 +2666,8 @@ public class Attr extends JCTree.Visitor {
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                if (qualifier.tsym.isPrimitiveClass() || superCallOnPrimitiveReceiver) {
+                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).universal;
+                if (qualifier.tsym.isPrimitiveClass() || qualifierIsUniversal || superCallOnPrimitiveReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
                     switch (name.toString()) {
@@ -2663,7 +2675,14 @@ public class Attr extends JCTree.Visitor {
                             if (argSize == 0
                                     || (types.isConvertible(argtypes.head, syms.longType) &&
                                     (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
-                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
+                                if (!qualifierIsUniversal) {
+                                    log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
+                                } else {
+                                    /* probably this will be a lint warning in the future, still under discussion
+                                     * will comment it for now
+                                     */
+                                    //log.warning(tree.pos(), Warnings.MethodShouldNotBeInvokedOnUniversalTvars(name));
+                                }
                             }
                             break;
                         case "notify":
@@ -2671,7 +2690,14 @@ public class Attr extends JCTree.Visitor {
                         case "clone":
                         case "finalize":
                             if (argSize == 0)
-                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
+                                if (!qualifierIsUniversal) {
+                                    log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
+                                } else {
+                                    /* probably this will be a lint warning in the future, still under discussion
+                                     * will comment it for now
+                                     */
+                                    //log.warning(tree.pos(), Warnings.MethodShouldNotBeInvokedOnUniversalTvars(name));
+                                }
                             break;
                     }
                 }
@@ -3060,7 +3086,9 @@ public class Attr extends JCTree.Visitor {
                     for (Type t : clazztype.getTypeArguments()) {
                         rs.checkAccessibleType(env, t);
                     }
-                    chk.checkParameterizationByPrimitiveClass(tree, clazztype);
+                    if (!allowUniversalTVars) {
+                        chk.checkParameterizationByPrimitiveClass(tree, clazztype);
+                    }
                 }
 
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers
@@ -4442,7 +4470,8 @@ public class Attr extends JCTree.Visitor {
             sym = selectSym(tree, sitesym, site, env, resultInfo);
         }
         boolean varArgs = env.info.lastResolveVarargs();
-        tree.sym = sym;
+        tree.sym = (allowUniversalTVars && site.getTag() == TYPEVAR && tree.name == names.ref) ?
+                sym.type.tsym : sym;
 
         if (site.hasTag(TYPEVAR) && !isType(sym) && sym.kind != ERR) {
             site = types.skipTypeVars(site, true);
@@ -4574,6 +4603,17 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
+                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).universal) {
+                    TypeVar siteTV = (TypeVar)site;
+                    if (siteTV.referenceProjection == null) {
+                        siteTV.createReferenceProjection();
+                        TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
+                        tmpTVarSym.type = siteTV.referenceProjection;
+                    }
+                    TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
+                    tmpTVarSym.type = siteTV.referenceProjection;
+                    return tmpTVarSym;
+                }
                 // Normally, site.getUpperBound() shouldn't be null.
                 // It should only happen during memberEnter/attribBase
                 // when determining the super type which *must* be
@@ -5104,9 +5144,22 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute functor part of application and make sure it's a class.
         Type clazztype = chk.checkClassType(tree.clazz.pos(), attribType(tree.clazz, env));
+        Set<JCExpression> valueOKSet = new HashSet<>();
+        List<JCExpression> args = tree.arguments;
+        if (args != null && !args.isEmpty()) {
+            for (Type t : ((ClassType) clazztype.tsym.type).typarams_field) {
+                TypeVar tv = (TypeVar) t;
+                if (tv.universal) {
+                    valueOKSet.add(args.head);
+                }
+                args = args.tail;
+            }
+        }
 
         // Attribute type parameters
-        List<Type> actuals = attribTypes(tree.arguments, env);
+        List<Type> actuals = !allowUniversalTVars ?
+                attribTypes(tree.arguments, env) :
+                attribTypes(tree.arguments, env, arg -> valueOKSet.contains(arg));
 
         if (clazztype.hasTag(CLASS)) {
             List<Type> formals = clazztype.tsym.type.getTypeArguments();
@@ -5290,7 +5343,7 @@ public class Attr extends JCTree.Visitor {
         Type type = (tree.kind.kind == BoundKind.UNBOUND)
             ? syms.objectType
             : attribType(tree.inner, env);
-        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, false),
+        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, allowUniversalTVars),
                                               tree.kind.kind,
                                               syms.boundClass),
                 KindSelector.TYP, resultInfo);
