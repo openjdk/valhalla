@@ -1078,7 +1078,7 @@ public class TreeMaker implements JCTree.Factory {
      */
     public JCTypeParameter TypeParam(Name name, TypeVar tvar) {
         return (JCTypeParameter)
-            TypeParameter(name, Types(types.getBounds(tvar)), List.nil(), tvar.universal).setPos(pos).setType(tvar);
+            TypeParameter(name, Types(types.getBounds(tvar)), List.nil(), tvar.hasUniversalFlavor()).setPos(pos).setType(tvar);
     }
 
     /** Create a list of type parameter trees from a list of type variables.

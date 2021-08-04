@@ -338,8 +338,7 @@ public class Flow {
         Source source = Source.instance(context);
         allowEffectivelyFinalInInnerClasses = Feature.EFFECTIVELY_FINAL_IN_INNER_CLASSES.allowedInSource(source);
         Preview preview = Preview.instance(context);
-        allowUniversalTVars = (!preview.isPreview(Feature.UNIVERSAL_TVARS) || preview.isEnabled()) &&
-                Feature.UNIVERSAL_TVARS.allowedInSource(source);
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
     /**
@@ -1872,7 +1871,7 @@ public class Flow {
             return allowUniversalTVars && sym.owner.kind == TYP &&
                     ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
                     classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
-                    sym.type.hasTag(TYPEVAR) && ((Type.TypeVar)sym.type).universal);
+                    sym.type.hasTag(TYPEVAR) && ((Type.TypeVar)sym.type).hasUniversalFlavor());
         }
 
         /** Initialize new trackable variable by setting its address field

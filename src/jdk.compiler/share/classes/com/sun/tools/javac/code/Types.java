@@ -128,8 +128,7 @@ public class Types {
         Options options = Options.instance(context);
         Preview preview = Preview.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        allowUniversalTVars = (!preview.isPreview(Feature.UNIVERSAL_TVARS) || preview.isEnabled()) &&
-                Feature.UNIVERSAL_TVARS.allowedInSource(source);
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
     // </editor-fold>
 
@@ -612,8 +611,8 @@ public class Types {
 
         boolean tValue = t.isPrimitiveClass();
         boolean sValue = s.isPrimitiveClass();
-        if (allowUniversalTVars && (s.hasTag(TYPEVAR)) && ((TypeVar)s).isUniversal() &&
-                (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isUniversal())) {
+        if (allowUniversalTVars && (s.hasTag(TYPEVAR)) && ((TypeVar)s).hasUniversalFlavor() &&
+                (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).hasUniversalFlavor())) {
             warn.warn(LintCategory.UNIVERSAL);
             return true;
         }
@@ -1040,9 +1039,9 @@ public class Types {
         if (allowUniversalTVars && !result) {
             if (isPrimitiveClass(t)) {
                 return isBoundedBy(t.referenceProjection(), s, warn, subtypeTestFlavor);
-            } else if (t.hasTag(TYPEVAR) && ((TypeVar)t).universal) {
+            } else if (t.hasTag(TYPEVAR) && ((TypeVar)t).hasUniversalFlavor()) {
                 return isBoundedBy(t.getUpperBound(), s, warn, subtypeTestFlavor);
-            } else if (s.hasTag(TYPEVAR) && ((TypeVar)s).universal) {
+            } else if (s.hasTag(TYPEVAR) && ((TypeVar)s).hasUniversalFlavor()) {
                 return isBoundedBy(t, s.getLowerBound(), warn, subtypeTestFlavor);
             }
         }
@@ -1087,7 +1086,6 @@ public class Types {
             } else if (isSubtype(t, s, capture)) {
                 return true;
             } else if (allowUniversalTVars && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
-                // we are seeing a case of a universal type variable being assigned to a non-universal one
                 warn.warn(LintCategory.UNIVERSAL);
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
@@ -1185,7 +1183,7 @@ public class Types {
                  case TYPEVAR:
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
-                     if (allowUniversalTVars && s.hasTag(TYPEVAR) && ((TypeVar)s).universal) {
+                     if (allowUniversalTVars && s.hasTag(TYPEVAR) && ((TypeVar)s).hasUniversalFlavor()) {
                          warnStack.head.warn(LintCategory.UNIVERSAL);
                      }
                      return
@@ -1706,7 +1704,7 @@ public class Types {
             public Boolean visitTypeVar(TypeVar t, Type s) {
                 if (s.hasTag(TYPEVAR)) {
                     TypeVar other = (TypeVar)s;
-                    if (allowUniversalTVars && t.universal != other.universal && t.tsym == other.tsym)
+                    if (allowUniversalTVars && t.hasUniversalFlavor() != other.hasUniversalFlavor() && t.tsym == other.tsym)
                         return true;
                 }
                 return isSameType(t, s);
@@ -3613,10 +3611,10 @@ public class Types {
                     return to.head.withTypeVar(t);
                 }
                 if (allowUniversalTVars &&
-                        t.createdFromUniversalTypeVar &&
+                        t.flavor == TypeVar.TVFlavor.REFERENCE_FROM_UNIVERSAL &&
                         from.head.hasTag(TYPEVAR) &&
-                        ((TypeVar)from.head).referenceProjection != null &&
-                        t.equalsIgnoreMetadata(((TypeVar)from.head).referenceProjection)) {
+                        ((TypeVar)from.head).projection != null &&
+                        t.equalsIgnoreMetadata(((TypeVar)from.head).projection)) {
                     return to.head.withTypeVar(t);
                 }
             }
@@ -3768,9 +3766,9 @@ public class Types {
         private static final TypeMapping<Void> newInstanceFun = new TypeMapping<Void>() {
             @Override
             public TypeVar visitTypeVar(TypeVar t, Void _unused) {
-                TypeVar newTV = new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata(), t.universal);
-                if (t.referenceProjection != null) {
-                    newTV.createReferenceProjection();
+                TypeVar newTV = new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata(), t.flavor);
+                if (t.projection != null) {
+                    newTV.referenceProjection();
                 }
                 return newTV;
             }

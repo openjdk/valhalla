@@ -23,9 +23,7 @@
 
 // key: compiler.warn.universal.variable.cannot.be.assigned.null
 // key: compiler.warn.var.might.not.have.been.initialized
-// key: compiler.note.preview.filename
-// key: compiler.note.preview.recompile
-// options: --enable-preview -source ${jdk.version} -Xlint:universal
+// options: -Xlint:universal
 
 class Box<__universal T> {
     T t;

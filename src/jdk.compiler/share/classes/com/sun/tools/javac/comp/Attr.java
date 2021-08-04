@@ -27,7 +27,6 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
@@ -175,8 +174,7 @@ public class Attr extends JCTree.Visitor {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowPatternSwitch = (preview.isEnabled() || !preview.isPreview(Feature.PATTERN_SWITCH)) &&
                              Feature.PATTERN_SWITCH.allowedInSource(source);
-        allowUniversalTVars = (!preview.isPreview(Feature.UNIVERSAL_TVARS) || preview.isEnabled()) &&
-                Feature.UNIVERSAL_TVARS.allowedInSource(source);
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
 
@@ -819,12 +817,8 @@ public class Attr extends JCTree.Visitor {
      *  Check that all the types are references.
      */
     List<Type> attribTypes(List<JCExpression> trees, Env<AttrContext> env) {
-        return attribTypes(trees, env, i -> false);
-    }
-
-    List<Type> attribTypes(List<JCExpression> trees, Env<AttrContext> env, Predicate<JCExpression> valueOK) {
         List<Type> types = attribAnyTypes(trees, env);
-        return chk.checkRefTypes(trees, types, valueOK);
+        return chk.checkRefTypes(trees, types);
     }
 
     /**
@@ -2656,7 +2650,7 @@ public class Attr extends JCTree.Visitor {
             Symbol msym = TreeInfo.symbol(tree.meth);
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
-            chk.checkRefTypes(tree.typeargs, typeargtypes, false);
+            chk.checkRefTypes(tree.typeargs, typeargtypes);
 
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null) {
@@ -2666,7 +2660,7 @@ public class Attr extends JCTree.Visitor {
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).universal;
+                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).hasUniversalFlavor();
                 if (qualifier.tsym.isPrimitiveClass() || qualifierIsUniversal || superCallOnPrimitiveReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
@@ -4603,15 +4597,14 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
-                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).universal) {
+                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).hasUniversalFlavor()) {
                     TypeVar siteTV = (TypeVar)site;
-                    if (siteTV.referenceProjection == null) {
-                        siteTV.createReferenceProjection();
+                    if (siteTV.projection == null) {
                         TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
-                        tmpTVarSym.type = siteTV.referenceProjection;
+                        tmpTVarSym.type = siteTV.referenceProjection();
                     }
                     TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
-                    tmpTVarSym.type = siteTV.referenceProjection;
+                    tmpTVarSym.type = siteTV.referenceProjection();
                     return tmpTVarSym;
                 }
                 // Normally, site.getUpperBound() shouldn't be null.
@@ -5144,22 +5137,21 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute functor part of application and make sure it's a class.
         Type clazztype = chk.checkClassType(tree.clazz.pos(), attribType(tree.clazz, env));
-        Set<JCExpression> valueOKSet = new HashSet<>();
+        List<Type> actuals;
         List<JCExpression> args = tree.arguments;
-        if (args != null && !args.isEmpty()) {
+        if (!allowUniversalTVars || args == null || args.isEmpty()) {
+            actuals = attribTypes(tree.arguments, env);
+        } else {
+            // we use argTypes2 to keep a pointer to the original list as we will use argTypes to iterate over it
+            List<Type> argTypes, argTypes2;
+            argTypes2 = argTypes = attribAnyTypes(args, env);
             for (Type t : ((ClassType) clazztype.tsym.type).typarams_field) {
-                TypeVar tv = (TypeVar) t;
-                if (tv.universal) {
-                    valueOKSet.add(args.head);
-                }
+                argTypes.head = chk.checkRefType(args.head.pos(), argTypes.head, ((TypeVar) t).hasUniversalFlavor());
                 args = args.tail;
+                argTypes = argTypes.tail;
             }
+            actuals = argTypes2;
         }
-
-        // Attribute type parameters
-        List<Type> actuals = !allowUniversalTVars ?
-                attribTypes(tree.arguments, env) :
-                attribTypes(tree.arguments, env, arg -> valueOKSet.contains(arg));
 
         if (clazztype.hasTag(CLASS)) {
             List<Type> formals = clazztype.tsym.type.getTypeArguments();

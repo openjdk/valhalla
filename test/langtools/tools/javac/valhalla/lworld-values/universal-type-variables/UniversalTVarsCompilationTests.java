@@ -45,14 +45,9 @@ import static org.testng.Assert.assertEquals;
 
 @Test
 public class UniversalTVarsCompilationTests extends CompilationTestCase {
-    private static String[] PREVIEW_OPTIONS = {
-        "--enable-preview",
-        "-source", Integer.toString(Runtime.version().feature())
-    };
+    private static String[] EMPTY_OPTIONS = {};
 
-    private static String[] PREVIEW_OPTIONS_WITH_LINT = {
-        "--enable-preview",
-        "-source", Integer.toString(Runtime.version().feature()),
+    private static String[] LINT_OPTIONS = {
         "-Xlint:universal"
     };
 
@@ -61,7 +56,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testWarningNullAssigment() {
-        setCompileOptions(PREVIEW_OPTIONS_WITH_LINT);
+        setCompileOptions(LINT_OPTIONS);
         assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null",
                 """
                 class Box<__universal T> {
@@ -87,7 +82,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 """
         );
 
-        setCompileOptions(PREVIEW_OPTIONS);
+        setCompileOptions(EMPTY_OPTIONS);
         assertOKWithWarning("compiler.warn.var.might.not.have.been.initialized",
                 """
                 class Box<__universal T> {
@@ -117,7 +112,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testPosCompilations() {
-        setCompileOptions(PREVIEW_OPTIONS);
+        setCompileOptions(EMPTY_OPTIONS);
         assertOK(
                 """
                 primitive class Point {}
@@ -247,7 +242,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testUniversalTVarFieldMustBeInit() {
-        setCompileOptions(PREVIEW_OPTIONS);
+        setCompileOptions(EMPTY_OPTIONS);
         assertOKWithWarning("compiler.warn.var.might.not.have.been.initialized",
                 """
                 class Box<__universal T> {
@@ -268,7 +263,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testForbiddenMethods() {
-        setCompileOptions(PREVIEW_OPTIONS);
+        setCompileOptions(EMPTY_OPTIONS);
         assertFail("compiler.err.primitive.class.does.not.support",
                 """
                 primitive class Point {}
@@ -302,7 +297,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testPosCompilations2() {
-        setCompileOptions(PREVIEW_OPTIONS);
+        setCompileOptions(EMPTY_OPTIONS);
         assertOK(
                 """
                 interface MyComparable<__universal T> {

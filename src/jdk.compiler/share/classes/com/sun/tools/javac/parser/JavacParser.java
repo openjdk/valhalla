@@ -194,8 +194,7 @@ public class JavacParser implements Parser {
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
                 Feature.PRIMITIVE_CLASSES.allowedInSource(source);
-        this.allowUniversalTVars = (!preview.isPreview(Feature.UNIVERSAL_TVARS) || preview.isEnabled()) &&
-                Feature.UNIVERSAL_TVARS.allowedInSource(source);
+        this.allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {

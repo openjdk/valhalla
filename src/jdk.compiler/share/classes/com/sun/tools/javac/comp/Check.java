@@ -163,8 +163,7 @@ public class Check {
 
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
-        allowUniversalTVars = (!preview.isPreview(Feature.UNIVERSAL_TVARS) || preview.isEnabled()) &&
-                Feature.UNIVERSAL_TVARS.allowedInSource(source);
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -907,19 +906,10 @@ public class Check {
      *  @param trees         Original trees, used for error reporting.
      *  @param types         The types to be checked.
      */
-    List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types, boolean valueOK) {
+    List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, valueOK);
-            tl = tl.tail;
-        }
-        return types;
-    }
-
-    List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types, Predicate<JCExpression> valueOK) {
-        List<JCExpression> tl = trees;
-        for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, valueOK.test(tl.head));
+            l.head = checkRefType(tl.head.pos(), l.head, false);
             tl = tl.tail;
         }
         return types;
