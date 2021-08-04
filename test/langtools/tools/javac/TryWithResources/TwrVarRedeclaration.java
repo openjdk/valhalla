@@ -15,7 +15,7 @@ public class TwrVarRedeclaration implements AutoCloseable {
         }
 
         try (r) {
-            Object r = new Object();
+            Object r = new Object() {};
         }
 
         try (r) {

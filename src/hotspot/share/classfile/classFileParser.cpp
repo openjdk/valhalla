@@ -705,22 +705,30 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
           }
         } else {
           if (_need_verify) {
-            // Method name and signature are verified above, when iterating NameAndType_info.
-            // Need only to be sure signature is non-zero length and the right type.
+            // Method name and signature are individually verified above, when iterating
+            // NameAndType_info.  Need to check here that signature is non-zero length and
+            // the right type.
             if (!Signature::is_method(signature)) {
               throwIllegalSignature("Method", name, signature, CHECK);
             }
           }
-          // 4509014: If a class method name begins with '<', it must be "<init>"
+          // If a class method name begins with '<', it must be "<init>" and have void signature
+          // unless it's an inline type.
           const unsigned int name_len = name->utf8_length();
-          if (tag == JVM_CONSTANT_Methodref &&
-              name_len != 0 &&
-              name->char_at(0) == JVM_SIGNATURE_SPECIAL &&
-              name != vmSymbols::object_initializer_name()) {
-            classfile_parse_error(
-              "Bad method name at constant pool index %u in class file %s",
-              name_ref_index, THREAD);
-            return;
+          if (tag == JVM_CONSTANT_Methodref && name_len != 0 &&
+              name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
+            if (name != vmSymbols::object_initializer_name()) {
+              classfile_parse_error(
+                "Bad method name at constant pool index %u in class file %s",
+                name_ref_index, THREAD);
+              return;
+            } else if (!Signature::is_void_method(signature)) {
+              // if return type is non-void then it cannot be a basic primitive
+              // and primitve types must be supported.
+              if (!signature->ends_with(JVM_SIGNATURE_ENDCLASS) || !EnableValhalla) {
+                throwIllegalSignature("Method", name, signature, CHECK);
+              }
+            }
           }
         }
         break;
@@ -2183,7 +2191,6 @@ void ClassFileParser::ClassAnnotationCollector::apply_to(InstanceKlass* ik) {
     ik->set_has_value_based_class_annotation();
     if (DiagnoseSyncOnValueBasedClasses) {
       ik->set_is_value_based();
-      ik->set_prototype_header(markWord::prototype());
     }
   }
 }
@@ -2442,6 +2449,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 
   int args_size = -1;  // only used when _need_verify is true
   if (_need_verify) {
+    verify_legal_name_with_signature(name, signature, CHECK_NULL);
     args_size = ((flags & JVM_ACC_STATIC) ? 0 : 1) +
                  verify_legal_method_signature(name, signature, CHECK_NULL);
     if (args_size > MAX_ARGS_SIZE) {
@@ -4155,10 +4163,8 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
   const InstanceKlass* super_klass = NULL;
 
   if (super_class_index == 0) {
-    check_property(_class_name == vmSymbols::java_lang_Object()
-                   || (_access_flags.get_flags() & JVM_ACC_INLINE),
-                   "Invalid superclass index %u in class file %s",
-                   super_class_index,
+    check_property(_class_name == vmSymbols::java_lang_Object(),
+                   "Invalid superclass index 0 in class file %s",
                    CHECK_NULL);
   } else {
     check_property(valid_klass_reference_at(super_class_index),
@@ -4352,7 +4358,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   if (vmClasses::Cloneable_klass_loaded()) {
     if (ik->is_subtype_of(vmClasses::Cloneable_klass())) {
       if (ik->is_inline_klass()) {
-        JavaThread *THREAD = Thread::current()->as_Java_thread();
+        JavaThread *THREAD = JavaThread::current();
         throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
         return;
       }
@@ -5177,7 +5183,8 @@ void ClassFileParser::verify_legal_class_name(const Symbol* name, TRAPS) const {
         p = skip_over_field_name(bytes, true, length);
         legal = (p != NULL) && ((p - bytes) == (int)length);
       }
-    } else if (_major_version >= CONSTANT_CLASS_DESCRIPTORS && bytes[length - 1] == ';' ) {
+    } else if ((_major_version >= CONSTANT_CLASS_DESCRIPTORS || _class_name->starts_with("jdk/internal/reflect/"))
+                   && bytes[length - 1] == ';' ) {
       // Support for L...; and Q...; descriptors
       legal = verify_unqualified_name(bytes + 1, length - 2, LegalClass);
     } else {
@@ -5290,6 +5297,34 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
   }
 }
 
+// Check that the signature is compatible with the method name.  For example,
+// check that <init> has a void signature.
+void ClassFileParser::verify_legal_name_with_signature(const Symbol* name,
+                                                       const Symbol* signature,
+                                                       TRAPS) const {
+  if (!_need_verify) {
+    return;
+  }
+
+  // Class initializers cannot have args for class format version >= 51.
+  if (name == vmSymbols::class_initializer_name() &&
+      signature != vmSymbols::void_method_signature() &&
+      _major_version >= JAVA_7_VERSION) {
+    throwIllegalSignature("Method", name, signature, THREAD);
+    return;
+  }
+
+  if (!is_inline_type()) {
+    int sig_length = signature->utf8_length();
+    if (name->utf8_length() > 0 &&
+      name->char_at(0) == JVM_SIGNATURE_SPECIAL &&
+      sig_length > 0 &&
+      signature->char_at(sig_length - 1) != JVM_SIGNATURE_VOID) {
+      throwIllegalSignature("Method", name, signature, THREAD);
+    }
+  }
+}
+
 // Checks if signature is a legal method signature.
 // Returns number of parameters
 int ClassFileParser::verify_legal_method_signature(const Symbol* name,
@@ -5299,14 +5334,6 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
     // make sure caller's args_size will be less than 0 even for non-static
     // method so it will be recomputed in compute_size_of_parameters().
     return -2;
-  }
-
-  // Class initializers cannot have args for class format version >= 51.
-  if (name == vmSymbols::class_initializer_name() &&
-      signature != vmSymbols::void_method_signature() &&
-      _major_version >= JAVA_7_VERSION) {
-    throwIllegalSignature("Method", name, signature, CHECK_0);
-    return 0;
   }
 
   unsigned int args_size = 0;
@@ -5331,38 +5358,15 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
     // The first non-signature thing better be a ')'
     if ((length > 0) && (*p++ == JVM_SIGNATURE_ENDFUNC)) {
       length--;
-      if (name->utf8_length() > 0 && name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
-        // All constructor methods must return void
-        if ((length == 1) && (p[0] == JVM_SIGNATURE_VOID)) {
-          return args_size;
-        }
-        // All static init methods must return the current class
-        if ((length >= 3) && (p[length-1] == JVM_SIGNATURE_ENDCLASS)
-            && name == vmSymbols::object_initializer_name()) {
-          nextp = skip_over_field_signature(p, true, length, CHECK_0);
-          if (nextp && ((int)length == (nextp - p))) {
-            // The actual class will be checked against current class
-            // when the method is defined (see parse_method).
-            // A reference to a static init with a bad return type
-            // will load and verify OK, but will fail to link.
-            return args_size;
-          }
-        }
-        // The distinction between static factory methods and
-        // constructors depends on the JVM_ACC_STATIC modifier.
-        // This distinction must be reflected in a void or non-void
-        // return. For declared methods, the check is in parse_method.
-      } else {
-        // Now we better just have a return value
-        nextp = skip_over_field_signature(p, true, length, CHECK_0);
-        if (nextp && ((int)length == (nextp - p))) {
-          return args_size;
-        }
+      // Now we better just have a return value
+      nextp = skip_over_field_signature(p, true, length, CHECK_0);
+      if (nextp && ((int)length == (nextp - p))) {
+        return args_size;
       }
     }
   }
   // Report error
-  throwIllegalSignature("Method", name, signature, CHECK_0);
+  throwIllegalSignature("Method", name, signature, THREAD);
   return 0;
 }
 

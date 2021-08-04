@@ -235,6 +235,8 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   }
 
   switch (id) {
+  case vmIntrinsics::_asPrimaryType:
+  case vmIntrinsics::_asValueType:
   case vmIntrinsics::_isInstance:
   case vmIntrinsics::_isAssignableFrom:
   case vmIntrinsics::_getModifiers:

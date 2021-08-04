@@ -48,6 +48,7 @@ public abstract class Attribute {
     public static final String EnclosingMethod          = "EnclosingMethod";
     public static final String Exceptions               = "Exceptions";
     public static final String InnerClasses             = "InnerClasses";
+    public static final String JavaFlags                = "JavaFlags";
     public static final String LineNumberTable          = "LineNumberTable";
     public static final String LocalVariableTable       = "LocalVariableTable";
     public static final String LocalVariableTypeTable   = "LocalVariableTypeTable";
@@ -124,6 +125,7 @@ public abstract class Attribute {
             standardAttributes.put(EnclosingMethod,   EnclosingMethod_attribute.class);
             standardAttributes.put(Exceptions,        Exceptions_attribute.class);
             standardAttributes.put(InnerClasses,      InnerClasses_attribute.class);
+            standardAttributes.put(JavaFlags,         JavaFlags_attribute.class);
             standardAttributes.put(LineNumberTable,   LineNumberTable_attribute.class);
             standardAttributes.put(LocalVariableTable, LocalVariableTable_attribute.class);
             standardAttributes.put(LocalVariableTypeTable, LocalVariableTypeTable_attribute.class);
@@ -191,6 +193,7 @@ public abstract class Attribute {
         R visitEnclosingMethod(EnclosingMethod_attribute attr, P p);
         R visitExceptions(Exceptions_attribute attr, P p);
         R visitInnerClasses(InnerClasses_attribute attr, P p);
+        R visitJavaFlags(JavaFlags_attribute attr, P p);
         R visitLineNumberTable(LineNumberTable_attribute attr, P p);
         R visitLocalVariableTable(LocalVariableTable_attribute attr, P p);
         R visitLocalVariableTypeTable(LocalVariableTypeTable_attribute attr, P p);

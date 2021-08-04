@@ -173,7 +173,12 @@ void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only,
       BasicType bt = sig->at(sig_index)._bt;
       if (SigEntry::skip_value_delimiters(sig, sig_index)) {
         VMReg from_reg = regs[from_index].first();
-        done &= move_helper(from_reg, regs_to[to_index].first(), bt, reg_state);
+        if (from_reg->is_valid()) {
+          done &= move_helper(from_reg, regs_to[to_index].first(), bt, reg_state);
+        } else {
+          // halves of T_LONG or T_DOUBLE
+          assert(bt == T_VOID, "unexpected basic type");
+        }
         to_index += step;
         from_index += step;
       } else if (is_packing) {

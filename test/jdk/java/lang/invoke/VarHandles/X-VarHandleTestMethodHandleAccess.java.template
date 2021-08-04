@@ -25,11 +25,7 @@
 
 /*
  * @test
-#if[Value]
- * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccess$Type$
-#else[Value]
  * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccess$Type$
-#end[Value]
  */
 
 import org.testng.annotations.BeforeClass;
@@ -45,6 +41,12 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
+#if[Point]
+    static final Class<?> type = $type$.class.asValueType();
+#else[Point]
+    static final Class<?> type = $type$.class;
+#end[Point]
+
     static final $type$ static_final_v = $value1$;
 
     static $type$ static_v;
@@ -70,22 +72,22 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccess$Type$.class, "final_v", $type$.class);
+                VarHandleTestMethodHandleAccess$Type$.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccess$Type$.class, "v", $type$.class);
+                VarHandleTestMethodHandleAccess$Type$.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccess$Type$.class, "static_final_v", $type$.class);
+            VarHandleTestMethodHandleAccess$Type$.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccess$Type$.class, "static_v", $type$.class);
+            VarHandleTestMethodHandleAccess$Type$.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle($type$[].class);
 
 #if[Value]
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "$varType$_v", $type$.class);
+                    Value.class, "$varType$_v", type);
 #end[Value]
     }
 

@@ -59,7 +59,6 @@
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/frame.inline.hpp"
@@ -254,42 +253,6 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result(obj);
 JRT_END
 
-void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicType type) {
-  switch (type) {
-  case T_BOOLEAN:
-    instance()->bool_field_put(offset, (jboolean)*((int*)addr));
-    break;
-  case T_CHAR:
-    instance()->char_field_put(offset, (jchar) *((int*)addr));
-    break;
-  case T_FLOAT:
-    instance()->float_field_put(offset, (jfloat)*((float*)addr));
-    break;
-  case T_DOUBLE:
-    instance()->double_field_put(offset, (jdouble)*((double*)addr));
-    break;
-  case T_BYTE:
-    instance()->byte_field_put(offset, (jbyte)*((int*)addr));
-    break;
-  case T_SHORT:
-    instance()->short_field_put(offset, (jshort)*((int*)addr));
-    break;
-  case T_INT:
-    instance()->int_field_put(offset, (jint)*((int*)addr));
-    break;
-  case T_LONG:
-    instance()->long_field_put(offset, (jlong)*((long long*)addr));
-    break;
-  case T_OBJECT:
-  case T_ARRAY:
-  case T_INLINE_TYPE:
-    fatal("Should not be handled with this method");
-    break;
-  default:
-    fatal("Unsupported BasicType");
-  }
-}
-
 JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPool* pool, int index))
   // Getting the InlineKlass
   Klass* k = pool->klass_at(index, CHECK);
@@ -306,66 +269,76 @@ JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPo
   current->set_vm_result(res);
 JRT_END
 
-JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCache* cp_cache))
-  LastFrameAccessor last_frame(current);
-  // Getting the InlineKlass
-  int index = ConstantPool::decode_cpcache_index(last_frame.get_index_u2_cpcache(Bytecodes::_withfield));
-  ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(index);
-  assert(cp_entry->is_resolved(Bytecodes::_withfield), "Should have been resolved");
-  Klass* klass = cp_entry->f1_as_klass();
-  assert(klass->is_inline_klass(), "withfield only applies to inline types");
-  InlineKlass* vklass = InlineKlass::cast(klass);
-
-  // Getting Field information
-  int offset = cp_entry->f2_as_index();
-  int field_index = cp_entry->field_index();
-  int field_offset = cp_entry->f2_as_offset();
-  Symbol* field_signature = vklass->field_signature(field_index);
-  BasicType field_type = Signature::basic_type(field_signature);
-  int return_offset = (type2size[field_type] + type2size[T_OBJECT]) * AbstractInterpreter::stackElementSize;
-
-  // Getting old value
-  frame& f = last_frame.get_frame();
-  jint tos_idx = f.interpreter_frame_expression_stack_size() - 1;
-  int vt_offset = type2size[field_type];
-  oop old_value = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx - vt_offset);
-  assert(old_value != NULL && oopDesc::is_oop(old_value) && old_value->is_inline_type(),"Verifying receiver");
-  Handle old_value_h(THREAD, old_value);
-
-  // Creating new value by copying the one passed in argument
-  instanceOop new_value = vklass->allocate_instance_buffer(
-      CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
-  Handle new_value_h = Handle(THREAD, new_value);
-  vklass->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
-
-  // Updating the field specified in arguments
-  if (field_type == T_ARRAY || field_type == T_OBJECT) {
-    oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-    assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
-    new_value_h()->obj_field_put(field_offset, aoop);
-  } else if (field_type == T_INLINE_TYPE) {
-    if (cp_entry->is_inlined()) {
-      oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
-      InlineKlass* field_vk = InlineKlass::cast(vklass->get_inline_type_field_klass(field_index));
-      assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
-      field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
-    } else { // not inlined
-      oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_null_free_inline_type()) {
-        THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
-      }
-      assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
-      new_value_h()->obj_field_put(field_offset, voop);
-    }
-  } else { // not T_OBJECT nor T_ARRAY nor T_INLINE_TYPE
-    intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
-    copy_primitive_argument(addr, new_value_h, field_offset, field_type);
+JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCacheEntry* cpe, uintptr_t ptr))
+  oop obj = NULL;
+  int recv_offset = type2size[as_BasicType(cpe->flag_state())];
+  assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");
+  int ret_adj = (recv_offset + type2size[T_OBJECT] )* AbstractInterpreter::stackElementSize;
+  obj = (oopDesc*)(((uintptr_t*)ptr)[recv_offset * Interpreter::stackElementWords]);
+  if (obj == NULL) {
+    THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
   }
-
-  // returning result
+  assert(oopDesc::is_oop(obj), "Verifying receiver");
+  assert(obj->klass()->is_inline_klass(), "Must have been checked during resolution");
+  instanceHandle old_value_h(THREAD, (instanceOop)obj);
+  oop ref = NULL;
+  if (cpe->flag_state() == atos) {
+    ref = *(oopDesc**)ptr;
+  }
+  Handle ref_h(THREAD, ref);
+  InlineKlass* ik = InlineKlass::cast(old_value_h()->klass());
+  instanceOop new_value = ik->allocate_instance_buffer(CHECK_(ret_adj));
+  Handle new_value_h = Handle(THREAD, new_value);
+  ik->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
+  int offset = cpe->f2_as_offset();
+  switch(cpe->flag_state()) {
+    case ztos:
+      new_value_h()->bool_field_put(offset, (jboolean)(*(jint*)ptr));
+      break;
+    case btos:
+      new_value_h()->byte_field_put(offset, (jbyte)(*(jint*)ptr));
+      break;
+    case ctos:
+      new_value_h()->char_field_put(offset, (jchar)(*(jint*)ptr));
+      break;
+    case stos:
+      new_value_h()->short_field_put(offset, (jshort)(*(jint*)ptr));
+      break;
+    case itos:
+      new_value_h()->int_field_put(offset, (*(jint*)ptr));
+      break;
+    case ltos:
+      new_value_h()->long_field_put(offset, *(jlong*)ptr);
+      break;
+    case ftos:
+      new_value_h()->float_field_put(offset, *(jfloat*)ptr);
+      break;
+    case dtos:
+      new_value_h()->double_field_put(offset, *(jdouble*)ptr);
+      break;
+    case atos:
+      {
+        if (cpe->is_null_free_inline_type())  {
+          if (!cpe->is_inlined()) {
+              if (ref_h() == NULL) {
+                THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
+              }
+              new_value_h()->obj_field_put(offset, ref_h());
+            } else {
+              int field_index = cpe->field_index();
+              InlineKlass* field_ik = InlineKlass::cast(ik->get_inline_type_field_klass(field_index));
+              field_ik->write_inlined_field(new_value_h(), offset, ref_h(), CHECK_(ret_adj));
+            }
+        } else {
+          new_value_h()->obj_field_put(offset, ref_h());
+        }
+      }
+      break;
+    default:
+      ShouldNotReachHere();
+  }
   current->set_vm_result(new_value_h());
-  return return_offset;
+  return ret_adj;
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* current, oopDesc* mirror, int index))
@@ -976,9 +949,6 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* current, B
 #ifdef ASSERT
   current->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
-  if (PrintBiasedLockingStatistics) {
-    Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
-  }
   Handle h_obj(current, elem->obj());
   assert(Universe::heap()->is_in_or_null(h_obj()),
          "must be NULL or an object");
@@ -1282,27 +1252,6 @@ JRT_ENTRY(nmethod*,
   if (osr_nm != NULL && bs_nm != NULL) {
     if (!bs_nm->nmethod_osr_entry_barrier(osr_nm)) {
       osr_nm = NULL;
-    }
-  }
-
-  if (osr_nm != NULL) {
-    // We may need to do on-stack replacement which requires that no
-    // monitors in the activation are biased because their
-    // BasicObjectLocks will need to migrate during OSR. Force
-    // unbiasing of all monitors in the activation now (even though
-    // the OSR nmethod might be invalidated) because we don't have a
-    // safepoint opportunity later once the migration begins.
-    if (UseBiasedLocking) {
-      ResourceMark rm;
-      GrowableArray<Handle>* objects_to_revoke = new GrowableArray<Handle>();
-      for( BasicObjectLock *kptr = last_frame.monitor_end();
-           kptr < last_frame.monitor_begin();
-           kptr = last_frame.next_monitor(kptr) ) {
-        if( kptr->obj() != NULL ) {
-          objects_to_revoke->append(Handle(current, kptr->obj()));
-        }
-      }
-      BiasedLocking::revoke(objects_to_revoke, current);
     }
   }
   return osr_nm;

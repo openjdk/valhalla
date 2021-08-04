@@ -54,7 +54,7 @@ public class ValueBootstrapMethods {
         Class<?> test = valueTestClass();
         Value value = new Value(10, 5.03, "foo", "bar", "goo");
 
-        Class<?> valueClass = Value.class;
+        Class<?> valueClass = Value.class.asValueType();
         Method hashCode = test.getMethod("hashCode", valueClass);
         int hash = (int)hashCode.invoke(null, value);
         assertEquals(hash, value.localHashCode());
@@ -80,7 +80,7 @@ public class ValueBootstrapMethods {
         }
 
         List<Object> values() {
-            return List.of(Value.class, i, d, s, l);
+            return List.of(Value.class.asValueType(), i, d, s, l);
         }
 
         public int localHashCode() {
@@ -93,7 +93,7 @@ public class ValueBootstrapMethods {
      */
     private static Class<?> valueTestClass() throws Exception {
         Path path = Paths.get(TEST_CLASSES, "ValueTest.class");
-        generate(Value.class, "ValueTest", path);
+        generate(Value.class.asValueType(), "ValueTest", path);
         return Class.forName("ValueTest");
     }
 

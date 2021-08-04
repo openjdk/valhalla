@@ -73,7 +73,7 @@ public class CastToParentTest {
         }
 
         // Try to cast using a different mechanism.
-        new java.lang.Object().getClass().cast(hiddenClassObj);
+        new java.lang.Object() {}.getClass().getSuperclass().cast(hiddenClassObj);
     }
 
 }

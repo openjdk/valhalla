@@ -352,6 +352,12 @@ class GraphKit : public Phase {
   Node* load_object_klass(Node* object);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
+  // Cast array allocation's length as narrow as possible.
+  // If replace_length_in_map is true, replace length with CastIINode in map.
+  // This method is invoked after creating/moving ArrayAllocationNode or in load_array_length
+  Node* array_ideal_length(AllocateArrayNode* alloc,
+                           const TypeOopPtr* oop_type,
+                           bool replace_length_in_map);
 
 
   // Helper function to do a NULL pointer check or ZERO check based on type.
@@ -657,7 +663,7 @@ class GraphKit : public Phase {
                              BasicType bt,
                              DecoratorSet decorators);
 
-  void access_clone(Node* src_base, Node* dst_base, Node* countx, bool is_array);
+  void access_clone(Node* src, Node* dst, Node* size, bool is_array);
 
   // Return addressing for an array element.
   Node* array_element_address(Node* ary, Node* idx, BasicType elembt,
@@ -869,6 +875,7 @@ class GraphKit : public Phase {
 
   // Inline types
   Node* inline_type_test(Node* obj, bool is_inline = true);
+  Node* is_val_mirror(Node* mirror);
   Node* array_lh_test(Node* kls, jint mask, jint val, bool eq = true);
   Node* flat_array_test(Node* ary, bool flat = true);
   Node* null_free_array_test(Node* klass, bool null_free = true);

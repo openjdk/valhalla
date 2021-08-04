@@ -41,7 +41,7 @@ import static org.testng.Assert.*;
 public class Reflection {
     @Test
     public static void testPointClass() throws Exception  {
-        Object o = Point.class.newInstance();
+        Object o = Point.class.asValueType().newInstance();
         assertEquals(o.getClass(), Point.class.asPrimaryType());
 
         Constructor<?> ctor = Point.class.getDeclaredConstructor(int.class, int.class);
@@ -68,18 +68,18 @@ public class Reflection {
 
     @Test
     public static void testLineClass() throws Exception {
-        checkInstanceField(Line.class, "p1", Point.class);
-        checkInstanceField(Line.class, "p2", Point.class);
-        checkInstanceMethod(Line.class, "p1", Point.class);
-        checkInstanceMethod(Line.class, "p2", Point.class);
+        checkInstanceField(Line.class.asValueType(), "p1", Point.class.asValueType());
+        checkInstanceField(Line.class.asValueType(), "p2", Point.class.asValueType());
+        checkInstanceMethod(Line.class.asValueType(), "p1", Point.class.asValueType());
+        checkInstanceMethod(Line.class.asValueType(), "p2", Point.class.asValueType());
     }
 
     @Test
     public static void testNonFlattenValue() throws Exception {
-        checkInstanceField(NonFlattenValue.class, "nfp", Point.ref.class);
-        checkInstanceMethod(NonFlattenValue.class, "pointValue", Point.class);
-        checkInstanceMethod(NonFlattenValue.class, "point", Point.ref.class);
-        checkInstanceMethod(NonFlattenValue.class, "has", boolean.class, Point.class, Point.ref.class);
+        checkInstanceField(NonFlattenValue.class.asValueType(), "nfp", Point.ref.class);
+        checkInstanceMethod(NonFlattenValue.class.asValueType(), "pointValue", Point.class.asValueType());
+        checkInstanceMethod(NonFlattenValue.class.asValueType(), "point", Point.ref.class);
+        checkInstanceMethod(NonFlattenValue.class.asValueType(), "has", boolean.class, Point.class.asValueType(), Point.ref.class);
     }
 
 

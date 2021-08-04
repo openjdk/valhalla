@@ -53,7 +53,7 @@ public class StaticFactoryTest {
         }
     }
 
-    static final Class<?> PRIMITIVE_TYPE = SimplePrimitive.class;
+    static final Class<?> PRIMITIVE_TYPE = SimplePrimitive.class.asValueType();
 
     @Test
     public static void testPrimitiveClassConstructor() throws Exception {

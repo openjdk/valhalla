@@ -394,7 +394,7 @@ public class InlineOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vtClass = Person.class;
+            Class<?> vtClass = Person.class.asValueType();
 
             System.out.println("vtClass="+vtClass);
 
@@ -672,7 +672,7 @@ public class InlineOops {
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .defaultvalue(FooValue.class)
+                            .defaultvalue(FooValue.class.asValueType())
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -682,7 +682,7 @@ public class InlineOops {
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                             .aastore()
-                            .defaultvalue(FooValue.class)
+                            .defaultvalue(FooValue.class.asValueType())
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV

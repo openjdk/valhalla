@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,93 +23,64 @@
 
 package compiler.valhalla.inlinetypes;
 
-import sun.hotspot.WhiteBox;
+import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
+import sun.hotspot.WhiteBox;
+
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+import static compiler.valhalla.inlinetypes.InlineTypes.rL;
 
 /*
  * @test
  * @key randomness
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestCallingConventionC1.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestCallingConventionC1
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestCallingConventionC1
  */
-public class TestCallingConventionC1 extends InlineTypeTest {
-    public static final int C1 = COMP_LEVEL_SIMPLE;
-    public static final int C2 = COMP_LEVEL_FULL_OPTIMIZATION;
 
-    @Override
-    public int getNumScenarios() {
-        return 5;
-    }
+@ForceCompileClassInitializer
+public class TestCallingConventionC1 {
 
-    @Override
-    public String[] getVMParameters(int scenario) {
-        switch (scenario) {
-        case 0: return new String[] {
+    public static void main(String[] args) {
+        final Scenario[] scenarios = {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
-                "-XX:CICompilerCount=2",
-                "-XX:TieredStopAtLevel=4",
-                "-XX:+TieredCompilation",
-            };
-        case 1: return new String[] {
+                new Scenario(0,
+                             "-XX:CICompilerCount=2",
+                             "-XX:TieredStopAtLevel=4",
+                             "-XX:+TieredCompilation"),
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
-                "-XX:CICompilerCount=2",
-                "-XX:TieredStopAtLevel=4",
-                "-XX:+TieredCompilation",
-                "-XX:+StressInlineTypeReturnedAsFields"
-            };
-        case 2: return new String[] {
-                // Same as above, but flip all the compLevel=C1 and compLevel=C2, so we test
+                new Scenario(1,
+                             "-XX:CICompilerCount=2",
+                             "-XX:TieredStopAtLevel=4",
+                             "-XX:+TieredCompilation",
+                             "-XX:+IgnoreUnrecognizedVMOptions",
+                             "-XX:+StressInlineTypeReturnedAsFields"),
+                // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
-                "-XX:CICompilerCount=2",
-                "-XX:TieredStopAtLevel=4",
-                "-XX:+TieredCompilation",
-                "-DFlipC1C2=true"
-            };
-        case 3: return new String[] {
+                new Scenario(2,
+                             "-XX:CICompilerCount=2",
+                             "-XX:TieredStopAtLevel=4",
+                             "-XX:+TieredCompilation",
+                             "-DFlipC1C2=true"),
                 // Only C1. Tiered compilation disabled.
-                "-XX:TieredStopAtLevel=1",
-                "-XX:+TieredCompilation",
-            };
-        case 4: return new String[] {
+                new Scenario(3,
+                             "-XX:TieredStopAtLevel=1",
+                             "-XX:+TieredCompilation"),
                 // Only C2.
-                "-XX:TieredStopAtLevel=4",
-                "-XX:-TieredCompilation",
-            };
-        }
-        return null;
+                new Scenario(4,
+                             "-XX:TieredStopAtLevel=4",
+                             "-XX:-TieredCompilation")
+        };
+
+        System.gc(); // Resolve this call, to avoid C1 code patching in the test cases.
+
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .start();
     }
 
-    public static void main(String[] args) throws Throwable {
-        System.gc(); // Resolve this call, to avoid C1 code patching in the test cases.
-        TestCallingConventionC1 test = new TestCallingConventionC1();
-        test.run(args,
-                 Point.class,
-                 Functor.class,
-                 Functor1.class,
-                 Functor2.class,
-                 Functor3.class,
-                 Functor4.class,
-                 MyImplPojo0.class,
-                 MyImplPojo1.class,
-                 MyImplPojo2.class,
-                 MyImplPojo3.class,
-                 MyImplVal1.class,
-                 MyImplVal2.class,
-                 MyImplVal1X.class,
-                 MyImplVal2X.class,
-                 FixedPoints.class,
-                 FloatPoint.class,
-                 RefPoint.class,
-                 RefPoint_Access_Impl1.class,
-                 RefPoint_Access_Impl2.class);
-    }
+    // Helper methods and classes
 
     static primitive class Point {
         final int x;
@@ -120,12 +91,11 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
 
         @DontCompile
-        @DontInline
         public int func() {
             return x + y;
         }
 
-        @ForceCompile(compLevel = C1)
+        @ForceCompile(CompLevel.C1_SIMPLE)
         @DontInline
         public int func_c1(Point p) {
             return x + y + p.x + p.y;
@@ -138,35 +108,34 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     static class Functor implements FunctorInterface {
         @DontCompile
-        @DontInline
         public int apply_interp(Point p) {
             return p.func() + 0;
         }
     }
+
     static class Functor1 extends Functor {
         @DontCompile
-        @DontInline
         public int apply_interp(Point p) {
             return p.func() + 10000;
         }
     }
+
     static class Functor2 extends Functor {
         @DontCompile
-        @DontInline
         public int apply_interp(Point p) {
             return p.func() + 20000;
         }
     }
+
     static class Functor3 extends Functor {
         @DontCompile
-        @DontInline
         public int apply_interp(Point p) {
             return p.func() + 30000;
         }
     }
+
     static class Functor4 extends Functor {
         @DontCompile
-        @DontInline
         public int apply_interp(Point p) {
             return p.func() + 40000;
         }
@@ -196,27 +165,33 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     static class MyImplPojo0 implements Intf {
         int field = 0;
-        @DontInline @DontCompile
+        @DontCompile
         public int func1(int a, int b)             { return field + a + b + 1; }
-        @DontInline @DontCompile
+        @DontCompile
         public int func2(int a, int b, Point p)     { return field + a + b + p.x + p.y + 1; }
     }
 
     static class MyImplPojo1 implements Intf {
         int field = 1000;
 
-        @DontInline @ForceCompile(compLevel = C1)
+        @DontInline
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func1(int a, int b)             { return field + a + b + 20; }
-        @DontInline @ForceCompile(compLevel = C1)
+
+        @DontInline
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
 
     static class MyImplPojo2 implements Intf {
         int field = 2000;
 
-        @DontInline @ForceCompile(compLevel = C2)
+        @DontInline
+        @ForceCompile(CompLevel.C2)
         public int func1(int a, int b)             { return field + a + b + 20; }
-        @DontInline @ForceCompile(compLevel = C2)
+
+        @DontInline
+        @ForceCompile(CompLevel.C2)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
 
@@ -234,10 +209,12 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             field = 11000;
         }
 
-        @DontInline @ForceCompile(compLevel = C1)
-        public int func1(int a, int b)             { return field + a + b + 300; }
+        @DontInline
+        @ForceCompile(CompLevel.C1_SIMPLE)
+        public int func1(int a, int b) { return field + a + b + 300; }
 
-        @DontInline @ForceCompile(compLevel = C1)
+        @DontInline
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
@@ -247,10 +224,12 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             field = 12000;
         }
 
-        @DontInline @ForceCompile(compLevel = C2)
+        @DontInline
+        @ForceCompile(CompLevel.C2)
         public int func1(int a, int b)             { return field + a + b + 300; }
 
-        @DontInline @ForceCompile(compLevel = C2)
+        @DontInline
+        @ForceCompile(CompLevel.C2)
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
@@ -260,10 +239,10 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             field = 11000;
         }
 
-        @DontInline @DontCompile
+        @DontCompile
         public int func1(int a, int b)             { return field + a + b + 300; }
 
-        @DontInline @DontCompile
+        @DontCompile
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
@@ -311,6 +290,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             this.y = y;
         }
     }
+
     static primitive class DoublePoint {
         final double x;
         final double y;
@@ -365,19 +345,19 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
 
         @DontInline
-        @ForceCompile(compLevel = C1)
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public final int final_func(RefPoint rp2) { // opt_virtual_call
             return this.x.n + this.y.n + rp2.x.n + rp2.y.n;
         }
 
         @DontInline
-        @ForceCompile(compLevel = C1)
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func1(RefPoint rp2) {
             return this.x.n + this.y.n + rp2.x.n + rp2.y.n;
         }
 
         @DontInline
-        @ForceCompile(compLevel = C1)
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
             return x.n + y.n +
                    rp1.x.n + rp1.y.n +
@@ -390,12 +370,12 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     static class RefPoint_Access_Impl1 implements RefPoint_Access {
-        @DontInline @DontCompile
+        @DontCompile
         public int func1(RefPoint rp2) {
             return rp2.x.n + rp2.y.n + 1111111;
         }
         @DontInline
-        @ForceCompile(compLevel = C1)
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
             return 111111 +
                    rp1.x.n + rp1.y.n +
@@ -406,13 +386,14 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                    n2.n;
         }
     }
+
     static class RefPoint_Access_Impl2 implements RefPoint_Access {
-        @DontInline @DontCompile
+        @DontCompile
         public int func1(RefPoint rp2) {
             return rp2.x.n + rp2.y.n + 2222222;
         }
         @DontInline
-        @ForceCompile(compLevel = C1)
+        @ForceCompile(CompLevel.C1_SIMPLE)
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
             return 222222 +
                    rp1.x.n + rp1.y.n +
@@ -460,44 +441,40 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     // PART 1 - C1 calls interpreted code
     //**********************************************************************
 
-
     //** C1 passes inline type to interpreter (static)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test1() {
         return test1_helper(pointField);
     }
 
-    @DontInline
     @DontCompile
     private static int test1_helper(Point p) {
         return p.func();
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
-        int count = warmup ? 1 : 10;
+    @Run(test = "test1")
+    public void test1_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 10;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test1() + i;
             Asserts.assertEQ(result, pointField.func() + i);
         }
     }
 
-
     //** C1 passes inline type to interpreter (monomorphic)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test2() {
         return test2_helper(pointField);
     }
 
-    @DontInline
     @DontCompile
     private int test2_helper(Point p) {
         return p.func();
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
-        int count = warmup ? 1 : 10;
+    @Run(test = "test2")
+    public void test2_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 10;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test2() + i;
             Asserts.assertEQ(result, pointField.func() + i);
@@ -505,48 +482,48 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C1 passes inline type to interpreter (megamorphic: vtable)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test3(Functor functor) {
         return functor.apply_interp(pointField);
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
-        int count = warmup ? 1 : 100;
+    @Run(test = "test3")
+    public void test3_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 100;
         for (int i=0; i<count; i++) {  // need a loop to test inline cache and vtable indexing
-            Functor functor = warmup ? functors[0] : getFunctor();
+            Functor functor = info.isWarmUp() ? functors[0] : getFunctor();
             int result = test3(functor) + i;
             Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
     }
 
     // Same as test3, but compiled with C2. Test the hastable of VtableStubs
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test3b(Functor functor) {
         return functor.apply_interp(pointField);
     }
 
-    @DontCompile
-    public void test3b_verifier(boolean warmup) {
-        int count = warmup ? 1 : 100;
+    @Run(test = "test3b")
+    public void test3b_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 100;
         for (int i=0; i<count; i++) {  // need a loop to test inline cache and vtable indexing
-            Functor functor = warmup ? functors[0] : getFunctor();
+            Functor functor = info.isWarmUp() ? functors[0] : getFunctor();
             int result = test3b(functor) + i;
             Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
     }
 
     // C1 passes inline type to interpreter (megamorphic: itable)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test4(FunctorInterface fi) {
         return fi.apply_interp(pointField);
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
-        int count = warmup ? 1 : 100;
+    @Run(test = "test4")
+    public void test4_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 100;
         for (int i=0; i<count; i++) {  // need a loop to test inline cache and itable indexing
-            Functor functor = warmup ? functors[0] : getFunctor();
+            Functor functor = info.isWarmUp() ? functors[0] : getFunctor();
             int result = test4(functor) + i;
             Asserts.assertEQ(result, functor.apply_interp(pointField) + i);
         }
@@ -557,13 +534,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //**********************************************************************
 
     // Interpreter passes inline type to C1 (static)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     static public int test20(Point p1, long l, Point p2) {
         return p1.x + p2.y;
     }
 
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
+    @Run(test = "test20")
+    public void test20_verifier() {
         int result = test20(pointField1, 0, pointField2);
         int n = pointField1.x + pointField2.y;
         Asserts.assertEQ(result, n);
@@ -576,13 +553,12 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     @DontCompile
-    @DontInline
     int test21_helper(Point p) {
         return p.func_c1(p);
     }
 
-    @DontCompile
-    public void test21_verifier(boolean warmup) {
+    @Run(test = "test21")
+    public void test21_verifier() {
         int result = test21(pointField);
         int n = 2 * (pointField.x + pointField.y);
         Asserts.assertEQ(result, n);
@@ -594,20 +570,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //**********************************************************************
 
     // C2->C1 invokestatic, single inline arg
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test30() {
         return test30_helper(pointField);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test30_helper(Point p) {
         return p.x + p.y;
     }
 
-    @DontCompile
-    public void test30_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test30")
+    public void test30_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test30();
             int n = pointField.x + pointField.y;
@@ -616,20 +592,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, two single inline args
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test31() {
       return test31_helper(pointField1, pointField2);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test31_helper(Point p1, Point p2) {
         return p1.x + p2.y;
     }
 
-    @DontCompile
-    public void test31_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test31")
+    public void test31_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test31();
             int n = pointField1.x + pointField2.y;
@@ -638,20 +614,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, two single inline args and interleaving ints (all passed in registers on x64)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test32() {
       return test32_helper(0, pointField1, 1, pointField2);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test32_helper(int x, Point p1, int y, Point p2) {
         return p1.x + p2.y + x + y;
     }
 
-    @DontCompile
-    public void test32_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test32")
+    public void test32_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test32();
             int n = pointField1.x + pointField2.y + 0 + 1;
@@ -660,52 +636,52 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokeinterface -- no verified_ro_entry (no inline args except for receiver)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test33(Intf intf, int a, int b) {
         return intf.func1(a, b);
     }
 
-    @DontCompile
-    public void test33_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test33")
+    public void test33_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
-            Intf intf = warmup ? intfs[0] : getIntf(i+1);
+            Intf intf = info.isWarmUp() ? intfs[0] : getIntf(i+1);
             int result = test33(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func1(123, 456) + i);
         }
     }
 
     // C2->C1 invokeinterface -- use verified_ro_entry (has inline args other than receiver)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test34(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
 
-    @DontCompile
-    public void test34_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test34")
+    public void test34_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
-            Intf intf = warmup ? intfs[0] : getIntf(i+1);
+            Intf intf = info.isWarmUp() ? intfs[0] : getIntf(i+1);
             int result = test34(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
         }
     }
 
     // C2->C1 invokestatic, Point.y is on stack (x64)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test35() {
         return test35_helper(1, 2, 3, 4, 5, pointField);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test35_helper(int a1, int a2, int a3, int a4, int a5, Point p) {
         return a1 + a2 + a3 + a4 + a5 + p.x + p.y;
     }
 
-    @DontCompile
-    public void test35_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test35")
+    public void test35_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test35();
             int n = 1 + 2 + 3  + 4 + 5 + pointField.x + pointField.y;
@@ -714,20 +690,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, shuffling arguments that are passed on stack
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test36() {
         return test36_helper(pointField, 1, 2, 3, 4, 5, 6, 7, 8);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test36_helper(Point p, int a1, int a2, int a3, int a4, int a5, int a6, int a7, int a8) {
         return a6 + a8;
     }
 
-    @DontCompile
-    public void test36_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test36")
+    public void test36_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test36();
             int n = 6 + 8;
@@ -736,20 +712,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, shuffling long arguments
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test37() {
         return test37_helper(pointField, 1, 2, 3, 4, 5, 6, 7, 8);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test37_helper(Point p, long a1, long a2, long a3, long a4, long a5, long a6, long a7, long a8) {
         return (int)(a6 + a8);
     }
 
-    @DontCompile
-    public void test37_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test37")
+    public void test37_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test37();
             int n = 6 + 8;
@@ -758,13 +734,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, shuffling boolean, byte, char, short, int, long arguments
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test38() {
         return test38_helper(pointField, true, (byte)1, (char)2, (short)3, 4, 5, (byte)6, (short)7, 8);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test38_helper(Point p, boolean a0, byte a1, char a2, short a3, int a4, long a5, byte a6, short a7, int a8) {
         if (a0) {
             return (int)(a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8);
@@ -773,9 +749,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test38_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test38")
+    public void test38_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test38();
             int n = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8;
@@ -784,13 +760,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, packing an inline type with all types of fixed point primitive fields.
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public long test39() {
         return test39_helper(1, fixedPointsField, 2, fixedPointsField);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static long test39_helper(int a1, FixedPoints f1, int a2, FixedPoints f2) {
         if (f1.Z0 == false && f1.Z1 == true && f2.Z0 == false && f2.Z1 == true) {
             return f1.B + f2.C + f1.S + f2.I + f1.J;
@@ -799,9 +775,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test39_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test39")
+    public void test39_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             long result = test39();
             long n = test39_helper(1, fixedPointsField, 2, fixedPointsField);
@@ -810,20 +786,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, shuffling floating point args
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public double test40() {
         return test40_helper(1.1f, 1.2, floatPointField, doublePointField, 1.3f, 1.4, 1.5f, 1.7, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static double test40_helper(float a1, double a2, FloatPoint fp, DoublePoint dp, float a3, double a4, float a5, double a6, double a7, double a8, double a9, double a10, double a11, double a12) {
         return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11 + a12 + fp.x + fp.y - dp.x - dp.y;
     }
 
-    @DontCompile
-    public void test40_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test40")
+    public void test40_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             double result = test40();
             double n = test40_helper(1.1f, 1.2, floatPointField, doublePointField, 1.3f, 1.4, 1.5f, 1.7, 1.7, 1.8, 1.9, 1.10, 1.11, 1.12);
@@ -832,20 +808,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, mixing floats and ints
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public double test41() {
         return test41_helper(1, 1.2, pointField, floatPointField, doublePointField, 1.3f, 4, 1.5f, 1.7, 1.7, 1.8, 9, 1.10, 1.11, 1.12);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static double test41_helper(int a1, double a2, Point p, FloatPoint fp, DoublePoint dp, float a3, int a4, float a5, double a6, double a7, double a8, long a9, double a10, double a11, double a12) {
       return a1 + a2  + fp.x + fp.y - dp.x - dp.y + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10 + a11 + a12;
     }
 
-    @DontCompile
-    public void test41_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test41")
+    public void test41_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             double result = test41();
             double n = test41_helper(1, 1.2, pointField, floatPointField, doublePointField, 1.3f, 4, 1.5f, 1.7, 1.7, 1.8, 9, 1.10, 1.11, 1.12);
@@ -854,13 +830,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, circular dependency (between rdi and first stack slot on x64)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public float test42() {
         return test42_helper(eightFloatsField, pointField, 3, 4, 5, floatPointField, 7);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test42_helper(EightFloats ep1, // (xmm0 ... xmm7) -> rsi
                                        Point p2,        // (rsi, rdx) -> rdx
                                        int i3,          // rcx -> rcx
@@ -873,9 +849,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             p2.x + p2.y + i3 + i4 + i5 + fp6.x + fp6.y + i7;
     }
 
-    @DontCompile
-    public void test42_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test42")
+    public void test42_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             float result = test42();
             float n = test42_helper(eightFloatsField, pointField, 3, 4, 5, floatPointField, 7);
@@ -884,13 +860,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, packing causes stack growth (1 extra stack word)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public float test43() {
         return test43_helper(floatPointField, 1, 2, 3, 4, 5, 6);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test43_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5, int a6) {
         // On x64:
         //    Scalarized entry -- all parameters are passed in registers
@@ -898,9 +874,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return fp.x + fp.y + a1 + a2 + a3 + a4 + a5 + a6;
     }
 
-    @DontCompile
-    public void test43_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test43")
+    public void test43_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             float result = test43();
             float n = test43_helper(floatPointField, 1, 2, 3, 4, 5, 6);
@@ -909,13 +885,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, packing causes stack growth (2 extra stack words)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public float test44() {
       return test44_helper(floatPointField, floatPointField, 1, 2, 3, 4, 5, 6);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test44_helper(FloatPoint fp1, FloatPoint fp2, int a1, int a2, int a3, int a4, int a5, int a6) {
         // On x64:
         //    Scalarized entry -- all parameters are passed in registers
@@ -926,9 +902,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                a1 + a2 + a3 + a4 + a5 + a6;
     }
 
-    @DontCompile
-    public void test44_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test44")
+    public void test44_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             float result = test44();
             float n = test44_helper(floatPointField, floatPointField, 1, 2, 3, 4, 5, 6);
@@ -937,13 +913,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, packing causes stack growth (5 extra stack words)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public float test45() {
       return test45_helper(floatPointField, floatPointField, floatPointField, floatPointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test45_helper(FloatPoint fp1, FloatPoint fp2, FloatPoint fp3, FloatPoint fp4, FloatPoint fp5, int a1, int a2, int a3, int a4, int a5, int a6, int a7) {
         return fp1.x + fp1.y +
                fp2.x + fp2.y +
@@ -953,9 +929,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                a1 + a2 + a3 + a4 + a5 + a6 + a7;
     }
 
-    @DontCompile
-    public void test45_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test45")
+    public void test45_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             float result = test45();
             float n = test45_helper(floatPointField, floatPointField, floatPointField, floatPointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
@@ -964,13 +940,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, packing causes stack growth (1 extra stack word -- mixing Point and FloatPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public float test46() {
       return test46_helper(floatPointField, floatPointField, pointField, floatPointField, floatPointField, pointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test46_helper(FloatPoint fp1, FloatPoint fp2, Point p1, FloatPoint fp3, FloatPoint fp4, Point p2, FloatPoint fp5, int a1, int a2, int a3, int a4, int a5, int a6, int a7) {
         return p1.x + p1.y +
                p2.x + p2.y +
@@ -982,9 +958,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                a1 + a2 + a3 + a4 + a5 + a6 + a7;
     }
 
-    @DontCompile
-    public void test46_verifier(boolean warmup) {
-        int count = warmup ? 1 : 2;
+    @Run(test = "test46")
+    public void test46_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 2;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             float result = test46();
             float n = test46_helper(floatPointField, floatPointField, pointField, floatPointField, floatPointField, pointField, floatPointField, 1, 2, 3, 4, 5, 6, 7);
@@ -1012,7 +988,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //*
 
     // C2->C1 invokestatic, make sure stack walking works (with static variable)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public void test47(int n) {
         try {
             test47_helper(floatPointField, 1, 2, 3, 4, 5);
@@ -1024,13 +1000,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test47_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5) {
         test47_thrower();
         return 0.0f;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static void test47_thrower() {
         MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
         checkStackTrace(e, "test47_thrower", "test47_helper", "test47", "test47_verifier");
@@ -1039,9 +1015,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     static int test47_value = 999;
 
-    @DontCompile
-    public void test47_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test47")
+    public void test47_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             test47_value = 777 + i;
             test47(i);
@@ -1050,7 +1026,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, make sure stack walking works (with returned inline type)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test48(int n) {
         try {
             test48_helper(floatPointField, 1, 2, 3, 4, 5);
@@ -1062,22 +1038,22 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test48_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5) {
         test48_thrower();
         return 0.0f;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static void test48_thrower() {
         MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
         checkStackTrace(e, "test48_thrower", "test48_helper", "test48", "test48_verifier");
         throw e;
     }
 
-    @DontCompile
-    public void test48_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test48")
+    public void test48_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test48(i);
             Asserts.assertEQ(n, i);
@@ -1087,7 +1063,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     // C2->interpreter invokestatic, make sure stack walking works (same as test 48, but with stack extension/repair)
     // (this is the baseline for test50 --
     // the only difference is: test49_helper is interpreted but test50_helper is compiled by C1).
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test49(int n) {
         try {
             test49_helper(floatPointField, 1, 2, 3, 4, 5, 6);
@@ -1098,22 +1074,22 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return n;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static float test49_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5, int a6) {
         test49_thrower();
         return 0.0f;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static void test49_thrower() {
         MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
         checkStackTrace(e, "test49_thrower", "test49_helper", "test49", "test49_verifier");
         throw e;
     }
 
-    @DontCompile
-    public void test49_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test49")
+    public void test49_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test49(i);
             Asserts.assertEQ(n, i);
@@ -1121,7 +1097,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, make sure stack walking works (same as test 48, but with stack extension/repair)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test50(int n) {
         try {
             test50_helper(floatPointField, 1, 2, 3, 4, 5, 6);
@@ -1133,22 +1109,22 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test50_helper(FloatPoint fp, int a1, int a2, int a3, int a4, int a5, int a6) {
         test50_thrower();
         return 0.0f;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static void test50_thrower() {
         MyRuntimeException e = new MyRuntimeException("This exception should have been caught!");
         checkStackTrace(e, "test50_thrower", "test50_helper", "test50", "test50_verifier");
         throw e;
     }
 
-    @DontCompile
-    public void test50_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test50")
+    public void test50_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int n = test50(i);
             Asserts.assertEQ(n, i);
@@ -1157,20 +1133,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
 
     // C2->C1 invokestatic, inline class with ref fields (RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test51() {
         return test51_helper(refPointField1);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test51_helper(RefPoint rp1) {
         return rp1.x.n + rp1.y.n;
     }
 
-    @DontCompile
-    public void test51_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test51")
+    public void test51_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test51();
             int n = test51_helper(refPointField1);
@@ -1179,20 +1155,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, inline class with ref fields (Point, RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test52() {
         return test52_helper(pointField, refPointField1);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test52_helper(Point p1, RefPoint rp1) {
         return p1.x + p1.y + rp1.x.n + rp1.y.n;
     }
 
-    @DontCompile
-    public void test52_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test52")
+    public void test52_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test52();
             int n = test52_helper(pointField, refPointField1);
@@ -1201,13 +1177,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, inline class with ref fields (RefPoint, RefPoint, RefPoint, RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test53() {
         return test53_helper(refPointField1, refPointField2, refPointField1, refPointField2);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test53_helper(RefPoint rp1, RefPoint rp2, RefPoint rp3, RefPoint rp4) {
         return rp1.x.n + rp1.y.n +
                rp2.x.n + rp2.y.n +
@@ -1215,9 +1191,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                rp4.x.n + rp4.y.n;
     }
 
-    @DontCompile
-    public void test53_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test53")
+    public void test53_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test53();
             int n = test53_helper(refPointField1, refPointField2, refPointField1, refPointField2);
@@ -1226,13 +1202,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, inline class with ref fields (RefPoint, RefPoint, float, int, RefPoint, RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test54() {
         return test54_helper(refPointField1, refPointField2, 1.0f, 2, refPointField1, refPointField2);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test54_helper(RefPoint rp1, RefPoint rp2, float f, int i, RefPoint rp3, RefPoint rp4) {
         return rp1.x.n + rp1.y.n +
                rp2.x.n + rp2.y.n +
@@ -1241,19 +1217,15 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                rp4.x.n + rp4.y.n;
     }
 
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test54")
+    public void test54_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             int result = test54();
             int n = test54_helper(refPointField1, refPointField2, 1.0f, 2, refPointField1, refPointField2);
             Asserts.assertEQ(result, n);
         }
     }
-
-    static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
-    static final String ScavengeALot = "ScavengeALot";
-
 
     /**
      * Each allocation with a "try" block like this will cause a GC
@@ -1262,14 +1234,15 @@ public class TestCallingConventionC1 extends InlineTypeTest {
      *           result = test55(p1);
      *       }
      */
-    static class ForceGCMarker implements java.io.Closeable {
-        static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
+    static final String ScavengeALot = "ScavengeALot";
+
+    static class ForceGCMarker implements java.io.Closeable {
         ForceGCMarker() {
-            WHITE_BOX.setBooleanVMFlag(ScavengeALot, true);
+            WhiteBox.getWhiteBox().setBooleanVMFlag(ScavengeALot, true);
         }
         public void close() {
-            WHITE_BOX.setBooleanVMFlag(ScavengeALot, false);
+            WhiteBox.getWhiteBox().setBooleanVMFlag(ScavengeALot, false);
         }
 
         static ForceGCMarker mark(boolean warmup) {
@@ -1278,24 +1251,24 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, force GC for every allocation when entering a C1 VEP (Point)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test55(Point p1) {
         return test55_helper(p1);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test55_helper(Point p1) {
         return p1.x + p1.y;
     }
 
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test55")
+    public void test55_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             Point p1 = new Point(1, 2);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test55(p1);
             }
             int n = test55_helper(p1);
@@ -1304,24 +1277,24 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, force GC for every allocation when entering a C1 VEP (RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test56(RefPoint rp1) {
         return test56_helper(rp1);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test56_helper(RefPoint rp1) {
         return rp1.x.n + rp1.y.n;
     }
 
-    @DontCompile
-    public void test56_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test56")
+    public void test56_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test56(rp1);
             }
             int n = test56_helper(rp1);
@@ -1329,24 +1302,24 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
-    // C2->Interpreter (same as test56, but test c2i entry instead of C1)
-    @Test(compLevel = C2)
+    // C2->Interpreter (same as test56, but test C2i entry instead of C1)
+    @Test(compLevel = CompLevel.C2)
     public int test57(RefPoint rp1) {
         return test57_helper(rp1);
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static int test57_helper(RefPoint rp1) {
         return rp1.x.n + rp1.y.n;
     }
 
-    @DontCompile
-    public void test57_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test57")
+    public void test57_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test57(rp1);
             }
             int n = test57_helper(rp1);
@@ -1355,13 +1328,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, force GC for every allocation when entering a C1 VEP (a bunch of RefPoints and Numbers);
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test58(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return test58_helper(rp1, rp2, n1, rp3, rp4, n2);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test58_helper(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return rp1.x.n + rp1.y.n +
                rp2.x.n + rp2.y.n +
@@ -1371,9 +1344,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                n2.n;
     }
 
-    @DontCompile
-    public void test58_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test58")
+    public void test58_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = refPointField1;
@@ -1382,7 +1355,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             Number n1 = new Number(5878);
             Number n2 = new Number(1234);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test58(rp1, rp2, n1, rp3, rp4, n2);
             }
             int n = test58_helper(rp1, rp2, n1, rp3, rp4, n2);
@@ -1391,13 +1364,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic, GC inside main body of C1-compiled method (caller's args should not be GC'ed).
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test59(RefPoint rp1, boolean doGC) {
       return test59_helper(rp1, 11, 222, 3333, 4444, doGC);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test59_helper(RefPoint rp1, int a1, int a2, int a3, int a4, boolean doGC) {
         if (doGC) {
             System.gc();
@@ -1405,10 +1378,10 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return rp1.x.n + rp1.y.n + a1 + a2 + a3 + a4;
     }
 
-    @DontCompile
-    public void test59_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
-        boolean doGC = !warmup;
+    @Run(test = "test59")
+    public void test59_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
+        boolean doGC = !info.isWarmUp();
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             int result = test59(rp1, doGC);
@@ -1419,13 +1392,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     // C2->C1 invokestatic, GC inside main body of C1-compiled method (caller's args should not be GC'ed).
     // same as test59, but the incoming (scalarized) oops are passed in both registers and stack.
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test60(RefPoint rp1, RefPoint rp2, boolean doGC) {
         return test60_helper(555, 6666, 77777, rp1, rp2, 11, 222, 3333, 4444, doGC);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static int test60_helper(int x0, int x1, int x2, RefPoint rp1, RefPoint rp2,int a1, int a2, int a3, int a4, boolean doGC) {
         // On x64, C2 passes:   reg0=x1, reg1=x1, reg2=x2, reg3=rp1.x, reg4=rp1.y, reg5=rp2.x stack0=rp2.y ....
         //         C1 expects:  reg0=x1, reg1=x1, reg2=x2, reg3=rp1,   reg4=rp2,   reg5=a1    stack0=a2 ...
@@ -1436,10 +1409,10 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return x0 + x1 + x2 + rp1.x.n + rp1.y.n + rp2.x.n + rp2.y.n + a1 + a2 + a3 + a4;
     }
 
-    @DontCompile
-    public void test60_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
-        boolean doGC = !warmup;
+    @Run(test = "test60")
+    public void test60_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
+        boolean doGC = !info.isWarmUp();
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = new RefPoint(33, 44);
@@ -1450,14 +1423,14 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokeinterface via VVEP(RO)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test61(RefPoint_Access rpa, RefPoint rp2) {
         return rpa.func1(rp2);
     }
 
-    @DontCompile
-    public void test61_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test61")
+    public void test61_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp2 = refPointField2;
@@ -1468,19 +1441,19 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test62(RefPoint_Access rpa, RefPoint rp2) {
         return rpa.func1(rp2);
     }
 
-    @DontCompile
-    public void test62_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test62")
+    public void test62_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp2 = new RefPoint(111, 2222);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test62(rpa, rp2);
             }
             int n = rpa.func1(rp2);
@@ -1489,14 +1462,14 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (a bunch of RefPoints and Numbers)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test63(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return rpa.func2(rp1, rp2, n1, rp3, rp4, n2);
     }
 
-    @DontCompile
-    public void test63_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test63")
+    public void test63_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp1 = new RefPoint(1, 2);
@@ -1506,7 +1479,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             Number n1 = new Number(5878);
             Number n2 = new Number(1234);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test63(rpa, rp1, rp2, n1, rp3, rp4, n2);
             }
             int n = rpa.func2(rp1, rp2, n1, rp3, rp4, n2);
@@ -1515,20 +1488,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokestatic (same as test63, but use invokestatic instead)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test64(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return test64_helper(rpa, rp1, rp2, n1, rp3, rp4, n2);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     public static int test64_helper(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
         return rp3.y.n;
     }
 
-    @DontCompile
-    public void test64_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test64")
+    public void test64_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint_Access rpa = get_RefPoint_Access();
             RefPoint rp1 = new RefPoint(1, 2);
@@ -1538,7 +1511,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
             Number n1 = new Number(5878);
             Number n2 = new Number(1234);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test64(rpa, rp1, rp2, n1, rp3, rp4, n2);
             }
             int n = test64_helper(rpa, rp1, rp2, n1, rp3, rp4, n2);
@@ -1547,14 +1520,14 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokevirtual via VVEP(RO) (opt_virtual_call)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test76(RefPoint rp1, RefPoint rp2) {
         return rp1.final_func(rp2);
     }
 
-    @DontCompile
-    public void test76_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test76")
+    public void test76_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = refPointField1;
             RefPoint rp2 = refPointField2;
@@ -1566,19 +1539,19 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     // C2->C1 invokevirtual, force GC for every allocation when entering a C1 VEP (RefPoint)
     // Same as test56, except we call the VVEP(RO) instead of VEP.
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test77(RefPoint rp1, RefPoint rp2) {
         return rp1.final_func(rp2);
     }
 
-    @DontCompile
-    public void test77_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test77")
+    public void test77_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) { // need a loop to test inline cache
             RefPoint rp1 = new RefPoint(1, 2);
             RefPoint rp2 = new RefPoint(22, 33);
             int result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test77(rp1, rp2);
             }
             int n = rp1.final_func(rp2);
@@ -1590,73 +1563,73 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns
     //-------------------------------------------------------------------------------
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (Point)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test78(Point p) {
         Point np = test78_helper(p);
         return np.x + np.y;
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static Point test78_helper(Point p) {
         return p;
     }
 
-    @DontCompile
-    public void test78_verifier(boolean warmup) {
+    @Run(test = "test78")
+    public void test78_verifier() {
         int result = test78(pointField1);
         int n = pointField1.x + pointField1.y;
         Asserts.assertEQ(result, n);
     }
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test79(RefPoint p) {
         RefPoint np = test79_helper(p);
         return np.x.n + np.y.n;
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static RefPoint test79_helper(RefPoint p) {
         return p;
     }
 
-    @DontCompile
-    public void test79_verifier(boolean warmup) {
+    @Run(test = "test79")
+    public void test79_verifier() {
         int result = test79(refPointField1);
         int n = refPointField1.x.n + refPointField1.y.n;
         Asserts.assertEQ(result, n);
     }
 
     // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test80(RefPoint p) {
         RefPoint np = test80_helper(p);
         return np.x.n + np.y.n;
     }
 
     @DontInline
-    @ForceCompile(compLevel = C2)
+    @ForceCompile(CompLevel.C2)
     private static RefPoint test80_helper(RefPoint p) {
         return p;
     }
 
-    @DontCompile
-    public void test80_verifier(boolean warmup) {
+    @Run(test = "test80")
+    public void test80_verifier() {
         int result = test80(refPointField1);
         int n = refPointField1.x.n + refPointField1.y.n;
         Asserts.assertEQ(result, n);
     }
 
     // Interpreter->C1 invokestatic with InlineTypeReturnedAsFields (Point)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public Point test81(Point p) {
         return p;
     }
 
-    @DontCompile
-    public void test81_verifier(boolean warmup) {
+    @Run(test = "test81")
+    public void test81_verifier() {
         Point p = test81(pointField1);
         Asserts.assertEQ(p.x, pointField1.x);
         Asserts.assertEQ(p.y, pointField1.y);
@@ -1666,19 +1639,19 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C1->Interpreter invokestatic with InlineTypeReturnedAsFields (RefPoint)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test82(RefPoint p) {
         RefPoint np = test82_helper(p);
         return np.x.n + np.y.n;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static RefPoint test82_helper(RefPoint p) {
         return p;
     }
 
-    @DontCompile
-    public void test82_verifier(boolean warmup) {
+    @Run(test = "test82")
+    public void test82_verifier() {
         int result = test82(refPointField1);
         int n = refPointField1.x.n + refPointField1.y.n;
         Asserts.assertEQ(result, n);
@@ -1689,72 +1662,72 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //-------------------------------------------------------------------------------
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test83(TooBigToReturnAsFields p) {
         TooBigToReturnAsFields np = test83_helper(p);
         return p.a0 + p.a5;
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static TooBigToReturnAsFields test83_helper(TooBigToReturnAsFields p) {
         return p;
     }
 
-    @DontCompile
-    public void test83_verifier(boolean warmup) {
+    @Run(test = "test83")
+    public void test83_verifier() {
         int result = test83(tooBig);
         int n = tooBig.a0 + tooBig.a5;
         Asserts.assertEQ(result, n);
     }
 
     // C1->C2 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test84(TooBigToReturnAsFields p) {
         TooBigToReturnAsFields np = test84_helper(p);
         return p.a0 + p.a5;
     }
 
     @DontInline
-    @ForceCompile(compLevel = C2)
+    @ForceCompile(CompLevel.C2)
     private static TooBigToReturnAsFields test84_helper(TooBigToReturnAsFields p) {
         return p;
     }
 
-    @DontCompile
-    public void test84_verifier(boolean warmup) {
+    @Run(test = "test84")
+    public void test84_verifier() {
         int result = test84(tooBig);
         int n = tooBig.a0 + tooBig.a5;
         Asserts.assertEQ(result, n);
     }
 
     // Interpreter->C1 invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public TooBigToReturnAsFields test85(TooBigToReturnAsFields p) {
         return p;
     }
 
-    @DontCompile
-    public void test85_verifier(boolean warmup) {
+    @Run(test = "test85")
+    public void test85_verifier() {
         TooBigToReturnAsFields p = test85(tooBig);
         Asserts.assertEQ(p.a0, tooBig.a0);
         Asserts.assertEQ(p.a2, tooBig.a2);
     }
 
     // C1->Interpreter invokestatic with InlineTypeReturnedAsFields (TooBigToReturnAsFields)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test86(TooBigToReturnAsFields p) {
         TooBigToReturnAsFields np = test86_helper(p);
         return p.a0 + p.a5;
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     private static TooBigToReturnAsFields test86_helper(TooBigToReturnAsFields p) {
         return p;
     }
 
-    @DontCompile
-    public void test86_verifier(boolean warmup) {
+    @Run(test = "test86")
+    public void test86_verifier() {
         int result = test86(tooBig);
         int n = tooBig.a0 + tooBig.a5;
         Asserts.assertEQ(result, n);
@@ -1765,55 +1738,55 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //-------------------------------------------------------------------------------
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public RefPoint.ref test87(RefPoint.ref p) {
         return test87_helper(p);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static RefPoint.ref test87_helper(RefPoint.ref p) {
         return p;
     }
 
-    @DontCompile
-    public void test87_verifier(boolean warmup) {
+    @Run(test = "test87")
+    public void test87_verifier() {
         Object result = test87(null);
         Asserts.assertEQ(result, null);
     }
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref with constant null)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public RefPoint.ref test88() {
         return test88_helper();
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static RefPoint.ref test88_helper() {
         return null;
     }
 
-    @DontCompile
-    public void test88_verifier(boolean warmup) {
+    @Run(test = "test88")
+    public void test88_verifier() {
         Object result = test88();
         Asserts.assertEQ(result, null);
     }
 
     // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public RefPoint.ref test89(RefPoint.ref p) {
         return test89_helper(p);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C2)
+    @ForceCompile(CompLevel.C2)
     private static RefPoint.ref test89_helper(RefPoint.ref p) {
         return p;
     }
 
-    @DontCompile
-    public void test89_verifier(boolean warmup) {
+    @Run(test = "test89")
+    public void test89_verifier() {
         Object result = test89(null);
         Asserts.assertEQ(result, null);
     }
@@ -1829,7 +1802,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //----------------------------------------------------------------------------------
 
     // C1->C1 invokeinterface -- call Unverified Value Entry of MyImplPojo1.func2 (compiled by C1)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test90(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
@@ -1839,9 +1812,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplPojo2(),
     };
 
-    @DontCompile
-    public void test90_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test90")
+    public void test90_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test90_intfs[i % test90_intfs.length];
             int result = test90(intf, 123, 456) + i;
@@ -1850,7 +1823,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C1->C2 invokeinterface -- call Unverified Value Entry of MyImplPojo2.func2 (compiled by C2)
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test91(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
@@ -1860,9 +1833,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplPojo1(),
     };
 
-    @DontCompile
-    public void test91_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test91")
+    public void test91_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test91_intfs[i % test91_intfs.length];
             int result = test91(intf, 123, 456) + i;
@@ -1871,7 +1844,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokeinterface -- call Unverified Entry of MyImplPojo1.func2 (compiled by C1)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test92(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
@@ -1881,9 +1854,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplPojo2(),
     };
 
-    @DontCompile
-    public void test92_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test92")
+    public void test92_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test92_intfs[i % test92_intfs.length];
             int result = test92(intf, 123, 456) + i;
@@ -1892,7 +1865,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C2 invokeinterface -- call Unverified Entry of MyImplPojo2.func2 (compiled by C2)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test93(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
@@ -1902,9 +1875,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplPojo1(),
     };
 
-    @DontCompile
-    public void test93_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test93")
+    public void test93_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test93_intfs[i % test93_intfs.length];
             int result = test93(intf, 123, 456) + i;
@@ -1913,7 +1886,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C1 invokeinterface -- call Unverified Entry of MyImplVal1.func2 (compiled by C1 - has VVEP_RO)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test94(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
@@ -1923,9 +1896,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplVal2(),
     };
 
-    @DontCompile
-    public void test94_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test94")
+    public void test94_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test94_intfs[i % test94_intfs.length];
             int result = test94(intf, 123, 456) + i;
@@ -1934,7 +1907,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C2->C2 invokeinterface -- call Unverified Entry of MyImplVal2.func2 (compiled by C2 - has VVEP_RO)
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test95(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
@@ -1944,9 +1917,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplVal1(),
     };
 
-    @DontCompile
-    public void test95_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test95")
+    public void test95_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test95_intfs[i % test95_intfs.length];
             int result = test95(intf, 123, 456) + i;
@@ -1955,7 +1928,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // C1->C2 GC handling in StubRoutines::store_inline_type_fields_to_buf()
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public RefPoint test96(RefPoint rp, boolean b) {
         RefPoint p = test96_helper(rp);
         if (b) {
@@ -1964,19 +1937,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return p;
     }
 
-    @DontInline @ForceCompile(compLevel = C2)
+    @DontInline
+    @ForceCompile(CompLevel.C2)
     public RefPoint test96_helper(RefPoint rp) {
         return rp;
     }
 
-    @DontCompile
-    public void test96_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20000; // Do enough iteration to cause GC inside StubRoutines::store_inline_type_fields_to_buf
+    @Run(test = "test96")
+    public void test96_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20000; // Do enough iteration to cause GC inside StubRoutines::store_inline_type_fields_to_buf
         Number x = new Number(10); // old object
         for (int i=0; i<count; i++) {
             Number y = new Number(i); // new object for each iteraton
             RefPoint rp1 = new RefPoint(x, y);
-            RefPoint rp2 = test96(rp1, warmup);
+            RefPoint rp2 = test96(rp1, info.isWarmUp());
 
             Asserts.assertEQ(rp1.x, x);
             Asserts.assertEQ(rp1.y, y);
@@ -1988,19 +1962,19 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     //           callee is executed by the interpreter. Then, callee is compiled
     //           and SharedRuntime::fixup_callers_callsite is called to fix up the
     //           callsite from test97_verifier->test97.
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public int test97(Point p1, Point p2) {
         return test97_helper(p1, p2);
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     public int test97_helper(Point p1, Point p2) {
         return p1.x + p1.y + p2.x + p2.y;
     }
 
-    @ForceCompile(compLevel = C1)
-    public void test97_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @ForceCompile(CompLevel.C1_SIMPLE)
+    public void test97_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             int result = test97(pointField1, pointField2);
             int n = test97_helper(pointField1, pointField2);
@@ -2008,20 +1982,25 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
-    // C1->C2  - same as test97, except the callee is compiled by c2.
-    @Test(compLevel = C2)
+    @Run(test = "test97")
+    public void run_test97_verifier(RunInfo info) {
+        test97_verifier(info);
+    }
+
+    // C1->C2  - same as test97, except the callee is compiled by C2.
+    @Test(compLevel = CompLevel.C2)
     public int test98(Point p1, Point p2) {
         return test98_helper(p1, p2);
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     public int test98_helper(Point p1, Point p2) {
         return p1.x + p1.y + p2.x + p2.y;
     }
 
-    @ForceCompile(compLevel = C1)
-    public void test98_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @ForceCompile(CompLevel.C1_SIMPLE)
+    public void test98_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             int result = test98(pointField1, pointField2);
             int n = test98_helper(pointField1, pointField2);
@@ -2029,20 +2008,25 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
+    @Run(test = "test98")
+    public void run_test98_verifier(RunInfo info) {
+        test98_verifier(info);
+    }
+
     // C1->C2  - same as test97, except the callee is a static method.
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public static int test99(Point p1, Point p2) {
         return test99_helper(p1, p2);
     }
 
-    @DontInline @DontCompile
+    @DontCompile
     public static int test99_helper(Point p1, Point p2) {
         return p1.x + p1.y + p2.x + p2.y;
     }
 
-    @ForceCompile(compLevel = C1)
-    public void test99_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @ForceCompile(CompLevel.C1_SIMPLE)
+    public void test99_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             int result = test99(pointField1, pointField2);
             int n = test99_helper(pointField1, pointField2);
@@ -2050,16 +2034,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
+    @Run(test = "test99")
+    public void run_test99_verifier(RunInfo info) {
+        test99_verifier(info);
+    }
 
     // C2->C1 invokestatic, packing causes stack growth (1 extra stack word).
     // Make sure stack frame is set up properly for GC.
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public float test100(FloatPoint fp1, FloatPoint fp2, RefPoint rp, int a1, int a2, int a3, int a4) {
         return test100_helper(fp1, fp2, rp, a1, a2, a3, a4);
     }
 
     @DontInline
-    @ForceCompile(compLevel = C1)
+    @ForceCompile(CompLevel.C1_SIMPLE)
     private static float test100_helper(FloatPoint fp1, FloatPoint fp2, RefPoint rp, int a1, int a2, int a3, int a4) {
         // On x64:
         //    Scalarized entry -- all parameters are passed in registers
@@ -2084,15 +2072,15 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         return fp1.x + fp1.y + fp2.x + fp2.y + rp.x.n + rp.y.n + a1 + a2 + a3 + a4;
     }
 
-    @DontCompile
-    public void test100_verifier(boolean warmup) {
-        int count = warmup ? 1 : 4;
+    @Run(test = "test100")
+    public void test100_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 4;
         for (int i=0; i<count; i++) {
             FloatPoint fp1 = new FloatPoint(i+0,  i+11);
             FloatPoint fp2 = new FloatPoint(i+222, i+3333);
             RefPoint rp = new RefPoint(i+44444, i+555555);
             float result;
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test100(fp1, fp2, rp, 1, 2, 3, 4);
             }
             float n = test100_helper(fp1, fp2, rp, 1, 2, 3, 4);
@@ -2102,25 +2090,26 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     // C1->C2 force GC for every allocation when storing the returned
     // fields back into a buffered object.
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public RefPoint test101(RefPoint rp) {
         return test101_helper(rp);
     }
 
-    @ForceCompile(compLevel = C2) @DontInline
+    @DontInline
+    @ForceCompile(CompLevel.C2)
     public RefPoint test101_helper(RefPoint rp) {
         return rp;
     }
 
-    @DontCompile
-    public void test101_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test101")
+    public void test101_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) {
             RefPoint rp = new RefPoint(1, 2);
             Object x = rp.x;
             Object y = rp.y;
             RefPoint result = new RefPoint(3, 4);
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test101(rp);
             }
             Asserts.assertEQ(rp.x, result.x);
@@ -2131,30 +2120,31 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     }
 
     // Same as test101, except we have Interpreter->C2 instead.
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public RefPoint test102(RefPoint rp) {
         return test102_interp(rp);
     }
 
-    @DontCompile @DontInline
+    @DontInline
     public RefPoint test102_interp(RefPoint rp) {
         return test102_helper(rp);
     }
 
-    @ForceCompile(compLevel = C2) @DontInline
+    @DontInline
+    @ForceCompile(CompLevel.C2)
     public RefPoint test102_helper(RefPoint rp) {
         return rp;
     }
 
-    @DontCompile
-    public void test102_verifier(boolean warmup) {
-        int count = warmup ? 1 : 5;
+    @Run(test = "test102")
+    public void test102_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 5;
         for (int i=0; i<count; i++) {
             RefPoint rp = new RefPoint(11, 22);
             Object x = rp.x;
             Object y = rp.y;
             RefPoint result = new RefPoint(333, 444);
-            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+            try (ForceGCMarker m = ForceGCMarker.mark(info.isWarmUp())) {
                 result = test102(rp);
             }
             Asserts.assertEQ(rp.x, result.x);
@@ -2164,7 +2154,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public void test103() {
         // when this method is compiled by C1, the Test103Value class is not yet loaded.
         test103_v = new Test103Value(); // invokestatic "Test103Value.<init>()QTest103Value;"
@@ -2176,9 +2166,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     static Object test103_v;
 
-    @DontCompile
-    public void test103_verifier(boolean warmup) {
-        if (warmup) {
+    @Run(test = "test103")
+    public void test103_verifier(RunInfo info) {
+        if (info.isWarmUp()) {
             // Make sure test103() is compiled before Test103Value is loaded
             return;
         }
@@ -2189,7 +2179,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
 
     // Same as test103, but with an inline class that's too big to return as fields.
-    @Test(compLevel = C1)
+    @Test(compLevel = CompLevel.C1_SIMPLE)
     public void test104() {
         // when this method is compiled by C1, the Test104Value class is not yet loaded.
         test104_v = new Test104Value(); // invokestatic "Test104Value.<init>()QTest104Value;"
@@ -2216,9 +2206,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     static Object test104_v;
 
-    @DontCompile
-    public void test104_verifier(boolean warmup) {
-        if (warmup) {
+    @Run(test = "test104")
+    public void test104_verifier(RunInfo info) {
+        if (info.isWarmUp()) {
             // Make sure test104() is compiled before Test104Value is loaded
             return;
         }
@@ -2229,7 +2219,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     // C2->C1 invokeinterface -- call Unverified Entry of MyImplVal1.func1 (compiled by C1 - has VVEP_RO)
     /// (same as test94, except we are calling func1, which shares VVEP and VVEP_RO
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test105(Intf intf, int a, int b) {
         return intf.func1(a, b);
     }
@@ -2239,9 +2229,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplVal2(),
     };
 
-    @DontCompile
-    public void test105_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test105")
+    public void test105_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test105_intfs[i % test105_intfs.length];
             int result = test105(intf, 123, 456) + i;
@@ -2251,7 +2241,7 @@ public class TestCallingConventionC1 extends InlineTypeTest {
 
     // C2->C2 invokeinterface -- call Unverified Entry of MyImplVal2.func1 (compiled by C2 - has VVEP_RO)
     /// (same as test95, except we are calling func1, which shares VVEP and VVEP_RO
-    @Test(compLevel = C2)
+    @Test(compLevel = CompLevel.C2)
     public int test106(Intf intf, int a, int b) {
         return intf.func1(a, b);
     }
@@ -2261,9 +2251,9 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         new MyImplVal1(),
     };
 
-    @DontCompile
-    public void test106_verifier(boolean warmup) {
-        int count = warmup ? 1 : 20;
+    @Run(test = "test106")
+    public void test106_verifier(RunInfo info) {
+        int count = info.isWarmUp() ? 1 : 20;
         for (int i=0; i<count; i++) {
             Intf intf = test106_intfs[i % test106_intfs.length];
             int result = test106(intf, 123, 456) + i;
@@ -2274,13 +2264,13 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     // C2->C1 invokeinterface -- C2 calls call Unverified Entry of MyImplVal2X.func1 (compiled by
     //                           C1, with VVEP_RO==VVEP)
     // This test is developed to validate JDK-8230325.
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public int test107(Intf intf, int a, int b) {
         return intf.func1(a, b);
     }
 
     @ForceCompile
-    public void test107_verifier(boolean warmup) {
+    public void test107_verifier() {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
@@ -2302,14 +2292,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
+    @Run(test = "test107")
+    @Warmup(0)
+    public void run_test107_verifier() {
+        test107_verifier();
+    }
+
     // Same as test107, except we call MyImplVal2X.func2 (compiled by C1, VVEP_RO != VVEP)
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public int test108(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
 
     @ForceCompile
-    public void test108_verifier(boolean warmup) {
+    public void test108_verifier() {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
@@ -2331,14 +2327,20 @@ public class TestCallingConventionC1 extends InlineTypeTest {
         }
     }
 
+    @Run(test = "test108")
+    @Warmup(0)
+    public void run_test108_verifier() {
+        test108_verifier();
+    }
+
     // Same as test107, except we call MyImplPojo3.func2 (compiled by C1, VVEP_RO == VEP)
-    @Test() @Warmup(0) @OSRCompileOnly
+    @Test(compLevel = CompLevel.WAIT_FOR_COMPILATION)
     public int test109(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
 
     @ForceCompile
-    public void test109_verifier(boolean warmup) {
+    public void test109_verifier() {
         Intf intf1 = new MyImplPojo0();
         Intf intf2 = new MyImplPojo3();
 
@@ -2358,5 +2360,11 @@ public class TestCallingConventionC1 extends InlineTypeTest {
                 test109(intf1, 123, 456);
             }
         }
+    }
+
+    @Run(test = "test109")
+    @Warmup(0)
+    public void run_test109_verifier() {
+        test109_verifier();
     }
 }

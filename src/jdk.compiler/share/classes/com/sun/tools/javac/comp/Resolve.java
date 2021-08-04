@@ -53,7 +53,6 @@ import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
-import com.sun.tools.javac.util.JCDiagnostic.Warning;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -65,7 +64,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -429,7 +427,7 @@ public class Resolve {
             // A type is accessible in a reference projection if it was
             // accessible in the value projection.
             if (site.isReferenceProjection())
-                site = site.valueProjection();
+                site = site.asValueType();
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {

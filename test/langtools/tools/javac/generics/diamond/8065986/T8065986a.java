@@ -10,7 +10,7 @@ import java.util.ArrayList;
 
 class T8065986a {
     T8065986a() {
-        super(new Object<>());
+        super(new Object<>() {});
     }
 
     T8065986a(boolean b) {

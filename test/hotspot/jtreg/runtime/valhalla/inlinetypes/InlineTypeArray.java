@@ -81,7 +81,7 @@ public class InlineTypeArray {
             arrayCls = Class.forName(qarrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
 
-            assertTrue(arrayCls.getComponentType() == Point.class,
+            assertTrue(arrayCls.getComponentType() == Point.class.asValueType(),
                        arrayCls +
                        " Expected component type of Point.class got: " + arrayCls.getComponentType());
 
@@ -288,7 +288,7 @@ public class InlineTypeArray {
         assertTrue(myInts instanceof Comparable[]);
         assertTrue(myInts instanceof MyInt[]);
 
-        Class<?> cls = MyInt.class;
+        Class<?> cls = MyInt.class.asValueType();
         assertTrue(cls.isValueType());
         Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");

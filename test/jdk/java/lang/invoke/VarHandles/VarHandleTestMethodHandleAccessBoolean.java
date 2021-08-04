@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccessBoolean
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessBoolean
  */
 
 import org.testng.annotations.BeforeClass;
@@ -41,6 +41,8 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessBoolean extends VarHandleBaseTest {
+    static final Class<?> type = boolean.class;
+
     static final boolean static_final_v = true;
 
     static boolean static_v;
@@ -64,21 +66,21 @@ public class VarHandleTestMethodHandleAccessBoolean extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessBoolean.class, "final_v", boolean.class);
+                VarHandleTestMethodHandleAccessBoolean.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessBoolean.class, "v", boolean.class);
+                VarHandleTestMethodHandleAccessBoolean.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessBoolean.class, "static_final_v", boolean.class);
+            VarHandleTestMethodHandleAccessBoolean.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessBoolean.class, "static_v", boolean.class);
+            VarHandleTestMethodHandleAccessBoolean.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(boolean[].class);
 
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "boolean_v", boolean.class);
+                    Value.class, "boolean_v", type);
     }
 
 

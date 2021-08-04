@@ -33,6 +33,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.NestingKind;
 import javax.tools.JavaFileManager;
 
+import com.sun.source.tree.CaseTree;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.Compound;
 import com.sun.tools.javac.code.Directive.ExportsDirective;
@@ -794,9 +795,12 @@ public class Check {
                 t = types.createErrorType(t);
             } else {
                 // Projection types may not be mentioned in constructor references
-                if (expr.hasTag(SELECT)) {
-                    JCFieldAccess fieldAccess = (JCFieldAccess) expr;
-                    if (fieldAccess.selected.type.isPrimitiveClass() &&
+                JCExpression instantiation = expr;
+                if (instantiation.hasTag(TYPEAPPLY))
+                    instantiation = ((JCTypeApply) instantiation).clazz;
+                if (instantiation.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) instantiation;
+                    if (fieldAccess.selected.type.tsym.isPrimitiveClass() &&
                             (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                         log.error(expr, Errors.ProjectionCantBeInstantiated);
                         t = types.createErrorType(t);
@@ -857,7 +861,7 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.isPrimitive() || t.isPrimitiveClass() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.tsym.isPrimitiveClass())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
@@ -1358,7 +1362,7 @@ public class Check {
                 mask = implicit = InterfaceVarFlags;
             else {
                 mask = VarFlags;
-                if (types.isPrimitiveClass(sym.owner.type) && (flags & STATIC) == 0) {
+                if (sym.owner.isPrimitiveClass() && (flags & STATIC) == 0) {
                     implicit |= FINAL;
                 }
             }
@@ -1670,12 +1674,15 @@ public class Check {
         public void visitSelectInternal(JCFieldAccess tree) {
             if (tree.type.tsym.isStatic() &&
                 tree.selected.type.isParameterized() &&
-                    (tree.name != names.ref || !tree.type.isReferenceProjection())) {
+                    (!tree.type.tsym.isPrimitiveClass() || (tree.name != names.ref && tree.name != names.val))) {
                 // The enclosing type is not a class, so we are
                 // looking at a static member type.  However, the
                 // qualifying expression is parameterized.
-                // Tolerate the pseudo-select V.ref: V<T>.ref will be static if V<T> is and
-                // should not be confused as selecting a static member of a parameterized type.
+
+                // Tolerate the pseudo-select V.ref/V.val: V<T>.ref/val will be static if V<T> is and
+                // should not be confused as selecting a static member of a parameterized type. Both
+                // these constructs are illegal anyway & will be more appropriately complained against shortly.
+                // Note: the canonicl form is V.ref<T> and V.val<T> not V<T>.ref and V<T>.val
                 log.error(tree.pos(), Errors.CantSelectStaticClassFromParamType);
             } else {
                 // otherwise validate the rest of the expression
@@ -2739,9 +2746,9 @@ public class Check {
 
         boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
         boolean implementsPrimitiveObject = types.asSuper(c.referenceProjectionOrSelf(), syms.primitiveObjectType.tsym) != null;
-        if (c.isPrimitiveClass() && implementsIdentityObject) {
+        if (c.tsym.isPrimitiveClass() && implementsIdentityObject) {
             log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
-        } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
+        } else if (implementsPrimitiveObject && !c.tsym.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
             log.error(pos, Errors.IdentityClassMustNotImplementPrimitiveObject(c));
         } else if (implementsPrimitiveObject && implementsIdentityObject) {
             log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
@@ -4513,4 +4520,66 @@ public class Check {
         }
     }
 
+    /**
+     * Verify the case labels conform to the constraints. Checks constraints related
+     * combinations of patterns and other labels.
+     *
+     * @param cases the cases that should be checked.
+     */
+    void checkSwitchCaseStructure(List<JCCase> cases) {
+        boolean wasConstant = false;          // Seen a constant in the same case label
+        boolean wasDefault = false;           // Seen a default in the same case label
+        boolean wasNullPattern = false;       // Seen a null pattern in the same case label,
+                                              //or fall through from a null pattern
+        boolean wasPattern = false;           // Seen a pattern in the same case label
+                                              //or fall through from a pattern
+        boolean wasTypePattern = false;       // Seen a pattern in the same case label
+                                              //or fall through from a type pattern
+        boolean wasNonEmptyFallThrough = false;
+        for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
+            JCCase c = l.head;
+            for (JCCaseLabel pat : c.labels) {
+                if (pat.isExpression()) {
+                    JCExpression expr = (JCExpression) pat;
+                    if (TreeInfo.isNull(expr)) {
+                        if (wasPattern && !wasTypePattern && !wasNonEmptyFallThrough) {
+                            log.error(pat.pos(), Errors.FlowsThroughFromPattern);
+                        }
+                        wasNullPattern = true;
+                    } else {
+                        if (wasPattern && !wasNonEmptyFallThrough) {
+                            log.error(pat.pos(), Errors.FlowsThroughFromPattern);
+                        }
+                        wasConstant = true;
+                    }
+                } else if (pat.hasTag(DEFAULTCASELABEL)) {
+                    if (wasPattern && !wasNonEmptyFallThrough) {
+                        log.error(pat.pos(), Errors.FlowsThroughFromPattern);
+                    }
+                    wasDefault = true;
+                } else {
+                    boolean isTypePattern = pat.hasTag(BINDINGPATTERN);
+                    if (wasPattern || wasConstant || wasDefault ||
+                        (wasNullPattern && (!isTypePattern || wasNonEmptyFallThrough))) {
+                        log.error(pat.pos(), Errors.FlowsThroughToPattern);
+                    }
+                    wasPattern = true;
+                    wasTypePattern = isTypePattern;
+                }
+            }
+
+            boolean completesNormally = c.caseKind == CaseTree.CaseKind.STATEMENT ? c.completesNormally
+                                                                                  : false;
+
+            if (c.stats.nonEmpty()) {
+                wasConstant = false;
+                wasDefault = false;
+                wasNullPattern &= completesNormally;
+                wasPattern &= completesNormally;
+                wasTypePattern &= completesNormally;
+            }
+
+            wasNonEmptyFallThrough = c.stats.nonEmpty() && completesNormally;
+        }
+    }
 }

@@ -44,7 +44,6 @@ import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Source.Feature;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
-import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Types.SignatureGenerator.InvalidSignatureException;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.file.PathFileObject;
@@ -350,6 +349,12 @@ public class ClassWriter extends ClassFile {
         int acount = 0;
         if ((flags & DEPRECATED) != 0) {
             int alenIdx = writeAttr(names.Deprecated);
+            endAttr(alenIdx);
+            acount++;
+        }
+        if ((flags & REFERENCE_FAVORING) != 0) {
+            int alenIdx = writeAttr(names.JavaFlags);
+            databuf.appendChar(ACC_REF_DEFAULT);
             endAttr(alenIdx);
             acount++;
         }
@@ -1496,13 +1501,6 @@ public class ClassWriter extends ClassFile {
     public JavaFileObject writeClass(ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow
     {
-        JavaFileObject javaFileObject = writeClassInternal(c);
-        return javaFileObject;
-    }
-
-    private JavaFileObject writeClassInternal(ClassSymbol c)
-        throws IOException, PoolOverflow, StringOverflow
-    {
         String name = (c.owner.kind == MDL ? c.name : c.flatname).toString();
         Location outLocn;
         if (multiModuleMode) {
@@ -1572,26 +1570,19 @@ public class ClassWriter extends ClassFile {
         } else {
             databuf.appendChar(poolWriter.putClass(c));
         }
-        databuf.appendChar(supertype.hasTag(CLASS) ? poolWriter.putClass(supertype) : 0);
+        databuf.appendChar(supertype.hasTag(CLASS) ? poolWriter.putClass((ClassSymbol)supertype.tsym) : 0);
         databuf.appendChar(interfaces.length());
         for (List<Type> l = interfaces; l.nonEmpty(); l = l.tail)
             databuf.appendChar(poolWriter.putClass((ClassSymbol)l.head.tsym));
         int fieldsCount = 0;
         int methodsCount = 0;
-
         for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
             switch (sym.kind) {
-                case VAR:
-                    fieldsCount++;
-                    break;
-                case MTH:
-                    if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
-                    break;
-                case TYP:
-                    poolWriter.enterInner((ClassSymbol)sym);
-                    break;
-                default:
-                    Assert.error();
+            case VAR: fieldsCount++; break;
+            case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
+                      break;
+            case TYP: poolWriter.enterInner((ClassSymbol)sym); break;
+            default : Assert.error();
             }
         }
 
