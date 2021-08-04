@@ -1875,17 +1875,6 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(address, phase);
-  if (alloc != NULL && mem->is_Proj() &&
-      mem->in(0) != NULL &&
-      mem->in(0) == alloc->initialization() &&
-      Opcode() == Op_LoadX &&
-      alloc->initialization()->proj_out_or_null(0) != NULL) {
-    InitializeNode* init = alloc->initialization();
-    Node* control = init->proj_out(0);
-    return alloc->make_ideal_mark(phase, control, mem);
-  }
-
   return progress ? this : NULL;
 }
 
@@ -2023,11 +2012,20 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != NULL && const_oop->is_instance()) {
       ciType* mirror_type = const_oop->as_instance()->java_mirror_type();
-      if (mirror_type != NULL && mirror_type->is_inlinetype()) {
-        ciInlineKlass* vk = mirror_type->as_inline_klass();
-        if (off == vk->default_value_offset()) {
-          // Loading a special hidden field that contains the oop of the default inline type
-          const Type* const_oop = TypeInstPtr::make(vk->default_instance());
+      if (mirror_type != NULL) {
+        const Type* const_oop = NULL;
+        ciInlineKlass* vk = mirror_type->is_inlinetype() ? mirror_type->as_inline_klass() : NULL;
+        // Fold default value loads
+        if (vk != NULL && off == vk->default_value_offset()) {
+          const_oop = TypeInstPtr::make(vk->default_instance());
+        }
+        // Fold class mirror loads
+        if (off == java_lang_Class::primary_mirror_offset()) {
+          const_oop = (vk == NULL) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->ref_instance());
+        } else if (off == java_lang_Class::secondary_mirror_offset()) {
+          const_oop = (vk == NULL) ? TypePtr::NULL_PTR : TypeInstPtr::make(vk->val_instance());
+        }
+        if (const_oop != NULL) {
           return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
         }
       }
@@ -2177,7 +2175,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     }
   }
   Node* alloc = is_new_object_mark_load(phase);
-  if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
+  if (alloc != NULL) {
     if (EnableValhalla) {
       // The mark word may contain property bits (inline, flat, null-free)
       Node* klass_node = alloc->in(AllocateNode::KlassNode);
@@ -2387,7 +2385,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      ciType* t = tinst->java_mirror_type();
+      bool null_free = false;
+      ciType* t = tinst->java_mirror_type(&null_free);
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != NULL) {
         // constant oop => constant klass
@@ -2397,12 +2396,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          if (t->is_inlinetype()) {
-            // TODO fix with JDK-8267932
-            return LoadNode::Value(phase);
-          } else {
-            return TypeKlassPtr::make(ciArrayKlass::make(t));
-          }
+          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free));
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has NULL for a klass field
@@ -2887,7 +2881,7 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
       result = mem;
     }
 
-    if (result == this) {
+    if (result == this && phase->type(val)->is_zero_type()) {
       // the store may also apply to zero-bits in an earlier object
       Node* prev_mem = find_previous_store(phase);
       // Steps (a), (b):  Walk past independent stores to find an exact match.
@@ -2896,15 +2890,7 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
         if (prev_val != NULL && prev_val == val) {
           // prev_val and val might differ by a cast; it would be good
           // to keep the more informative of the two.
-          if (phase->type(val)->is_zero_type()) {
-            result = mem;
-          } else if (prev_mem->is_Proj() && prev_mem->in(0)->is_Initialize()) {
-            InitializeNode* init = prev_mem->in(0)->as_Initialize();
-            AllocateNode* alloc = init->allocation();
-            if (alloc != NULL && alloc->in(AllocateNode::DefaultValue) == val) {
-              result = mem;
-            }
-          }
+          result = mem;
         }
       }
     }
@@ -3444,7 +3430,8 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
 
 void MemBarNode::remove(PhaseIterGVN *igvn) {
   if (outcnt() != 2) {
-    return;
+    assert(Opcode() == Op_Initialize, "Only seen when there are no use of init memory");
+    assert(outcnt() == 1, "Only control then");
   }
   if (trailing_store() || trailing_load_store()) {
     MemBarNode* leading = leading_membar();
@@ -3453,8 +3440,12 @@ void MemBarNode::remove(PhaseIterGVN *igvn) {
       leading->remove(igvn);
     }
   }
-  igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
-  igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+  if (proj_out_or_null(TypeFunc::Memory) != NULL) {
+    igvn->replace_node(proj_out(TypeFunc::Memory), in(TypeFunc::Memory));
+  }
+  if (proj_out_or_null(TypeFunc::Control) != NULL) {
+    igvn->replace_node(proj_out(TypeFunc::Control), in(TypeFunc::Control));
+  }
 }
 
 //------------------------------Ideal------------------------------------------

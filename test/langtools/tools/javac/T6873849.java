@@ -68,7 +68,7 @@ public class T6873849 {
 
     void m(List t) {
         // force a note about unchecked usage
-        t.add(new Object());
+        t.add(new Object() {});
     }
 
     private File testSrc = new File(System.getProperty("test.src", "."));

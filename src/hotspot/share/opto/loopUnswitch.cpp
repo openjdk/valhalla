@@ -161,7 +161,8 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   // Find first invariant test that doesn't exit the loop
   Node_List unswitch_iffs;
   IfNode* unswitch_iff = find_unswitching_candidate((const IdealLoopTree *)loop, unswitch_iffs);
-  assert(unswitch_iff != NULL && unswitch_iffs.size() > 0, "should be at least one");
+  assert(unswitch_iff != NULL && unswitch_iff == unswitch_iffs.at(0), "should be at least one");
+  bool flat_array_checks = unswitch_iffs.size() > 1;
 
 #ifndef PRODUCT
   if (TraceLoopOpts) {
@@ -179,7 +180,9 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     head->as_CountedLoop()->set_normal_loop();
   }
 
-  ProjNode* proj_true = create_slow_version_of_loop(loop, old_new, unswitch_iff->Opcode(), CloneIncludesStripMined);
+  IfNode* invar_iff = create_slow_version_of_loop(loop, old_new, unswitch_iffs, CloneIncludesStripMined);
+  ProjNode* proj_true = invar_iff->proj_out(1);
+  ProjNode* proj_false = invar_iff->proj_out(0);
 
 #ifdef ASSERT
   assert(proj_true->is_IfTrue(), "must be true projection");
@@ -214,39 +217,6 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   int nct = head->unswitch_count() + 1;
   head->set_unswitch_count(nct);
   head_clone->set_unswitch_count(nct);
-
-  // TODO: reimplement JDK-8267151, dropped from jdk->lworld merge
-
-  // Add test to new "if" outside of loop
-  IfNode* invar_iff   = proj_true->in(0)->as_If();
-  Node* invar_iff_c   = invar_iff->in(0);
-  invar_iff->_prob    = unswitch_iff->_prob;
-  BoolNode* bol       = unswitch_iff->in(1)->as_Bool();
-  bool flat_array_checks = unswitch_iffs.size() > 1;
-  if (flat_array_checks) {
-    // Flattened array checks are used on array access to switch between
-    // a legacy object array access and a flattened inline type array
-    // access. We want the performance impact on legacy accesses to be
-    // as small as possible so we make two copies of the loop: a fast
-    // one where all accesses are known to be legacy, a slow one where
-    // some accesses are to flattened arrays. Flattened array checks
-    // can be removed from the fast loop (true proj) but not from the
-    // slow loop (false proj) as it can have a mix of flattened/legacy accesses.
-    assert(bol->_test._test == BoolTest::ne, "IfTrue proj must point to flat array");
-    bol = bol->clone()->as_Bool();
-    register_new_node(bol, invar_iff_c);
-    FlatArrayCheckNode* cmp = bol->in(1)->clone()->as_FlatArrayCheck();
-    register_new_node(cmp, invar_iff_c);
-    bol->set_req(1, cmp);
-    // Combine all checks into a single one that fails if one array is flattened
-    assert(cmp->req() == 3, "unexpected number of inputs for FlatArrayCheck");
-    cmp->add_req_batch(C->top(), unswitch_iffs.size() - 1);
-    for (uint i = 0; i < unswitch_iffs.size(); i++) {
-      Node* array = unswitch_iffs.at(i)->in(1)->in(1)->in(FlatArrayCheckNode::Array);
-      cmp->set_req(FlatArrayCheckNode::Array + i, array);
-    }
-  }
-  invar_iff->set_req(1, bol);
 
   // Hoist invariant casts out of each loop to the appropriate control projection.
   Node_List worklist;
@@ -318,11 +288,11 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 //-------------------------create_slow_version_of_loop------------------------
 // Create a slow version of the loop by cloning the loop
 // and inserting an if to select fast-slow versions.
-// Return control projection of the entry to the fast version.
-ProjNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
-                                                      Node_List &old_new,
-                                                      int opcode,
-                                                      CloneLoopMode mode) {
+// Return the inserted if.
+IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
+                                                    Node_List &old_new,
+                                                    Node_List &unswitch_iffs,
+                                                    CloneLoopMode mode) {
   LoopNode* head  = loop->_head->as_Loop();
   bool counted_loop = head->is_CountedLoop();
   Node*     entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
@@ -331,14 +301,35 @@ ProjNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
 
   head->verify_strip_mined(1);
 
-  Node *cont      = _igvn.intcon(1);
-  set_ctrl(cont, C->root());
-  Node* opq       = new Opaque1Node(C, cont);
-  register_node(opq, outer_loop, entry, dom_depth(entry));
-  Node *bol       = new Conv2BNode(opq);
-  register_node(bol, outer_loop, entry, dom_depth(entry));
-  IfNode* iff = (opcode == Op_RangeCheck) ? new RangeCheckNode(entry, bol, PROB_MAX, COUNT_UNKNOWN) :
-    new IfNode(entry, bol, PROB_MAX, COUNT_UNKNOWN);
+  // Add test to new "if" outside of loop
+  IfNode* unswitch_iff = unswitch_iffs.at(0)->as_If();
+  BoolNode* bol = unswitch_iff->in(1)->as_Bool();
+  if (unswitch_iffs.size() > 1) {
+    // Flattened array checks are used on array access to switch between
+    // a legacy object array access and a flattened inline type array
+    // access. We want the performance impact on legacy accesses to be
+    // as small as possible so we make two copies of the loop: a fast
+    // one where all accesses are known to be legacy, a slow one where
+    // some accesses are to flattened arrays. Flattened array checks
+    // can be removed from the fast loop (true proj) but not from the
+    // slow loop (false proj) as it can have a mix of flattened/legacy accesses.
+    assert(bol->_test._test == BoolTest::ne, "IfTrue proj must point to flat array");
+    bol = bol->clone()->as_Bool();
+    register_new_node(bol, entry);
+    FlatArrayCheckNode* cmp = bol->in(1)->clone()->as_FlatArrayCheck();
+    register_new_node(cmp, entry);
+    bol->set_req(1, cmp);
+    // Combine all checks into a single one that fails if one array is flattened
+    assert(cmp->req() == 3, "unexpected number of inputs for FlatArrayCheck");
+    cmp->add_req_batch(C->top(), unswitch_iffs.size() - 1);
+    for (uint i = 0; i < unswitch_iffs.size(); i++) {
+      Node* array = unswitch_iffs.at(i)->in(1)->in(1)->in(FlatArrayCheckNode::Array);
+      cmp->set_req(FlatArrayCheckNode::Array + i, array);
+    }
+  }
+
+  IfNode* iff = (unswitch_iff->Opcode() == Op_RangeCheck) ? new RangeCheckNode(entry, bol, unswitch_iff->_prob, unswitch_iff->_fcnt) :
+      new IfNode(entry, bol, unswitch_iff->_prob, unswitch_iff->_fcnt);
   register_node(iff, outer_loop, entry, dom_depth(entry));
   ProjNode* iffast = new IfTrueNode(iff);
   register_node(iffast, outer_loop, iff, dom_depth(iff));
@@ -365,7 +356,7 @@ ProjNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
 
   recompute_dom_depth();
 
-  return iffast;
+  return iff;
 }
 
 LoopNode* PhaseIdealLoop::create_reserve_version_of_loop(IdealLoopTree *loop, CountedLoopReserveKit* lk) {

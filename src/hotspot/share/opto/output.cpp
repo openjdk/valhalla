@@ -3160,6 +3160,19 @@ void Scheduling::ComputeRegisterAntidependencies(Block *b) {
           break;
         }
       }
+
+      // Do not allow a CheckCastPP node whose input is a raw pointer to
+      // float past a safepoint.  This can occur when a buffered inline
+      // type is allocated in a loop and the CheckCastPP from that
+      // allocation is reused outside the loop.  If the use inside the
+      // loop is scalarized the CheckCastPP will no longer be connected
+      // to the loop safepoint.  See JDK-8264340.
+      if (m->is_Mach() && m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
+        Node *def = m->in(1);
+        if (def != NULL && def->bottom_type()->base() == Type::RawPtr) {
+          last_safept_node->add_prec(m);
+        }
+      }
     }
 
     if( n->jvms() ) {           // Precedence edge from derived to safept
@@ -3323,7 +3336,7 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
       // when loading object fields from the buffered argument. Increase scratch buffer size accordingly.
       int barrier_size = UseZGC ? 200 : (7 DEBUG_ONLY(+ 37));
       for (ciSignatureStream str(C->method()->signature()); !str.at_return_type(); str.next()) {
-        if (str.type()->is_inlinetype() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
+        if (str.is_null_free() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
           size += str.type()->as_inline_klass()->oop_count() * barrier_size;
         }
       }

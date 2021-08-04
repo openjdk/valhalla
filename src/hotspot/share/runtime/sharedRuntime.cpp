@@ -61,7 +61,6 @@
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -112,6 +111,8 @@ void SharedRuntime::generate_stubs() {
   _resolve_virtual_call_blob           = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_virtual_call_C),       "resolve_virtual_call");
   _resolve_static_call_blob            = generate_resolve_blob(CAST_FROM_FN_PTR(address, SharedRuntime::resolve_static_call_C),        "resolve_static_call");
 
+  AdapterHandlerLibrary::initialize();
+
 #if COMPILER2_OR_JVMCI
   // Vectors are generated only by C2 and JVMCI.
   bool support_wide = is_wide_vector(MaxVectorSize);
@@ -142,7 +143,6 @@ int SharedRuntime::_resolve_virtual_ctr = 0;
 int SharedRuntime::_resolve_opt_virtual_ctr = 0;
 int SharedRuntime::_implicit_null_throws = 0;
 int SharedRuntime::_implicit_div0_throws = 0;
-int SharedRuntime::_throw_null_ctr = 0;
 
 int64_t SharedRuntime::_nof_normal_calls = 0;
 int64_t SharedRuntime::_nof_optimized_calls = 0;
@@ -157,7 +157,6 @@ int64_t SharedRuntime::_nof_megamorphic_interface_calls = 0;
 
 int SharedRuntime::_new_instance_ctr=0;
 int SharedRuntime::_new_array_ctr=0;
-int SharedRuntime::_multi1_ctr=0;
 int SharedRuntime::_multi2_ctr=0;
 int SharedRuntime::_multi3_ctr=0;
 int SharedRuntime::_multi4_ctr=0;
@@ -994,7 +993,7 @@ JRT_END
 jlong SharedRuntime::get_java_tid(Thread* thread) {
   if (thread != NULL) {
     if (thread->is_Java_thread()) {
-      oop obj = thread->as_Java_thread()->threadObj();
+      oop obj = JavaThread::cast(thread)->threadObj();
       return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
     }
   }
@@ -2185,9 +2184,6 @@ void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThre
   // The normal monitorenter NullPointerException is thrown without acquiring a lock
   // and the model is that an exception implies the method failed.
   JRT_BLOCK_NO_ASYNC
-  if (PrintBiasedLockingStatistics) {
-    Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
-  }
   Handle h_obj(THREAD, obj);
   ObjectSynchronizer::enter(h_obj, lock, current);
   assert(!HAS_PENDING_EXCEPTION, "Should have no exception here");
@@ -2225,14 +2221,11 @@ void SharedRuntime::print_statistics() {
   ttyLocker ttyl;
   if (xtty != NULL)  xtty->head("statistics type='SharedRuntime'");
 
-  if (_throw_null_ctr) tty->print_cr("%5d implicit null throw", _throw_null_ctr);
-
   SharedRuntime::print_ic_miss_histogram();
 
   // Dump the JRT_ENTRY counters
   if (_new_instance_ctr) tty->print_cr("%5d new instance requires GC", _new_instance_ctr);
   if (_new_array_ctr) tty->print_cr("%5d new array requires GC", _new_array_ctr);
-  if (_multi1_ctr) tty->print_cr("%5d multianewarray 1 dim", _multi1_ctr);
   if (_multi2_ctr) tty->print_cr("%5d multianewarray 2 dim", _multi2_ctr);
   if (_multi3_ctr) tty->print_cr("%5d multianewarray 3 dim", _multi3_ctr);
   if (_multi4_ctr) tty->print_cr("%5d multianewarray 4 dim", _multi4_ctr);
@@ -2532,10 +2525,51 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
     stringStream st;
     st.print("0x");
     for (int i = 0; i < length(); i++) {
-      st.print("%08x", value(i));
+      st.print("%x", value(i));
     }
     return st.as_string();
   }
+
+#ifndef PRODUCT
+  // Reconstitutes the basic type arguments from the fingerprint,
+  // producing strings like LIJDF
+  const char* as_basic_args_string() {
+    stringStream st;
+    bool long_prev = false;
+    for (int i = 0; i < length(); i++) {
+      unsigned val = (unsigned)value(i);
+      // args are packed so that first/lower arguments are in the highest
+      // bits of each int value, so iterate from highest to the lowest
+      for (int j = 32 - _basic_type_bits; j >= 0; j -= _basic_type_bits) {
+        unsigned v = (val >> j) & _basic_type_mask;
+        if (v == 0) {
+          assert(i == length() - 1, "Only expect zeroes in the last word");
+          continue;
+        }
+        if (long_prev) {
+          long_prev = false;
+          if (v == T_VOID) {
+            st.print("J");
+          } else {
+            st.print("L");
+          }
+        }
+        switch (v) {
+          case T_INT:    st.print("I");    break;
+          case T_LONG:   long_prev = true; break;
+          case T_FLOAT:  st.print("F");    break;
+          case T_DOUBLE: st.print("D");    break;
+          case T_VOID:   break;
+          default: ShouldNotReachHere();
+        }
+      }
+    }
+    if (long_prev) {
+      st.print("L");
+    }
+    return st.as_string();
+  }
+#endif // !product
 
   bool equals(AdapterFingerPrint* other) {
     if (other->_length != _length) {
@@ -2700,13 +2734,15 @@ class AdapterHandlerTableIterator : public StackObj {
 // Implementation of AdapterHandlerLibrary
 AdapterHandlerTable* AdapterHandlerLibrary::_adapters = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_abstract_method_handler = NULL;
+AdapterHandlerEntry* AdapterHandlerLibrary::_no_arg_handler = NULL;
+AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = NULL;
+AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = NULL;
+AdapterHandlerEntry* AdapterHandlerLibrary::_obj_int_arg_handler = NULL;
+AdapterHandlerEntry* AdapterHandlerLibrary::_obj_obj_arg_handler = NULL;
 const int AdapterHandlerLibrary_size = 32*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
-  // Should be called only when AdapterHandlerLibrary_lock is active.
-  if (_buffer == NULL) // Initialize lazily
-      _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size);
   return _buffer;
 }
 
@@ -2714,20 +2750,85 @@ extern "C" void unexpected_adapter_call() {
   ShouldNotCallThis();
 }
 
-void AdapterHandlerLibrary::initialize() {
-  if (_adapters != NULL) return;
-  _adapters = new AdapterHandlerTable();
+static void post_adapter_creation(const AdapterBlob* new_adapter, const AdapterHandlerEntry* entry) {
+  char blob_id[256];
+  jio_snprintf(blob_id,
+                sizeof(blob_id),
+                "%s(%s)",
+                new_adapter->name(),
+                entry->fingerprint()->as_string());
+  Forte::register_stub(blob_id, new_adapter->content_begin(), new_adapter->content_end());
 
-  // Create a special handler for abstract methods.  Abstract methods
-  // are never compiled so an i2c entry is somewhat meaningless, but
-  // throw AbstractMethodError just in case.
-  // Pass wrong_method_abstract for the c2i transitions to return
-  // AbstractMethodError for invalid invocations.
-  address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-  _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
-                                                              StubRoutines::throw_AbstractMethodError_entry(),
-                                                              wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
-                                                              wrong_method_abstract, wrong_method_abstract);
+  if (JvmtiExport::should_post_dynamic_code_generated()) {
+    JvmtiExport::post_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_end());
+  }
+}
+
+void AdapterHandlerLibrary::initialize() {
+  ResourceMark rm;
+  AdapterBlob* no_arg_blob = NULL;
+  AdapterBlob* int_arg_blob = NULL;
+  AdapterBlob* obj_arg_blob = NULL;
+  AdapterBlob* obj_int_arg_blob = NULL;
+  AdapterBlob* obj_obj_arg_blob = NULL;
+  {
+    MutexLocker mu(AdapterHandlerLibrary_lock);
+    assert(_adapters == NULL, "Initializing more than once");
+
+    _adapters = new AdapterHandlerTable();
+
+    // Create a special handler for abstract methods.  Abstract methods
+    // are never compiled so an i2c entry is somewhat meaningless, but
+    // throw AbstractMethodError just in case.
+    // Pass wrong_method_abstract for the c2i transitions to return
+    // AbstractMethodError for invalid invocations.
+    address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
+    _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
+                                                                StubRoutines::throw_AbstractMethodError_entry(),
+                                                                wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
+                                                                wrong_method_abstract, wrong_method_abstract);
+    _buffer = BufferBlob::create("adapters", AdapterHandlerLibrary_size);
+
+    CompiledEntrySignature no_args;
+    no_args.compute_calling_conventions();
+    _no_arg_handler = create_adapter(no_arg_blob, no_args, true);
+
+    CompiledEntrySignature obj_args;
+    SigEntry::add_entry(&obj_args.sig(), T_OBJECT, NULL);
+    obj_args.compute_calling_conventions();
+    _obj_arg_handler = create_adapter(obj_arg_blob, obj_args, true);
+
+    CompiledEntrySignature int_args;
+    SigEntry::add_entry(&int_args.sig(), T_INT, NULL);
+    int_args.compute_calling_conventions();
+    _int_arg_handler = create_adapter(int_arg_blob, int_args, true);
+
+    CompiledEntrySignature obj_int_args;
+    SigEntry::add_entry(&obj_int_args.sig(), T_OBJECT, NULL);
+    SigEntry::add_entry(&obj_int_args.sig(), T_INT, NULL);
+    obj_int_args.compute_calling_conventions();
+    _obj_int_arg_handler = create_adapter(obj_int_arg_blob, obj_int_args, true);
+
+    CompiledEntrySignature obj_obj_args;
+    SigEntry::add_entry(&obj_obj_args.sig(), T_OBJECT, NULL);
+    SigEntry::add_entry(&obj_obj_args.sig(), T_OBJECT, NULL);
+    obj_obj_args.compute_calling_conventions();
+    _obj_obj_arg_handler = create_adapter(obj_obj_arg_blob, obj_obj_args, true);
+
+    assert(no_arg_blob != NULL &&
+          obj_arg_blob != NULL &&
+          int_arg_blob != NULL &&
+          obj_int_arg_blob != NULL &&
+          obj_obj_arg_blob != NULL, "Initial adapters must be properly created");
+  }
+  return;
+
+  // Outside of the lock
+  post_adapter_creation(no_arg_blob, _no_arg_handler);
+  post_adapter_creation(obj_arg_blob, _obj_arg_handler);
+  post_adapter_creation(int_arg_blob, _int_arg_handler);
+  post_adapter_creation(obj_int_arg_blob, _obj_int_arg_handler);
+  post_adapter_creation(obj_obj_arg_blob, _obj_obj_arg_handler);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
@@ -2742,13 +2843,53 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
                               c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
+AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandle& method) {
+  if (method->is_abstract()) {
+    return NULL;
+  }
+  int total_args_passed = method->size_of_parameters(); // All args on stack
+  if (total_args_passed == 0) {
+    return _no_arg_handler;
+  } else if (total_args_passed == 1) {
+    if (!method->is_static() && !method->method_holder()->is_inline_klass()) {
+      return _obj_arg_handler;
+    }
+    switch (method->signature()->char_at(1)) {
+      case JVM_SIGNATURE_CLASS:
+      case JVM_SIGNATURE_ARRAY:
+        return _obj_arg_handler;
+      case JVM_SIGNATURE_INT:
+      case JVM_SIGNATURE_BOOLEAN:
+      case JVM_SIGNATURE_CHAR:
+      case JVM_SIGNATURE_BYTE:
+      case JVM_SIGNATURE_SHORT:
+        return _int_arg_handler;
+    }
+  } else if (total_args_passed == 2 &&
+             !method->is_static() && !method->method_holder()->is_inline_klass()) {
+    switch (method->signature()->char_at(1)) {
+      case JVM_SIGNATURE_CLASS:
+      case JVM_SIGNATURE_ARRAY:
+        return _obj_obj_arg_handler;
+      case JVM_SIGNATURE_INT:
+      case JVM_SIGNATURE_BOOLEAN:
+      case JVM_SIGNATURE_CHAR:
+      case JVM_SIGNATURE_BYTE:
+      case JVM_SIGNATURE_SHORT:
+        return _obj_int_arg_handler;
+    }
+  }
+  return NULL;
+}
+
 CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _method(method), _num_inline_args(0), _has_inline_recv(false),
-  _sig_cc(NULL), _sig_cc_ro(NULL), _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
+  _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
-  _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _has_scalarized_args(false) {
-  _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
-
+  _c1_needs_stack_repair(false), _c2_needs_stack_repair(false) {
+  _sig = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
+  _sig_cc = _sig;
+  _sig_cc_ro = _sig;
 }
 
 int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
@@ -2816,28 +2957,29 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   }
 }
 
-
 void CompiledEntrySignature::compute_calling_conventions() {
   // Get the (non-scalarized) signature and check for inline type arguments
-  if (!_method->is_static()) {
-    if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
-      _has_inline_recv = true;
-      _num_inline_args++;
-    }
-    SigEntry::add_entry(_sig, T_OBJECT, _method->name());
-  }
-  for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-    BasicType bt = ss.type();
-    if (bt == T_INLINE_TYPE) {
-      if (ss.as_inline_klass(_method->method_holder())->can_be_passed_as_fields()) {
+  if (_method != NULL) {
+    if (!_method->is_static()) {
+      if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
+        _has_inline_recv = true;
         _num_inline_args++;
       }
-      bt = T_OBJECT;
+      SigEntry::add_entry(_sig, T_OBJECT, _method->name());
     }
-    SigEntry::add_entry(_sig, bt, ss.as_symbol());
-  }
-  if (_method->is_abstract() && !has_inline_arg()) {
-    return;
+    for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
+      BasicType bt = ss.type();
+      if (bt == T_INLINE_TYPE) {
+        if (ss.as_inline_klass(_method->method_holder())->can_be_passed_as_fields()) {
+          _num_inline_args++;
+        }
+        bt = T_OBJECT;
+      }
+      SigEntry::add_entry(_sig, bt, ss.as_symbol());
+    }
+    if (_method->is_abstract() && !has_inline_arg()) {
+      return;
+    }
   }
 
   // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
@@ -2845,8 +2987,6 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
 
   // Now compute the scalarized calling convention if there are inline types in the signature
-  _sig_cc = _sig;
-  _sig_cc_ro = _sig;
   _regs_cc = _regs;
   _regs_cc_ro = _regs;
   _args_on_stack_cc = _args_on_stack;
@@ -2877,182 +3017,157 @@ void CompiledEntrySignature::compute_calling_conventions() {
     } else {
       _c1_needs_stack_repair = (_args_on_stack_cc < _args_on_stack) || (_args_on_stack_cc_ro < _args_on_stack);
       _c2_needs_stack_repair = (_args_on_stack_cc > _args_on_stack) || (_args_on_stack_cc > _args_on_stack_cc_ro);
-      _has_scalarized_args = true;
     }
   }
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
-
-  // TODO: Reimplement JDK-8266015, dropped from jdk->lworld merge
-
   // Use customized signature handler.  Need to lock around updates to
   // the AdapterHandlerTable (it is not safe for concurrent readers
   // and a single writer: this could be fixed if it becomes a
   // problem).
+  assert(_adapters != NULL, "Uninitialized");
+
+  // Fast-path for trivial adapters
+  AdapterHandlerEntry* entry = get_simple_adapter(method);
+  if (entry != NULL) {
+    return entry;
+  }
 
   ResourceMark rm;
-
-  NOT_PRODUCT(int insts_size = 0);
   AdapterBlob* new_adapter = NULL;
-  AdapterHandlerEntry* entry = NULL;
-  AdapterFingerPrint* fingerprint = NULL;
+
+  CompiledEntrySignature ces(method());
+  ces.compute_calling_conventions();
+  if (ces.has_scalarized_args()) {
+    method->set_has_scalarized_args(true);
+    method->set_c1_needs_stack_repair(ces.c1_needs_stack_repair());
+    method->set_c2_needs_stack_repair(ces.c2_needs_stack_repair());
+  } else if (method->is_abstract()) {
+    return _abstract_method_handler;
+  }
 
   {
     MutexLocker mu(AdapterHandlerLibrary_lock);
-    // make sure data structure is initialized
-    initialize();
 
-    CompiledEntrySignature ces(method());
-    {
-       MutexUnlocker mul(AdapterHandlerLibrary_lock);
-       ces.compute_calling_conventions();
-    }
-    GrowableArray<SigEntry>& sig       = ces.sig();
-    GrowableArray<SigEntry>& sig_cc    = ces.sig_cc();
-    GrowableArray<SigEntry>& sig_cc_ro = ces.sig_cc_ro();
-    VMRegPair* regs         = ces.regs();
-    VMRegPair* regs_cc      = ces.regs_cc();
-    VMRegPair* regs_cc_ro   = ces.regs_cc_ro();
-
-    if (ces.has_scalarized_args()) {
-      method->set_has_scalarized_args(true);
-      method->set_c1_needs_stack_repair(ces.c1_needs_stack_repair());
-      method->set_c2_needs_stack_repair(ces.c2_needs_stack_repair());
-    }
-
-    if (method->is_abstract()) {
-      if (ces.has_scalarized_args()) {
-        // Save a C heap allocated version of the signature for abstract methods with scalarized inline type arguments
-        address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-        entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
-                                                 StubRoutines::throw_AbstractMethodError_entry(),
-                                                 wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
-                                                 wrong_method_abstract, wrong_method_abstract);
-        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), mtInternal);
-        heap_sig->appendAll(&sig_cc_ro);
-        entry->set_sig_cc(heap_sig);
-        return entry;
-      } else {
-        return _abstract_method_handler;
-      }
-    }
-
-    // Lookup method signature's fingerprint
-    entry = _adapters->lookup(&sig_cc, regs_cc != regs_cc_ro);
-
-#ifdef ASSERT
-    AdapterHandlerEntry* shared_entry = NULL;
-    // Start adapter sharing verification only after the VM is booted.
-    if (VerifyAdapterSharing && (entry != NULL)) {
-      shared_entry = entry;
-      entry = NULL;
-    }
-#endif
-
-    if (entry != NULL) {
+    if (ces.has_scalarized_args() && method->is_abstract()) {
+      // Save a C heap allocated version of the signature for abstract methods with scalarized inline type arguments
+      address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
+      entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
+                                               StubRoutines::throw_AbstractMethodError_entry(),
+                                               wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
+                                               wrong_method_abstract, wrong_method_abstract);
+      GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro().length(), mtInternal);
+      heap_sig->appendAll(&ces.sig_cc_ro());
+      entry->set_sig_cc(heap_sig);
       return entry;
     }
 
-    // Make a C heap allocated version of the fingerprint to store in the adapter
-    fingerprint = new AdapterFingerPrint(&sig_cc, regs_cc != regs_cc_ro);
+    // Lookup method signature's fingerprint
+    entry = _adapters->lookup(&ces.sig_cc(), ces.regs_cc() != ces.regs_cc_ro());
 
-    // StubRoutines::code2() is initialized after this function can be called. As a result,
-    // VerifyAdapterCalls and VerifyAdapterSharing can fail if we re-use code that generated
-    // prior to StubRoutines::code2() being set. Checks refer to checks generated in an I2C
-    // stub that ensure that an I2C stub is called from an interpreter frame.
-    bool contains_all_checks = StubRoutines::code2() != NULL;
-
-    // Create I2C & C2I handlers
-    BufferBlob* buf = buffer_blob(); // the temporary code buffer in CodeCache
-    if (buf != NULL) {
-      CodeBuffer buffer(buf);
-      short buffer_locs[20];
-      buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
-                                             sizeof(buffer_locs)/sizeof(relocInfo));
-
-      MacroAssembler _masm(&buffer);
-      entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
-                                                     ces.args_on_stack(),
-                                                     &sig,
-                                                     regs,
-                                                     &sig_cc,
-                                                     regs_cc,
-                                                     &sig_cc_ro,
-                                                     regs_cc_ro,
-                                                     fingerprint,
-                                                     new_adapter);
-
-      if (ces.has_scalarized_args()) {
-        // Save a C heap allocated version of the scalarized signature and store it in the adapter
-        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc.length(), mtInternal);
-        heap_sig->appendAll(&sig_cc);
-        entry->set_sig_cc(heap_sig);
-      }
-
+    if (entry != NULL) {
 #ifdef ASSERT
       if (VerifyAdapterSharing) {
-        if (shared_entry != NULL) {
-          if (!shared_entry->compare_code(buf->code_begin(), buffer.insts_size())) {
-            method->print();
-          }
-          assert(shared_entry->compare_code(buf->code_begin(), buffer.insts_size()), "code must match");
-          // Release the one just created and return the original
-          _adapters->free_entry(entry);
-          return shared_entry;
-        } else  {
-          entry->save_code(buf->code_begin(), buffer.insts_size());
-        }
+        AdapterBlob* comparison_blob = NULL;
+        AdapterHandlerEntry* comparison_entry = create_adapter(comparison_blob, ces, false);
+        assert(comparison_blob == NULL, "no blob should be created when creating an adapter for comparison");
+        assert(comparison_entry->compare_code(entry), "code must match");
+        // Release the one just created and return the original
+        _adapters->free_entry(comparison_entry);
       }
 #endif
+      return entry;
+    }
 
-      NOT_PRODUCT(insts_size = buffer.insts_size());
-    }
-    if (new_adapter == NULL) {
-      // CodeCache is full, disable compilation
-      // Ought to log this but compile log is only per compile thread
-      // and we're some non descript Java thread.
-      return NULL; // Out of CodeCache space
-    }
-    entry->relocate(new_adapter->content_begin());
-#ifndef PRODUCT
-    // debugging suppport
-    if (PrintAdapterHandlers || PrintStubCode) {
-      ttyLocker ttyl;
-      entry->print_adapter_on(tty);
-      tty->print_cr("i2c argument handler #%d for: %s %s %s (%d bytes generated)",
-                    _adapters->number_of_entries(), (method->is_static() ? "static" : "receiver"),
-                    method->signature()->as_C_string(), fingerprint->as_string(), insts_size);
-      tty->print_cr("c2i argument handler starts at %p", entry->get_c2i_entry());
-      if (Verbose || PrintStubCode) {
-        address first_pc = entry->base_address();
-        if (first_pc != NULL) {
-          Disassembler::decode(first_pc, first_pc + insts_size);
-          tty->cr();
-        }
-      }
-    }
-#endif
-    // Add the entry only if the entry contains all required checks (see sharedRuntime_xxx.cpp)
-    // The checks are inserted only if -XX:+VerifyAdapterCalls is specified.
-    if (contains_all_checks || !VerifyAdapterCalls) {
-      _adapters->add(entry);
-    }
+    entry = create_adapter(new_adapter, ces, /* allocate_code_blob */ true);
   }
+
   // Outside of the lock
   if (new_adapter != NULL) {
-    char blob_id[256];
-    jio_snprintf(blob_id,
-                 sizeof(blob_id),
-                 "%s(%s)@" PTR_FORMAT,
-                 new_adapter->name(),
-                 fingerprint->as_string(),
-                 new_adapter->content_begin());
-    Forte::register_stub(blob_id, new_adapter->content_begin(), new_adapter->content_end());
+    post_adapter_creation(new_adapter, entry);
+  }
+  return entry;
+}
 
-    if (JvmtiExport::should_post_dynamic_code_generated()) {
-      JvmtiExport::post_dynamic_code_generated(blob_id, new_adapter->content_begin(), new_adapter->content_end());
+AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_adapter,
+                                                           CompiledEntrySignature& ces,
+                                                           bool allocate_code_blob) {
+
+  // StubRoutines::code2() is initialized after this function can be called. As a result,
+  // VerifyAdapterCalls and VerifyAdapterSharing can fail if we re-use code that generated
+  // prior to StubRoutines::code2() being set. Checks refer to checks generated in an I2C
+  // stub that ensure that an I2C stub is called from an interpreter frame.
+  bool contains_all_checks = StubRoutines::code2() != NULL;
+
+  BufferBlob* buf = buffer_blob(); // the temporary code buffer in CodeCache
+  CodeBuffer buffer(buf);
+  short buffer_locs[20];
+  buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
+                                          sizeof(buffer_locs)/sizeof(relocInfo));
+
+  // Make a C heap allocated version of the fingerprint to store in the adapter
+  AdapterFingerPrint* fingerprint = new AdapterFingerPrint(&ces.sig_cc(), ces.regs_cc() != ces.regs_cc_ro());
+  MacroAssembler _masm(&buffer);
+  AdapterHandlerEntry* entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
+                                                ces.args_on_stack(),
+                                                &ces.sig(),
+                                                ces.regs(),
+                                                &ces.sig_cc(),
+                                                ces.regs_cc(),
+                                                &ces.sig_cc_ro(),
+                                                ces.regs_cc_ro(),
+                                                fingerprint,
+                                                new_adapter,
+                                                allocate_code_blob);
+
+  if (ces.has_scalarized_args()) {
+    // Save a C heap allocated version of the scalarized signature and store it in the adapter
+    GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(ces.sig_cc().length(), mtInternal);
+    heap_sig->appendAll(&ces.sig_cc());
+    entry->set_sig_cc(heap_sig);
+  }
+
+#ifdef ASSERT
+  if (VerifyAdapterSharing) {
+    entry->save_code(buf->code_begin(), buffer.insts_size());
+    if (!allocate_code_blob) {
+      return entry;
     }
+  }
+#endif
+
+  NOT_PRODUCT(int insts_size = buffer.insts_size());
+  if (new_adapter == NULL) {
+    // CodeCache is full, disable compilation
+    // Ought to log this but compile log is only per compile thread
+    // and we're some non descript Java thread.
+    return NULL;
+  }
+  entry->relocate(new_adapter->content_begin());
+#ifndef PRODUCT
+  // debugging suppport
+  if (PrintAdapterHandlers || PrintStubCode) {
+    ttyLocker ttyl;
+    entry->print_adapter_on(tty);
+    tty->print_cr("i2c argument handler #%d for: %s %s (%d bytes generated)",
+                  _adapters->number_of_entries(), fingerprint->as_basic_args_string(),
+                  fingerprint->as_string(), insts_size);
+    tty->print_cr("c2i argument handler starts at %p", entry->get_c2i_entry());
+    if (Verbose || PrintStubCode) {
+      address first_pc = entry->base_address();
+      if (first_pc != NULL) {
+        Disassembler::decode(first_pc, first_pc + insts_size);
+        tty->cr();
+      }
+    }
+  }
+#endif
+
+  // Add the entry only if the entry contains all required checks (see sharedRuntime_xxx.cpp)
+  // The checks are inserted only if -XX:+VerifyAdapterCalls is specified.
+  if (contains_all_checks || !VerifyAdapterCalls) {
+    _adapters->add(entry);
   }
   return entry;
 }
@@ -3113,12 +3228,14 @@ void AdapterHandlerEntry::save_code(unsigned char* buffer, int length) {
 }
 
 
-bool AdapterHandlerEntry::compare_code(unsigned char* buffer, int length) {
-  if (length != _saved_code_length) {
+bool AdapterHandlerEntry::compare_code(AdapterHandlerEntry* other) {
+  assert(_saved_code != NULL && other->_saved_code != NULL, "code not saved");
+
+  if (other->_saved_code_length != _saved_code_length) {
     return false;
   }
 
-  return (memcmp(buffer, _saved_code, length) == 0) ? true : false;
+  return memcmp(other->_saved_code, _saved_code, _saved_code_length) == 0;
 }
 #endif
 
@@ -3178,14 +3295,15 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       VMRegPair* regs = (total_args_passed <= 16) ? stack_regs : NEW_RESOURCE_ARRAY(VMRegPair, total_args_passed);
 
       int i = 0;
-      if (!method->is_static())  // Pass in receiver first
+      if (!method->is_static()) {  // Pass in receiver first
         sig_bt[i++] = T_OBJECT;
+      }
       SignatureStream ss(method->signature());
       for (; !ss.at_return_type(); ss.next()) {
-        BasicType bt = ss.type();
-        sig_bt[i++] = bt;  // Collect remaining bits of signature
-        if (ss.type() == T_LONG || ss.type() == T_DOUBLE)
+        sig_bt[i++] = ss.type();  // Collect remaining bits of signature
+        if (ss.type() == T_LONG || ss.type() == T_DOUBLE) {
           sig_bt[i++] = T_VOID;   // Longs & doubles take 2 Java slots
+        }
       }
       assert(i == total_args_passed, "");
       BasicType ret_type = ss.type();

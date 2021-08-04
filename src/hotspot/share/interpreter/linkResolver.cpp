@@ -970,6 +970,20 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
     THROW_MSG(vmSymbols::java_lang_NoSuchFieldError(), field->as_C_string());
   }
 
+  if (byte == Bytecodes::_withfield && !resolved_klass->is_inline_klass()) {
+    ResourceMark rm(THREAD);
+    char msg[200];
+    jio_snprintf(msg, sizeof(msg), "Bytecode withfield cannot be used on identity class %s", resolved_klass->external_name());
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), msg);
+  }
+
+  if (is_put && !is_static && byte != Bytecodes::_withfield && resolved_klass->is_inline_klass()) {
+    ResourceMark rm(THREAD);
+    char msg[200];
+    jio_snprintf(msg, sizeof(msg), "Bytecode putfield cannot be used on primitive class %s", resolved_klass->external_name());
+    THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(), msg);
+  }
+
   // Resolve instance field
   Klass* sel_klass = resolved_klass->find_field(field, sig, &fd);
   // check if field exists; i.e., if a klass containing the field def has been selected

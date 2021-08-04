@@ -630,7 +630,7 @@ ciReturnAddress* ciObjectFactory::get_return_address(int bci) {
 }
 
 ciWrapper* ciObjectFactory::make_null_free_wrapper(ciType* type) {
-  ciWrapper* wrapper = new (arena()) ciWrapper(type, /* null_free */ true);
+  ciWrapper* wrapper = new (arena()) ciWrapper(type);
   init_ident_of(wrapper);
   return wrapper;
 }

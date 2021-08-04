@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,50 +22,50 @@
  */
 
 package compiler.valhalla.inlinetypes;
+
+import compiler.lib.ir_framework.Run;
+import compiler.lib.ir_framework.RunInfo;
+import compiler.lib.ir_framework.Scenario;
+import compiler.lib.ir_framework.Test;
 import jdk.test.lib.Asserts;
 
-/**
+import static compiler.valhalla.inlinetypes.InlineTypes.rI;
+
+/*
  * @test
  * @key randomness
- * @library /testlibrary /test/lib /compiler/whitebox /
  * @summary Test the handling of fields of unloaded inline classes.
+ * @library /test/lib /
+ * @requires os.simpleArch == "x64"
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
  * @compile TestUnloadedInlineTypeField.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
- *                               -XX:PerMethodRecompilationCutoff=-1 -XX:PerBytecodeRecompilationCutoff=-1
- *                               compiler.valhalla.inlinetypes.InlineTypeTest
- *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
+ * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 
-public class TestUnloadedInlineTypeField extends InlineTypeTest {
+public class TestUnloadedInlineTypeField {
     // Only prevent loading of classes when testing with C1. Load classes
     // early when executing with C2 to prevent uncommon traps. It's still
     // beneficial to execute this test with C2 because it also checks handling
     // of type mismatches.
-    private static final boolean PREVENT_LOADING = TEST_C1;
 
-    public static void main(String[] args) throws Throwable {
-        TestUnloadedInlineTypeField test = new TestUnloadedInlineTypeField();
-        test.run(args);
-    }
+    public static void main(String[] args) {
+        final Scenario[] scenarios = {
+                new Scenario(0),
+                new Scenario(1, "-XX:InlineFieldMaxFlatSize=0"),
+                new Scenario(2, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:-XX:+PatchALot"),
+                new Scenario(3,
+                             "-XX:InlineFieldMaxFlatSize=0",
+                             "-XX:+IgnoreUnrecognizedVMOptions",
+                             "-XX:+PatchALot")
+        };
+        final String[] CutoffFlags = {"-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
+        for (Scenario s : scenarios) {
+           s.addFlags(CutoffFlags);
+        }
 
-    static final String[][] scenarios = {
-        {},
-        {"-XX:InlineFieldMaxFlatSize=0"},
-        {"-XX:+PatchALot"},
-        {"-XX:InlineFieldMaxFlatSize=0", "-XX:+PatchALot"}
-    };
-
-    @Override
-    public int getNumScenarios() {
-        return scenarios.length;
-    }
-
-    @Override
-    public String[] getVMParameters(int scenario) {
-        return scenarios[scenario];
+        InlineTypes.getFramework()
+                   .addScenarios(scenarios)
+                   .start();
     }
 
     // Test case 1:
@@ -107,9 +107,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test1_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test1")
+    public void test1_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test1(null);
         } else {
             MyValue1Holder holder = new MyValue1Holder();
@@ -152,9 +152,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test2_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test2")
+    public void test2_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test2(null);
         } else {
             MyValue2Holder holder = new MyValue2Holder();
@@ -201,9 +201,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         return GetUnresolvedInlineFieldWrongSignature.test3(holder);
     }
 
-    @DontCompile
-    public void test3_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test3")
+    public void test3_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test3(null);
         } else {
             // Make sure klass is resolved
@@ -245,10 +245,10 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test4_verifier(boolean warmup) {
+    @Run(test = "test4")
+    public void test4_verifier(RunInfo info) {
         MyValue4 v = new MyValue4(rI);
-        if (warmup && PREVENT_LOADING) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test4(null, v);
         } else {
             MyValue4Holder holder = new MyValue4Holder();
@@ -288,9 +288,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test5_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test5")
+    public void test5_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test5(null, null);
         } else {
             MyValue5Holder holder = new MyValue5Holder();
@@ -334,9 +334,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test6_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test6")
+    public void test6_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test6(0);
         } else {
             Asserts.assertEQ(test6(rI), 2*rI);
@@ -373,9 +373,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test7_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test7")
+    public void test7_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test7(0);
         } else {
             Asserts.assertEQ(test7(rI), 2*rI);
@@ -414,9 +414,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test8_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test8")
+    public void test8_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test8(true);
         } else {
             Asserts.assertEQ(test8(false), rI);
@@ -451,9 +451,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test9_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test9")
+    public void test9_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test9(true);
         } else {
             Asserts.assertEQ(test9(false), rI);
@@ -490,9 +490,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         GetUnresolvedInlineFieldWrongSignature.test10(holder);
     }
 
-    @DontCompile
-    public void test10_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test10")
+    public void test10_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test10(null);
         } else {
             // Make sure klass is resolved
@@ -537,10 +537,10 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test11_verifier(boolean warmup) {
+    @Run(test = "test11")
+    public void test11_verifier(RunInfo info) {
         MyValue11 v = new MyValue11(rI);
-        if (warmup && PREVENT_LOADING) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test11(true, v);
         } else {
             MyValue11Holder holder = (MyValue11Holder)test11(false, v);
@@ -578,9 +578,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test12_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test12")
+    public void test12_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test12(true, null);
         } else {
             MyValue12 v = new MyValue12(rI);
@@ -617,9 +617,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         GetUnresolvedInlineFieldWrongSignature.test13(holder);
     }
 
-    @DontCompile
-    public void test13_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test13")
+    public void test13_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test13(null);
         } else {
             // Make sure klass is resolved
@@ -663,9 +663,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         GetUnresolvedInlineFieldWrongSignature.test14(holder);
     }
 
-    @DontCompile
-    public void test14_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test14")
+    public void test14_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test14(null);
         } else {
             // Make sure klass is resolved
@@ -705,9 +705,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         GetUnresolvedInlineFieldWrongSignature.test15(holder);
     }
 
-    @DontCompile
-    public void test15_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test15")
+    public void test15_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test15(null);
         } else {
             // Make sure klass is resolved
@@ -742,9 +742,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         return GetUnresolvedInlineFieldWrongSignature.test16(warmup);
     }
 
-    @DontCompile
-    public void test16_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test16")
+    public void test16_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test16(true);
         } else {
             // Make sure klass is resolved
@@ -774,9 +774,9 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         return GetUnresolvedInlineFieldWrongSignature.test17(warmup);
     }
 
-    @DontCompile
-    public void test17_verifier(boolean warmup) {
-        if (warmup && PREVENT_LOADING) {
+    @Run(test = "test17")
+    public void test17_verifier(RunInfo info) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test17(true);
         } else {
             // Make sure klass is resolved
@@ -814,11 +814,11 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test18_verifier(boolean warmup) {
+    @Run(test = "test18")
+    public void test18_verifier(RunInfo info) {
         // Make sure MyValue18Holder is loaded
         MyValue18Holder holder = new MyValue18Holder();
-        if (warmup && PREVENT_LOADING) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test18(0);
         } else {
             Asserts.assertEQ(test18(rI), 2*rI);
@@ -848,11 +848,11 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         }
     }
 
-    @DontCompile
-    public void test19_verifier(boolean warmup) {
+    @Run(test = "test19")
+    public void test19_verifier(RunInfo info) {
         // Make sure MyValue19Holder is loaded
         MyValue19Holder holder = new MyValue19Holder();
-        if (warmup && PREVENT_LOADING) {
+        if (info.isWarmUp() && !info.isC2CompilationEnabled()) {
             test19(0);
         } else {
             Asserts.assertEQ(test19(rI), rI);
@@ -878,8 +878,8 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
         return new MyValue20();
     }
 
-    @DontCompile
-    public void test20_verifier(boolean warmup) {
+    @Run(test = "test20")
+    public void test20_verifier() {
         MyValue20 vt = test20();
         Asserts.assertEQ(vt.obj, null);
     }

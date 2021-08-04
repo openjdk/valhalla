@@ -127,6 +127,8 @@ class java_lang_String : AllStatic {
   // returning true if the bit was already set.
   static bool test_and_set_flag(oop java_string, uint8_t flag_mask);
 
+  static inline unsigned int hash_code_impl(oop java_string, bool update);
+
  public:
 
   // Coders
@@ -222,6 +224,7 @@ class java_lang_String : AllStatic {
   }
 
   static unsigned int hash_code(oop java_string);
+  static unsigned int hash_code_noupdate(oop java_string);
 
   static bool equals(oop java_string, const jchar* chars, int len);
   static bool equals(oop str1, oop str2);
@@ -345,6 +348,8 @@ class java_lang_Class : AllStatic {
   static int klass_offset()                { CHECK_INIT(_klass_offset); }
   static int array_klass_offset()          { CHECK_INIT(_array_klass_offset); }
   static int component_mirror_offset()     { CHECK_INIT(_component_mirror_offset); }
+  static int primary_mirror_offset()       { CHECK_INIT(_primary_mirror_offset); }
+  static int secondary_mirror_offset()     { CHECK_INIT(_secondary_mirror_offset); }
   // Support for classRedefinedCount field
   static int classRedefinedCount(oop the_class_mirror);
   static void set_classRedefinedCount(oop the_class_mirror, int value);

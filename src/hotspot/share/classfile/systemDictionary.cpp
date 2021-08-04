@@ -70,7 +70,6 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/biasedLocking.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
@@ -158,7 +157,6 @@ ClassLoaderData* SystemDictionary::register_loader(Handle class_loader, bool cre
 
 bool is_parallelCapable(Handle class_loader) {
   if (class_loader.is_null()) return true;
-  if (AlwaysLockClassLoader) return false;
   return java_lang_ClassLoader::parallelCapable(class_loader());
 }
 // ----------------------------------------------------------------------------

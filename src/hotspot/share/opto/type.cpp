@@ -561,27 +561,27 @@ void Type::Initialize_shared(Compile* current) {
   TypeLong::UINT    = TypeLong::make(0,(jlong)max_juint,WidenMin);
   TypeLong::TYPE_DOMAIN  = TypeLong::LONG;
 
-  const Type **fboth =(const Type**)shared_type_arena->Amalloc_4(2*sizeof(Type*));
+  const Type **fboth =(const Type**)shared_type_arena->AmallocWords(2*sizeof(Type*));
   fboth[0] = Type::CONTROL;
   fboth[1] = Type::CONTROL;
   TypeTuple::IFBOTH = TypeTuple::make( 2, fboth );
 
-  const Type **ffalse =(const Type**)shared_type_arena->Amalloc_4(2*sizeof(Type*));
+  const Type **ffalse =(const Type**)shared_type_arena->AmallocWords(2*sizeof(Type*));
   ffalse[0] = Type::CONTROL;
   ffalse[1] = Type::TOP;
   TypeTuple::IFFALSE = TypeTuple::make( 2, ffalse );
 
-  const Type **fneither =(const Type**)shared_type_arena->Amalloc_4(2*sizeof(Type*));
+  const Type **fneither =(const Type**)shared_type_arena->AmallocWords(2*sizeof(Type*));
   fneither[0] = Type::TOP;
   fneither[1] = Type::TOP;
   TypeTuple::IFNEITHER = TypeTuple::make( 2, fneither );
 
-  const Type **ftrue =(const Type**)shared_type_arena->Amalloc_4(2*sizeof(Type*));
+  const Type **ftrue =(const Type**)shared_type_arena->AmallocWords(2*sizeof(Type*));
   ftrue[0] = Type::TOP;
   ftrue[1] = Type::CONTROL;
   TypeTuple::IFTRUE = TypeTuple::make( 2, ftrue );
 
-  const Type **floop =(const Type**)shared_type_arena->Amalloc_4(2*sizeof(Type*));
+  const Type **floop =(const Type**)shared_type_arena->AmallocWords(2*sizeof(Type*));
   floop[0] = Type::CONTROL;
   floop[1] = TypeInt::INT;
   TypeTuple::LOOPBODY = TypeTuple::make( 2, floop );
@@ -596,7 +596,7 @@ void Type::Initialize_shared(Compile* current) {
   const Type **fmembar = TypeTuple::fields(0);
   TypeTuple::MEMBAR = TypeTuple::make(TypeFunc::Parms+0, fmembar);
 
-  const Type **fsc = (const Type**)shared_type_arena->Amalloc_4(2*sizeof(Type*));
+  const Type **fsc = (const Type**)shared_type_arena->AmallocWords(2*sizeof(Type*));
   fsc[0] = TypeInt::CC;
   fsc[1] = Type::MEMORY;
   TypeTuple::STORECONDITIONAL = TypeTuple::make(2, fsc);
@@ -2173,7 +2173,7 @@ const TypeTuple *TypeTuple::make( uint cnt, const Type **fields ) {
 // Subroutine call type with space allocated for argument types
 // Memory for Control, I_O, Memory, FramePtr, and ReturnAdr is allocated implicitly
 const Type **TypeTuple::fields( uint arg_cnt ) {
-  const Type **flds = (const Type **)(Compile::current()->type_arena()->Amalloc_4((TypeFunc::Parms+arg_cnt)*sizeof(Type*) ));
+  const Type **flds = (const Type **)(Compile::current()->type_arena()->AmallocWords((TypeFunc::Parms+arg_cnt)*sizeof(Type*) ));
   flds[TypeFunc::Control  ] = Type::CONTROL;
   flds[TypeFunc::I_O      ] = Type::ABIO;
   flds[TypeFunc::Memory   ] = Type::MEMORY;
@@ -2201,7 +2201,7 @@ const Type *TypeTuple::xmeet( const Type *t ) const {
   case Tuple: {                 // Meeting 2 signatures?
     const TypeTuple *x = t->is_tuple();
     assert( _cnt == x->_cnt, "" );
-    const Type **fields = (const Type **)(Compile::current()->type_arena()->Amalloc_4( _cnt*sizeof(Type*) ));
+    const Type **fields = (const Type **)(Compile::current()->type_arena()->AmallocWords( _cnt*sizeof(Type*) ));
     for( uint i=0; i<_cnt; i++ )
       fields[i] = field_at(i)->xmeet( x->field_at(i) );
     return TypeTuple::make(_cnt,fields);
@@ -2215,7 +2215,7 @@ const Type *TypeTuple::xmeet( const Type *t ) const {
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
 const Type *TypeTuple::xdual() const {
-  const Type **fields = (const Type **)(Compile::current()->type_arena()->Amalloc_4( _cnt*sizeof(Type*) ));
+  const Type **fields = (const Type **)(Compile::current()->type_arena()->AmallocWords( _cnt*sizeof(Type*) ));
   for( uint i=0; i<_cnt; i++ )
     fields[i] = _fields[i]->dual();
   return new TypeTuple(_cnt,fields);
@@ -4259,11 +4259,11 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       subtype = this_klass;
       subtype_exact = below_centerline(ptr) ? (this_xk && tinst_xk) : (this_xk || tinst_xk);
       flat_array = below_centerline(ptr) ? (this_flatten_array && tinst_flatten_array) : (this_flatten_array || tinst_flatten_array);
-    } else if(!tinst_xk && this_klass->is_subtype_of(tinst_klass) && (!tinst_flatten_array || this_flatten_array)) {
+    } else if (!tinst_xk && this_klass->is_subtype_of(tinst_klass) && (!tinst_flatten_array || this_flatten_array)) {
       subtype = this_klass;     // Pick subtyping class
       subtype_exact = this_xk;
       flat_array = this_flatten_array;
-    } else if(!this_xk && tinst_klass->is_subtype_of(this_klass) && (!this_flatten_array || tinst_flatten_array)) {
+    } else if (!this_xk && tinst_klass->is_subtype_of(this_klass) && (!this_flatten_array || tinst_flatten_array)) {
       subtype = tinst_klass;    // Pick subtyping class
       subtype_exact = tinst_xk;
       flat_array = tinst_flatten_array;
@@ -4319,7 +4319,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
     // Now we find the LCA of Java classes
     ciKlass* k = this_klass->least_common_ancestor(tinst_klass);
-    return make(ptr, k, false, NULL, off, false, instance_id, speculative, depth);
+    return make(ptr, k, false, NULL, off, flatten_array() && tinst->flatten_array(), instance_id, speculative, depth);
   } // End of case InstPtr
 
   case InlineType: {
@@ -4349,13 +4349,13 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type() const {
+ciType* TypeInstPtr::java_mirror_type(bool* is_val_mirror) const {
   // must be a singleton type
   if( const_oop() == NULL )  return NULL;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return NULL;
-  return const_oop()->as_instance()->java_mirror_type();
+  return const_oop()->as_instance()->java_mirror_type(is_val_mirror);
 }
 
 
@@ -5777,7 +5777,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
       ptr = NotNull;
     // Now we find the LCA of Java classes
     ciKlass* k = this_klass->least_common_ancestor(tkls_klass);
-    return make(ptr, k, off, false, is_not_flat, is_not_null_free);
+    return make(ptr, k, off, this->flatten_array() && tkls->flatten_array(), is_not_flat, is_not_null_free);
   } // End of case KlassPtr
 
   } // End of switch
@@ -5886,8 +5886,7 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, true) : domain_sig;
   ciSignature* sig = method->signature();
-  bool has_scalar_ret = sig->returns_null_free_inline_type() && sig->return_type()->is_inlinetype() &&
-                        sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
+  bool has_scalar_ret = sig->returns_null_free_inline_type() && sig->return_type()->as_inline_klass()->can_be_returned_as_fields();
   const TypeTuple* range_sig = TypeTuple::make_range(sig, false);
   const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);

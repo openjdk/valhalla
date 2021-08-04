@@ -3823,10 +3823,15 @@ void TemplateTable::withfield() {
   transition(vtos, atos);
   resolve_cache_and_index(f2_byte, c_rarg1 /*cache*/, c_rarg2 /*index*/, sizeof(u2));
 
-  // n.b. unlike x86 cache is now rcpool plus the indexed offset
-  // so using rcpool to meet shared code expectations
+  ByteSize cp_base_offset = ConstantPoolCache::base_offset();
 
-  call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), rcpool);
+  // n.b. unlike x86 cache is now rcpool plus the indexed offset
+  __ lea(c_rarg1, Address(c_rarg1, in_bytes(cp_base_offset)));
+
+  __ lea(c_rarg2, at_tos());
+  call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), c_rarg1, c_rarg2);
+  // new value type is returned in r1
+  // stack adjustment is returned in r0
   __ verify_oop(r1);
   __ add(esp, esp, r0);
   __ mov(r0, r1);

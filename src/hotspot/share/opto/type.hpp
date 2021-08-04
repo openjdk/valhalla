@@ -217,7 +217,7 @@ public:
   inline void* operator new( size_t x ) throw() {
     Compile* compile = Compile::current();
     compile->set_type_last_size(x);
-    return compile->type_arena()->Amalloc_D(x);
+    return compile->type_arena()->AmallocWords(x);
   }
   inline void operator delete( void* ptr ) {
     Compile* compile = Compile::current();
@@ -410,7 +410,7 @@ public:
   Category category() const;
 
   static const char* str(const Type* t);
-#endif
+#endif // !PRODUCT
   void typerr(const Type *t) const; // Mixing types error
 
   // Create basic type
@@ -1265,7 +1265,7 @@ class TypeInstPtr : public TypeOopPtr {
   // If this is a java.lang.Class constant, return the type for it or NULL.
   // Pass to Type::get_const_type to turn it to a type, which will usually
   // be a TypeInstPtr, but may also be a TypeInt::INT for int.class, etc.
-  ciType* java_mirror_type() const;
+  ciType* java_mirror_type(bool* is_val_mirror = NULL) const;
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 
@@ -2010,9 +2010,7 @@ inline ciInlineKlass* Type::inline_klass() const {
 #define RShiftXNode  RShiftLNode
 // For card marks and hashcodes
 #define URShiftXNode URShiftLNode
-// UseOptoBiasInlining
-#define XorXNode     XorLNode
-#define StoreXConditionalNode StoreLConditionalNode
+// For shenandoahSupport
 #define LoadXNode    LoadLNode
 #define StoreXNode   StoreLNode
 // Opcodes
@@ -2060,9 +2058,7 @@ inline ciInlineKlass* Type::inline_klass() const {
 #define RShiftXNode  RShiftINode
 // For card marks and hashcodes
 #define URShiftXNode URShiftINode
-// UseOptoBiasInlining
-#define XorXNode     XorINode
-#define StoreXConditionalNode StoreIConditionalNode
+// For shenandoahSupport
 #define LoadXNode    LoadINode
 #define StoreXNode   StoreINode
 // Opcodes

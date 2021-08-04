@@ -21,8 +21,10 @@
  * questions.
  */
 
+import java.util.Objects;
+
 public primitive class Point {
-    static final Object STATIC_FIELD = new Object();
+    static final Object STATIC_FIELD = Objects.newIdentity();
     public int x;
     public int y;
     public static Point makePoint(int x, int y) {

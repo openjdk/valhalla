@@ -1,0 +1,5 @@
+MalformedParameterizedType.java:16:14: compiler.err.improperly.formed.type.param.missing
+MalformedParameterizedType.java:17:14: compiler.err.improperly.formed.type.param.missing
+MalformedParameterizedType.java:22:16: compiler.err.improperly.formed.type.param.missing
+MalformedParameterizedType.java:23:16: compiler.err.improperly.formed.type.param.missing
+4 errors

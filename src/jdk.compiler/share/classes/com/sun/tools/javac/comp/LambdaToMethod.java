@@ -2273,13 +2273,12 @@ public class LambdaToMethod extends TreeTranslator {
                 return tree.ownerAccessible;
             }
 
-            /* Per our interim primitive class translation scheme, the reference projection classes
-               are completely empty, so we want the methods in the primitive class to be invoked instead.
-               As the lambda meta factory isn't clued into this, it will try to invoke the method in
-               C$ref.class and fail with a NoSuchMethodError. we need to workaround it ourselves.
+            /* Workaround to BootstrapMethodError. This workaround should not be required in the unified
+               class generation model, but seems to be required ...
+               Todo: Investigate to see if a defect should be reported against runtime lambda machinery
             */
             boolean receiverIsReferenceProjection() {
-                return tree.getQualifierExpression().type.isReferenceProjection();
+                return tree.getQualifierExpression().type.isPrimitiveReferenceType();
             }
 
             /**

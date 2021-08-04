@@ -302,9 +302,9 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for biased locking on x86
+  // Need a scratch register for inline types on x86
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking || x->maybe_inlinetype()) {
+  if (EnableValhalla && x->maybe_inlinetype()) {
     scratch = new_register(T_INT);
   }
 
