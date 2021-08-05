@@ -1193,4 +1193,223 @@ public class TestIntrinsics {
             // Expected
         }
     }
+
+    // compareAndSet to flattened field in object
+    @Test
+    public boolean test63(MyValue1 oldVal, MyValue1 newVal) {
+        if (TEST31_VT_FLATTENED) {
+            return U.compareAndSetValue(this, TEST31_VT_OFFSET, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test63")
+    public void test63_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test31_vt = MyValue1.default;
+
+        boolean res = test63(test31_vt, vt);
+        // Checks are disabled for non-flattened field because reference comparison
+        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        if (TEST31_VT_FLATTENED) {
+            Asserts.assertTrue(res);
+            Asserts.assertEQ(test31_vt, vt);
+        }
+
+        res = test63(MyValue1.default, MyValue1.default);
+        if (TEST31_VT_FLATTENED) {
+            Asserts.assertFalse(res);
+            Asserts.assertEQ(test31_vt, vt);
+        }
+    }
+
+    // compareAndSet to flattened field in array
+    @Test
+    public boolean test64(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
+        if (TEST33_FLATTENED_ARRAY) {
+            return U.compareAndSetValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndSetReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test64")
+    public void test64_verifier() {
+        MyValue1[] arr = new MyValue1[2];
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+
+        boolean res = test64(arr, arr[1], vt);
+        // Checks are disabled for non-flattened array because reference comparison
+        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        if (TEST33_FLATTENED_ARRAY) {
+            Asserts.assertTrue(res);
+            Asserts.assertEQ(arr[1], vt);
+        }
+
+        res = test64(arr, MyValue1.default, MyValue1.default);
+        if (TEST33_FLATTENED_ARRAY) {
+            Asserts.assertFalse(res);
+            Asserts.assertEQ(arr[1], vt);
+        }
+    }
+
+    // compareAndSet to flattened field in object with unknown container
+    @Test
+    public boolean test65(Object o, Object oldVal, MyValue1 newVal) {
+        if (TEST31_VT_FLATTENED) {
+            return U.compareAndSetValue(o, TEST31_VT_OFFSET, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndSetReference(o, TEST31_VT_OFFSET, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test65")
+    public void test65_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test31_vt = MyValue1.default;
+
+        boolean res = test65(this, test31_vt, vt);
+        Asserts.assertTrue(res);
+        Asserts.assertEQ(test31_vt, vt);
+
+        res = test65(this, MyValue1.default, MyValue1.default);
+        Asserts.assertFalse(res);
+        Asserts.assertEQ(test31_vt, vt);
+    }
+
+    // compareAndSet to flattened field in object, non-inline arguments to compare and set
+    @Test
+    public boolean test66(Object oldVal, Object newVal) {
+        if (TEST31_VT_FLATTENED) {
+            return U.compareAndSetValue(this, TEST31_VT_OFFSET, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndSetReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test66")
+    public void test66_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test31_vt = MyValue1.default;
+
+        boolean res = test66(test31_vt, vt);
+        Asserts.assertTrue(res);
+        Asserts.assertEQ(test31_vt, vt);
+
+        res = test66(MyValue1.default, MyValue1.default);
+        Asserts.assertFalse(res);
+        Asserts.assertEQ(test31_vt, vt);
+    }
+
+    // compareAndExchange to flattened field in object
+    @Test
+    public Object test67(MyValue1 oldVal, MyValue1 newVal) {
+        if (TEST31_VT_FLATTENED) {
+            return U.compareAndExchangeValue(this, TEST31_VT_OFFSET, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test67")
+    public void test67_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 oldVal = MyValue1.default;
+        test31_vt = oldVal;
+
+        Object res = test67(test31_vt, vt);
+        // Checks are disabled for non-flattened field because reference comparison
+        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        if (TEST31_VT_FLATTENED) {
+            Asserts.assertEQ(res, oldVal);
+            Asserts.assertEQ(test31_vt, vt);
+        }
+
+        res = test67(MyValue1.default, MyValue1.default);
+        if (TEST31_VT_FLATTENED) {
+            Asserts.assertEQ(res, vt);
+            Asserts.assertEQ(test31_vt, vt);
+        }
+    }
+
+    // compareAndExchange to flattened field in array
+    @Test
+    public Object test68(MyValue1[] arr, MyValue1 oldVal, Object newVal) {
+        if (TEST33_FLATTENED_ARRAY) {
+            return U.compareAndExchangeValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndExchangeReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test68")
+    public void test68_verifier() {
+        MyValue1[] arr = new MyValue1[2];
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+
+        Object res = test68(arr, arr[1], vt);
+        // Checks are disabled for non-flattened array because reference comparison
+        // fails if C2 scalarizes and re-allocates the inline type arguments.
+        if (TEST33_FLATTENED_ARRAY) {
+            Asserts.assertEQ(res, MyValue1.default);
+            Asserts.assertEQ(arr[1], vt);
+        }
+
+        res = test68(arr, MyValue1.default, MyValue1.default);
+        if (TEST33_FLATTENED_ARRAY) {
+            Asserts.assertEQ(res, vt);
+            Asserts.assertEQ(arr[1], vt);
+        }
+    }
+
+    // compareAndExchange to flattened field in object with unknown container
+    @Test
+    public Object test69(Object o, Object oldVal, MyValue1 newVal) {
+        if (TEST31_VT_FLATTENED) {
+            return U.compareAndExchangeValue(o, TEST31_VT_OFFSET, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndExchangeReference(o, TEST31_VT_OFFSET, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test69")
+    public void test69_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 oldVal = MyValue1.default;
+        test31_vt = oldVal;
+
+        Object res = test69(this, test31_vt, vt);
+        Asserts.assertEQ(res, oldVal);
+        Asserts.assertEQ(test31_vt, vt);
+
+        res = test69(this, MyValue1.default, MyValue1.default);
+        Asserts.assertEQ(res, vt);
+        Asserts.assertEQ(test31_vt, vt);
+    }
+
+    // compareAndExchange to flattened field in object, non-inline arguments to compare and set
+    @Test
+    public Object test70(Object oldVal, Object newVal) {
+        if (TEST31_VT_FLATTENED) {
+            return U.compareAndExchangeValue(this, TEST31_VT_OFFSET, MyValue1.class.asValueType(), oldVal, newVal);
+        } else {
+            return U.compareAndExchangeReference(this, TEST31_VT_OFFSET, oldVal, newVal);
+        }
+    }
+
+    @Run(test = "test70")
+    public void test70_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 oldVal = MyValue1.default;
+        test31_vt = oldVal;
+
+        Object res = test70(test31_vt, vt);
+        Asserts.assertEQ(res, oldVal);
+        Asserts.assertEQ(test31_vt, vt);
+
+        res = test70(MyValue1.default, MyValue1.default);
+        Asserts.assertEQ(res, vt);
+        Asserts.assertEQ(test31_vt, vt);
+    }
 }

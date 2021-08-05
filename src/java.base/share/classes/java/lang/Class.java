@@ -233,9 +233,19 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this {@code Class} object.
      */
     public String toString() {
-        return (isPrimitiveClass() ? "primitive " : "")
-               + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName() + (isPrimitiveClass() && isPrimaryType() ? ".ref" : "");
+        String s = isPrimitive() ? "" : "class ";
+        if (isInterface()) {
+            s = "interface ";
+        }
+        if (isPrimitiveClass()) {
+            s = "primitive ";
+        }
+        // Avoid invokedynamic based String concat, might be not available
+        s = s.concat(getName());
+        if (isPrimitiveClass() && isPrimaryType()) {
+            s.concat(".ref");
+        }
+        return s;
     }
 
     /**
@@ -619,7 +629,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isPrimitiveClass())
             return secondaryType;
 
-        throw new UnsupportedOperationException(this.getName() + " is not a primitive class");
+        throw new UnsupportedOperationException(this.getName().concat(" is not a primitive class"));
     }
 
     /**
@@ -1016,7 +1026,7 @@ public final class Class<T> implements java.io.Serializable,
     @CallerSensitive
     @ForceInline // to ensure Reflection.getCallerClass optimization
     public ClassLoader getClassLoader() {
-        ClassLoader cl = getClassLoader0();
+        ClassLoader cl = classLoader;
         if (cl == null)
             return null;
         @SuppressWarnings("removal")
@@ -1165,7 +1175,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isPrimitive() || isArray()) {
             return null;
         }
-        ClassLoader cl = getClassLoader0();
+        ClassLoader cl = classLoader;
         return cl != null ? cl.definePackage(this)
                           : BootLoader.definePackage(this);
     }
@@ -1779,7 +1789,7 @@ public final class Class<T> implements java.io.Serializable,
 
     private String getSimpleName0() {
         if (isArray()) {
-            return getComponentType().getSimpleName() + "[]";
+            return getComponentType().getSimpleName().concat("[]");
         }
         String simpleName = getSimpleBinaryName();
         if (simpleName == null) { // top level class
@@ -1804,12 +1814,12 @@ public final class Class<T> implements java.io.Serializable,
                     dimensions++;
                     cl = cl.getComponentType();
                 } while (cl.isArray());
-                return cl.getTypeName() + "[]".repeat(dimensions);
+                return cl.getTypeName().concat("[]".repeat(dimensions));
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
         if (isPrimitiveClass()) {
             // TODO: null-default
-            return isPrimaryType() ? getName() + ".ref" : getName();
+            return isPrimaryType() ? getName().concat(".ref") : getName();
         } else {
             return getName();
         }
@@ -1844,7 +1854,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             String canonicalName = getComponentType().getCanonicalName();
             if (canonicalName != null)
-                return canonicalName + "[]";
+                return canonicalName.concat("[]");
             else
                 return ReflectionData.NULL_SENTINEL;
         }
@@ -2950,7 +2960,7 @@ public final class Class<T> implements java.io.Serializable,
 
             // resource not encapsulated or in package open to caller
             String mn = thisModule.getName();
-            ClassLoader cl = getClassLoader0();
+            ClassLoader cl = classLoader;
             try {
 
                 // special-case built-in class loaders to avoid the
@@ -2970,7 +2980,7 @@ public final class Class<T> implements java.io.Serializable,
         }
 
         // unnamed module
-        ClassLoader cl = getClassLoader0();
+        ClassLoader cl = classLoader;
         if (cl == null) {
             return ClassLoader.getSystemResourceAsStream(name);
         } else {
@@ -3046,7 +3056,7 @@ public final class Class<T> implements java.io.Serializable,
 
             // resource not encapsulated or in package open to caller
             String mn = thisModule.getName();
-            ClassLoader cl = getClassLoader0();
+            ClassLoader cl = classLoader;
             try {
                 if (cl == null) {
                     return BootLoader.findResource(mn, name);
@@ -3059,7 +3069,7 @@ public final class Class<T> implements java.io.Serializable,
         }
 
         // unnamed module
-        ClassLoader cl = getClassLoader0();
+        ClassLoader cl = classLoader;
         if (cl == null) {
             return ClassLoader.getSystemResource(name);
         } else {
@@ -3173,7 +3183,7 @@ public final class Class<T> implements java.io.Serializable,
          */
         final ClassLoader ccl = ClassLoader.getClassLoader(caller);
         if (which != Member.PUBLIC) {
-            final ClassLoader cl = getClassLoader0();
+            final ClassLoader cl = classLoader;
             if (ccl != cl) {
                 sm.checkPermission(SecurityConstants.CHECK_MEMBER_ACCESS_PERMISSION);
             }
@@ -3190,7 +3200,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     private void checkPackageAccess(@SuppressWarnings("removal") SecurityManager sm, final ClassLoader ccl,
                                     boolean checkProxyInterfaces) {
-        final ClassLoader cl = getClassLoader0();
+        final ClassLoader cl = classLoader;
 
         if (ReflectUtil.needsPackageAccessCheck(ccl, cl)) {
             String pkg = this.getPackageName();
@@ -3219,7 +3229,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     private static void checkPackageAccessForPermittedSubclasses(@SuppressWarnings("removal") SecurityManager sm,
                                     final ClassLoader ccl, Class<?>[] subClasses) {
-        final ClassLoader cl = subClasses[0].getClassLoader0();
+        final ClassLoader cl = subClasses[0].classLoader;
 
         if (ReflectUtil.needsPackageAccessCheck(ccl, cl)) {
             Set<String> packages = new HashSet<>();
@@ -3844,7 +3854,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since  1.4
      */
     public boolean desiredAssertionStatus() {
-        ClassLoader loader = getClassLoader0();
+        ClassLoader loader = classLoader;
         // If the loader is null this is a system class, so ask the VM
         if (loader == null)
             return desiredAssertionStatus0(this);
