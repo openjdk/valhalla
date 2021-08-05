@@ -637,11 +637,14 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
     }
   } else {
     ciType* type = pop_value();
-    if (type->unwrap() != klass && klass->is_loaded() && type->unwrap()->is_subtype_of(klass)) {
+    null_free |= type->is_null_free();
+    type = type->unwrap();
+    if (type->is_loaded() && klass->is_loaded() &&
+        type != klass && type->is_subtype_of(klass)) {
       // Useless cast, propagate more precise type of object
-      klass = type->unwrap()->as_klass();
+      klass = type->as_klass();
     }
-    if (klass->is_inlinetype() && (null_free || type->is_null_free())) {
+    if (klass->is_inlinetype() && null_free) {
       push(outer()->mark_as_null_free(klass));
     } else {
       push_object(klass);
