@@ -11187,7 +11187,7 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 %}
 
 // Small ClearArray AVX512 non-constant length.
-instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg ktmp, rax_RegL val,
                        Universe dummy, rFlagsReg cr)
 %{
   predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
@@ -11247,7 +11247,7 @@ instruct rep_stos_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_Reg
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+instruct rep_stos_evex_word_copy(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg ktmp, rax_RegL val,
                                  Universe dummy, rFlagsReg cr)
 %{
   predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
@@ -11404,7 +11404,7 @@ instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_Reg
 %}
 
 // Large ClearArray AVX512.
-instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg ktmp, rax_RegL val,
                              Universe dummy, rFlagsReg cr)
 %{
   predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
@@ -11454,7 +11454,7 @@ instruct rep_stos_large_evex(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, r
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_large_evex_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, kReg ktmp, rax_RegL val,
+instruct rep_stos_large_evex_word_copy(rcx_RegL cnt, rdi_RegP base, legRegD tmp, kReg ktmp, rax_RegL val,
                                        Universe dummy, rFlagsReg cr)
 %{
   predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only() && (UseAVX > 2));
