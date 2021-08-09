@@ -23,9 +23,10 @@
  */
 
 #include "precompiled.hpp"
-#include "cds/heapShared.inline.hpp"
 #include "classfile/altHashing.hpp"
 #include "classfile/javaClasses.inline.hpp"
+#include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
@@ -91,11 +92,11 @@ void oopDesc::verify(oopDesc* oop_desc) {
 
 intptr_t oopDesc::slow_identity_hash() {
   // slow case; we have to acquire the micro lock in order to locate the header
-  Thread* THREAD = Thread::current();
+  Thread* current = Thread::current();
   ResetNoHandleMark rnm; // Might be called from LEAF/QUICK ENTRY
-  HandleMark hm(THREAD);
-  Handle object(THREAD, this);
-  return ObjectSynchronizer::FastHashCode(THREAD, object());
+  HandleMark hm(current);
+  Handle object(current, this);
+  return ObjectSynchronizer::FastHashCode(current, object());
 }
 
 // used only for asserts and guarantees
@@ -137,9 +138,8 @@ bool oopDesc::is_instance_noinline()          const { return is_instance();     
 bool oopDesc::is_array_noinline()             const { return is_array();               }
 bool oopDesc::is_objArray_noinline()          const { return is_objArray();            }
 bool oopDesc::is_typeArray_noinline()         const { return is_typeArray();           }
-bool oopDesc::is_value_noinline()             const { return is_inline_type();         }
 bool oopDesc::is_flatArray_noinline()         const { return is_flatArray();           }
-bool oopDesc::is_nullfreeArray_noinline()     const { return is_nullfreeArray();       }
+bool oopDesc::is_null_free_array_noinline()   const { return is_null_free_array();     }
 
 bool oopDesc::has_klass_gap() {
   // Only has a klass gap when compressed class pointers are used.
@@ -221,7 +221,7 @@ void oopDesc::release_double_field_put(int offset, jdouble value)     { HeapAcce
 #ifdef ASSERT
 void oopDesc::verify_forwardee(oop forwardee) {
 #if INCLUDE_CDS_JAVA_HEAP
-  assert(!HeapShared::is_archived_object(forwardee) && !HeapShared::is_archived_object(this),
+  assert(!Universe::heap()->is_archived_object(forwardee) && !Universe::heap()->is_archived_object(this),
          "forwarding archive object");
 #endif
 }

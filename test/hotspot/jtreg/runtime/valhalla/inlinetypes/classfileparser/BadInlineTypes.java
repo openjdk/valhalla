@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile cfpTests.jcod
- * @run main/othervm BadInlineTypes
+ * @run main/othervm -Xverify:remote BadInlineTypes
  */
 
 public class BadInlineTypes {
@@ -88,5 +88,7 @@ public class BadInlineTypes {
          }
 
         runTest("ValueCloneable", "Inline Types do not support Cloneable");
+
+        runTest("SuperIsZero", "Invalid superclass index 0 in class file SuperIsZero");
     }
 }

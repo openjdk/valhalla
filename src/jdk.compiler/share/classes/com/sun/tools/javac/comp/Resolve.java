@@ -53,7 +53,6 @@ import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticType;
-import com.sun.tools.javac.util.JCDiagnostic.Warning;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -65,7 +64,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -146,8 +144,7 @@ public class Resolve {
         Target target = Target.instance(context);
         allowFunctionalInterfaceMostSpecific = Feature.FUNCTIONAL_INTERFACE_MOST_SPECIFIC.allowedInSource(source);
         allowLocalVariableTypeInference = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source);
-        allowYieldStatement = (!preview.isPreview(Feature.SWITCH_EXPRESSION) || preview.isEnabled()) &&
-                Feature.SWITCH_EXPRESSION.allowedInSource(source);
+        allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         checkVarargsAccessAfterResolution =
                 Feature.POST_APPLICABILITY_VARARGS_ACCESS_CHECK.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
@@ -421,7 +418,7 @@ public class Resolve {
 
         ClassSymbol enclosingCsym = env.enclClass.sym;
         if (sym.kind == MTH || sym.kind == VAR) {
-            /* If any inline types are involved, ask the same question in the reference universe,
+            /* If any primitive class types are involved, ask the same question in the reference universe,
                where the hierarchy is navigable
             */
             if (site.isPrimitiveClass())
@@ -430,7 +427,7 @@ public class Resolve {
             // A type is accessible in a reference projection if it was
             // accessible in the value projection.
             if (site.isReferenceProjection())
-                site = site.valueProjection();
+                site = site.asValueType();
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {
@@ -486,7 +483,7 @@ public class Resolve {
         if (sym.kind != MTH || sym.isConstructor() || sym.isStatic())
             return true;
 
-        /* If any inline types are involved, ask the same question in the reference universe,
+        /* If any primitive class types are involved, ask the same question in the reference universe,
            where the hierarchy is navigable
         */
         if (site.isPrimitiveClass())
@@ -1510,30 +1507,24 @@ public class Resolve {
         boolean staticOnly = false;
         while (env1.outer != null) {
             Symbol sym = null;
-            if (isStatic(env1)) staticOnly = true;
             for (Symbol s : env1.info.scope.getSymbolsByName(name)) {
                 if (s.kind == VAR && (s.flags_field & SYNTHETIC) == 0) {
                     sym = s;
+                    if (staticOnly) {
+                        return new StaticError(sym);
+                    }
                     break;
                 }
             }
+            if (isStatic(env1)) staticOnly = true;
             if (sym == null) {
                 sym = findField(env1, env1.enclClass.sym.type, name, env1.enclClass.sym);
             }
             if (sym.exists()) {
                 if (staticOnly &&
-                   (sym.flags() & STATIC) == 0 &&
-                    sym.kind == VAR &&
-                        // if it is a field
-                        (sym.owner.kind == TYP ||
-                        // or it is a local variable but it is not declared inside of the static local type
-                        // then error
-                        allowRecords &&
-                        (sym.owner.kind == MTH) &&
-                        env1 != env &&
-                        !isInnerClassOfMethod(sym.owner, env.tree.hasTag(CLASSDEF) ?
-                                ((JCClassDecl)env.tree).sym :
-                                env.enclClass.sym)))
+                        sym.kind == VAR &&
+                        sym.owner.kind == TYP &&
+                        (sym.flags() & STATIC) == 0)
                     return new StaticError(sym);
                 else
                     return sym;
@@ -2351,33 +2342,20 @@ public class Resolve {
         return bestSoFar;
     }
 
-    Symbol findTypeVar(Env<AttrContext> currentEnv, Env<AttrContext> originalEnv, Name name, boolean staticOnly) {
-        for (Symbol sym : currentEnv.info.scope.getSymbolsByName(name)) {
+    Symbol findTypeVar(Env<AttrContext> env, Name name, boolean staticOnly) {
+        for (Symbol sym : env.info.scope.getSymbolsByName(name)) {
             if (sym.kind == TYP) {
-                if (staticOnly &&
-                    sym.type.hasTag(TYPEVAR) &&
-                    ((sym.owner.kind == TYP) ||
-                    // are we trying to access a TypeVar defined in a method from a local static type: interface, enum or record?
-                    allowRecords &&
-                    (sym.owner.kind == MTH &&
-                    currentEnv != originalEnv &&
-                    !isInnerClassOfMethod(sym.owner, originalEnv.tree.hasTag(CLASSDEF) ?
-                            ((JCClassDecl)originalEnv.tree).sym :
-                            originalEnv.enclClass.sym)))) {
+                if (sym.type.hasTag(TYPEVAR) &&
+                        (staticOnly || (isStatic(env) && sym.owner.kind == TYP)))
+                    // if staticOnly is set, it means that we have recursed through a static declaration,
+                    // so type variable symbols should not be accessible. If staticOnly is unset, but
+                    // we are in a static declaration (field or method), we should not allow type-variables
+                    // defined in the enclosing class to "leak" into this context.
                     return new StaticError(sym);
-                }
                 return sym;
             }
         }
         return typeNotFound;
-    }
-
-    boolean isInnerClassOfMethod(Symbol msym, Symbol csym) {
-        while (csym.owner != msym) {
-            if (csym.isStatic()) return false;
-            csym = csym.owner.enclClass();
-        }
-        return (csym.owner == msym && !csym.isStatic());
     }
 
     /** Find an unqualified type symbol.
@@ -2399,9 +2377,9 @@ public class Resolve {
         Symbol sym;
         boolean staticOnly = false;
         for (Env<AttrContext> env1 = env; env1.outer != null; env1 = env1.outer) {
-            if (isStatic(env1)) staticOnly = true;
             // First, look for a type variable and the first member type
-            final Symbol tyvar = findTypeVar(env1, env, name, staticOnly);
+            final Symbol tyvar = findTypeVar(env1, name, staticOnly);
+            if (isStatic(env1)) staticOnly = true;
             sym = findImmediateMemberType(env1, env1.enclClass.sym.type,
                                           name, env1.enclClass.sym);
 
@@ -3483,7 +3461,7 @@ public class Resolve {
          */
         final boolean shouldStop(Symbol sym, MethodResolutionPhase phase) {
             return phase.ordinal() > maxPhase.ordinal() ||
-                !sym.kind.isResolutionError() || sym.kind == AMBIGUOUS;
+                 !sym.kind.isResolutionError() || sym.kind == AMBIGUOUS || sym.kind == STATICERR;
         }
 
         /**

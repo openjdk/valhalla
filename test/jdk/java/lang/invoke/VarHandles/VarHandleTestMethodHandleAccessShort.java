@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccessShort
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessShort
  */
 
 import org.testng.annotations.BeforeClass;
@@ -41,6 +41,8 @@ import java.util.List;
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessShort extends VarHandleBaseTest {
+    static final Class<?> type = short.class;
+
     static final short static_final_v = (short)0x0123;
 
     static short static_v;
@@ -64,21 +66,21 @@ public class VarHandleTestMethodHandleAccessShort extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessShort.class, "final_v", short.class);
+                VarHandleTestMethodHandleAccessShort.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodHandleAccessShort.class, "v", short.class);
+                VarHandleTestMethodHandleAccessShort.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessShort.class, "static_final_v", short.class);
+            VarHandleTestMethodHandleAccessShort.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodHandleAccessShort.class, "static_v", short.class);
+            VarHandleTestMethodHandleAccessShort.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(short[].class);
 
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "short_v", short.class);
+                    Value.class, "short_v", type);
     }
 
 

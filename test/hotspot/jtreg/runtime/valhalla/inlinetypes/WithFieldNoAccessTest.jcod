@@ -93,7 +93,7 @@
 class WithFieldNoAccessTest$V {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [58] { // Constant Pool
     ; // first element is empty
     class #33; // #1     at 0x0A
@@ -353,7 +353,7 @@ class WithFieldNoAccessTest$V {
 class WithFieldNoAccessTest {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [91] { // Constant Pool
     ; // first element is empty
     Method #23 #39; // #1     at 0x0A

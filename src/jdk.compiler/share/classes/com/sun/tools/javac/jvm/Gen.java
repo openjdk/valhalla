@@ -25,7 +25,6 @@
 
 package com.sun.tools.javac.jvm;
 
-import com.sun.tools.javac.code.Types.UniqueType;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -79,7 +78,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
-    private final TransValues transValues;
+    private final TransPrimitiveClass transPrimitiveClass;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -116,7 +115,7 @@ public class Gen extends JCTree.Visitor {
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
         lower = Lower.instance(context);
-        transValues = TransValues.instance(context);
+        transPrimitiveClass = TransPrimitiveClass.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -1001,7 +1000,7 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isValueFactory()) {
+                    } else if (env.enclMethod.sym.isPrimitiveObjectFactory()) {
                         items.makeLocalItem(env.enclMethod.factoryProduct).load();
                         code.emitop0(areturn);
                     } else {
@@ -1067,7 +1066,7 @@ public class Gen extends JCTree.Visitor {
             // If method is not static, create a new local variable address
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
-                Type selfType = meth.owner.type;
+                Type selfType = meth.owner.isPrimitiveClass() ? meth.owner.type.asValueType() : meth.owner.type;
                 if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
@@ -1242,7 +1241,7 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitSwitch(JCSwitch tree) {
-        handleSwitch(tree, tree.selector, tree.cases);
+        handleSwitch(tree, tree.selector, tree.cases, tree.patternSwitch);
     }
 
     @Override
@@ -1287,7 +1286,7 @@ public class Gen extends JCTree.Visitor {
             }
             int prevLetExprStart = code.setLetExprStackPos(code.state.stacksize);
             try {
-                handleSwitch(tree, tree.selector, tree.cases);
+                handleSwitch(tree, tree.selector, tree.cases, tree.patternSwitch);
             } finally {
                 code.setLetExprStackPos(prevLetExprStart);
             }
@@ -1317,9 +1316,11 @@ public class Gen extends JCTree.Visitor {
             return hasTry[0];
         }
 
-    private void handleSwitch(JCTree swtch, JCExpression selector, List<JCCase> cases) {
+    private void handleSwitch(JCTree swtch, JCExpression selector, List<JCCase> cases,
+                              boolean patternSwitch) {
         int limit = code.nextreg;
         Assert.check(!selector.type.hasTag(CLASS));
+        int switchStart = patternSwitch ? code.entryPoint() : -1;
         int startpcCrt = genCrt ? code.curCP() : 0;
         Assert.check(code.isStatementStart());
         Item sel = genExpr(selector, syms.intType);
@@ -1349,9 +1350,9 @@ public class Gen extends JCTree.Visitor {
 
             List<JCCase> l = cases;
             for (int i = 0; i < labels.length; i++) {
-                if (l.head.pats.nonEmpty()) {
-                    Assert.check(l.head.pats.size() == 1);
-                    int val = ((Number)l.head.pats.head.type.constValue()).intValue();
+                if (l.head.labels.head.isExpression()) {
+                    Assert.check(l.head.labels.size() == 1);
+                    int val = ((Number)((JCExpression) l.head.labels.head).type.constValue()).intValue();
                     labels[i] = val;
                     if (val < lo) lo = val;
                     if (hi < val) hi = val;
@@ -1421,6 +1422,11 @@ public class Gen extends JCTree.Visitor {
 
                 // Generate code for the statements in this case.
                 genStats(c.stats, switchEnv, CRT_FLOW_TARGET);
+            }
+
+            if (switchEnv.info.cont != null) {
+                Assert.check(patternSwitch);
+                code.resolve(switchEnv.info.cont, switchStart);
             }
 
             // Resolve all breaks.
@@ -2271,10 +2277,10 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
-        // inline widening conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
+        // primitive reference conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.splitPrimitiveClass || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type)) &&
+            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.asValueType(), tree.expr.type) || true) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
@@ -2344,7 +2350,7 @@ public class Gen extends JCTree.Visitor {
         Symbol sym = tree.sym;
 
         if (tree.name == names._class) {
-            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, !types.splitPrimitiveClass && tree.selected.type.isPrimitiveClass()));
+            code.emitLdc((LoadableConstant) tree.selected.type, makeRef(tree.pos(), tree.selected.type, tree.selected.type.isPrimitiveClass()));
             result = items.makeStackItem(pt);
             return;
         }
@@ -2404,7 +2410,7 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitDefaultValue(JCDefaultValue tree) {
-        if (tree.type.asElement().isPrimitiveClass()) {
+        if (tree.type.isPrimitiveClass()) {
             code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
         } else if (tree.type.isReference()) {
             code.emitop0(aconst_null);
@@ -2471,7 +2477,7 @@ public class Gen extends JCTree.Visitor {
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
-            cdef = transValues.translateTopLevelClass(cdef, make);
+            cdef = transPrimitiveClass.translateTopLevelClass(cdef, make);
             generateReferencesToPrunedTree(c);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

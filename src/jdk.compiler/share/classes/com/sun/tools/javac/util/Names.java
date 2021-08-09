@@ -94,6 +94,7 @@ public class Names {
     public final Name init;
     public final Name iterator;
     public final Name length;
+    public final Name newIdentity;
     public final Name next;
     public final Name ordinal;
     public final Name provider;
@@ -143,6 +144,7 @@ public class Names {
     public final Name Enum;
     public final Name Exceptions;
     public final Name InnerClasses;
+    public final Name JavaFlags;
     public final Name LineNumberTable;
     public final Name LocalVariableTable;
     public final Name LocalVariableTypeTable;
@@ -227,6 +229,10 @@ public class Names {
     public final Name permits;
     public final Name sealed;
 
+    // pattern switches
+    public final Name typeSwitch;
+    public final Name enumSwitch;
+
     public final Name.Table table;
 
     public Names(Context context) {
@@ -281,6 +287,7 @@ public class Names {
         iterator = fromString("iterator");
         length = fromString("length");
         next = fromString("next");
+        newIdentity = fromString("newIdentity");
         ordinal = fromString("ordinal");
         provider = fromString("provider");
         serialVersionUID = fromString("serialVersionUID");
@@ -331,6 +338,7 @@ public class Names {
         Exceptions = fromString("Exceptions");
         InnerClasses = fromString("InnerClasses");
         LineNumberTable = fromString("LineNumberTable");
+        JavaFlags = fromString("JavaFlags");
         LocalVariableTable = fromString("LocalVariableTable");
         LocalVariableTypeTable = fromString("LocalVariableTypeTable");
         MethodParameters = fromString("MethodParameters");
@@ -390,7 +398,7 @@ public class Names {
         makeConcat = fromString("makeConcat");
         makeConcatWithConstants = fromString("makeConcatWithConstants");
 
-        // value types
+        // primitive classes
         dollarValue = fromString("$value");
         ref = fromString("ref");
         val = fromString("val");
@@ -407,6 +415,10 @@ public class Names {
         // sealed types
         permits = fromString("permits");
         sealed = fromString("sealed");
+
+        // pattern switches
+        typeSwitch = fromString("typeSwitch");
+        enumSwitch = fromString("enumSwitch");
     }
 
     protected Name.Table createTable(Options options) {

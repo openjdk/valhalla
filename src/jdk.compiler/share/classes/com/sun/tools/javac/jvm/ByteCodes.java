@@ -243,7 +243,7 @@ public interface ByteCodes {
         jsr_w           = 201,
         breakpoint      = 202,
 
-        // value-type bytecodes
+        // primitive classes related bytecodes
         defaultvalue    = 203,
         withfield       = 204,
 

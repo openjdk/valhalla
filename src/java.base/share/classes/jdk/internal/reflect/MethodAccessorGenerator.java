@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,6 +121,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
     }
 
     /** This routine is not thread-safe */
+    @SuppressWarnings("removal")
     private MagicAccessorImpl generate(final Class<?> declaringClass,
                                        String name,
                                        Class<?>[] parameterTypes,
@@ -340,7 +341,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         for (int i = 0; i < parameterTypes.length; i++) {
             Class<?> c = parameterTypes[i];
             if (!isPrimitive(c)) {
-                asm.emitConstantPoolUTF8(getClassName(c, false));
+                asm.emitConstantPoolUTF8(getClassName(c, true));
                 asm.emitConstantPoolClass(asm.cpi());
             }
         }

@@ -1,7 +1,7 @@
 class IdentityType {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1

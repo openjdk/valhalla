@@ -180,14 +180,14 @@ Klass* TypeArrayKlass::array_klass(int n, TRAPS) {
   if (higher_dimension_acquire() == NULL) {
 
     ResourceMark rm;
-    JavaThread *jt = THREAD->as_Java_thread();
+    JavaThread *jt = THREAD;
     {
       // Atomic create higher dimension and link into list
       MutexLocker mu(THREAD, MultiArray_lock);
 
       if (higher_dimension() == NULL) {
         Klass* oak = ObjArrayKlass::allocate_objArray_klass(
-              class_loader_data(), dim + 1, this, CHECK_NULL);
+              class_loader_data(), dim + 1, this, false, false, CHECK_NULL);
         ObjArrayKlass* h_ak = ObjArrayKlass::cast(oak);
         h_ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
@@ -198,7 +198,7 @@ Klass* TypeArrayKlass::array_klass(int n, TRAPS) {
   }
 
   ObjArrayKlass* h_ak = ObjArrayKlass::cast(higher_dimension());
-  THREAD->as_Java_thread()->check_possible_safepoint();
+  THREAD->check_possible_safepoint();
   return h_ak->array_klass(n, THREAD);
 }
 
@@ -229,7 +229,7 @@ Klass* TypeArrayKlass::array_klass_or_null() {
 int TypeArrayKlass::oop_size(oop obj) const {
   assert(obj->is_typeArray(),"must be a type array");
   typeArrayOop t = typeArrayOop(obj);
-  return t->object_size();
+  return t->object_size(this);
 }
 
 void TypeArrayKlass::initialize(TRAPS) {

@@ -1052,6 +1052,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
       is_arraycopy = (call->Opcode() == Op_ArrayCopy) ||
         call->as_CallLeaf()->is_call_to_arraycopystub();
       // fall through
+    case Op_CallLeafVector:
     case Op_CallLeaf: {
       // Stub calls, objects do not escape but they are not scale replaceable.
       // Adjust escape state for outgoing arguments.
@@ -1140,7 +1141,8 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "store_unknown_inline") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "bigIntegerRightShiftWorker") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "bigIntegerLeftShiftWorker") == 0 ||
-                  strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0)
+                  strcmp(call->as_CallLeaf()->_name, "vectorizedMismatch") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "get_class_id_intrinsic") == 0)
                  ))) {
             call->dump();
             fatal("EA unexpected CallLeaf %s", call->as_CallLeaf()->_name);
@@ -2069,11 +2071,16 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
     assert(storestore->is_MemBarStoreStore(), "");
     Node* alloc = storestore->in(MemBarNode::Precedent)->in(0);
     if (alloc->is_Allocate() && not_global_escape(alloc)) {
-      MemBarNode* mb = MemBarNode::make(C, Op_MemBarCPUOrder, Compile::AliasIdxBot);
-      mb->init_req(TypeFunc::Memory,  storestore->in(TypeFunc::Memory));
-      mb->init_req(TypeFunc::Control, storestore->in(TypeFunc::Control));
-      igvn->register_new_node_with_optimizer(mb);
-      igvn->replace_node(storestore, mb);
+      if (alloc->in(AllocateNode::InlineTypeNode) != NULL) {
+        // Non-escaping inline type buffer allocations don't require a membar
+        storestore->as_MemBar()->remove(_igvn);
+      } else {
+        MemBarNode* mb = MemBarNode::make(C, Op_MemBarCPUOrder, Compile::AliasIdxBot);
+        mb->init_req(TypeFunc::Memory,  storestore->in(TypeFunc::Memory));
+        mb->init_req(TypeFunc::Control, storestore->in(TypeFunc::Control));
+        igvn->register_new_node_with_optimizer(mb);
+        igvn->replace_node(storestore, mb);
+      }
     }
   }
 }

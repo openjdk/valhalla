@@ -338,9 +338,9 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
 
   // "lock" stores the address of the monitor stack slot, so this is not an oop
   LIR_Opr lock = new_register(T_INT);
-  // Need a scratch register for biased locking
+  // Need a scratch register for inline type
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking || x->maybe_inlinetype()) {
+  if (EnableValhalla && x->maybe_inlinetype()) {
     scratch = new_register(T_INT);
   }
 
@@ -435,12 +435,8 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
     left.load_item();
 
   LIR_Opr reg = rlock(x);
-  LIR_Opr tmp = LIR_OprFact::illegalOpr;
-  if (x->is_strictfp() && (x->op() == Bytecodes::_dmul || x->op() == Bytecodes::_ddiv)) {
-    tmp = new_register(T_DOUBLE);
-  }
 
-  arithmetic_op_fpu(x->op(), reg, left.result(), right.result(), x->is_strictfp());
+  arithmetic_op_fpu(x->op(), reg, left.result(), right.result());
 
   set_result(x, round_item(reg));
 }
@@ -1150,8 +1146,8 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
                /* allow_inline */ false,
-               FrameMap::r2_oop_opr,
-               FrameMap::r5_oop_opr,
+               FrameMap::r10_oop_opr,
+               FrameMap::r11_oop_opr,
                FrameMap::r4_oop_opr,
                LIR_OprFact::illegalOpr,
                FrameMap::r3_metadata_opr, info);
@@ -1166,8 +1162,8 @@ void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), false,
                /* allow_inline */ true,
-               FrameMap::r2_oop_opr,
-               FrameMap::r5_oop_opr,
+               FrameMap::r10_oop_opr,
+               FrameMap::r11_oop_opr,
                FrameMap::r4_oop_opr,
                LIR_OprFact::illegalOpr,
                FrameMap::r3_metadata_opr, info);
@@ -1183,8 +1179,8 @@ void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   length.load_item_force(FrameMap::r19_opr);
 
   LIR_Opr reg = result_register_for(x->type());
-  LIR_Opr tmp1 = FrameMap::r2_oop_opr;
-  LIR_Opr tmp2 = FrameMap::r4_oop_opr;
+  LIR_Opr tmp1 = FrameMap::r10_oop_opr;
+  LIR_Opr tmp2 = FrameMap::r11_oop_opr;
   LIR_Opr tmp3 = FrameMap::r5_oop_opr;
   LIR_Opr tmp4 = reg;
   LIR_Opr klass_reg = FrameMap::r3_metadata_opr;
@@ -1212,8 +1208,8 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   CodeEmitInfo* info = state_for(x, x->state());
 
   LIR_Opr reg = result_register_for(x->type());
-  LIR_Opr tmp1 = FrameMap::r2_oop_opr;
-  LIR_Opr tmp2 = FrameMap::r4_oop_opr;
+  LIR_Opr tmp1 = FrameMap::r10_oop_opr;
+  LIR_Opr tmp2 = FrameMap::r11_oop_opr;
   LIR_Opr tmp3 = FrameMap::r5_oop_opr;
   LIR_Opr tmp4 = reg;
   LIR_Opr klass_reg = FrameMap::r3_metadata_opr;

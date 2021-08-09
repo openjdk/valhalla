@@ -110,20 +110,6 @@ class MacroAssembler: public Assembler {
 
   void safepoint_poll(Label& slow_path, bool at_return, bool acquire, bool in_nmethod);
 
-  // Biased locking support
-  // lock_reg and obj_reg must be loaded up with the appropriate values.
-  // swap_reg is killed.
-  // tmp_reg must be supplied and must not be rscratch1 or rscratch2
-  // Optional slow case is for implementations (interpreter and C1) which branch to
-  // slow case directly. Leaves condition codes set for C2's Fast_Lock node.
-  void biased_locking_enter(Register lock_reg, Register obj_reg,
-                            Register swap_reg, Register tmp_reg,
-                            bool swap_reg_contains_mark,
-                            Label& done, Label* slow_case = NULL,
-                            BiasedLockingCounters* counters = NULL);
-  void biased_locking_exit (Register obj_reg, Register temp_reg, Label& done);
-
-
   // Helper functions for statistics gathering.
   // Unconditional atomic increment.
   void atomic_incw(Register counter_addr, Register tmp, Register tmp2);
@@ -632,8 +618,8 @@ public:
   // get_default_value_oop with extra assertion for empty inline klass
   void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
-  void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
-  void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
+  void test_field_is_null_free_inline_type(Register flags, Register temp_reg, Label& is_null_free);
+  void test_field_is_not_null_free_inline_type(Register flags, Register temp_reg, Label& not_null_free);
   void test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened);
 
   // Check oops for special arrays, i.e. flattened and/or null-free
@@ -960,7 +946,6 @@ public:
     Register t2,                       // temp register
     Label&   slow_case                 // continuation point if fast allocation fails
   );
-  void zero_memory(Register addr, Register len, Register t1);
   void verify_tlab();
 
   // For field "index" within "klass", return inline_klass ...
@@ -1116,6 +1101,7 @@ public:
                enum operand_size size,
                bool acquire, bool release, bool weak,
                Register result);
+
 private:
   void compare_eq(Register rn, Register rm, enum operand_size size);
 

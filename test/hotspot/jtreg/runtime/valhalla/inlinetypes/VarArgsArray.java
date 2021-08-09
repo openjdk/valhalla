@@ -57,9 +57,9 @@ public class VarArgsArray {
         MyInt[] array1 = new MyInt[] { new MyInt(TOKEN_VALUE) };
         MyInt[] array2 = new MyInt[] { new MyInt(TOKEN_VALUE), new MyInt(TOKEN_VALUE) };
 
-        Method methodARef = getClass().getDeclaredMethod("methodA", MyInt.class);
-        Method methodBRef = getClass().getDeclaredMethod("methodB", MyInt.class, MyInt.class);
-        Method methodCRef = getClass().getDeclaredMethod("methodC", MyInt.class, String.class);
+        Method methodARef = getClass().getDeclaredMethod("methodA", MyInt.class.asValueType());
+        Method methodBRef = getClass().getDeclaredMethod("methodB", MyInt.class.asValueType(), MyInt.class.asValueType());
+        Method methodCRef = getClass().getDeclaredMethod("methodC", MyInt.class.asValueType(), String.class);
 
         // Positive tests...
         methodARef.invoke(this, (Object[])array1);
@@ -97,7 +97,7 @@ public class VarArgsArray {
     public void testJvmNewInstanceFromConstructor() throws Throwable {
         // Inner classes use outer in param list, so these won't exercise inline type array
         Class tc = NewInstanceFromConstructor.class;
-        Class pt = IntValue.class;
+        Class pt = IntValue.class.asValueType();
         Constructor consARef = tc.getConstructor(pt);
         Constructor consBRef = tc.getConstructor(pt, pt);
         Constructor consCRef = tc.getConstructor(pt, String.class);

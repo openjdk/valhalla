@@ -139,6 +139,11 @@ public class Flags {
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 
+    /**
+     * Flag is set for a reference favoring primitive class.
+     */
+    public static final int REFERENCE_FAVORING          = 1<<19;
+
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -193,7 +198,12 @@ public class Flags {
 
     /** Flag for synthesized default constructors of anonymous classes.
      */
-    public static final int ANONCONSTR   = 1<<29;
+    public static final int ANONCONSTR   = 1<<29; //non-class members
+
+    /**
+     * Flag to indicate the super classes of this ClassSymbol has been attributed.
+     */
+    public static final int SUPER_OWNER_ATTRIBUTED = 1<<29; //ClassSymbols
 
     /** Flag for class symbols to indicate it has been checked and found
      *  acyclic.
@@ -323,7 +333,12 @@ public class Flags {
     /**
      * Flag to indicate the given ModuleSymbol is a system module.
      */
-    public static final long SYSTEM_MODULE = 1L<<53;
+    public static final long SYSTEM_MODULE = 1L<<53; //ModuleSymbols only
+
+    /**
+     * Flag to indicate the given ClassSymbol is a value based.
+     */
+    public static final long VALUE_BASED = 1L<<53; //ClassSymbols only
 
     /**
      * Flag to indicate the given symbol has a @Deprecated annotation.
@@ -397,6 +412,12 @@ public class Flags {
      */
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
+    // Encodings for extended flags stored using attributes
+    /**
+     * Flag to indicate that the primitive class is reference default.
+     */
+    public static final int ACC_REF_DEFAULT = 1;
+
     /** Modifier masks.
      */
     public static final int
@@ -426,7 +447,6 @@ public class Flags {
         LocalVarFlags                     = FINAL | PARAMETER,
         ReceiverParamFlags                = PARAMETER;
 
-    @SuppressWarnings("preview")
     public static Set<Modifier> asModifierSet(long flags) {
         Set<Modifier> modifiers = modifierSets.get(flags);
         if (modifiers == null) {
@@ -491,6 +511,7 @@ public class Flags {
         HASINIT(Flags.HASINIT),
         HASINITBLOCK(Flags.HASINITBLOCK),
         EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
+        REFERENCE_FAVORING(Flags.REFERENCE_FAVORING),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

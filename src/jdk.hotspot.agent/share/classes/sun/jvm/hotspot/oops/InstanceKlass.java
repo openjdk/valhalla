@@ -29,7 +29,6 @@ import java.util.*;
 import sun.jvm.hotspot.classfile.ClassLoaderData;
 import sun.jvm.hotspot.debugger.*;
 import sun.jvm.hotspot.memory.*;
-import sun.jvm.hotspot.memory.Dictionary;
 import sun.jvm.hotspot.runtime.*;
 import sun.jvm.hotspot.types.*;
 import sun.jvm.hotspot.utilities.*;
@@ -70,7 +69,6 @@ public class InstanceKlass extends Klass {
   private static int MISC_REWRITTEN;
   private static int MISC_HAS_NONSTATIC_FIELDS;
   private static int MISC_SHOULD_VERIFY_CLASS;
-  private static int MISC_IS_UNSAFE_ANONYMOUS;
   private static int MISC_IS_CONTENDED;
   private static int MISC_HAS_NONSTATIC_CONCRETE_METHODS;
   private static int MISC_DECLARES_NONSTATIC_CONCRETE_METHODS;
@@ -79,6 +77,8 @@ public class InstanceKlass extends Klass {
   private static int MISC_IS_SHARED_BOOT_CLASS;
   private static int MISC_IS_SHARED_PLATFORM_CLASS;
   private static int MISC_IS_SHARED_APP_CLASS;
+  private static int MISC_HAS_INJECTED_PRIMITIVEOBJECT;
+  private static int MISC_HAS_INJECTED_IDENTITYOBJECT;
 
   private static synchronized void initialize(TypeDataBase db) throws WrongTypeException {
     Type type            = db.lookupType("InstanceKlass");
@@ -128,7 +128,6 @@ public class InstanceKlass extends Klass {
     MISC_REWRITTEN                    = db.lookupIntConstant("InstanceKlass::_misc_rewritten").intValue();
     MISC_HAS_NONSTATIC_FIELDS         = db.lookupIntConstant("InstanceKlass::_misc_has_nonstatic_fields").intValue();
     MISC_SHOULD_VERIFY_CLASS          = db.lookupIntConstant("InstanceKlass::_misc_should_verify_class").intValue();
-    MISC_IS_UNSAFE_ANONYMOUS          = db.lookupIntConstant("InstanceKlass::_misc_is_unsafe_anonymous").intValue();
     MISC_IS_CONTENDED                 = db.lookupIntConstant("InstanceKlass::_misc_is_contended").intValue();
     MISC_HAS_NONSTATIC_CONCRETE_METHODS      = db.lookupIntConstant("InstanceKlass::_misc_has_nonstatic_concrete_methods").intValue();
     MISC_DECLARES_NONSTATIC_CONCRETE_METHODS = db.lookupIntConstant("InstanceKlass::_misc_declares_nonstatic_concrete_methods").intValue();
@@ -137,6 +136,8 @@ public class InstanceKlass extends Klass {
     MISC_IS_SHARED_BOOT_CLASS         = db.lookupIntConstant("InstanceKlass::_misc_is_shared_boot_class").intValue();
     MISC_IS_SHARED_PLATFORM_CLASS     = db.lookupIntConstant("InstanceKlass::_misc_is_shared_platform_class").intValue();
     MISC_IS_SHARED_APP_CLASS          = db.lookupIntConstant("InstanceKlass::_misc_is_shared_app_class").intValue();
+    MISC_HAS_INJECTED_PRIMITIVEOBJECT = db.lookupIntConstant("InstanceKlass::_misc_has_injected_primitiveObject").intValue();
+    MISC_HAS_INJECTED_IDENTITYOBJECT  = db.lookupIntConstant("InstanceKlass::_misc_has_injected_identityObject").intValue();
   }
 
   public InstanceKlass(Address addr) {
@@ -283,18 +284,11 @@ public class InstanceKlass extends Klass {
     if (isInterface()) {
       size += wordLength;
     }
-    if (isUnsafeAnonymous()) {
-      size += wordLength;
-    }
     return alignSize(size);
   }
 
   private int getMiscFlags() {
     return (int) miscFlags.getValue(this);
-  }
-
-  public boolean isUnsafeAnonymous() {
-    return (getMiscFlags() & MISC_IS_UNSAFE_ANONYMOUS) != 0;
   }
 
   public static long getHeaderSize() { return headerSize; }
@@ -576,6 +570,14 @@ public class InstanceKlass extends Klass {
     } else {
        return false;
     }
+  }
+
+  public boolean hasInjectedIdentityObject() {
+    return (getMiscFlags() & MISC_HAS_INJECTED_IDENTITYOBJECT) != 0;
+  }
+
+  public boolean hasInjectedPrimitiveObject() {
+    return (getMiscFlags() & MISC_HAS_INJECTED_PRIMITIVEOBJECT) != 0;
   }
 
   public boolean implementsInterface(Klass k) {

@@ -44,7 +44,6 @@ import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
-import static com.sun.tools.javac.tree.JCTree.Tag.VARDEF;
 
 /** Resolves field, method and constructor header, and constructs corresponding Symbols.
  *
@@ -288,12 +287,12 @@ public class MemberEnter extends JCTree.Visitor {
         VarSymbol v = new VarSymbol(0, tree.name, vartype, enclScope.owner);
         v.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, v, tree);
         tree.sym = v;
-        /* Don't want constant propagation/folding for instance fields of value classes,
+        /* Don't want constant propagation/folding for instance fields of primitive classes,
            as these can undergo updates via copy on write.
         */
         if (tree.init != null) {
             v.flags_field |= HASINIT;
-            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !types.isPrimitiveClass(v.owner.type)) &&
+            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !v.owner.isPrimitiveClass()) &&
                 needsLazyConstValue(tree.init)) {
                 Env<AttrContext> initEnv = getInitEnv(tree, env);
                 initEnv.info.enclVar = v;

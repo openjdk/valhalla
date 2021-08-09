@@ -25,7 +25,7 @@
 
 /*
  * @test
- * @summary V.ref class should not inadvertently carry over attributes from V.class
+ * @summary Verify that primitive class declarations can be annotated
  * @bug 8244713
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @run main UnannotatedProjection
@@ -100,33 +100,6 @@ public class UnannotatedProjection {
         aName = cls.constant_pool.getUTF8Value(vta.annotations[0].annotation.type_index);
         if (!aName.equals("LUnannotatedProjection$TARR;")) {
             throw new AssertionError("Unexpected annotation: " + aName);
-        }
-
-        // Verify that annotations are not carried over to the reference projection
-        cls = ClassFile.read(UnannotatedProjection.class.getResourceAsStream("UnannotatedProjection$V$ref.class"));
-
-        if (cls == null) {
-            throw new AssertionError("Could not locate the class files");
-        }
-
-        inv = (RuntimeInvisibleAnnotations_attribute) cls.attributes.get(Attribute.RuntimeInvisibleAnnotations);
-        if (inv != null) {
-            throw new AssertionError("Annotations carried over to projection!");
-        }
-
-        invta = (RuntimeInvisibleTypeAnnotations_attribute) cls.attributes.get(Attribute.RuntimeInvisibleTypeAnnotations);
-        if (invta != null) {
-            throw new AssertionError("Annotations carried over to projection!");
-        }
-
-        v = (RuntimeVisibleAnnotations_attribute) cls.attributes.get(Attribute.RuntimeVisibleAnnotations);
-        if (v != null) {
-            throw new AssertionError("Annotations carried over to projection!");
-        }
-
-        vta = (RuntimeVisibleTypeAnnotations_attribute) cls.attributes.get(Attribute.RuntimeVisibleTypeAnnotations);
-        if (vta != null) {
-            throw new AssertionError("Annotations carried over to projection!");
         }
     }
 }

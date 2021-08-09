@@ -25,8 +25,9 @@
 #ifndef SHARE_OOPS_KLASS_INLINE_HPP
 #define SHARE_OOPS_KLASS_INLINE_HPP
 
-#include "classfile/classLoaderData.inline.hpp"
 #include "oops/klass.hpp"
+
+#include "classfile/classLoaderData.inline.hpp"
 #include "oops/klassVtable.hpp"
 #include "oops/markWord.hpp"
 
@@ -43,7 +44,7 @@ inline bool Klass::is_non_strong_hidden() const {
          class_loader_data()->has_class_mirror_holder();
 }
 
-// Iff the class loader (or mirror for unsafe anonymous classes) is alive the
+// Iff the class loader (or mirror for non-strong hidden classes) is alive the
 // Klass is considered alive. This is safe to call before the CLD is marked as
 // unloading, and hence during concurrent class unloading.
 inline bool Klass::is_loader_alive() const {
@@ -52,7 +53,19 @@ inline bool Klass::is_loader_alive() const {
 
 inline void Klass::set_prototype_header(markWord header) {
   assert(!is_inline_klass() || header.is_inline_type(), "Unexpected prototype");
-  assert(!UseBiasedLocking || !header.has_bias_pattern() || is_instance_klass(), "biased locking currently only supported for Java instances");
+  assert(_prototype_header.value() == 0 || _prototype_header == markWord::prototype(),
+         "Prototype already set");
+#ifdef _LP64
+    assert(header == markWord::prototype() ||
+           header.is_inline_type() ||
+           header.is_flat_array() ||
+           header.is_null_free_array(),
+           "unknown prototype header");
+#else
+    assert(header == markWord::prototype() ||
+           header.is_inline_type(),
+           "unknown prototype header");
+#endif
   _prototype_header = header;
 }
 

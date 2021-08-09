@@ -41,7 +41,7 @@
 class HiddenPoint$ref {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [7] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -75,7 +75,7 @@ class HiddenPoint$ref {
 class HiddenPoint {
   0xCAFEBABE;
   0; // minor version
-  61; // version
+  62; // version
   [60] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A

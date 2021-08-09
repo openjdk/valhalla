@@ -224,7 +224,9 @@ public class Symtab {
     public final Type recordType;
     public final Type identityObjectType;
     public final Type primitiveObjectType;
+    public final Type switchBootstrapsType;
     public final Type valueBasedType;
+    public final Type valueBasedInternalType;
 
     /** The symbol representing the length field of an array.
      */
@@ -268,7 +270,7 @@ public class Symtab {
             new UniqueType(type, types), k -> {
                 Type arg = null;
                 if (type.getTag() == ARRAY || type.getTag() == CLASS) {
-                    /* Temporary treatment for inline class: Given an inline class V that implements
+                    /* Temporary treatment for primitive class: Given a primitive class V that implements
                        I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
                     */
                     if (type.isPrimitiveClass()) {
@@ -600,7 +602,9 @@ public class Symtab {
         recordType = enterClass("java.lang.Record");
         identityObjectType = enterClass("java.lang.IdentityObject");
         primitiveObjectType = enterClass("java.lang.PrimitiveObject");
+        switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
+        valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);

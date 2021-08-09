@@ -196,10 +196,10 @@ ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
 // ciBytecodeStream::is_inline_klass
 //
 // Check if the klass is an inline klass.
-bool ciBytecodeStream::is_inline_klass() const {
+bool ciBytecodeStream::has_Q_signature() const {
   VM_ENTRY_MARK;
   constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
-  return CURRENT_ENV->is_inline_klass(cpool, get_klass_index());
+  return CURRENT_ENV->has_Q_signature(cpool, get_klass_index());
 }
 
 // ------------------------------------------------------------------

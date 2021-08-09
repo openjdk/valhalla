@@ -100,17 +100,16 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
     JFR_ONLY(INIT_ID(this);)
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, bool qdesc, TRAPS) {
   ResourceMark rm(THREAD);
   Symbol* name = NULL;
-  bool is_qtype = element_klass->is_inline_klass();
   char *name_str = element_klass->name()->as_C_string();
   int len = element_klass->name()->utf8_length();
   char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
   int idx = 0;
   new_str[idx++] = JVM_SIGNATURE_ARRAY;
   if (element_klass->is_instance_klass()) { // it could be an array or simple type
-    if (is_qtype) {
+    if (qdesc) {
       new_str[idx++] = JVM_SIGNATURE_INLINE_TYPE;
     } else {
       new_str[idx++] = JVM_SIGNATURE_CLASS;

@@ -416,23 +416,16 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags_field & Flags.AccessFlags) == PRIVATE;
     }
 
+    public boolean isSynthetic() {
+        return (flags_field & SYNTHETIC) != 0;
+    }
+
+    public boolean isReferenceFavoringPrimitiveClass() {
+        return (flags() & REFERENCE_FAVORING) != 0;  // bit set only for primitive classes
+    }
+
     public boolean isPrimitiveClass() {
         return (flags() & PRIMITIVE_CLASS) != 0;
-    }
-
-    /**
-     * Is this a *derived* reference projection symbol ??
-     */
-    public boolean isReferenceProjection() {
-        return false;
-    }
-
-    /**
-     * If this is the symbol for a reference projection class, what is the class for which
-     * this is a projection ??
-     */
-    public ClassSymbol valueProjection() {
-        return null;
     }
 
     public boolean isPublic() {
@@ -479,9 +472,9 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
-    /** Is this symbol a value factory?
+    /** Is this symbol a primitive object factory?
      */
-    public boolean isValueFactory() {
+    public boolean isPrimitiveObjectFactory() {
         return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 
@@ -545,8 +538,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /** The outermost class which indirectly owns this symbol.
-     * 'outermost' being a lexical construct, should transcend
-     *  projections
      */
     public ClassSymbol outermostClass() {
         Symbol sym = this;
@@ -555,7 +546,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             prev = sym;
             sym = sym.owner;
         }
-        return (ClassSymbol) (prev!= null && prev.isReferenceProjection() ? prev.valueProjection() : prev);
+        return (ClassSymbol) prev;
     }
 
     /** The package which indirectly owns this symbol.
@@ -1431,14 +1422,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             return false;
         }
 
-        /**
-         * Does `this' symbolize a primitive class that would, under the translation
-         * scheme in effect be lowered into two class files on a bifurcased basis ??
-         */
-        public boolean isSplitPrimitiveClass(Types types) {
-            return types.splitPrimitiveClass && this.isPrimitiveClass();
-        }
-
         /** Complete the elaboration of this symbol's definition.
          */
         public void complete() throws CompletionFailure {
@@ -1454,8 +1437,8 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             } finally {
                 if (this.type != null && this.type.hasTag(CLASS)) {
                     ClassType ct = (ClassType) this.type;
-                    ct.flavor = ct.flavor.metamorphose((this.flags_field & PRIMITIVE_CLASS) != 0);
-                    if (this.erasure_field != null && this.erasure_field.hasTag(CLASS)) {
+                    ct.flavor = ct.flavor.metamorphose(this.flags_field);
+                    if (!this.type.isIntersection() && this.erasure_field != null && this.erasure_field.hasTag(CLASS)) {
                         ((ClassType) this.erasure_field).flavor = ct.flavor;
                     }
                 }
@@ -1517,7 +1500,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
 
         @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public ElementKind getKind() {
             apiComplete();
             long flags = flags();
@@ -1566,7 +1548,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public List<? extends RecordComponent> getRecordComponents() {
             return recordComponents;
         }
@@ -1751,7 +1732,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             } else if (isResourceVariable()) {
                 return ElementKind.RESOURCE_VARIABLE;
             } else if ((flags & MATCH_BINDING) != 0) {
-                @SuppressWarnings("preview")
                 ElementKind kind = ElementKind.BINDING_VARIABLE;
                 return kind;
             } else {
@@ -1820,7 +1800,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
     }
 
-    @SuppressWarnings("preview")
     public static class RecordComponent extends VarSymbol implements RecordComponentElement {
         public MethodSymbol accessor;
         public JCTree.JCMethodDecl accessorMeth;
@@ -1863,7 +1842,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public ElementKind getKind() {
             return ElementKind.RECORD_COMPONENT;
         }
@@ -1874,7 +1852,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
-        @SuppressWarnings("preview")
         public <R, P> R accept(ElementVisitor<R, P> v, P p) {
             return v.visitRecordComponent(this, p);
         }

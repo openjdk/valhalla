@@ -31,12 +31,12 @@
 primitive class A {
     int x = 1000000;
     class Inner { 
-        String aDotThis;
+        A aDotThis;
         Inner() {
-            aDotThis = A.this.toString();
+            aDotThis = A.this;
         }
 
-        String getADotThis() {
+        A getADotThis() {
             return aDotThis;
         }
     }
@@ -48,7 +48,7 @@ public class QualifiedSuperCtor extends A.Inner {
     }
 
     public static void main(String [] args) {
-        if (!new QualifiedSuperCtor(new A()).getADotThis().equals("[A x=1000000]"))
+        if (new QualifiedSuperCtor(new A()).getADotThis().x !=1000000)
             throw new AssertionError("Broken");
     }
 }

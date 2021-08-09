@@ -219,7 +219,7 @@ public:
   // or checkcast, get the referenced klass.
   ciKlass* get_klass(bool& will_link);
   int get_klass_index() const;
-  bool is_inline_klass() const;
+  bool has_Q_signature() const;
 
   // If this bytecode is one of the ldc variants, get the referenced
   // constant.  Do not attempt to resolve it, since that would require
@@ -288,6 +288,14 @@ public:
       return _sig->return_type();
     } else {
       return _sig->type_at(_pos);
+    }
+  }
+
+  bool is_null_free() {
+    if (at_return_type()) {
+      return _sig->returns_null_free_inline_type();
+    } else {
+      return _sig->is_null_free_at(_pos);
     }
   }
 

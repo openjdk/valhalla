@@ -49,18 +49,15 @@ import static java.util.stream.Collectors.joining;
  * {@linkplain ClassDesc} for the component type and then call the {@link #arrayType()}
  * or {@link #arrayType(int)} methods.
  *
- * @apiNote In the future, if the Java language permits, {@linkplain ClassDesc}
- * may become a {@code sealed} interface, which would prohibit subclassing except
- * by explicitly permitted types.  Non-platform classes should not implement
- * {@linkplain ClassDesc} directly.
- *
  * @see ConstantDescs
  *
  * @since 12
  */
-public interface ClassDesc
+public sealed interface ClassDesc
         extends ConstantDesc,
-                TypeDescriptor.OfField<ClassDesc> {
+                TypeDescriptor.OfField<ClassDesc>
+        permits PrimitiveClassDescImpl,
+                ClassDescImpl {
 
     /**
      * Returns a {@linkplain ClassDesc} for a class or interface type,
@@ -68,7 +65,8 @@ public interface ClassDesc
      * (To create a descriptor for an array type, either use {@link #ofDescriptor(String)}
      * or {@link #arrayType()}; to create a descriptor for a primitive type, use
      * {@link #ofDescriptor(String)} or use the predefined constants in
-     * {@link ConstantDescs}).
+     * {@link ConstantDescs}; to create a descriptor for a primitive value type,
+     * use {@link #ofDescriptor(String)}).
      *
      * @param name the fully qualified (dot-separated) binary class name
      * @return a {@linkplain ClassDesc} describing the desired class
@@ -113,12 +111,14 @@ public interface ClassDesc
      *
      * A field type descriptor string for a non-array type is either
      * a one-letter code corresponding to a primitive type
-     * ({@code "J", "I", "C", "S", "B", "D", "F", "Z", "V"}), or the letter {@code "L"}, followed
+     * ({@code "J", "I", "C", "S", "B", "D", "F", "Z", "V"}),
+     * or the letter {@code "L"} or {@code "Q"} followed
      * by the fully qualified binary name of a class, followed by {@code ";"}.
      * A field type descriptor for an array type is the character {@code "["}
      * followed by the field descriptor for the component type.  Examples of
-     * valid type descriptor strings include {@code "Ljava/lang/String;"}, {@code "I"},
-     * {@code "[I"}, {@code "V"}, {@code "[Ljava/lang/String;"}, etc.
+     * valid type descriptor strings include {@code "Ljava/lang/String;"},
+     * {@code "QPoint;}, {@code "I"}, {@code "[I"}, {@code "V"},
+     * {@code "[Ljava/lang/String;"}, {@code "[LPoint;"}, {@code "[[QPoint;} etc.
      * See JVMS 4.3.2 ("Field Descriptors") for more detail.
      *
      * @param descriptor a field descriptor string
@@ -143,7 +143,7 @@ public interface ClassDesc
         }
         return (descriptor.length() == 1)
                ? new PrimitiveClassDescImpl(descriptor)
-               : new ReferenceClassDescImpl(descriptor);
+               : new ClassDescImpl(descriptor);
     }
 
     /**
@@ -255,7 +255,18 @@ public interface ClassDesc
      * @return whether this {@linkplain ClassDesc} describes a class or interface type
      */
     default boolean isClassOrInterface() {
-        return descriptorString().startsWith("L");
+        return descriptorString().startsWith("L") || descriptorString().startsWith("Q");
+    }
+
+    /**
+     * Returns whether this {@linkplain ClassDesc} describes a
+     * {@linkplain Class#isValueType() primitive value type}.
+     *
+     * @return whether this {@linkplain ClassDesc} describes a primitive value type.
+     * @since Valhalla
+     */
+    default boolean isValueType() {
+        return descriptorString().startsWith("Q");
     }
 
     /**

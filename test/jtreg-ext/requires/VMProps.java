@@ -44,10 +44,10 @@ import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import sun.hotspot.code.Compiler;
-import sun.hotspot.cpuinfo.CPUInfo;
-import sun.hotspot.gc.GC;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.code.Compiler;
+import jdk.test.whitebox.cpuinfo.CPUInfo;
+import jdk.test.whitebox.gc.GC;
+import jdk.test.whitebox.WhiteBox;
 import jdk.test.lib.Platform;
 import jdk.test.lib.Container;
 
@@ -311,9 +311,11 @@ public class VMProps implements Callable<Map<String, String>> {
         vmOptFinalFlag(map, "ClassUnloading");
         vmOptFinalFlag(map, "ClassUnloadingWithConcurrentMark");
         vmOptFinalFlag(map, "UseCompressedOops");
+        vmOptFinalFlag(map, "UseVectorizedMismatchIntrinsic");
         vmOptFinalFlag(map, "EnableJVMCI");
         vmOptFinalFlag(map, "EliminateAllocations");
         vmOptFinalFlag(map, "TieredCompilation");
+        vmOptFinalFlag(map, "UseVtableBasedCHA");
     }
 
     /**
@@ -328,7 +330,7 @@ public class VMProps implements Callable<Map<String, String>> {
      * support.
      */
     protected String vmHasJFR() {
-        return "" + WB.isJFRIncludedInVmBuild();
+        return "" + WB.isJFRIncluded();
     }
 
     /**
@@ -364,7 +366,7 @@ public class VMProps implements Callable<Map<String, String>> {
      * @return true if CDS is supported by the VM to be tested.
      */
     protected String vmCDS() {
-        return "" + WB.isCDSIncludedInVmBuild();
+        return "" + WB.isCDSIncluded();
     }
 
     /**

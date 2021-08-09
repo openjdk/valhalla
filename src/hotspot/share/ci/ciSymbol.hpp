@@ -88,7 +88,8 @@ public:
   bool ends_with(const char* suffix, int len) const;
   bool ends_with(char suffix_char) const;
 
-  bool        is_Q_signature();
+  bool is_Q_signature() const;
+  bool is_Q_array_signature() const;
 
   // Determines where the symbol contains the given substring.
   int index_of_at(int i, const char* str, int len) const;

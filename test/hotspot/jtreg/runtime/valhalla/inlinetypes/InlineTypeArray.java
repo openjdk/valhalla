@@ -65,7 +65,7 @@ public class InlineTypeArray {
     }
 
     void testClassForName() {
-        String arrayClsName = "[Lruntime.valhalla.inlinetypes.Point$ref;";
+        String arrayClsName = "[Lruntime.valhalla.inlinetypes.Point;";
         String qarrayClsName = "[Qruntime.valhalla.inlinetypes.Point;";
         try {
             // L-type..
@@ -81,7 +81,7 @@ public class InlineTypeArray {
             arrayCls = Class.forName(qarrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
 
-            assertTrue(arrayCls.getComponentType() == Point.class,
+            assertTrue(arrayCls.getComponentType() == Point.class.asValueType(),
                        arrayCls +
                        " Expected component type of Point.class got: " + arrayCls.getComponentType());
 
@@ -286,10 +286,10 @@ public class InlineTypeArray {
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
-        assertTrue(myInts instanceof MyInt.ref[]);
+        assertTrue(myInts instanceof MyInt[]);
 
-        Class<?> cls = MyInt.class;
-        assertTrue(cls.isPrimitiveClass());
+        Class<?> cls = MyInt.class.asValueType();
+        assertTrue(cls.isValueType());
         Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");
         assertTrue(arrObj instanceof Comparable[], "Not Comparable array");

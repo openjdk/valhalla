@@ -2618,14 +2618,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   } else { // Valhalla
     if (is_static) {
       __ load_heap_oop(r0, field);
-      Label is_inline_type, uninitialized;
+      Label is_null_free_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
-        // field is not an inline type
+      __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_null_free_inline_type);
+        // field is not a null free inline type
         __ push(atos);
         __ b(Done);
-      // field is an inline type, must not return null even if uninitialized
-      __ bind(is_inline_type);
+      // field is a null free inline type, must not return null even if uninitialized
+      __ bind(is_null_free_inline_type);
         __ cbz(r0, uninitialized);
           __ push(atos);
           __ b(Done);
@@ -2645,7 +2645,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ b(Done);
     } else {
       Label is_inlined, nonnull, is_inline_type, rewrite_inline;
-      __ test_field_is_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
+      __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
         // Non-inline field case
         __ load_heap_oop(r0, field);
         __ push(atos);
@@ -2929,14 +2929,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (is_static) {
         Label is_inline_type;
-         __ test_field_is_not_inline_type(flags2, noreg /* temp */, is_inline_type);
+         __ test_field_is_not_null_free_inline_type(flags2, noreg /* temp */, is_inline_type);
          __ null_check(r0);
          __ bind(is_inline_type);
          do_oop_store(_masm, field, r0, IN_HEAP);
          __ b(Done);
       } else {
         Label is_inline_type, is_inlined, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_inline_type(flags2, noreg /*temp*/, is_inline_type);
+        __ test_field_is_null_free_inline_type(flags2, noreg /*temp*/, is_inline_type);
         // Not an inline type
         pop_and_check_object(obj);
         // Store into the field
@@ -3823,10 +3823,15 @@ void TemplateTable::withfield() {
   transition(vtos, atos);
   resolve_cache_and_index(f2_byte, c_rarg1 /*cache*/, c_rarg2 /*index*/, sizeof(u2));
 
-  // n.b. unlike x86 cache is now rcpool plus the indexed offset
-  // so using rcpool to meet shared code expectations
+  ByteSize cp_base_offset = ConstantPoolCache::base_offset();
 
-  call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), rcpool);
+  // n.b. unlike x86 cache is now rcpool plus the indexed offset
+  __ lea(c_rarg1, Address(c_rarg1, in_bytes(cp_base_offset)));
+
+  __ lea(c_rarg2, at_tos());
+  call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), c_rarg1, c_rarg2);
+  // new value type is returned in r1
+  // stack adjustment is returned in r0
   __ verify_oop(r1);
   __ add(esp, esp, r0);
   __ mov(r0, r1);

@@ -43,15 +43,14 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
+import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
-import com.sun.tools.javac.comp.LambdaToMethod;
 import com.sun.tools.javac.jvm.ClassFile;
-import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -102,18 +101,6 @@ public class Types {
     List<Warner> warnStack = List.nil();
     final Name capturedName;
 
-    /**
-     * If true, the ClassWriter will split a primitive class declaration into two class files
-     * P.ref.class and P.val.class (P.class for pure primitive classes)
-     *
-     * This is the default behavior, can be eoverridden with -XDunifiedValRefClass
-     *
-     * If false, we emit a single class for a primtive class 'P' and the reference projection and
-     * value projection types are encoded in descriptors as LP; and QP; resperctively.
-     */
-
-    public boolean splitPrimitiveClass;
-
     public final Warner noWarnings;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -139,7 +126,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        splitPrimitiveClass = options.isUnset("unifiedValRefClass");
     }
     // </editor-fold>
 
@@ -1225,7 +1211,8 @@ public class Types {
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
                 return sup.tsym == s.tsym
-                    && (t.tsym != s.tsym || t.isReferenceProjection() == s.isReferenceProjection())
+                    && (t.tsym != s.tsym ||
+                        (t.isReferenceProjection() == s.isReferenceProjection() && t.isValueProjection() == s.isValueProjection()))
                      // Check type variable containment
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
@@ -1472,6 +1459,7 @@ public class Types {
                 }
                 return t.tsym == s.tsym
                     && t.isReferenceProjection() == s.isReferenceProjection()
+                    && t.isValueProjection() == s.isValueProjection()
                     && visit(getEnclosingType(t), getEnclosingType(s))
                     && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
@@ -1479,7 +1467,7 @@ public class Types {
                 private Type getEnclosingType(Type t) {
                     Type et = t.getEnclosingType();
                     if (et.isReferenceProjection()) {
-                        et = et.valueProjection();
+                        et = et.asValueType();
                     }
                     return et;
                 }
@@ -1645,7 +1633,7 @@ public class Types {
 
                     // -----------------------------------  Unspecified behavior ----------------
 
-                    /* If a value class V implements an interface I, then does "? extends I" contain V?
+                    /* If a primitive class V implements an interface I, then does "? extends I" contain V?
                        It seems widening must be applied here to answer yes to compile some common code
                        patterns.
                     */
@@ -1880,7 +1868,7 @@ public class Types {
                     // Sidecast
                     if (s.hasTag(CLASS)) {
                         if ((s.tsym.flags() & INTERFACE) != 0) {
-                            return (dynamicTypeMayImplementAdditionalInterfaces(t.tsym))
+                            return ((t.tsym.flags() & FINAL) == 0)
                                 ? sideCast(t, s, warnStack.head)
                                 : sideCastFinal(t, s, warnStack.head);
                         } else if ((t.tsym.flags() & INTERFACE) != 0) {
@@ -2261,21 +2249,28 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
 
+        if (isPrimitiveClass(t)) {
+            // No man may be an island, but the bell tolls for a value.
+            return t.tsym == sym ? t : null;
+        }
+
         if (sym.type == syms.objectType) { //optimization
-            if (!isPrimitiveClass(t))
-                return syms.objectType;
+            return syms.objectType;
         }
         if (sym == syms.identityObjectType.tsym) {
-            // IdentityObject is super interface of every concrete identity class other than jlO
-            if (t.isPrimitiveClass() || t.tsym == syms.objectType.tsym)
+            // IdentityObject is a super interface of every concrete identity class other than jlO
+            if (t.tsym == syms.objectType.tsym)
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
-            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+            if (t.hasTag(CLASS) && !t.tsym.isPrimitiveClass() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+                return syms.identityObjectType;
+            }
+            if (implicitIdentityType(t)) {
                 return syms.identityObjectType;
             } // else fall through and look for explicit coded super interface
         } else if (sym == syms.primitiveObjectType.tsym) {
-            if (t.isPrimitiveClass() || t.isReferenceProjection())
+            if (t.isReferenceProjection())
                 return syms.primitiveObjectType;
             if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
                 return null;
@@ -2296,10 +2291,6 @@ public class Types {
             public Type visitClassType(ClassType t, Symbol sym) {
                 if (t.tsym == sym)
                     return t;
-
-                // No man may be an island, but the bell tolls for a value.
-                if (isPrimitiveClass(t))
-                    return null;
 
                 Symbol c = t.tsym;
                 if (!seenTypes.add(c)) {
@@ -2345,6 +2336,63 @@ public class Types {
                 return t;
             }
         };
+
+        // where
+        private boolean implicitIdentityType(Type t) {
+            /* An abstract class can be declared to implement either IdentityObject or PrimitiveObject;
+             * or, if it declares a field, an instance initializer, a non-empty constructor, or
+             * a synchronized method, it implicitly implements IdentityObject.
+             */
+            if (!t.tsym.isAbstract())
+                return false;
+
+            for (; t != Type.noType; t = supertype(t)) {
+
+                if (t == null || t.tsym == null || t.tsym.kind == ERR)
+                    return false;
+
+                if  (t.tsym == syms.objectType.tsym)
+                    return false;
+
+                if (!t.tsym.isAbstract()) {
+                    return !t.tsym.isPrimitiveClass();
+                }
+
+                if ((t.tsym.flags() & HASINITBLOCK) != 0) {
+                    return true;
+                }
+
+                // No instance fields and no arged constructors both mean inner classes cannot be primitive class supers.
+                Type encl = t.getEnclosingType();
+                if (encl != null && encl.hasTag(CLASS)) {
+                    return true;
+                }
+                for (Symbol s : t.tsym.members().getSymbols(NON_RECURSIVE)) {
+                    switch (s.kind) {
+                        case VAR:
+                            if ((s.flags() & STATIC) == 0) {
+                                return true;
+                            }
+                            break;
+                        case MTH:
+                            if ((s.flags() & SYNCHRONIZED) != 0) {
+                                return true;
+                            } else if (s.isConstructor()) {
+                                MethodSymbol m = (MethodSymbol)s;
+                                if (m.getParameters().size() > 0) {
+                                    return true;
+                                } else {
+                                    if ((m.flags() & (GENERATEDCONSTR | EMPTYNOARGCONSTR)) == 0) {
+                                        return true;
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                }
+            }
+            return false;
+        }
 
     /**
      * Return the base type of t or any of its outer types that starts
@@ -2416,7 +2464,7 @@ public class Types {
         if ((sym.flags() & STATIC) != 0)
             return sym.type;
 
-        /* If any inline types are involved, switch over to the reference universe,
+        /* If any primitive class types are involved, switch over to the reference universe,
            where the hierarchy is navigable. V and V.ref have identical membership
            with no bridging needs.
         */
@@ -2578,10 +2626,18 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 // erasure(projection(primitive)) = projection(erasure(primitive))
                 Type erased = eraseClassType(t, recurse);
-                if (erased.hasTag(CLASS) && t.flavor != erased.getFlavor()) {
+                Flavor wantedFlavor = t.flavor;
+                if (t.isIntersection()) {
+                    IntersectionClassType ict = (IntersectionClassType) t;
+                    Type firstExplicitBound = ict.getExplicitComponents().head;
+                    if (firstExplicitBound.hasTag(CLASS))
+                        wantedFlavor = firstExplicitBound.getFlavor();
+                    // Todo: Handle Type variable case.
+                }
+                if (erased.hasTag(CLASS) && wantedFlavor != erased.getFlavor()) {
                     erased = new ClassType(erased.getEnclosingType(),
                             List.nil(), erased.tsym,
-                            erased.getMetadata(), t.flavor);
+                            erased.getMetadata(), wantedFlavor);
                 }
                 return erased;
             }
@@ -4672,7 +4728,7 @@ public class Types {
             to = from;
             from = target;
         }
-        Assert.check(!dynamicTypeMayImplementAdditionalInterfaces(from.tsym));
+        Assert.check((from.tsym.flags() & FINAL) != 0);
         Type t1 = asSuper(from, to.tsym);
         if (t1 == null) return false;
         Type t2 = to;
@@ -4682,10 +4738,6 @@ public class Types {
             (reverse ? giveWarning(t2, t1) : giveWarning(t1, t2)))
             warn.warn(LintCategory.UNCHECKED);
         return true;
-    }
-
-    private boolean dynamicTypeMayImplementAdditionalInterfaces(TypeSymbol tsym) {
-        return (tsym.flags() & FINAL) == 0 && !tsym.isReferenceProjection();
     }
 
     private boolean giveWarning(Type from, Type to) {
@@ -5365,10 +5417,6 @@ public class Types {
                         : c.name);
             } else {
                 append(externalize(c.flatname));
-            }
-            if (types.splitPrimitiveClass && ct.isReferenceProjection()) {
-                append('$');
-                append(types.names.ref);
             }
             if (ct.getTypeArguments().nonEmpty()) {
                 append('<');

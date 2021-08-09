@@ -122,8 +122,6 @@ public interface JavaLangInvokeAccess {
      */
     VarHandle insertCoordinates(VarHandle target, int pos, Object... values);
 
-    String inlineObjectToString(Object o);
-
     /**
      * Returns a native method handle with given arguments as fallback and steering info.
      *
@@ -134,4 +132,11 @@ public interface JavaLangInvokeAccess {
      * @return the native method handle
      */
     MethodHandle nativeMethodHandle(NativeEntryPoint nep, MethodHandle fallback);
+
+    /**
+     * Ensure given method handle is customized
+     *
+     * @param mh the method handle
+     */
+    void ensureCustomized(MethodHandle mh);
 }

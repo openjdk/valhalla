@@ -692,7 +692,7 @@ Node* next_mem(Node* mem, int alias) {
   } else if (mem->is_MergeMem()) {
     res = mem->as_MergeMem()->memory_at(alias);
   } else if (mem->is_Store() || mem->is_LoadStore() || mem->is_ClearArray()) {
-    assert(alias = Compile::AliasIdxRaw, "following raw memory can't lead to a barrier");
+    assert(alias == Compile::AliasIdxRaw, "following raw memory can't lead to a barrier");
     res = mem->in(MemNode::Memory);
   } else {
 #ifdef ASSERT
@@ -1403,7 +1403,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     }
     if (addr->Opcode() == Op_AddP) {
       Node* orig_base = addr->in(AddPNode::Base);
-      Node* base = new CheckCastPPNode(ctrl, orig_base, orig_base->bottom_type(), true);
+      Node* base = new CheckCastPPNode(ctrl, orig_base, orig_base->bottom_type(), ConstraintCastNode::StrongDependency);
       phase->register_new_node(base, ctrl);
       if (addr->in(AddPNode::Base) == addr->in((AddPNode::Address))) {
         // Field access

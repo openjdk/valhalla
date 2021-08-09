@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,16 +54,11 @@ public class ValueBootstrapMethods {
         Class<?> test = valueTestClass();
         Value value = new Value(10, 5.03, "foo", "bar", "goo");
 
-        Class<?> valueClass = Value.class;
+        Class<?> valueClass = Value.class.asValueType();
         Method hashCode = test.getMethod("hashCode", valueClass);
         int hash = (int)hashCode.invoke(null, value);
         assertEquals(hash, value.localHashCode());
         assertEquals(hash, value.hashCode());
-
-        Method toString = test.getMethod("toString", valueClass);
-        String s = (String)toString.invoke(null, value);
-        assertEquals(s, value.localToString());
-        assertEquals(s, value.toString());
 
         Method equals = test.getMethod("equals", valueClass, Object.class);
         boolean rc = (boolean)equals.invoke(null, value, value);
@@ -85,17 +80,11 @@ public class ValueBootstrapMethods {
         }
 
         List<Object> values() {
-            return List.of(Value.class, i, d, s, l);
+            return List.of(Value.class.asValueType(), i, d, s, l);
         }
 
         public int localHashCode() {
             return values().hashCode();
-        }
-
-        public String localToString() {
-            System.out.println(l);
-            return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
-                                 i, String.valueOf(d), s, l.toString());
         }
     }
 
@@ -104,7 +93,7 @@ public class ValueBootstrapMethods {
      */
     private static Class<?> valueTestClass() throws Exception {
         Path path = Paths.get(TEST_CLASSES, "ValueTest.class");
-        generate(Value.class, "ValueTest", path);
+        generate(Value.class.asValueType(), "ValueTest", path);
         return Class.forName("ValueTest");
     }
 
@@ -162,21 +151,6 @@ public class ValueBootstrapMethods {
             Type.getMethodDescriptor(Type.BOOLEAN_TYPE, type, Type.getType(Object.class)),
             bootstrap, type);
         mv.visitInsn(IRETURN);
-        mv.visitMaxs(-1, -1);
-        mv.visitEnd();
-
-        mv = cw.visitMethod(
-            ACC_PUBLIC + ACC_STATIC + ACC_FINAL,
-            "toString",
-            Type.getMethodDescriptor(Type.getType(String.class), type),
-            null,
-            null);
-
-        mv.visitVarInsn(ALOAD, 0);
-        mv.visitInvokeDynamicInsn("toString",
-            Type.getMethodDescriptor(Type.getType(String.class), type),
-            bootstrap,  type);
-        mv.visitInsn(ARETURN);
         mv.visitMaxs(-1, -1);
         mv.visitEnd();
 

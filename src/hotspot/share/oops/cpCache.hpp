@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,8 +33,6 @@
 #include "utilities/align.hpp"
 #include "utilities/constantTag.hpp"
 #include "utilities/growableArray.hpp"
-
-class PSPromotionManager;
 
 // The ConstantPoolCache is not a cache! It is the resolution table that the
 // interpreter uses to avoid going into the runtime and a way to access resolved
@@ -77,7 +75,7 @@ class PSPromotionManager;
 //
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
-// I  flag true if field is an inline type (must never be null)
+// I  flag true if field is a null free inline type (must never be null)
 // i  flag true if field is inlined
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
@@ -186,7 +184,7 @@ class ConstantPoolCacheEntry {
     is_field_entry_shift       = 26,  // (F) is it a field or a method?
     has_local_signature_shift  = 25,  // (S) does the call site have a per-site signature (sig-poly methods)?
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
-    is_inline_type_shift       = 24,  // (I) is the type of the field an inline type (must never be null)
+    is_null_free_inline_type_shift = 24,  // (I) is the field a null free inline type (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
     is_inlined_shift           = 23,  // (i) is the field inlined?
     is_final_shift             = 22,  // (f) is the field or method final?
@@ -229,7 +227,7 @@ class ConstantPoolCacheEntry {
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
     bool            is_inlined,                  // the field is inlined
-    bool            is_inline_type               // the field is an inline type (must never be null)
+    bool            is_null_free_inline_type     // the field is an inline type (must never be null)
   );
 
  private:
@@ -362,7 +360,7 @@ class ConstantPoolCacheEntry {
   bool is_field_entry() const                    { return (_flags & (1 << is_field_entry_shift))    != 0; }
   bool is_long() const                           { return flag_state() == ltos; }
   bool is_double() const                         { return flag_state() == dtos; }
-  bool is_inline_type() const                    { return (_flags & (1 << is_inline_type_shift))       != 0; }
+  bool is_null_free_inline_type() const          { return (_flags & (1 << is_null_free_inline_type_shift)) != 0; }
   TosState flag_state() const                    { assert((uint)number_of_states <= (uint)tos_state_mask+1, "");
                                                    return (TosState)((_flags >> tos_state_shift) & tos_state_mask); }
   void set_indy_resolution_failed();

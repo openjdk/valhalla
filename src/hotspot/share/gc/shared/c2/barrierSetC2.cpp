@@ -682,18 +682,13 @@ int BarrierSetC2::arraycopy_payload_base_offset(bool is_array) {
   return base_off;
 }
 
-void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const {
-#ifdef ASSERT
-  intptr_t src_offset;
-  Node* src = AddPNode::Ideal_base_and_offset(src_base, &kit->gvn(), src_offset);
-  intptr_t dst_offset;
-  Node* dst = AddPNode::Ideal_base_and_offset(dst_base, &kit->gvn(), dst_offset);
-  assert(src == NULL || (src_offset % BytesPerLong == 0), "expect 8 bytes alignment");
-  assert(dst == NULL || (dst_offset % BytesPerLong == 0), "expect 8 bytes alignment");
-#endif
+void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* size, bool is_array) const {
   int base_off = arraycopy_payload_base_offset(is_array);
+  Node* payload_size = size;
   Node* offset = kit->MakeConX(base_off);
-  ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, offset, dst_base, offset, countx, true, false);
+  payload_size = kit->gvn().transform(new SubXNode(payload_size, offset));
+  payload_size = kit->gvn().transform(new URShiftXNode(payload_size, kit->intcon(LogBytesPerLong)));
+  ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, offset, dst_base, offset, payload_size, true, false);
   if (is_array) {
     ac->set_clone_array();
   } else {
@@ -861,3 +856,5 @@ void BarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac
 
   phase->replace_node(ac, call);
 }
+
+#undef XTOP

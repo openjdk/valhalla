@@ -24,8 +24,9 @@
 #ifndef SHARE_GC_Z_ZFORWARDING_INLINE_HPP
 #define SHARE_GC_Z_ZFORWARDING_INLINE_HPP
 
-#include "gc/z/zAttachedArray.inline.hpp"
 #include "gc/z/zForwarding.hpp"
+
+#include "gc/z/zAttachedArray.inline.hpp"
 #include "gc/z/zForwardingAllocator.inline.hpp"
 #include "gc/z/zHash.inline.hpp"
 #include "gc/z/zHeap.hpp"
@@ -136,7 +137,7 @@ inline uintptr_t ZForwarding::insert(uintptr_t from_index, uintptr_t to_offset, 
   const ZForwardingEntry old_entry; // Empty
 
   for (;;) {
-    const ZForwardingEntry prev_entry = Atomic::cmpxchg(entries() + *cursor, old_entry, new_entry);
+    const ZForwardingEntry prev_entry = Atomic::cmpxchg(entries() + *cursor, old_entry, new_entry, memory_order_release);
     if (!prev_entry.populated()) {
       // Success
       return to_offset;

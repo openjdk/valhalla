@@ -69,6 +69,7 @@ class oopDesc {
 
  public:
   inline markWord  mark()          const;
+  inline markWord  mark_acquire()  const;
   inline markWord* mark_addr() const;
 
   inline void set_mark(markWord m);
@@ -115,16 +116,15 @@ class oopDesc {
   inline bool is_typeArray()           const;
   inline bool is_inline_type()         const;
   inline bool is_flatArray()           const;
-  inline bool is_nullfreeArray()       const;
+  inline bool is_null_free_array()     const;
 
   // type test operations that don't require inclusion of oop.inline.hpp.
   bool is_instance_noinline()          const;
   bool is_array_noinline()             const;
   bool is_objArray_noinline()          const;
   bool is_typeArray_noinline()         const;
-  bool is_value_noinline()             const;
   bool is_flatArray_noinline()         const;
-  bool is_nullfreeArray_noinline()     const;
+  bool is_null_free_array_noinline()   const;
 
  protected:
   inline oop        as_oop() const { return const_cast<oopDesc*>(this); }
@@ -249,7 +249,6 @@ class oopDesc {
   // locking operations
   inline bool is_locked()   const;
   inline bool is_unlocked() const;
-  inline bool has_bias_pattern() const;
 
   // asserts and guarantees
   static bool is_oop(oop obj, bool ignore_mark_word = false);
@@ -273,7 +272,6 @@ class oopDesc {
   inline oop forward_to_atomic(oop p, markWord compare, atomic_memory_order order = memory_order_conservative);
 
   inline oop forwardee() const;
-  inline oop forwardee_acquire() const;
 
   // Age of object during scavenge
   inline uint age() const;
@@ -300,8 +298,6 @@ class oopDesc {
   inline static bool is_instanceof_or_null(oop obj, Klass* klass);
 
   // identity hash; returns the identity hash key (computes it if necessary)
-  // NOTE with the introduction of UseBiasedLocking that identity_hash() might reach a
-  // safepoint if called on a biased object. Calling code must be aware of that.
   inline intptr_t identity_hash();
   intptr_t slow_identity_hash();
 

@@ -242,7 +242,7 @@ public:
   virtual Node* atomic_xchg_at(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const;
   virtual Node* atomic_add_at(C2AtomicParseAccess& access, Node* new_val, const Type* value_type) const;
 
-  virtual void clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const;
+  virtual void clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* size, bool is_array) const;
 
   virtual Node* obj_allocate(PhaseMacroExpand* macro, Node* mem, Node* toobig_false, Node* size_in_bytes,
                              Node*& i_o, Node*& needgc_ctrl,
@@ -258,7 +258,7 @@ public:
     Expansion
   };
 
-  virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, ArrayCopyPhase phase) const { return false; }
+  virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const { return false; }
   virtual void clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const;
 
   // Support for GC barriers emitted during parsing

@@ -10,7 +10,7 @@ import java.util.ArrayList;
 
 class T8065986b {
     T8065986b() {
-        this(new Object<>());
+        this(new Object<>() {});
     }
 
     T8065986b(boolean b) {

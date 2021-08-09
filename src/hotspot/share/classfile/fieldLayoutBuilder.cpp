@@ -643,7 +643,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         // Flattening decision to be taken here
         // This code assumes all verification already have been performed
         // (field's type has been loaded and it is an inline klass)
-        Thread* THREAD = Thread::current();
+        JavaThread* THREAD = JavaThread::current();
         Klass* klass =
             SystemDictionary::resolve_inline_type_field_or_fail(&fs,
                                                                 Handle(THREAD, _class_loader_data->class_loader()),
@@ -744,7 +744,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         // Flattening decision to be taken here
         // This code assumes all verifications have already been performed
         // (field's type has been loaded and it is an inline klass)
-        Thread* THREAD = Thread::current();
+        JavaThread* THREAD = JavaThread::current();
         Klass* klass =
             SystemDictionary::resolve_inline_type_field_or_fail(&fs,
                 Handle(THREAD, _class_loader_data->class_loader()),

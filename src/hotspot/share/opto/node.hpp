@@ -57,6 +57,9 @@ class CallNode;
 class CallRuntimeNode;
 class CallNativeNode;
 class CallStaticJavaNode;
+class CastFFNode;
+class CastDDNode;
+class CastVVNode;
 class CastIINode;
 class CastLLNode;
 class CatchNode;
@@ -223,8 +226,7 @@ class Node {
   friend class VMStructs;
 
   // Lots of restrictions on cloning Nodes
-  Node(const Node&);            // not defined; linker error to use these
-  Node &operator=(const Node &rhs);
+  NONCOPYABLE(Node);
 
 public:
   friend class Compile;
@@ -242,7 +244,7 @@ public:
 
   inline void* operator new(size_t x) throw() {
     Compile* C = Compile::current();
-    Node* n = (Node*)C->node_arena()->Amalloc_D(x);
+    Node* n = (Node*)C->node_arena()->AmallocWords(x);
     return (void*)n;
   }
 
@@ -668,6 +670,7 @@ public:
       DEFINE_CLASS_ID(MemBar,      Multi, 3)
         DEFINE_CLASS_ID(Initialize,       MemBar, 0)
         DEFINE_CLASS_ID(MemBarStoreStore, MemBar, 1)
+        DEFINE_CLASS_ID(Blackhole,        MemBar, 2)
 
     DEFINE_CLASS_ID(Mach,  Node, 1)
       DEFINE_CLASS_ID(MachReturn, Mach, 0)
@@ -699,6 +702,9 @@ public:
         DEFINE_CLASS_ID(CastII, ConstraintCast, 0)
         DEFINE_CLASS_ID(CheckCastPP, ConstraintCast, 1)
         DEFINE_CLASS_ID(CastLL, ConstraintCast, 2)
+        DEFINE_CLASS_ID(CastFF, ConstraintCast, 3)
+        DEFINE_CLASS_ID(CastDD, ConstraintCast, 4)
+        DEFINE_CLASS_ID(CastVV, ConstraintCast, 5)
       DEFINE_CLASS_ID(CMove, Type, 3)
       DEFINE_CLASS_ID(SafePointScalarObject, Type, 4)
       DEFINE_CLASS_ID(DecodeNarrowPtr, Type, 5)
@@ -845,6 +851,7 @@ public:
   DEFINE_CLASS_QUERY(ArrayCopy)
   DEFINE_CLASS_QUERY(BaseCountedLoop)
   DEFINE_CLASS_QUERY(BaseCountedLoopEnd)
+  DEFINE_CLASS_QUERY(Blackhole)
   DEFINE_CLASS_QUERY(Bool)
   DEFINE_CLASS_QUERY(BoxLock)
   DEFINE_CLASS_QUERY(Call)
@@ -1220,7 +1227,7 @@ public:
   void collect_nodes_out_all_ctrl_boundary(GrowableArray<Node*> *ns) const;
 
   void verify_edges(Unique_Node_List &visited); // Verify bi-directional edges
-  static void verify(Node* n, int verify_depth);
+  static void verify(int verify_depth, VectorSet& visited, Node_List& worklist);
 
   // This call defines a class-unique string used to identify class instances
   virtual const char *Name() const;

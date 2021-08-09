@@ -356,18 +356,15 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
 }
 
 
-// const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j+1;
-const uint SharedRuntime::java_return_convention_max_int = 6;
+const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j;
 const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
 
 int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed) {
 
-  // Create the mapping between argument positions and
-  // registers.
-  // r1, r2 used to address klasses and states, exclude it from return convention to avoid colision
+  // Create the mapping between argument positions and registers.
 
   static const Register INT_ArgReg[java_return_convention_max_int] = {
-     r0 /* j_rarg7 */, j_rarg6, j_rarg5, j_rarg4, j_rarg3, j_rarg2
+    r0 /* j_rarg7 */, j_rarg6, j_rarg5, j_rarg4, j_rarg3, j_rarg2, j_rarg1, j_rarg0
   };
 
   static const FloatRegister FP_ArgReg[java_return_convention_max_float] = {
@@ -388,7 +385,6 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
         regs[i].set1(INT_ArgReg[int_args]->as_VMReg());
         int_args ++;
       } else {
-        // Should we have gurantee here?
         return -1;
       }
       break;
@@ -423,7 +419,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
       break;
     case T_DOUBLE:
       assert((i + 1) < total_args_passed && sig_bt[i + 1] == T_VOID, "expecting half");
-      if (fp_args < Argument::n_float_register_parameters_j) {
+      if (fp_args < SharedRuntime::java_return_convention_max_float) {
         regs[i].set2(FP_ArgReg[fp_args]->as_VMReg());
         fp_args ++;
       } else {
@@ -965,7 +961,7 @@ static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
 
 
 // ---------------------------------------------------------------
-AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
+AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm,
                                                             int comp_args_on_stack,
                                                             const GrowableArray<SigEntry>* sig,
                                                             const VMRegPair* regs,
@@ -974,7 +970,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
                                                             const GrowableArray<SigEntry>* sig_cc_ro,
                                                             const VMRegPair* regs_cc_ro,
                                                             AdapterFingerPrint* fingerprint,
-                                                            AdapterBlob*& new_adapter) {
+                                                            AdapterBlob*& new_adapter,
+                                                            bool allocate_code_blob) {
 
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
@@ -1039,9 +1036,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   // The c2i adapter might safepoint and trigger a GC. The caller must make sure that
   // the GC knows about the location of oop argument locations passed to the c2i adapter.
-
-  bool caller_must_gc_arguments = (regs != regs_cc);
-  new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
+  if (allocate_code_blob) {
+    bool caller_must_gc_arguments = (regs != regs_cc);
+    new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
+  }
 
   return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
@@ -1134,6 +1132,13 @@ static int c_calling_convention_priv(const BasicType *sig_bt,
     }
 
   return stk_args;
+}
+
+int SharedRuntime::vector_calling_convention(VMRegPair *regs,
+                                             uint num_bits,
+                                             uint total_args_passed) {
+  Unimplemented();
+  return 0;
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -2039,15 +2044,10 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
-    if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, lock_done, &slow_path_lock);
-    }
-
     // Load (object->mark() | 1) into swap_reg %r0
     __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     __ orr(swap_reg, rscratch1, 1);
     if (EnableValhalla) {
-      assert(!UseBiasedLocking, "Not compatible with biased-locking");
       // Mask inline_type bit such that we go to the slow path if object is an inline type
       __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
     }
@@ -2196,11 +2196,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
     Label done;
-
-    if (UseBiasedLocking) {
-      __ biased_locking_exit(obj_reg, old_hdr, done);
-    }
-
     // Simple recursive lock?
 
     __ ldr(rscratch1, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
@@ -3382,11 +3377,12 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   int pack_fields_jobject_off = __ offset();
   // Resolve pre-allocated buffer from JNI handle.
   // We cannot do this in generate_call_stub() because it requires GC code to be initialized.
-  __ ldr(r0, Address(r13, 0));
+  Register Rresult = r14;  // See StubGenerator::generate_call_stub().
+  __ ldr(r0, Address(Rresult));
   __ resolve_jobject(r0 /* value */,
                      rthread /* thread */,
                      r12 /* tmp */);
-  __ str(r0, Address(r13, 0));
+  __ str(r0, Address(Rresult));
 
   int pack_fields_off = __ offset();
 
@@ -3451,6 +3447,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       continue;
     }
     int off = sig_vk->at(i)._offset;
+    assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
     VMReg r_1 = pair.first();
     VMReg r_2 = pair.second();
@@ -3460,8 +3457,8 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     } else if (bt == T_DOUBLE) {
       __ ldrd(r_1->as_FloatRegister(), from);
     } else if (bt == T_OBJECT || bt == T_ARRAY) {
-       assert_different_registers(r0, r_1->as_Register());
-       __ load_heap_oop(r_1->as_Register(), from);
+      assert_different_registers(r0, r_1->as_Register());
+      __ load_heap_oop(r_1->as_Register(), from);
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
       assert_different_registers(r0, r_1->as_Register());
@@ -3472,6 +3469,11 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
     j++;
   }
   assert(j == regs->length(), "missed a field?");
+
+  if (StressInlineTypeReturnedAsFields) {
+    __ load_klass(r0, r0);
+    __ orr(r0, r0, 1);
+  }
 
   __ ret(lr);
 

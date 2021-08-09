@@ -35,6 +35,7 @@ class ciType : public ciMetadata {
   CI_PACKAGE_ACCESS
   friend class ciKlass;
   friend class ciReturnAddress;
+  friend class ciWrapper;
 
 private:
   BasicType _basic_type;
@@ -71,6 +72,9 @@ public:
   bool is_type() const                      { return true; }
   bool is_classless() const                 { return is_primitive_type(); }
 
+  virtual ciType* unwrap()                  { return this; }
+  virtual bool is_null_free() const         { return false; }
+
   const char* name();
   virtual void print_name_on(outputStream* st);
   void print_name() {
@@ -104,6 +108,34 @@ public:
   int  bci() { return _bci; }
 
   static ciReturnAddress* make(int bci);
+};
+
+// ciWrapper
+//
+// This class wraps another type to carry additional information.
+// Currently it is only used to mark inline klasses as null-free.
+class ciWrapper : public ciType {
+  CI_PACKAGE_ACCESS
+
+private:
+  ciType* _type;
+
+  ciWrapper(ciType* type) : ciType(type->basic_type()) {
+    assert(type->is_inlinetype()
+          // An unloaded inline type is an instance_klass (see ciEnv::get_klass_by_name_impl())
+          || (type->is_instance_klass() && !type->is_loaded()),
+          "should only be used for inline types");
+    _type = type;
+  }
+
+  const char* type_string() { return "ciWrapper"; }
+
+  void print_impl(outputStream* st) { _type->print_impl(st); }
+
+public:
+  bool is_wrapper()   const { return true; }
+  ciType* unwrap()          { return _type; }
+  bool is_null_free() const { return true; }
 };
 
 #endif // SHARE_CI_CITYPE_HPP

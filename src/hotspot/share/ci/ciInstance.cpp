@@ -39,7 +39,7 @@
 
 // ------------------------------------------------------------------
 // ciObject::java_mirror_type
-ciType* ciInstance::java_mirror_type() {
+ciType* ciInstance::java_mirror_type(bool* is_val_mirror) {
   VM_ENTRY_MARK;
   oop m = get_oop();
   // Return NULL if it is not java.lang.Class.
@@ -52,6 +52,9 @@ ciType* ciInstance::java_mirror_type() {
   } else {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != NULL, "");
+    if (is_val_mirror != NULL) {
+      *is_val_mirror = java_lang_Class::is_secondary_mirror(m);
+    }
     return CURRENT_THREAD_ENV->get_klass(k);
   }
 }

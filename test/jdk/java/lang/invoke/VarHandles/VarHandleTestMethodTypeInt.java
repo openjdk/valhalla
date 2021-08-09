@@ -47,6 +47,8 @@ import static org.testng.Assert.*;
 import static java.lang.invoke.MethodType.*;
 
 public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
+    static final Class<?> type = int.class;
+
     static final int static_final_v = 0x01234567;
 
     static int static_v = 0x01234567;
@@ -68,16 +70,16 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodTypeInt.class, "final_v", int.class);
+                VarHandleTestMethodTypeInt.class, "final_v", type);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodTypeInt.class, "v", int.class);
+                VarHandleTestMethodTypeInt.class, "v", type);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodTypeInt.class, "static_final_v", int.class);
+            VarHandleTestMethodTypeInt.class, "static_final_v", type);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodTypeInt.class, "static_v", int.class);
+            VarHandleTestMethodTypeInt.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(int[].class);
     }
@@ -1005,15 +1007,15 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class)).
                     invokeExact((VarHandleTestMethodTypeInt) null);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class)).
                     invokeExact(Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class)).
                     invokeExact(0);
             });
             // Incorrect return type
@@ -1027,11 +1029,11 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
         }
@@ -1039,11 +1041,11 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypeInt.class, int.class)).
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact((VarHandleTestMethodTypeInt) null, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                hs.get(am, methodType(void.class, Class.class, int.class)).
+                hs.get(am, methodType(void.class, Class.class, type)).
                     invokeExact(Void.class, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
@@ -1051,7 +1053,7 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                hs.get(am, methodType(void.class, int.class, int.class)).
+                hs.get(am, methodType(void.class, int.class, type)).
                     invokeExact(0, 0x01234567);
             });
             // Incorrect arity
@@ -1060,7 +1062,7 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypeInt.class, int.class, Class.class)).
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypeInt.class, type, Class.class)).
                     invokeExact(recv, 0x01234567, Void.class);
             });
         }
@@ -1068,23 +1070,23 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, type, type)).
                     invokeExact((VarHandleTestMethodTypeInt) null, 0x01234567, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, type, type)).
                     invokeExact(Void.class, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, Class.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, Class.class, type)).
                     invokeExact(recv, Void.class, 0x01234567);
             });
             checkWMTE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, int.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, type, Class.class)).
                     invokeExact(recv, 0x01234567, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class , int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class , type, type)).
                     invokeExact(0, 0x01234567, 0x01234567);
             });
             // Incorrect arity
@@ -1093,159 +1095,159 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, int.class, int.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, type, type, Class.class)).
                     invokeExact(recv, 0x01234567, 0x01234567, Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             checkNPE(() -> { // null receiver
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type, type)).
                     invokeExact((VarHandleTestMethodTypeInt) null, 0x01234567, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, type, type)).
                     invokeExact(Void.class, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // expected reference class
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, Class.class, type)).
                     invokeExact(recv, Void.class, 0x01234567);
             });
             checkWMTE(() -> { // actual reference class
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type, Class.class)).
                     invokeExact(recv, 0x01234567, Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class , int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class , type, type)).
                     invokeExact(0, 0x01234567, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class , int.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class , type, type)).
                     invokeExact(recv, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class , int.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class , type, type)).
                     invokeExact(recv, 0x01234567, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type, type, Class.class)).
                     invokeExact(recv, 0x01234567, 0x01234567, Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             checkNPE(() -> { // null receiver
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact((VarHandleTestMethodTypeInt) null, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, type)).
                     invokeExact(Void.class, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, type)).
                     invokeExact(0, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567, Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
             checkNPE(() -> { // null receiver
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact((VarHandleTestMethodTypeInt) null, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, type)).
                     invokeExact(Void.class, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, type)).
                     invokeExact(0, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567, Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
             checkNPE(() -> { // null receiver
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact((VarHandleTestMethodTypeInt) null, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, type)).
                     invokeExact(Void.class, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, type)).
                     invokeExact(0, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, VarHandleTestMethodTypeInt.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, VarHandleTestMethodTypeInt.class, type)).
                     invokeExact(recv, 0x01234567, Void.class);
             });
         }
@@ -1863,18 +1865,18 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, int.class, Class.class)).
+                hs.get(am, methodType(void.class, type, Class.class)).
                     invokeExact(0x01234567, Void.class);
             });
         }
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkWMTE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, type)).
                     invokeExact(Void.class, 0x01234567);
             });
             checkWMTE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, type, Class.class)).
                     invokeExact(0x01234567, Void.class);
             });
             // Incorrect arity
@@ -1883,7 +1885,7 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, type, type, Class.class)).
                     invokeExact(0x01234567, 0x01234567, Void.class);
             });
         }
@@ -1891,29 +1893,29 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             // Incorrect argument types
             checkWMTE(() -> { // expected reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, type)).
                     invokeExact(Void.class, 0x01234567);
             });
             checkWMTE(() -> { // actual reference class
-                int x = (int) hs.get(am, methodType(int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, type, Class.class)).
                     invokeExact(0x01234567, Void.class);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, type, type)).
                     invokeExact(0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, type, type)).
                     invokeExact(0x01234567, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, type, type, Class.class)).
                     invokeExact(0x01234567, 0x01234567, Void.class);
             });
         }
@@ -1921,25 +1923,25 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             // Incorrect argument types
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class)).
                     invokeExact(Void.class);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, type)).
                     invokeExact(0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, type)).
                     invokeExact(0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, type, Class.class)).
                     invokeExact(0x01234567, Void.class);
             });
         }
@@ -1947,25 +1949,25 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
             // Incorrect argument types
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class)).
                     invokeExact(Void.class);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, type)).
                     invokeExact(0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, type)).
                     invokeExact(0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, type, Class.class)).
                     invokeExact(0x01234567, Void.class);
             });
         }
@@ -1973,25 +1975,25 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
             // Incorrect argument types
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class)).
                     invokeExact(Void.class);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, type)).
                     invokeExact(0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, type)).
                     invokeExact(0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, type, Class.class)).
                     invokeExact(0x01234567, Void.class);
             });
         }
@@ -2979,19 +2981,19 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class)).
                     invokeExact((int[]) null, 0);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, int.class)).
                     invokeExact(Void.class, 0);
             });
             checkWMTE(() -> { // array primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, int.class)).
                     invokeExact(0, 0);
             });
             checkWMTE(() -> { // index reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, Class.class)).
                     invokeExact(array, Void.class);
             });
             // Incorrect return type
@@ -3005,11 +3007,11 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
         }
@@ -3017,11 +3019,11 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                hs.get(am, methodType(void.class, int[].class, int.class, int.class)).
+                hs.get(am, methodType(void.class, int[].class, int.class, type)).
                     invokeExact((int[]) null, 0, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                hs.get(am, methodType(void.class, Class.class, int.class, int.class)).
+                hs.get(am, methodType(void.class, Class.class, int.class, type)).
                     invokeExact(Void.class, 0, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
@@ -3029,11 +3031,11 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                hs.get(am, methodType(void.class, int.class, int.class, int.class)).
+                hs.get(am, methodType(void.class, int.class, int.class, type)).
                     invokeExact(0, 0, 0x01234567);
             });
             checkWMTE(() -> { // index reference class
-                hs.get(am, methodType(void.class, int[].class, Class.class, int.class)).
+                hs.get(am, methodType(void.class, int[].class, Class.class, type)).
                     invokeExact(array, Void.class, 0x01234567);
             });
             // Incorrect arity
@@ -3049,27 +3051,27 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type, type)).
                     invokeExact((int[]) null, 0, 0x01234567, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, type, type)).
                     invokeExact(Void.class, 0, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, Class.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, Class.class, type)).
                     invokeExact(array, 0, Void.class, 0x01234567);
             });
             checkWMTE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, type, type)).
                     invokeExact(0, 0, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // index reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, Class.class, int.class, int.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, Class.class, type, type)).
                     invokeExact(array, Void.class, 0x01234567, 0x01234567);
             });
             // Incorrect arity
@@ -3078,7 +3080,7 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class, int.class, Class.class)).
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, 0x01234567, Void.class);
             });
         }
@@ -3086,45 +3088,45 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type, type)).
                     invokeExact((int[]) null, 0, 0x01234567, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, int.class, type, type)).
                     invokeExact(Void.class, 0, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // expected reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, Class.class, type)).
                     invokeExact(array, 0, Void.class, 0x01234567);
             });
             checkWMTE(() -> { // actual reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, int.class, type, type)).
                     invokeExact(0, 0, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // index reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, Class.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, Class.class, type, type)).
                     invokeExact(array, Void.class, 0x01234567, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, int.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, type, type)).
                     invokeExact(array, 0, 0x01234567, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type, type)).
                     invokeExact(array, 0, 0x01234567, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, 0x01234567, Void.class);
             });
         }
@@ -3132,41 +3134,41 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type)).
                     invokeExact((int[]) null, 0, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, int.class, type)).
                     invokeExact(Void.class, 0, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, int.class, type)).
                     invokeExact(0, 0, 0x01234567);
             });
             checkWMTE(() -> { // index reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, Class.class, type)).
                     invokeExact(array, Void.class, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, type)).
                     invokeExact(array, 0, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type)).
                     invokeExact(array, 0, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, Void.class);
             });
         }
@@ -3174,41 +3176,41 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type)).
                     invokeExact((int[]) null, 0, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, int.class, type)).
                     invokeExact(Void.class, 0, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, int.class, type)).
                     invokeExact(0, 0, 0x01234567);
             });
             checkWMTE(() -> { // index reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, Class.class, type)).
                     invokeExact(array, Void.class, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, type)).
                     invokeExact(array, 0, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type)).
                     invokeExact(array, 0, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, Void.class);
             });
         }
@@ -3216,41 +3218,41 @@ public class VarHandleTestMethodTypeInt extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type)).
                     invokeExact((int[]) null, 0, 0x01234567);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                int x = (int) hs.get(am, methodType(int.class, Class.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, Class.class, int.class, type)).
                     invokeExact(Void.class, 0, 0x01234567);
             });
             checkWMTE(() -> { // value reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                int x = (int) hs.get(am, methodType(int.class, int.class, int.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int.class, int.class, type)).
                     invokeExact(0, 0, 0x01234567);
             });
             checkWMTE(() -> { // index reference class
-                int x = (int) hs.get(am, methodType(int.class, int[].class, Class.class, int.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, Class.class, type)).
                     invokeExact(array, Void.class, 0x01234567);
             });
             // Incorrect return type
             checkWMTE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, int.class)).
+                Void r = (Void) hs.get(am, methodType(Void.class, int[].class, int.class, type)).
                     invokeExact(array, 0, 0x01234567);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, int[].class, int.class, type)).
                     invokeExact(array, 0, 0x01234567);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                int x = (int) hs.get(am, methodType(int.class)).
+                int x = (int) hs.get(am, methodType(type)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                int x = (int) hs.get(am, methodType(int.class, int[].class, int.class, int.class, Class.class)).
+                int x = (int) hs.get(am, methodType(type, int[].class, int.class, type, Class.class)).
                     invokeExact(array, 0, 0x01234567, Void.class);
             });
         }

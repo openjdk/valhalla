@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -352,6 +352,12 @@ class GraphKit : public Phase {
   Node* load_object_klass(Node* object);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
+  // Cast array allocation's length as narrow as possible.
+  // If replace_length_in_map is true, replace length with CastIINode in map.
+  // This method is invoked after creating/moving ArrayAllocationNode or in load_array_length
+  Node* array_ideal_length(AllocateArrayNode* alloc,
+                           const TypeOopPtr* oop_type,
+                           bool replace_length_in_map);
 
 
   // Helper function to do a NULL pointer check or ZERO check based on type.
@@ -657,7 +663,7 @@ class GraphKit : public Phase {
                              BasicType bt,
                              DecoratorSet decorators);
 
-  void access_clone(Node* src_base, Node* dst_base, Node* countx, bool is_array);
+  void access_clone(Node* src, Node* dst, Node* size, bool is_array);
 
   // Return addressing for an array element.
   Node* array_element_address(Node* ary, Node* idx, BasicType elembt,
@@ -812,7 +818,6 @@ class GraphKit : public Phase {
   public:
   // Helper function to round double arguments before a call
   void round_double_arguments(ciMethod* dest_method);
-  void round_double_result(ciMethod* dest_method);
 
   // rounding for strict float precision conformance
   Node* precision_rounding(Node* n);
@@ -837,7 +842,7 @@ class GraphKit : public Phase {
   Node* sign_extend_byte(Node* in);
   Node* sign_extend_short(Node* in);
 
-  Node* make_native_call(const TypeFunc* call_type, uint nargs, ciNativeEntryPoint* nep);
+  Node* make_native_call(address call_addr, const TypeFunc* call_type, uint nargs, ciNativeEntryPoint* nep);
 
   enum {  // flag values for make_runtime_call
     RC_NO_FP = 1,               // CallLeafNoFPNode
@@ -846,6 +851,7 @@ class GraphKit : public Phase {
     RC_MUST_THROW = 8,          // flag passed to add_safepoint_edges
     RC_NARROW_MEM = 16,         // input memory is same as output
     RC_UNCOMMON = 32,           // freq. expected to be like uncommon trap
+    RC_VECTOR = 64,             // CallLeafVectorNode
     RC_LEAF = 0                 // null value:  no flags set
   };
 
@@ -870,10 +876,11 @@ class GraphKit : public Phase {
 
   // Generate a check-cast idiom.  Used by both the check-cast bytecode
   // and the array-store bytecode
-  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL);
+  Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool null_free = false);
 
   // Inline types
   Node* inline_type_test(Node* obj, bool is_inline = true);
+  Node* is_val_mirror(Node* mirror);
   Node* array_lh_test(Node* kls, jint mask, jint val, bool eq = true);
   Node* flat_array_test(Node* ary, bool flat = true);
   Node* null_free_array_test(Node* klass, bool null_free = true);

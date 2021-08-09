@@ -1709,41 +1709,21 @@ void TemplateTable::dop2(Operation op) {
     case add: __ fadd_d (at_rsp());                break;
     case sub: __ fsubr_d(at_rsp());                break;
     case mul: {
-      Label L_strict;
-      Label L_join;
-      const Address access_flags      (rcx, Method::access_flags_offset());
-      __ get_method(rcx);
-      __ movl(rcx, access_flags);
-      __ testl(rcx, JVM_ACC_STRICT);
-      __ jccb(Assembler::notZero, L_strict);
-      __ fmul_d (at_rsp());
-      __ jmpb(L_join);
-      __ bind(L_strict);
-      __ fld_x(ExternalAddress(StubRoutines::addr_fpu_subnormal_bias1()));
+      // strict semantics
+      __ fld_x(ExternalAddress(StubRoutines::x86::addr_fpu_subnormal_bias1()));
       __ fmulp();
       __ fmul_d (at_rsp());
-      __ fld_x(ExternalAddress(StubRoutines::addr_fpu_subnormal_bias2()));
+      __ fld_x(ExternalAddress(StubRoutines::x86::addr_fpu_subnormal_bias2()));
       __ fmulp();
-      __ bind(L_join);
       break;
     }
     case div: {
-      Label L_strict;
-      Label L_join;
-      const Address access_flags      (rcx, Method::access_flags_offset());
-      __ get_method(rcx);
-      __ movl(rcx, access_flags);
-      __ testl(rcx, JVM_ACC_STRICT);
-      __ jccb(Assembler::notZero, L_strict);
-      __ fdivr_d(at_rsp());
-      __ jmp(L_join);
-      __ bind(L_strict);
-      __ fld_x(ExternalAddress(StubRoutines::addr_fpu_subnormal_bias1()));
+      // strict semantics
+      __ fld_x(ExternalAddress(StubRoutines::x86::addr_fpu_subnormal_bias1()));
       __ fmul_d (at_rsp());
       __ fdivrp();
-      __ fld_x(ExternalAddress(StubRoutines::addr_fpu_subnormal_bias2()));
+      __ fld_x(ExternalAddress(StubRoutines::x86::addr_fpu_subnormal_bias2()));
       __ fmulp();
-      __ bind(L_join);
       break;
     }
     case rem: __ fld_d  (at_rsp()); __ fremr(rax); break;
@@ -3012,14 +2992,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     if (is_static) {
       __ load_heap_oop(rax, field);
       if (EnableValhalla) {
-        Label is_inline_type, uninitialized;
+        Label is_null_free_inline_type, uninitialized;
         // Issue below if the static field has not been initialized yet
-        __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
-          // field is not an inline type
+        __ test_field_is_null_free_inline_type(flags2, rscratch1, is_null_free_inline_type);
+          // field is not a null free inline type
           __ push(atos);
           __ jmp(Done);
-        // field is an inline type, must not return null even if uninitialized
-        __ bind(is_inline_type);
+        // field is a null free inline type, must not return null even if uninitialized
+        __ bind(is_null_free_inline_type);
            __ testptr(rax, rax);
           __ jcc(Assembler::zero, uninitialized);
             __ push(atos);
@@ -3046,9 +3026,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     } else {
       Label is_inlined, nonnull, is_inline_type, rewrite_inline;
       if (EnableValhalla) {
-        __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        __ test_field_is_null_free_inline_type(flags2, rscratch1, is_inline_type);
       }
-      // field is not an inline type
+      // field is not a null free inline type
       pop_and_check_object(obj);
       __ load_heap_oop(rax, field);
       __ push(atos);
@@ -3201,9 +3181,16 @@ void TemplateTable::withfield() {
 
   resolve_cache_and_index(f2_byte, cache, index, sizeof(u2));
 
-  call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), cache);
+  Register cpentry = rbx;
+
+  ByteSize cp_base_offset = ConstantPoolCache::base_offset();
+
+  __ lea(cpentry, Address(cache, index, Address::times_ptr,
+                         in_bytes(cp_base_offset)));
+  __ lea(rax, at_tos());
+  __ call_VM(rbx, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), cpentry, rax);
   // new value type is returned in rbx
-  // stack adjustement is returned in rax
+  // stack adjustment is returned in rax
   __ verify_oop(rbx);
   __ addptr(rsp, rax);
   __ movptr(rax, rbx);
@@ -3399,7 +3386,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
       if (is_static) {
         Label is_inline_type;
         if (EnableValhalla) {
-          __ test_field_is_not_inline_type(flags2, rscratch1, is_inline_type);
+          __ test_field_is_not_null_free_inline_type(flags2, rscratch1, is_inline_type);
           __ null_check(rax);
           __ bind(is_inline_type);
         }
@@ -3408,7 +3395,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
       } else {
         Label is_inline_type, is_inlined, rewrite_not_inline, rewrite_inline;
         if (EnableValhalla) {
-          __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+          __ test_field_is_null_free_inline_type(flags2, rscratch1, is_inline_type);
         }
         // Not an inline type
         pop_and_check_object(obj);

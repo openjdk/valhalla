@@ -33,6 +33,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.NestingKind;
 import javax.tools.JavaFileManager;
 
+import com.sun.source.tree.CaseTree;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Attribute.Compound;
 import com.sun.tools.javac.code.Directive.ExportsDirective;
@@ -118,9 +119,6 @@ public class Check {
         context.put(checkKey, this);
 
         names = Names.instance(context);
-        dfltTargetMeta = new Name[] { names.PACKAGE, names.TYPE,
-            names.FIELD, names.RECORD_COMPONENT, names.METHOD, names.CONSTRUCTOR,
-            names.ANNOTATION_TYPE, names.LOCAL_VARIABLE, names.PARAMETER, names.MODULE };
         log = Log.instance(context);
         rs = Resolve.instance(context);
         syms = Symtab.instance(context);
@@ -159,9 +157,9 @@ public class Check {
 
         deferredLintHandler = DeferredLintHandler.instance(context);
 
+        allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
-        allowSealed = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
-                Feature.SEALED_CLASSES.allowedInSource(source);
+        allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -192,6 +190,10 @@ public class Check {
     /** A handler for deferred lint warnings.
      */
     private DeferredLintHandler deferredLintHandler;
+
+    /** Are modules allowed
+     */
+    private final boolean allowModules;
 
     /** Are records allowed
      */
@@ -606,7 +608,7 @@ public class Check {
         } else {
             if (found.hasTag(CLASS)) {
                 if (inferenceContext != infer.emptyContext)
-                    checkParameterizationWithValues(pos, found);
+                    checkParameterizationByPrimitiveClass(pos, found);
             }
         }
         if (req.hasTag(ERROR))
@@ -750,7 +752,8 @@ public class Check {
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
             }
-            // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+            // No instance fields and no arged constructors both mean inner classes
+            // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
                 log.error(pos, Errors.SuperClassCannotBeInner(c, st));
@@ -794,9 +797,12 @@ public class Check {
                 t = types.createErrorType(t);
             } else {
                 // Projection types may not be mentioned in constructor references
-                if (expr.hasTag(SELECT)) {
-                    JCFieldAccess fieldAccess = (JCFieldAccess) expr;
-                    if (fieldAccess.selected.type.isPrimitiveClass() &&
+                JCExpression instantiation = expr;
+                if (instantiation.hasTag(TYPEAPPLY))
+                    instantiation = ((JCTypeApply) instantiation).clazz;
+                if (instantiation.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) instantiation;
+                    if (fieldAccess.selected.type.tsym.isPrimitiveClass() &&
                             (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                         log.error(expr, Errors.ProjectionCantBeInstantiated);
                         t = types.createErrorType(t);
@@ -837,15 +843,38 @@ public class Check {
      *  or a type variable.
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
-     *  @param valueOK       If false, a value class does not qualify
+     *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
-    Type checkRefType(DiagnosticPosition pos, Type t, boolean valueOK) {
-        if (t.isReference() && (valueOK || !types.isPrimitiveClass(t)))
+    Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
+        if (t.isReference() && (primitiveClassOK || !types.isPrimitiveClass(t)))
             return t;
         else
             return typeTagError(pos,
                                 diags.fragment(Fragments.TypeReqRef),
                                 t);
+    }
+
+    /** Check that type is an identity type, i.e. not a primitive type
+     *  nor its reference projection. When not discernible statically,
+     *  give it the benefit of doubt and defer to runtime.
+     *
+     *  @param pos           Position to be used for error reporting.
+     *  @param t             The type to be checked.
+     */
+    Type checkIdentityType(DiagnosticPosition pos, Type t) {
+
+        if (t.isPrimitive() || t.tsym.isPrimitiveClass())
+            return typeTagError(pos,
+                    diags.fragment(Fragments.TypeReqIdentity),
+                    t);
+
+        /* Not appropriate to check
+         *     if (types.asSuper(t, syms.identityObjectType.tsym) != null)
+         * since jlO, interface types and abstract types may fail that check
+         * at compile time.
+         */
+
+        return t;
     }
 
     /** Check that type is a reference type, i.e. a class, interface or array type
@@ -901,14 +930,15 @@ public class Check {
             return true;
     }
 
-    void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        valueParameterizationChecker.visit(t, pos);
+    void checkParameterizationByPrimitiveClass(DiagnosticPosition pos, Type t) {
+        parameterizationByPrimitiveClassChecker.visit(t, pos);
     }
 
-    /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
+    /** parameterizationByPrimitiveClassChecker: A type visitor that descends down the given type looking for instances of primitive classes
      *  being used as type arguments and issues error against those usages.
      */
-    private final Types.SimpleVisitor<Void, DiagnosticPosition> valueParameterizationChecker = new Types.SimpleVisitor<Void, DiagnosticPosition>() {
+    private final Types.SimpleVisitor<Void, DiagnosticPosition> parameterizationByPrimitiveClassChecker =
+            new Types.SimpleVisitor<Void, DiagnosticPosition>() {
 
         @Override
         public Void visitType(Type t, DiagnosticPosition pos) {
@@ -1099,7 +1129,7 @@ public class Check {
         //upward project the initializer type
         Type varType = types.upward(t, types.captures(t));
         if (varType.hasTag(CLASS)) {
-            checkParameterizationWithValues(pos, varType);
+            checkParameterizationByPrimitiveClass(pos, varType);
         }
         return varType;
     }
@@ -1334,7 +1364,7 @@ public class Check {
                 mask = implicit = InterfaceVarFlags;
             else {
                 mask = VarFlags;
-                if (types.isPrimitiveClass(sym.owner.type) && (flags & STATIC) == 0) {
+                if (sym.owner.isPrimitiveClass() && (flags & STATIC) == 0) {
                     implicit |= FINAL;
                 }
             }
@@ -1365,9 +1395,12 @@ public class Check {
             } else if ((sym.owner.flags_field & RECORD) != 0) {
                 mask = RecordMethodFlags;
             } else {
-                // instance methods of value types do not have a monitor associated with their `this'
+                // instance methods of primitive classes do not have a monitor associated with their `this'
                 mask = ((sym.owner.flags_field & PRIMITIVE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
+            }
+            if ((flags & STRICTFP) != 0) {
+                warnOnExplicitStrictfp(pos);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             if (((flags|implicit) & Flags.ABSTRACT) == 0 ||
@@ -1401,7 +1434,7 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or value type
+                // enums can't be declared abstract, final, sealed or non-sealed or primitive
                 mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
@@ -1409,6 +1442,9 @@ public class Check {
                 // records can't be declared abstract
                 mask &= ~ABSTRACT;
                 implicit |= FINAL;
+            }
+            if ((flags & STRICTFP) != 0) {
+                warnOnExplicitStrictfp(pos);
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
@@ -1470,6 +1506,19 @@ public class Check {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
+    }
+
+    private void warnOnExplicitStrictfp(DiagnosticPosition pos) {
+        DiagnosticPosition prevLintPos = deferredLintHandler.setPos(pos);
+        try {
+            deferredLintHandler.report(() -> {
+                                           if (lint.isEnabled(LintCategory.STRICTFP)) {
+                                               log.warning(LintCategory.STRICTFP,
+                                                           pos, Warnings.Strictfp); }
+                                       });
+        } finally {
+            deferredLintHandler.setPos(prevLintPos);
+        }
     }
 
 
@@ -1627,12 +1676,15 @@ public class Check {
         public void visitSelectInternal(JCFieldAccess tree) {
             if (tree.type.tsym.isStatic() &&
                 tree.selected.type.isParameterized() &&
-                    (tree.name != names.ref || !tree.type.isReferenceProjection())) {
+                    (!tree.type.tsym.isPrimitiveClass() || (tree.name != names.ref && tree.name != names.val))) {
                 // The enclosing type is not a class, so we are
                 // looking at a static member type.  However, the
                 // qualifying expression is parameterized.
-                // Tolerate the pseudo-select V.ref: V<T>.ref will be static if V<T> is and
-                // should not be confused as selecting a static member of a parameterized type.
+
+                // Tolerate the pseudo-select V.ref/V.val: V<T>.ref/val will be static if V<T> is and
+                // should not be confused as selecting a static member of a parameterized type. Both
+                // these constructs are illegal anyway & will be more appropriately complained against shortly.
+                // Note: the canonicl form is V.ref<T> and V.val<T> not V<T>.ref and V<T>.val
                 log.error(tree.pos(), Errors.CantSelectStaticClassFromParamType);
             } else {
                 // otherwise validate the rest of the expression
@@ -2407,7 +2459,7 @@ public class Check {
         }
     }
 
-    // A value class cannot contain a field of its own type either or indirectly.
+    // A primitive class cannot contain a field of its own type either or indirectly.
     void checkNonCyclicMembership(JCClassDecl tree) {
         Assert.check((tree.sym.flags_field & LOCKED) == 0);
         try {
@@ -2416,8 +2468,7 @@ public class Check {
                 if (l.head.hasTag(VARDEF)) {
                     JCVariableDecl field = (JCVariableDecl) l.head;
                     if (cyclePossible(field.sym)) {
-                        Type fieldType = field.sym.type;
-                        checkNonCyclicMembership((ClassSymbol) fieldType.tsym, field.pos());
+                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
                     }
                 }
             }
@@ -2456,7 +2507,7 @@ public class Check {
 
     class CycleChecker extends TreeScanner {
 
-        List<Symbol> seenClasses = List.nil();
+        Set<Symbol> seenClasses = new HashSet<>();
         boolean errorFound = false;
         boolean partialCheck = false;
 
@@ -2475,7 +2526,7 @@ public class Check {
                 } else if (sym.kind == TYP) {
                     checkClass(pos, sym, List.nil());
                 }
-            } else {
+            } else if (sym == null || sym.kind != PCK) {
                 //not completed yet
                 partialCheck = true;
             }
@@ -2524,7 +2575,7 @@ public class Check {
                 noteCyclic(pos, (ClassSymbol)c);
             } else if (!c.type.isErroneous()) {
                 try {
-                    seenClasses = seenClasses.prepend(c);
+                    seenClasses.add(c);
                     if (c.type.hasTag(CLASS)) {
                         if (supertypes.nonEmpty()) {
                             scan(supertypes);
@@ -2547,7 +2598,7 @@ public class Check {
                         }
                     }
                 } finally {
-                    seenClasses = seenClasses.tail;
+                    seenClasses.remove(c);
                 }
             }
         }
@@ -2697,9 +2748,9 @@ public class Check {
 
         boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
         boolean implementsPrimitiveObject = types.asSuper(c.referenceProjectionOrSelf(), syms.primitiveObjectType.tsym) != null;
-        if (c.isPrimitiveClass() && implementsIdentityObject) {
+        if (c.tsym.isPrimitiveClass() && implementsIdentityObject) {
             log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
-        } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
+        } else if (implementsPrimitiveObject && !c.tsym.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
             log.error(pos, Errors.IdentityClassMustNotImplementPrimitiveObject(c));
         } else if (implementsPrimitiveObject && implementsIdentityObject) {
             log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
@@ -3415,20 +3466,7 @@ public class Check {
     /* get a set of names for the default target */
     private Set<Name> getDefaultTargetSet() {
         if (defaultTargets == null) {
-            Set<Name> targets = new HashSet<>();
-            targets.add(names.ANNOTATION_TYPE);
-            targets.add(names.CONSTRUCTOR);
-            targets.add(names.FIELD);
-            if (allowRecords) {
-                targets.add(names.RECORD_COMPONENT);
-            }
-            targets.add(names.LOCAL_VARIABLE);
-            targets.add(names.METHOD);
-            targets.add(names.PACKAGE);
-            targets.add(names.PARAMETER);
-            targets.add(names.TYPE);
-
-            defaultTargets = java.util.Collections.unmodifiableSet(targets);
+            defaultTargets = Set.of(defaultTargetMetaInfo());
         }
 
         return defaultTargets;
@@ -3545,7 +3583,6 @@ public class Check {
         return targets.isEmpty() || targets.isPresent() && !targets.get().isEmpty();
     }
 
-    @SuppressWarnings("preview")
     Optional<Set<Name>> getApplicableTargets(JCAnnotation a, Symbol s) {
         Attribute.Array arr = getAttributeTargetAttribute(a.annotationType.type.tsym);
         Name[] targets;
@@ -3629,8 +3666,26 @@ public class Check {
         return (atValue instanceof Attribute.Array attributeArray) ? attributeArray : null;
     }
 
-    public final Name[] dfltTargetMeta;
+    private Name[] dfltTargetMeta;
     private Name[] defaultTargetMetaInfo() {
+        if (dfltTargetMeta == null) {
+            ArrayList<Name> defaultTargets = new ArrayList<>();
+            defaultTargets.add(names.PACKAGE);
+            defaultTargets.add(names.TYPE);
+            defaultTargets.add(names.FIELD);
+            defaultTargets.add(names.METHOD);
+            defaultTargets.add(names.CONSTRUCTOR);
+            defaultTargets.add(names.ANNOTATION_TYPE);
+            defaultTargets.add(names.LOCAL_VARIABLE);
+            defaultTargets.add(names.PARAMETER);
+            if (allowRecords) {
+              defaultTargets.add(names.RECORD_COMPONENT);
+            }
+            if (allowModules) {
+              defaultTargets.add(names.MODULE);
+            }
+            dfltTargetMeta = defaultTargets.toArray(new Name[0]);
+        }
         return dfltTargetMeta;
     }
 
@@ -4472,4 +4527,66 @@ public class Check {
         }
     }
 
+    /**
+     * Verify the case labels conform to the constraints. Checks constraints related
+     * combinations of patterns and other labels.
+     *
+     * @param cases the cases that should be checked.
+     */
+    void checkSwitchCaseStructure(List<JCCase> cases) {
+        boolean wasConstant = false;          // Seen a constant in the same case label
+        boolean wasDefault = false;           // Seen a default in the same case label
+        boolean wasNullPattern = false;       // Seen a null pattern in the same case label,
+                                              //or fall through from a null pattern
+        boolean wasPattern = false;           // Seen a pattern in the same case label
+                                              //or fall through from a pattern
+        boolean wasTypePattern = false;       // Seen a pattern in the same case label
+                                              //or fall through from a type pattern
+        boolean wasNonEmptyFallThrough = false;
+        for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
+            JCCase c = l.head;
+            for (JCCaseLabel pat : c.labels) {
+                if (pat.isExpression()) {
+                    JCExpression expr = (JCExpression) pat;
+                    if (TreeInfo.isNull(expr)) {
+                        if (wasPattern && !wasTypePattern && !wasNonEmptyFallThrough) {
+                            log.error(pat.pos(), Errors.FlowsThroughFromPattern);
+                        }
+                        wasNullPattern = true;
+                    } else {
+                        if (wasPattern && !wasNonEmptyFallThrough) {
+                            log.error(pat.pos(), Errors.FlowsThroughFromPattern);
+                        }
+                        wasConstant = true;
+                    }
+                } else if (pat.hasTag(DEFAULTCASELABEL)) {
+                    if (wasPattern && !wasNonEmptyFallThrough) {
+                        log.error(pat.pos(), Errors.FlowsThroughFromPattern);
+                    }
+                    wasDefault = true;
+                } else {
+                    boolean isTypePattern = pat.hasTag(BINDINGPATTERN);
+                    if (wasPattern || wasConstant || wasDefault ||
+                        (wasNullPattern && (!isTypePattern || wasNonEmptyFallThrough))) {
+                        log.error(pat.pos(), Errors.FlowsThroughToPattern);
+                    }
+                    wasPattern = true;
+                    wasTypePattern = isTypePattern;
+                }
+            }
+
+            boolean completesNormally = c.caseKind == CaseTree.CaseKind.STATEMENT ? c.completesNormally
+                                                                                  : false;
+
+            if (c.stats.nonEmpty()) {
+                wasConstant = false;
+                wasDefault = false;
+                wasNullPattern &= completesNormally;
+                wasPattern &= completesNormally;
+                wasTypePattern &= completesNormally;
+            }
+
+            wasNonEmptyFallThrough = c.stats.nonEmpty() && completesNormally;
+        }
+    }
 }

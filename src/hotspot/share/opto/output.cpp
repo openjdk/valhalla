@@ -33,6 +33,7 @@
 #include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/allocation.hpp"
@@ -543,6 +544,9 @@ void PhaseOutput::compute_loop_first_inst_sizes() {
 // The architecture description provides short branch variants for some long
 // branch instructions. Replace eligible long branches with short branches.
 void PhaseOutput::shorten_branches(uint* blk_starts) {
+
+  Compile::TracePhase tp("shorten branches", &timers[_t_shortenBranches]);
+
   // Compute size of each block, method size, and relocation information size
   uint nblocks  = C->cfg()->number_of_blocks();
 
@@ -1349,21 +1353,6 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
   // Compute prolog code size
   _method_size = 0;
   _frame_slots = OptoReg::reg2stack(C->matcher()->_old_SP) + C->regalloc()->_framesize;
-#if defined(IA64) && !defined(AIX)
-  if (save_argument_registers()) {
-    // 4815101: this is a stub with implicit and unknown precision fp args.
-    // The usual spill mechanism can only generate stfd's in this case, which
-    // doesn't work if the fp reg to spill contains a single-precision denorm.
-    // Instead, we hack around the normal spill mechanism using stfspill's and
-    // ldffill's in the MachProlog and MachEpilog emit methods.  We allocate
-    // space here for the fp arg regs (f8-f15) we're going to thusly spill.
-    //
-    // If we ever implement 16-byte 'registers' == stack slots, we can
-    // get rid of this hack and have SpillCopy generate stfspill/ldffill
-    // instead of stfd/stfs/ldfd/ldfs.
-    _frame_slots += 8*(16/BytesPerInt);
-  }
-#endif
   assert(_frame_slots >= 0 && _frame_slots < 1000000, "sanity check");
 
   if (C->has_mach_constant_base_node()) {
@@ -1458,6 +1447,8 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
   // Compute the size of first NumberOfLoopInstrToAlign instructions at head
   // of a loop. It is used to determine the padding for loop alignment.
+  Compile::TracePhase tp("fill buffer", &timers[_t_fillBuffer]);
+
   compute_loop_first_inst_sizes();
 
   // Create oopmap set.
@@ -3199,6 +3190,19 @@ void Scheduling::ComputeRegisterAntidependencies(Block *b) {
           break;
         }
       }
+
+      // Do not allow a CheckCastPP node whose input is a raw pointer to
+      // float past a safepoint.  This can occur when a buffered inline
+      // type is allocated in a loop and the CheckCastPP from that
+      // allocation is reused outside the loop.  If the use inside the
+      // loop is scalarized the CheckCastPP will no longer be connected
+      // to the loop safepoint.  See JDK-8264340.
+      if (m->is_Mach() && m->as_Mach()->ideal_Opcode() == Op_CheckCastPP) {
+        Node *def = m->in(1);
+        if (def != NULL && def->bottom_type()->base() == Type::RawPtr) {
+          last_safept_node->add_prec(m);
+        }
+      }
     }
 
     if( n->jvms() ) {           // Precedence edge from derived to safept
@@ -3362,7 +3366,7 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
       // when loading object fields from the buffered argument. Increase scratch buffer size accordingly.
       int barrier_size = UseZGC ? 200 : (7 DEBUG_ONLY(+ 37));
       for (ciSignatureStream str(C->method()->signature()); !str.at_return_type(); str.next()) {
-        if (str.type()->is_inlinetype() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
+        if (str.is_null_free() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
           size += str.type()->as_inline_klass()->oop_count() * barrier_size;
         }
       }
@@ -3462,8 +3466,7 @@ void PhaseOutput::install() {
   if (!C->should_install_code()) {
     return;
   } else if (C->stub_function() != NULL) {
-    install_stub(C->stub_name(),
-                 C->save_argument_registers());
+    install_stub(C->stub_name());
   } else {
     install_code(C->method(),
                  C->entry_bci(),
@@ -3527,8 +3530,7 @@ void PhaseOutput::install_code(ciMethod*         target,
     }
   }
 }
-void PhaseOutput::install_stub(const char* stub_name,
-                               bool        caller_must_gc_arguments) {
+void PhaseOutput::install_stub(const char* stub_name) {
   // Entry point will be accessed using stub_entry_point();
   if (code_buffer() == NULL) {
     Matcher::soft_match_failure();
@@ -3547,7 +3549,7 @@ void PhaseOutput::install_stub(const char* stub_name,
                                                       // _code_offsets.value(CodeOffsets::Frame_Complete),
                                                       frame_size_in_words(),
                                                       oop_map_set(),
-                                                      caller_must_gc_arguments);
+                                                      false);
       assert(rs != NULL && rs->is_runtime_stub(), "sanity check");
 
       C->set_stub_entry_point(rs->entry_point());
