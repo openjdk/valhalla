@@ -31,10 +31,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.ALLOC;
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.STORE;
-import static compiler.valhalla.inlinetypes.InlineTypes.rI;
-import static compiler.valhalla.inlinetypes.InlineTypes.rL;
+import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
  * @test
@@ -1002,12 +1000,12 @@ public class TestNullableInlineTypes {
         return val.x;
     }
 
-    @DontCompile
-    public void test41_verifier(boolean warmup) {
+    @Run(test = "test41")
+    public void test41_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
         Asserts.assertEquals(test41(true), field.x);
         Asserts.assertEquals(test41(false), testValue1.x);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             field = null;
             try {
                 Asserts.assertEquals(test41(false), testValue1.x);
@@ -1030,12 +1028,12 @@ public class TestNullableInlineTypes {
         return val.hash();
     }
 
-    @DontCompile
-    public void test42_verifier(boolean warmup) {
+    @Run(test = "test42")
+    public void test42_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
         Asserts.assertEquals(test42(true), field.hash());
         Asserts.assertEquals(test42(false), testValue1.hash());
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             field = null;
             try {
                 Asserts.assertEquals(test42(false), testValue1.hash());
@@ -1056,12 +1054,12 @@ public class TestNullableInlineTypes {
         return val;
     }
 
-    @DontCompile
-    public void test43_verifier(boolean warmup) {
+    @Run(test = "test43")
+    public void test43_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
         Asserts.assertEquals(test43(true).hash(), field.hash());
         Asserts.assertEquals(test43(false).hash(), testValue1.hash());
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             field = null;
             Asserts.assertEquals(test43(true), null);
         }
@@ -1070,62 +1068,62 @@ public class TestNullableInlineTypes {
     // Test scalarization when .ref is referenced in safepoint debug info
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test44(boolean b1, boolean b2) {
+    public int test44(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
             val = field;
         }
         if (b2) {
             // Uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test44"));
+            TestFramework.deoptimize(m);
         }
         return val.x;
     }
 
-    @DontCompile
-    public void test44_verifier(boolean warmup) {
+    @Run(test = "test44")
+    public void test44_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test44(true, false), field.x);
-        Asserts.assertEquals(test44(false, false), testValue1.x);
-        if (!warmup) {
+        Asserts.assertEquals(test44(true, false, info.getTest()), field.x);
+        Asserts.assertEquals(test44(false, false, info.getTest()), testValue1.x);
+        if (!info.isWarmUp()) {
             field = null;
             try {
-                Asserts.assertEquals(test44(false, false), testValue1.x);
-                test44(true, false);
+                Asserts.assertEquals(test44(false, false, info.getTest()), testValue1.x);
+                test44(true, false, info.getTest());
                 throw new RuntimeException("NullPointerException expected");
             } catch (NullPointerException e) {
                 // Expected
             }
             field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test44(true, true), field.x);
-            Asserts.assertEquals(test44(false, true), testValue1.x);
+            Asserts.assertEquals(test44(true, true, info.getTest()), field.x);
+            Asserts.assertEquals(test44(false, true, info.getTest()), testValue1.x);
         }
     }
 
     @Test()
-    public MyValue1.ref test45(boolean b1, boolean b2) {
+    public MyValue1.ref test45(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
             val = field;
         }
         if (b2) {
             // Uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test45"));
+            TestFramework.deoptimize(m);
         }
         return val;
     }
 
-    @DontCompile
-    public void test45_verifier(boolean warmup) {
+    @Run(test = "test45")
+    public void test45_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test45(true, false).hash(), field.hash());
-        Asserts.assertEquals(test45(false, false).hash(), testValue1.hash());
-        if (!warmup) {
+        Asserts.assertEquals(test45(true, false, info.getTest()).hash(), field.hash());
+        Asserts.assertEquals(test45(false, false, info.getTest()).hash(), testValue1.hash());
+        if (!info.isWarmUp()) {
             field = null;
-            Asserts.assertEquals(test45(true, false), null);
+            Asserts.assertEquals(test45(true, false, info.getTest()), null);
             field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test45(true, true).hash(), field.hash());
-            Asserts.assertEquals(test45(false, true).hash(), testValue1.hash());
+            Asserts.assertEquals(test45(true, true, info.getTest()).hash(), field.hash());
+            Asserts.assertEquals(test45(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
 
@@ -1139,8 +1137,8 @@ public class TestNullableInlineTypes {
         return val.x;
     }
 
-    @DontCompile
-    public void test46_verifier(boolean warmup) {
+    @Run(test = "test46")
+    public void test46_verifier() {
         Asserts.assertEquals(test46(true), testValue1.x);
         try {
             test46(false);
@@ -1159,8 +1157,8 @@ public class TestNullableInlineTypes {
         return val;
     }
 
-    @DontCompile
-    public void test47_verifier(boolean warmup) {
+    @Run(test = "test47")
+    public void test47_verifier() {
         Asserts.assertEquals(test47(true).hash(), testValue1.hash());
         Asserts.assertEquals(test47(false), null);
     }
@@ -1175,8 +1173,8 @@ public class TestNullableInlineTypes {
         return val.x;
     }
 
-    @DontCompile
-    public void test48_verifier(boolean warmup) {
+    @Run(test = "test48")
+    public void test48_verifier() {
         Asserts.assertEquals(test48(false), testValue1.x);
         try {
             test48(true);
@@ -1195,8 +1193,8 @@ public class TestNullableInlineTypes {
         return val;
     }
 
-    @DontCompile
-    public void test49_verifier(boolean warmup) {
+    @Run(test = "test49")
+    public void test49_verifier() {
         Asserts.assertEquals(test49(false).hash(), testValue1.hash());
         Asserts.assertEquals(test49(true), null);
     }
@@ -1217,8 +1215,8 @@ public class TestNullableInlineTypes {
         flatField = (MyValue1)o;
     }
 
-    @DontCompile
-    public void test50_verifier(boolean warmup) {
+    @Run(test = "test50")
+    public void test50_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
         flatField = vt;
         test50(false);
@@ -1252,8 +1250,8 @@ public class TestNullableInlineTypes {
         return val.hash();
     }
 
-    @DontCompile
-    public void test51_verifier(boolean warmup) {
+    @Run(test = "test51")
+    public void test51_verifier() {
         wrapperField = new MyValue1Wrapper(testValue1);
         Asserts.assertEquals(test51(true), wrapperField.hash());
         Asserts.assertEquals(test51(false), MyValue1Wrapper.default.hash());
@@ -1270,8 +1268,8 @@ public class TestNullableInlineTypes {
         return w.vt == null;
     }
 
-    @DontCompile
-    public void test52_verifier(boolean warmup) {
+    @Run(test = "test52")
+    public void test52_verifier() {
         Asserts.assertTrue(test52(true));
         Asserts.assertFalse(test52(false));
     }
@@ -1287,8 +1285,8 @@ public class TestNullableInlineTypes {
         return w.vt == null;
     }
 
-    @DontCompile
-    public void test53_verifier(boolean warmup) {
+    @Run(test = "test53")
+    public void test53_verifier() {
         Asserts.assertTrue(test53(true));
         Asserts.assertFalse(test53(false));
     }
@@ -1307,8 +1305,8 @@ public class TestNullableInlineTypes {
         return w.hash();
     }
 
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
+    @Run(test = "test54")
+    public void test54_verifier() {
         MyValue1Wrapper w = new MyValue1Wrapper(MyValue1.createWithFieldsInline(rI, rL));
         Asserts.assertEquals(test54(false, false), MyValue1Wrapper.default.hash());
         Asserts.assertEquals(test54(false, true), w.hash());
@@ -1328,12 +1326,12 @@ public class TestNullableInlineTypes {
         return w.vt.x;
     }
 
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
+    @Run(test = "test55")
+    public void test55_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
         Asserts.assertEquals(test55(true), field.x);
         Asserts.assertEquals(test55(false), testValue1.x);
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             field = null;
             try {
                 Asserts.assertEquals(test55(false), testValue1.x);
@@ -1356,12 +1354,12 @@ public class TestNullableInlineTypes {
         return w.vt.hash();
     }
 
-    @DontCompile
-    public void test56_verifier(boolean warmup) {
+    @Run(test = "test56")
+    public void test56_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
         Asserts.assertEquals(test56(true), field.hash());
         Asserts.assertEquals(test56(false), testValue1.hash());
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             field = null;
             try {
                 Asserts.assertEquals(test56(false), testValue1.hash());
@@ -1383,12 +1381,12 @@ public class TestNullableInlineTypes {
         return w.vt;
     }
 
-    @DontCompile
-    public void test57_verifier(boolean warmup) {
+    @Run(test = "test57")
+    public void test57_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
         Asserts.assertEquals(test57(true).hash(), field.hash());
         Asserts.assertEquals(test57(false).hash(), testValue1.hash());
-        if (!warmup) {
+        if (!info.isWarmUp()) {
             field = null;
             Asserts.assertEquals(test57(true), null);
         }
@@ -1397,7 +1395,7 @@ public class TestNullableInlineTypes {
     // Test scalarization when .ref is referenced in safepoint debug info
     @Test
     @IR(failOn = {ALLOC, STORE})
-    public int test58(boolean b1, boolean b2) {
+    public int test58(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b1) {
@@ -1405,33 +1403,33 @@ public class TestNullableInlineTypes {
         }
         if (b2) {
             // Uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test58"));
+            TestFramework.deoptimize(m);
         }
         return w.vt.x;
     }
 
-    @DontCompile
-    public void test58_verifier(boolean warmup) {
+    @Run(test = "test58")
+    public void test58_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test58(true, false), field.x);
-        Asserts.assertEquals(test58(false, false), testValue1.x);
-        if (!warmup) {
+        Asserts.assertEquals(test58(true, false, info.getTest()), field.x);
+        Asserts.assertEquals(test58(false, false, info.getTest()), testValue1.x);
+        if (!info.isWarmUp()) {
             field = null;
             try {
-                Asserts.assertEquals(test58(false, false), testValue1.x);
-                test58(true, false);
+                Asserts.assertEquals(test58(false, false, info.getTest()), testValue1.x);
+                test58(true, false, info.getTest());
                 throw new RuntimeException("NullPointerException expected");
             } catch (NullPointerException e) {
                 // Expected
             }
             field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test58(true, true), field.x);
-            Asserts.assertEquals(test58(false, true), testValue1.x);
+            Asserts.assertEquals(test58(true, true, info.getTest()), field.x);
+            Asserts.assertEquals(test58(false, true, info.getTest()), testValue1.x);
         }
     }
 
     @Test()
-    public MyValue1.ref test59(boolean b1, boolean b2) {
+    public MyValue1.ref test59(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b1) {
@@ -1439,22 +1437,22 @@ public class TestNullableInlineTypes {
         }
         if (b2) {
             // Uncommon trap
-            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test59"));
+            TestFramework.deoptimize(m);
         }
         return w.vt;
     }
 
-    @DontCompile
-    public void test59_verifier(boolean warmup) {
+    @Run(test = "test59")
+    public void test59_verifier(RunInfo info) {
         field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test59(true, false).hash(), field.hash());
-        Asserts.assertEquals(test59(false, false).hash(), testValue1.hash());
-        if (!warmup) {
+        Asserts.assertEquals(test59(true, false, info.getTest()).hash(), field.hash());
+        Asserts.assertEquals(test59(false, false, info.getTest()).hash(), testValue1.hash());
+        if (!info.isWarmUp()) {
             field = null;
-            Asserts.assertEquals(test59(true, false), null);
+            Asserts.assertEquals(test59(true, false, info.getTest()), null);
             field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test59(true, true).hash(), field.hash());
-            Asserts.assertEquals(test59(false, true).hash(), testValue1.hash());
+            Asserts.assertEquals(test59(true, true, info.getTest()).hash(), field.hash());
+            Asserts.assertEquals(test59(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
 
@@ -1469,8 +1467,8 @@ public class TestNullableInlineTypes {
         return w.vt.x;
     }
 
-    @DontCompile
-    public void test60_verifier(boolean warmup) {
+    @Run(test = "test60")
+    public void test60_verifier() {
         Asserts.assertEquals(test60(true), testValue1.x);
         try {
             test60(false);
@@ -1490,8 +1488,8 @@ public class TestNullableInlineTypes {
         return w.vt;
     }
 
-    @DontCompile
-    public void test61_verifier(boolean warmup) {
+    @Run(test = "test61")
+    public void test61_verifier() {
         Asserts.assertEquals(test61(true).hash(), testValue1.hash());
         Asserts.assertEquals(test61(false), null);
     }
@@ -1507,8 +1505,8 @@ public class TestNullableInlineTypes {
         return w.vt.x;
     }
 
-    @DontCompile
-    public void test62_verifier(boolean warmup) {
+    @Run(test = "test62")
+    public void test62_verifier() {
         Asserts.assertEquals(test62(false), testValue1.x);
         try {
             test62(true);
@@ -1528,8 +1526,8 @@ public class TestNullableInlineTypes {
         return w.vt;
     }
 
-    @DontCompile
-    public void test63_verifier(boolean warmup) {
+    @Run(test = "test63")
+    public void test63_verifier() {
         Asserts.assertEquals(test63(false).hash(), testValue1.hash());
         Asserts.assertEquals(test63(true), null);
     }
@@ -1550,8 +1548,8 @@ public class TestNullableInlineTypes {
         flatField = w.vt;
     }
 
-    @DontCompile
-    public void test64_verifier(boolean warmup) {
+    @Run(test = "test64")
+    public void test64_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
         flatField = vt;
         test64(false);
@@ -1573,8 +1571,8 @@ public class TestNullableInlineTypes {
         return 42;
     }
 
-    @DontCompile
-    public void test65_verifier(boolean warmup) {
+    @Run(test = "test65")
+    public void test65_verifier() {
         Asserts.assertEquals(test65(true), 42L);
         Asserts.assertEquals(test65(false), MyValue1.createWithFieldsInline(rI, rL).hashPrimitive());
     }
