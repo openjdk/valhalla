@@ -147,7 +147,7 @@ inline void CDSMustMatchFlags::do_print(outputStream* st, double v) {
 }
 
 void CDSMustMatchFlags::init() {
-  Arguments::assert_is_dumping_archive();  
+  Arguments::assert_is_dumping_archive();
   _max_name_width = 0;
 
 #define INIT_CDS_MUST_MATCH_FLAG(n) \
