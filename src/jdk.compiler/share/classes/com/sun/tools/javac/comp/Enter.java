@@ -565,7 +565,7 @@ public class Enter extends JCTree.Visitor {
     public void visitTypeParameter(JCTypeParameter tree) {
         TypeVar a = (tree.type != null)
             ? (TypeVar)tree.type
-            : new TypeVar(tree.name, env.info.scope.owner, syms.botType, tree.universal ? TypeVar.TVFlavor.UNIVERSAL : TypeVar.TVFlavor.REFERENCE);
+            : new TypeVar(tree.name, env.info.scope.owner, syms.botType, tree.universal, false);
         tree.type = a;
         if (chk.checkUnique(tree.pos(), a.tsym, env.info.scope)) {
             env.info.scope.enter(a.tsym);

@@ -1943,32 +1943,30 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public Type lower;
 
-        public TVFlavor flavor;
-
-        /** if this type variable is universal then it will also have a link to a pure reference
+        /** if this type variable is universal then it could also have a link to a pure reference
          *  type variable, it is important to know that a universal type variable and its
          *  corresponding referenceTypeVar share the same tsym. So if it is needed to double check if
          *  a type variable is universal or not, we need to check its type not the type of its tsym
          */
         public TypeVar projection = null;
 
-        public enum TVFlavor {
-            REFERENCE,
-            UNIVERSAL,
-            REFERENCE_FROM_UNIVERSAL
-        }
+        public boolean isReferenceProjection;
+
+        // redundant for now but helpful for debug reasons
+        public boolean isUniversal;
 
         public TypeVar(Name name, Symbol owner, Type lower) {
-            this(name, owner, lower, TVFlavor.REFERENCE);
+            this(name, owner, lower, false, false);
         }
 
-        public TypeVar(Name name, Symbol owner, Type lower, TVFlavor flavor) {
+        public TypeVar(Name name, Symbol owner, Type lower, boolean isUniversal, boolean isReferenceProjection) {
             super(null, TypeMetadata.EMPTY);
             Assert.checkNonNull(lower);
-            tsym = new TypeVariableSymbol(flavor == TVFlavor.UNIVERSAL ? UNIVERSAL : 0, name, this, owner);
+            tsym = new TypeVariableSymbol(isUniversal ? UNIVERSAL : 0, name, this, owner);
             this.setUpperBound(null);
             this.lower = lower;
-            this.flavor = flavor;
+            this.isReferenceProjection = isReferenceProjection;
+            this.isUniversal = isUniversal;
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
@@ -1977,21 +1975,22 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower,
                        TypeMetadata metadata) {
-            this(tsym, bound, lower, metadata, TVFlavor.REFERENCE);
+            this(tsym, bound, lower, metadata, false);
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower,
-                       TypeMetadata metadata, TVFlavor flavor) {
+                       TypeMetadata metadata, boolean isReferenceProjection) {
             super(tsym, metadata);
             Assert.checkNonNull(lower);
             this.setUpperBound(bound);
             this.lower = lower;
-            this.flavor = flavor;
+            this.isReferenceProjection = isReferenceProjection;
+            this.isUniversal = (tsym.flags_field & UNIVERSAL) != 0;
         }
 
         @Override
         public TypeVar cloneWithMetadata(TypeMetadata md) {
-            return new TypeVar(tsym, getUpperBound(), lower, md) {
+            return new TypeVar(tsym, getUpperBound(), lower, md, isReferenceProjection) {
                 @Override
                 public Type baseType() { return TypeVar.this.baseType(); }
 
@@ -2048,18 +2047,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             return v.visitTypeVariable(this, p);
         }
 
-        public TVFlavor getTVFlavor() {
-            return flavor;
-        }
-
-        public boolean hasUniversalFlavor() {
-            return flavor == TVFlavor.UNIVERSAL;
-        }
-
         @Override
         public Type withTypeVar(Type t) {
             if (t.hasTag(TYPEVAR) &&
-                    ((TypeVar)t).flavor == TVFlavor.REFERENCE_FROM_UNIVERSAL &&
+                    ((TypeVar)t).isReferenceProjection() &&
                     projection != null) {
                 return projection;
             }
@@ -2069,9 +2060,21 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public TypeVar referenceProjection() {
             if (projection == null) {
-                projection = new TypeVar(tsym, _bound, lower, metadata, TVFlavor.REFERENCE_FROM_UNIVERSAL);
+                projection = new TypeVar(tsym, _bound, lower, metadata, true);
             }
             return projection;
+        }
+
+        public boolean isUniversal() {
+            return ((tsym.flags_field & UNIVERSAL) != 0);
+        }
+
+        public boolean isReferenceProjection() {
+            return isReferenceProjection;
+        }
+
+        public boolean isValueProjection() {
+            return isUniversal() && !isReferenceProjection();
         }
     }
 
@@ -2092,7 +2095,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             this.lower = Assert.checkNonNull(lower);
             this.setUpperBound(upper);
             this.wildcard = wildcard;
-            this.flavor = wildcard.bound != null ? wildcard.bound.flavor : TVFlavor.REFERENCE;
+            this.isReferenceProjection = wildcard.bound != null ? wildcard.bound.isReferenceProjection : false;
         }
 
         public CapturedType(TypeSymbol tsym,
@@ -2103,7 +2106,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                             TypeMetadata metadata) {
             super(tsym, bound, lower, metadata);
             this.wildcard = wildcard;
-            this.flavor = wildcard.bound != null ? wildcard.bound.flavor : TVFlavor.REFERENCE;
+            this.isReferenceProjection = wildcard.bound != null ? wildcard.bound.isReferenceProjection : false;
         }
 
         @Override

@@ -1871,7 +1871,7 @@ public class Flow {
             return allowUniversalTVars && sym.owner.kind == TYP &&
                     ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
                     classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
-                    sym.type.hasTag(TYPEVAR) && ((Type.TypeVar)sym.type).hasUniversalFlavor());
+                    sym.type.hasTag(TYPEVAR) && ((Type.TypeVar)sym.type).isValueProjection());
         }
 
         /** Initialize new trackable variable by setting its address field

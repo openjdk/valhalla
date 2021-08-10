@@ -2660,7 +2660,7 @@ public class Attr extends JCTree.Visitor {
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).hasUniversalFlavor();
+                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).isValueProjection();
                 if (qualifier.tsym.isPrimitiveClass() || qualifierIsUniversal || superCallOnPrimitiveReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
@@ -4597,7 +4597,7 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
-                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).hasUniversalFlavor()) {
+                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).isValueProjection()) {
                     TypeVar siteTV = (TypeVar)site;
                     if (siteTV.projection == null) {
                         TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
@@ -5146,7 +5146,7 @@ public class Attr extends JCTree.Visitor {
             List<Type> argTypes, argTypes2;
             argTypes2 = argTypes = attribAnyTypes(args, env);
             for (Type t : ((ClassType) clazztype.tsym.type).typarams_field) {
-                argTypes.head = chk.checkRefType(args.head.pos(), argTypes.head, ((TypeVar) t).hasUniversalFlavor());
+                argTypes.head = chk.checkRefType(args.head.pos(), argTypes.head, ((TypeVar) t).isValueProjection());
                 args = args.tail;
                 argTypes = argTypes.tail;
             }
