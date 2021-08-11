@@ -385,14 +385,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
 
-  // The runtime call returns the new array in r0 which is also j_rarg7
-  // so we must avoid clobbering that. Temporarily save r0 in a
-  // non-argument register and pass the buffered array in r20 instead.
-  // This is safe because the runtime stub saves all registers.
-  Register val_array = r20;
-  Register tmp1 = r21;
-  mov(tmp1, j_rarg7);
-
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r19, (intptr_t) ces->method());
   if (is_inline_ro_entry) {
@@ -402,8 +394,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   }
   int rt_call_offset = offset();
 
-  mov(val_array, r0);
-  mov(j_rarg7, tmp1);
+  // The runtime call returns the new array in r20 instead of the usual r0
+  // because r0 is also j_rarg7 which may be holding a live argument here.
+  Register val_array = r20;
 
   // Remove the temp frame
   MacroAssembler::remove_frame(frame_size_in_bytes);
