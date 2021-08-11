@@ -2660,7 +2660,7 @@ public class Attr extends JCTree.Visitor {
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).isValueProjection();
+                boolean qualifierIsUniversal = allowUniversalTVars && qualifier.hasTag(TYPEVAR) && ((TypeVar)qualifier).isUniversal();
                 if (qualifier.tsym.isPrimitiveClass() || qualifierIsUniversal || superCallOnPrimitiveReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
@@ -4464,8 +4464,7 @@ public class Attr extends JCTree.Visitor {
             sym = selectSym(tree, sitesym, site, env, resultInfo);
         }
         boolean varArgs = env.info.lastResolveVarargs();
-        tree.sym = (allowUniversalTVars && site.getTag() == TYPEVAR && tree.name == names.ref) ?
-                sym.type.tsym : sym;
+        tree.sym = sym;
 
         if (site.hasTag(TYPEVAR) && !isType(sym) && sym.kind != ERR) {
             site = types.skipTypeVars(site, true);
@@ -4597,15 +4596,8 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
-                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).isValueProjection()) {
-                    TypeVar siteTV = (TypeVar)site;
-                    if (siteTV.projection == null) {
-                        TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
-                        tmpTVarSym.type = siteTV.referenceProjection();
-                    }
-                    TypeVariableSymbol tmpTVarSym = new TypeVariableSymbol(siteTV.tsym.flags(), siteTV.tsym.name, null, siteTV.tsym.owner);
-                    tmpTVarSym.type = siteTV.referenceProjection();
-                    return tmpTVarSym;
+                if (allowUniversalTVars && name == names.ref && ((TypeVar)site).isUniversal()) {
+                    return ((TypeVar)site).referenceProjection().tsym;
                 }
                 // Normally, site.getUpperBound() shouldn't be null.
                 // It should only happen during memberEnter/attribBase
@@ -5146,7 +5138,7 @@ public class Attr extends JCTree.Visitor {
             List<Type> argTypes, argTypes2;
             argTypes2 = argTypes = attribAnyTypes(args, env);
             for (Type t : ((ClassType) clazztype.tsym.type).typarams_field) {
-                argTypes.head = chk.checkRefType(args.head.pos(), argTypes.head, ((TypeVar) t).isValueProjection());
+                argTypes.head = chk.checkRefType(args.head.pos(), argTypes.head, ((TypeVar) t).isUniversal());
                 args = args.tail;
                 argTypes = argTypes.tail;
             }

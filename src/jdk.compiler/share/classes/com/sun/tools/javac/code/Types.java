@@ -3607,14 +3607,11 @@ public class Types {
             for (List<Type> from = this.from, to = this.to;
                  from.nonEmpty();
                  from = from.tail, to = to.tail) {
-                if (t.equalsIgnoreMetadata(from.head)) {
-                    return to.head.withTypeVar(t);
-                }
-                if (allowUniversalTVars &&
-                        !t.isValueProjection() &&
-                        from.head.hasTag(TYPEVAR) &&
-                        ((TypeVar)from.head).projection != null &&
-                        t.equalsIgnoreMetadata(((TypeVar)from.head).projection)) {
+                if (t.equalsIgnoreMetadata(from.head) ||
+                    allowUniversalTVars &&
+                    !t.isValueProjection() &&
+                    from.head.hasTag(TYPEVAR) &&
+                    t.equalsIgnoreMetadata(((TypeVar)from.head).referenceProjection())) {
                     return to.head.withTypeVar(t);
                 }
             }

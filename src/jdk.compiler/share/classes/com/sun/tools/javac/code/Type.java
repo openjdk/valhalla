@@ -1950,23 +1950,25 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public TypeVar projection = null;
 
-        public boolean isReferenceProjection;
+        protected boolean isReferenceProjection = false;
 
         // redundant for now but helpful for debug reasons
-        public boolean isUniversal;
+        private boolean isUniversal;
 
         public TypeVar(Name name, Symbol owner, Type lower) {
-            this(name, owner, lower, false, false);
+            this(name, owner, lower, false);
         }
 
-        public TypeVar(Name name, Symbol owner, Type lower, boolean isUniversal, boolean isReferenceProjection) {
+        public TypeVar(Name name, Symbol owner, Type lower, boolean isUniversal) {
             super(null, TypeMetadata.EMPTY);
             Assert.checkNonNull(lower);
             tsym = new TypeVariableSymbol(isUniversal ? UNIVERSAL : 0, name, this, owner);
             this.setUpperBound(null);
             this.lower = lower;
-            this.isReferenceProjection = isReferenceProjection;
             this.isUniversal = isUniversal;
+            if (isUniversal && !isReferenceProjection) {
+                referenceProjection();
+            }
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
@@ -1986,6 +1988,9 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             this.lower = lower;
             this.isReferenceProjection = isReferenceProjection;
             this.isUniversal = (tsym.flags_field & UNIVERSAL) != 0;
+            if (isUniversal && !isReferenceProjection) {
+                referenceProjection();
+            }
         }
 
         @Override
@@ -2014,7 +2019,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public Type getUpperBound() { return _bound; }
 
-        public void setUpperBound(Type bound) { this._bound = bound; }
+        public void setUpperBound(Type bound) {
+            this._bound = bound;
+            if (projection != null)
+                projection.setUpperBound(bound);
+        }
 
         int rank_field = -1;
 
@@ -2045,16 +2054,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitTypeVariable(this, p);
-        }
-
-        @Override
-        public Type withTypeVar(Type t) {
-            if (t.hasTag(TYPEVAR) &&
-                    ((TypeVar)t).isReferenceProjection() &&
-                    projection != null) {
-                return projection;
-            }
-            return this;
         }
 
         @Override
