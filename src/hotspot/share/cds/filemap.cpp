@@ -160,8 +160,14 @@ void CDSMustMatchFlags::init() {
 bool CDSMustMatchFlags::runtime_check() const {
 #define CHECK_CDS_MUST_MATCH_FLAG(n) \
   if (_v_##n != n) { \
-    print_info(); \
-    FileMapInfo::fail_continue("VM option %s is different between dumptime and runtime", #n); \
+    ResourceMark rm; \
+    stringStream ss; \
+    ss.print("VM option %s is different between dumptime (", #n);  \
+    do_print(&ss, _v_ ## n); \
+    ss.print(") and runtime ("); \
+    do_print(&ss, n); \
+    ss.print(")"); \
+    FileMapInfo::fail_continue("%s", ss.as_string()); \
     return false; \
   }
   CDS_MUST_MATCH_FLAGS_DO(CHECK_CDS_MUST_MATCH_FLAG);

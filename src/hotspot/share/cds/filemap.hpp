@@ -181,6 +181,7 @@ public:
 };
 
 #define CDS_MUST_MATCH_FLAGS_DO(f) \
+  f(EnableValhalla) \
   f(FlatArrayElementMaxOops) \
   f(FlatArrayElementMaxSize) \
   f(InlineFieldMaxFlatSize) \
