@@ -1943,12 +1943,32 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public Type lower;
 
+        /** if this type variable is universal then it could also have a link to a pure reference
+         *  type variable, it is important to know that a universal type variable and its
+         *  corresponding referenceTypeVar share the same tsym. So if it is needed to double check if
+         *  a type variable is universal or not, we need to check its type not the type of its tsym
+         */
+        public TypeVar projection = null;
+
+        protected boolean isReferenceProjection = false;
+
+        // redundant for now but helpful for debug reasons
+        private boolean isUniversal;
+
         public TypeVar(Name name, Symbol owner, Type lower) {
+            this(name, owner, lower, false);
+        }
+
+        public TypeVar(Name name, Symbol owner, Type lower, boolean isUniversal) {
             super(null, TypeMetadata.EMPTY);
             Assert.checkNonNull(lower);
-            tsym = new TypeVariableSymbol(0, name, this, owner);
+            tsym = new TypeVariableSymbol(isUniversal ? UNIVERSAL : 0, name, this, owner);
             this.setUpperBound(null);
             this.lower = lower;
+            this.isUniversal = isUniversal;
+            if (isUniversal && !isReferenceProjection) {
+                referenceProjection();
+            }
         }
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower) {
@@ -1957,15 +1977,25 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         public TypeVar(TypeSymbol tsym, Type bound, Type lower,
                        TypeMetadata metadata) {
+            this(tsym, bound, lower, metadata, false);
+        }
+
+        public TypeVar(TypeSymbol tsym, Type bound, Type lower,
+                       TypeMetadata metadata, boolean isReferenceProjection) {
             super(tsym, metadata);
             Assert.checkNonNull(lower);
             this.setUpperBound(bound);
             this.lower = lower;
+            this.isReferenceProjection = isReferenceProjection;
+            this.isUniversal = (tsym.flags_field & UNIVERSAL) != 0;
+            if (isUniversal && !isReferenceProjection) {
+                referenceProjection();
+            }
         }
 
         @Override
         public TypeVar cloneWithMetadata(TypeMetadata md) {
-            return new TypeVar(tsym, getUpperBound(), lower, md) {
+            return new TypeVar(tsym, getUpperBound(), lower, md, isReferenceProjection) {
                 @Override
                 public Type baseType() { return TypeVar.this.baseType(); }
 
@@ -1989,7 +2019,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override @DefinedBy(Api.LANGUAGE_MODEL)
         public Type getUpperBound() { return _bound; }
 
-        public void setUpperBound(Type bound) { this._bound = bound; }
+        public void setUpperBound(Type bound) {
+            this._bound = bound;
+            if (projection != null)
+                projection.setUpperBound(bound);
+        }
 
         int rank_field = -1;
 
@@ -2021,6 +2055,26 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public <R, P> R accept(TypeVisitor<R, P> v, P p) {
             return v.visitTypeVariable(this, p);
         }
+
+        @Override
+        public TypeVar referenceProjection() {
+            if (projection == null) {
+                projection = new TypeVar(tsym, _bound, lower, metadata, true);
+            }
+            return projection;
+        }
+
+        public boolean isUniversal() {
+            return ((tsym.flags_field & UNIVERSAL) != 0);
+        }
+
+        public boolean isReferenceProjection() {
+            return isReferenceProjection;
+        }
+
+        public boolean isValueProjection() {
+            return isUniversal() && !isReferenceProjection();
+        }
     }
 
     /** A captured type variable comes from wildcards which can have
@@ -2040,6 +2094,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             this.lower = Assert.checkNonNull(lower);
             this.setUpperBound(upper);
             this.wildcard = wildcard;
+            this.isReferenceProjection = wildcard.bound != null ? wildcard.bound.isReferenceProjection : false;
         }
 
         public CapturedType(TypeSymbol tsym,
@@ -2050,6 +2105,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                             TypeMetadata metadata) {
             super(tsym, bound, lower, metadata);
             this.wildcard = wildcard;
+            this.isReferenceProjection = wildcard.bound != null ? wildcard.bound.isReferenceProjection : false;
         }
 
         @Override

@@ -95,6 +95,7 @@ public class Types {
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
+    final boolean allowUniversalTVars;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -125,7 +126,9 @@ public class Types {
         diags = JCDiagnostic.Factory.instance(context);
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
+        Preview preview = Preview.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
     // </editor-fold>
 
@@ -608,6 +611,11 @@ public class Types {
 
         boolean tValue = t.isPrimitiveClass();
         boolean sValue = s.isPrimitiveClass();
+        if (allowUniversalTVars && (s.hasTag(TYPEVAR)) && ((TypeVar)s).isValueProjection() &&
+                (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isValueProjection())) {
+            warn.warn(LintCategory.UNIVERSAL);
+            return true;
+        }
         if (tValue != sValue) {
             return tValue ?
                     isSubtype(t.referenceProjection(), s) :
@@ -1014,6 +1022,32 @@ public class Types {
         return t != null && t.isPrimitiveClass();
     }
 
+    @FunctionalInterface
+    public interface SubtypeTestFlavor {
+        boolean subtypeTest(Type t, Type s, Warner warn);
+    }
+
+    public boolean isBoundedBy(Type t, Type s, SubtypeTestFlavor subtypeTestFlavor) {
+        return isBoundedBy(t, s, noWarnings, subtypeTestFlavor);
+    }
+
+    /**
+     * Is type t bounded by s?
+     */
+    public boolean isBoundedBy(Type t, Type s, Warner warn, SubtypeTestFlavor subtypeTestFlavor) {
+        boolean result = subtypeTestFlavor.subtypeTest(t, s, warn);
+        if (allowUniversalTVars && !result) {
+            if (isPrimitiveClass(t)) {
+                return isBoundedBy(t.referenceProjection(), s, warn, subtypeTestFlavor);
+            } else if (t.hasTag(TYPEVAR) && ((TypeVar)t).isUniversal()) {
+                return isBoundedBy(t.getUpperBound(), s, warn, subtypeTestFlavor);
+            } else if (s.hasTag(TYPEVAR) && ((TypeVar)s).isUniversal()) {
+                return isBoundedBy(t, s.getLowerBound(), warn, subtypeTestFlavor);
+            }
+        }
+        return result;
+    }
+
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -1050,6 +1084,9 @@ public class Types {
                     return true;
                 }
             } else if (isSubtype(t, s, capture)) {
+                return true;
+            } else if (allowUniversalTVars && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+                warn.warn(LintCategory.UNIVERSAL);
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
@@ -1102,6 +1139,9 @@ public class Types {
     public boolean isSubtype(Type t, Type s, boolean capture) {
         if (t.equalsIgnoreMetadata(s))
             return true;
+        if (t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+            return true;
+        }
         if (s.isPartial())
             return isSuperType(s, t);
 
@@ -1143,6 +1183,9 @@ public class Types {
                  case TYPEVAR:
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
+                     if (allowUniversalTVars && s.hasTag(TYPEVAR) && ((TypeVar)s).isValueProjection()) {
+                         warnStack.head.warn(LintCategory.UNIVERSAL);
+                     }
                      return
                          s.hasTag(BOT) || (s.hasTag(CLASS) && !isPrimitiveClass(s)) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
@@ -1641,8 +1684,10 @@ public class Types {
                     // ---------------------------------------------------------------------------
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
-                        || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), wildLowerBound(s))) &&
-                            (t.isSuperBound() || isSubtypeNoCapture(wildUpperBound(s), wildUpperBound(t))));
+                        || ((t.isExtendsBound() || isBoundedBy(wildLowerBound(t), wildLowerBound(s),
+                                (t1, s1, w) -> isSubtypeNoCapture(t1, s1))) &&
+                            (t.isSuperBound() || isBoundedBy(wildUpperBound(s), wildUpperBound(t),
+                                (t1, s1, w) -> isSubtypeNoCapture(t1, s1))));
                 }
             }
 
@@ -1653,6 +1698,16 @@ public class Types {
                 } else {
                     return false;
                 }
+            }
+
+            @Override
+            public Boolean visitTypeVar(TypeVar t, Type s) {
+                if (s.hasTag(TYPEVAR)) {
+                    TypeVar other = (TypeVar)s;
+                    if (allowUniversalTVars && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym)
+                        return true;
+                }
+                return isSameType(t, s);
             }
 
             @Override
@@ -2075,7 +2130,7 @@ public class Types {
         if (!s.hasTag(WILDCARD))
             s = cvarUpperBound(s);
 
-        return !isSubtype(t, relaxBound(s));
+        return !isBoundedBy(t, relaxBound(s), (t1, s1, w) -> isSubtype(t1, s1));
     }
 
     private Type relaxBound(Type t) {
@@ -3552,7 +3607,11 @@ public class Types {
             for (List<Type> from = this.from, to = this.to;
                  from.nonEmpty();
                  from = from.tail, to = to.tail) {
-                if (t.equalsIgnoreMetadata(from.head)) {
+                if (t.equalsIgnoreMetadata(from.head) ||
+                    allowUniversalTVars &&
+                    !t.isValueProjection() &&
+                    from.head.hasTag(TYPEVAR) &&
+                    t.equalsIgnoreMetadata(((TypeVar)from.head).referenceProjection())) {
                     return to.head.withTypeVar(t);
                 }
             }
@@ -3704,7 +3763,11 @@ public class Types {
         private static final TypeMapping<Void> newInstanceFun = new TypeMapping<Void>() {
             @Override
             public TypeVar visitTypeVar(TypeVar t, Void _unused) {
-                return new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata());
+                TypeVar newTV = new TypeVar(t.tsym, t.getUpperBound(), t.getLowerBound(), t.getMetadata(), t.isReferenceProjection);
+                if (t.projection != null) {
+                    newTV.referenceProjection();
+                }
+                return newTV;
             }
         };
     // </editor-fold>

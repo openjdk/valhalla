@@ -53,6 +53,7 @@ import static com.sun.tools.javac.code.Flags.BLOCK;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 import com.sun.tools.javac.code.Type.TypeVar;
 import static com.sun.tools.javac.code.TypeTag.BOOLEAN;
+import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.comp.Flow.ThisExposability.ALLOWED;
 import static com.sun.tools.javac.comp.Flow.ThisExposability.BANNED;
@@ -210,6 +211,7 @@ public class Flow {
     private Env<AttrContext> attrEnv;
     private       Lint lint;
     private final boolean allowEffectivelyFinalInInnerClasses;
+    private final boolean allowUniversalTVars;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -335,6 +337,8 @@ public class Flow {
         diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
         allowEffectivelyFinalInInnerClasses = Feature.EFFECTIVELY_FINAL_IN_INNER_CLASSES.allowedInSource(source);
+        Preview preview = Preview.instance(context);
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
     /**
@@ -1849,7 +1853,8 @@ public class Flow {
             return
                 sym.pos >= startPos &&
                 ((sym.owner.kind == MTH || sym.owner.kind == VAR ||
-                isFinalUninitializedField(sym)));
+                isFinalUninitializedField(sym)) ||
+                isUninitializedFieldOfUniversalTVar(sym));
         }
 
         boolean isFinalUninitializedField(VarSymbol sym) {
@@ -1860,6 +1865,13 @@ public class Flow {
 
         boolean isFinalUninitializedStaticField(VarSymbol sym) {
             return isFinalUninitializedField(sym) && sym.isStatic();
+        }
+
+        boolean isUninitializedFieldOfUniversalTVar(VarSymbol sym) {
+            return allowUniversalTVars && sym.owner.kind == TYP &&
+                    ((sym.flags() & (FINAL | HASINIT | PARAMETER)) == 0 &&
+                    classDef.sym.isEnclosedBy((ClassSymbol)sym.owner) &&
+                    sym.type.hasTag(TYPEVAR) && ((Type.TypeVar)sym.type).isValueProjection());
         }
 
         /** Initialize new trackable variable by setting its address field
@@ -1972,7 +1984,11 @@ public class Flow {
                 trackable(sym) &&
                 !inits.isMember(sym.adr) &&
                 (sym.flags_field & CLASH) == 0) {
-                    log.error(pos, errkey);
+                    if (isUninitializedFieldOfUniversalTVar(sym)) {
+                        log.warning(pos, Warnings.VarMightNotHaveBeenInitialized(sym));
+                    } else {
+                        log.error(pos, errkey);
+                    }
                 inits.incl(sym.adr);
             }
         }

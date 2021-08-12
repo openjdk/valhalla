@@ -412,6 +412,11 @@ public class Flags {
      */
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
+    /**
+     * Flag to indicate that the type variables is universal
+     */
+    public static final long UNIVERSAL = 1L<<61; // TypeVariableSymbols
+
     // Encodings for extended flags stored using attributes
     /**
      * Flag to indicate that the primitive class is reference default.

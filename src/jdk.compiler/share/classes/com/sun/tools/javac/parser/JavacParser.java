@@ -194,6 +194,7 @@ public class JavacParser implements Parser {
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
                 Feature.PRIMITIVE_CLASSES.allowedInSource(source);
+        this.allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -237,11 +238,15 @@ public class JavacParser implements Parser {
 
     /** Switch: are primitive classes allowed in this source level?
      */
-     boolean allowPrimitiveClasses;
+    boolean allowPrimitiveClasses;
 
     /** Switch: are sealed types allowed in this source level?
      */
     boolean allowSealedTypes;
+
+    /** Switch: are primitive classes allowed in this source level?
+     */
+    boolean allowUniversalTVars;
 
     /** The type of the method receiver, as specified by a first "this" parameter.
      */
@@ -4704,6 +4709,12 @@ public class JavacParser implements Parser {
     JCTypeParameter typeParameter() {
         int pos = token.pos;
         List<JCAnnotation> annos = typeAnnotationsOpt();
+        boolean universal = false;
+        if (allowUniversalTVars && token.kind == UNIVERSAL) {
+            checkSourceLevel(Feature.UNIVERSAL_TVARS);
+            universal = true;
+            nextToken();
+        }
         Name name = typeName();
         ListBuffer<JCExpression> bounds = new ListBuffer<>();
         if (token.kind == EXTENDS) {
@@ -4714,7 +4725,9 @@ public class JavacParser implements Parser {
                 bounds.append(parseType());
             }
         }
-        return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos));
+        return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos, universal));
+        // use the line below to make experiments setting all type variables as universal
+        //return toP(F.at(pos).TypeParameter(name, bounds.toList(), annos, true));
     }
 
     /** FormalParameters = "(" [ FormalParameterList ] ")"

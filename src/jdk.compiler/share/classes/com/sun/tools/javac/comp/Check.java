@@ -26,6 +26,7 @@
 package com.sun.tools.javac.comp;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -162,6 +163,7 @@ public class Check {
 
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
+        allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -200,6 +202,10 @@ public class Check {
     /** Are sealed classes allowed
      */
     private final boolean allowSealed;
+
+    /** Are universal tvars allowed
+     */
+    private final boolean allowUniversalTVars;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -264,6 +270,15 @@ public class Check {
     public void warnUnchecked(DiagnosticPosition pos, Warning warnKey) {
         if (!lint.isSuppressed(LintCategory.UNCHECKED))
             uncheckedHandler.report(pos, warnKey);
+    }
+
+    /** Warn about operation with universal type variables.
+     *  @param pos        Position to be used for error reporting.
+     *  @param warnKey    A warning key.
+     */
+    public void warnUniversalTVar(DiagnosticPosition pos, Warning warnKey) {
+        if (lint.isEnabled(LintCategory.UNIVERSAL))
+            log.warning(LintCategory.UNIVERSAL, pos, warnKey);
     }
 
     /** Warn about unsafe vararg method decl.
@@ -604,9 +619,11 @@ public class Check {
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         } else {
-            if (found.hasTag(CLASS)) {
-                if (inferenceContext != infer.emptyContext)
-                    checkParameterizationByPrimitiveClass(pos, found);
+            if (!allowUniversalTVars) {
+                if (found.hasTag(CLASS)) {
+                    if (inferenceContext != infer.emptyContext)
+                        checkParameterizationByPrimitiveClass(pos, found);
+                }
             }
         }
         if (req.hasTag(ERROR))
@@ -686,7 +703,7 @@ public class Check {
              return true;
          } else if (!a.hasTag(WILDCARD)) {
              a = types.cvarUpperBound(a);
-             return types.isSubtype(a, bound);
+             return types.isBoundedBy(a, bound, (t, s, w) -> types.isSubtype(t, s));
          } else if (a.isExtendsBound()) {
              return types.isCastable(bound, types.wildUpperBound(a), types.noWarnings);
          } else if (a.isSuperBound()) {
@@ -848,8 +865,8 @@ public class Check {
             return t;
         else
             return typeTagError(pos,
-                                diags.fragment(Fragments.TypeReqRef),
-                                t);
+                    diags.fragment(Fragments.TypeReqRef),
+                    t);
     }
 
     /** Check that type is an identity type, i.e. not a primitive type
@@ -929,7 +946,9 @@ public class Check {
     }
 
     void checkParameterizationByPrimitiveClass(DiagnosticPosition pos, Type t) {
-        parameterizationByPrimitiveClassChecker.visit(t, pos);
+        if (!allowUniversalTVars) {
+            parameterizationByPrimitiveClassChecker.visit(t, pos);
+        }
     }
 
     /** parameterizationByPrimitiveClassChecker: A type visitor that descends down the given type looking for instances of primitive classes
@@ -1126,7 +1145,7 @@ public class Check {
 
         //upward project the initializer type
         Type varType = types.upward(t, types.captures(t));
-        if (varType.hasTag(CLASS)) {
+        if (!allowUniversalTVars && varType.hasTag(CLASS)) {
             checkParameterizationByPrimitiveClass(pos, varType);
         }
         return varType;
@@ -4198,6 +4217,9 @@ public class Check {
                             !types.isReifiable(method.type.getParameterTypes().last())) {
                         Check.this.warnUnsafeVararg(pos(), Warnings.VarargsUnsafeUseVarargsParam(method.params.last()));
                     }
+                    break;
+                case UNIVERSAL:
+                    Check.this.warnUniversalTVar(pos(), Warnings.UniversalVariableCannotBeAssignedNull);
                     break;
                 default:
                     throw new AssertionError("Unexpected lint: " + lint);

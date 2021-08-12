@@ -1053,7 +1053,8 @@ public class Resolve {
         public boolean compatible(Type found, Type req, Warner warn) {
             InferenceContext inferenceContext = deferredAttrContext.inferenceContext;
             return strict ?
-                    types.isSubtypeUnchecked(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn) :
+                    types.isBoundedBy(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn,
+                                (t, s, w) -> types.isSubtypeUnchecked(t, s, w)) :
                     types.isConvertible(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn);
         }
 
