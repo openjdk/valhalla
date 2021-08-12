@@ -30,6 +30,7 @@ import jdk.internal.invoke.NativeEntryPoint;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
+import java.lang.reflect.Field;
 import java.nio.ByteOrder;
 import java.util.List;
 import java.util.Map;
@@ -139,4 +140,8 @@ public interface JavaLangInvokeAccess {
      * @param mh the method handle
      */
     void ensureCustomized(MethodHandle mh);
+
+    MethodHandle findStatic(Class<?> cls, String name, MethodType methodType) throws NoSuchMethodException, IllegalAccessException;
+
+    MethodHandle unreflectGetter(Field field) throws IllegalAccessException;
 }

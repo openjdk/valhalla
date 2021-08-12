@@ -316,7 +316,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
   if (EnableValhalla) {
     if (!ret && obj1 != NULL && obj2 != NULL && obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
       // The two references are different, they are not null and they are both inline types,
-      // a full substitutability test is required, calling ValueBootstrapMethods.isSubstitutable()
+      // a full substitutability test is required, calling PrimitiveObjectMethods.isSubstitutable()
       // (similarly to InterpreterRuntime::is_substitutable)
       JavaThread* THREAD = JavaThread::current();
       Handle ha(THREAD, obj1);

@@ -66,7 +66,9 @@ public class ObjectMethods {
     private static final MethodHandle STRING_FORMAT;
     private static final MethodHandle HASH_COMBINER;
 
-    private static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
+    /* package-private */
+    static final HashMap<Class<?>, MethodHandle> primitiveEquals = new HashMap<>();
+
     private static final HashMap<Class<?>, MethodHandle> primitiveHashers = new HashMap<>();
     private static final HashMap<Class<?>, MethodHandle> primitiveToString = new HashMap<>();
 

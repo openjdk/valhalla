@@ -715,9 +715,9 @@
   template(toFileURL_signature,                             "(Ljava/lang/String;)Ljava/net/URL;")                 \
   template(url_void_signature,                              "(Ljava/net/URL;)V")                                  \
                                                                                                                   \
-  template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
-  template(isSubstitutable_name,                   "isSubstitutable")                                             \
-  template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
+  template(java_lang_runtime_PrimitiveObjectMethods,        "java/lang/runtime/PrimitiveObjectMethods")           \
+  template(isSubstitutable_name,                            "isSubstitutable")                                    \
+  template(primitiveObjectHashCode_name,                    "primitiveObjectHashCode")                            \
                                                                                                                   \
   /*end*/
 

@@ -124,7 +124,7 @@
   do_klass(Context_klass,                               java_lang_invoke_MethodHandleNatives_CallSiteContext  ) \
   do_klass(ConstantCallSite_klass,                      java_lang_invoke_ConstantCallSite                     ) \
   do_klass(MutableCallSite_klass,                       java_lang_invoke_MutableCallSite                      ) \
-  do_klass(ValueBootstrapMethods_klass,                 java_lang_invoke_ValueBootstrapMethods                ) \
+  do_klass(PrimitiveObjectMethods_klass,                java_lang_runtime_PrimitiveObjectMethods              ) \
   do_klass(VolatileCallSite_klass,                      java_lang_invoke_VolatileCallSite                     ) \
   /* Note: MethodHandle must be first, and VolatileCallSite last in group */                                    \
                                                                                                                 \
