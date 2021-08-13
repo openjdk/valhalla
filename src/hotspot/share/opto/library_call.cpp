@@ -2803,6 +2803,19 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   if (is_reference_type(type)) {
     decorators |= IN_HEAP | ON_UNKNOWN_OOP_REF;
 
+    if (oldval != NULL && oldval->is_InlineType()) {
+      // Re-execute the unsafe access if allocation triggers deoptimization.
+      PreserveReexecuteState preexecs(this);
+      jvms()->set_should_reexecute(true);
+      oldval = oldval->as_InlineType()->buffer(this)->get_oop();
+    }
+    if (newval != NULL && newval->is_InlineType()) {
+      // Re-execute the unsafe access if allocation triggers deoptimization.
+      PreserveReexecuteState preexecs(this);
+      jvms()->set_should_reexecute(true);
+      newval = newval->as_InlineType()->buffer(this)->get_oop();
+    }
+
     // Transformation of a value which could be NULL pointer (CastPP #NULL)
     // could be delayed during Parse (for example, in adjust_map_after_if()).
     // Execute transformation here to avoid barrier generation in such case.

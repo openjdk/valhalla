@@ -143,10 +143,11 @@ void HeapShared::fixup_mapped_regions() {
 }
 
 unsigned HeapShared::oop_hash(oop const& p) {
-  assert(!EnableValhalla || !p->mark().is_inline_type(),
-         "this object should never have been locked");
-  unsigned hash = (unsigned)p->identity_hash();
-  return hash;
+  // We are at a safepoint, so the object won't move. It's OK to use its
+  // address as the hashcode.
+  // We can't use p->identity_hash() as it's not available for primitive oops.
+  assert_at_safepoint();
+  return (unsigned)(p2i(p) >> LogBytesPerWord);
 }
 
 static void reset_states(oop obj, TRAPS) {
@@ -280,12 +281,14 @@ oop HeapShared::archive_object(oop obj) {
     // in the shared heap. This also has the side effect of pre-initializing the
     // identity_hash for all shared objects, so they are less likely to be written
     // into during run time, increasing the potential of memory sharing.
-    int hash_original = obj->identity_hash();
-    archived_oop->set_mark(archived_oop->klass()->prototype_header().copy_set_hash(hash_original));
-    assert(archived_oop->mark().is_unlocked(), "sanity");
+    if (!(EnableValhalla && obj->mark().is_inline_type())) {
+      int hash_original = obj->identity_hash();
+      archived_oop->set_mark(archived_oop->klass()->prototype_header().copy_set_hash(hash_original));
+      assert(archived_oop->mark().is_unlocked(), "sanity");
 
-    DEBUG_ONLY(int hash_archived = archived_oop->identity_hash());
-    assert(hash_original == hash_archived, "Different hash codes: original %x, archived %x", hash_original, hash_archived);
+      DEBUG_ONLY(int hash_archived = archived_oop->identity_hash());
+      assert(hash_original == hash_archived, "Different hash codes: original %x, archived %x", hash_original, hash_archived);
+    }
 
     ArchivedObjectCache* cache = archived_object_cache();
     cache->put(obj, archived_oop);
