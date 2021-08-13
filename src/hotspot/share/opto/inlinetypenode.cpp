@@ -642,6 +642,7 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
 }
 
 InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
+  assert(!oop->is_InlineType(), "already inline type");
   PhaseGVN& gvn = kit->gvn();
   if (vk->is_empty()) {
     return make_default(gvn, vk);
@@ -654,7 +655,9 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
   if (oop->uncast()->isa_InlineTypePtr()) {
     // Can happen with late inlining
     InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
-    vt->set_oop(vtptr->get_oop());
+  // TODO don't we risk loosing null-free information of the oop????
+    //assert(gvn.type(oop)->maybe_null() == gvn.type(vtptr->get_oop())->maybe_null(), "inconsistent null free info");
+    //vt->set_oop(vtptr->get_oop());
     if (null_free) {
       vt->set_req(2, default_oop(gvn, vk));
     } else {
@@ -956,7 +959,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     // Save base oop if fields are loaded from memory and the inline
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
-    if (base != NULL) {
+    if (base != NULL && !phase->type(base)->maybe_null()) {
       set_oop(base);
       assert(is_allocated(phase), "should now be allocated");
       return this;

@@ -104,6 +104,13 @@ void Parse::array_load(BasicType bt) {
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
                                 IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+      if (elemptr->is_inlinetypeptr()) {
+        Node* ptr = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
+        ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+        ptr->set_req(1, ld);
+        ld = _gvn.transform(ptr);
+      }
+
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
@@ -215,7 +222,13 @@ void Parse::array_load(BasicType bt) {
     if (elemptr->inline_klass()->is_scalarizable()) {
       ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass());
     }
+  } else if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
+    Node* ptr = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
+    ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+    ptr->set_req(1, ld);
+    ld = _gvn.transform(ptr);
   }
+
   if (!ld->is_InlineType()) {
     ld = record_profile_for_speculation_at_array_load(ld);
   }
@@ -276,10 +289,14 @@ void Parse::array_store(BasicType bt) {
       // Store to flattened inline type array
       if (!cast_val->is_InlineType()) {
         inc_sp(3);
+        // TODO shouldn't this be guaranteed by the array_store_check?
         cast_val = null_check(cast_val);
         if (stopped()) return;
         dec_sp(3);
-        cast_val = InlineTypeNode::make_from_oop(this, cast_val, ary_t->elem()->inline_klass());
+        if (!cast_val->is_InlineType()) {
+          // TODO
+          cast_val = InlineTypeNode::make_from_oop(this, cast_val, ary_t->elem()->inline_klass());
+        }
       }
       // Re-execute flattened array store if buffering triggers deoptimization
       PreserveReexecuteState preexecs(this);
@@ -291,6 +308,7 @@ void Parse::array_store(BasicType bt) {
       // Store to non-flattened inline type array (elements can never be null)
       if (!cast_val->is_InlineType() && tval->maybe_null()) {
         inc_sp(3);
+        // TODO shouldn't this be guaranteed by the array_store_check?
         cast_val = null_check(cast_val);
         if (stopped()) return;
         dec_sp(3);

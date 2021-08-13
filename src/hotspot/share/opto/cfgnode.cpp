@@ -1928,20 +1928,45 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // TODO what if one input is the Phi itself? or if there are more complicated phi structures involving loops?
   // If all inputs are inline types of the same type, push the inline type node down
   // through the phi because inline type nodes should be merged through their input values.
-  if (req() > 2 && in(1) != NULL && in(1)->is_InlineTypeBase() && (can_reshape || in(1)->is_InlineType())) {
+  // TODO input could be narrow! But do we really need to handle that?
+  //if (req() > 2 && in(1) != NULL && (in(1)->is_InlineTypeBase() || (in(1)->is_EncodeP() && in(1)->in(1)->is_InlineTypeBase()))) {
+  if (req() > 2 && in(1) != NULL && in(1)->is_InlineTypeBase()) {
+    if (in(1)->is_EncodeP() && in(1)->in(1)->is_InlineTypeBase()) {
+     // dump(10);
+      //assert(false, "FAIL");
+    }
     int opcode = in(1)->Opcode();
     uint i = 2;
     // Check if inputs are values of the same type
-    for (; i < req() && in(i) && in(i)->is_InlineTypeBase() && in(i)->cmp(*in(1)); i++) {
+    // TODO refactor
+    //ciInlineKlass* vk = phase->type(in(1))->make_ptr()->inline_klass();
+    ciInlineKlass* vk = phase->type(in(1))->inline_klass();
+    // TODO
+    //for (; i < req() && in(i) && (in(i)->is_InlineTypeBase() || (in(i)->is_EncodeP() && in(i)->in(1)->is_InlineTypeBase())); i++) {
+    for (; i < req() && in(i) && in(i)->is_InlineTypeBase(); i++) {
       assert(in(i)->Opcode() == opcode, "mixing pointers and values?");
+      //if (phase->type(in(i))->make_ptr()->inline_klass() != vk) {
+      if (phase->type(in(i))->inline_klass() != vk) {
+        break;
+      }
     }
     if (i == req()) {
-      InlineTypeBaseNode* vt = in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
-      for (i = 2; i < req(); ++i) {
-        bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-        vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, transform);
+      if (in(1)->is_InlineTypeBase()) {
+        InlineTypeBaseNode* vt = in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
+        for (i = 2; i < req(); ++i) {
+          bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
+          vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, transform);
+        }
+        return vt;
+      } else {
+        assert(in(1)->is_EncodeP(), "sanity");
+        InlineTypeBaseNode* vt = in(1)->in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
+        for (i = 2; i < req(); ++i) {
+          bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
+          vt->merge_with(phase, in(i)->in(1)->as_InlineTypeBase(), i, transform);
+        }
+        return new EncodePNode(vt, this->bottom_type());
       }
-      return vt;
     }
   }
 

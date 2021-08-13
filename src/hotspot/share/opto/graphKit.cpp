@@ -1255,16 +1255,23 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (value->is_InlineTypePtr() && null_control == NULL) {
     // TODO use null check_common here?
     null_check_common(value->in(2), type, assert_null, null_control, speculative);
-/*
+
     const Type *t = _gvn.type(value);
     const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
     Node *cast = new CastPPNode(value,t_not_null);
     cast->init_req(0, control());
     cast = _gvn.transform( cast );
-*/
-    Node* vt = InlineTypeNode::make_from_oop(this, value, _gvn.type(value)->inline_klass());
+
+    InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass());
+    if (!vt->is_allocated(&_gvn)) {
+      cast->dump(0);
+      vt->dump(10);
+    }
+    assert(vt->is_allocated(&_gvn), "should be allocated");
 
     // TODO is_Parse() is needed because we should not replace during incremental inlining
+    // TODO why is that even working?
+    // TODO but we could replace by PTR, right?
     if (is_Parse() && (null_control == NULL || (*null_control) == top())) {
       replace_in_map(value, vt);
     }
@@ -1935,12 +1942,24 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   Node* ret;
   if (call->method() == NULL || call->method()->return_type()->basic_type() == T_VOID) {
     ret = top();
-  } else if (call->tf()->returns_inline_type_as_fields()) {
-    // Return of multiple values (inline type fields): we create a
-    // InlineType node, each field is a projection from the call.
-    ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-    uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
+  } else if (call->method()->return_type()->is_inlinetype()) {
+    const Type* ret_type = call->tf()->range_sig()->field_at(TypeFunc::Parms);
+    if (call->tf()->returns_inline_type_as_fields()) {
+      // Return of multiple values (inline type fields): we create a
+      // InlineType node, each field is a projection from the call.
+      ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
+      uint base_input = TypeFunc::Parms;
+      ret = InlineTypeNode::make_from_multi(this, call, ret_type->inline_klass(), base_input, false);
+    } else if (ret_type->maybe_null()) {
+      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
+      Node* ptr = InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass(), false);
+      ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+      ptr->set_req(1, ret);
+      ret = _gvn.transform(ptr)->as_InlineTypeBase();
+    } else {
+      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
+      ret = _gvn.transform(InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass()));
+    }
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
@@ -3529,9 +3548,10 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
             obj = null_check(obj);
           }
           if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(obj)->maybe_null()) {
-            // TODO needed?
+            // TODO needed? I think so but javac does not emit such casts anymore it seems... try to write bytecode test
             assert(!obj->is_InlineType(), "needed");
             obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
+            // TODO replace in map!!
           }
         }
         return obj;
@@ -3721,8 +3741,27 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 
   if (!stopped() && !from_inline) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(res)->maybe_null()) {
-      res = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
+    if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable()) {
+      Node* tmp;
+      if (gvn().type(res)->maybe_null()) {
+        tmp = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), false);
+        tmp = new InlineTypePtrNode(tmp->as_InlineType(), false);
+        tmp->set_req(1, res);
+        tmp = _gvn.transform(tmp);
+      } else {
+        tmp = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
+      }
+      //assert(map()->find_edge(obj) == -1, "fail");
+      //assert(map()->find_edge(not_null_obj) != -1 || map()->find_edge(res) != -1, "not found in map");
+        // TODO check if we need this at other places as well!
+      // TODO is_Parse() is needed because we should not replace during incremental inlining
+      // TODO but we could replace by ptr, right?
+      if (is_Parse()) {
+        replace_in_map(obj, tmp);
+        replace_in_map(not_null_obj, tmp);
+        replace_in_map(res, tmp);
+      }
+      res = tmp;
     }
   }
   return res;

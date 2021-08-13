@@ -1391,7 +1391,7 @@ public class TestLWorld {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asValueType()),
         CODE -> {
             CODE.
             aload_1().
@@ -3959,5 +3959,37 @@ public class TestLWorld {
         Asserts.assertEquals(test144(0), MyValue1.default);
         Asserts.assertEquals(test144(1), testValue1);
         Asserts.assertEquals(test144(2), MyValue1.default);
+    }
+
+    // Tests writing an array element with a (statically known) incompatible type
+    private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.loadCode(MethodHandles.lookup(),
+        "setArrayElementIncompatibleRef",
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asPrimaryType()),
+        CODE -> {
+            CODE.
+            aload_1().
+            iload_2().
+            aload_3().
+            aastore().
+            return_();
+        });
+
+    // Same as test44 but with .ref store to array
+    @Test
+    public void test145(MyValue1[] va, int index, MyValue2.ref v) throws Throwable {
+        setArrayElementIncompatibleRef.invoke(this, va, index, v);
+    }
+
+    @Run(test = "test145")
+    @Warmup(10000)
+    public void test145_verifier() throws Throwable {
+        int index = Math.abs(rI) % 3;
+        try {
+            test145(testValue1Array, index, testValue2);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
 }

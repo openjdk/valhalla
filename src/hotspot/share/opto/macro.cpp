@@ -646,7 +646,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         int offset = addp_type->offset();
 
         if (offset == Type::OffsetTop || offset == Type::OffsetBot) {
-          NOT_PRODUCT(fail_eliminate = "Undefined field referrence";)
+          NOT_PRODUCT(fail_eliminate = "Undefined field reference";)
           can_eliminate = false;
           break;
         }
@@ -736,7 +736,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
 #ifdef ASSERT
       if (disq_node != NULL) {
           tty->print("  >>>> ");
-          disq_node->dump();
+          disq_node->dump(-30);
       }
 #endif /*ASSERT*/
     }
@@ -1400,6 +1400,16 @@ void PhaseMacroExpand::expand_allocate_common(
       return;
     }
   }
+
+  // TODO this triggers in Valhalal, check in mainline
+  // TODO check safepoint usages
+  /*
+  GrowableArray <SafePointNode *> safepoints;
+  if (can_eliminate_allocation(alloc, safepoints)) {
+    alloc->dump(-10);
+    assert(false, "what?");
+  }
+  */
 
   enum { too_big_or_final_path = 1, need_gc_path = 2 };
   Node *slow_region = NULL;
@@ -2861,6 +2871,8 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
 bool PhaseMacroExpand::expand_macro_nodes() {
   // Last attempt to eliminate macro nodes.
   eliminate_macro_nodes();
+
+  C->print_method(PHASE_FAILURE, 2);
   if (C->failing())  return true;
 
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.

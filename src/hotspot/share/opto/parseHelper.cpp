@@ -258,13 +258,15 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
+  bool null_free = false;
   if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
+    null_free = elemtype->isa_inlinetype() || !elemtype->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 
   // Check (the hard way) and throw if not a subklass.
-  return gen_checkcast(obj, a_e_klass);
+  return gen_checkcast(obj, a_e_klass, NULL, null_free);
 }
 
 

@@ -4336,9 +4336,9 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
         ptr = NotNull;
       }
       if (tv->inline_klass()->is_subtype_of(_klass)) {
-        return TypeInstPtr::make(ptr, _klass);
+        return make(ptr, _klass, false, NULL, Offset(0), _flatten_array, InstanceBot, _speculative);
       } else {
-        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
+        return make(ptr, ciEnv::current()->Object_klass());
       }
     }
   }

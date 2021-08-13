@@ -2805,6 +2805,7 @@ public class TestNullableArrays {
     }
 
     // Test that allocation is not replaced by non-dominating allocation
+    @ForceInline
     public long test107_helper(MyValue1.ref[] va, MyValue1 vt) {
         try {
             va[0] = vt;
@@ -2886,4 +2887,456 @@ public class TestNullableArrays {
     public void test111_verifier() {
         test111();
     }
+
+    MyValue1.ref[] refArray = new MyValue1.ref[2];
+    MyValue1[] flatArray = new MyValue1[1];
+
+    // Test scalarization of .ref
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, STORE, TRAP})
+    public int test112(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = refArray[0];
+        }
+        return val.x;
+    }
+
+    @Run(test = "test112")
+    public void test112_verifier(RunInfo info) {
+        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test112(true), refArray[0].x);
+        Asserts.assertEquals(test112(false), testValue1.x);
+        if (!info.isWarmUp()) {
+            refArray[0] = null;
+            try {
+                Asserts.assertEquals(test112(false), testValue1.x);
+                test112(true);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Same as test112 but with call to hash()
+    @Test
+    @IR(failOn = {ALLOC, STORE, TRAP})
+    public long test113(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = refArray[0];
+        }
+        return val.hash();
+    }
+
+    @Run(test = "test113")
+    public void test113_verifier(RunInfo info) {
+        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test113(true), refArray[0].hash());
+        Asserts.assertEquals(test113(false), testValue1.hash());
+        if (!info.isWarmUp()) {
+            refArray[0] = null;
+            try {
+                Asserts.assertEquals(test113(false), testValue1.hash());
+                test113(true);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test114(boolean b) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b) {
+            val = refArray[0];
+        }
+        return val;
+    }
+
+    @Run(test = "test114")
+    public void test114_verifier(RunInfo info) {
+        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test114(true).hash(), refArray[0].hash());
+        Asserts.assertEquals(test114(false).hash(), testValue1.hash());
+        if (!info.isWarmUp()) {
+            refArray[0] = null;
+            Asserts.assertEquals(test114(true), null);
+        }
+    }
+
+    // Test scalarization when .ref is referenced in safepoint debug info
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test115(boolean b1, boolean b2, Method m) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = refArray[0];
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return val.x;
+    }
+
+    @Run(test = "test115")
+    public void test115_verifier(RunInfo info) {
+        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test115(true, false, info.getTest()), refArray[0].x);
+        Asserts.assertEquals(test115(false, false, info.getTest()), testValue1.x);
+        if (!info.isWarmUp()) {
+            refArray[0] = null;
+            try {
+                Asserts.assertEquals(test115(false, false, info.getTest()), testValue1.x);
+                test115(true, false, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test115(true, true, info.getTest()), refArray[0].x);
+            Asserts.assertEquals(test115(false, true, info.getTest()), testValue1.x);
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test116(boolean b1, boolean b2, Method m) {
+        MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = refArray[0];
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return val;
+    }
+
+    @Run(test = "test116")
+    public void test116_verifier(RunInfo info) {
+        refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test116(true, false, info.getTest()).hash(), refArray[0].hash());
+        Asserts.assertEquals(test116(false, false, info.getTest()).hash(), testValue1.hash());
+        if (!info.isWarmUp()) {
+            refArray[0] = null;
+            Asserts.assertEquals(test116(true, false, info.getTest()), null);
+            refArray[0] = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test116(true, true, info.getTest()).hash(), refArray[0].hash());
+            Asserts.assertEquals(test116(false, true, info.getTest()).hash(), testValue1.hash());
+        }
+    }
+
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    public int test117(boolean b) {
+        MyValue1.ref val = null;
+        if (b) {
+            val = refArray[0];
+        }
+        return val.x;
+    }
+
+    @Run(test = "test117")
+    public void test117_verifier() {
+        refArray[0] = testValue1;
+        Asserts.assertEquals(test117(true), testValue1.x);
+        try {
+            test117(false);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test118(boolean b) {
+        MyValue1.ref val = null;
+        if (b) {
+            val = refArray[0];
+        }
+        return val;
+    }
+
+    @Run(test = "test118")
+    public void test118_verifier() {
+        refArray[0] = testValue1;
+        Asserts.assertEquals(test118(true).hash(), testValue1.hash());
+        Asserts.assertEquals(test118(false), null);
+    }
+
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    public int test119(boolean b) {
+        MyValue1.ref val = refArray[0];
+        if (b) {
+            val = null;
+        }
+        return val.x;
+    }
+
+    @Run(test = "test119")
+    public void test119_verifier() {
+        refArray[0] = testValue1;
+        Asserts.assertEquals(test119(false), testValue1.x);
+        try {
+            test119(true);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    @Test()
+    public MyValue1.ref test120(boolean b) {
+        MyValue1.ref val = refArray[0];
+        if (b) {
+            val = null;
+        }
+        return val;
+    }
+
+    @Run(test = "test120")
+    public void test120_verifier() {
+        refArray[0] = testValue1;
+        Asserts.assertEquals(test120(false).hash(), testValue1.hash());
+        Asserts.assertEquals(test120(true), null);
+    }
+
+    @ForceInline
+    public Object test121_helper() {
+        return flatArray[0];
+    }
+
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC_G, ALLOC, STORE})
+    public void test121(boolean b) {
+        Object o = null;
+        if (b) {
+            o = refArray[0];
+        } else {
+            o = test121_helper();
+        }
+        flatArray[0] = (MyValue1)o;
+    }
+
+    @Run(test = "test121")
+    public void test121_verifier() {
+        refArray[0] = testValue1;
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        flatArray[0] = vt;
+        test121(false);
+        Asserts.assertEquals(flatArray[0].hash(), vt.hash());
+        test121(true);
+        Asserts.assertEquals(flatArray[0].hash(), testValue1.hash());
+    }
+
+    @ForceInline
+    public Object test122_helper() {
+        return refArray[0];
+    }
+
+    @Test
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC_G, ALLOC, STORE})
+    public void test122(boolean b) {
+        Object o = null;
+        if (b) {
+            o = flatArray[0];
+        } else {
+            o = test122_helper();
+        }
+        flatArray[0] = (MyValue1)o;
+    }
+
+    @Run(test = "test122")
+    public void test122_verifier() {
+        refArray[0] = testValue1;
+        test122(false);
+        Asserts.assertEquals(flatArray[0].hash(), testValue1.hash());
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        flatArray[0] = vt;
+        test122(true);
+        Asserts.assertEquals(flatArray[0].hash(), vt.hash());
+    }
+
+    @ForceInline
+    public Object test123_helper() {
+        return refArray[0];
+    }
+
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    public long test123(boolean b, MyValue1.ref val, Method m, boolean deopt) {
+        MyValue1.ref[] array = new MyValue1.ref[1];
+        array[0] = val;
+        Object res = null;
+        if (b) {
+            res = array[0];
+        } else {
+            res = test123_helper();
+        }
+        if (deopt) {
+            // uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)res).hash();
+    }
+
+    @Run(test = "test123")
+    public void test123_verifier(RunInfo info) {
+        refArray[0] = MyValue1.default;
+        Asserts.assertEquals(test123(true, testValue1, info.getTest(), false), testValue1.hash());
+        Asserts.assertEquals(test123(false, testValue1, info.getTest(), false), MyValue1.default.hash());
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test123(true, testValue1, info.getTest(), true), testValue1.hash());
+        }
+    }
+
+    @ForceInline
+    public Object test124_helper(MyValue2.ref val) {
+        MyValue2.ref[] array = new MyValue2.ref[1];
+        array[0] = val;
+        return array[0];
+    }
+
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    public long test124(boolean b, MyValue2.ref val, Method m, boolean deopt) {
+        Object res = null;
+        if (b) {
+            res = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        } else {
+            res = test124_helper(val);
+        }
+        if (deopt) {
+            // uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue2)res).hash();
+    }
+
+    @Run(test = "test124")
+    public void test124_verifier(RunInfo info) {
+        refArray[0] = MyValue1.default;
+        MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        Asserts.assertEquals(test124(true, val1, info.getTest(), false), val2.hash());
+        Asserts.assertEquals(test124(false, val1, info.getTest(), false), val1.hash());
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test124(true, val1, info.getTest(), true), val2.hash());
+        }
+    }
+
+// TODO below tests do not work yet
+/*
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE})
+    public long test125() {
+        MyValue2.ref[] array = new MyValue2.ref[1];
+        for (int i = 0; i < 4; ++i) {
+            if ((i % 2) == 0) {
+                array[0] = MyValue2.createWithFieldsInline(rI, rD);
+            }
+        }
+        return array[0].hash();
+    }
+
+    @Run(test = "test125")
+    public void test125_verifier(RunInfo info) {
+        Asserts.assertEquals(test125(), MyValue2.createWithFieldsInline(rI, rD).hash());
+    }
+
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE})
+    public long test126(boolean b, Method m, boolean deopt) {
+        Object res = null;
+        if (b) {
+            res = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        } else {
+            MyValue2.ref[] array = new MyValue2.ref[1];
+            for (int i = 0; i < 4; ++i) {
+                if ((i % 2) == 0) {
+                    array[0] = MyValue2.createWithFieldsInline(rI, rD);
+                }
+            }
+            res = array[0];
+        }
+        if (deopt) {
+            // uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue2)res).hash();
+    }
+
+    @Run(test = "test126")
+    public void test126_verifier(RunInfo info) {
+        refArray[0] = MyValue1.default;
+        MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        Asserts.assertEquals(test126(true, info.getTest(), false), val2.hash());
+        Asserts.assertEquals(test126(false, info.getTest(), false), val1.hash());
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test126(true, info.getTest(), true), val2.hash());
+        }
+    }
+
+*/
+    @ForceInline
+    public void test127_helper(Object[] array, MyValue2.ref val) {
+        array[0] = val;
+    }
+
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    public long test127(boolean b, MyValue2.ref val, Method m, boolean deopt) {
+        Object[] res = new MyValue2.ref[1];
+        if (b) {
+            res[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        } else {
+            test127_helper(res, val);
+        }
+        val = ((MyValue2)res[0]);
+        if (deopt) {
+            // uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return val.hash();
+    }
+
+    @Run(test = "test127")
+    public void test127_verifier(RunInfo info) {
+        refArray[0] = MyValue1.default;
+        MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
+        Asserts.assertEquals(test127(true, val1, info.getTest(), false), val2.hash());
+        Asserts.assertEquals(test127(false, val1, info.getTest(), false), val1.hash());
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test127(true, val1, info.getTest(), true), val2.hash());
+        }
+    }
+
+// TODO below tests do not work yet
+/*
+    @Test
+    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE})
+    public long test128(MyValue2 val) {
+        MyValue2.ref[] array = new MyValue2.ref[1];
+
+        for (int i = 0; i < 4; ++i) {
+            if ((i % 2) == 0) {
+                array[0] = val;
+            }
+        }
+        return array[0].hash();
+    }
+
+    @Run(test = "test128")
+    public void test128_verifier(RunInfo info) {
+        Asserts.assertEquals(test128(MyValue2.createWithFieldsInline(rI, rD)), MyValue2.createWithFieldsInline(rI, rD).hash());
+    }
+*/
 }

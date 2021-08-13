@@ -606,10 +606,18 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   for (uint i = 0; i < (uint)arg_size_sig; i++) {
     Node* parm = map()->in(i);
     const Type* t = _gvn.type(parm);
-    if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable() && !t->maybe_null()) {
+    if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
-      map()->replace_edge(parm, vt);
+      if (t->maybe_null()) {
+        Node* ptr = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), false);
+        ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
+        ptr->set_req(1, parm);
+        ptr = _gvn.transform(ptr)->as_InlineTypeBase();
+        map()->replace_edge(parm, ptr);
+      } else {
+        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
+        map()->replace_edge(parm, vt);
+      }
     } else if (UseTypeSpeculation && (i == (uint)(arg_size_sig - 1)) && !is_osr_parse() &&
                method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flattened)

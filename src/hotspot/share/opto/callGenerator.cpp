@@ -840,9 +840,9 @@ void CallGenerator::do_late_inline_helper() {
       } else {
         // Only possible with is_mh_late_inline() when the callee does not "know" that the caller expects an oop
         assert(is_mh_late_inline(), "sanity");
-        assert(buffer_oop != NULL, "should have allocated a buffer");
         // Result might still be allocated (for example, if it has been stored to a non-flattened field)
         if (!vt->is_allocated(&kit.gvn())) {
+          assert(buffer_oop != NULL, "should have allocated a buffer");
           vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.

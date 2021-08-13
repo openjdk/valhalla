@@ -70,9 +70,9 @@ void Parse::do_field_access(bool is_get, bool is_field) {
   }
   if (is_field && field_holder->is_inlinetype() && peek()->is_InlineTypePtr()) {
     InlineTypePtrNode* vt = peek()->as_InlineTypePtr();
-    vt->dump(5);
-    assert(false, "Unexpected load from inline type ptr");
-    null_check(vt->in(2));
+    //vt->dump(5);
+    //assert(false, "Unexpected load from inline type ptr");
+    null_check(vt);
     pop();
     Node* value = vt->field_value_by_offset(field->offset());
     push_node(field->layout_type(), value);

@@ -983,10 +983,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-
-// TODO
-
-    MyValue1.ref field;
+    MyValue1.ref refField;
     MyValue1 flatField;
 
     // Test scalarization of .ref
@@ -995,18 +992,18 @@ public class TestNullableInlineTypes {
     public int test41(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
-            val = field;
+            val = refField;
         }
         return val.x;
     }
 
     @Run(test = "test41")
     public void test41_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test41(true), field.x);
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test41(true), refField.x);
         Asserts.assertEquals(test41(false), testValue1.x);
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             try {
                 Asserts.assertEquals(test41(false), testValue1.x);
                 test41(true);
@@ -1023,18 +1020,18 @@ public class TestNullableInlineTypes {
     public long test42(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
-            val = field;
+            val = refField;
         }
         return val.hash();
     }
 
     @Run(test = "test42")
     public void test42_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test42(true), field.hash());
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test42(true), refField.hash());
         Asserts.assertEquals(test42(false), testValue1.hash());
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             try {
                 Asserts.assertEquals(test42(false), testValue1.hash());
                 test42(true);
@@ -1049,18 +1046,18 @@ public class TestNullableInlineTypes {
     public MyValue1.ref test43(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
-            val = field;
+            val = refField;
         }
         return val;
     }
 
     @Run(test = "test43")
     public void test43_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test43(true).hash(), field.hash());
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test43(true).hash(), refField.hash());
         Asserts.assertEquals(test43(false).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             Asserts.assertEquals(test43(true), null);
         }
     }
@@ -1071,7 +1068,7 @@ public class TestNullableInlineTypes {
     public int test44(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
-            val = field;
+            val = refField;
         }
         if (b2) {
             // Uncommon trap
@@ -1082,11 +1079,11 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test44")
     public void test44_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test44(true, false, info.getTest()), field.x);
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test44(true, false, info.getTest()), refField.x);
         Asserts.assertEquals(test44(false, false, info.getTest()), testValue1.x);
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             try {
                 Asserts.assertEquals(test44(false, false, info.getTest()), testValue1.x);
                 test44(true, false, info.getTest());
@@ -1094,8 +1091,8 @@ public class TestNullableInlineTypes {
             } catch (NullPointerException e) {
                 // Expected
             }
-            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test44(true, true, info.getTest()), field.x);
+            refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test44(true, true, info.getTest()), refField.x);
             Asserts.assertEquals(test44(false, true, info.getTest()), testValue1.x);
         }
     }
@@ -1104,7 +1101,7 @@ public class TestNullableInlineTypes {
     public MyValue1.ref test45(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
-            val = field;
+            val = refField;
         }
         if (b2) {
             // Uncommon trap
@@ -1115,14 +1112,14 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test45")
     public void test45_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test45(true, false, info.getTest()).hash(), field.hash());
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test45(true, false, info.getTest()).hash(), refField.hash());
         Asserts.assertEquals(test45(false, false, info.getTest()).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             Asserts.assertEquals(test45(true, false, info.getTest()), null);
-            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test45(true, true, info.getTest()).hash(), field.hash());
+            refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test45(true, true, info.getTest()).hash(), refField.hash());
             Asserts.assertEquals(test45(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
@@ -1199,6 +1196,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test49(true), null);
     }
 
+    @ForceInline
     public Object test50_helper() {
         return flatField;
     }
@@ -1314,25 +1312,24 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test54(true, true), 0L);
     }
 
-// TODO Same as above but with Wrapper
     @Test
     @IR(failOn = {ALLOC_G, ALLOC, STORE, TRAP})
     public int test55(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b) {
-            w = new MyValue1Wrapper(field);
+            w = new MyValue1Wrapper(refField);
         }
         return w.vt.x;
     }
 
     @Run(test = "test55")
     public void test55_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test55(true), field.x);
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test55(true), refField.x);
         Asserts.assertEquals(test55(false), testValue1.x);
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             try {
                 Asserts.assertEquals(test55(false), testValue1.x);
                 test55(true);
@@ -1349,18 +1346,18 @@ public class TestNullableInlineTypes {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b) {
-            w = new MyValue1Wrapper(field);
+            w = new MyValue1Wrapper(refField);
         }
         return w.vt.hash();
     }
 
     @Run(test = "test56")
     public void test56_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test56(true), field.hash());
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test56(true), refField.hash());
         Asserts.assertEquals(test56(false), testValue1.hash());
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             try {
                 Asserts.assertEquals(test56(false), testValue1.hash());
                 test56(true);
@@ -1376,18 +1373,18 @@ public class TestNullableInlineTypes {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b) {
-            w = new MyValue1Wrapper(field);
+            w = new MyValue1Wrapper(refField);
         }
         return w.vt;
     }
 
     @Run(test = "test57")
     public void test57_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test57(true).hash(), field.hash());
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test57(true).hash(), refField.hash());
         Asserts.assertEquals(test57(false).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             Asserts.assertEquals(test57(true), null);
         }
     }
@@ -1399,7 +1396,7 @@ public class TestNullableInlineTypes {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b1) {
-            w = new MyValue1Wrapper(field);
+            w = new MyValue1Wrapper(refField);
         }
         if (b2) {
             // Uncommon trap
@@ -1410,11 +1407,11 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test58")
     public void test58_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test58(true, false, info.getTest()), field.x);
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test58(true, false, info.getTest()), refField.x);
         Asserts.assertEquals(test58(false, false, info.getTest()), testValue1.x);
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             try {
                 Asserts.assertEquals(test58(false, false, info.getTest()), testValue1.x);
                 test58(true, false, info.getTest());
@@ -1422,8 +1419,8 @@ public class TestNullableInlineTypes {
             } catch (NullPointerException e) {
                 // Expected
             }
-            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test58(true, true, info.getTest()), field.x);
+            refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test58(true, true, info.getTest()), refField.x);
             Asserts.assertEquals(test58(false, true, info.getTest()), testValue1.x);
         }
     }
@@ -1433,7 +1430,7 @@ public class TestNullableInlineTypes {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
         if (b1) {
-            w = new MyValue1Wrapper(field);
+            w = new MyValue1Wrapper(refField);
         }
         if (b2) {
             // Uncommon trap
@@ -1444,14 +1441,14 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test59")
     public void test59_verifier(RunInfo info) {
-        field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-        Asserts.assertEquals(test59(true, false, info.getTest()).hash(), field.hash());
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test59(true, false, info.getTest()).hash(), refField.hash());
         Asserts.assertEquals(test59(false, false, info.getTest()).hash(), testValue1.hash());
         if (!info.isWarmUp()) {
-            field = null;
+            refField = null;
             Asserts.assertEquals(test59(true, false, info.getTest()), null);
-            field = MyValue1.createWithFieldsInline(rI+1, rL+1);
-            Asserts.assertEquals(test59(true, true, info.getTest()).hash(), field.hash());
+            refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test59(true, true, info.getTest()).hash(), refField.hash());
             Asserts.assertEquals(test59(false, true, info.getTest()).hash(), testValue1.hash());
         }
     }
@@ -1532,6 +1529,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test63(true), null);
     }
 
+    @ForceInline
     public MyValue1.ref test64_helper() {
         return flatField;
     }
@@ -1575,5 +1573,395 @@ public class TestNullableInlineTypes {
     public void test65_verifier() {
         Asserts.assertEquals(test65(true), 42L);
         Asserts.assertEquals(test65(false), MyValue1.createWithFieldsInline(rI, rL).hashPrimitive());
+    }
+
+    @ForceInline
+    public Object test66_helper(Object arg) {
+        return arg;
+    }
+
+    // Test that .ref arg does not block scalarization
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test66(boolean b1, boolean b2, MyValue1.ref arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test66_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).x;
+    }
+
+    @Run(test = "test66")
+    public void test66_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test66(true, false, arg, info.getTest()), arg.x);
+        Asserts.assertEquals(test66(false, false, arg, info.getTest()), testValue1.x);
+        if (!info.isWarmUp()) {
+            try {
+                Asserts.assertEquals(test66(false, false, arg, info.getTest()), testValue1.x);
+                test66(true, false, null, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            Asserts.assertEquals(test66(true, true, arg, info.getTest()), arg.x);
+            Asserts.assertEquals(test66(false, true, arg, info.getTest()), testValue1.x);
+        }
+    }
+
+    @DontInline
+    public MyValue1.ref test67_helper1() {
+        return refField;
+    }
+
+    @ForceInline
+    public Object test67_helper2() {
+        return test67_helper1();
+    }
+
+    // Test that .ref return does not block scalarization
+    @Test()
+    @IR(failOn = {ALLOC, STORE})
+    public long test67(boolean b1, boolean b2, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test67_helper2();
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).hash();
+    }
+
+    @Run(test = "test67")
+    public void test67_verifier(RunInfo info) {
+        refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test67(true, false, info.getTest()), refField.hash());
+        Asserts.assertEquals(test67(false, false, info.getTest()), testValue1.hash());
+        if (!info.isWarmUp()) {
+            refField = null;
+            try {
+                Asserts.assertEquals(test67(false, false, info.getTest()), testValue1.hash());
+                test67(true, false, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            refField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+            Asserts.assertEquals(test67(true, true, info.getTest()), refField.hash());
+            Asserts.assertEquals(test67(false, true, info.getTest()), testValue1.hash());
+        }
+    }
+
+    @ForceInline
+    public Object test68_helper(Object arg) {
+        MyValue1.ref tmp = (MyValue1)arg; // Result of cast is unused
+        return arg;
+    }
+
+    // Test that scalarization enabled by cast is applied to parsing map
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test68(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test68_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).x;
+    }
+
+    @Run(test = "test68")
+    public void test68_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test68(true, false, arg, info.getTest()), arg.x);
+        Asserts.assertEquals(test68(false, false, arg, info.getTest()), testValue1.x);
+        if (!info.isWarmUp()) {
+            try {
+                Asserts.assertEquals(test68(false, false, arg, info.getTest()), testValue1.x);
+                test68(true, false, null, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            Asserts.assertEquals(test68(true, true, arg, info.getTest()), arg.x);
+            Asserts.assertEquals(test68(false, true, arg, info.getTest()), testValue1.x);
+        }
+    }
+
+    @ForceInline
+    public Object test69_helper(Object arg) {
+        MyValue1.ref tmp = (MyValue1)arg; // Result of cast is unused
+        return arg;
+    }
+
+    // Same as test68 but with ClassCastException
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test69(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test69_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).x;
+    }
+
+    @Run(test = "test69")
+    @Warmup(10000) // Make sure precise profile information is available
+    public void test69_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test69(true, false, arg, info.getTest()), arg.x);
+        Asserts.assertEquals(test69(false, false, arg, info.getTest()), testValue1.x);
+        try {
+            test69(true, false, 42, info.getTest());
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            try {
+                Asserts.assertEquals(test69(false, false, arg, info.getTest()), testValue1.x);
+                test69(true, false, null, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            Asserts.assertEquals(test69(true, true, arg, info.getTest()), arg.x);
+            Asserts.assertEquals(test69(false, true, arg, info.getTest()), testValue1.x);
+        }
+    }
+
+    @ForceInline
+    public Object test70_helper(Object arg) {
+        MyValue1.ref tmp = (MyValue1)arg; // Result of cast is unused
+        return arg;
+    }
+
+    // Same as test68 but with ClassCastException and frequent NullPointerException
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test70(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test70_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).x;
+    }
+
+    @Run(test = "test70")
+    @Warmup(10000) // Make sure precise profile information is available
+    public void test70_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test70(true, false, arg, info.getTest()), arg.x);
+        Asserts.assertEquals(test70(false, false, arg, info.getTest()), testValue1.x);
+        try {
+            test70(true, false, 42, info.getTest());
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            Asserts.assertEquals(test70(false, false, arg, info.getTest()), testValue1.x);
+            test70(true, false, null, info.getTest());
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test70(true, true, arg, info.getTest()), arg.x);
+            Asserts.assertEquals(test70(false, true, arg, info.getTest()), testValue1.x);
+        }
+    }
+
+    @ForceInline
+    public Object test71_helper(Object arg) {
+        MyValue1.ref tmp = (MyValue1.ref)arg; // Result of cast is unused
+        return arg;
+    }
+
+    // Same as test68 but with .ref cast
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test71(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test71_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1.ref)val).x;
+    }
+
+    @Run(test = "test71")
+    public void test71_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test71(true, false, arg, info.getTest()), arg.x);
+        Asserts.assertEquals(test71(false, false, arg, info.getTest()), testValue1.x);
+        if (!info.isWarmUp()) {
+            try {
+                Asserts.assertEquals(test71(false, false, arg, info.getTest()), testValue1.x);
+                test71(true, false, null, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            Asserts.assertEquals(test71(true, true, arg, info.getTest()), arg.x);
+            Asserts.assertEquals(test71(false, true, arg, info.getTest()), testValue1.x);
+        }
+    }
+
+    @ForceInline
+    public Object test72_helper(Object arg) {
+        MyValue1.ref tmp = (MyValue1.ref)arg; // Result of cast is unused
+        return arg;
+    }
+
+    // Same as test71 but with ClassCastException and hash() call
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test72(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test72_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1.ref)val).hash();
+    }
+
+    @Run(test = "test72")
+    @Warmup(10000) // Make sure precise profile information is available
+    public void test72_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test72(true, false, arg, info.getTest()), arg.hash());
+        Asserts.assertEquals(test72(false, false, arg, info.getTest()), testValue1.hash());
+        try {
+            test72(true, false, 42, info.getTest());
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            try {
+                Asserts.assertEquals(test72(false, false, arg, info.getTest()), testValue1.hash());
+                test72(true, false, null, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+            Asserts.assertEquals(test72(true, true, arg, info.getTest()), arg.hash());
+            Asserts.assertEquals(test72(false, true, arg, info.getTest()), testValue1.hash());
+        }
+    }
+
+    @ForceInline
+    public Object test73_helper(Object arg) {
+        MyValue1.ref tmp = (MyValue1.ref)arg; // Result of cast is unused
+        return arg;
+    }
+
+    // Same as test71 but with ClassCastException and frequent NullPointerException
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public int test73(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test73_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1.ref)val).x;
+    }
+
+    @Run(test = "test73")
+    @Warmup(10000) // Make sure precise profile information is available
+    public void test73_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test73(true, false, arg, info.getTest()), arg.x);
+        Asserts.assertEquals(test73(false, false, arg, info.getTest()), testValue1.x);
+        try {
+            test73(true, false, 42, info.getTest());
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            Asserts.assertEquals(test73(false, false, arg, info.getTest()), testValue1.x);
+            test73(true, false, null, info.getTest());
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test73(true, true, arg, info.getTest()), arg.x);
+            Asserts.assertEquals(test73(false, true, arg, info.getTest()), testValue1.x);
+        }
+    }
+
+    @ForceInline
+    public Object test74_helper(Object arg) {
+        return (MyValue1.ref)arg;
+    }
+
+    // Same as test73 but result of cast is used and hash() is called
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test74(boolean b1, boolean b2, Object arg, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test74_helper(arg);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1.ref)val).hash();
+    }
+
+    @Run(test = "test74")
+    @Warmup(10000) // Make sure precise profile information is available
+    public void test74_verifier(RunInfo info) {
+        MyValue1 arg = MyValue1.createWithFieldsInline(rI+1, rL+1);
+        Asserts.assertEquals(test74(true, false, arg, info.getTest()), arg.hash());
+        Asserts.assertEquals(test74(false, false, arg, info.getTest()), testValue1.hash());
+        try {
+            test74(true, false, 42, info.getTest());
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            Asserts.assertEquals(test74(false, false, arg, info.getTest()), testValue1.hash());
+            test74(true, false, null, info.getTest());
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test74(true, true, arg, info.getTest()), arg.hash());
+            Asserts.assertEquals(test74(false, true, arg, info.getTest()), testValue1.hash());
+        }
     }
 }
