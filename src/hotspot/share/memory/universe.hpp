@@ -117,8 +117,8 @@ class Universe: AllStatic {
   static LatestMethodCache* _throw_illegal_access_error_cache; // Unsafe.throwIllegalAccessError() method
   static LatestMethodCache* _throw_no_such_method_error_cache; // Unsafe.throwNoSuchMethodError() method
   static LatestMethodCache* _do_stack_walk_cache;      // method for stack walker callback
-  static LatestMethodCache* _is_substitutable_cache;   // ValueBootstrapMethods.isSubstitutable() method
-  static LatestMethodCache* _inline_type_hash_code_cache;  // ValueBootstrapMethods.inlineObjectHashCode() method
+  static LatestMethodCache* _is_substitutable_cache;   // PrimitiveObjectMethods.isSubstitutable() method
+  static LatestMethodCache* _primitive_type_hash_code_cache;  // PrimitiveObjectMethods.primitiveObjectHashCode() method
 
   static Array<int>*            _the_empty_int_array;            // Canonicalized int array
   static Array<u2>*             _the_empty_short_array;          // Canonicalized short array
@@ -263,7 +263,7 @@ class Universe: AllStatic {
   static Method*      do_stack_walk_method()          { return _do_stack_walk_cache->get_method(); }
 
   static Method*      is_substitutable_method()       { return _is_substitutable_cache->get_method(); }
-  static Method*      inline_type_hash_code_method()  { return _inline_type_hash_code_cache->get_method(); }
+  static Method*      primitive_type_hash_code_method()  { return _primitive_type_hash_code_cache->get_method(); }
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }

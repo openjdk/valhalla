@@ -24,12 +24,12 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on primitive classes
- * @modules java.base/java.lang.invoke:open
+ * @modules java.base/java.lang.runtime:open
+ *          java.base/jdk.internal.org.objectweb.asm
  * @run testng/othervm -Xint SubstitutabilityTest
  * @run testng/othervm -Xcomp SubstitutabilityTest
  */
 
-import java.lang.invoke.ValueBootstrapMethods;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -76,7 +76,7 @@ public class SubstitutabilityTest {
 
     @Test(dataProvider="substitutable")
     public void substitutableTest(Object a, Object b) {
-        assertTrue(ValueBootstrapMethods.isSubstitutable(a, b));
+        assertTrue(isSubstitutable(a, b));
     }
 
     @DataProvider(name="notSubstitutable")
@@ -108,7 +108,7 @@ public class SubstitutabilityTest {
     }
     @Test(dataProvider="notSubstitutable")
     public void notSubstitutableTest(Object a, Object b) {
-        assertFalse(ValueBootstrapMethods.isSubstitutable(a, b));
+        assertFalse(isSubstitutable(a, b));
     }
     private static Value.Builder valueBuilder() {
         Value.Builder builder = new Value.Builder();
@@ -181,12 +181,12 @@ public class SubstitutabilityTest {
      * isSubstitutable method handle invoker requires both parameters are
      * non-null and of the same primitive class.
      *
-     * This verifies ValueBootstrapMethods::isSubstitutable0 that does not
+     * This verifies PrimitiveObjectMethods::isSubstitutable that does not
      * throw an exception if any one of parameter is null or if
      * the parameters are of different types.
      */
     @Test(dataProvider="negativeSubstitutableCases")
-    public void testIsSubstitutable0(Object a, Object b) throws Exception {
+    public void testIsSubstitutable(Object a, Object b) {
         assertFalse(isSubstitutable(a, b));
     }
 
@@ -203,14 +203,19 @@ public class SubstitutabilityTest {
     static {
         Method m = null;
         try {
-            m = ValueBootstrapMethods.class.getDeclaredMethod("isSubstitutable", Object.class, Object.class);
+            Class<?> c = Class.forName("java.lang.runtime.PrimitiveObjectMethods");
+            m = c.getDeclaredMethod("isSubstitutable", Object.class, Object.class);
             m.setAccessible(true);
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
         IS_SUBSTITUTABLE = m;
     }
-    private static boolean isSubstitutable(Object a, Object b) throws ReflectiveOperationException {
-        return (boolean) IS_SUBSTITUTABLE.invoke(null, a, b);
+    private static boolean isSubstitutable(Object a, Object b) {
+        try {
+            return (boolean) IS_SUBSTITUTABLE.invoke(null, a, b);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

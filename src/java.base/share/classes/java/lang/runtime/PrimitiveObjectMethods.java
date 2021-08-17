@@ -23,82 +23,42 @@
  * questions.
  */
 
-package java.lang.invoke;
+package java.lang.runtime;
 
-import sun.invoke.util.Wrapper;
-import sun.security.action.GetIntegerAction;
-import sun.security.action.GetPropertyAction;
-
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.stream.Stream;
+import jdk.internal.access.JavaLangInvokeAccess;
+import jdk.internal.access.SharedSecrets;
+import sun.invoke.util.Wrapper;
+import sun.security.action.GetIntegerAction;
+import sun.security.action.GetPropertyAction;
 
-import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-import static java.lang.invoke.ValueBootstrapMethods.MethodHandleBuilder.*;
-
+import static java.lang.invoke.MethodHandles.constant;
+import static java.lang.invoke.MethodHandles.countedLoop;
+import static java.lang.invoke.MethodHandles.dropArguments;
+import static java.lang.invoke.MethodHandles.filterArguments;
+import static java.lang.invoke.MethodHandles.filterReturnValue;
+import static java.lang.invoke.MethodHandles.guardWithTest;
+import static java.lang.invoke.MethodHandles.permuteArguments;
+import static java.lang.invoke.MethodType.methodType;
+import static java.lang.runtime.ObjectMethods.primitiveEquals;
 
 /**
- * Bootstrap methods for value types
+ * Implementation for Object::equals and Object::hashCode for primitive classes.
+ *
+ * PrimitiveObjectMethods::isSubstitutable and primitiveObjectHashCode are
+ * private entry points called by VM.
  */
-public final class ValueBootstrapMethods {
-    private ValueBootstrapMethods() {}
+final class PrimitiveObjectMethods {
+    private PrimitiveObjectMethods() {}
     private static final boolean VERBOSE =
         GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
-
-    /**
-     * Makes a bootstrap method for the named operation for the given Class.
-     *
-     * @apiNote {@code c} parameter for testing purpose.  This method will be removed.
-     *
-     * @param caller    A lookup context
-     * @param name      The name of the method to implement.
-     * @param type      The expected signature of the {@code CallSite}
-     * @param c         Class
-     * @return a CallSite whose target can be used to perform the named operation
-     */
-    public static CallSite makeBootstrapMethod(MethodHandles.Lookup caller,
-                                               String name,
-                                               MethodType type,
-                                               Class<?> c) {
-        MethodHandles.Lookup lookup = caller;
-        if (caller.lookupClass() != c) {
-            lookup = new MethodHandles.Lookup(c);
-        }
-        return makeBootstrapMethod(lookup, name, type);
-    }
-
-    /**
-     * Makes a bootstrap method for the named operation for the given Class.
-     *
-     * @param lookup    A lookup context
-     * @param name      The name of the method to implement.
-     * @param type      The expected signature of the {@code CallSite}
-     * @return a CallSite whose target can be used to perform the named operation
-     */
-    public static CallSite makeBootstrapMethod(MethodHandles.Lookup lookup,
-                                               String name,
-                                               MethodType type) {
-        return new ConstantCallSite(generateTarget(lookup, name, type));
-    }
-
-    private static MethodHandle generateTarget(Lookup lookup, String name, MethodType methodType) {
-        if (VERBOSE) {
-            System.out.println("generate BSM for " + lookup + "::" + name);
-        }
-        Class<?> valType = lookup.lookupClass().asValueType();
-        switch (name) {
-            case "hashCode":
-                return inlineTypeHashCode(valType);
-            case "equals":
-                return substitutableInvoker(valType).asType(methodType);
-            default:
-                throw new IllegalArgumentException(name + " not valid method name");
-        }
-    }
+    private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
     static class MethodHandleBuilder {
         static MethodHandle[] getters(Class<?> type) {
@@ -106,13 +66,12 @@ public final class ValueBootstrapMethods {
         }
 
         static MethodHandle[] getters(Class<?> type, Comparator<MethodHandle> comparator) {
-            Lookup lookup = new MethodHandles.Lookup(type.asPrimaryType());
             // filter static fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
                 .filter(f -> !Modifier.isStatic(f.getModifiers()))
                 .map(f -> {
                     try {
-                        return lookup.unreflectGetter(f);
+                        return JLIA.unreflectGetter(f);
                     } catch (IllegalAccessException e) {
                         throw newLinkageError(e);
                     }
@@ -123,11 +82,6 @@ public final class ValueBootstrapMethods {
             return s.toArray(MethodHandle[]::new);
         }
 
-        static MethodHandle primitiveEquals(Class<?> primitiveType) {
-            int index = Wrapper.forPrimitiveType(primitiveType).ordinal();
-            return EQUALS[index];
-        }
-
         static MethodHandle hashCodeForType(Class<?> type) {
             if (type.isPrimitive()) {
                 int index = Wrapper.forPrimitiveType(type).ordinal();
@@ -135,6 +89,10 @@ public final class ValueBootstrapMethods {
             } else {
                 return HASHCODE[Wrapper.OBJECT.ordinal()].asType(methodType(int.class, type));
             }
+        }
+
+        static MethodHandle primitiveEquals(Class<?> primitiveType) {
+            return primitiveEquals.get(primitiveType);
         }
 
         /*
@@ -149,7 +107,7 @@ public final class ValueBootstrapMethods {
          * do the substitutability test if they are of a primitive type.
          */
         static MethodHandle referenceTypeEquals(Class<?> type) {
-            return EQUALS[Wrapper.OBJECT.ordinal()].asType(methodType(boolean.class, type, type));
+            return OBJECT_EQUALS.asType(methodType(boolean.class, type, type));
         }
 
         static Class<?> fieldType(MethodHandle getter) {
@@ -161,7 +119,7 @@ public final class ValueBootstrapMethods {
          * Produces a MethodHandle that returns boolean if two value instances
          * of the given primitive class are substitutable.
          */
-        static MethodHandle inlineTypeEquals(Class<?> type) {
+        static MethodHandle primitiveTypeEquals(Class<?> type) {
             assert type.isValueType();
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle[] getters = getters(type, TYPE_SORTER);
@@ -178,12 +136,12 @@ public final class ValueBootstrapMethods {
             // otherwise return accumulator;
             return guardWithTest(IS_NULL.asType(mt),
                                  instanceTrue,
-                                 guardWithTest(IS_SAME_INLINE_CLASS.asType(mt),
+                                 guardWithTest(IS_SAME_PRIMITIVE_CLASS.asType(mt),
                                                accumulator,
                                                instanceFalse));
         }
 
-        static MethodHandle inlineTypeHashCode(Class<?> type) {
+        static MethodHandle primitiveTypeHashCode(Class<?> type) {
             assert type.isValueType();
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
@@ -200,7 +158,7 @@ public final class ValueBootstrapMethods {
 
                 // For primitive type or reference type, this calls Objects::hashCode.
                 // If the instance is of primitive type and the hashCode method is not
-                // overridden, VM will call inlineObjectHashCode to compute the
+                // overridden, VM will call primitiveObjectHashCode to compute the
                 // hash code.
                 MethodHandle hasher = hashCodeForType(ftype);
                 hashers[i] = filterReturnValue(getter, hasher);
@@ -215,25 +173,17 @@ public final class ValueBootstrapMethods {
         }
 
         // ------ utility methods ------
-        private static boolean eq(byte a, byte b)       { return a == b; }
-        private static boolean eq(short a, short b)     { return a == b; }
-        private static boolean eq(char a, char b)       { return a == b; }
-        private static boolean eq(int a, int b)         { return a == b; }
-        private static boolean eq(long a, long b)       { return a == b; }
-        private static boolean eq(float a, float b)     { return Float.compare(a, b) == 0; }
-        private static boolean eq(double a, double b)   { return Double.compare(a, b) == 0; }
-        private static boolean eq(boolean a, boolean b) { return a == b; }
         private static boolean eq(Object a, Object b)   {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;
             if (a.getClass() != b.getClass()) return false;
-            return a.getClass().isPrimitiveClass() ? inlineValueEq(a, b) : (a == b);
+            return a.getClass().isPrimitiveClass() ? valueEq(a, b) : (a == b);
         }
 
         /*
          * Returns true if two values are substitutable.
          */
-        private static boolean inlineValueEq(Object a, Object b) {
+        private static boolean valueEq(Object a, Object b) {
             assert a != null && b != null && isSamePrimitiveClass(a, b);
             try {
                 Class<?> type = a.getClass().asValueType();
@@ -280,31 +230,18 @@ public final class ValueBootstrapMethods {
             }
         }
 
-        private static final MethodHandle[] EQUALS = initEquals();
-        private static final MethodHandle[] HASHCODE = initHashCode();
-
-        static final MethodHandle IS_SAME_INLINE_CLASS =
+        private static final MethodHandle FALSE = constant(boolean.class, false);
+        private static final MethodHandle TRUE = constant(boolean.class, true);
+        private static final MethodHandle OBJECT_EQUALS = findStatic("eq", methodType(boolean.class, Object.class, Object.class));
+        private static final MethodHandle IS_SAME_PRIMITIVE_CLASS =
             findStatic("isSamePrimitiveClass", methodType(boolean.class, Object.class, Object.class));
-        static final MethodHandle IS_NULL =
+        private static final MethodHandle IS_NULL =
             findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
-
-        static final MethodHandle FALSE = constant(boolean.class, false);
-        static final MethodHandle TRUE = constant(boolean.class, true);
-        static final MethodHandle HASH_COMBINER =
+        private static final MethodHandle HASH_COMBINER =
             findStatic("hashCombiner", methodType(int.class, int.class, int.class));
-        static final MethodHandle COMPUTE_HASH =
+        private static final MethodHandle COMPUTE_HASH =
             findStatic("computeHashCode", methodType(int.class, MethodHandle[].class, int.class, int.class, Object.class));
-
-        private static MethodHandle[] initEquals() {
-            MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
-            for (Wrapper wrapper : Wrapper.values()) {
-                if (wrapper == Wrapper.VOID) continue;
-
-                Class<?> type = wrapper.primitiveType();
-                mhs[wrapper.ordinal()] = findStatic("eq", methodType(boolean.class, type, type));
-            }
-            return mhs;
-        }
+        private static final MethodHandle[] HASHCODE = initHashCode();
 
         private static MethodHandle[] initHashCode() {
             MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
@@ -322,7 +259,7 @@ public final class ValueBootstrapMethods {
         }
         private static MethodHandle findStatic(Class<?> cls, String name, MethodType methodType) {
             try {
-                return IMPL_LOOKUP.findStatic(cls, name, methodType);
+                return JLIA.findStatic(cls, name, methodType);
             } catch (NoSuchMethodException|IllegalAccessException e) {
                 throw newLinkageError(e);
             }
@@ -406,10 +343,6 @@ public final class ValueBootstrapMethods {
      * assertTrue(isSubstitutable(rval1, rval3 ));    // rval1.o and rval3.o are the same reference instance
      * }</pre>
      *
-     * @apiNote
-     * This API is intended for performance evaluation of this idiom for
-     * {@code acmp}.  Hence it is not in the {@link System} class.
-     *
      * @param a an object
      * @param b an object to be compared with {@code a} for substitutability
      * @return {@code true} if the arguments are substitutable to each other;
@@ -418,7 +351,7 @@ public final class ValueBootstrapMethods {
      * @see Float#equals(Object)
      * @see Double#equals(Object)
      */
-    public static <T> boolean isSubstitutable(T a, Object b) {
+    private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
             System.out.println("substitutable " + a + " vs " + b);
         }
@@ -476,7 +409,7 @@ public final class ValueBootstrapMethods {
      * @param <T> type
      * @return a method handle for substitutability test
      */
-    static <T> MethodHandle substitutableInvoker(Class<T> type) {
+    private static <T> MethodHandle substitutableInvoker(Class<T> type) {
         if (type.isPrimitive())
             return MethodHandleBuilder.primitiveEquals(type);
 
@@ -489,7 +422,7 @@ public final class ValueBootstrapMethods {
     // store the method handle for value types in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.inlineTypeEquals(type.asValueType());
+            return MethodHandleBuilder.primitiveTypeEquals(type.asValueType());
         }
     };
 
@@ -498,9 +431,9 @@ public final class ValueBootstrapMethods {
      * @param o the instance to hash.
      * @return the hash code of the given primitive class object.
      */
-    private static int inlineObjectHashCode(Object o) {
+    private static int primitiveObjectHashCode(Object o) {
         try {
-            // Note: javac disallows user to call super.hashCode if user implementated
+            // Note: javac disallows user to call super.hashCode if user implemented
             // risk for recursion for experts crafting byte-code
             if (!o.getClass().isPrimitiveClass())
                 throw new InternalError("must be primitive type: " + o.getClass().getName());
@@ -516,7 +449,7 @@ public final class ValueBootstrapMethods {
 
     private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.inlineTypeHashCode(type.asValueType());
+            return MethodHandleBuilder.primitiveTypeHashCode(type.asValueType());
         }
     };
 
