@@ -66,6 +66,8 @@
 #include "oops/constMethod.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/cpCache.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
@@ -1220,9 +1222,11 @@
     declare_type(Metadata, MetaspaceObj)                                  \
     declare_type(Klass, Metadata)                                         \
            declare_type(ArrayKlass, Klass)                                \
+           declare_type(FlatArrayKlass, ArrayKlass)                       \
            declare_type(ObjArrayKlass, ArrayKlass)                        \
            declare_type(TypeArrayKlass, ArrayKlass)                       \
       declare_type(InstanceKlass, Klass)                                  \
+        declare_type(InlineKlass, InstanceKlass)                          \
         declare_type(InstanceClassLoaderKlass, InstanceKlass)             \
         declare_type(InstanceMirrorKlass, InstanceKlass)                  \
         declare_type(InstanceRefKlass, InstanceKlass)                     \
