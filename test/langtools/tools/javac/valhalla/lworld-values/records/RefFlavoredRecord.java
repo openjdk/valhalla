@@ -23,22 +23,21 @@
 
 /**
  * @test
- * @bug 8251041
- * @summary [lworld] Investigate interplay between Records and Inline types
+ * @bug 8271583
+ * @summary [lworld] primitive records can't be reference favoring
  * @compile -XDallowWithFieldOperator RefFlavoredRecord.java
  * @run main/othervm RefFlavoredRecord
  */
 
 public primitive record RefFlavoredRecord.val(int theInteger, String theString) {
-	public static void main(String[] args) {
-		RefFlavoredRecord rec = RefFlavoredRecord.default;
-		if (rec != null) {
+    public static void main(String[] args) {
+        RefFlavoredRecord rec = RefFlavoredRecord.default;
+        if (rec != null) {
             throw new AssertionError("Ref-favoring record .default should be null?");
         }
-		
+
         if (! new RefFlavoredRecord(42, "Fortytwo").equals(new RefFlavoredRecord(42, "Fortytwo"))) {
             throw new AssertionError("Records should be equal");
         }
-
-    }	
+    }
 }
