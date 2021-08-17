@@ -5742,8 +5742,12 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
-  Register val_obj_tmp = r11;
-  Register from_reg_tmp = r10;
+  // The GC barrier expanded by store_heap_oop below may call into the
+  // runtime so use callee-saved registers for any values that need to be
+  // preserved. The GC barrier assembler should take care of saving the
+  // Java argument registers.
+  Register val_obj_tmp = r21;
+  Register from_reg_tmp = r22;
   Register tmp1 = r14;
   Register tmp2 = r13;
   Register tmp3 = r12;
