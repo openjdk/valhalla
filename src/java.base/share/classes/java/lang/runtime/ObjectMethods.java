@@ -245,13 +245,15 @@ public class ObjectMethods {
     /**
      * Generates a method handle for the {@code toString} method for a given data class
      * @param receiverClass   the data class
+     * @param simpleName      the simple name of the record class
      * @param getters         the list of getters
      * @param names           the names
      * @return the method handle
      */
     private static MethodHandle makeToString(Class<?> receiverClass,
-                                            List<MethodHandle> getters,
-                                            List<String> names) {
+                                             String simpleName,
+                                             List<MethodHandle> getters,
+                                             List<String> names) {
         // This is a pretty lousy algorithm; we spread the receiver over N places,
         // apply the N getters, apply N toString operations, and concat the result with String.format
         // Better to use String.format directly, or delegate to StringConcatFactory
@@ -263,7 +265,7 @@ public class ObjectMethods {
         Arrays.fill(invArgs, 0);
         MethodHandle[] filters = new MethodHandle[getters.size()];
         StringBuilder sb = new StringBuilder();
-        sb.append(receiverClass.getSimpleName()).append("[");
+        sb.append(simpleName).append("[");
         for (int i=0; i<getters.size(); i++) {
             MethodHandle getter = getters.get(i); // (R)T
             MethodHandle stringify = stringifier(getter.type().returnType()); // (T)String
@@ -330,33 +332,45 @@ public class ObjectMethods {
                                    Class<?> recordClass,
                                    String names,
                                    MethodHandle... getters) throws Throwable {
+        Objects.requireNonNull(type);
+        Objects.requireNonNull(recordClass);
         MethodType methodType;
-        if (type instanceof MethodType)
+        Class<?> receiverType = recordClass.isPrimitiveClass() ? recordClass.asValueType() : recordClass;
+
+        if (type instanceof MethodType) {
             methodType = (MethodType) type;
-        else {
+            if (((MethodType) type).parameterType(0) != receiverType) {
+                throw new IllegalArgumentException("Bad method type: " + methodType);
+            }
+        } else {
             methodType = null;
             if (!MethodHandle.class.equals(type))
                 throw new IllegalArgumentException(type.toString());
         }
         List<MethodHandle> getterList = List.of(getters);
+        for (MethodHandle getter : getterList) {
+            if (getter.type().parameterType(0) != receiverType) {
+                throw new IllegalArgumentException("Bad receiver type: " + getter);
+            }
+        }
         MethodHandle handle = switch (methodName) {
             case "equals"   -> {
-                if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, recordClass, Object.class)))
+                if (methodType != null && !methodType.equals(MethodType.methodType(boolean.class, receiverType, Object.class)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
-                yield makeEquals(recordClass, getterList);
+                yield makeEquals(receiverType, getterList);
             }
             case "hashCode" -> {
-                if (methodType != null && !methodType.equals(MethodType.methodType(int.class, recordClass)))
+                if (methodType != null && !methodType.equals(MethodType.methodType(int.class, receiverType)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
-                yield makeHashCode(recordClass, getterList);
+                yield makeHashCode(receiverType, getterList);
             }
             case "toString" -> {
-                if (methodType != null && !methodType.equals(MethodType.methodType(String.class, recordClass)))
+                if (methodType != null && !methodType.equals(MethodType.methodType(String.class, receiverType)))
                     throw new IllegalArgumentException("Bad method type: " + methodType);
                 List<String> nameList = "".equals(names) ? List.of() : List.of(names.split(";"));
                 if (nameList.size() != getterList.size())
                     throw new IllegalArgumentException("Name list and accessor list do not match");
-                yield makeToString(recordClass, getterList, nameList);
+                yield makeToString(receiverType, recordClass.getSimpleName(), getterList, nameList);
             }
             default -> throw new IllegalArgumentException(methodName);
         };
