@@ -53,6 +53,7 @@
 //                  into our own tables.
 
 // Currently, the archive contains ONLY the following types of objects that have C++ vtables.
+// NOTE: this table must be in-sync with sun.jvm.hotspot.memory.FileMapInfo::populateMetadataTypeArray().
 #define CPP_VTABLE_TYPES_DO(f) \
   f(ConstantPool) \
   f(InstanceKlass) \
