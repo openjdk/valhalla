@@ -105,12 +105,8 @@ void Parse::array_load(BasicType bt) {
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
                                 IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
       if (elemptr->is_inlinetypeptr()) {
-        Node* ptr = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
-        ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-        ptr->set_req(1, ld);
-        ld = _gvn.transform(ptr);
+        ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
       }
-
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
@@ -216,23 +212,12 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
-  if (bt == T_INLINE_TYPE) {
-    // Loading a non-flattened inline type from an array
-    assert(!gvn().type(ld)->maybe_null(), "inline type array elements should never be null");
-    if (elemptr->inline_klass()->is_scalarizable()) {
-      ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass());
-    }
-  } else if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
-    Node* ptr = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
-    ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-    ptr->set_req(1, ld);
-    ld = _gvn.transform(ptr);
+  ld = record_profile_for_speculation_at_array_load(ld);
+  // Loading a non-flattened inline type
+  if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
+    assert(!ary_t->is_null_free() || !gvn().type(ld)->maybe_null(), "inline type array elements should never be null");
+    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), ary_t->is_null_free());
   }
-
-  if (!ld->is_InlineType()) {
-    ld = record_profile_for_speculation_at_array_load(ld);
-  }
-
   push_node(bt, ld);
 }
 

@@ -1262,7 +1262,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     cast->init_req(0, control());
     cast = _gvn.transform( cast );
 
-    InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass());
+    InlineTypeBaseNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass());
     assert(vt->is_allocated(&_gvn), "should be allocated");
 
     // TODO is_Parse() is needed because we should not replace during incremental inlining
@@ -1946,15 +1946,9 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
       ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
       uint base_input = TypeFunc::Parms;
       ret = InlineTypeNode::make_from_multi(this, call, ret_type->inline_klass(), base_input, false);
-    } else if (ret_type->maybe_null()) {
-      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-      Node* ptr = InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass(), false);
-      ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-      ptr->set_req(1, ret);
-      ret = _gvn.transform(ptr)->as_InlineTypeBase();
     } else {
       ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-      ret = _gvn.transform(InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass()));
+      ret = _gvn.transform(InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass(), !ret_type->maybe_null()));
     }
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
@@ -3544,14 +3538,10 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
             obj = null_check(obj);
           }
           if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !obj->is_InlineTypeBase()) {
-            if (gvn().type(obj)->maybe_null()) {
-              Node* tmp = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass(), false);
-              tmp = new InlineTypePtrNode(tmp->as_InlineType(), false);
-              tmp->set_req(1, obj);
-              obj = _gvn.transform(tmp);
-            } else {
-              obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
-            }
+            // TODO TestIntrinsics triggers this
+            // obj->dump(10);
+            // assert(false, "should have been scalarized");
+            obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass(), !gvn().type(obj)->maybe_null());
             // TODO replace in map!!
           }
         }
@@ -3744,15 +3734,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     // TODO this might hide a InlineTypePtr behind a cast, right?
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable()) {
-      Node* tmp;
-      if (gvn().type(res)->maybe_null()) {
-        tmp = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), false);
-        tmp = new InlineTypePtrNode(tmp->as_InlineType(), false);
-        tmp->set_req(1, res);
-        tmp = _gvn.transform(tmp);
-      } else {
-        tmp = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
-      }
+      Node* tmp = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
       //assert(map()->find_edge(obj) == -1, "fail");
       //assert(map()->find_edge(not_null_obj) != -1 || map()->find_edge(res) != -1, "not found in map");
         // TODO check if we need this at other places as well!
@@ -4786,6 +4768,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
     // Check type of constant which might be more precise
     if (con_type->is_inlinetypeptr() && con_type->inline_klass()->is_scalarizable()) {
       assert(!con_type->is_zero_type(), "Inline types are null-free");
+      // TODO what about constant .ref field???
       con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
     } else if (con_type->is_zero_type() && field->is_null_free()) {
       con = InlineTypeNode::default_oop(gvn(), field->type()->as_inline_klass());

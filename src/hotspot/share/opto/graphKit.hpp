@@ -717,7 +717,7 @@ class GraphKit : public Phase {
     if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
       // TODO is this still needed? NUll check above should scalarize n
       assert(!recv_type->maybe_null(), "should never be null");
-      InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
+      InlineTypeBaseNode* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);
       if (replace_value && is_Parse()) {
         // Only replace in map if we are not incrementally inlining because we

@@ -206,19 +206,12 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     decorators |= field->is_volatile() ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
 
-    if (field->is_null_free()) {
-      // Load a non-flattened inline type from memory
-      if (field_klass->as_inline_klass()->is_scalarizable()) {
-        ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass());
-      } else {
-        ld = null2default(ld, field_klass->as_inline_klass());
-      }
-    } else if (type->is_inlinetypeptr()) {
-      Node* ptr = InlineTypeNode::make_from_oop(this, ld, type->inline_klass(), false);
-      ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-      ptr->set_req(1, ld);
-      ld = _gvn.transform(ptr);
-     }
+    // Load a non-flattened inline type from memory
+    if (field_klass->is_inlinetype() && field_klass->as_inline_klass()->is_scalarizable()) {
+      ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass(), field->is_null_free());
+    } else if (field->is_null_free()) {
+      ld = null2default(ld, field_klass->as_inline_klass());
+    }
   }
 
   // Adjust Java stack

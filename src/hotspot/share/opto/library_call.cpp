@@ -2521,14 +2521,15 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->is_null_free() && !field->is_flattened()) {
-      // Load a non-flattened inline type from memory
-      if (value_type->inline_klass()->is_scalarizable()) {
-        p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass());
-      } else {
+    // Load a non-flattened inline type from memory
+    if (field != NULL && field->type()->is_inlinetype() && !field->is_flattened()) {
+      if (field->type()->as_inline_klass()->is_scalarizable()) {
+        p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass(), field->is_null_free());
+      } else if (field->is_null_free()) {
         p = null2default(p, value_type->inline_klass());
       }
     }
+
     // The load node has the control of the preceding MemBarCPUOrder.  All
     // following nodes will have the control of the MemBarCPUOrder inserted at
     // the end of this method.  So, pushing the load onto the stack at a later

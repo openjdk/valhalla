@@ -355,10 +355,10 @@ void Parse::do_withfield() {
     assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
     holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
   }
-  if (!val->is_InlineType() && field->is_null_free()) {
+  if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
-    assert(!gvn().type(val)->maybe_null(), "Inline types are null-free");
-    val = InlineTypeNode::make_from_oop(this, val, gvn().type(val)->inline_klass());
+    assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Inline types are null-free");
+    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
   } else if (val->is_InlineType() && !field->is_null_free()) {
     // Field value needs to be allocated because it can be merged with an oop.
     // Re-execute withfield if buffering triggers deoptimization.
@@ -366,15 +366,6 @@ void Parse::do_withfield() {
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
-  } else if (!val->is_InlineTypeBase() && field->type()->is_instance_klass()) {
-    // TODO
-    const Type* type = TypeOopPtr::make_from_klass(field->type()->as_klass());
-    if (type->is_inlinetypeptr()) {
-      Node* ptr = InlineTypeNode::make_from_oop(this, val, type->inline_klass(), false);
-      ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-      ptr->set_req(1, val);
-      val = gvn().transform(ptr);
-    }
   }
 
   // Clone the inline type node and set the new field value

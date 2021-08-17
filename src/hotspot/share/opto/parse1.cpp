@@ -608,16 +608,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      if (t->maybe_null()) {
-        Node* ptr = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), false);
-        ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-        ptr->set_req(1, parm);
-        ptr = _gvn.transform(ptr)->as_InlineTypeBase();
-        map()->replace_edge(parm, ptr);
-      } else {
-        Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass());
-        map()->replace_edge(parm, vt);
-      }
+      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
+      map()->replace_edge(parm, vt);
     } else if (UseTypeSpeculation && (i == (uint)(arg_size_sig - 1)) && !is_osr_parse() &&
                method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flattened)
@@ -1752,9 +1744,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {
           // Scalarize inline type in src block to be able to merge it with inline type ptr in target block
           Node* ptr = InlineTypeNode::make_from_oop(this, n, t->inline_klass(), false);
-          ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
-          ptr->set_req(1, n);
-          ptr = _gvn.transform(ptr)->as_InlineTypeBase();
           map()->set_req(j, ptr);
         }
         assert(!t->isa_inlinetype() || n->is_InlineType(), "inconsistent typeflow info");
