@@ -871,38 +871,24 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       assert(cik->is_instance_klass() ||
              cik->is_array_klass(), "Not supported allocation.");
       uint first_ind = spobj->first_index(sfpt->jvms());
-      ScopeValue* scval = NULL;
+      // Nullable, scalarized inline types have an oop input that
+      // needs to be null checked before using the field values.
+      ScopeValue* oopValue = NULL;
       if (cik->is_inlinetype()) {
-        Node* oop_node = sfpt->in(first_ind);
+        Node* oop_node = sfpt->in(first_ind++);
         if (!oop_node->is_top()) {
-          //assert(!oop_node->bottom_type()->is_zero_type(), "null constant");
-          // TODO what a mess
+          const Type* oop_type = oop_node->bottom_type();
           if (oop_node->is_Con()) {
-            if (oop_node->bottom_type()->is_zero_type()) {
-              scval = new ConstantOopWriteValue(0);
-            } else {
-              scval = new ConstantOopWriteValue(oop_node->bottom_type()->isa_oopptr()->const_oop()->constant_encoding());
-            }
-          } else if (oop_node->is_SafePointScalarObject()) {
-            // TODO this sucks
+            oopValue = new ConstantOopWriteValue(oop_type->is_zero_type() ? 0 : oop_type->isa_oopptr()->const_oop()->constant_encoding());
           } else {
             OptoReg::Name oop_reg = C->regalloc()->get_reg_first(oop_node);
-            if (oop_node->bottom_type()->base() == Type::NarrowOop) {
-              scval = new_loc_value(C->regalloc(), oop_reg, Location::narrowoop);
-            } else {
-              scval = new_loc_value(C->regalloc(), oop_reg, Location::oop);
-            }
+            oopValue = new_loc_value(C->regalloc(), oop_reg, oop_type->isa_narrowoop() ? Location::narrowoop : Location::oop);
           }
         }
-        first_ind++;
-      }
-      if (scval == NULL) {
-        scval = new MarkerValue();
       }
       ScopeValue* klass_sv = new ConstantOopWriteValue(cik->java_mirror()->constant_encoding());
-      // TODO
-      sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv, new MarkerValue())
-                                    : new ObjectValue(spobj->_idx, klass_sv, scval);
+      sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv)
+                                    : new ObjectValue(spobj->_idx, klass_sv, oopValue);
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {
@@ -1177,10 +1163,9 @@ void PhaseOutput::Process_OopMap_Node(MachNode *mach, int current_offset) {
           ciKlass* cik = t->is_oopptr()->klass();
           assert(cik->is_instance_klass() ||
                  cik->is_array_klass(), "Not supported allocation.");
-          // TODO
           ScopeValue* klass_sv = new ConstantOopWriteValue(cik->java_mirror()->constant_encoding());
-          ObjectValue* sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv, new MarkerValue())
-                                        : new ObjectValue(spobj->_idx, klass_sv, new MarkerValue());
+          ObjectValue* sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv)
+                                        : new ObjectValue(spobj->_idx, klass_sv);
           PhaseOutput::set_sv_for_object_node(objs, sv);
 
           uint first_ind = spobj->first_index(youngest_jvms);

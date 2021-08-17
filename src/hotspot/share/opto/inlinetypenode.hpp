@@ -54,7 +54,14 @@ protected:
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 
+  // Checks if the inline type fields are all set to default values
+  bool is_default(PhaseGVN* gvn) const;
+
 public:
+
+  // Returns the constant oop of the default inline type allocation
+  static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);
+
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
   InlineTypeBaseNode* clone_with_phis(PhaseGVN* gvn, Node* region);
@@ -116,9 +123,6 @@ private:
   // Checks if the inline type is loaded from memory and if so returns the oop
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
 
-  // Checks if the inline type fields are all set to default values
-  bool is_default(PhaseGVN* gvn) const;
-
   const TypeInstPtr* inline_ptr() const { return TypeInstPtr::make(TypePtr::BotPTR, inline_klass()); }
 
 public:
@@ -135,9 +139,6 @@ public:
 
   InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
   InlineTypeNode* finish_larval(GraphKit* kit) const;
-
-  // Returns the constant oop of the default inline type allocation
-  static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);
 
   Node* tagged_klass(PhaseGVN& gvn) {
     return tagged_klass(inline_klass(), gvn);

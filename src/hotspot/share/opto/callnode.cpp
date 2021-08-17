@@ -499,11 +499,10 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
       if (nf > 0) {
         uint first_ind = spobj->first_index(mcall->jvms());
         if (iklass != NULL && iklass->is_inlinetype()) {
-          Node* oop2 = mcall->in(first_ind++);
-          // TODO
-          if (!oop2->is_top() && !oop2->is_SafePointScalarObject()) {
-            st->print(" [nullCheckOop");
-            format_helper(regalloc, st, oop2, ":", -1, NULL);
+          Node* oop_node = mcall->in(first_ind++);
+          if (!oop_node->is_top()) {
+            st->print(" [oop");
+            format_helper(regalloc, st, oop_node, ":", -1, NULL);
           }
         }
         Node* fld_node = mcall->in(first_ind);

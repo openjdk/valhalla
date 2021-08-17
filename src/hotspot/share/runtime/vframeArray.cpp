@@ -124,7 +124,7 @@ void vframeArrayElement::fill_in(compiledVFrame* vf, bool realloc_failures) {
     StackValue* value = locs->at(index);
     switch(value->type()) {
       case T_OBJECT:
-        //assert(!value->obj_is_scalar_replaced() || realloc_failures, "object should be reallocated already");
+        assert(!value->obj_is_scalar_replaced() || realloc_failures, "object should be reallocated already");
         // preserve object type
         _locals->add( new StackValue(cast_from_oop<intptr_t>((value->get_obj()())), T_OBJECT ));
         break;
@@ -149,7 +149,7 @@ void vframeArrayElement::fill_in(compiledVFrame* vf, bool realloc_failures) {
     StackValue* value = exprs->at(index);
     switch(value->type()) {
       case T_OBJECT:
-    //    assert(!value->obj_is_scalar_replaced() || realloc_failures, "object should be reallocated already");
+        assert(!value->obj_is_scalar_replaced() || realloc_failures, "object should be reallocated already");
         // preserve object type
         _expressions->add( new StackValue(cast_from_oop<intptr_t>((value->get_obj()())), T_OBJECT ));
         break;

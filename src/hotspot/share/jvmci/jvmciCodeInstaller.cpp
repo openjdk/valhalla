@@ -900,8 +900,7 @@ GrowableArray<ScopeValue*>* CodeInstaller::record_virtual_objects(JVMCIObject de
     Klass* klass = jvmci_env()->asKlass(type);
     oop javaMirror = klass->java_mirror();
     ScopeValue *klass_sv = new ConstantOopWriteValue(JNIHandles::make_local(Thread::current(), javaMirror));
-    // TODO
-    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv, new MarkerValue()) : new ObjectValue(id, klass_sv, new MarkerValue());
+    ObjectValue* sv = is_auto_box ? new AutoBoxObjectValue(id, klass_sv) : new ObjectValue(id, klass_sv);
     if (id < 0 || id >= objects->length()) {
       JVMCI_ERROR_NULL("virtual object id %d out of bounds", id);
     }

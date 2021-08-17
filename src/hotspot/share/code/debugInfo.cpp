@@ -168,6 +168,10 @@ void ObjectValue::write_on(DebugInfoWriteStream* stream) {
     stream->write_int(is_auto_box() ? AUTO_BOX_OBJECT_CODE : OBJECT_CODE);
     stream->write_int(_id);
     _klass->write_on(stream);
+    if (_oop == NULL) {
+      // MarkerValue is used for null-free objects
+      _oop = new MarkerValue();
+    }
     _oop->write_on(stream);
     int length = _field_values.length();
     stream->write_int(length);

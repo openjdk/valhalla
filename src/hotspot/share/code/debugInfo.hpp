@@ -123,7 +123,7 @@ class ObjectValue: public ScopeValue {
   Handle                     _value;
   bool                       _visited;
  public:
-  ObjectValue(int id, ScopeValue* klass, ScopeValue* oop)
+  ObjectValue(int id, ScopeValue* klass, ScopeValue* oop = NULL)
      : _id(id)
      , _klass(klass)
      , _oop(oop)
@@ -151,6 +151,7 @@ class ObjectValue: public ScopeValue {
   int                         field_size()              { return _field_values.length(); }
   Handle                      value() const             { return _value; }
   bool                        is_visited() const        { return _visited; }
+  bool                        maybe_null() const        { return !_oop->is_marker(); }
 
   void                        set_value(oop value);
   void                        set_visited(bool visited) { _visited = visited; }
@@ -170,7 +171,7 @@ public:
   bool                       is_auto_box() const        { return true; }
   bool                       is_cached() const          { return _cached; }
   void                       set_cached(bool cached)    { _cached = cached; }
-  AutoBoxObjectValue(int id, ScopeValue* klass, ScopeValue* oop) : ObjectValue(id, klass, oop), _cached(false) { }
+  AutoBoxObjectValue(int id, ScopeValue* klass) : ObjectValue(id, klass), _cached(false) { }
   AutoBoxObjectValue(int id) : ObjectValue(id), _cached(false) { }
 };
 

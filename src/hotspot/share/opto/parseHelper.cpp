@@ -153,6 +153,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
     // This cutout lets us avoid the uncommon_trap(Reason_array_check)
     // below, which turns into a performance liability if the
     // gen_checkcast folds up completely.
+    if (_gvn.type(ary)->is_aryptr()->is_null_free()) {
+      null_check(obj);
+    }
     return obj;
   }
 
@@ -258,6 +261,10 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
+  // If we statically know that this is an inline type array, use precise element klass for checkcast
+  if (!elemtype->isa_inlinetype()) {
+    elemtype = elemtype->make_oopptr();
+  }
   bool null_free = false;
   if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr

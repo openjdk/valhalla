@@ -1749,24 +1749,13 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // Allocate inline type in src block to be able to merge it with oop in target block
           Node* buffer = n->as_InlineType()->buffer(this);
           map()->set_req(j, buffer);
-          if (Verbose) {
-            n->dump(2);
-            tty->print_cr("## BUFFER");
-            buffer->dump(1);
-            tty->print_cr("##");
-          }
-        } else if (t->is_inlinetypeptr() && !n->is_InlineTypeBase()) {
-          // TODO is this the right place?
+        } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {
+          // Scalarize inline type in src block to be able to merge it with inline type ptr in target block
           Node* ptr = InlineTypeNode::make_from_oop(this, n, t->inline_klass(), false);
           ptr = new InlineTypePtrNode(ptr->as_InlineType(), false);
           ptr->set_req(1, n);
           ptr = _gvn.transform(ptr)->as_InlineTypeBase();
           map()->set_req(j, ptr);
-          if (Verbose) {
-            tty->print_cr("## PTR");
-            ptr->dump(1);
-            tty->print_cr("##");
-          }
         }
         assert(!t->isa_inlinetype() || n->is_InlineType(), "inconsistent typeflow info");
       }

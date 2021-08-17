@@ -1141,6 +1141,13 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // checking to see an unknown klass subtypes a known klass with no subtypes;
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  // Null checking a scalarized, nullable inline type
+  // TODO
+  if (in(1)->is_InlineTypePtr() && phase->type(in(2))->isa_ptr()->is_zero_type()) {
+    set_req_X(1, in(1)->in(2), phase);
+    return this;
+  }
+
   // Normalize comparisons between Java mirrors into comparisons of the low-
   // level klass, where a dependent load could be shortened.
   //
@@ -1165,12 +1172,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       set_req_X(2, rhs, phase);
       return this;
     }
-  }
-
-  if (in(1)->is_InlineTypePtr() && phase->type(in(2))->isa_ptr()->is_zero_type()) {
-// TODO can we adjust the cast here as well?
-    set_req_X(1, in(1)->in(2), phase);
-    return this;
   }
 
   // Constant pointer on right?

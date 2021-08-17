@@ -1240,8 +1240,6 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* addr = in(Address);
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-
-  // TODO add comment about why uncast is okay
   InlineTypePtrNode* vt = (base != NULL) ? base->uncast()->isa_InlineTypePtr() : NULL;
   if (vt != NULL && offset > oopDesc::klass_offset_in_bytes()) {
     Node* value = vt->field_value_by_offset((int)offset, true);

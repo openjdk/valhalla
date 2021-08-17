@@ -1968,9 +1968,6 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
 
 #ifdef ASSERT
         for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
-          if (!vt->fast_out(i)->is_InlineTypeBase()) {
-            vt->dump(-2);
-          }
           assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");
         }
 #endif

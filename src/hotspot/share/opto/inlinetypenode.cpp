@@ -234,6 +234,7 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   // offset and add the field values to the safepoint.
   assert(!in(2)->is_InlineTypeBase(), "fail");
   if (igvn->type(in(2))->maybe_null()) {
+    // TODO what if it becomes known to be non-null only later?
     sfpt->add_req(in(2));
   } else {
     sfpt->add_req(igvn->C->top());
@@ -586,7 +587,7 @@ InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass*
   return vt->as_InlineType();
 }
 
-Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
+Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Returns the constant oop of the default inline type allocation
   return gvn.makecon(TypeInstPtr::make(vk->default_instance()));
 }
@@ -624,16 +625,15 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
     vt->set_field_value(i, value);
   }
   vt = gvn.transform(vt)->as_InlineType();
-  // TODO re-enable
-  //assert(vt->is_default(&gvn), "must be the default inline type");
+  assert(vt->is_default(&gvn), "must be the default inline type");
   return vt;
 }
 
-bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
+bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     if (!gvn->type(value)->is_zero_type() &&
-        !(value->is_InlineType() && value->as_InlineType()->is_default(gvn)) &&
+        !(value->is_InlineTypeBase() && value->as_InlineTypeBase()->is_default(gvn)) &&
         !(field_type(i)->is_inlinetype() && value == default_oop(*gvn, field_type(i)->as_inline_klass()))) {
       return false;
     }

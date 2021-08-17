@@ -287,17 +287,7 @@ void Parse::array_store(BasicType bt) {
 
     if (ary_t->is_flat()) {
       // Store to flattened inline type array
-      if (!cast_val->is_InlineType()) {
-        inc_sp(3);
-        // TODO shouldn't this be guaranteed by the array_store_check?
-        cast_val = null_check(cast_val);
-        if (stopped()) return;
-        dec_sp(3);
-        if (!cast_val->is_InlineType()) {
-          // TODO
-          cast_val = InlineTypeNode::make_from_oop(this, cast_val, ary_t->elem()->inline_klass());
-        }
-      }
+      assert(!tval->maybe_null(), "should be guaranteed by array store check");
       // Re-execute flattened array store if buffering triggers deoptimization
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
@@ -306,13 +296,7 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
-      if (!cast_val->is_InlineType() && tval->maybe_null()) {
-        inc_sp(3);
-        // TODO shouldn't this be guaranteed by the array_store_check?
-        cast_val = null_check(cast_val);
-        if (stopped()) return;
-        dec_sp(3);
-      }
+      assert(!tval->maybe_null(), "should be guaranteed by array store check");
       if (elemtype->inline_klass()->is_empty()) {
         // Ignore empty inline stores, array is already initialized.
         return;

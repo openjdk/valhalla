@@ -3547,10 +3547,15 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           if (null_free) {
             obj = null_check(obj);
           }
-          if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(obj)->maybe_null()) {
-            // TODO needed? I think so but javac does not emit such casts anymore it seems... try to write bytecode test
-            assert(!obj->is_InlineType(), "needed");
-            obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
+          if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !obj->is_InlineTypeBase()) {
+            if (gvn().type(obj)->maybe_null()) {
+              Node* tmp = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass(), false);
+              tmp = new InlineTypePtrNode(tmp->as_InlineType(), false);
+              tmp->set_req(1, obj);
+              obj = _gvn.transform(tmp);
+            } else {
+              obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
+            }
             // TODO replace in map!!
           }
         }
@@ -3740,6 +3745,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   }
 
   if (!stopped() && !from_inline) {
+    // TODO this might hide a InlineTypePtr behind a cast, right?
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable()) {
       Node* tmp;
