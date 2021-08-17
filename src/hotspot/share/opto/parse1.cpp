@@ -2094,8 +2094,8 @@ int Parse::Block::add_new_path() {
       if (n->is_Phi() && n->as_Phi()->region() == r) {
         assert(n->req() == pnum, "must be same size as region");
         n->add_req(NULL);
-      } else if (n->is_InlineType() && n->as_InlineType()->has_phi_inputs(r)) {
-        n->as_InlineType()->add_new_path(r);
+      } else if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->has_phi_inputs(r)) {
+        n->as_InlineTypeBase()->add_new_path(r);
       }
     }
   }

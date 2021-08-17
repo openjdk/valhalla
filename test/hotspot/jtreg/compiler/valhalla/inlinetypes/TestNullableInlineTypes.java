@@ -1964,4 +1964,24 @@ public class TestNullableInlineTypes {
             Asserts.assertEquals(test74(false, true, arg, info.getTest()), testValue1.hash());
         }
     }
+
+    // Test new merge path being added for exceptional control flow
+    @Test
+    public MyValue1.ref test75(MyValue1.ref vt, Object obj) {
+        try {
+            vt = (MyValue1.ref)obj;
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        return vt;
+    }
+
+    @Run(test = "test75")
+    public void test75_verifier() {
+        RuntimeException tmp = new RuntimeException("42"); // Make sure RuntimeException is loaded
+        MyValue1.ref vt = testValue1;
+        MyValue1.ref result = test75(vt, Integer.valueOf(rI));
+        Asserts.assertEquals(result.hash(), vt.hash());
+    }
 }

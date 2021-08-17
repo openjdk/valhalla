@@ -1263,10 +1263,6 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     cast = _gvn.transform( cast );
 
     InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass());
-    if (!vt->is_allocated(&_gvn)) {
-      cast->dump(0);
-      vt->dump(10);
-    }
     assert(vt->is_allocated(&_gvn), "should be allocated");
 
     // TODO is_Parse() is needed because we should not replace during incremental inlining

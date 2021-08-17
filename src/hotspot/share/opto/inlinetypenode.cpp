@@ -135,11 +135,14 @@ void InlineTypeBaseNode::add_new_path(Node* region) {
   PhiNode* phi = get_oop()->as_Phi();
   phi->add_req(NULL);
   assert(phi->req() == region->req(), "must be same size as region");
+  phi = in(2)->as_Phi();
+  phi->add_req(NULL);
+  assert(phi->req() == region->req(), "must be same size as region");
 
   for (uint i = 0; i < field_count(); ++i) {
     Node* val = field_value(i);
-    if (val->is_InlineType()) {
-      val->as_InlineType()->add_new_path(region);
+    if (val->is_InlineTypeBase()) {
+      val->as_InlineTypeBase()->add_new_path(region);
     } else {
       val->as_Phi()->add_req(NULL);
       assert(val->req() == region->req(), "must be same size as region");
