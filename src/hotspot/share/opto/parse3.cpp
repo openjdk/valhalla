@@ -207,10 +207,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
 
     // Load a non-flattened inline type from memory
-    if (field_klass->is_inlinetype() && field_klass->as_inline_klass()->is_scalarizable()) {
+    if (field_klass->is_inlinetype()) {
       ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass(), field->is_null_free());
-    } else if (field->is_null_free()) {
-      ld = null2default(ld, field_klass->as_inline_klass());
     }
   }
 
@@ -257,7 +255,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     return;
   } else if (field->is_flattened()) {
     // Storing to a flattened inline type field.
-    // TODO shouldn't there alway be a cast that guarantees this?
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }

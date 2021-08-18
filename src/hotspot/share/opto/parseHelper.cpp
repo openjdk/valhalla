@@ -357,7 +357,7 @@ void Parse::do_withfield() {
   }
   if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
-    assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Inline types are null-free");
+    assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
     val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
   } else if (val->is_InlineType() && !field->is_null_free()) {
     // Field value needs to be allocated because it can be merged with an oop.

@@ -2523,11 +2523,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     // Load a non-flattened inline type from memory
     if (field != NULL && field->type()->is_inlinetype() && !field->is_flattened()) {
-      if (field->type()->as_inline_klass()->is_scalarizable()) {
-        p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass(), field->is_null_free());
-      } else if (field->is_null_free()) {
-        p = null2default(p, value_type->inline_klass());
-      }
+      p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass(), field->is_null_free());
     }
 
     // The load node has the control of the preceding MemBarCPUOrder.  All

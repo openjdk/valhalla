@@ -827,11 +827,11 @@ public class TestNullableInlineTypes {
         test31(null);
     }
 
-    private static final MyValue1.ref constNullField = null;
+    private static final MyValue1.ref constNullRefField = null;
 
     @Test
     public MyValue1.ref test32() {
-        return constNullField;
+        return constNullRefField;
     }
 
     @Run(test = "test32")
@@ -1983,5 +1983,157 @@ public class TestNullableInlineTypes {
         MyValue1.ref vt = testValue1;
         MyValue1.ref result = test75(vt, Integer.valueOf(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
+    }
+
+    @ForceInline
+    public Object test76_helper() {
+        return constNullRefField;
+    }
+
+    // Test that constant null .ref field does not block scalarization
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test76(boolean b1, boolean b2, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test76_helper();
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).hash();
+    }
+
+    @Run(test = "test76")
+    public void test76_verifier(RunInfo info) {
+        Asserts.assertEquals(test76(false, false, info.getTest()), testValue1.hash());
+        try {
+            test76(true, false, info.getTest());
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test76(false, true, info.getTest()), testValue1.hash());
+            try {
+                test76(true, true, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    private static final Object constObjectValField = MyValue1.createWithFieldsInline(rI+1, rL+1);
+
+    @ForceInline
+    public Object test77_helper() {
+        return constObjectValField;
+    }
+
+    // Test that constant object field with inline type content does not block scalarization
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test77(boolean b1, boolean b2, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test77_helper();
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).hash();
+    }
+
+    @Run(test = "test77")
+    public void test77_verifier(RunInfo info) {
+        Asserts.assertEquals(test77(true, false, info.getTest()), ((MyValue1)constObjectValField).hash());
+        Asserts.assertEquals(test77(false, false, info.getTest()), testValue1.hash());
+        if (!info.isWarmUp()) {
+          Asserts.assertEquals(test77(true, false, info.getTest()), ((MyValue1)constObjectValField).hash());
+          Asserts.assertEquals(test77(false, false, info.getTest()), testValue1.hash());
+        }
+    }
+
+    @ForceInline
+    public Object test78_helper() {
+        return null;
+    }
+
+    // Test that constant null does not block scalarization
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test78(boolean b1, boolean b2, Method m) {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            val = test78_helper();
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).hash();
+    }
+
+    @Run(test = "test78")
+    public void test78_verifier(RunInfo info) {
+        Asserts.assertEquals(test78(false, false, info.getTest()), testValue1.hash());
+        try {
+            test78(true, false, info.getTest());
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test78(false, true, info.getTest()), testValue1.hash());
+            try {
+                test78(true, true, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @ForceInline
+    public Object test79_helper() {
+        return null;
+    }
+
+    // Same as test78 but will trigger different order of PhiNode inputs
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test79(boolean b1, boolean b2, Method m) {
+        Object val = test79_helper();
+        if (b1) {
+            val = MyValue1.createWithFieldsInline(rI, rL);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return ((MyValue1)val).hash();
+    }
+
+    @Run(test = "test79")
+    public void test79_verifier(RunInfo info) {
+        Asserts.assertEquals(test79(true, false, info.getTest()), testValue1.hash());
+        try {
+            test79(false, false, info.getTest());
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test79(true, true, info.getTest()), testValue1.hash());
+            try {
+                test79(false, true, info.getTest());
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 }

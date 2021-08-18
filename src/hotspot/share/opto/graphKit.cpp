@@ -1262,7 +1262,8 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     cast->init_req(0, control());
     cast = _gvn.transform( cast );
 
-    InlineTypeBaseNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass());
+    // TODO should check if scalarizable, otherwise cast is returned
+    InlineTypeBaseNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass())->as_InlineTypeBase();
     assert(vt->is_allocated(&_gvn), "should be allocated");
 
     // TODO is_Parse() is needed because we should not replace during incremental inlining
@@ -1270,13 +1271,6 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     // TODO but we could replace by PTR, right?
     if (is_Parse() && (null_control == NULL || (*null_control) == top())) {
       replace_in_map(value, vt);
-    }
-    if (Verbose) {
-      tty->print_cr("## NULL CHECKING");
-      value->dump(8);
-      tty->print_cr("##");
-      vt->dump(2);
-      tty->print_cr("##");
     }
     return vt;
   }
@@ -3151,7 +3145,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
       Node* res = _gvn.transform(cast);
       if (recv_xtype->is_inlinetypeptr() && recv_xtype->inline_klass()->is_scalarizable()) {
         assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
-        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_ptr(&gvn());
+        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_InlineTypeBase()->as_ptr(&gvn());
       }
       (*casted_receiver) = res;
       // (User must make the replace_in_map call.)
@@ -4765,13 +4759,10 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
                                                         /*is_unsigned_load=*/false);
   if (con_type != NULL) {
     Node* con = makecon(con_type);
-    // Check type of constant which might be more precise
-    if (con_type->is_inlinetypeptr() && con_type->inline_klass()->is_scalarizable()) {
-      assert(!con_type->is_zero_type(), "Inline types are null-free");
-      // TODO what about constant .ref field???
-      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
-    } else if (con_type->is_zero_type() && field->is_null_free()) {
-      con = InlineTypeNode::default_oop(gvn(), field->type()->as_inline_klass());
+    if (field->type()->is_inlinetype()) {
+      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
+    } else if (con_type->is_inlinetypeptr()) {
+      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());
     }
     return con;
   }

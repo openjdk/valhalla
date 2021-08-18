@@ -1926,36 +1926,57 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return NULL;                // No change
 
   // TODO what if one input is the Phi itself? or if there are more complicated phi structures involving loops?
-  // If all inputs are inline types of the same type, push the inline type node down
-  // through the phi because inline type nodes should be merged through their input values.
   // TODO input could be narrow! But do we really need to handle that?
   //if (req() > 2 && in(1) != NULL && (in(1)->is_InlineTypeBase() || (in(1)->is_EncodeP() && in(1)->in(1)->is_InlineTypeBase()))) {
-  if (req() > 2 && in(1) != NULL && in(1)->is_InlineTypeBase()) {
+
+  // If all inputs are inline types of the same type, push the inline type node down
+  // through the phi because inline type nodes should be merged through their input values.
+  if (req() > 2 && in(1) != NULL && (in(1)->is_InlineTypeBase() || phase->type(in(1))->is_zero_type())) {
     if (in(1)->is_EncodeP() && in(1)->in(1)->is_InlineTypeBase()) {
-     // dump(10);
       //assert(false, "FAIL");
     }
     int opcode = in(1)->Opcode();
-    uint i = 2;
+    uint i = 1;
     // Check if inputs are values of the same type
     // TODO refactor
-    //ciInlineKlass* vk = phase->type(in(1))->make_ptr()->inline_klass();
-    ciInlineKlass* vk = phase->type(in(1))->inline_klass();
-    // TODO
     //for (; i < req() && in(i) && (in(i)->is_InlineTypeBase() || (in(i)->is_EncodeP() && in(i)->in(1)->is_InlineTypeBase())); i++) {
-    for (; i < req() && in(i) && in(i)->is_InlineTypeBase(); i++) {
-      assert(in(i)->Opcode() == opcode, "mixing pointers and values?");
+    ciInlineKlass* vk = NULL;
+    for (; i < req() && in(i) && (in(i)->is_InlineTypeBase() || phase->type(in(i))->is_zero_type()); i++) {
+      if (!phase->type(in(i))->is_zero_type() && vk == NULL) {
+        vk = phase->type(in(i))->inline_klass();
+      }
+   //   assert(phase->type(in(i))->is_zero_type() || (in(i)->Opcode() == opcode), "mixing pointers and values?");
       //if (phase->type(in(i))->make_ptr()->inline_klass() != vk) {
-      if (phase->type(in(i))->inline_klass() != vk) {
+      if (!phase->type(in(i))->is_zero_type() && phase->type(in(i))->inline_klass() != vk) {
         break;
       }
     }
-    if (i == req()) {
-      if (in(1)->is_InlineTypeBase()) {
-        InlineTypeBaseNode* vt = in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
+    if (i == req() && vk != NULL) {
+      InlineTypeBaseNode* base = in(1)->isa_InlineTypeBase();
+      if (base == NULL) {
+        InlineTypeNode* def = InlineTypeNode::make_default(*phase, vk);
+        phase->hash_delete(def);
+        def->set_req(1, phase->zerocon(T_OBJECT));
+        def->set_req(2, phase->zerocon(T_OBJECT));
+        // TODO remove dead node;
+        base = phase->transform(new InlineTypePtrNode(def, false))->as_InlineTypeBase();
+      }
+      if (true || in(1)->is_InlineTypeBase()) {
+        InlineTypeBaseNode* vt = base->clone_with_phis(phase, in(0));
         for (i = 2; i < req(); ++i) {
           bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-          vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, transform);
+          InlineTypeBaseNode* other = NULL;
+          if (phase->type(in(i))->is_zero_type()) {
+            InlineTypeNode* def = InlineTypeNode::make_default(*phase, vk);
+            phase->hash_delete(def);
+            def->set_req(1, phase->zerocon(T_OBJECT));
+            def->set_req(2, phase->zerocon(T_OBJECT));
+            // TODO remove dead node;
+            other = phase->transform(new InlineTypePtrNode(def, false))->as_InlineTypeBase();
+          } else {
+            other = in(i)->as_InlineTypeBase();
+          }
+          vt->merge_with(phase, other, i, transform);
         }
         return vt;
       } else {

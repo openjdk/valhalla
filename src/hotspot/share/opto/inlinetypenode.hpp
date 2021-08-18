@@ -131,7 +131,7 @@ public:
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create and initialize by loading the field values from an oop
-  static InlineTypeBaseNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
+  static Node* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
   // Create and initialize by loading the field values from a flattened field or array
   static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
