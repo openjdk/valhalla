@@ -61,6 +61,7 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
     if (value->is_InlineTypeBase()) {
+      // TODO adjust this comment, could also be non-flattened
       // Handle flattened inline type fields recursively
       value = value->as_InlineTypeBase()->clone_with_phis(gvn, region);
     } else {
@@ -95,6 +96,19 @@ bool InlineTypeBaseNode::has_phi_inputs(Node* region) {
   }
 #endif
   return result;
+}
+
+bool InlineTypeBaseNode::can_merge() {
+  for (uint i = 0; i < field_count(); ++i) {
+    ciType* type = field_type(i);
+    Node* val = field_value(i);
+    if (type->is_inlinetype()) {
+      if (!val->is_InlineTypeBase() || !val->as_InlineTypeBase()->can_merge()) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'

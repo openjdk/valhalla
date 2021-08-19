@@ -1992,7 +1992,7 @@ public class TestNullableInlineTypes {
 
     // Test that constant null .ref field does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test76(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2034,7 +2034,7 @@ public class TestNullableInlineTypes {
 
     // Test that constant object field with inline type content does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test77(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2064,7 +2064,7 @@ public class TestNullableInlineTypes {
 
     // Test that constant null does not block scalarization
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test78(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -2104,7 +2104,7 @@ public class TestNullableInlineTypes {
 
     // Same as test78 but will trigger different order of PhiNode inputs
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public long test79(boolean b1, boolean b2, Method m) {
         Object val = test79_helper();
         if (b1) {
@@ -2136,4 +2136,63 @@ public class TestNullableInlineTypes {
             }
         }
     }
+
+    @ForceInline
+    public Object test80_helper(Object obj, int i) {
+        if ((i % 2) == 0) {
+            return MyValue1.createWithFieldsInline(i, i);
+        }
+        return obj;
+    }
+
+    // TODO more tests with loops
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
+    public long test80() {
+        Object val = MyValue1.createWithFieldsInline(rI, rL);
+        for (int i = 0; i < 100; ++i) {
+            val = test80_helper(val, i);
+        }
+        return ((MyValue1.ref)val).hash();
+    }
+
+    private final long test80Result = test80();
+
+    @Run(test = "test80")
+    public void test80_verifier() {
+        Asserts.assertEquals(test80(), test80Result);
+    }
+
+/*
+    static primitive class Simple {
+        int x;
+
+        public Simple(int x) {
+            this.x = x;
+        }
+    }
+
+    @ForceInline
+    public Object test80_helper(Object obj, int i) {
+        if ((i % 2) == 0) {
+            return new Simple(i);
+        }
+        return obj;
+    }
+
+    @Test
+    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE})
+    public long test80() {
+        Object val = new Simple(1);
+        for (int i = 0; i < 100; ++i) {
+            val = test80_helper(val, i);
+        }
+        return ((Simple.ref)val).x;
+    }
+
+    @Run(test = "test80")
+    public void test80_verifier() {
+        test80();
+    }
+*/
 }
