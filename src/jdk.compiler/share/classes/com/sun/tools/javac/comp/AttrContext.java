@@ -53,6 +53,10 @@ public class AttrContext {
      */
     boolean isSelfCall = false;
 
+    /** are we analyzing the arguments for a constructor invocation?
+     */
+    boolean constructorArgs = false;
+
     /** Are we evaluating the selector of a `super' or type name?
      */
     boolean selectSuper = false;
@@ -134,6 +138,7 @@ public class AttrContext {
         info.scope = scope;
         info.staticLevel = staticLevel;
         info.isSelfCall = isSelfCall;
+        info.constructorArgs = constructorArgs;
         info.selectSuper = selectSuper;
         info.pendingResolutionPhase = pendingResolutionPhase;
         info.lint = lint;
