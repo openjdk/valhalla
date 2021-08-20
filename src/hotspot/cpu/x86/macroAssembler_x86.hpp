@@ -1772,7 +1772,7 @@ public:
                           VMRegPair* from, int from_count, int& from_index, VMReg to,
                           RegState reg_state[], Register val_array);
   int extend_stack_for_inline_args(int args_on_stack);
-  void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
+  void remove_frame(int initial_framesize, bool needs_stack_repair);
   VMReg spill_reg_for(VMReg reg);
 
   // clear memory of size 'cnt' qwords, starting at 'base';

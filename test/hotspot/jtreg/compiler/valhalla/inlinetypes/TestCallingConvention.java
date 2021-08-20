@@ -1130,4 +1130,63 @@ public class TestCallingConvention {
         test50(true);
         test50(false);
     }
+
+    // Test stack repair with stack slots reserved for monitors
+    private static final Object lock1 = new Object();
+    private static final Object lock2 = new Object();
+    private static final Object lock3 = new Object();
+
+    @DontInline
+    static void test51_callee() { }
+
+    @Test
+    public void test51(MyValue1 val) {
+        synchronized (lock1) {
+            test51_callee();
+        }
+    }
+
+    @Run(test = "test51")
+    public void test51_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test51(vt);
+    }
+
+    @DontInline
+    static void test52_callee() { }
+
+    @Test
+    public void test52(MyValue1 val) {
+        synchronized (lock1) {
+            synchronized (lock2) {
+                test52_callee();
+            }
+        }
+    }
+
+    @Run(test = "test52")
+    public void test52_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test52(vt);
+    }
+
+    @DontInline
+    static void test53_callee() { }
+
+    @Test
+    public void test53(MyValue1 val) {
+        synchronized (lock1) {
+            synchronized (lock2) {
+                synchronized (lock3) {
+                    test53_callee();
+                }
+            }
+        }
+    }
+
+    @Run(test = "test53")
+    public void test53_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test53(vt);
+    }
 }

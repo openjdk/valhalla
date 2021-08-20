@@ -5355,9 +5355,9 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 
   if (C->needs_stack_repair()) {
-    // Save stack increment (also account for fixed framesize and rbp)
+    // Save stack increment just below the saved rbp (also account for fixed framesize and rbp)
     assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    movptr(Address(rsp, C->output()->sp_inc_offset()), sp_inc + framesize + wordSize);
+    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize + wordSize);
   }
 
   if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
@@ -5766,11 +5766,12 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
   return reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
 }
 
-void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset) {
+void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
     movq(rbp, Address(rsp, initial_framesize));
-    addq(rsp, Address(rsp, sp_inc_offset));
+    // The stack increment resides just below the saved rbp
+    addq(rsp, Address(rsp, initial_framesize - wordSize));
   } else {
     if (initial_framesize > 0) {
       addq(rsp, initial_framesize);
