@@ -74,13 +74,13 @@ public class CustomClassListDump {
 
         String listData = new String(Files.readAllBytes(Paths.get(classList)));
         check(listData, true, "CustomLoaderApp id: [0-9]+");
-        check(listData, true, "CustomLoadee id: [0-9]+ super: [0-9]+ source: .*/custom.jar");
+        check(listData, true, "CustomLoadee id: [0-9]+ super: [0-9]+ interfaces: [0-9]+ source: .*/custom.jar");
         check(listData, true, "CustomInterface2_ia id: [0-9]+ super: [0-9]+ source: .*/custom.jar");
         check(listData, true, "CustomInterface2_ib id: [0-9]+ super: [0-9]+ source: .*/custom.jar");
-        check(listData, true, "CustomLoadee2 id: [0-9]+ super: [0-9]+ interfaces: [0-9]+ [0-9]+ source: .*/custom.jar");
-        check(listData, true, "CustomLoadee3 id: [0-9]+ super: [0-9]+ source: .*/custom.jar");
+        check(listData, true, "CustomLoadee2 id: [0-9]+ super: [0-9]+ interfaces: [0-9]+ [0-9]+ [0-9]+ source: .*/custom.jar");
+        check(listData, true, "CustomLoadee3 id: [0-9]+ super: [0-9]+ interfaces: [0-9]+ source: .*/custom.jar");
         check(listData, true, "CustomLoadee3Child id: [0-9]+ super: [0-9]+ source: .*/custom.jar");
-        check(listData, true, "CustomLoadee4WithLambda id: [0-9]+ super: [0-9]+ source: .*/custom.jar");
+        check(listData, true, "CustomLoadee4WithLambda id: [0-9]+ super: [0-9]+ interfaces: [0-9]+ source: .*/custom.jar");
 
         // We don't support archiving of Lambda proxies for custom loaders.
         check(listData, false, "@lambda-proxy.*CustomLoadee4WithLambda");
