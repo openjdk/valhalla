@@ -305,8 +305,7 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, 
   MacroAssembler::build_frame(frame_size_in_bytes);
 
   if (needs_stack_repair) {
-    int sp_inc_offset = frame_size_in_bytes - 3 * wordSize;  // Immediately below saved LR and FP
-    save_stack_increment(sp_inc, frame_size_in_bytes, sp_inc_offset);
+    save_stack_increment(sp_inc, frame_size_in_bytes);
   }
 }
 
@@ -335,11 +334,6 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
     // for packing scalarized arguments and therefore already created the frame.
     bind(*verified_inline_entry_label);
   }
-}
-
-void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair,
-                                     int sp_inc_offset) {
-  MacroAssembler::remove_frame(frame_size_in_bytes, needs_stack_repair, sp_inc_offset);
 }
 
 void C1_MacroAssembler::verified_entry() {
