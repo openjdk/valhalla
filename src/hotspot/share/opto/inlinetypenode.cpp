@@ -234,7 +234,7 @@ bool InlineTypeBaseNode::field_is_null_free(uint index) const {
   return field->is_null_free();
 }
 
-int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
@@ -268,7 +268,13 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
-  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end(), igvn);
+
+  for (uint i = jvms->debug_start(); i < jvms->debug_end(); i++) {
+    Node* debug = sfpt->in(i);
+    if (debug != NULL && debug->uncast() == this) {
+      sfpt->set_req(i, sobj);
+    }
+  }
 }
 
 void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
@@ -285,27 +291,45 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
     use_oop = true;
   }
 
-  // Process all safepoint uses and scalarize inline type
+  ResourceMark rm;
+  Unique_Node_List safepoints;
+  Unique_Node_List vt_worklist;
   Unique_Node_List worklist;
-  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-    SafePointNode* sfpt = fast_out(i)->isa_SafePoint();
-    if (sfpt != NULL && !sfpt->is_CallLeaf() && (!sfpt->is_Call() || sfpt->as_Call()->has_debug_use(this))) {
-      int nb = 0;
-      if (use_oop) {
-        // Inline type is allocated with a constant oop, link it directly
-        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end(), igvn);
-        igvn->rehash_node_delayed(sfpt);
-      } else {
-        nb = make_scalar_in_safepoint(igvn, worklist, sfpt);
+  worklist.push(this);
+  while (worklist.size() > 0) {
+    Node* n = worklist.pop();
+    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+      Node* use = n->fast_out(i);
+      if (use->is_SafePoint() && !use->is_CallLeaf() && (!use->is_Call() || use->as_Call()->has_debug_use(n))) {
+        safepoints.push(use);
+      } else if (use->is_ConstraintCast()) {
+        worklist.push(use);
       }
-      --i; imax -= nb;
+    }
+  }
+
+  // Process all safepoint uses and scalarize inline type
+  while (safepoints.size() > 0) {
+    SafePointNode* sfpt = safepoints.pop()->as_SafePoint();
+    if (use_oop) {
+      // Inline type is allocated with a constant oop, link it directly
+      for (uint i = sfpt->jvms()->debug_start(); i < sfpt->jvms()->debug_end(); i++) {
+        Node* debug = sfpt->in(i);
+        if (debug != NULL && debug->uncast() == this) {
+          sfpt->set_req(i, get_oop());
+        }
+      }
+      igvn->rehash_node_delayed(sfpt);
+    } else {
+      make_scalar_in_safepoint(igvn, vt_worklist, sfpt);
     }
   }
   // Now scalarize non-flattened fields
-  for (uint i = 0; i < worklist.size(); ++i) {
-    InlineTypeBaseNode* vt = worklist.at(i)->isa_InlineTypeBase();
+  for (uint i = 0; i < vt_worklist.size(); ++i) {
+    InlineTypeBaseNode* vt = vt_worklist.at(i)->isa_InlineTypeBase();
     vt->make_scalar_in_safepoints(igvn);
   }
+  // TODO adjust this for CastPP outs
   if (outcnt() == 0) {
     igvn->_worklist.push(this);
   }
@@ -574,10 +598,12 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       return NULL;
     }
   }
+  // TODO needed?
   Node* oop = get_oop();
-  if (oop->isa_InlineTypePtr()) {
+  if (oop->isa_InlineTypePtr() && !phase->type(oop)->maybe_null()) {
     InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
     set_oop(vtptr->get_oop());
+    set_req(Oop2, vtptr->in(Oop2));
     for (uint i = Values; i < vtptr->req(); ++i) {
       set_req(i, vtptr->in(i));
     }
@@ -621,7 +647,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
           value = make_default(gvn, type->inline_klass());
           gvn.hash_delete(value);
           value->set_req(2, gvn.zerocon(T_OBJECT));
-          gvn.transform(value);
+          value = gvn.transform(value);
 // TODO
           Node* ptr = new InlineTypePtrNode(value->as_InlineType(), false);
           ptr->set_req(1, gvn.zerocon(T_OBJECT));
@@ -652,6 +678,7 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   assert(!oop->is_InlineType(), "already inline type");
   PhaseGVN& gvn = kit->gvn();
 
+  // TODO add flag for scalarizing nullable inline types
   if (!vk->is_scalarizable()) {
     if (null_free) {
       return kit->null2default(oop, vk);

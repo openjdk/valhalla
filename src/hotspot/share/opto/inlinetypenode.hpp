@@ -50,7 +50,7 @@ protected:
   // Get the klass defining the field layout of the inline type
   ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
-  int make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
+  void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
 

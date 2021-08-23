@@ -1946,7 +1946,9 @@ InlineTypeBaseNode* PhiNode::push_through(PhaseGVN *phase, bool can_reshape, ciI
   for (uint i = 1; i < req(); ++i) {
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
     InlineTypeBaseNode* other = NULL;
-    if (phase->type(in(i))->is_zero_type()) {
+    // TODO check that uncasting is correct
+    Node* n = in(i)->uncast();
+    if (phase->type(n)->is_zero_type()) {
       InlineTypeNode* def = InlineTypeNode::make_default(*phase, vk);
       phase->hash_delete(def);
       def->set_req(1, phase->zerocon(T_OBJECT));
@@ -1954,15 +1956,15 @@ InlineTypeBaseNode* PhiNode::push_through(PhaseGVN *phase, bool can_reshape, ciI
       phase->record_for_igvn(def);
       // TODO remove dead node
       other = phase->transform(new InlineTypePtrNode(def, false))->as_InlineTypeBase();
-    } else if (in(i)->is_InlineTypeBase()) {
-      other = in(i)->as_InlineTypeBase();
-    } else if (in(i)->is_Phi()) {
+    } else if (n->is_InlineTypeBase()) {
+      other = n->as_InlineTypeBase();
+    } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle this during IGVN");
-      other = in(i)->as_Phi()->push_through(phase, can_reshape, vk);
+      other = phase->transform(n->as_Phi()->push_through(phase, can_reshape, vk))->as_InlineTypeBase();
     }
     vt->merge_with(phase, other, i, transform);
   }
-  return phase->transform(vt)->as_InlineTypeBase();
+  return vt;
 }
 
 //------------------------------Ideal------------------------------------------
@@ -1977,59 +1979,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // This means we have to use type_or_null to defend against untyped regions.
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return NULL;                // No change
-
-  // TODO
-  ResourceMark rm;
-  Node_List nstack;
-  VectorSet visited;
-
-  nstack.push(this);
-  visited.set(this->_idx);
-  bool fail = false;
-  ciInlineKlass* vk = NULL;
-
-  while (nstack.size() != 0 && !fail) {
-    Node* n = nstack.pop();
-    for (uint i = 1; i < n->req(); i++) {
-      Node* m = n->in(i);
-      if (m != NULL && m->is_Phi()) {
-        if (!can_reshape) {
-          // Can only handle this during IGVN
-          fail = true;
-          break;
-        }
-        if (!visited.test_set(m->_idx)) {
-          nstack.push(m);
-        }
-        continue;
-      }
-      if (m == NULL || !(m->is_InlineTypeBase() || phase->type(m)->is_zero_type())) {
-        fail = true;
-        break;
-      }
-      if (m->is_InlineTypeBase()) {
-        if (!m->as_InlineTypeBase()->can_merge()) {
-          // TODO make sure we are still optimizing this later
-          fail = true;
-          break;
-        }
-        if (vk == NULL) {
-          vk = phase->type(m)->inline_klass();
-        } else if (vk != phase->type(m)->inline_klass()) {
-          fail = true;
-          break;
-        }
-      }
-    }
-  }
-  if (!fail && req() > 2 && vk != NULL) {
-    //dump(5);
-    //tty->print_cr("### AFTER");
-    Node* res = push_through(phase, can_reshape, vk);
-    //res->dump(5);
-    //tty->print_cr("####");
-    return res;
-  }
 
   Node *top = phase->C->top();
   bool new_phi = (outcnt() == 0); // transforming new Phi
@@ -2566,6 +2515,64 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       igvn->register_new_node_with_optimizer(new_vbox_phi, this);
       igvn->register_new_node_with_optimizer(new_vect_phi, this);
       progress = new VectorBoxNode(igvn->C, new_vbox_phi, new_vect_phi, vbox->box_type(), vbox->vec_type());
+    }
+  }
+
+  if (EnableValhalla && progress == NULL) {
+    ResourceMark rm;
+    Node_List nstack;
+    VectorSet visited;
+
+    nstack.push(this);
+    visited.set(this->_idx);
+    bool fail = false;
+    ciInlineKlass* vk = NULL;
+
+    bool decode_found=false;
+    while (nstack.size() != 0 && !fail) {
+      Node* n = nstack.pop();
+      for (uint i = 1; i < n->req(); i++) {
+        Node* m = n->in(i);
+        if (m != NULL) {
+          // TODO check that uncasting is correct
+          m = m->uncast();
+        }
+        if (m != NULL && m->is_Phi()) {
+          if (!can_reshape) {
+            // Can only handle this during IGVN
+            fail = true;
+            break;
+          }
+          if (!visited.test_set(m->_idx)) {
+            nstack.push(m);
+          }
+          continue;
+        }
+        if (m == NULL || !(m->is_InlineTypeBase() || phase->type(m)->is_zero_type())) {
+          fail = true;
+          break;
+        }
+        if (m->is_InlineTypeBase()) {
+          if (!m->as_InlineTypeBase()->can_merge()) {
+            // TODO make sure we are still optimizing this later
+            fail = true;
+            break;
+          }
+          if (vk == NULL) {
+            vk = phase->type(m)->inline_klass();
+          } else if (vk != phase->type(m)->inline_klass()) {
+            fail = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!fail && req() > 2 && vk != NULL) {
+      //dump(5);
+      //tty->print_cr("### AFTER");
+      progress = push_through(phase, can_reshape, vk);
+      //progress->dump(5);
+      //tty->print_cr("####");
     }
   }
 

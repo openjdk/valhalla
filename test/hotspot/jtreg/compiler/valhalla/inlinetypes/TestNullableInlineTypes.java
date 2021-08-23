@@ -695,11 +695,19 @@ public class TestNullableInlineTypes {
     }
 
     @Run(test = "test25")
-    public void test25_verifier() {
+    public void test25_verifier(RunInfo info) {
         int res = test25(true, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
         res = test25(false, testValue1, testValue1);
         Asserts.assertEquals(res, testValue1.x);
+        if (!info.isWarmUp()) {
+            try {
+                test25(false, null, testValue1);
+                throw new RuntimeException("NullPointerException expected");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
     // Test that chains of casts are folded and don't trigger an allocation
@@ -2145,7 +2153,7 @@ public class TestNullableInlineTypes {
         return obj;
     }
 
-    // TODO more tests with loops
+    // Test that phi nodes referencing themselves (loops) do not block scalarization
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE})
     public long test80() {
@@ -2163,36 +2171,156 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(test80(), test80Result);
     }
 
-/*
-    static primitive class Simple {
-        int x;
-
-        public Simple(int x) {
-            this.x = x;
-        }
-    }
-
     @ForceInline
-    public Object test80_helper(Object obj, int i) {
+    public Object test81_helper(Object obj, int i) {
         if ((i % 2) == 0) {
-            return new Simple(i);
+            return MyValue1.createWithFieldsInline(i, i);
         }
         return obj;
     }
 
+    // Test nested loops
     @Test
-    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE})
-    public long test80() {
-        Object val = new Simple(1);
-        for (int i = 0; i < 100; ++i) {
-            val = test80_helper(val, i);
+    @IR(failOn = {ALLOC, LOAD, STORE})
+    public long test81() {
+        Object val = null;
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                for (int k = 0; k < 10; ++k) {
+                    val = test81_helper(val, i + j + k);
+                }
+                val = test81_helper(val, i + j);
+            }
+            val = test81_helper(val, i);
         }
-        return ((Simple.ref)val).x;
+        return ((MyValue1.ref)val).hash();
     }
 
-    @Run(test = "test80")
-    public void test80_verifier() {
-        test80();
+    private final long test81Result = test81();
+
+    @Run(test = "test81")
+    public void test81_verifier() {
+        Asserts.assertEquals(test82(), test82Result);
     }
-*/
+
+    @ForceInline
+    public Object test82_helper(Object obj, int i) {
+        if ((i % 2) == 0) {
+            return MyValue1.createWithFieldsInline(i, i);
+        }
+        return obj;
+    }
+
+    // Test loops with casts
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
+    public long test82() {
+        Object val = null;
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                for (int k = 0; k < 10; ++k) {
+                    val = test82_helper(val, i + j + k);
+                }
+                if (val != null) {
+                    val = test82_helper(val, i + j);
+                }
+            }
+            val = test82_helper(val, i);
+        }
+        return ((MyValue1.ref)val).hash();
+    }
+
+    private final long test82Result = test82();
+
+    @Run(test = "test82")
+    public void test82_verifier() {
+        Asserts.assertEquals(test82(), test82Result);
+    }
+
+    @ForceInline
+    public Object test83_helper(boolean b) {
+        if (b) {
+            return MyValue1.createWithFieldsInline(rI, rL);
+        }
+        return null;
+    }
+
+    // Test that CastPP does not block sclarization in safepoints
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
+    public long test83(boolean b, Method m) {
+        Object val = test83_helper(b);
+        if (val != null) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+            return ((MyValue1.ref)val).hash();
+        }
+        return 0;
+    }
+
+    @Run(test = "test83")
+    public void test83_verifier(RunInfo info) {
+        Asserts.assertEquals(test83(false, info.getTest()), 0L);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test83(true, info.getTest()), testValue1.hash());
+        }
+    }
+
+    @ForceInline
+    public Object test84_helper(Object obj, int i) {
+        if ((i % 2) == 0) {
+            return new MyValue1Wrapper(MyValue1.createWithFieldsInline(i, i));
+        }
+        return obj;
+    }
+
+    // Same as test80 but with wrapper
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
+    public long test84() {
+        Object val = new MyValue1Wrapper(MyValue1.createWithFieldsInline(rI, rL));
+        for (int i = 0; i < 100; ++i) {
+            val = test84_helper(val, i);
+        }
+        return ((MyValue1Wrapper.ref)val).vt.hash();
+    }
+
+    private final long test84Result = test84();
+
+    @Run(test = "test84")
+    public void test84_verifier() {
+        Asserts.assertEquals(test84(), test84Result);
+    }
+
+    @ForceInline
+    public Object test85_helper(Object obj, int i) {
+        if ((i % 2) == 0) {
+            return new MyValue1Wrapper(MyValue1.createWithFieldsInline(i, i));
+        }
+        return obj;
+    }
+
+    // Same as test81 but with wrapper
+    @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
+    public long test85() {
+        Object val = new MyValue1Wrapper(null);
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                for (int k = 0; k < 10; ++k) {
+                    val = test85_helper(val, i + j + k);
+                }
+                val = test85_helper(val, i + j);
+            }
+            val = test85_helper(val, i);
+        }
+        return ((MyValue1Wrapper.ref)val).vt.hash();
+    }
+
+    private final long test85Result = test85();
+
+    @Run(test = "test85")
+    public void test85_verifier() {
+        Asserts.assertEquals(test82(), test82Result);
+    }
 }
