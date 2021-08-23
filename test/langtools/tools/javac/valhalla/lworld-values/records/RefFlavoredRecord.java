@@ -25,7 +25,6 @@
  * @test
  * @bug 8271583
  * @summary [lworld] primitive records can't be reference favoring
- * @compile -XDallowWithFieldOperator RefFlavoredRecord.java
  * @run main/othervm RefFlavoredRecord
  */
 
