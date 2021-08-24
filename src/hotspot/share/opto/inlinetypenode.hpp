@@ -131,6 +131,8 @@ public:
   static InlineTypeNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
+  // TODO
+  static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create and initialize by loading the field values from an oop
   static Node* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
   // Create and initialize by loading the field values from a flattened field or array
@@ -174,6 +176,13 @@ public:
       init_req(i, vt->in(i));
     }
   }
+
+  InlineTypePtrNode(ciInlineKlass* vk)
+      : InlineTypeBaseNode(TypeInstPtr::make(TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
+    init_class_id(Class_InlineTypePtr);
+  }
+
+  static InlineTypePtrNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
 
   virtual const Type* Value(PhaseGVN* phase) const;
 

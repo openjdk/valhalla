@@ -1474,6 +1474,16 @@ Node* GraphKit::null2default(Node* value, ciInlineKlass* vk) {
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     return obj;
+  } else if (obj->is_InlineTypePtr()) {
+    // TODO
+    Node* cast = cast_not_null(obj->in(1), do_replace_in_map);
+    Node* vt = obj->clone();
+    vt->set_req(1, cast);
+    vt->set_req(2, cast);
+    vt = gvn().transform(vt);
+    if (do_replace_in_map)
+      replace_in_map(obj, vt);
+    return vt;
   }
   const Type *t = _gvn.type(obj);
   const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);

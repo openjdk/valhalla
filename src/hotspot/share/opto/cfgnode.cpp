@@ -1912,57 +1912,32 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
   return delay;
 }
 
-// If all inputs are inline types of the same type, push the inline type node down
-// through the phi because inline type nodes should be merged through their input values.
-// TODO convert this to non-recursive algorithm
-InlineTypeBaseNode* PhiNode::push_through(PhaseGVN *phase, bool can_reshape, ciInlineKlass* vk) {
-  // TODO input could be narrow! But do we really need to handle that?
-  //if (req() > 2 && in(1) != NULL && (in(1)->is_InlineTypeBase() || (in(1)->is_EncodeP() && in(1)->in(1)->is_InlineTypeBase()))) {
-  /*
-} else {
-  assert(in(1)->is_EncodeP(), "sanity");
-  InlineTypeBaseNode* vt = in(1)->in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
-  for (i = 2; i < req(); ++i) {
-    bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, in(i)->in(1)->as_InlineTypeBase(), i, transform);
-  }
-  return new EncodePNode(vt, this->bottom_type());
-}
-*/
-
-  InlineTypeBaseNode* base = InlineTypeNode::make_default(*phase, vk);
-  phase->record_for_igvn(base);
+// Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
+InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
+  InlineTypeBaseNode* vt = NULL;
   if (_type->isa_ptr()) {
-    // TODO remove this once we convert everything to ptr anyway
-    base = phase->transform(new InlineTypePtrNode(base, false))->as_InlineTypeBase();
+    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+  } else {
+    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
   }
-
-  InlineTypeBaseNode* vt = base->clone_with_phis(phase, in(0));
   if (can_reshape) {
+    // Replace phi right away to be able to use it when recursively
+    // reaching it again from other phis through data loops.
     phase->is_IterGVN()->replace_in_uses(this, vt);
   }
-  phase->record_for_igvn(vt);
-
   for (uint i = 1; i < req(); ++i) {
-    bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    InlineTypeBaseNode* other = NULL;
-    // TODO check that uncasting is correct
     Node* n = in(i)->uncast();
-    if (phase->type(n)->is_zero_type()) {
-      InlineTypeNode* def = InlineTypeNode::make_default(*phase, vk);
-      phase->hash_delete(def);
-      def->set_req(1, phase->zerocon(T_OBJECT));
-      def->set_req(2, phase->zerocon(T_OBJECT));
-      phase->record_for_igvn(def);
-      // TODO remove dead node
-      other = phase->transform(new InlineTypePtrNode(def, false))->as_InlineTypeBase();
-    } else if (n->is_InlineTypeBase()) {
-      other = n->as_InlineTypeBase();
-    } else if (n->is_Phi()) {
-      assert(can_reshape, "can only handle this during IGVN");
-      other = phase->transform(n->as_Phi()->push_through(phase, can_reshape, vk))->as_InlineTypeBase();
+    Node* other = NULL;
+    if (n->is_InlineTypeBase()) {
+      other = n;
+    } else if (phase->type(n)->is_zero_type()) {
+      other = InlineTypePtrNode::make_null(*phase, vk);
+    } else {
+      assert(can_reshape, "can only handle phis during IGVN");
+      other = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
     }
-    vt->merge_with(phase, other, i, transform);
+    bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
+    vt->merge_with(phase, other->as_InlineTypeBase(), i, transform);
   }
   return vt;
 }
@@ -2518,61 +2493,38 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     }
   }
 
-  if (EnableValhalla && progress == NULL) {
+  // Check recursively if inputs are either an inline type, constant null
+  // or another Phi (including self references through data loops). If so,
+  // push inline types down through the phis to enable folding of loads.
+  if (EnableValhalla && req() > 2 && progress == NULL) {
     ResourceMark rm;
-    Node_List nstack;
-    VectorSet visited;
-
-    nstack.push(this);
-    visited.set(this->_idx);
-    bool fail = false;
+    Unique_Node_List worklist;
+    worklist.push(this);
+    bool can_optimize = true;
     ciInlineKlass* vk = NULL;
 
-    bool decode_found=false;
-    while (nstack.size() != 0 && !fail) {
-      Node* n = nstack.pop();
-      for (uint i = 1; i < n->req(); i++) {
-        Node* m = n->in(i);
-        if (m != NULL) {
-          // TODO check that uncasting is correct
-          m = m->uncast();
-        }
-        if (m != NULL && m->is_Phi()) {
-          if (!can_reshape) {
-            // Can only handle this during IGVN
-            fail = true;
-            break;
-          }
-          if (!visited.test_set(m->_idx)) {
-            nstack.push(m);
-          }
-          continue;
-        }
-        if (m == NULL || !(m->is_InlineTypeBase() || phase->type(m)->is_zero_type())) {
-          fail = true;
+    for (uint next = 0; next < worklist.size() && can_optimize; next++) {
+      Node* phi = worklist.at(next);
+      for (uint i = 1; i < phi->req() && can_optimize; i++) {
+        Node* n = phi->in(i);
+        if (n == NULL) {
+          can_optimize = false;
           break;
         }
-        if (m->is_InlineTypeBase()) {
-          if (!m->as_InlineTypeBase()->can_merge()) {
-            // TODO make sure we are still optimizing this later
-            fail = true;
-            break;
-          }
-          if (vk == NULL) {
-            vk = phase->type(m)->inline_klass();
-          } else if (vk != phase->type(m)->inline_klass()) {
-            fail = true;
-            break;
-          }
+        n = n->uncast();
+        const Type* t = phase->type(n);
+        if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->can_merge() &&
+            (vk == NULL || vk == t->inline_klass())) {
+          vk = (vk == NULL) ? t->inline_klass() : vk;
+        } else if (n->is_Phi() && can_reshape) {
+          worklist.push(n);
+        } else if (!t->is_zero_type()) {
+          can_optimize = false;
         }
       }
     }
-    if (!fail && req() > 2 && vk != NULL) {
-      //dump(5);
-      //tty->print_cr("### AFTER");
-      progress = push_through(phase, can_reshape, vk);
-      //progress->dump(5);
-      //tty->print_cr("####");
+    if (can_optimize && vk != NULL) {
+      progress = push_inline_types_through(phase, can_reshape, vk);
     }
   }
 

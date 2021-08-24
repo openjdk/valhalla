@@ -113,6 +113,8 @@ bool InlineTypeBaseNode::can_merge() {
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTypeBaseNode* other, int pnum, bool transform) {
+  // TODO can we add an assert here or somewhere else that ensure InlineTypeNodes always have a non-null oop input?
+  // TODO otherwise it would be incorrect to later replace the InlineTypePtrNode by it's oop input
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
   phi->set_req(pnum, other->get_oop());
@@ -630,29 +632,17 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   InlineTypeNode* vt = new InlineTypeNode(vk, default_oop(gvn, vk));
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
-    Node* value = NULL;
-    if (vt->field_is_null_free(i)) {
-      ciInlineKlass* field_klass = field_type->as_inline_klass();
-      if (field_klass->is_scalarizable()) {
-        value = make_default(gvn, field_klass);
-      } else {
-        value = default_oop(gvn, field_klass);
-      }
-    } else {
-      value = gvn.zerocon(field_type->basic_type());
-
-      if (field_type->is_instance_klass()) {
-        const Type* type = TypeOopPtr::make_from_klass(field_type->as_klass());
-        if (type->is_inlinetypeptr()) {
-          value = make_default(gvn, type->inline_klass());
-          gvn.hash_delete(value);
-          value->set_req(2, gvn.zerocon(T_OBJECT));
-          value = gvn.transform(value);
-// TODO
-          Node* ptr = new InlineTypePtrNode(value->as_InlineType(), false);
-          ptr->set_req(1, gvn.zerocon(T_OBJECT));
-          value = gvn.transform(ptr);
+    Node* value = gvn.zerocon(field_type->basic_type());
+    if (field_type->is_inlinetype()) {
+      ciInlineKlass* vk = field_type->as_inline_klass();
+      if (vt->field_is_null_free(i)) {
+        if (vk->is_scalarizable()) {
+          value = make_default(gvn, vk);
+        } else {
+          value = default_oop(gvn, vk);
         }
+      } else if (vk->is_scalarizable()) {
+        value = InlineTypePtrNode::make_null(gvn, vk);
       }
     }
     vt->set_field_value(i, value);
@@ -660,6 +650,23 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   vt = gvn.transform(vt)->as_InlineType();
   assert(vt->is_default(&gvn), "must be the default inline type");
   return vt;
+}
+
+InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
+  InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT));
+  for (uint i = 0; i < vt->field_count(); i++) {
+    ciType* field_type = vt->field_type(i);
+    Node* value = gvn.zerocon(field_type->basic_type());
+    if (field_type->is_inlinetype() && field_type->as_inline_klass()->is_scalarizable()) {
+      if (vt->field_is_null_free(i)) {
+        value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
+      } else {
+        value = InlineTypePtrNode::make_null(gvn, field_type->as_inline_klass());
+      }
+    }
+    vt->set_field_value(i, value);
+  }
+  return gvn.transform(vt)->as_InlineType();
 }
 
 bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
@@ -720,16 +727,11 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
     if (kit->stopped()) {
       // Constant null
       kit->set_control(null_ctl);
-      InlineTypeNode* def = make_default(gvn, vk);
-      if (!null_free) {
-        // TODO use top here for values?
-        gvn.hash_delete(def);
-        def->set_req(1, oop);
-        def->set_req(2, gvn.zerocon(T_OBJECT));
-        //gvn.transform(def);
-        return gvn.transform(new InlineTypePtrNode(def, false));
+      if (null_free) {
+        return make_default(gvn, vk);
+      } else {
+        return InlineTypePtrNode::make_null(gvn, vk);
       }
-      return def;
     }
     if (null_free) {
       vt->set_oop(not_null_oop);
@@ -1086,6 +1088,28 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       --i; --imax;
     }
   }
+}
+
+InlineTypePtrNode* InlineTypePtrNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
+  InlineTypePtrNode* ptr = new InlineTypePtrNode(vk);
+  // TODO use enum
+  ptr->init_req(1, gvn.zerocon(T_OBJECT));
+  ptr->init_req(2, gvn.zerocon(T_OBJECT));
+  for (uint i = 0; i < ptr->field_count(); i++) {
+    ciType* field_type = ptr->field_type(i);
+    // TODO why can't we use TOP here?
+    Node* value = gvn.zerocon(field_type->basic_type());
+    if (field_type->is_inlinetype() && field_type->as_inline_klass()->is_scalarizable()) {
+      if (ptr->field_is_null_free(i)) {
+        value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
+      } else {
+        value = InlineTypePtrNode::make_null(gvn, field_type->as_inline_klass());
+      }
+    }
+    ptr->set_field_value(i, value);
+
+  }
+  return gvn.transform(ptr)->as_InlineTypePtr();
 }
 
 const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {
