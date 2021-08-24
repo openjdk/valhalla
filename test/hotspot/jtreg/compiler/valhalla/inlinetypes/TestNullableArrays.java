@@ -939,7 +939,7 @@ public class TestNullableArrays {
     }
 
     // non escaping allocation with memory phi
-    @Test()
+    @Test
     // TODO 8227588
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public long test31(boolean b, boolean deopt, Method m) {
@@ -2162,7 +2162,7 @@ public class TestNullableArrays {
     }
 
     // Test mixing widened and boxed array type
-    @Test()
+    @Test
     public static long test81(MyValue1[] va1, MyValue1.ref[] va2, MyValue1 vt, boolean b, boolean shouldThrow) {
         MyValue1.ref[] result = b ? va1 : va2;
         try {
@@ -2191,7 +2191,7 @@ public class TestNullableArrays {
     }
 
     // Same as test81 but more cases and null writes
-    @Test()
+    @Test
     public static long test82(MyValue1[] va1, MyValue1.ref[] va2, MyValue1 vt1, MyValue1.ref vt2, int i, boolean shouldThrow) {
         MyValue1.ref[] result = null;
         if (i == 0) {
@@ -2278,7 +2278,8 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
+    @IR(failOn = {ALLOC})()
     public static long test85(MyValue1.ref[] va, MyValue1 val) {
         va[0] = val;
         return va[1].hash();
@@ -2299,7 +2300,7 @@ public class TestNullableArrays {
     }
 
     // Same as test85 but with ref value
-    @Test()
+    @Test
     public static long test86(MyValue1.ref[] va, MyValue1.ref val) {
         va[0] = val;
         return va[1].hash();
@@ -2329,7 +2330,7 @@ public class TestNullableArrays {
     }
 
     // Test initialization of nullable array with constant
-    @Test()
+    @Test
     public long test87() {
         MyValue1.ref[] va = new MyValue1.ref[1];
         va[0] = testValue1;
@@ -2389,7 +2390,7 @@ public class TestNullableArrays {
     }
 
     // More cast tests
-    @Test()
+    @Test
     public static MyValue1.ref[] test90(Object va) {
         return (MyValue1.ref[])va;
     }
@@ -2409,7 +2410,7 @@ public class TestNullableArrays {
         test90(null);
     }
 
-    @Test()
+    @Test
     public static MyValue1.ref[] test91(Object[] va) {
         return (MyValue1.ref[])va;
     }
@@ -2430,7 +2431,7 @@ public class TestNullableArrays {
     }
 
     // Test if arraycopy intrinsic correctly checks for flattened source array
-    @Test()
+    @Test
     public static void test92(MyValue1.ref[] src, MyValue1.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, 2);
     }
@@ -2446,7 +2447,7 @@ public class TestNullableArrays {
         Asserts.assertEquals(va[1], vab[1]);
     }
 
-    @Test()
+    @Test
     public static void test93(Object src, MyValue1.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, 2);
     }
@@ -2464,7 +2465,7 @@ public class TestNullableArrays {
 
     // Test non-escaping allocation with arraycopy
     // that does not modify loaded array element.
-    @Test()
+    @Test
     public static long test94() {
         MyValue1.ref[] src = new MyValue1.ref[8];
         MyValue1[]  dst = new MyValue1[8];
@@ -2489,7 +2490,7 @@ public class TestNullableArrays {
         return va[0].hashInterpreted();
     }
 
-    @Test()
+    @Test
     public long test95() {
         return test95_callee();
     }
@@ -2521,7 +2522,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public Complex.ref[][] test96(Complex.ref[][] A, Complex.ref[][] B) {
         int size = A.length;
         Complex.ref[][] R = new Complex.ref[size][size];
@@ -2580,7 +2581,7 @@ public class TestNullableArrays {
         Asserts.assertEquals(result, rI);
     }
 
-    @Test()
+    @Test
     public static Object test98(Object... args) {
         return args[0];
     }
@@ -2604,7 +2605,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public static Object test99(Object... args) {
         return args[0];
     }
@@ -2628,7 +2629,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public static Object test100(Object... args) {
         return args[0];
     }
@@ -2670,7 +2671,7 @@ public class TestNullableArrays {
         Asserts.assertEquals(myInt[0], null);
     }
 
-    @Test()
+    @Test
     public static void test102(Object val, Object... args) {
         args[0] = val;
     }
@@ -2696,7 +2697,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public static void test103(Object val, Object... args) {
         args[0] = val;
     }
@@ -2721,7 +2722,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public static void test104(Object val, Object... args) {
         args[0] = val;
     }
@@ -2745,7 +2746,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public static void test105(Object val, Object... args) {
         args[0] = val;
     }
@@ -2769,7 +2770,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public static Object[] test106(Object[] dst, Object... args) {
         // Access array to speculate on non-flatness
         if (args[0] == null) {
@@ -2813,7 +2814,7 @@ public class TestNullableArrays {
         return va[1].hash();
     }
 
-    @Test()
+    @Test
     public void test107() {
         MyValue1[] va = new MyValue1[2];
         MyValue1.ref[] tmp = new MyValue1.ref[2];
@@ -2845,7 +2846,7 @@ public class TestNullableArrays {
     }
 
     // Test LoadNode::can_see_arraycopy_value optimization
-    @Test()
+    @Test
     public static void test109() {
         MyValue1[] src = new MyValue1[1];
         MyValue1.ref[] dst = new MyValue1.ref[1];
@@ -2860,7 +2861,7 @@ public class TestNullableArrays {
     }
 
     // Same as test109 but with Object destination array
-    @Test()
+    @Test
     public static void test110() {
         MyValue1[] src = new MyValue1[1];
         Object[] dst = new Object[1];
@@ -2875,7 +2876,7 @@ public class TestNullableArrays {
     }
 
     // Same as test109 but with Arrays.copyOf
-    @Test()
+    @Test
     public static void test111() {
         MyValue1[] src = new MyValue1[1];
         src[0] = testValue1;
@@ -2947,7 +2948,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test114(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -3002,7 +3003,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test116(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -3051,7 +3052,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test118(boolean b) {
         MyValue1.ref val = null;
         if (b) {
@@ -3089,7 +3090,7 @@ public class TestNullableArrays {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test120(boolean b) {
         MyValue1.ref val = refArray[0];
         if (b) {

@@ -652,7 +652,7 @@ public class TestBasicFunctionality {
     }
 
     // Verify that only dominating allocations are re-used
-    @Test()
+    @Test
     public MyValue3 test29(boolean warmup) {
         MyValue3 vt = MyValue3.create();
         if (warmup) {
@@ -959,7 +959,7 @@ public class TestBasicFunctionality {
     }
 
     // Test scalar replacement of inline type array containing inline type with oop fields
-    @Test()
+    @Test
     public long test40(boolean b) {
         MyValue1[] va = {MyValue1.createWithFieldsInline(rI, rL)};
         long result = 0;

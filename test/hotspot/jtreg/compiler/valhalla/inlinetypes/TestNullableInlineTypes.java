@@ -411,7 +411,7 @@ public class TestNullableInlineTypes {
         oa[index] = o;
     }
 
-    @Test()
+    @Test
     public void test14(MyValue1[] va, int index) {
         test14_inline(va, nullField, index);
     }
@@ -438,7 +438,7 @@ public class TestNullableInlineTypes {
         return (MyValue1) nullField;
     }
 
-    @Test()
+    @Test
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
@@ -489,7 +489,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public Test17Value test17(boolean b) {
         Test17Value vt1 = Test17Value.default;
         if ((Object)vt1.valueField != null) {
@@ -738,7 +738,7 @@ public class TestNullableInlineTypes {
     }
 
     // Some more casting tests
-    @Test()
+    @Test
     public MyValue1.ref test28(MyValue1 vt, MyValue1.ref vtBox, int i) {
         MyValue1.ref result = null;
         if (i == 0) {
@@ -764,7 +764,7 @@ public class TestNullableInlineTypes {
         Asserts.assertEquals(result, testValue1);
     }
 
-    @Test()
+    @Test
     public long test29(MyValue1 vt, MyValue1.ref vtBox) {
         long result = 0;
         for (int i = 0; i < 100; ++i) {
@@ -895,7 +895,7 @@ public class TestNullableInlineTypes {
     }
 
     // Same as test17 but with non-allocated inline type at withfield
-    @Test()
+    @Test
     public Test17Value test35(boolean b) {
         Test17Value vt1 = Test17Value.default;
         if ((Object)vt1.valueField != null) {
@@ -1050,7 +1050,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test43(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1105,7 +1105,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test45(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b1) {
@@ -1153,7 +1153,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test47(boolean b) {
         MyValue1.ref val = null;
         if (b) {
@@ -1189,7 +1189,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test49(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1376,7 +1376,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test57(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1433,7 +1433,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test59(boolean b1, boolean b2, Method m) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1483,7 +1483,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test61(boolean b) {
         MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
         if (b) {
@@ -1521,7 +1521,7 @@ public class TestNullableInlineTypes {
         }
     }
 
-    @Test()
+    @Test
     public MyValue1.ref test63(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1632,7 +1632,7 @@ public class TestNullableInlineTypes {
     }
 
     // Test that .ref return does not block scalarization
-    @Test()
+    @Test
     @IR(failOn = {ALLOC, STORE})
     public long test67(boolean b1, boolean b2, Method m) {
         Object val = MyValue1.createWithFieldsInline(rI, rL);
