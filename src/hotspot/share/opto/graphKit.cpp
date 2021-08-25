@@ -3542,9 +3542,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
             obj = null_check(obj);
           }
           if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !obj->is_InlineTypeBase()) {
-            // TODO TestIntrinsics triggers this
-            // obj->dump(10);
-            // assert(false, "should have been scalarized");
             obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass(), !gvn().type(obj)->maybe_null());
             // TODO replace in map!!
           }

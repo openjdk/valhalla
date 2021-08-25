@@ -2279,7 +2279,6 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC})()
     public static long test85(MyValue1.ref[] va, MyValue1 val) {
         va[0] = val;
         return va[1].hash();
@@ -2894,7 +2893,7 @@ public class TestNullableArrays {
 
     // Test scalarization of .ref
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, STORE, TRAP})
     public int test112(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -3031,7 +3030,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public int test117(boolean b) {
         MyValue1.ref val = null;
         if (b) {
@@ -3069,7 +3068,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public int test119(boolean b) {
         MyValue1.ref val = refArray[0];
         if (b) {
@@ -3113,7 +3112,7 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-        failOn = {ALLOC_G, ALLOC, STORE})
+        failOn = {ALLOC_G, STORE})
     public void test121(boolean b) {
         Object o = null;
         if (b) {
@@ -3142,7 +3141,7 @@ public class TestNullableArrays {
 
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-        failOn = {ALLOC_G, ALLOC, STORE})
+        failOn = {ALLOC_G, STORE})
     public void test122(boolean b) {
         Object o = null;
         if (b) {
@@ -3170,7 +3169,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public long test123(boolean b, MyValue1.ref val, Method m, boolean deopt) {
         MyValue1.ref[] array = new MyValue1.ref[1];
         array[0] = val;
@@ -3205,7 +3204,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public long test124(boolean b, MyValue2.ref val, Method m, boolean deopt) {
         Object res = null;
         if (b) {
@@ -3235,7 +3234,7 @@ public class TestNullableArrays {
 // TODO below tests do not work yet
 /*
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test125() {
         MyValue2.ref[] array = new MyValue2.ref[1];
         for (int i = 0; i < 4; ++i) {
@@ -3252,7 +3251,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test126(boolean b, Method m, boolean deopt) {
         Object res = null;
         if (b) {
@@ -3292,7 +3291,7 @@ public class TestNullableArrays {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public long test127(boolean b, MyValue2.ref val, Method m, boolean deopt) {
         Object[] res = new MyValue2.ref[1];
         if (b) {
@@ -3323,7 +3322,7 @@ public class TestNullableArrays {
 // TODO below tests do not work yet
 /*
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test128(MyValue2 val) {
         MyValue2.ref[] array = new MyValue2.ref[1];
 

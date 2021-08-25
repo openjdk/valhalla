@@ -3280,7 +3280,7 @@ public class TestArrays {
 
     // Test load from array that is only known to be non-inline after parsing
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
                   STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test139() {
         Object[]  array = null;
@@ -3301,7 +3301,7 @@ public class TestArrays {
 
     // Test store to array that is only known to be non-inline after parsing
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP,
+    @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP,
                   LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test140(Object val) {
         Object[]  array = null;
@@ -3326,7 +3326,7 @@ public class TestArrays {
     // Test load from array that is only known to be inline after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test141() {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3347,7 +3347,7 @@ public class TestArrays {
     // Test store to array that is only known to be inline after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test142(Object val) {
         Object[]  array = null;
         Object[] iarray = new Integer[1];

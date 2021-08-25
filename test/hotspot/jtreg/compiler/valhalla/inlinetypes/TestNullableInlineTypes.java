@@ -87,6 +87,7 @@ public class TestNullableInlineTypes {
     MyValue1 valueField1 = testValue1;
 
     @Test
+    @IR(failOn = {ALLOC})
     public long test1(MyValue1.ref vt) {
         long result = 0;
         try {
@@ -105,6 +106,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public long test2(MyValue1.ref vt) {
         long result = 0;
         try {
@@ -123,6 +125,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public long test3() {
         long result = 0;
         try {
@@ -144,6 +147,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test4() {
         try {
             valueField1 = (MyValue1) nullField;
@@ -159,6 +163,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1.ref test5(MyValue1.ref vt) {
         try {
             Object o = vt;
@@ -191,6 +196,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1 test6(Object obj) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
@@ -219,6 +225,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test7() {
         nullField = getNullInline();     // Should not throw
         nullField = getNullDontInline(); // Should not throw
@@ -242,6 +249,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test8() {
         try {
             valueField1 = (MyValue1) nullField;
@@ -258,9 +266,10 @@ public class TestNullableInlineTypes {
 
     // merge of 2 inline types, one being null
     @Test
-    public void test9(boolean flag1) {
+    @IR(failOn = {ALLOC})
+    public void test9(boolean flag) {
         MyValue1 v;
-        if (flag1) {
+        if (flag) {
             v = valueField1;
         } else {
             v = (MyValue1) nullField;
@@ -281,6 +290,7 @@ public class TestNullableInlineTypes {
 
     // null constant
     @Test
+    @IR(failOn = {ALLOC})
     public void test10(boolean flag) {
         MyValue1.ref val = flag ? valueField1 : null;
         valueField1 = (MyValue1) val;
@@ -299,6 +309,7 @@ public class TestNullableInlineTypes {
 
     // null constant
     @Test
+    @IR(failOn = {ALLOC})
     public void test11(boolean flag) {
         MyValue1.ref val = flag ? null : valueField1;
         valueField1 = (MyValue1) val;
@@ -325,6 +336,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test12() {
         valueField1 = (MyValue1) test12_helper();
     }
@@ -369,6 +381,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test13(A a) {
         valueField1 = (MyValue1) a.test13_helper();
     }
@@ -412,6 +425,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test14(MyValue1[] va, int index) {
         test14_inline(va, nullField, index);
     }
@@ -439,6 +453,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test15() {
         nullField = getNullField1(); // should not throw
         try {
@@ -467,6 +482,7 @@ public class TestNullableInlineTypes {
 
     // Test c2c call passing null for an inline type
     @Test
+    @IR(failOn = {ALLOC})
     public boolean test16(Object arg) throws Exception {
         Method test16method = getClass().getMethod("test16_dontinline", MyValue1.ref.class);
         return (boolean)test16method.invoke(this, arg);
@@ -490,6 +506,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public Test17Value test17(boolean b) {
         Test17Value vt1 = Test17Value.default;
         if ((Object)vt1.valueField != null) {
@@ -522,6 +539,7 @@ public class TestNullableInlineTypes {
 
     // Test passing null for an inline type
     @Test
+    @IR(failOn = {ALLOC})
     public void test18() throws Throwable {
         test18_mh1.invokeExact(nullValue);
         test18_mh2.invokeExact(nullValue);
@@ -552,6 +570,7 @@ public class TestNullableInlineTypes {
 
     // Same as test12 but with non-final mh
     @Test
+    @IR(failOn = {ALLOC})
     public void test19() throws Throwable {
         test19_mh1.invokeExact(nullValue);
         test19_mh2.invokeExact(nullValue);
@@ -569,6 +588,7 @@ public class TestNullableInlineTypes {
 
     // Same as test12/13 but with constant null
     @Test
+    @IR(failOn = {ALLOC})
     public void test20(MethodHandle mh) throws Throwable {
         mh.invoke(null);
     }
@@ -610,6 +630,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public Test21Value test21(Test21Value vt) {
         vt = vt.test1();
         try {
@@ -632,6 +653,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test22() {
         valueField1 = test22_helper();
     }
@@ -647,6 +669,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test23(MyValue1[] arr, MyValue1.ref b) {
         arr[0] = (MyValue1) b;
     }
@@ -666,6 +689,7 @@ public class TestNullableInlineTypes {
     static MyValue1.ref nullBox;
 
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1 test24() {
         return (MyValue1) nullBox;
     }
@@ -765,6 +789,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public long test29(MyValue1 vt, MyValue1.ref vtBox) {
         long result = 0;
         for (int i = 0; i < 100; ++i) {
@@ -805,6 +830,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public long test30() {
         return test30_callee(nullField);
     }
@@ -821,6 +847,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test31(Object o) {
         try {
             o = (Test31Value)o;
@@ -838,6 +865,7 @@ public class TestNullableInlineTypes {
     private static final MyValue1.ref constNullRefField = null;
 
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1.ref test32() {
         return constNullRefField;
     }
@@ -863,6 +891,7 @@ public class TestNullableInlineTypes {
     public static final Test33Value2 test33Val = new Test33Value2();
 
     @Test
+    @IR(failOn = {ALLOC})
     public Test33Value2 test33() {
         return test33Val;
     }
@@ -976,6 +1005,7 @@ public class TestNullableInlineTypes {
 
     // Test NPE when casting constant null to inline type
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1 test40() {
         Object NULL = null;
         return (MyValue1)NULL;
@@ -996,7 +1026,7 @@ public class TestNullableInlineTypes {
 
     // Test scalarization of .ref
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, STORE, TRAP})
     public int test41(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1133,7 +1163,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test46(boolean b) {
         MyValue1.ref val = null;
         if (b) {
@@ -1169,7 +1199,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test48(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1210,7 +1240,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, TRAP})
     public void test50(boolean b) {
         Object o = null;
         if (b) {
@@ -1247,7 +1277,7 @@ public class TestNullableInlineTypes {
     MyValue1Wrapper wrapperField;
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, STORE, TRAP})
     public long test51(boolean b) {
         MyValue1Wrapper.ref val = MyValue1Wrapper.default;
         if (b) {
@@ -1264,7 +1294,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public boolean test52(boolean b) {
         MyValue1.ref val = MyValue1.default;
         if (b) {
@@ -1281,7 +1311,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public boolean test53(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1321,7 +1351,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, STORE, TRAP})
     public int test55(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1462,7 +1492,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test60(boolean b) {
         MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
         if (b) {
@@ -1500,7 +1530,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public int test62(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1Wrapper.ref w = new MyValue1Wrapper(val);
@@ -1543,7 +1573,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, TRAP})
     public void test64(boolean b) {
         MyValue1Wrapper.ref w = new MyValue1Wrapper(null);
         if (b) {
@@ -1565,7 +1595,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC_G, ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public long test65(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -1975,6 +2005,7 @@ public class TestNullableInlineTypes {
 
     // Test new merge path being added for exceptional control flow
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1.ref test75(MyValue1.ref vt, Object obj) {
         try {
             vt = (MyValue1.ref)obj;

@@ -343,7 +343,7 @@ public class TestCallingConvention {
     MyValue3 test15_vt2;
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, LOAD, TRAP})
+        failOn = {ALLOC, TRAP})
     public void test15() {
         test15_vt2 = test15_interp();
     }
@@ -379,7 +379,7 @@ public class TestCallingConvention {
     MyValue3 test17_vt2;
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-            failOn = {ALLOC, LOAD, TRAP})
+        failOn = {ALLOC, TRAP})
     public void test17() {
         test17_vt2 = test17_comp();
     }
