@@ -319,9 +319,6 @@ public:
       Raw::value_copy(src, dst, md);
     }
 
-    static oop resolve(oop obj) {
-      return Raw::resolve(obj);
-    }
   };
 };
 
