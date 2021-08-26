@@ -58,7 +58,6 @@
 // * arraycopy: Copy data from one heap array to another heap array. The ArrayAccess class has convenience functions for this.
 // * clone: Clone the contents of an object to a newly allocated object.
 // * value_copy: Copy the contents of a value type from one heap address to another
-// * resolve: Resolve a stable to-space invariant oop that is guaranteed not to relocate its payload until a subsequent thread transition.
 //
 // == IMPLEMENTATION ==
 // Each access goes through the following steps in a template pipeline.
