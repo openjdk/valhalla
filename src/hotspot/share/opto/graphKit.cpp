@@ -1189,10 +1189,6 @@ Node* GraphKit::ConvL2I(Node* offset) {
 
 //-------------------------load_object_klass-----------------------------------
 Node* GraphKit::load_object_klass(Node* obj) {
-  // TODO
-  if (obj->is_InlineType()) {
-    obj = obj->in(1);
-  }
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != NULL)  return akls;
@@ -1251,28 +1247,12 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
-  // TODO why null_control == NULL?
-  if (value->is_InlineTypePtr() && null_control == NULL) {
-    // TODO use null check_common here?
+  if (value->is_InlineTypePtr()) {
+    // Null checking a scalarized, nullable inline type. Check the oop input instead.
     null_check_common(value->in(2), type, assert_null, null_control, speculative);
-
-    const Type *t = _gvn.type(value);
-    const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-    Node *cast = new CastPPNode(value,t_not_null);
-    cast->init_req(0, control());
-    cast = _gvn.transform( cast );
-
-    // TODO should check if scalarizable, otherwise cast is returned
-    InlineTypeBaseNode* vt = InlineTypeNode::make_from_oop(this, cast, _gvn.type(value)->inline_klass())->as_InlineTypeBase();
-    assert(vt->is_allocated(&_gvn), "should be allocated");
-
-    // TODO is_Parse() is needed because we should not replace during incremental inlining
-    // TODO why is that even working?
-    // TODO but we could replace by PTR, right?
-    if (is_Parse() && (null_control == NULL || (*null_control) == top())) {
-      replace_in_map(value, vt);
-    }
-    return vt;
+    // TODO remove the is_Parse() check, TestCallingConvention::test41 triggers this, we probably need more tests
+    bool do_replace_in_map = is_Parse() && (null_control == NULL || (*null_control) == top());
+    return cast_not_null(value, do_replace_in_map);
   }
 
   // Construct NULL check
@@ -1475,14 +1455,23 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     return obj;
   } else if (obj->is_InlineTypePtr()) {
-    // TODO
-    Node* cast = cast_not_null(obj->in(1), do_replace_in_map);
-    Node* vt = obj->clone();
+    // Cast oop input instead and create a new InlineTypeNode
+    InlineTypePtrNode* vtptr = obj->as_InlineTypePtr();
+    // TODO Can we get rid of this? Or at least convert to an ideal transformation?
+    while (vtptr->get_oop()->is_InlineTypePtr()) {
+      vtptr = vtptr->get_oop()->as_InlineTypePtr();
+    }
+    ciInlineKlass* vk = _gvn.type(vtptr)->inline_klass();
+    Node* cast = cast_not_null(vtptr->get_oop(), do_replace_in_map);
+    InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_gvn, vk);
     vt->set_req(1, cast);
-    vt->set_req(2, cast);
-    vt = gvn().transform(vt);
-    if (do_replace_in_map)
+    for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
+      vt->set_field_value(i, vtptr->field_value(i));
+    }
+    vt = _gvn.transform(vt)->as_InlineType();
+    if (do_replace_in_map) {
       replace_in_map(obj, vt);
+    }
     return vt;
   }
   const Type *t = _gvn.type(obj);

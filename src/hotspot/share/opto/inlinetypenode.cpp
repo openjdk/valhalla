@@ -685,6 +685,11 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   assert(!oop->is_InlineType(), "already inline type");
   PhaseGVN& gvn = kit->gvn();
 
+  // TODO do we need an ideal transformation for CastPP nodes with InlineTypePtr input?
+
+  // TODO add asserts that we are not creating these:
+  //assert(!obj->as_InlineTypePtr()->get_oop()->is_InlineTypeBase(), "sanity");
+
   // TODO add flag for scalarizing nullable inline types
   if (!vk->is_scalarizable()) {
     if (null_free) {
@@ -708,6 +713,9 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   if (oop->uncast()->isa_InlineTypePtr()) {
     // Can happen with late inlining
     InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
+
+    oop = vtptr->in(1);
+
   // TODO don't we risk loosing null-free information of the oop????
     //assert(gvn.type(oop)->maybe_null() == gvn.type(vtptr->get_oop())->maybe_null(), "inconsistent null free info");
     //vt->set_oop(vtptr->get_oop());

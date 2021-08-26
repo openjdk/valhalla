@@ -2000,6 +2000,9 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
   assert(!stopped(), "null input should have been caught earlier");
+  if (cast->is_InlineType()) {
+    cast = cast->as_InlineType()->as_ptr(&_gvn);
+  }
   return cast;
 }
 

@@ -699,7 +699,6 @@ class GraphKit : public Phase {
   Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
     assert(!callee->is_static(), "must be a virtual method");
     if (argument(0)->is_InlineType()) {
-      //null_check(argument(0)->in(2));
       return argument(0);
     }
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
@@ -708,14 +707,15 @@ class GraphKit : public Phase {
     const int nargs = declared_method->arg_size();
     inc_sp(nargs);
     Node* n = null_check_receiver();
-
-    // TODO
+    // TODO why is this needed?
     set_argument(0, n);
     dec_sp(nargs);
     // Scalarize inline type receiver
     const Type* recv_type = gvn().type(n);
     if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
-      // TODO is this still needed? NUll check above should scalarize n
+      // TODO ALthough above null check scalarizes, this is still needed because
+      // during parsing we except a ValueTypeNode instead of a ValueTypePtrNode.
+      // Remove this code once we merge InlineTypeNode with InlineTypePtrNode.
       assert(!recv_type->maybe_null(), "should never be null");
       Node* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);

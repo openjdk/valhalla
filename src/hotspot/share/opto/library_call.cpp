@@ -4212,9 +4212,12 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 // Build special case code for calls to getClass on an object.
 bool LibraryCallKit::inline_native_getClass() {
   Node* obj = argument(0);
-  if (obj->is_InlineType()) {
-    ciKlass* vk = _gvn.type(obj)->inline_klass();
-    set_result(makecon(TypeInstPtr::make(vk->java_mirror())));
+  if (obj->is_InlineTypeBase()) {
+    const Type* t = _gvn.type(obj);
+    if (t->maybe_null()) {
+      null_check(obj);
+    }
+    set_result(makecon(TypeInstPtr::make(t->inline_klass()->java_mirror())));
     return true;
   }
   obj = null_check_receiver();
