@@ -2164,18 +2164,21 @@ bool LibraryCallKit::inline_number_methods(vmIntrinsics::ID id) {
 const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_type, const TypePtr *adr_type) {
   // Attempt to infer a sharper value type from the offset and base type.
   ciKlass* sharpened_klass = NULL;
+  bool null_free = false;
 
   // See if it is an instance field, with an object type.
   if (alias_type->field() != NULL) {
     if (alias_type->field()->type()->is_klass()) {
       sharpened_klass = alias_type->field()->type()->as_klass();
+      null_free = alias_type->field()->is_null_free();
     }
   }
 
   // See if it is a narrow oop array.
   if (adr_type->isa_aryptr()) {
     if (adr_type->offset() >= objArrayOopDesc::base_offset_in_bytes()) {
-      const TypeOopPtr *elem_type = adr_type->is_aryptr()->elem()->isa_oopptr();
+      const TypeOopPtr* elem_type = adr_type->is_aryptr()->elem()->make_oopptr();
+      null_free = adr_type->is_aryptr()->is_null_free();
       if (elem_type != NULL) {
         sharpened_klass = elem_type->klass();
       }
@@ -2186,6 +2189,9 @@ const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_
   // contraint in place.
   if (sharpened_klass != NULL && sharpened_klass->is_loaded()) {
     const TypeOopPtr* tjp = TypeOopPtr::make_from_klass(sharpened_klass);
+    if (null_free) {
+      tjp = tjp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    }
 
 #ifndef PRODUCT
     if (C->print_intrinsics() || C->print_inlining()) {
@@ -2521,9 +2527,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    // Load a non-flattened inline type from memory
-    if (field != NULL && field->type()->is_inlinetype() && !field->is_flattened()) {
-      p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass(), field->is_null_free());
+
+    const TypeOopPtr* ptr = (value_type != NULL) ? value_type->make_oopptr() : NULL;
+    if (ptr != NULL && ptr->is_inlinetypeptr()) {
+      // Load a non-flattened inline type from memory
+      p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
     }
 
     // The load node has the control of the preceding MemBarCPUOrder.  All

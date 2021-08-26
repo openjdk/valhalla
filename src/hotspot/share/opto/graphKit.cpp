@@ -3541,10 +3541,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           if (null_free) {
             obj = null_check(obj);
           }
-          if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !obj->is_InlineTypeBase()) {
-            obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass(), !gvn().type(obj)->maybe_null());
-            // TODO replace in map!!
-          }
+          assert(!toop->is_inlinetypeptr() || !toop->inline_klass()->is_scalarizable() || obj->is_InlineTypeBase(), "should have been scalarized");
         }
         return obj;
       case Compile::SSC_always_false:
@@ -3602,6 +3599,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (from_inline) {
     not_null_obj = obj;
   } else if (null_free) {
+    assert(safe_for_replace, "must be");
     not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
@@ -3732,21 +3730,15 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   }
 
   if (!stopped() && !from_inline) {
-    // TODO this might hide a InlineTypePtr behind a cast, right?
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable()) {
-      Node* tmp = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
-      //assert(map()->find_edge(obj) == -1, "fail");
-      //assert(map()->find_edge(not_null_obj) != -1 || map()->find_edge(res) != -1, "not found in map");
-        // TODO check if we need this at other places as well!
-      // TODO is_Parse() is needed because we should not replace during incremental inlining
-      // TODO but we could replace by ptr, right?
-      if (is_Parse()) {
-        replace_in_map(obj, tmp);
-        replace_in_map(not_null_obj, tmp);
-        replace_in_map(res, tmp);
+      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+      if (safe_for_replace) {
+        replace_in_map(obj, vt);
+        replace_in_map(not_null_obj, vt);
+        replace_in_map(res, vt);
       }
-      res = tmp;
+      res = vt;
     }
   }
   return res;

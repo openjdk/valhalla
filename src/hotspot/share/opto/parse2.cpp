@@ -105,6 +105,7 @@ void Parse::array_load(BasicType bt) {
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
                                 IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
       if (elemptr->is_inlinetypeptr()) {
+        assert(elemptr->maybe_null(), "null free array should be handled above");
         ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
       }
       ideal.sync_kit(this);
@@ -215,8 +216,8 @@ void Parse::array_load(BasicType bt) {
   ld = record_profile_for_speculation_at_array_load(ld);
   // Loading a non-flattened inline type
   if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
-    assert(!ary_t->is_null_free() || !gvn().type(ld)->maybe_null(), "inline type array elements should never be null");
-    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), ary_t->is_null_free());
+    assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
+    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
   }
   push_node(bt, ld);
 }
