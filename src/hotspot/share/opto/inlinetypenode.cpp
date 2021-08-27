@@ -371,7 +371,8 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
-      if (base->is_Con() && !is_array) {
+      bool mismatched = (decorators & C2_MISMATCHED) != 0;
+      if (base->is_Con() && !is_array && !mismatched) {
         // If the oop to the inline type is constant (static final field), we can
         // also treat the fields as constants because the inline type is immutable.
         ciObject* constant_oop = oop_ptr->const_oop();
@@ -1119,6 +1120,13 @@ InlineTypePtrNode* InlineTypePtrNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk
 
   }
   return gvn.transform(ptr)->as_InlineTypePtr();
+}
+
+Node* InlineTypePtrNode::Identity(PhaseGVN* phase) {
+  if (get_oop()->is_InlineTypePtr()) {
+    return get_oop();
+  }
+  return this;
 }
 
 const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {

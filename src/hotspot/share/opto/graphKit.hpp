@@ -713,7 +713,7 @@ class GraphKit : public Phase {
     // Scalarize inline type receiver
     const Type* recv_type = gvn().type(n);
     if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
-      // TODO ALthough above null check scalarizes, this is still needed because
+      // TODO Although above null check scalarizes, this is still needed because
       // during parsing we except a ValueTypeNode instead of a ValueTypePtrNode.
       // Remove this code once we merge InlineTypeNode with InlineTypePtrNode.
       assert(!recv_type->maybe_null(), "should never be null");

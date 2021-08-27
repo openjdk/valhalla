@@ -1264,6 +1264,7 @@ public class TestNullableInlineTypes {
     static final primitive class MyValue1Wrapper {
         final MyValue1.ref vt;
 
+        @ForceInline
         public MyValue1Wrapper(MyValue1.ref vt) {
             this.vt = vt;
         }
@@ -2353,5 +2354,36 @@ public class TestNullableInlineTypes {
     @Run(test = "test85")
     public void test85_verifier() {
         Asserts.assertEquals(test82(), test82Result);
+    }
+
+    static final class ObjectWrapper {
+        public Object obj;
+
+        @ForceInline
+        public ObjectWrapper(Object obj) {
+            this.obj = obj;
+        }
+    }
+
+    // Test scalarization with phi referencing itself
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC, LOAD, STORE})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, STORE})
+    public long test86(MyValue1 vt) {
+        ObjectWrapper val = new ObjectWrapper(vt);
+        for (int i = 0; i < 10; ++i) {
+            for (int j = 0; j < 10; ++j) {
+                val.obj = val.obj;
+            }
+        }
+        return ((MyValue1.ref)val.obj).hash();
+    }
+
+    @Run(test = "test86")
+    public void test86_verifier() {
+        test86(testValue1);
+        Asserts.assertEquals(test86(testValue1), testValue1.hash());
     }
 }

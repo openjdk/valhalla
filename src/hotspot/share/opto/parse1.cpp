@@ -932,6 +932,10 @@ void Compile::return_values(JVMState* jvms) {
       uint idx = TypeFunc::Parms + 1;
       vt->pass_fields(&kit, ret, idx);
     } else {
+      if (res->is_InlineType()) {
+        assert(res->as_InlineType()->is_allocated(&kit.gvn()), "must be allocated");
+        res = res->as_InlineType()->get_oop();
+      }
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
     }

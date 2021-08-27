@@ -564,7 +564,7 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test30")
-    public void test30_verifier() {
+    public void test30_verifier(RunInfo info) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue2 res = test30(v);
         Asserts.assertEQ(res.hash(), v.v1.hash());
@@ -1411,5 +1411,79 @@ public class TestIntrinsics {
         res = test70(MyValue1.default, MyValue1.default);
         Asserts.assertEQ(res, vt);
         Asserts.assertEQ(test31_vt, vt);
+    }
+
+    // getValue to retrieve flattened field from (nullable) inline type
+    @Test
+    @IR(failOn = {CALL_Unsafe})
+    public MyValue2 test71(boolean b, MyValue1.val v1, MyValue1.ref v2) {
+        if (b) {
+            if (V1_FLATTENED) {
+                return U.getValue(v1, V1_OFFSET, MyValue2.class.asValueType());
+            }
+            return (MyValue2)U.getReference(v1, V1_OFFSET);
+        } else {
+            if (V1_FLATTENED) {
+                return U.getValue(v2, V1_OFFSET, MyValue2.class.asValueType());
+            }
+            return (MyValue2)U.getReference(v2, V1_OFFSET);
+        }
+    }
+
+    @Run(test = "test71")
+    public void test71_verifier(RunInfo info) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        Asserts.assertEQ(test71(true, v, v), v.v1);
+        Asserts.assertEQ(test71(false, v, v), v.v1);
+    }
+
+    // Same as test71 but with non-constant offset
+    @Test
+    @IR(failOn = {CALL_Unsafe})
+    public MyValue2 test72(boolean b, MyValue1.val v1, MyValue1.ref v2, long offset) {
+        if (b) {
+            if (V1_FLATTENED) {
+                return U.getValue(v1, offset, MyValue2.class.asValueType());
+            }
+            return (MyValue2)U.getReference(v1, V1_OFFSET);
+        } else {
+            if (V1_FLATTENED) {
+                return U.getValue(v2, offset, MyValue2.class.asValueType());
+            }
+            return (MyValue2)U.getReference(v2, V1_OFFSET);
+        }
+    }
+
+    @Run(test = "test72")
+    public void test72_verifier(RunInfo info) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        Asserts.assertEQ(test72(true, v, v, V1_OFFSET), v.v1);
+        Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
+    }
+
+    static final MyValue1.val test73_value1 = MyValue1.createWithFieldsInline(rI, rL);
+    static final MyValue1.ref test73_value2 = MyValue1.createWithFieldsInline(rI+1, rL+1);
+
+    // Same as test72 but with constant base
+    @Test
+    @IR(failOn = {CALL_Unsafe})
+    public MyValue2 test73(boolean b, long offset) {
+        if (b) {
+            if (V1_FLATTENED) {
+                return U.getValue(test73_value1, offset, MyValue2.class.asValueType());
+            }
+            return (MyValue2)U.getReference(test73_value1, V1_OFFSET);
+        } else {
+            if (V1_FLATTENED) {
+                return U.getValue(test73_value2, offset, MyValue2.class.asValueType());
+            }
+            return (MyValue2)U.getReference(test73_value2, V1_OFFSET);
+        }
+    }
+
+    @Run(test = "test73")
+    public void test73_verifier(RunInfo info) {
+        Asserts.assertEQ(test73(true, V1_OFFSET), test73_value1.v1);
+        Asserts.assertEQ(test73(false, V1_OFFSET), test73_value2.v1);
     }
 }

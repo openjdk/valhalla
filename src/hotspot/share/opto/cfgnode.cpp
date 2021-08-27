@@ -1921,9 +1921,16 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
     vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
   }
   if (can_reshape) {
-    // Replace phi right away to be able to use it when recursively
-    // reaching it again from other phis through data loops.
-    phase->is_IterGVN()->replace_in_uses(this, vt);
+    // Replace phi right away to be able to use the inline
+    // type node when reaching the phi again through data loops.
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+      Node* u = fast_out(i);
+      igvn->rehash_node_delayed(u);
+      imax -= u->replace_edge(this, vt);
+      --i;
+    }
+    assert(outcnt() == 0, "should be dead now");
   }
   for (uint i = 1; i < req(); ++i) {
     Node* n = in(i)->uncast();

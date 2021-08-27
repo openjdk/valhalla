@@ -1249,9 +1249,14 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 
   if (value->is_InlineTypePtr()) {
     // Null checking a scalarized, nullable inline type. Check the oop input instead.
-    null_check_common(value->in(2), type, assert_null, null_control, speculative);
-    // TODO remove the is_Parse() check, TestCallingConvention::test41 triggers this, we probably need more tests
-    bool do_replace_in_map = is_Parse() && (null_control == NULL || (*null_control) == top());
+    InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
+    // TODO Can we get rid of this?
+    while (vtptr->get_oop()->is_InlineTypePtr()) {
+      vtptr = vtptr->get_oop()->as_InlineTypePtr();
+    }
+    null_check_common(vtptr->in(2), type, assert_null, null_control, speculative);
+    if (stopped()) return top();
+    bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
   }
 
@@ -1457,7 +1462,7 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   } else if (obj->is_InlineTypePtr()) {
     // Cast oop input instead and create a new InlineTypeNode
     InlineTypePtrNode* vtptr = obj->as_InlineTypePtr();
-    // TODO Can we get rid of this? Or at least convert to an ideal transformation?
+    // TODO Can we get rid of this?
     while (vtptr->get_oop()->is_InlineTypePtr()) {
       vtptr = vtptr->get_oop()->as_InlineTypePtr();
     }
@@ -1470,7 +1475,11 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     }
     vt = _gvn.transform(vt)->as_InlineType();
     if (do_replace_in_map) {
-      replace_in_map(obj, vt);
+      if (C->inlining_incrementally()) {
+        replace_in_map(obj, vt->as_InlineType()->as_ptr(&_gvn));
+      } else {
+        replace_in_map(obj, vt);
+      }
     }
     return vt;
   }
@@ -2594,7 +2603,11 @@ Node* GraphKit::null_check_oop(Node* value, Node* *null_control,
     (*null_control) = top();    // NULL path is dead
   }
   if ((*null_control) == top() && safe_for_replace) {
-    replace_in_map(value, cast);
+    if (cast->isa_InlineType() && C->inlining_incrementally()) {
+      replace_in_map(value, cast->as_InlineType()->as_ptr(&_gvn));
+    } else {
+      replace_in_map(value, cast);
+    }
   }
 
   // Cast away null-ness on the result
@@ -3500,6 +3513,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
+  bool safe_for_replace = (failure_control == NULL);
   bool from_inline = obj->is_InlineType();
   assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
 
@@ -3528,14 +3542,17 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         if (!from_inline) {
           obj = record_profiled_receiver_for_speculation(obj);
           if (null_free) {
+            assert(safe_for_replace, "must be");
             obj = null_check(obj);
           }
-          assert(!toop->is_inlinetypeptr() || !toop->inline_klass()->is_scalarizable() || obj->is_InlineTypeBase(), "should have been scalarized");
+          assert(stopped() || !toop->is_inlinetypeptr() || !toop->inline_klass()->is_scalarizable() ||
+                 obj->is_InlineTypeBase(), "should have been scalarized");
         }
         return obj;
       case Compile::SSC_always_false:
         if (from_inline || null_free) {
           if (!from_inline) {
+            assert(safe_for_replace, "must be");
             null_check(obj);
           }
           // Inline type is null-free. Always throw an exception.
@@ -3557,7 +3574,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   }
 
   ciProfileData* data = NULL;
-  bool safe_for_replace = false;
   if (failure_control == NULL) {        // use MDO in regular case only
     assert(java_bc() == Bytecodes::_aastore ||
            java_bc() == Bytecodes::_checkcast,
@@ -3565,7 +3581,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     if (method()->method_data()->is_mature()) {
       data = method()->method_data()->bci_to_data(bci());
     }
-    safe_for_replace = true;
   }
 
   // Make the merge point
@@ -3722,12 +3737,15 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable()) {
       Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+      res = vt;
       if (safe_for_replace) {
+        if (vt->isa_InlineType() && C->inlining_incrementally()) {
+          vt = vt->as_InlineType()->as_ptr(&_gvn);
+        }
         replace_in_map(obj, vt);
         replace_in_map(not_null_obj, vt);
         replace_in_map(res, vt);
       }
-      res = vt;
     }
   }
   return res;

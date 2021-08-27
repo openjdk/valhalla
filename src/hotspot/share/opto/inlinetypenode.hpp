@@ -184,6 +184,8 @@ public:
 
   static InlineTypePtrNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
 
+  virtual Node* Identity(PhaseGVN* phase);
+
   virtual const Type* Value(PhaseGVN* phase) const;
 
   // TODO this needs to be public!!

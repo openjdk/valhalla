@@ -4031,4 +4031,66 @@ public class TestLWorld {
         }
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
+
+    // Test inline type connected to result node
+    @Test
+    @IR(failOn = {ALLOC_G})
+    public MyValue1 test146(Object obj) {
+        return (MyValue1)obj;
+    }
+
+    @Run(test = "test146")
+    @Warmup(10000)
+    public void test146_verifier() {
+        Asserts.assertEQ(test146(testValue1), testValue1);
+    }
+
+    // Same as test146 but with .ref cast
+    @Test
+    @IR(failOn = {ALLOC_G})
+    public MyValue1.ref test147(Object obj) {
+        return (MyValue1.ref)obj;
+    }
+
+    @Run(test = "test147")
+    @Warmup(10000)
+    public void test147_verifier() {
+        Asserts.assertEQ(test147(testValue1), testValue1);
+        Asserts.assertEQ(test147(null), null);
+    }
+
+    @ForceInline
+    public Object test148_helper(Object obj) {
+        return (MyValue1)obj;
+    }
+
+    // Same as test146 but with helper method
+    @Test
+    public Object test148(Object obj) {
+        return test148_helper(obj);
+    }
+
+    @Run(test = "test148")
+    @Warmup(10000)
+    public void test148_verifier() {
+        Asserts.assertEQ(test148(testValue1), testValue1);
+    }
+
+    @ForceInline
+    public Object test149_helper(Object obj) {
+        return (MyValue1.ref)obj;
+    }
+
+    // Same as test147 but with helper method
+    @Test
+    public Object test149(Object obj) {
+        return test149_helper(obj);
+    }
+
+    @Run(test = "test149")
+    @Warmup(10000)
+    public void test149_verifier() {
+        Asserts.assertEQ(test149(testValue1), testValue1);
+        Asserts.assertEQ(test149(null), null);
+    }
 }

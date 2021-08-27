@@ -2294,8 +2294,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     inline_klass = mirror_type->as_inline_klass();
   }
 
-  if (base->is_InlineType()) {
-    InlineTypeNode* vt = base->as_InlineType();
+  if (base->is_InlineTypeBase()) {
+    InlineTypeBaseNode* vt = base->as_InlineTypeBase();
     if (is_store) {
       if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
         return false;
@@ -2321,10 +2321,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           }
         }
       }
-      // Re-execute the unsafe access if allocation triggers deoptimization.
-      PreserveReexecuteState preexecs(this);
-      jvms()->set_should_reexecute(true);
-      base = vt->buffer(this)->get_oop();
+      if (vt->is_InlineType()) {
+        // Re-execute the unsafe access if allocation triggers deoptimization.
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_should_reexecute(true);
+        vt = vt->buffer(this);
+      }
+      base = vt->get_oop();
     }
   }
 
@@ -2436,6 +2439,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       } else if (elem->inline_klass() != inline_klass) {
         mismatched = true;
       }
+    } else {
+      mismatched = true;
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
@@ -2448,7 +2453,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   old_map->destruct(&_gvn);
-  assert(!mismatched || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
+  assert(!mismatched || type == T_INLINE_TYPE || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
   if (mismatched) {
     decorators |= C2_MISMATCHED;
@@ -2500,6 +2505,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
+        const TypeOopPtr* ptr = value_type->make_oopptr();
+        if (ptr != NULL && ptr->is_inlinetypeptr()) {
+          // Load a non-flattened inline type from memory
+          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
+        }
       }
       // Normalize the value returned by getBoolean in the following cases
       if (type == T_BOOLEAN &&
@@ -2527,13 +2537,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-
-    const TypeOopPtr* ptr = (value_type != NULL) ? value_type->make_oopptr() : NULL;
-    if (ptr != NULL && ptr->is_inlinetypeptr()) {
-      // Load a non-flattened inline type from memory
-      p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
-    }
-
     // The load node has the control of the preceding MemBarCPUOrder.  All
     // following nodes will have the control of the MemBarCPUOrder inserted at
     // the end of this method.  So, pushing the load onto the stack at a later
