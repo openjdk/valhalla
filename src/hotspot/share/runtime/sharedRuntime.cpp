@@ -1096,10 +1096,10 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     bc = Bytecodes::_invokestatic;
     methodHandle attached_method(THREAD, extract_attached_method(vfst));
     assert(attached_method.not_null(), "must have attached method");
-    vmClasses::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
+    vmClasses::PrimitiveObjectMethods_klass()->initialize(CHECK_NH);
     LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, false, CHECK_NH);
 #ifdef ASSERT
-    Method* is_subst = vmClasses::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
+    Method* is_subst = vmClasses::PrimitiveObjectMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
 #endif
     return receiver;

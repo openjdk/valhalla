@@ -311,7 +311,6 @@ PhaseOutput::PhaseOutput()
     _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
     _sp_inc_slot(0),
-    _sp_inc_slot_offset_in_bytes(0),
     _buf_sizes(),
     _block(NULL),
     _index(0) {
@@ -1330,10 +1329,6 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
   // Compute the byte offset where we can store the deopt pc.
   if (C->fixed_slots() != 0) {
     _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_orig_pc_slot));
-  }
-  if (C->needs_stack_repair()) {
-    // Compute the byte offset of the stack increment value
-    _sp_inc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_sp_inc_slot));
   }
 
   // Compute prolog code size

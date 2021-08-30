@@ -29,6 +29,7 @@
 #include "include/cds.h"
 #include "oops/array.hpp"
 #include "oops/compressedOops.hpp"
+#include "runtime/globals.hpp"
 #include "utilities/align.hpp"
 
 // To understand the layout of the CDS archive file:
@@ -179,6 +180,34 @@ public:
   void print(outputStream* st, int region_index);
 };
 
+#define CDS_MUST_MATCH_FLAGS_DO(f) \
+  f(EnableValhalla) \
+  f(FlatArrayElementMaxOops) \
+  f(FlatArrayElementMaxSize) \
+  f(InlineFieldMaxFlatSize) \
+  f(InlineTypePassFieldsAsArgs) \
+  f(InlineTypeReturnedAsFields)
+
+class CDSMustMatchFlags {
+private:
+  size_t _max_name_width;
+#define DECLARE_CDS_MUST_MATCH_FLAG(n) \
+  decltype(n) _v_##n;
+  CDS_MUST_MATCH_FLAGS_DO(DECLARE_CDS_MUST_MATCH_FLAG);
+#undef DECLARE_CDS_MUST_MATCH_FLAG
+
+  inline static void do_print(outputStream* st, bool v);
+  inline static void do_print(outputStream* st, intx v);
+  inline static void do_print(outputStream* st, uintx v);
+  inline static void do_print(outputStream* st, double v);
+  void print_info() const;
+
+public:
+  void init();
+  bool runtime_check() const;
+  void print(outputStream* st) const;
+};
+
 class FileMapHeader: private CDSFileMapHeaderBase {
   friend class CDSOffsets;
   friend class VMStructs;
@@ -238,6 +267,7 @@ class FileMapHeader: private CDSFileMapHeaderBase {
   bool   _use_full_module_graph;        // Can we use the full archived module graph?
   size_t _ptrmap_size_in_bits;          // Size of pointer relocation bitmap
   narrowOop _heap_obj_roots;            // An objArray that stores all the roots of archived heap objects
+  CDSMustMatchFlags _must_match;        // These flags must be the same between dumptime and runtime
   char* from_mapped_offset(size_t offset) const {
     return mapped_base_address() + offset;
   }
@@ -321,6 +351,10 @@ public:
 
   static bool is_valid_region(int region) {
     return (0 <= region && region < NUM_CDS_REGIONS);
+  }
+
+  bool check_must_match_flags() const {
+    return _must_match.runtime_check();
   }
 
   void print(outputStream* st);

@@ -2275,7 +2275,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Both operands are values types of the same class, we need to perform a
-  // substitutability test. Delegate to ValueBootstrapMethods::isSubstitutable().
+  // substitutability test. Delegate to PrimitiveObjectMethods::isSubstitutable().
   Node* ne_io_phi = PhiNode::make(ne_region, i_o());
   Node* mem = reset_memory();
   Node* ne_mem_phi = PhiNode::make(ne_region, mem);
@@ -2290,7 +2290,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_all_memory(mem);
 
   kill_dead_locals();
-  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
+  ciMethod* subst_method = ciEnv::current()->PrimitiveObjectMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
   CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
@@ -2300,7 +2300,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* ret = set_results_for_java_call(call, false, true);
   dec_sp(2);
 
-  // Test the return value of ValueBootstrapMethods::isSubstitutable()
+  // Test the return value of PrimitiveObjectMethods::isSubstitutable()
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
   if (btest == BoolTest::eq) {

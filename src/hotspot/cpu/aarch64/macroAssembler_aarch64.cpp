@@ -38,6 +38,7 @@
 #include "gc/shared/tlab_globals.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/interpreter.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/disassembler.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -4587,7 +4588,7 @@ void MacroAssembler::remove_frame(int framesize) {
   }
 }
 
-void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset) {
+void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair) {
   if (needs_stack_repair) {
     // Remove the extension of the caller's frame used for inline type unpacking
     //
@@ -4615,6 +4616,8 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
     // The sp_inc stack slot holds the total size of the frame including the
     // extension space minus two words for the saved FP and LR.
 
+    int sp_inc_offset = initial_framesize - 3 * wordSize;  // Immediately below saved LR and FP
+
     ldr(rscratch1, Address(sp, sp_inc_offset));
     add(sp, sp, rscratch1);
     ldp(rfp, lr, Address(post(sp, 2 * wordSize)));
@@ -4623,11 +4626,13 @@ void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair
   }
 }
 
-void MacroAssembler::save_stack_increment(int sp_inc, int frame_size, int sp_inc_offset) {
+void MacroAssembler::save_stack_increment(int sp_inc, int frame_size) {
   int real_frame_size = frame_size + sp_inc;
   assert(sp_inc == 0 || sp_inc > 2*wordSize, "invalid sp_inc value");
   assert(real_frame_size >= 2*wordSize, "frame size must include FP/LR space");
   assert((real_frame_size & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
+
+  int sp_inc_offset = frame_size - 3 * wordSize;  // Immediately below saved LR and FP
 
   // Subtract two words for the saved FP and LR as these will be popped
   // separately. See remove_frame above.
@@ -5482,7 +5487,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   build_frame(framesize);
 
   if (C->needs_stack_repair()) {
-    save_stack_increment(sp_inc, framesize, C->output()->sp_inc_offset());
+    save_stack_increment(sp_inc, framesize);
   }
 
   if (VerifyStackAtCalls) {
@@ -5742,8 +5747,12 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
-  Register val_obj_tmp = r11;
-  Register from_reg_tmp = r10;
+  // The GC barrier expanded by store_heap_oop below may call into the
+  // runtime so use callee-saved registers for any values that need to be
+  // preserved. The GC barrier assembler should take care of saving the
+  // Java argument registers.
+  Register val_obj_tmp = r21;
+  Register from_reg_tmp = r22;
   Register tmp1 = r14;
   Register tmp2 = r13;
   Register tmp3 = r12;

@@ -4062,6 +4062,15 @@ public class JavacParser implements Parser {
         nextToken();
         mods.flags |= Flags.RECORD;
         Name name = typeName();
+        if ((mods.flags & Flags.PRIMITIVE_CLASS) != 0) {
+            if (token.kind == DOT) {
+                final Token pastDot = S.token(1);
+                if (pastDot.kind == IDENTIFIER && pastDot.name() == names.val) {
+                    nextToken(); nextToken(); // discard .val
+                    mods.flags |= Flags.REFERENCE_FAVORING;
+                }
+            }
+        }
 
         List<JCTypeParameter> typarams = typeParametersOpt();
 
@@ -4497,6 +4506,7 @@ public class JavacParser implements Parser {
         if (token.kind == IDENTIFIER && token.name() == names.record &&
             (peekToken(TokenKind.IDENTIFIER, TokenKind.LPAREN) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.EOF) ||
+             peekToken(TokenKind.IDENTIFIER, TokenKind.DOT) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.LT))) {
             checkSourceLevel(Feature.RECORDS);
             return true;

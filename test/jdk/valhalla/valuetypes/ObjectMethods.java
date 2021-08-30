@@ -100,6 +100,7 @@ public class ObjectMethods {
             { new ValueType2(20),   new ValueType1(20), true},
             { new ReferenceType0(30), new ValueType1(30), true},
             { new ReferenceType0(30), new ValueType2(30), true},
+            { new PrimitiveRecord(40, "forty"), new PrimitiveRecord(40, "forty"), true},
         };
     }
 
@@ -150,6 +151,12 @@ public class ObjectMethods {
     public void testToString(Object o) {
         String expected = String.format("%s@%s", o.getClass().getName(), Integer.toHexString(o.hashCode()));
         assertEquals(o.toString(), expected);
+    }
+
+    @Test
+    public void testPrimitiveRecordToString() {
+        PrimitiveRecord o = new PrimitiveRecord(30, "thirty");
+        assertEquals(o.toString(), "PrimitiveRecord[i=30, name=thirty]");
     }
 
     @DataProvider(name="hashcodeTests")
@@ -257,4 +264,6 @@ public class ObjectMethods {
             return false;
         }
     }
+
+    static primitive record PrimitiveRecord(int i, String name) {}
 }
