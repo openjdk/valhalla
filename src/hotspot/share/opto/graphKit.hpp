@@ -707,15 +707,12 @@ class GraphKit : public Phase {
     const int nargs = declared_method->arg_size();
     inc_sp(nargs);
     Node* n = null_check_receiver();
-    // TODO why is this needed?
+    // TODO Remove this code once InlineTypeNodes are replaced by InlineTypePtrNodes
     set_argument(0, n);
     dec_sp(nargs);
     // Scalarize inline type receiver
     const Type* recv_type = gvn().type(n);
     if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
-      // TODO Although above null check scalarizes, this is still needed because
-      // during parsing we except a ValueTypeNode instead of a ValueTypePtrNode.
-      // Remove this code once we merge InlineTypeNode with InlineTypePtrNode.
       assert(!recv_type->maybe_null(), "should never be null");
       Node* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);
