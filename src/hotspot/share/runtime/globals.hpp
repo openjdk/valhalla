@@ -2069,9 +2069,6 @@ const intx ObjectAlignmentInBytes = 8;
   develop(bool, StressInlineTypeReturnedAsFields, false,                    \
           "Stress return of fields instead of an inline type reference")    \
                                                                             \
-  develop(bool, ScalarizeInlineTypes, true,                                 \
-          "Scalarize inline types in compiled code")                        \
-                                                                            \
   product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
           "Use bits in the mark word to check for flat/null-free arrays")   \
                                                                             \

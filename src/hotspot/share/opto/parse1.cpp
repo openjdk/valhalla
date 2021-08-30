@@ -606,7 +606,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   for (uint i = 0; i < (uint)arg_size_sig; i++) {
     Node* parm = map()->in(i);
     const Type* t = _gvn.type(parm);
-    if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
+    if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
       map()->replace_edge(parm, vt);
@@ -825,7 +825,7 @@ void Parse::build_exits() {
     }
     // Scalarize inline type when returning as fields or inlining non-incrementally
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        ret_type->is_inlinetypeptr() && ret_type->inline_klass()->is_scalarizable() && !ret_type->maybe_null()) {
+        ret_type->is_inlinetypeptr() && !ret_type->maybe_null()) {
       ret_type = TypeInlineType::make(ret_type->inline_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];

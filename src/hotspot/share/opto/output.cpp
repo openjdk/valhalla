@@ -876,6 +876,7 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       ScopeValue* oopValue = NULL;
       if (cik->is_inlinetype()) {
         Node* oop_node = sfpt->in(first_ind++);
+        assert(oop_node != NULL, "oop node not found");
         if (!oop_node->is_top()) {
           const Type* oop_type = oop_node->bottom_type();
           if (oop_node->is_Con()) {

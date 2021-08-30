@@ -712,7 +712,7 @@ class GraphKit : public Phase {
     dec_sp(nargs);
     // Scalarize inline type receiver
     const Type* recv_type = gvn().type(n);
-    if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
+    if (recv_type->is_inlinetypeptr()) {
       assert(!recv_type->maybe_null(), "should never be null");
       Node* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);

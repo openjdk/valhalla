@@ -40,8 +40,8 @@ protected:
   }
 
   enum { Control,   // Control input
-         Oop,       // Oop of TypeInstPtr
-         Oop2,
+         Oop,       // Oop to heap allocated buffer (NULL if not buffered)
+         IsInit,    // Needs to be checked for NULL before using the field values.
          Values     // Nodes corresponding to values of the inline type's fields.
                     // Nodes are connected in increasing order of the index of the field they correspond to.
   };
@@ -72,6 +72,8 @@ public:
   // Get oop for heap allocated inline type (may be TypePtr::NULL_PTR)
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(Node* oop) { set_req(Oop, oop); }
+  Node* get_is_init() const { return in(IsInit); }
+  void  set_is_init(Node* isInit) { set_req(IsInit, isInit); }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
@@ -118,7 +120,7 @@ private:
     : InlineTypeBaseNode(TypeInlineType::make(vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineType);
     init_req(Oop, oop);
-    init_req(Oop2, oop);
+    init_req(IsInit, oop);
   }
 
   // Checks if the inline type is loaded from memory and if so returns the oop
@@ -171,7 +173,7 @@ public:
     : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vt->type()->inline_klass()), vt->req()) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, vt->get_oop());
-    init_req(Oop2, vt->in(2));
+    init_req(IsInit, vt->in(2));
     for (uint i = Values; i < vt->req(); i++) {
       init_req(i, vt->in(i));
     }

@@ -270,7 +270,7 @@ const Type* Type::get_typeflow_type(ciType* type) {
   case T_INLINE_TYPE: {
     bool is_null_free = type->is_null_free();
     ciInlineKlass* vk = type->unwrap()->as_inline_klass();
-    if (vk->is_scalarizable() && is_null_free) {
+    if (is_null_free) {
       return TypeInlineType::make(vk);
     } else {
       return TypeOopPtr::make_from_klass(vk)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);

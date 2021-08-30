@@ -808,6 +808,14 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 #endif
                                                  first_ind, nfields);
     sobj->init_req(0, C->root());
+
+    // TODO
+    if (res_type->is_inlinetypeptr()) {
+      alloc->dump(1);
+      assert(false, "should have been scalarized?");
+      //sfpt->add_req(C->top());
+    }
+
     transform_later(sobj);
 
     // Scan object's fields adding an input to the safepoint for each field.
@@ -1167,7 +1175,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc || !tklass->klass()->as_inline_klass()->is_scalarizable(), "Scalarizable inline type allocations should not have safepoint uses");
+      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
       return false;
     }
   }

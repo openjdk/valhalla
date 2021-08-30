@@ -1248,13 +1248,13 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
   if (value->is_InlineTypePtr()) {
-    // Null checking a scalarized, nullable inline type. Check the oop input instead.
+    // Null checking a scalarized, nullable inline type. Check if it is initialized (non-null).
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
     // TODO Can we get rid of this?
     while (vtptr->get_oop()->is_InlineTypePtr()) {
       vtptr = vtptr->get_oop()->as_InlineTypePtr();
     }
-    null_check_common(vtptr->in(2), type, assert_null, null_control, speculative);
+    null_check_common(vtptr->get_is_init(), type, assert_null, null_control, speculative);
     if (stopped()) return top();
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
@@ -1438,7 +1438,6 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 }
 
 Node* GraphKit::null2default(Node* value, ciInlineKlass* vk) {
-  assert(!vk->is_scalarizable(), "Should only be used for non scalarizable inline klasses");
   Node* null_ctl = top();
   value = null_check_oop(value, &null_ctl);
   if (!null_ctl->is_top()) {
@@ -3155,7 +3154,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
       // recv_xtype, since now we know what the type will be.
       Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
       Node* res = _gvn.transform(cast);
-      if (recv_xtype->is_inlinetypeptr() && recv_xtype->inline_klass()->is_scalarizable()) {
+      if (recv_xtype->is_inlinetypeptr()) {
         assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
         res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_InlineTypeBase()->as_ptr(&gvn());
       }
@@ -3545,7 +3544,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
             assert(safe_for_replace, "must be");
             obj = null_check(obj);
           }
-          assert(stopped() || !toop->is_inlinetypeptr() || !toop->inline_klass()->is_scalarizable() ||
+          assert(stopped() || !toop->is_inlinetypeptr() ||
                  obj->is_InlineTypeBase(), "should have been scalarized");
         }
         return obj;
@@ -3733,9 +3732,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
   }
 
-  if (!stopped() && !from_inline) {
+  if (!stopped() && !res->is_InlineTypeBase()) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable()) {
+    if (toop->is_inlinetypeptr()) {
       Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
       res = vt;
       if (safe_for_replace) {

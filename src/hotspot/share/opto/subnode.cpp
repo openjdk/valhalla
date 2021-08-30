@@ -30,6 +30,7 @@
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/movenode.hpp"
@@ -1142,8 +1143,8 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(1)->is_InlineTypePtr() && phase->type(in(2))->is_zero_type()) {
-    // Null checking a scalarized, nullable inline type. Check the oop input instead.
-    set_req_X(1, in(1)->in(2), phase);
+    // Null checking a scalarized, nullable inline type. Check the IsInit input instead.
+    set_req_X(1, in(1)->as_InlineTypePtr()->get_is_init(), phase);
     return this;
   }
 

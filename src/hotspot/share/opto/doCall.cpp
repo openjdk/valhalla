@@ -751,7 +751,7 @@ void Parse::do_call() {
     }
 
     if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType() &&
-        !gvn().type(peek())->maybe_null() && rtype->as_inline_klass()->is_scalarizable()) {
+        !gvn().type(peek())->maybe_null()) {
       Node* retnode = pop();
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
       push_node(T_INLINE_TYPE, retnode);

@@ -333,11 +333,7 @@ void Parse::do_defaultvalue() {
   }
 
   InlineTypeNode* vt = InlineTypeNode::make_default(_gvn, vk);
-  if (vk->is_scalarizable()) {
-    push(vt);
-  } else {
-    push(vt->get_oop());
-  }
+  push(vt);
 }
 
 //------------------------------do_withfield------------------------------------
@@ -373,16 +369,8 @@ void Parse::do_withfield() {
   new_vt->set_oop(_gvn.zerocon(T_INLINE_TYPE));
   gvn().set_type(new_vt, new_vt->bottom_type());
   new_vt->set_field_value_by_offset(field->offset(), val);
-  Node* res = new_vt;
 
-  if (!holder_klass->is_scalarizable()) {
-    // Re-execute withfield if buffering triggers deoptimization
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    inc_sp(nargs);
-    res = new_vt->buffer(this)->get_oop();
-  }
-  push(_gvn.transform(res));
+  push(_gvn.transform(new_vt));
 }
 
 #ifndef PRODUCT
