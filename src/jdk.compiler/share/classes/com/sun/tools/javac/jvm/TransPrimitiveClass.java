@@ -397,6 +397,7 @@ public class TransPrimitiveClass extends TreeTranslator {
                                         names.init,
                                         factoryType,
                                         init.owner);
+        factory.params = init.params;
         factory.setAttributes(init);
         init2factory.put(init, factory);
         return factory;
