@@ -391,8 +391,6 @@ class GraphKit : public Phase {
     return null_check_common(value, type, true, NULL, _gvn.type(value)->speculative_always_null());
   }
 
-  Node* null2default(Node* value, ciInlineKlass* vk = NULL);
-
   // Check if value is null and abort if it is
   Node* must_be_not_null(Node* value, bool do_replace_in_map);
 

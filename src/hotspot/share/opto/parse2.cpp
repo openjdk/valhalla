@@ -278,7 +278,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineTypeBase()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
@@ -344,7 +344,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           ideal.sync_kit(this);
         } else if (!ideal.ctrl()->is_top()) {
           // Element type is unknown, emit runtime call
@@ -2001,7 +2001,7 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
   dec_sp(2);
   assert(!stopped(), "null input should have been caught earlier");
   if (cast->is_InlineType()) {
-    cast = cast->as_InlineType()->as_ptr(&_gvn);
+    cast = cast->as_InlineType()->get_oop();
   }
   return cast;
 }

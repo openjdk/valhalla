@@ -811,7 +811,9 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
     // TODO
     if (res_type->is_inlinetypeptr()) {
+#ifdef ASSERT
       alloc->dump(1);
+#endif
       assert(false, "should have been scalarized?");
       //sfpt->add_req(C->top());
     }

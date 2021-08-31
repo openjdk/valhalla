@@ -590,6 +590,7 @@ Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
 }
 
 Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  // TODO add asserts about oop and isInit input consistency
   if (get_is_init()->isa_InlineTypePtr()) {
     set_is_init(get_is_init()->as_InlineTypePtr()->get_is_init());
     return this;
@@ -669,9 +670,11 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
 bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
+    if (value->is_InlineTypePtr()) {
+      value = value->as_InlineTypePtr()->get_oop();
+    }
     if (!gvn->type(value)->is_zero_type() &&
-        !(value->is_InlineTypeBase() && value->as_InlineTypeBase()->is_default(gvn)) &&
-        !(field_type(i)->is_inlinetype() && value == default_oop(*gvn, field_type(i)->as_inline_klass()))) {
+        !(field_is_null_free(i) && value->is_InlineType() && value->as_InlineType()->is_default(gvn))) {
       return false;
     }
   }
@@ -704,6 +707,8 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
 
   // TODO add a comment about why uncast is okay
   if (oop->uncast()->isa_InlineTypePtr()) {
+
+    // TODO inline type ptr is always buffered, we loose that information here!
     // Can happen with late inlining
     InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
 
@@ -899,14 +904,14 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   return base;
 }
 
-Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
+Node* InlineTypeBaseNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   const TypeKlassPtr* tk = TypeKlassPtr::make(vk);
   intptr_t bits = tk->get_con();
   set_nth_bit(bits, 0);
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
+void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
   for (uint i = 0; i < field_count(); i++) {
     int offset = field_offset(i);
     ciType* type = field_type(i);

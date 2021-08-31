@@ -921,8 +921,7 @@ void Compile::return_values(JVMState* jvms) {
     if (tf()->returns_inline_type_as_fields()) {
       // Multiple return values (inline type fields): add as many edges
       // to the Return node as returned values.
-      assert(res->is_InlineType(), "what else supports multi value return?");
-      InlineTypeNode* vt = res->as_InlineType();
+      InlineTypeBaseNode* vt = res->as_InlineTypeBase();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
       if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
@@ -1741,6 +1740,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       }
       if (t != NULL && t != Type::BOTTOM) {
         if (n->is_InlineType() && !t->isa_inlinetype()) {
+          // TODO Currently, the implementation relies on the assumption that InlineTypePtrNodes
+          // are always buffered. We therefore need to allocate here.
           // Allocate inline type in src block to be able to merge it with oop in target block
           map()->set_req(j, n->as_InlineType()->buffer(this));
         } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {

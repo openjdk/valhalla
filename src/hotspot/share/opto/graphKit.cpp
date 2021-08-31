@@ -1249,6 +1249,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 
   if (value->is_InlineTypePtr()) {
     // Null checking a scalarized, nullable inline type. Check if it is initialized (non-null).
+    // TODO add comment about that we are checking the "is_init" input to not keep allocs alive
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
     // TODO Can we get rid of this?
     while (vtptr->get_oop()->is_InlineTypePtr()) {
@@ -1437,48 +1438,24 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   return value;
 }
 
-Node* GraphKit::null2default(Node* value, ciInlineKlass* vk) {
-  Node* null_ctl = top();
-  value = null_check_oop(value, &null_ctl);
-  if (!null_ctl->is_top()) {
-    // Return default value if oop is null
-    Node* region = new RegionNode(3);
-    region->init_req(1, control());
-    region->init_req(2, null_ctl);
-    value = PhiNode::make(region, value, TypeInstPtr::make(TypePtr::BotPTR, vk));
-    value->set_req(2, InlineTypeNode::default_oop(gvn(), vk));
-    set_control(gvn().transform(region));
-    value = gvn().transform(value);
-  }
-  return value;
-}
-
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     return obj;
   } else if (obj->is_InlineTypePtr()) {
-    // Cast oop input instead and create a new InlineTypeNode
-    InlineTypePtrNode* vtptr = obj->as_InlineTypePtr();
-    // TODO Can we get rid of this?
-    while (vtptr->get_oop()->is_InlineTypePtr()) {
-      vtptr = vtptr->get_oop()->as_InlineTypePtr();
+    InlineTypeBaseNode* vt = new InlineTypePtrNode(obj->as_InlineTypePtr());
+    // TODO This is okay, because InlineTypePtrs are always buffered
+    Node* cast = cast_not_null(vt->get_oop(), do_replace_in_map);
+    if (cast->is_top()) {
+      return top();
     }
-    ciInlineKlass* vk = _gvn.type(vtptr)->inline_klass();
-    Node* cast = cast_not_null(vtptr->get_oop(), do_replace_in_map);
-    InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_gvn, vk);
-    vt->set_req(1, cast);
-    for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
-      vt->set_field_value(i, vtptr->field_value(i));
-    }
-    vt = _gvn.transform(vt)->as_InlineType();
+    vt->set_oop(cast);
+    // TODO move to helper method
+    vt->set_is_init(InlineTypeBaseNode::default_oop(_gvn, obj->bottom_type()->inline_klass()));
+    vt = _gvn.transform(vt)->as_InlineTypePtr();
     if (do_replace_in_map) {
-      if (C->inlining_incrementally()) {
-        replace_in_map(obj, vt->as_InlineType()->as_ptr(&_gvn));
-      } else {
-        replace_in_map(obj, vt);
-      }
+      replace_in_map(obj, vt);
     }
     return vt;
   }
@@ -1870,7 +1847,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     const Type* t = domain->field_at(i);
     if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
-      InlineTypeNode* vt = arg->as_InlineType();
+      InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
       vt->pass_fields(this, call, idx);
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
@@ -2602,11 +2579,7 @@ Node* GraphKit::null_check_oop(Node* value, Node* *null_control,
     (*null_control) = top();    // NULL path is dead
   }
   if ((*null_control) == top() && safe_for_replace) {
-    if (cast->isa_InlineType() && C->inlining_incrementally()) {
-      replace_in_map(value, cast->as_InlineType()->as_ptr(&_gvn));
-    } else {
-      replace_in_map(value, cast);
-    }
+    replace_in_map(value, cast);
   }
 
   // Cast away null-ness on the result

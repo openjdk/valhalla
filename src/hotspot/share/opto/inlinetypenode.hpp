@@ -107,6 +107,13 @@ public:
   // Allocate all non-flattened inline type fields
   Node* allocate_fields(GraphKit* kit);
 
+  Node* tagged_klass(PhaseGVN& gvn) {
+    return tagged_klass(inline_klass(), gvn);
+  }
+  static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
+  // Pass inline type as fields at a call or return
+  void pass_fields(GraphKit* kit, Node* n, uint& base_input);
+
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
@@ -145,12 +152,6 @@ public:
   InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
   InlineTypeNode* finish_larval(GraphKit* kit) const;
 
-  Node* tagged_klass(PhaseGVN& gvn) {
-    return tagged_klass(inline_klass(), gvn);
-  }
-  static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
-  // Pass inline type as fields at a call or return
-  void pass_fields(GraphKit* kit, Node* n, uint& base_input);
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
   void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in);
 
@@ -173,7 +174,7 @@ public:
     : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vt->type()->inline_klass()), vt->req()) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, vt->get_oop());
-    init_req(IsInit, vt->in(2));
+    init_req(IsInit, vt->get_is_init());
     for (uint i = Values; i < vt->req(); i++) {
       init_req(i, vt->in(i));
     }

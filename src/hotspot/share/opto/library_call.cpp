@@ -2302,7 +2302,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (base->is_InlineTypeBase()) {
     InlineTypeBaseNode* vt = base->as_InlineTypeBase();
     if (is_store) {
-      if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
+      if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->isa_inlinetype() || !_gvn.type(vt)->is_inlinetype()->larval()) {
         return false;
       }
       base = vt->get_oop();
@@ -2557,9 +2557,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flattened(this, base, base, holder, offset, decorators);
+        val->as_InlineTypeBase()->store_flattened(this, base, base, holder, offset, decorators);
       } else {
-        val->as_InlineType()->store_flattened(this, base, adr, NULL, 0, decorators);
+        val->as_InlineTypeBase()->store_flattened(this, base, adr, NULL, 0, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);

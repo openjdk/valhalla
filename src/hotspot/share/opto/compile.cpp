@@ -429,6 +429,9 @@ void Compile::disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_Lis
     if (n->outcnt() == 1 && n->has_special_unique_user()) {
       worklist->push(n->unique_out());
     }
+    if (n->outcnt() == 0) {
+      worklist->push(n);
+    }
   }
 
   remove_useless_nodes(_macro_nodes,        useful); // remove useless macro nodes

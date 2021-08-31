@@ -285,7 +285,6 @@ public class TestLWorldProfiling {
     public void test8_no_inline() {
     }
 
-
     public void test8_helper(Object arg) {
         if (arg instanceof Long) {
             test8_no_inline();

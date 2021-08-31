@@ -1177,7 +1177,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool 
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
     kit.set_argument(arg_nb, arg);
   }
-  if (sig_type->is_inlinetypeptr() && !arg->is_InlineTypeBase()) {
+  if (sig_type->is_inlinetypeptr() && !arg->is_InlineType()) {
     arg = InlineTypeNode::make_from_oop(&kit, arg, t->as_inline_klass(), !kit.gvn().type(arg)->maybe_null());
     kit.set_argument(arg_nb, arg);
   }
