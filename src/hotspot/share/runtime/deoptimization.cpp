@@ -1059,12 +1059,12 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
 
-    // Check if the object has an additional oop input that needs to be
-    // null-checked before using the field values. Skip re-allocation if it is null.
+    // Check if the object may be null and has an additional is_init input that needs
+    // to be checked before using the field values. Skip re-allocation if it is null.
     if (sv->maybe_null()) {
       assert(k->is_inline_klass(), "must be an inline klass");
-      StackValue* oop_value = StackValue::create_stack_value(fr, reg_map, sv->get_oop());
-      if (oop_value->get_obj().is_null()) {
+      StackValue* init_value = StackValue::create_stack_value(fr, reg_map, sv->is_init());
+      if (init_value->get_obj().is_null()) {
         continue;
       }
     }

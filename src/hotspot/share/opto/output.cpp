@@ -870,25 +870,25 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       assert(cik->is_instance_klass() ||
              cik->is_array_klass(), "Not supported allocation.");
       uint first_ind = spobj->first_index(sfpt->jvms());
-      // Nullable, scalarized inline types have an oop input that
-      // needs to be null checked before using the field values.
-      ScopeValue* oopValue = NULL;
+      // Nullable, scalarized inline types have an is_init input
+      // that needs to be checked before using the field values.
+      ScopeValue* is_init = NULL;
       if (cik->is_inlinetype()) {
-        Node* oop_node = sfpt->in(first_ind++);
-        assert(oop_node != NULL, "oop node not found");
-        if (!oop_node->is_top()) {
-          const Type* oop_type = oop_node->bottom_type();
-          if (oop_node->is_Con()) {
-            oopValue = new ConstantOopWriteValue(oop_type->is_zero_type() ? 0 : oop_type->isa_oopptr()->const_oop()->constant_encoding());
+        Node* init_node = sfpt->in(first_ind++);
+        assert(init_node != NULL, "is_init node not found");
+        if (!init_node->is_top()) {
+          const Type* init_type = init_node->bottom_type();
+          if (init_node->is_Con()) {
+            is_init = new ConstantOopWriteValue(init_type->is_zero_type() ? 0 : init_type->isa_oopptr()->const_oop()->constant_encoding());
           } else {
-            OptoReg::Name oop_reg = C->regalloc()->get_reg_first(oop_node);
-            oopValue = new_loc_value(C->regalloc(), oop_reg, oop_type->isa_narrowoop() ? Location::narrowoop : Location::oop);
+            OptoReg::Name init_reg = C->regalloc()->get_reg_first(init_node);
+            is_init = new_loc_value(C->regalloc(), init_reg, init_type->isa_narrowoop() ? Location::narrowoop : Location::oop);
           }
         }
       }
       ScopeValue* klass_sv = new ConstantOopWriteValue(cik->java_mirror()->constant_encoding());
       sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv)
-                                    : new ObjectValue(spobj->_idx, klass_sv, oopValue);
+                                    : new ObjectValue(spobj->_idx, klass_sv, is_init);
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {

@@ -3231,73 +3231,19 @@ public class TestNullableArrays {
         }
     }
 
-// TODO below tests do not work yet
-/*
-    @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
-    public long test125() {
-        MyValue2.ref[] array = new MyValue2.ref[1];
-        for (int i = 0; i < 4; ++i) {
-            if ((i % 2) == 0) {
-                array[0] = MyValue2.createWithFieldsInline(rI, rD);
-            }
-        }
-        return array[0].hash();
-    }
-
-    @Run(test = "test125")
-    public void test125_verifier(RunInfo info) {
-        Asserts.assertEquals(test125(), MyValue2.createWithFieldsInline(rI, rD).hash());
-    }
-
-    @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
-    public long test126(boolean b, Method m, boolean deopt) {
-        Object res = null;
-        if (b) {
-            res = MyValue2.createWithFieldsInline(rI+1, rD+1);
-        } else {
-            MyValue2.ref[] array = new MyValue2.ref[1];
-            for (int i = 0; i < 4; ++i) {
-                if ((i % 2) == 0) {
-                    array[0] = MyValue2.createWithFieldsInline(rI, rD);
-                }
-            }
-            res = array[0];
-        }
-        if (deopt) {
-            // uncommon trap
-            TestFramework.deoptimize(m);
-        }
-        return ((MyValue2)res).hash();
-    }
-
-    @Run(test = "test126")
-    public void test126_verifier(RunInfo info) {
-        refArray[0] = MyValue1.default;
-        MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
-        MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
-        Asserts.assertEquals(test126(true, info.getTest(), false), val2.hash());
-        Asserts.assertEquals(test126(false, info.getTest(), false), val1.hash());
-        if (!info.isWarmUp()) {
-            Asserts.assertEquals(test126(true, info.getTest(), true), val2.hash());
-        }
-    }
-
-*/
     @ForceInline
-    public void test127_helper(Object[] array, MyValue2.ref val) {
+    public void test125_helper(Object[] array, MyValue2.ref val) {
         array[0] = val;
     }
 
     @Test
     @IR(failOn = {ALLOC_G, STORE})
-    public long test127(boolean b, MyValue2.ref val, Method m, boolean deopt) {
+    public long test125(boolean b, MyValue2.ref val, Method m, boolean deopt) {
         Object[] res = new MyValue2.ref[1];
         if (b) {
             res[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
         } else {
-            test127_helper(res, val);
+            test125_helper(res, val);
         }
         val = ((MyValue2)res[0]);
         if (deopt) {
@@ -3307,36 +3253,15 @@ public class TestNullableArrays {
         return val.hash();
     }
 
-    @Run(test = "test127")
-    public void test127_verifier(RunInfo info) {
+    @Run(test = "test125")
+    public void test125_verifier(RunInfo info) {
         refArray[0] = MyValue1.default;
         MyValue2 val1 = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2 val2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
-        Asserts.assertEquals(test127(true, val1, info.getTest(), false), val2.hash());
-        Asserts.assertEquals(test127(false, val1, info.getTest(), false), val1.hash());
+        Asserts.assertEquals(test125(true, val1, info.getTest(), false), val2.hash());
+        Asserts.assertEquals(test125(false, val1, info.getTest(), false), val1.hash());
         if (!info.isWarmUp()) {
-            Asserts.assertEquals(test127(true, val1, info.getTest(), true), val2.hash());
+            Asserts.assertEquals(test125(true, val1, info.getTest(), true), val2.hash());
         }
     }
-
-// TODO below tests do not work yet
-/*
-    @Test
-    @IR(failOn = {ALLOC_G, LOAD, STORE})
-    public long test128(MyValue2 val) {
-        MyValue2.ref[] array = new MyValue2.ref[1];
-
-        for (int i = 0; i < 4; ++i) {
-            if ((i % 2) == 0) {
-                array[0] = val;
-            }
-        }
-        return array[0].hash();
-    }
-
-    @Run(test = "test128")
-    public void test128_verifier(RunInfo info) {
-        Asserts.assertEquals(test128(MyValue2.createWithFieldsInline(rI, rD)), MyValue2.createWithFieldsInline(rI, rD).hash());
-    }
-*/
 }

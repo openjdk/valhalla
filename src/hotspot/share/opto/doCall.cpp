@@ -750,8 +750,7 @@ void Parse::do_call() {
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
     }
 
-    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType() &&
-        !gvn().type(peek())->maybe_null()) {
+    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType() && !gvn().type(peek())->maybe_null()) {
       Node* retnode = pop();
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
       push_node(T_INLINE_TYPE, retnode);

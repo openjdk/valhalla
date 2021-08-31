@@ -2502,7 +2502,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   // Check recursively if inputs are either an inline type, constant null
   // or another Phi (including self references through data loops). If so,
-  // push inline types down through the phis to enable folding of loads.
+  // push the inline types down through the phis to enable folding of loads.
   if (EnableValhalla && req() > 2 && progress == NULL) {
     ResourceMark rm;
     Unique_Node_List worklist;

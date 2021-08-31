@@ -499,10 +499,10 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
       if (nf > 0) {
         uint first_ind = spobj->first_index(mcall->jvms());
         if (iklass != NULL && iklass->is_inlinetype()) {
-          Node* oop_node = mcall->in(first_ind++);
-          if (!oop_node->is_top()) {
-            st->print(" [oop");
-            format_helper(regalloc, st, oop_node, ":", -1, NULL);
+          Node* init_node = mcall->in(first_ind++);
+          if (!init_node->is_top()) {
+            st->print(" [is_init");
+            format_helper(regalloc, st, init_node, ":", -1, NULL);
           }
         }
         Node* fld_node = mcall->in(first_ind);

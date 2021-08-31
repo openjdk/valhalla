@@ -1248,15 +1248,16 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
   if (value->is_InlineTypePtr()) {
-    // Null checking a scalarized, nullable inline type. Check if it is initialized (non-null).
-    // TODO add comment about that we are checking the "is_init" input to not keep allocs alive
+    // Null checking a scalarized but nullable inline type. Check the is_init
+    // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
-    // TODO Can we get rid of this?
     while (vtptr->get_oop()->is_InlineTypePtr()) {
       vtptr = vtptr->get_oop()->as_InlineTypePtr();
     }
     null_check_common(vtptr->get_is_init(), type, assert_null, null_control, speculative);
-    if (stopped()) return top();
+    if (stopped()) {
+      return top();
+    }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
   }
@@ -1444,14 +1445,14 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     return obj;
   } else if (obj->is_InlineTypePtr()) {
-    InlineTypeBaseNode* vt = new InlineTypePtrNode(obj->as_InlineTypePtr());
-    // TODO This is okay, because InlineTypePtrs are always buffered
-    Node* cast = cast_not_null(vt->get_oop(), do_replace_in_map);
+    // Cast oop input instead
+    Node* cast = cast_not_null(obj->as_InlineTypePtr()->get_oop(), do_replace_in_map);
     if (cast->is_top()) {
       return top();
     }
+    // Create a new node with the casted oop input and is_init set
+    InlineTypeBaseNode* vt = new InlineTypePtrNode(obj->as_InlineTypePtr());
     vt->set_oop(cast);
-    // TODO move to helper method
     vt->set_is_init(InlineTypeBaseNode::default_oop(_gvn, obj->bottom_type()->inline_klass()));
     vt = _gvn.transform(vt)->as_InlineTypePtr();
     if (do_replace_in_map) {
