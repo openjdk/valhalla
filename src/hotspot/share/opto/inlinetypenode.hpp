@@ -39,8 +39,8 @@ protected:
     Compile::current()->add_inline_type(this);
   }
 
-  enum { Control,   // Control input
-         Oop,       // Oop to heap allocated buffer (NULL if not buffered)
+  enum { Control,   // Control input.
+         Oop,       // Oop to heap allocated buffer (NULL if not buffered).
          IsInit,    // Needs to be checked for NULL before using the field values.
          Values     // Nodes corresponding to values of the inline type's fields.
                     // Nodes are connected in increasing order of the index of the field they correspond to.
@@ -73,7 +73,7 @@ public:
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(Node* oop) { set_req(Oop, oop); }
   Node* get_is_init() const { return in(IsInit); }
-  void  set_is_init(Node* isInit) { set_req(IsInit, isInit); }
+  void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, InlineTypeBaseNode::default_oop(gvn, inline_klass())); }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
@@ -140,7 +140,7 @@ public:
   static InlineTypeNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
-  // TODO
+  // Create with null field values
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create and initialize by loading the field values from an oop
   static Node* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
@@ -180,9 +180,11 @@ public:
     }
   }
 
-  InlineTypePtrNode(ciInlineKlass* vk)
+  InlineTypePtrNode(ciInlineKlass* vk, Node* oop)
       : InlineTypeBaseNode(TypeInstPtr::make(TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineTypePtr);
+    init_req(Oop, oop);
+    init_req(IsInit, oop);
   }
 
   static InlineTypePtrNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
@@ -190,9 +192,6 @@ public:
   virtual Node* Identity(PhaseGVN* phase);
 
   virtual const Type* Value(PhaseGVN* phase) const;
-
-  // TODO this needs to be public!!
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 
   virtual int Opcode() const;
 };

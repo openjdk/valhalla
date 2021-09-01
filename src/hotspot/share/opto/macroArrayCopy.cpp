@@ -308,26 +308,6 @@ Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array,
   return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_null_free_bit_inplace), region);
 }
 
-Node* PhaseMacroExpand::generate_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region, jint lh_con) {
-  if ((*ctrl)->is_top())  return NULL;
-
-  Node* kls = NULL;
-  if (_igvn.type(obj_or_klass)->isa_oopptr()) {
-    Node* k_adr = basic_plus_adr(obj_or_klass, oopDesc::klass_offset_in_bytes());
-    kls = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
-  } else {
-    assert(_igvn.type(obj_or_klass)->isa_klassptr(), "what else?");
-    kls = obj_or_klass;
-  }
-  Node* layout_val = make_load(NULL, mem, kls, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
-
-  layout_val = transform_later(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-  Node* cmp = transform_later(new CmpINode(layout_val, intcon(lh_con)));
-  Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
-
-  return generate_fair_guard(ctrl, bol, region);
-}
-
 void PhaseMacroExpand::finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type) {
   transform_later(call);
 

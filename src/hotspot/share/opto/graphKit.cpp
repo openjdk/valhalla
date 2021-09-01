@@ -1453,7 +1453,7 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     // Create a new node with the casted oop input and is_init set
     InlineTypeBaseNode* vt = new InlineTypePtrNode(obj->as_InlineTypePtr());
     vt->set_oop(cast);
-    vt->set_is_init(InlineTypeBaseNode::default_oop(_gvn, obj->bottom_type()->inline_klass()));
+    vt->set_is_init(_gvn);
     vt = _gvn.transform(vt)->as_InlineTypePtr();
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
