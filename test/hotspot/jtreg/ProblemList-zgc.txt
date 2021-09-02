@@ -44,5 +44,3 @@ serviceability/sa/TestJmapCoreMetaspace.java                  8268722,8268636   
 serviceability/sa/TestJhsdbJstackMixed.java                   8248912   generic-all
 serviceability/sa/ClhsdbPstack.java#id0                       8248912   generic-all
 serviceability/sa/ClhsdbPstack.java#id1                       8248912   generic-all
-
-compiler/valhalla/inlinetypes/TestNativeClone.java            8270098   generic-all
