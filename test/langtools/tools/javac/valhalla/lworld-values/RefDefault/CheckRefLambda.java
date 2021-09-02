@@ -39,7 +39,7 @@ public primitive class CheckRefLambda.val {
     }
 
     public Supplier<CheckRefLambda> makeCopier() {
-        return () -> new CheckRefLambda(this.theInteger + 1); 
+        return () -> new CheckRefLambda(this.theInteger + 1);
     }
 
     public static void main(String[] args) {
