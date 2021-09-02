@@ -416,8 +416,9 @@ public class LambdaToMethod extends TreeTranslator {
         if (localContext.methodReferenceReceiver != null) {
             syntheticInits.append(localContext.methodReferenceReceiver);
         } else if (!sym.isStatic()) {
+            Type thisType = sym.owner.enclClass().asType();
             syntheticInits.append(makeThis(
-                    sym.owner.enclClass().asType(),
+                    thisType.isPrimitiveReferenceType() ? thisType.asValueType() : thisType,
                     localContext.owner.enclClass()));
         }
 
