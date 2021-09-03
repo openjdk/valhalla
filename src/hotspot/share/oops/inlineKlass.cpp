@@ -340,19 +340,14 @@ void InlineKlass::cleanup_blobs() {
   }
 }
 
-// Can this inline type be scalarized?
-bool InlineKlass::is_scalarizable() const {
-  return ScalarizeInlineTypes;
-}
-
 // Can this inline type be passed as multiple values?
 bool InlineKlass::can_be_passed_as_fields() const {
-  return InlineTypePassFieldsAsArgs && is_scalarizable();
+  return InlineTypePassFieldsAsArgs;
 }
 
 // Can this inline type be returned as multiple values?
 bool InlineKlass::can_be_returned_as_fields(bool init) const {
-  return InlineTypeReturnedAsFields && is_scalarizable() && (init || return_regs() != NULL);
+  return InlineTypeReturnedAsFields && (init || return_regs() != NULL);
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint

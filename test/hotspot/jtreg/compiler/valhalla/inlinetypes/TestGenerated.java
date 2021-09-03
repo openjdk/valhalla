@@ -181,16 +181,18 @@ public class TestGenerated {
         MyValue4 i = new MyValue4();
         for (int j = 0; j < 6; ++j) {
             MyValue4[] k = {};
-            if (i.b < 0101)
+            if (i.b < 101) {
                 i = e;
+            }
             for (int l = 0; l < 9; ++l) {
                 MyValue4 m = new MyValue4();
                 i = m;
             }
         }
-        if (d[0].c > 1)
-            for (int n = 0; n < 7; ++n)
-                ;
+        if (d[0].c > 1) {
+            for (int n = 0; n < 7; ++n) {
+            }
+        }
         return f;
     }
 

@@ -97,10 +97,10 @@ public final primitive class MyValue1 extends MyAbstract {
         long res = hashPrimitive();
         try {
             res += o;
-        } catch(NullPointerException npe) {}
+        } catch (NullPointerException npe) {}
         try {
             res += oa[0];
-        } catch(NullPointerException npe) {}
+        } catch (NullPointerException npe) {}
         return res;
     }
 

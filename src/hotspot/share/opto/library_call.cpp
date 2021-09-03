@@ -2169,18 +2169,21 @@ bool LibraryCallKit::inline_number_methods(vmIntrinsics::ID id) {
 const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_type, const TypePtr *adr_type) {
   // Attempt to infer a sharper value type from the offset and base type.
   ciKlass* sharpened_klass = NULL;
+  bool null_free = false;
 
   // See if it is an instance field, with an object type.
   if (alias_type->field() != NULL) {
     if (alias_type->field()->type()->is_klass()) {
       sharpened_klass = alias_type->field()->type()->as_klass();
+      null_free = alias_type->field()->is_null_free();
     }
   }
 
   // See if it is a narrow oop array.
   if (adr_type->isa_aryptr()) {
     if (adr_type->offset() >= objArrayOopDesc::base_offset_in_bytes()) {
-      const TypeOopPtr *elem_type = adr_type->is_aryptr()->elem()->isa_oopptr();
+      const TypeOopPtr* elem_type = adr_type->is_aryptr()->elem()->make_oopptr();
+      null_free = adr_type->is_aryptr()->is_null_free();
       if (elem_type != NULL) {
         sharpened_klass = elem_type->klass();
       }
@@ -2191,6 +2194,9 @@ const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_
   // contraint in place.
   if (sharpened_klass != NULL && sharpened_klass->is_loaded()) {
     const TypeOopPtr* tjp = TypeOopPtr::make_from_klass(sharpened_klass);
+    if (null_free) {
+      tjp = tjp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    }
 
 #ifndef PRODUCT
     if (C->print_intrinsics() || C->print_inlining()) {
@@ -2293,10 +2299,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     inline_klass = mirror_type->as_inline_klass();
   }
 
-  if (base->is_InlineType()) {
-    InlineTypeNode* vt = base->as_InlineType();
+  if (base->is_InlineTypeBase()) {
+    InlineTypeBaseNode* vt = base->as_InlineTypeBase();
     if (is_store) {
-      if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
+      if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->isa_inlinetype() || !_gvn.type(vt)->is_inlinetype()->larval()) {
         return false;
       }
       base = vt->get_oop();
@@ -2320,10 +2326,13 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           }
         }
       }
-      // Re-execute the unsafe access if allocation triggers deoptimization.
-      PreserveReexecuteState preexecs(this);
-      jvms()->set_should_reexecute(true);
-      base = vt->buffer(this)->get_oop();
+      if (vt->is_InlineType()) {
+        // Re-execute the unsafe access if allocation triggers deoptimization.
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_should_reexecute(true);
+        vt = vt->buffer(this);
+      }
+      base = vt->get_oop();
     }
   }
 
@@ -2435,6 +2444,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       } else if (elem->inline_klass() != inline_klass) {
         mismatched = true;
       }
+    } else {
+      mismatched = true;
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
@@ -2447,7 +2458,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   old_map->destruct(&_gvn);
-  assert(!mismatched || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
+  assert(!mismatched || type == T_INLINE_TYPE || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
   if (mismatched) {
     decorators |= C2_MISMATCHED;
@@ -2499,6 +2510,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
+        const TypeOopPtr* ptr = value_type->make_oopptr();
+        if (ptr != NULL && ptr->is_inlinetypeptr()) {
+          // Load a non-flattened inline type from memory
+          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
+        }
       }
       // Normalize the value returned by getBoolean in the following cases
       if (type == T_BOOLEAN &&
@@ -2526,14 +2542,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->is_null_free() && !field->is_flattened()) {
-      // Load a non-flattened inline type from memory
-      if (value_type->inline_klass()->is_scalarizable()) {
-        p = InlineTypeNode::make_from_oop(this, p, value_type->inline_klass());
-      } else {
-        p = null2default(p, value_type->inline_klass());
-      }
-    }
     // The load node has the control of the preceding MemBarCPUOrder.  All
     // following nodes will have the control of the MemBarCPUOrder inserted at
     // the end of this method.  So, pushing the load onto the stack at a later
@@ -2549,9 +2557,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineType()->store_flattened(this, base, base, holder, offset, decorators);
+        val->as_InlineTypeBase()->store_flattened(this, base, base, holder, offset, decorators);
       } else {
-        val->as_InlineType()->store_flattened(this, base, adr, NULL, 0, decorators);
+        val->as_InlineTypeBase()->store_flattened(this, base, adr, NULL, 0, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
@@ -2979,8 +2987,13 @@ bool LibraryCallKit::inline_unsafe_allocate() {
     test = _gvn.transform(new SubINode(inst, bits));
     // The 'test' is non-zero if we need to take a slow path.
   }
-
-  Node* obj = new_instance(kls, test);
+  Node* obj = NULL;
+  ciKlass* klass = _gvn.type(kls)->is_klassptr()->klass();
+  if (klass->is_inlinetype()) {
+    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass());
+  } else {
+    obj = new_instance(kls, test);
+  }
   set_result(obj);
   return true;
 }
@@ -4212,9 +4225,12 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 // Build special case code for calls to getClass on an object.
 bool LibraryCallKit::inline_native_getClass() {
   Node* obj = argument(0);
-  if (obj->is_InlineType()) {
-    ciKlass* vk = _gvn.type(obj)->inline_klass();
-    set_result(makecon(TypeInstPtr::make(vk->java_mirror())));
+  if (obj->is_InlineTypeBase()) {
+    const Type* t = _gvn.type(obj);
+    if (t->maybe_null()) {
+      null_check(obj);
+    }
+    set_result(makecon(TypeInstPtr::make(t->inline_klass()->java_mirror())));
     return true;
   }
   obj = null_check_receiver();

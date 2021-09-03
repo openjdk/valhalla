@@ -429,6 +429,9 @@ void Compile::disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_Lis
     if (n->outcnt() == 1 && n->has_special_unique_user()) {
       worklist->push(n->unique_out());
     }
+    if (n->outcnt() == 0) {
+      worklist->push(n);
+    }
   }
 
   remove_useless_nodes(_macro_nodes,        useful); // remove useless macro nodes
@@ -1909,7 +1912,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Make sure that the return value does not keep an otherwise unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
-    for (uint i = 1; i < root()->req(); i++){
+    for (uint i = 1; i < root()->req(); i++) {
       Node* in = root()->in(i);
       if (in->Opcode() == Op_Return) {
         assert(ret == NULL, "only one return");

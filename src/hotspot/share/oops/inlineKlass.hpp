@@ -226,7 +226,6 @@ class InlineKlass: public InstanceKlass {
     return *((Array<SigEntry>**)adr_extended_sig());
   }
   inline Array<VMRegPair>* return_regs() const;
-  bool is_scalarizable() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields(bool init = false) const;
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;

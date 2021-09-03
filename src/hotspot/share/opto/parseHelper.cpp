@@ -153,6 +153,9 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
     // This cutout lets us avoid the uncommon_trap(Reason_array_check)
     // below, which turns into a performance liability if the
     // gen_checkcast folds up completely.
+    if (_gvn.type(ary)->is_aryptr()->is_null_free()) {
+      null_check(obj);
+    }
     return obj;
   }
 
@@ -258,13 +261,19 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
+  // If we statically know that this is an inline type array, use precise element klass for checkcast
+  if (!elemtype->isa_inlinetype()) {
+    elemtype = elemtype->make_oopptr();
+  }
+  bool null_free = false;
   if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
+    null_free = elemtype->isa_inlinetype() || !elemtype->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 
   // Check (the hard way) and throw if not a subklass.
-  return gen_checkcast(obj, a_e_klass);
+  return gen_checkcast(obj, a_e_klass, NULL, null_free);
 }
 
 
@@ -324,11 +333,7 @@ void Parse::do_defaultvalue() {
   }
 
   InlineTypeNode* vt = InlineTypeNode::make_default(_gvn, vk);
-  if (vk->is_scalarizable()) {
-    push(vt);
-  } else {
-    push(vt->get_oop());
-  }
+  push(vt);
 }
 
 //------------------------------do_withfield------------------------------------
@@ -346,10 +351,10 @@ void Parse::do_withfield() {
     assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
     holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
   }
-  if (!val->is_InlineType() && field->is_null_free()) {
+  if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
-    assert(!gvn().type(val)->maybe_null(), "Inline types are null-free");
-    val = InlineTypeNode::make_from_oop(this, val, gvn().type(val)->inline_klass());
+    assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
+    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
   } else if (val->is_InlineType() && !field->is_null_free()) {
     // Field value needs to be allocated because it can be merged with an oop.
     // Re-execute withfield if buffering triggers deoptimization.
@@ -364,16 +369,8 @@ void Parse::do_withfield() {
   new_vt->set_oop(_gvn.zerocon(T_INLINE_TYPE));
   gvn().set_type(new_vt, new_vt->bottom_type());
   new_vt->set_field_value_by_offset(field->offset(), val);
-  Node* res = new_vt;
 
-  if (!holder_klass->is_scalarizable()) {
-    // Re-execute withfield if buffering triggers deoptimization
-    PreserveReexecuteState preexecs(this);
-    jvms()->set_should_reexecute(true);
-    inc_sp(nargs);
-    res = new_vt->buffer(this)->get_oop();
-  }
-  push(_gvn.transform(res));
+  push(_gvn.transform(new_vt));
 }
 
 #ifndef PRODUCT

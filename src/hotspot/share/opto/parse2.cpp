@@ -104,6 +104,10 @@ void Parse::array_load(BasicType bt) {
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
                                 IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+      if (elemptr->is_inlinetypeptr()) {
+        assert(elemptr->maybe_null(), "null free array should be handled above");
+        ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
+      }
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
@@ -209,17 +213,12 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
-  if (bt == T_INLINE_TYPE) {
-    // Loading a non-flattened inline type from an array
-    assert(!gvn().type(ld)->maybe_null(), "inline type array elements should never be null");
-    if (elemptr->inline_klass()->is_scalarizable()) {
-      ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass());
-    }
+  ld = record_profile_for_speculation_at_array_load(ld);
+  // Loading a non-flattened inline type
+  if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
+    assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
+    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
   }
-  if (!ld->is_InlineType()) {
-    ld = record_profile_for_speculation_at_array_load(ld);
-  }
-
   push_node(bt, ld);
 }
 
@@ -274,27 +273,16 @@ void Parse::array_store(BasicType bt) {
 
     if (ary_t->is_flat()) {
       // Store to flattened inline type array
-      if (!cast_val->is_InlineType()) {
-        inc_sp(3);
-        cast_val = null_check(cast_val);
-        if (stopped()) return;
-        dec_sp(3);
-        cast_val = InlineTypeNode::make_from_oop(this, cast_val, ary_t->elem()->inline_klass());
-      }
+      assert(!tval->maybe_null(), "should be guaranteed by array store check");
       // Re-execute flattened array store if buffering triggers deoptimization
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineTypeBase()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
-      if (!cast_val->is_InlineType() && tval->maybe_null()) {
-        inc_sp(3);
-        cast_val = null_check(cast_val);
-        if (stopped()) return;
-        dec_sp(3);
-      }
+      assert(!tval->maybe_null(), "should be guaranteed by array store check");
       if (elemtype->inline_klass()->is_empty()) {
         // Ignore empty inline stores, array is already initialized.
         return;
@@ -356,7 +344,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           ideal.sync_kit(this);
         } else if (!ideal.ctrl()->is_top()) {
           // Element type is unknown, emit runtime call
@@ -2012,6 +2000,9 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
   assert(!stopped(), "null input should have been caught earlier");
+  if (cast->is_InlineType()) {
+    cast = cast->as_InlineType()->get_oop();
+  }
   return cast;
 }
 

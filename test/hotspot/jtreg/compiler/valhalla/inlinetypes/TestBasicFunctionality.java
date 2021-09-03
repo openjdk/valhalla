@@ -46,12 +46,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 public class TestBasicFunctionality {
 
     public static void main(String[] args) {
-        Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[2].addFlags("-DVerifyIR=false");
-        scenarios[3].addFlags("-XX:FlatArrayElementMaxSize=0");
-
         InlineTypes.getFramework()
-                   .addScenarios(scenarios)
+                   .addScenarios(InlineTypes.DEFAULT_SCENARIOS)
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
                                      MyValue2Inline.class,
@@ -284,7 +280,8 @@ public class TestBasicFunctionality {
 
     // Test loop with uncommon trap referencing an inline type
     @Test
-    @IR(counts = {SCOBJ, ">= 1"}, // at least 1
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {SCOBJ, ">= 1"}, // at least 1
         failOn = LOAD)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -652,7 +649,7 @@ public class TestBasicFunctionality {
     }
 
     // Verify that only dominating allocations are re-used
-    @Test()
+    @Test
     public MyValue3 test29(boolean warmup) {
         MyValue3 vt = MyValue3.create();
         if (warmup) {
@@ -676,7 +673,8 @@ public class TestBasicFunctionality {
 
     // Verify that C2 recognizes inline type loads and re-uses the oop to avoid allocations
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, STORE})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC, ALLOCA, STORE})
     public MyValue3 test30(MyValue3[] va) {
         // C2 can re-use the oop of staticVal3 because staticVal3 is equal to copy
         MyValue3 copy = MyValue3.copy(staticVal3);
@@ -765,7 +763,8 @@ public class TestBasicFunctionality {
     // Verify that the default inline type is never allocated.
     // C2 code should load and use the default oop from the java mirror.
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test34(MyValue3[] va) {
         // Explicitly create default value
         MyValue3 vt = MyValue3.createDefault();
@@ -797,7 +796,8 @@ public class TestBasicFunctionality {
 
     // Same as above but manually initialize inline type fields to default.
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC, ALLOCA, LOAD, STORE, LOOP, TRAP})
     public MyValue3 test35(MyValue3 vt, MyValue3[] va) {
         vt = MyValue3.setC(vt, (char)0);
         vt = MyValue3.setBB(vt, (byte)0);
@@ -959,7 +959,7 @@ public class TestBasicFunctionality {
     }
 
     // Test scalar replacement of inline type array containing inline type with oop fields
-    @Test()
+    @Test
     public long test40(boolean b) {
         MyValue1[] va = {MyValue1.createWithFieldsInline(rI, rL)};
         long result = 0;

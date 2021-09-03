@@ -37,6 +37,12 @@
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
 InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
+  if (vt->is_InlineTypePtr()) {
+    // Use nullable type
+    const Type* t = Type::get_const_type(inline_klass());
+    gvn->set_type(vt, t);
+    vt->as_InlineTypePtr()->set_type(t);
+  }
 
   // Create a PhiNode for merging the oop values
   const Type* phi_type = Type::get_const_type(inline_klass());
@@ -45,12 +51,18 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
   gvn->record_for_igvn(oop);
   vt->set_oop(oop);
 
+  // Create a PhiNode for merging the is_init values
+  PhiNode* is_init = PhiNode::make(region, vt->get_is_init(), phi_type);
+  gvn->set_type(is_init, phi_type);
+  gvn->record_for_igvn(is_init);
+  vt->set_req(IsInit, is_init);
+
   // Create a PhiNode each for merging the field values
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
     if (value->is_InlineTypeBase()) {
-      // Handle flattened inline type fields recursively
+      // Handle inline type fields recursively
       value = value->as_InlineTypeBase()->clone_with_phis(gvn, region);
     } else {
       phi_type = Type::get_const_type(type);
@@ -73,7 +85,7 @@ bool InlineTypeBaseNode::has_phi_inputs(Node* region) {
 #ifdef ASSERT
   if (result) {
     // Check all field value inputs for consistency
-    for (uint i = Oop; i < field_count(); ++i) {
+    for (uint i = Values; i < field_count(); ++i) {
       Node* n = in(i);
       if (n->is_InlineTypeBase()) {
         assert(n->as_InlineTypeBase()->has_phi_inputs(region), "inconsistent phi inputs");
@@ -86,6 +98,19 @@ bool InlineTypeBaseNode::has_phi_inputs(Node* region) {
   return result;
 }
 
+// Check if all inline type fields have inline type node values
+bool InlineTypeBaseNode::can_merge() {
+  for (uint i = 0; i < field_count(); ++i) {
+    ciType* type = field_type(i);
+    Node* val = field_value(i);
+    if (type->is_inlinetype() &&
+        (!val->is_InlineTypeBase() || !val->as_InlineTypeBase()->can_merge())) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTypeBaseNode* other, int pnum, bool transform) {
   // Merge oop inputs
@@ -94,6 +119,13 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
   if (transform) {
     set_oop(gvn->transform(phi));
   }
+
+  phi = get_is_init()->as_Phi();
+  phi->set_req(pnum, other->get_is_init());
+  if (transform) {
+    set_req(IsInit, gvn->transform(phi));
+  }
+
   // Merge field values
   for (uint i = 0; i < field_count(); ++i) {
     Node* val1 =        field_value(i);
@@ -119,10 +151,14 @@ void InlineTypeBaseNode::add_new_path(Node* region) {
   phi->add_req(NULL);
   assert(phi->req() == region->req(), "must be same size as region");
 
+  phi = get_is_init()->as_Phi();
+  phi->add_req(NULL);
+  assert(phi->req() == region->req(), "must be same size as region");
+
   for (uint i = 0; i < field_count(); ++i) {
     Node* val = field_value(i);
-    if (val->is_InlineType()) {
-      val->as_InlineType()->add_new_path(region);
+    if (val->is_InlineTypeBase()) {
+      val->as_InlineTypeBase()->add_new_path(region);
     } else {
       val->as_Phi()->add_req(NULL);
       assert(val->req() == region->req(), "must be same size as region");
@@ -200,7 +236,7 @@ bool InlineTypeBaseNode::field_is_null_free(uint index) const {
   return field->is_null_free();
 }
 
-int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
@@ -213,6 +249,13 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
 #endif
                                                                   first_ind, nfields);
   sobj->init_req(0, igvn->C->root());
+  // Nullable inline types have an is_init field that needs
+  // to be checked before using the field values.
+  if (igvn->type(get_is_init())->maybe_null()) {
+    sfpt->add_req(get_is_init());
+  } else {
+    sfpt->add_req(igvn->C->top());
+  }
   // Iterate over the inline type fields in order of increasing
   // offset and add the field values to the safepoint.
   for (uint j = 0; j < nfields; ++j) {
@@ -227,29 +270,56 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
-  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end(), igvn);
+  for (uint i = jvms->debug_start(); i < jvms->debug_end(); i++) {
+    Node* debug = sfpt->in(i);
+    if (debug != NULL && debug->uncast() == this) {
+      sfpt->set_req(i, sobj);
+    }
+  }
 }
 
 void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
-  // Process all safepoint uses and scalarize inline type
+  // If the inline type has a constant or loaded oop, use the oop instead of scalarization
+  // in the safepoint to avoid keeping field loads live just for the debug info.
+  Node* oop = get_oop();
+  bool use_oop = allow_oop && (is_InlineTypePtr() || is_allocated(igvn)) &&
+                 (oop->is_Con() || oop->is_Load() || (oop->isa_DecodeN() && oop->in(1)->is_Load()));
+
+  ResourceMark rm;
+  Unique_Node_List safepoints;
+  Unique_Node_List vt_worklist;
   Unique_Node_List worklist;
-  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-    SafePointNode* sfpt = fast_out(i)->isa_SafePoint();
-    if (sfpt != NULL && !sfpt->is_CallLeaf() && (!sfpt->is_Call() || sfpt->as_Call()->has_debug_use(this))) {
-      int nb = 0;
-      if (allow_oop && is_allocated(igvn) && get_oop()->is_Con()) {
-        // Inline type is allocated with a constant oop, link it directly
-        nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end(), igvn);
-        igvn->rehash_node_delayed(sfpt);
-      } else {
-        nb = make_scalar_in_safepoint(igvn, worklist, sfpt);
+  worklist.push(this);
+  while (worklist.size() > 0) {
+    Node* n = worklist.pop();
+    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+      Node* use = n->fast_out(i);
+      if (use->is_SafePoint() && !use->is_CallLeaf() && (!use->is_Call() || use->as_Call()->has_debug_use(n))) {
+        safepoints.push(use);
+      } else if (use->is_ConstraintCast()) {
+        worklist.push(use);
       }
-      --i; imax -= nb;
+    }
+  }
+
+  // Process all safepoint uses and scalarize inline type
+  while (safepoints.size() > 0) {
+    SafePointNode* sfpt = safepoints.pop()->as_SafePoint();
+    if (use_oop) {
+      for (uint i = sfpt->jvms()->debug_start(); i < sfpt->jvms()->debug_end(); i++) {
+        Node* debug = sfpt->in(i);
+        if (debug != NULL && debug->uncast() == this) {
+          sfpt->set_req(i, get_oop());
+        }
+      }
+      igvn->rehash_node_delayed(sfpt);
+    } else {
+      make_scalar_in_safepoint(igvn, vt_worklist, sfpt);
     }
   }
   // Now scalarize non-flattened fields
-  for (uint i = 0; i < worklist.size(); ++i) {
-    InlineTypeBaseNode* vt = worklist.at(i)->isa_InlineTypeBase();
+  for (uint i = 0; i < vt_worklist.size(); ++i) {
+    InlineTypeBaseNode* vt = vt_worklist.at(i)->isa_InlineTypeBase();
     vt->make_scalar_in_safepoints(igvn);
   }
   if (outcnt() == 0) {
@@ -281,7 +351,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     int offset = holder_offset + field_offset(i);
     Node* value = NULL;
     ciType* ft = field_type(i);
-    bool is_null_free = field_is_null_free(i);
+    bool null_free = field_is_null_free(i);
     if (ft->is_inlinetype() && ft->as_inline_klass()->is_empty()) {
       // Loading from a field of an empty inline type. Just return the default instance.
       value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
@@ -291,7 +361,8 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
-      if (base->is_Con() && !is_array) {
+      bool mismatched = (decorators & C2_MISMATCHED) != 0;
+      if (base->is_Con() && !is_array && !mismatched) {
         // If the oop to the inline type is constant (static final field), we can
         // also treat the fields as constants because the inline type is immutable.
         ciObject* constant_oop = oop_ptr->const_oop();
@@ -304,7 +375,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         // Check type of constant which might be more precise than the static field type
         if (con_type->is_inlinetypeptr() && !con_type->is_zero_type()) {
           ft = con_type->inline_klass();
-          is_null_free = true;
+          null_free = true;
         }
       } else {
         // Load field value from memory
@@ -318,13 +389,9 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
       }
-      if (is_null_free) {
-        // Loading a non-flattened inline type from memory
-        if (ft->as_inline_klass()->is_scalarizable()) {
-          value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass());
-        } else {
-          value = kit->null2default(value, ft->as_inline_klass());
-        }
+      // Loading a non-flattened inline type from memory
+      if (ft->is_inlinetype()) {
+        value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass(), null_free);
       }
     }
     set_field_value(i, value);
@@ -519,10 +586,16 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       return NULL;
     }
   }
+  Node* is_init = get_is_init();
+  if (is_init->isa_InlineTypePtr()) {
+    set_req(IsInit, is_init->as_InlineTypePtr()->get_is_init());
+    return this;
+  }
   Node* oop = get_oop();
-  if (oop->isa_InlineTypePtr()) {
+  if (oop->isa_InlineTypePtr() && !phase->type(oop)->maybe_null()) {
     InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
     set_oop(vtptr->get_oop());
+    set_is_init(*phase);
     for (uint i = Values; i < vtptr->req(); ++i) {
       set_req(i, vtptr->in(i));
     }
@@ -534,10 +607,12 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with uninitialized values and NULL oop
   Node* oop = vk->is_empty() ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
-  return new InlineTypeNode(vk, oop);
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop);
+  vt->set_is_init(gvn);
+  return vt;
 }
 
-Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
+Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Returns the constant oop of the default inline type allocation
   return gvn.makecon(TypeInstPtr::make(vk->default_instance()));
 }
@@ -547,16 +622,14 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   InlineTypeNode* vt = new InlineTypeNode(vk, default_oop(gvn, vk));
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
-    Node* value = NULL;
-    if (vt->field_is_null_free(i)) {
-      ciInlineKlass* field_klass = field_type->as_inline_klass();
-      if (field_klass->is_scalarizable()) {
-        value = make_default(gvn, field_klass);
+    Node* value = gvn.zerocon(field_type->basic_type());
+    if (field_type->is_inlinetype()) {
+      ciInlineKlass* vk = field_type->as_inline_klass();
+      if (vt->field_is_null_free(i)) {
+        value = make_default(gvn, vk);
       } else {
-        value = default_oop(gvn, field_klass);
+        value = InlineTypePtrNode::make_null(gvn, vk);
       }
-    } else {
-      value = gvn.zerocon(field_type->basic_type());
     }
     vt->set_field_value(i, value);
   }
@@ -565,34 +638,62 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   return vt;
 }
 
-bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
+InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
+  InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT));
+  for (uint i = 0; i < vt->field_count(); i++) {
+    ciType* field_type = vt->field_type(i);
+    Node* value = gvn.zerocon(field_type->basic_type());
+    if (field_type->is_inlinetype()) {
+      if (vt->field_is_null_free(i)) {
+        value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
+      } else {
+        value = InlineTypePtrNode::make_null(gvn, field_type->as_inline_klass());
+      }
+    }
+    vt->set_field_value(i, value);
+  }
+  return gvn.transform(vt)->as_InlineType();
+}
+
+bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
+    if (value->is_InlineTypePtr()) {
+      value = value->as_InlineTypePtr()->get_oop();
+    }
     if (!gvn->type(value)->is_zero_type() &&
-        !(value->is_InlineType() && value->as_InlineType()->is_default(gvn)) &&
-        !(field_type(i)->is_inlinetype() && value == default_oop(*gvn, field_type(i)->as_inline_klass()))) {
+        !(field_is_null_free(i) && value->is_InlineType() && value->as_InlineType()->is_default(gvn))) {
       return false;
     }
   }
   return true;
 }
 
-InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk) {
+Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
+
   if (vk->is_empty()) {
-    return make_default(gvn, vk);
+    InlineTypeNode* def = make_default(gvn, vk);
+    if (!null_free) {
+      return gvn.transform(new InlineTypePtrNode(def, false));
+    }
+    return def;
   }
   // Create and initialize an InlineTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  InlineTypeNode* vt = new InlineTypeNode(vk, oop);
+  InlineTypeBaseNode* vt = NULL;
 
-  if (oop->isa_InlineTypePtr()) {
-    // Can happen with late inlining
-    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
-    vt->set_oop(vtptr->get_oop());
-    for (uint i = Oop+1; i < vtptr->req(); ++i) {
+  if (oop->uncast()->isa_InlineTypePtr()) {
+    InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
+    if (!null_free) {
+      return vtptr;
+    }
+    vt = new InlineTypeNode(vk, vtptr->get_oop());
+    vt->set_is_init(gvn);
+    for (uint i = Values; i < vtptr->req(); ++i) {
       vt->init_req(i, vtptr->in(i));
     }
+    return gvn.transform(vt);
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null
     Node* null_ctl = kit->top();
@@ -600,32 +701,50 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
     if (kit->stopped()) {
       // Constant null
       kit->set_control(null_ctl);
-      return make_default(gvn, vk);
+      if (null_free) {
+        return make_default(gvn, vk);
+      } else {
+        return InlineTypePtrNode::make_null(gvn, vk);
+      }
     }
-    vt->set_oop(not_null_oop);
+    if (null_free) {
+      vt = new InlineTypeNode(vk, not_null_oop);
+    } else {
+      vt = new InlineTypePtrNode(vk, not_null_oop);
+    }
+    vt->set_is_init(gvn);
     vt->load(kit, not_null_oop, not_null_oop, vk, /* holder_offset */ 0);
 
     if (null_ctl != kit->top()) {
-      // Return default inline type if oop is null
-      InlineTypeNode* def = make_default(gvn, vk);
+      InlineTypeBaseNode* null_vt = NULL;
+      if (null_free) {
+        null_vt = make_default(gvn, vk);
+      } else {
+        null_vt = InlineTypePtrNode::make_null(gvn, vk);
+      }
       Node* region = new RegionNode(3);
       region->init_req(1, kit->control());
       region->init_req(2, null_ctl);
 
-      vt = vt->clone_with_phis(&gvn, region)->as_InlineType();
-      vt->merge_with(&gvn, def, 2, true);
+      vt = vt->clone_with_phis(&gvn, region);
+      vt->merge_with(&gvn, null_vt, 2, true);
       kit->set_control(gvn.transform(region));
     }
   } else {
+    if (null_free) {
+      vt = new InlineTypeNode(vk, oop);
+    } else {
+      vt = new InlineTypePtrNode(vk, oop);
+    }
     // Oop can never be null
     Node* init_ctl = kit->control();
+    vt->set_is_init(gvn);
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
-    assert(vt->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
-           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->is_loaded(&gvn) == oop, "inline type should be loaded");
+    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
+           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
-
-  assert(vt->is_allocated(&gvn), "inline type should be allocated");
-  return gvn.transform(vt)->as_InlineType();
+  assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
+  return gvn.transform(vt);
 }
 
 // GraphKit wrapper for the 'make_from_flattened' method
@@ -707,13 +826,13 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
     Node* value = field_value(i);
-    if (value->is_InlineType()) {
-      InlineTypeNode* vt = value->as_InlineType();
-      if (vt->inline_klass()->is_empty()) {
+    if (value->is_InlineTypeBase()) {
+      InlineTypeBaseNode* vt = value->as_InlineTypeBase();
+      if (vt->type()->inline_klass()->is_empty()) {
         continue;
-      } else if (field_is_flattened(i)) {
+      } else if (field_is_flattened(i) && vt->is_InlineType()) {
         // Check inline type field load recursively
-        base = vt->is_loaded(phase, vk, base, offset - vt->inline_klass()->first_field_offset());
+        base = vt->as_InlineType()->is_loaded(phase, vk, base, offset - vt->type()->inline_klass()->first_field_offset());
         if (base == NULL) {
           return NULL;
         }
@@ -751,14 +870,14 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   return base;
 }
 
-Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
+Node* InlineTypeBaseNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   const TypeKlassPtr* tk = TypeKlassPtr::make(vk);
   intptr_t bits = tk->get_con();
   set_nth_bit(bits, 0);
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
+void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
   for (uint i = 0; i < field_count(); i++) {
     int offset = field_offset(i);
     ciType* type = field_type(i);
@@ -789,6 +908,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
   PhaseGVN& gvn = kit->gvn();
   for (uint i = 0; i < field_count(); ++i) {
     ciType* type = field_type(i);
+    bool null_free = field_is_null_free(i);
     Node* parm = NULL;
     if (field_is_flattened(i)) {
       // Flattened inline type field
@@ -804,13 +924,9 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
-      if (field_is_null_free(i)) {
-        // Non-flattened inline type field
-        if (type->as_inline_klass()->is_scalarizable()) {
-          parm = make_from_oop(kit, parm, type->as_inline_klass());
-        } else {
-          parm = kit->null2default(parm, type->as_inline_klass());
-        }
+      // Non-flattened inline type field
+      if (type->is_inlinetype()) {
+        parm = make_from_oop(kit, parm, type->as_inline_klass(), null_free);
       }
       BasicType bt = type->basic_type();
       base_input += type2size[bt];
@@ -863,7 +979,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     // Save base oop if fields are loaded from memory and the inline
     // type is not buffered (in this case we should not use the oop).
     Node* base = is_loaded(phase);
-    if (base != NULL) {
+    if (base != NULL && !phase->type(base)->maybe_null()) {
       set_oop(base);
       assert(is_allocated(phase), "should now be allocated");
       return this;
@@ -946,36 +1062,33 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
   }
 }
 
-Node* InlineTypePtrNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  if (can_reshape) {
-    // Remove useless InlineTypePtr nodes that might keep other nodes alive
-    ResourceMark rm;
-    Unique_Node_List users;
-    users.push(this);
-    bool useless = true;
-    for (uint i = 0; i < users.size(); ++i) {
-      Node* use = users.at(i);
-      if (use->is_Cmp() || use->Opcode() == Op_Return || use->Opcode() == Op_CastP2X || (use == this && i != 0) ||
-          (use->is_Load() && use->outcnt() == 1 && use->unique_out() == this)) {
-        // No need to keep track of field values, we can just use the oop
-        continue;
-      }
-      if (use->is_Load() || use->is_Store() || (use->is_InlineTypeBase() && use != this) || use->is_SafePoint()) {
-        // We need to keep track of field values to allow the use to be folded/scalarized
-        useless = false;
-        break;
-      }
-      for (DUIterator_Fast jmax, j = use->fast_outs(jmax); j < jmax; j++) {
-        users.push(use->fast_out(j));
+InlineTypePtrNode* InlineTypePtrNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
+  InlineTypePtrNode* ptr = new InlineTypePtrNode(vk, gvn.zerocon(T_OBJECT));
+  for (uint i = 0; i < ptr->field_count(); i++) {
+    ciType* field_type = ptr->field_type(i);
+    Node* value = gvn.zerocon(field_type->basic_type());
+    if (field_type->is_inlinetype()) {
+      if (ptr->field_is_null_free(i)) {
+        value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
+      } else {
+        value = InlineTypePtrNode::make_null(gvn, field_type->as_inline_klass());
       }
     }
-    if (useless) {
-      PhaseIterGVN* igvn = phase->is_IterGVN();
-      igvn->_worklist.push(this);
-      igvn->replace_in_uses(this, get_oop());
-      return NULL;
-    }
+    ptr->set_field_value(i, value);
   }
+  return gvn.transform(ptr)->as_InlineTypePtr();
+}
 
-  return InlineTypeBaseNode::Ideal(phase, can_reshape);
+Node* InlineTypePtrNode::Identity(PhaseGVN* phase) {
+  if (get_oop()->is_InlineTypePtr()) {
+    return get_oop();
+  }
+  return this;
+}
+
+const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {
+  if (phase->type(in(IsInit))->isa_ptr() && !phase->type(in(IsInit))->is_ptr()->maybe_null()) {
+    return _type->join_speculative(TypePtr::NOTNULL);
+  }
+  return _type;
 }

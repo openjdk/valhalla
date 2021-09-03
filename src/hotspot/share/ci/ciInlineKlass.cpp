@@ -76,11 +76,6 @@ bool ciInlineKlass::flatten_array() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->flatten_array();)
 }
 
-// Can this inline type be scalarized?
-bool ciInlineKlass::is_scalarizable() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->is_scalarizable();)
-}
-
 // Can this inline type be passed as multiple values?
 bool ciInlineKlass::can_be_passed_as_fields() const {
   GUARDED_VM_ENTRY(return to_InlineKlass()->can_be_passed_as_fields();)

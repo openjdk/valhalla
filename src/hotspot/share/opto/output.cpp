@@ -869,12 +869,28 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       ciKlass* cik = t->is_oopptr()->klass();
       assert(cik->is_instance_klass() ||
              cik->is_array_klass(), "Not supported allocation.");
+      uint first_ind = spobj->first_index(sfpt->jvms());
+      // Nullable, scalarized inline types have an is_init input
+      // that needs to be checked before using the field values.
+      ScopeValue* is_init = NULL;
+      if (cik->is_inlinetype()) {
+        Node* init_node = sfpt->in(first_ind++);
+        assert(init_node != NULL, "is_init node not found");
+        if (!init_node->is_top()) {
+          const Type* init_type = init_node->bottom_type();
+          if (init_node->is_Con()) {
+            is_init = new ConstantOopWriteValue(init_type->is_zero_type() ? 0 : init_type->isa_oopptr()->const_oop()->constant_encoding());
+          } else {
+            OptoReg::Name init_reg = C->regalloc()->get_reg_first(init_node);
+            is_init = new_loc_value(C->regalloc(), init_reg, init_type->isa_narrowoop() ? Location::narrowoop : Location::oop);
+          }
+        }
+      }
       ScopeValue* klass_sv = new ConstantOopWriteValue(cik->java_mirror()->constant_encoding());
       sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv)
-                                    : new ObjectValue(spobj->_idx, klass_sv);
+                                    : new ObjectValue(spobj->_idx, klass_sv, is_init);
       set_sv_for_object_node(objs, sv);
 
-      uint first_ind = spobj->first_index(sfpt->jvms());
       for (uint i = 0; i < spobj->n_fields(); i++) {
         Node* fld_node = sfpt->in(first_ind+i);
         (void)FillLocArray(sv->field_values()->length(), sfpt, fld_node, sv->field_values(), objs);

@@ -57,7 +57,6 @@ public class TestLWorld {
         class2.getDeclaredFields();
 
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[2].addFlags("-DVerifyIR=false");
         scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
 
@@ -102,6 +101,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValue1 test1() {
         MyValue1 vt = testValue1;
         vt = (MyValue1)test1_dontinline1(vt);
@@ -271,7 +271,6 @@ public class TestLWorld {
 
     // Test comparing inline types with objects
     @Test
-    @IR(failOn = {LOAD, LOOP})
     public boolean test6(Object arg) {
         Object vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (Object)valueField1 || vt == objectField1 || vt == null ||
@@ -345,7 +344,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G})
     public void test10(boolean flag) {
         Object o = null;
         if (flag) {
@@ -548,7 +547,6 @@ public class TestLWorld {
 
     // Test comparing inline types with interfaces
     @Test
-    @IR(failOn = {LOAD, LOOP})
     public boolean test16(Object arg) {
         MyInterface vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (MyInterface)valueField1 || vt == interfaceField1 || vt == null ||
@@ -566,6 +564,7 @@ public class TestLWorld {
 
     // Test subtype check when casting to inline type
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValue1 test17(MyValue1 vt, Object obj) {
         try {
             vt = (MyValue1)obj;
@@ -598,6 +597,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test19(MyValue1 vt) {
         Object obj = vt;
         try {
@@ -614,6 +614,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test20(MyValue1 vt) {
         Object obj = vt;
         try {
@@ -1074,6 +1075,7 @@ public class TestLWorld {
         });
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test35(MyValue1[] va, int index) throws Throwable {
         setArrayElementNull.invoke(this, va, index);
     }
@@ -1093,6 +1095,8 @@ public class TestLWorld {
 
     // Test writing an inline type to a null inline type array
     @Test
+    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+        failOn = {ALLOC_G})
     public void test36(MyValue1[] va, MyValue1 vt, int index) {
         va[index] = vt;
     }
@@ -1115,6 +1119,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test37(MyValue1[] va, Object o, int index) {
         test37_inline(va, o, index);
     }
@@ -1143,6 +1148,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public Object[] test38(Object[] oa, Object o, int i1, int i2, int num) {
         Object[] result = null;
         switch (num) {
@@ -1300,6 +1306,8 @@ public class TestLWorld {
 
     // Test instanceof with inline types and arrays
     @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC_G})
     public long test40(Object o, int index) {
         if (o instanceof MyValue1) {
           return ((MyValue1)o).hashInterpreted();
@@ -1341,6 +1349,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test41() {
         MyValue1[] vals = new MyValue1[] {testValue1};
         test41_dontinline(vals[0].oa[0]);
@@ -1357,6 +1366,7 @@ public class TestLWorld {
     private static final MyValue1.ref test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test42() {
         MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
         Asserts.assertEQ(vals[0].hash(), test42VT1.hash());
@@ -1370,6 +1380,7 @@ public class TestLWorld {
 
     // Test for bug in Escape Analysis
     @Test
+    @IR(failOn = {ALLOC})
     public long test43(boolean deopt, Method m) {
         MyValue1[] vals = new MyValue1[] {(MyValue1) test42VT1, (MyValue1) test42VT2};
 
@@ -1391,7 +1402,7 @@ public class TestLWorld {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asValueType()),
         CODE -> {
             CODE.
             aload_1().
@@ -1402,6 +1413,7 @@ public class TestLWorld {
         });
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test44(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         setArrayElementIncompatible.invoke(this, va, index, v);
     }
@@ -1426,6 +1438,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test45(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         test45_inline(va, v, index);
     }
@@ -1444,6 +1457,7 @@ public class TestLWorld {
 
     // instanceof tests with inline types
     @Test
+    @IR(failOn = {ALLOC_G})
     public boolean test46(MyValue1 vt) {
         Object obj = vt;
         return obj instanceof MyValue1;
@@ -1457,6 +1471,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public boolean test47(MyValue1 vt) {
         Object obj = vt;
         return obj instanceof MyValue2;
@@ -1470,6 +1485,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public boolean test48(Object obj) {
         return obj instanceof MyValue1;
     }
@@ -1482,6 +1498,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public boolean test49(Object obj) {
         return obj instanceof MyValue2;
     }
@@ -1494,6 +1511,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public boolean test50(Object obj) {
         return obj instanceof MyValue1;
     }
@@ -1601,6 +1619,7 @@ public class TestLWorld {
 
     // Access non-flattened, uninitialized inline type field with inline type holder
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test52(Test51Value holder) {
         if ((Object)holder.valueField5 != null) {
             throw new RuntimeException("Should be null");
@@ -1682,6 +1701,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test57(MyValue1 vt) {
         test57_inline(vt);
     }
@@ -1704,6 +1724,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public void test58() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test58_inline(vt);
@@ -1909,7 +1930,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public int test69(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1932,7 +1953,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public int test70Interface(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1955,7 +1976,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC_G, STORE})
     public int test70Abstract(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
@@ -1983,6 +2004,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC})
     public MyValue1 test71() {
         return test71_inline(null);
     }
@@ -2005,6 +2027,7 @@ public class TestLWorld {
     public void unused(Test72Value vt) { }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public int test72() {
         Test72Value vt = Test72Value.default;
         return vt.get();
@@ -2044,6 +2067,7 @@ public class TestLWorld {
     // Verify that mixing instances and arrays with the clone api
     // doesn't break anything
     @Test
+    @IR(failOn = {ALLOC_G})
     public Object test75(Object o) {
         MyValue1[] va = new MyValue1[1];
         Object[] next = va;
@@ -2067,6 +2091,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValue1 test76(Integer i) throws Throwable {
         return test76_helper(i);
     }
@@ -2090,6 +2115,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValue1 test77(Integer i) throws Throwable {
         return test77_helper(i);
     }
@@ -2113,6 +2139,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValue1.ref test78(Integer i) throws Throwable {
         return test78_helper(i);
     }
@@ -2133,6 +2160,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValue1.ref test79(Integer i) throws Throwable {
         return test79_helper(i);
     }
@@ -2194,7 +2222,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public int test81()  {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         int result = 0;
@@ -2235,6 +2263,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test83(Object[] dst, Object v, boolean flag) {
         if (dst == null) { // null check
         }
@@ -2276,7 +2305,10 @@ public class TestLWorld {
     // Tests for the Loop Unswitching optimization
     // Should make 2 copies of the loop, one for non flattened arrays, one for other cases.
     @Test
-    @IR(counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        counts = {COUNTEDLOOP_MAIN, "= 1"})
     public void test84(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2295,9 +2327,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseG1GC", "true"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 1"})
-    @IR(applyIf = {"UseG1GC", "false"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
         counts = {COUNTEDLOOP_MAIN, "= 2", LOAD_UNKNOWN_INLINE, "= 4"})
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2318,9 +2350,9 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseG1GC", "true"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
         counts = {COUNTEDLOOP, "= 2"})
-    @IR(applyIf = {"UseG1GC", "false"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
         counts = {COUNTEDLOOP_MAIN, "= 2"})
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
@@ -2340,7 +2372,10 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        counts = {COUNTEDLOOP_MAIN, "= 1"})
     public void test87(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2360,7 +2395,10 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {COUNTEDLOOP_MAIN, "= 2"})
+    @IR(applyIf = {"FlatArrayElementMaxSize", "!= -1"},
+        counts = {COUNTEDLOOP_MAIN, "= 0"})
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];
@@ -2430,7 +2468,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(counts = {CLASS_CHECK_TRAP, "= 2"},
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {CLASS_CHECK_TRAP, "= 2"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public Object test92(Object[] array) {
         // Dummy loops to ensure we run enough passes of split if
@@ -2497,7 +2536,8 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
+    @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
+        counts = {CLASS_CHECK_TRAP, "= 2", LOOP, "= 1"},
         failOn = {LOAD_UNKNOWN_INLINE, ALLOC_G, MEMBAR})
     public int test94(Object[] array) {
         int res = 0;
@@ -2740,7 +2780,6 @@ public class TestLWorld {
 
     // Test comparing inline types with abstract classes
     @Test
-    @IR(failOn = {LOAD, LOOP})
     public boolean test102(Object arg) {
         MyAbstract vt = MyValue1.createWithFieldsInline(rI, rL);
         if (vt == arg || vt == (MyAbstract)valueField1 || vt == abstractField1 || vt == null ||
@@ -2771,8 +2810,7 @@ public class TestLWorld {
 
     // Loading from an abstract class array does not require a flatness check if the abstract class has a non-static field
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR, ALLOCA_G,
-                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC_G, MEMBAR, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors1 test103(NoValueImplementors1[] array, int i) {
         return array[i];
     }
@@ -2794,8 +2832,7 @@ public class TestLWorld {
 
     // Storing to an abstract class array does not require a flatness/null check if the abstract class has a non-static field
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G,
-                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors1 test104(NoValueImplementors1[] array, NoValueImplementors1 v, MyObject3 o, int i) {
         array[0] = v;
         array[1] = array[0];
@@ -2840,8 +2877,7 @@ public class TestLWorld {
 
     // Loading from an abstract class array does not require a flatness check if the abstract class has no inline implementor
     @Test
-    @IR(failOn = {ALLOC_G, MEMBAR, ALLOCA_G,
-                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC_G, MEMBAR, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors2 test105(NoValueImplementors2[] array, int i) {
         return array[i];
     }
@@ -2859,8 +2895,7 @@ public class TestLWorld {
 
     // Storing to an abstract class array does not require a flatness/null check if the abstract class has no inline implementor
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G,
-                  LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    @IR(failOn = {ALLOC_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public NoValueImplementors2 test106(NoValueImplementors2[] array, NoValueImplementors2 v, MyObject5 o, int i) {
         array[0] = v;
         array[1] = array[0];
@@ -2890,10 +2925,10 @@ public class TestLWorld {
     Object oFld1, oFld2;
 
     @Test
-    @IR(applyIf = {"UseG1GC", "true"},
+    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 2", LOAD_UNKNOWN_INLINE, "= 2"})
-    @IR(applyIf = {"UseG1GC", "false"},
+    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
         failOn = {STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
         counts = {COUNTEDLOOP, "= 3", LOAD_UNKNOWN_INLINE, "= 2"})
     public void test107(Object[] src1, Object[] src2) {
@@ -2921,12 +2956,12 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(applyIf = {"UseG1GC", "true"},
-            failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-            counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
-    @IR(applyIf = {"UseG1GC", "false"},
-            failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
-            counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
+    @IR(applyIfAnd = {"UseG1GC", "true", "FlatArrayElementMaxSize", "= -1"},
+        failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
+        counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 9"})
+    @IR(applyIfAnd = {"UseG1GC", "false", "FlatArrayElementMaxSize", "= -1"},
+        failOn = {LOAD_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD},
+        counts = {COUNTEDLOOP, "= 4", STORE_UNKNOWN_INLINE, "= 12"})
     public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {
         for (int i = 0; i < dst1.length; i++) {
             dst1[i] = o1;
@@ -3084,7 +3119,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test109() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += InterfaceBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3102,7 +3137,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test109_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += InterfaceBox.box_sharp(lArr[i]).content.value();
         }
         return res;
@@ -3121,7 +3156,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test110() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += ((WrapperInterface)ObjectBox.box(lArr[i]).content).value();
         }
         return res;
@@ -3139,7 +3174,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test110_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += ((WrapperInterface)ObjectBox.box_sharp(lArr[i]).content).value();
         }
         return res;
@@ -3158,7 +3193,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test111() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += RefBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3175,7 +3210,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test111_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += RefBox.box_sharp(lArr[i]).content.value();
         }
         return res;
@@ -3193,7 +3228,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test112() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += InlineBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3211,7 +3246,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test113() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += GenericBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3229,7 +3264,7 @@ public class TestLWorld {
         counts = {PREDICATE_TRAP, "= 1"})
     public long test113_sharp() {
         long res = 0;
-        for (int i = 0 ; i < lArr.length; i++) {
+        for (int i = 0; i < lArr.length; i++) {
             res += GenericBox.box_sharp(lArr[i]).content.value();
         }
         return res;
@@ -3345,7 +3380,7 @@ public class TestLWorld {
 
     // Test fields loads/stores with empty inline types
     @Test
-    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, TRAP})
     public void test116() {
         fEmpty1 = fEmpty4;
         fEmpty2 = fEmpty1;
@@ -3363,7 +3398,7 @@ public class TestLWorld {
 
     // Test array loads/stores with empty inline types
     @Test
-    @IR(failOn = {ALLOC, ALLOC_G})
+    @IR(failOn = {ALLOC_G})
     public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty.ref[] arr2) {
         arr1[0] = arr2[0];
         arr2[0] = new MyValueEmpty();
@@ -3380,7 +3415,7 @@ public class TestLWorld {
 
     // Test acmp with empty inline types
     @Test
-    @IR(failOn = {ALLOC, ALLOC_G})
+    @IR(failOn = {ALLOC_G})
     public boolean test118(MyValueEmpty v1, MyValueEmpty.ref v2, Object o1) {
         return (v1 == v2) && (v2 == o1);
     }
@@ -3402,6 +3437,7 @@ public class TestLWorld {
 
     // Test re-allocation of empty inline type array during deoptimization
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test119(boolean deopt, Method m) {
         MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
         EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
@@ -3422,7 +3458,7 @@ public class TestLWorld {
 
     // Test removal of empty inline type field stores
     @Test
-    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
     public void test120(MyValueEmpty empty) {
         fEmpty1 = empty;
         fEmpty3 = empty;
@@ -3438,7 +3474,7 @@ public class TestLWorld {
 
     // Test removal of empty inline type field loads
     @Test
-    @IR(failOn = {ALLOC, ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, FIELD_ACCESS, NULL_CHECK_TRAP, TRAP})
     public boolean test121() {
         return fEmpty1.equals(fEmpty3);
         // fEmpty2 and fEmpty4 could be null, load can't be removed
@@ -3452,6 +3488,7 @@ public class TestLWorld {
 
     // Verify that empty inline type field loads check for null holder
     @Test
+    @IR(failOn = {ALLOC_G})
     public MyValueEmpty test122(TestLWorld t) {
         return t.fEmpty3;
     }
@@ -3470,6 +3507,7 @@ public class TestLWorld {
 
     // Verify that empty inline type field stores check for null holder
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test123(TestLWorld t) {
         t.fEmpty3 = MyValueEmpty.default;
     }
@@ -3516,7 +3554,7 @@ public class TestLWorld {
 
     // Test inline type that can only be scalarized after loop opts
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test126(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2.ref val = null;
@@ -3547,7 +3585,7 @@ public class TestLWorld {
 
     // Same as test126 but with interface type
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test127(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3578,7 +3616,7 @@ public class TestLWorld {
 
     // Test inline type that can only be scalarized after CCP
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test128(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2.ref val = null;
@@ -3609,7 +3647,7 @@ public class TestLWorld {
 
     // Same as test128 but with interface type
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test129(boolean trap) {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3669,6 +3707,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public void test131() {
         Object obj = test131_inlinee();
         synchronized (obj) {
@@ -3737,6 +3776,7 @@ public class TestLWorld {
 
     // Variant with non-scalarized inline type
     @Test
+    @IR(failOn = {ALLOC_G})
     public static void test134(boolean b) {
         Object obj = null;
         if (b) {
@@ -3759,7 +3799,7 @@ public class TestLWorld {
 
     // Test that acmp of the same inline object is removed
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test135() {
         MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         return val == val;
@@ -3772,7 +3812,7 @@ public class TestLWorld {
 
     // Same as test135 but with .ref
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test136(boolean b) {
         MyValue1.ref val = MyValue1.createWithFieldsInline(rI, rL);
         if (b) {
@@ -3787,19 +3827,13 @@ public class TestLWorld {
         Asserts.assertTrue(test136(true));
     }
 
-    static final primitive class SimpleInlineType {
-        final int x;
-        public SimpleInlineType(int x) {
-            this.x = x;
-        }
-    }
-
     // Test that acmp of different inline objects with same content is removed
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    // TODO 8228361
+    // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test137(int i) {
-        SimpleInlineType val1 = new SimpleInlineType(i);
-        SimpleInlineType val2 = new SimpleInlineType(i);
+        MyValue2 val1 = MyValue2.createWithFieldsInline(i, rD);
+        MyValue2 val2 = MyValue2.createWithFieldsInline(i, rD);
         return val1 == val2;
     }
 
@@ -3810,10 +3844,11 @@ public class TestLWorld {
 
     // Same as test137 but with .ref
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
+    // TODO 8228361
+    // @IR(failOn = {ALLOC_G, LOAD, STORE, NULL_CHECK_TRAP, TRAP})
     public static boolean test138(int i, boolean b) {
-        SimpleInlineType.ref val1 = new SimpleInlineType(i);
-        SimpleInlineType.ref val2 = new SimpleInlineType(i);
+        MyValue2.ref val1 = MyValue2.createWithFieldsInline(i, rD);
+        MyValue2.ref val2 = MyValue2.createWithFieldsInline(i, rD);
         if (b) {
             val1 = null;
             val2 = null;
@@ -3837,7 +3872,7 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE, TRAP})
+    @IR(failOn = {ALLOC_G, LOAD, STORE, TRAP})
     public MyValueEmpty test139() {
         Test139Wrapper w = new Test139Wrapper();
         return w.value.empty;
@@ -3858,6 +3893,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public int test140() {
         Test140Value vt = Test140Value.default;
         return vt.get();
@@ -3879,6 +3915,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC_G})
     public int test141() {
         Test141Value vt = Test141Value.default;
         return vt.get();
@@ -3893,7 +3930,7 @@ public class TestLWorld {
 
     // Test that virtual calls on inline type receivers are properly inlined
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {ALLOC_G, LOAD, STORE})
     public long test142() {
         MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
         MyInterface val = null;
@@ -3944,6 +3981,7 @@ public class TestLWorld {
 
     // Test merging of buffered default and non-default inline types
     @Test
+    @IR(failOn = {ALLOC_G})
     public Object test144(int i) {
         if (i == 0) {
             return MyValue1.default;
@@ -3959,5 +3997,100 @@ public class TestLWorld {
         Asserts.assertEquals(test144(0), MyValue1.default);
         Asserts.assertEquals(test144(1), testValue1);
         Asserts.assertEquals(test144(2), MyValue1.default);
+    }
+
+    // Tests writing an array element with a (statically known) incompatible type
+    private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.loadCode(MethodHandles.lookup(),
+        "setArrayElementIncompatibleRef",
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asPrimaryType()),
+        CODE -> {
+            CODE.
+            aload_1().
+            iload_2().
+            aload_3().
+            aastore().
+            return_();
+        });
+
+    // Same as test44 but with .ref store to array
+    @Test
+    @IR(failOn = {ALLOC_G})
+    public void test145(MyValue1[] va, int index, MyValue2.ref v) throws Throwable {
+        setArrayElementIncompatibleRef.invoke(this, va, index, v);
+    }
+
+    @Run(test = "test145")
+    @Warmup(10000)
+    public void test145_verifier() throws Throwable {
+        int index = Math.abs(rI) % 3;
+        try {
+            test145(testValue1Array, index, testValue2);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), hash());
+    }
+
+    // Test inline type connected to result node
+    @Test
+    @IR(failOn = {ALLOC_G})
+    public MyValue1 test146(Object obj) {
+        return (MyValue1)obj;
+    }
+
+    @Run(test = "test146")
+    @Warmup(10000)
+    public void test146_verifier() {
+        Asserts.assertEQ(test146(testValue1), testValue1);
+    }
+
+    // Same as test146 but with .ref cast
+    @Test
+    @IR(failOn = {ALLOC_G})
+    public MyValue1.ref test147(Object obj) {
+        return (MyValue1.ref)obj;
+    }
+
+    @Run(test = "test147")
+    @Warmup(10000)
+    public void test147_verifier() {
+        Asserts.assertEQ(test147(testValue1), testValue1);
+        Asserts.assertEQ(test147(null), null);
+    }
+
+    @ForceInline
+    public Object test148_helper(Object obj) {
+        return (MyValue1)obj;
+    }
+
+    // Same as test146 but with helper method
+    @Test
+    public Object test148(Object obj) {
+        return test148_helper(obj);
+    }
+
+    @Run(test = "test148")
+    @Warmup(10000)
+    public void test148_verifier() {
+        Asserts.assertEQ(test148(testValue1), testValue1);
+    }
+
+    @ForceInline
+    public Object test149_helper(Object obj) {
+        return (MyValue1.ref)obj;
+    }
+
+    // Same as test147 but with helper method
+    @Test
+    public Object test149(Object obj) {
+        return test149_helper(obj);
+    }
+
+    @Run(test = "test149")
+    @Warmup(10000)
+    public void test149_verifier() {
+        Asserts.assertEQ(test149(testValue1), testValue1);
+        Asserts.assertEQ(test149(null), null);
     }
 }

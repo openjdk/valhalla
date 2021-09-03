@@ -76,7 +76,7 @@ public class TestOnStackReplacement {
         }
         long result = 0;
         // Long loop to trigger OSR compilation
-        for (int i = 0 ; i < 50_000; ++i) {
+        for (int i = 0; i < 50_000; ++i) {
             // Reference local inline type in interpreter state
             result = v.hash();
             for (int j = 0; j < va.length; ++j) {

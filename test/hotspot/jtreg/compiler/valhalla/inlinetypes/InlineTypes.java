@@ -117,9 +117,9 @@ public class InlineTypes {
         protected static final String MYVALUE_ARRAY_KLASS = "precise klass \\[(L|Q)compiler/valhalla/inlinetypes/MyValue";
         protected static final String ALLOC  = "(.*precise klass compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_instance_Java" + END;
         protected static final String ALLOCA = "(.*" + MYVALUE_ARRAY_KLASS + ".*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_array_Java" + END;
-        protected static final String LOAD   = START + "Load(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/MyValue.*" + END;
+        protected static final String LOAD   = START + "Load(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
         protected static final String LOADK  = START + "LoadK" + MID + END;
-        protected static final String STORE  = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/MyValue.*" + END;
+        protected static final String STORE  = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
         protected static final String LOOP   = START + "Loop" + MID + "" + END;
         protected static final String COUNTEDLOOP = START + "CountedLoop\\b" + MID + "" + END;
         protected static final String COUNTEDLOOP_MAIN = START + "CountedLoop\\b" + MID + "main" + END;
