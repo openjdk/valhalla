@@ -60,6 +60,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
     // Constant pool index of CONSTANT_Class_info for first
     // non-primitive parameter type. Should be incremented by 2.
     private short nonPrimitiveParametersBaseIdx;
+    private boolean isConstructingPrimitive;
 
     MethodAccessorGenerator() {
     }
@@ -134,6 +135,10 @@ class MethodAccessorGenerator extends AccessorGenerator {
     {
         ByteVector vec = ByteVectorFactory.create();
         asm = new ClassFileAssembler(vec);
+        this.isConstructingPrimitive = isConstructor && declaringClass.isPrimitiveClass();
+        if (this.isConstructingPrimitive ) {
+            returnType = declaringClass.asValueType();
+        }
         this.declaringClass = declaringClass;
         this.parameterTypes = parameterTypes;
         this.returnType = returnType;
@@ -431,7 +436,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
 
         short illegalArgStartPC = 0;
 
-        if (isConstructor) {
+        if (isConstructor && !isConstructingPrimitive) {
             // Instantiate target class before continuing
             // new <target class type>
             // dup
@@ -621,7 +626,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         short invokeStartPC = cb.getLength();
 
         // OK, ready to perform the invocation.
-        if (isConstructor) {
+        if (isConstructor && !isConstructingPrimitive) {
             cb.opc_invokespecial(targetMethodRef, count, 0);
         } else {
             if (isStatic()) {
