@@ -4093,4 +4093,27 @@ public class TestLWorld {
         Asserts.assertEQ(test149(testValue1), testValue1);
         Asserts.assertEQ(test149(null), null);
     }
+
+    // Test post-parse call devirtualization with inline type receiver
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    public long test150() {
+        MyValue2 val = MyValue2.createWithFieldsInline(rI, rD);
+        MyInterface receiver = MyValue1.createWithFieldsInline(rI, rL);
+
+        for (int i = 0; i < 4; i++) {
+            if ((i % 2) == 0) {
+                receiver = val;
+            }
+        }
+        // Trigger post parse call devirtualization (strength-reducing
+        // virtual calls to direct calls).
+        return receiver.hash();
+    }
+
+    @DontCompile
+    public void test150_verifier(boolean warmup) {
+        Asserts.assertEquals(test150(), testValue2.hash());
+    }
 }
