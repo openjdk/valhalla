@@ -126,4 +126,67 @@ public class RecordReading extends TestRunner {
         }
     }
 
+    @Test
+    public void testPrimitiveRecordClassFileReading(Path base) throws Exception {
+        Path src = base.resolve("src");
+
+        tb.writeJavaFiles(src,
+                           """
+                           public primitive record R(int i, @A long j, java.util.List<String> l) {}
+                           """,
+                           """
+                           public @interface A {}
+                           """);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .files(findJavaFiles(src))
+                .run();
+
+        //read the class file back, to verify javac's ClassReader
+        //reads the Record attribute properly:
+        String output = new JavacTask(tb)
+                .options("-Xprint")
+                .classpath(out.toString())
+                .classes("R")
+                .run()
+                .writeAll()
+                .getOutput(Task.OutputKind.STDOUT)
+                .replaceAll("\\R", "\n");
+
+        String expected =
+                """
+                \n\
+                public primitive record R(int i, @A long j, java.util.List<java.lang.String> l) {
+                  private final int i;
+                  @A
+                  private final long j;
+                  private final java.util.List<java.lang.String> l;
+                \n\
+                  public final java.lang.String toString();
+                \n\
+                  public final int hashCode();
+                \n\
+                  public final boolean equals(java.lang.Object arg0);
+                \n\
+                  public int i();
+                \n\
+                  @A
+                  public long j();
+                \n\
+                  public java.util.List<java.lang.String> l();
+                \n\
+                  public R(int i,
+                    @A long j,
+                    java.util.List<java.lang.String> l);
+                }
+                """;
+        if (!Objects.equals(expected, output)) {
+            throw new AssertionError("Unexpected output: " + output);
+        }
+    }
+
 }
