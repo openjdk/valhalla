@@ -25,9 +25,8 @@
 /*
  * @test
  * @summary test Object methods on primitive classes
- * @run testng/othervm -Xint -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
- * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
  */
 import java.lang.reflect.Modifier;
 import java.util.Arrays;

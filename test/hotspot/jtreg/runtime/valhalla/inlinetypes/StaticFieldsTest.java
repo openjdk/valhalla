@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @summary Test circularity in static fields
  * @library /test/lib
  * @compile StaticFieldsTest.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.inlinetypes.StaticFieldsTest
+ * @run main runtime.valhalla.inlinetypes.StaticFieldsTest
  */
 
 public class StaticFieldsTest {

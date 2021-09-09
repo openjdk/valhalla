@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,16 +33,16 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDallowWithFieldOperator InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
  */

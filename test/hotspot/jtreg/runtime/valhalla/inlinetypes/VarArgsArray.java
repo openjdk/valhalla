@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,7 @@ import static jdk.test.lib.Asserts.*;
  * @summary Test if JVM API using varargs work with inline type arrays
  * @library /test/lib
  * @compile VarArgsArray.java NewInstanceFromConstructor.java IntValue.java
- * @run main/othervm -Xint runtime.valhalla.inlinetypes.VarArgsArray
- * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.VarArgsArray
+ * @run main runtime.valhalla.inlinetypes.VarArgsArray
  */
 public class VarArgsArray {
 
