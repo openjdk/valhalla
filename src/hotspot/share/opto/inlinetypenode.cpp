@@ -673,10 +673,11 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   PhaseGVN& gvn = kit->gvn();
 
   if (vk->is_empty()) {
-    InlineTypeNode* def = make_default(gvn, vk);
+    Node* def = make_default(gvn, vk);
     if (!null_free) {
-      return gvn.transform(new InlineTypePtrNode(def, false));
+      def = gvn.transform(new InlineTypePtrNode(def->as_InlineType(), false));
     }
+    kit->record_for_igvn(def);
     return def;
   }
   // Create and initialize an InlineTypeNode by loading all field
@@ -693,6 +694,7 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
     for (uint i = Values; i < vtptr->req(); ++i) {
       vt->init_req(i, vtptr->in(i));
     }
+    kit->record_for_igvn(vt);
     return gvn.transform(vt);
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null
@@ -702,10 +704,12 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
       // Constant null
       kit->set_control(null_ctl);
       if (null_free) {
-        return make_default(gvn, vk);
+        vt = make_default(gvn, vk);
       } else {
-        return InlineTypePtrNode::make_null(gvn, vk);
+        vt = InlineTypePtrNode::make_null(gvn, vk);
       }
+      kit->record_for_igvn(vt);
+      return vt;
     }
     if (null_free) {
       vt = new InlineTypeNode(vk, not_null_oop);
@@ -744,6 +748,7 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
            AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
   assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
+  kit->record_for_igvn(vt);
   return gvn.transform(vt);
 }
 

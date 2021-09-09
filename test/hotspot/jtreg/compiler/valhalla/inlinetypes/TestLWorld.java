@@ -4093,4 +4093,52 @@ public class TestLWorld {
         Asserts.assertEQ(test149(testValue1), testValue1);
         Asserts.assertEQ(test149(null), null);
     }
+
+    // Test post-parse call devirtualization with inline type receiver
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
+        counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
+    public long test150() {
+        MyValue2 val = MyValue2.createWithFieldsInline(rI, rD);
+        MyInterface receiver = MyValue1.createWithFieldsInline(rI, rL);
+
+        for (int i = 0; i < 4; i++) {
+            if ((i % 2) == 0) {
+                receiver = val;
+            }
+        }
+        // Trigger post parse call devirtualization (strength-reducing
+        // virtual calls to direct calls).
+        return receiver.hash();
+    }
+
+    @Run(test = "test150")
+    public void test150_verifier() {
+        Asserts.assertEquals(test150(), testValue2.hash());
+    }
+
+    // Same as test150 but with val not being allocated in the scope of the method
+    @Test
+    @IR(failOn = {compiler.lib.ir_framework.IRNode.DYNAMIC_CALL_OF_METHOD, "MyValue2::hash"},
+        counts = {compiler.lib.ir_framework.IRNode.STATIC_CALL_OF_METHOD, "MyValue2::hash", "= 1"})
+    public long test151(MyValue2 val) {
+        MyAbstract receiver = MyValue1.createWithFieldsInline(rI, rL);
+
+        for (int i = 0; i < 100; i++) {
+            if ((i % 2) == 0) {
+                receiver = val;
+            }
+        }
+        // Trigger post parse call devirtualization (strength-reducing
+        // virtual calls to direct calls).
+        return receiver.hash();
+    }
+
+    @Run(test = "test151")
+    @Warmup(0) // Make sure there is no receiver type profile
+    public void test151_verifier() {
+        Asserts.assertEquals(test151(testValue2), testValue2.hash());
+    }
 }

@@ -2463,7 +2463,10 @@ void Compile::process_late_inline_calls_no_inline(PhaseIterGVN& igvn) {
   // Tracking and verification of modified nodes is disabled by setting "_modified_nodes == NULL"
   // as if "inlining_incrementally() == true" were set.
   assert(inlining_incrementally() == false, "not allowed");
-  assert(_modified_nodes == NULL, "not allowed");
+#ifdef ASSERT
+  Unique_Node_List* modified_nodes = _modified_nodes;
+  _modified_nodes = NULL;
+#endif
   assert(_late_inlines.length() > 0, "sanity");
 
   while (_late_inlines.length() > 0) {
@@ -2477,6 +2480,7 @@ void Compile::process_late_inline_calls_no_inline(PhaseIterGVN& igvn) {
 
     inline_incrementally_cleanup(igvn);
   }
+  DEBUG_ONLY( _modified_nodes = modified_nodes; )
 }
 
 bool Compile::optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode) {
@@ -2730,6 +2734,14 @@ void Compile::Optimize() {
   // Process inline type nodes again after loop opts
   process_inline_types(igvn);
 
+  assert(_late_inlines.length() == 0 || IncrementalInlineMH || IncrementalInlineVirtual, "not empty");
+
+  if (_late_inlines.length() > 0) {
+    // More opportunities to optimize virtual and MH calls.
+    // Though it's maybe too late to perform inlining, strength-reducing them to direct calls is still an option.
+    process_late_inline_calls_no_inline(igvn);
+  }
+
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
     PhaseMacroExpand  mex(igvn);
@@ -2761,14 +2773,7 @@ void Compile::Optimize() {
   DEBUG_ONLY( _modified_nodes = NULL; )
 
   assert(igvn._worklist.size() == 0, "not empty");
-
-  assert(_late_inlines.length() == 0 || IncrementalInlineMH || IncrementalInlineVirtual, "not empty");
-
-  if (_late_inlines.length() > 0) {
-    // More opportunities to optimize virtual and MH calls.
-    // Though it's maybe too late to perform inlining, strength-reducing them to direct calls is still an option.
-    process_late_inline_calls_no_inline(igvn);
-  }
+  assert(_late_inlines.length() == 0, "missed optimization opportunity");
  } // (End scope of igvn; run destructor if necessary for asserts.)
 
  check_no_dead_use();
