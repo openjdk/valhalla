@@ -1649,7 +1649,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
 #endif
 
-  if (!inline_type_field_access_prolog(x, info)) {
+  if (!inline_type_field_access_prolog(x)) {
     // Field store will always deopt due to unloaded field or holder klass
     return;
   }
@@ -2034,7 +2034,7 @@ LIR_Opr LIRGenerator::access_atomic_add_at(DecoratorSet decorators, BasicType ty
   }
 }
 
-bool LIRGenerator::inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info) {
+bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
   ciField* field = x->field();
   assert(!field->is_flattened(), "Flattened field access should have been expanded");
   if (!field->is_null_free()) {
@@ -2047,10 +2047,9 @@ bool LIRGenerator::inline_type_field_access_prolog(AccessField* x, CodeEmitInfo*
   // Deoptimize if we load from a static field with an unloaded type because we need
   // the default value if the field is null.
   bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->is_loaded();
-  assert(!could_be_null || !field->holder()->is_loaded(), "inline type field should be loaded");
   if (could_be_flat || could_be_null) {
-    assert(x->needs_patching(), "no deopt required");
-    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
+    CodeEmitInfo* info = state_for(x, x->state_before());
+    CodeStub* stub = new DeoptimizeStub(info,
                                         Deoptimization::Reason_unloaded,
                                         Deoptimization::Action_make_not_entrant);
     __ jump(stub);
@@ -2088,7 +2087,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   }
 #endif
 
-  if (!inline_type_field_access_prolog(x, info)) {
+  if (!inline_type_field_access_prolog(x)) {
     // Field load will always deopt due to unloaded field or holder klass
     LIR_Opr result = rlock_result(x, field_type);
     __ move(LIR_OprFact::oopConst(NULL), result);
@@ -2373,7 +2372,7 @@ void LIRGenerator::do_Deoptimize(Deoptimize* x) {
   // to refer to an inline class V, where V has not yet been loaded/resolved.
   // This is not a common case. Let's just deoptimize.
   CodeEmitInfo* info = state_for(x, x->state_before());
-  CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
+  CodeStub* stub = new DeoptimizeStub(info,
                                       Deoptimization::Reason_unloaded,
                                       Deoptimization::Action_make_not_entrant);
   __ jump(stub);

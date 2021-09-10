@@ -240,8 +240,11 @@ public class TestVM {
     }
 
     private void setupTests() {
-        for (Class<?> clazz : testClass.getDeclaredClasses()) {
-            checkAnnotationsInClass(clazz, "inner");
+        // TODO remove this once JDK-8273591 is fixed
+        if (!IGNORE_COMPILER_CONTROLS) {
+            for (Class<?> clazz : testClass.getDeclaredClasses()) {
+                checkAnnotationsInClass(clazz, "inner");
+            }
         }
         if (DUMP_REPLAY) {
             addReplay();

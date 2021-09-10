@@ -23,10 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-import compiler.lib.ir_framework.Run;
-import compiler.lib.ir_framework.RunInfo;
-import compiler.lib.ir_framework.Scenario;
-import compiler.lib.ir_framework.Test;
+import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -52,17 +49,17 @@ public class TestUnloadedInlineTypeField {
         final Scenario[] scenarios = {
                 new Scenario(0),
                 new Scenario(1, "-XX:InlineFieldMaxFlatSize=0"),
-                new Scenario(2, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:-XX:+PatchALot"),
-                new Scenario(3,
-                             "-XX:InlineFieldMaxFlatSize=0",
-                             "-XX:+IgnoreUnrecognizedVMOptions",
-                             "-XX:+PatchALot")
+                new Scenario(2, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot"),
+                new Scenario(3, "-XX:InlineFieldMaxFlatSize=0",
+                                "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot")
         };
-        final String[] CutoffFlags = {"-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
+        final String[] flags = {// Prevent IR Test Framework from loading classes
+                                "-DIgnoreCompilerControls=true",
+                                // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
+                                "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
         for (Scenario s : scenarios) {
-           s.addFlags(CutoffFlags);
+           s.addFlags(flags);
         }
-
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .start();
@@ -882,5 +879,31 @@ public class TestUnloadedInlineTypeField {
     public void test20_verifier() {
         MyValue20 vt = test20();
         Asserts.assertEQ(vt.obj, null);
+    }
+
+    static primitive class Test21ClassA {
+        static Test21ClassB b;
+        static Test21ClassC c;
+    }
+
+    static primitive class Test21ClassB {
+        static int x = Test21ClassA.c.x;
+    }
+
+    static primitive class Test21ClassC {
+        int x = 42;
+    }
+
+    // Test access to static inline type field with unloaded type
+    @Test
+    public Object test21() {
+        return new Test21ClassA();
+    }
+
+    @Run(test = "test21")
+    public void test21_verifier() {
+        Object ret = test21();
+        Asserts.assertEQ(Test21ClassA.b.x, 0);
+        Asserts.assertEQ(Test21ClassA.c.x, 0);
     }
 }

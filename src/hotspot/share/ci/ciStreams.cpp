@@ -323,6 +323,19 @@ int ciBytecodeStream::get_field_holder_index() {
 }
 
 // ------------------------------------------------------------------
+// ciBytecodeStream::get_field_signature_index
+//
+// Get the constant pool index of the signature of the field
+// referenced by the current bytecode.  Used for generating
+// deoptimization information.
+int ciBytecodeStream::get_field_signature_index() {
+  VM_ENTRY_MARK;
+  ConstantPool* cpool = _holder->get_instanceKlass()->constants();
+  int nt_index = cpool->name_and_type_ref_index_at(get_field_index());
+  return cpool->signature_ref_index_at(nt_index);
+}
+
+// ------------------------------------------------------------------
 // ciBytecodeStream::get_method_index
 //
 // If this is a method invocation bytecode, get the constant pool
