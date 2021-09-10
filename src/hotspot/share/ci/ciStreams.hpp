@@ -245,7 +245,6 @@ public:
 
   ciInstanceKlass* get_declared_field_holder();
   int      get_field_holder_index();
-  int      get_field_signature_index();
 
   ciMethod*     get_method(bool& will_link, ciSignature* *declared_signature_result);
   bool          has_appendix();

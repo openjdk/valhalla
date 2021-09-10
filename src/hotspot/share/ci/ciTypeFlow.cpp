@@ -673,7 +673,10 @@ void ciTypeFlow::StateVector::do_getstatic(ciBytecodeStream* str) {
       if (field->is_static() && field->is_null_free()) {
         // Deoptimize if we load from a static field with an unloaded
         // inline type because we need the default value if the field is null.
-        trap(str, field_type->as_klass(), str->get_field_signature_index());
+        trap(str, field_type->as_klass(),
+             Deoptimization::make_trap_request
+             (Deoptimization::Reason_unloaded,
+              Deoptimization::Action_reinterpret));
         return;
       }
       // Normally, we need the field's type to be loaded if we are to

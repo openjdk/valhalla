@@ -2049,7 +2049,7 @@ bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
   bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->is_loaded();
   if (could_be_flat || could_be_null) {
     CodeEmitInfo* info = state_for(x, x->state_before());
-    CodeStub* stub = new DeoptimizeStub(info,
+    CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                         Deoptimization::Reason_unloaded,
                                         Deoptimization::Action_make_not_entrant);
     __ jump(stub);
