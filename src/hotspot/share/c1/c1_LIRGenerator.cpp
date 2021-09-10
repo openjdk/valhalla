@@ -2372,7 +2372,7 @@ void LIRGenerator::do_Deoptimize(Deoptimize* x) {
   // to refer to an inline class V, where V has not yet been loaded/resolved.
   // This is not a common case. Let's just deoptimize.
   CodeEmitInfo* info = state_for(x, x->state_before());
-  CodeStub* stub = new DeoptimizeStub(info,
+  CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
                                       Deoptimization::Action_make_not_entrant);
   __ jump(stub);
