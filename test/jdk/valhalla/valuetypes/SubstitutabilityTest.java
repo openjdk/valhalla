@@ -26,8 +26,7 @@
  * @summary test MethodHandle/VarHandle on primitive classes
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.org.objectweb.asm
- * @run testng/othervm -Xint SubstitutabilityTest
- * @run testng/othervm -Xcomp SubstitutabilityTest
+ * @run testng SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;

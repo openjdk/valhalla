@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,18 +50,11 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
- * @run main/othervm -Xint -Xmx128m -XX:-ShowMessageBoxOnError
- *                   -XX:+ExplicitGCInvokesConcurrent
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.inlinetypes.InlineTypesTest
- * @run main/othervm -Xcomp -Xmx128m -XX:-ShowMessageBoxOnError
- *                   -XX:+ExplicitGCInvokesConcurrent
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
- *                   runtime.valhalla.inlinetypes.InlineTypesTest
- * @run main/othervm -Xbatch -Xmx128m -XX:-ShowMessageBoxOnError
- *                   -XX:+ExplicitGCInvokesConcurrent
+ * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   -XX:ForceNonTearable=*

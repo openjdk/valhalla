@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,7 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java UnsafeTest.java
- * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
- * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;
