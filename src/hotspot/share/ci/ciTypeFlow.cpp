@@ -669,7 +669,8 @@ void ciTypeFlow::StateVector::do_getstatic(ciBytecodeStream* str) {
     trap(str, field->holder(), str->get_field_holder_index());
   } else {
     ciType* field_type = field->type();
-    if (field->is_static() && field->is_null_free() && !field_type->as_inline_klass()->is_initialized()) {
+    if (field->is_static() && field->is_null_free() &&
+        !field_type->as_instance_klass()->is_initialized()) {
       // Deoptimize if we load from a static field with an uninitialized inline type
       // because we need to throw an exception if initialization of the type failed.
       trap(str, field_type->as_klass(),
