@@ -2044,10 +2044,11 @@ bool LIRGenerator::inline_type_field_access_prolog(AccessField* x) {
   // or not accessible) because then we only have partial field information and the
   // field could be flattened (see ciField constructor).
   bool could_be_flat = !x->is_static() && x->needs_patching();
-  // Deoptimize if we load from a static field with an unloaded type because we need
-  // the default value if the field is null.
-  bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->is_loaded();
-  if (could_be_flat || could_be_null) {
+  // Deoptimize if we load from a static field with an uninitialized type because we
+  // need to throw an exception if initialization of the type failed.
+  bool not_initialized = x->is_static() && x->as_LoadField() != NULL &&
+      !field->type()->as_instance_klass()->is_initialized();
+  if (could_be_flat || not_initialized) {
     CodeEmitInfo* info = state_for(x, x->state_before());
     CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                         Deoptimization::Reason_unloaded,
@@ -2127,9 +2128,6 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   if (field->is_null_free()) {
     // Load from non-flattened inline type field requires
     // a null check to replace null with the default value.
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    assert(inline_klass->is_loaded(), "field klass must be loaded");
-
     ciInstanceKlass* holder = field->holder();
     if (field->is_static() && holder->is_loaded()) {
       ciObject* val = holder->java_mirror()->field_value(field).as_object();
@@ -2142,6 +2140,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
+    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
     Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
     if (default_value->is_pinned()) {
       __ move(LIR_OprFact::value_type(default_value->type()), result);
