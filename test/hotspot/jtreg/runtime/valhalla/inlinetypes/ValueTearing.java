@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,26 +42,26 @@ import static jdk.test.lib.Asserts.*;
  * @library /test/lib
  * @compile ValueTearing.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint  -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
  *                   -DSTEP_COUNT=10000 -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
- * @run main/othervm -Xint  -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
  *                   -DSTEP_COUNT=10000 -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
- * @run main/othervm -Xbatch -DSTEP_COUNT=10000000 -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -DSTEP_COUNT=10000000 -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
- * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
  *                   -DTEAR_MODE=fieldonly -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
- * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=
  *                   -DTEAR_MODE=arrayonly -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing
- * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=*
  *                   -DTEAR_MODE=both -XX:InlineFieldMaxFlatSize=128 -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+WhiteBoxAPI
  *                                   runtime.valhalla.inlinetypes.ValueTearing

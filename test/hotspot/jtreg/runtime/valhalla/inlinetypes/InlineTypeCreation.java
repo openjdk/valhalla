@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,8 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeCreation
  * @summary Inline Type creation test
  * @library /test/lib
- * @compile  -XDallowWithFieldOperator -XDallowFlattenabilityModifiers InlineTypeCreation.java Point.java Long8Inline.java Person.java
- * @run main/othervm -Xint runtime.valhalla.inlinetypes.InlineTypeCreation
- * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.InlineTypeCreation
+ * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers InlineTypeCreation.java Point.java Long8Inline.java Person.java
+ * @run main runtime.valhalla.inlinetypes.InlineTypeCreation
  */
 public class InlineTypeCreation {
     public static void main(String[] args) {

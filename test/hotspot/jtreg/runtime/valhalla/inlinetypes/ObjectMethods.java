@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,12 +32,9 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator ObjectMethods.java
- * @run main/othervm -Xint -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -Xint -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -Xint -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
- * @run main/othervm -Xcomp -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -Xcomp -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -Xcomp -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
+ * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {
