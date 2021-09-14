@@ -173,19 +173,25 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C anewarray(S array) {
         emitOp(Opcode.ANEWARRAY, array);
-        code.writeChar(poolHelper.putClass(array));
+        int poolIdx = (typeHelper.isInlineClass(typeHelper.type(array))) ?
+            poolHelper.putInlineClass(array) : poolHelper.putClass(array);
+        code.writeChar(poolIdx);
         return thisBuilder();
     }
 
     public C checkcast(S target) {
         emitOp(Opcode.CHECKCAST);
-        code.writeChar(poolHelper.putClass(target));
+        int poolIdx = (typeHelper.isInlineClass(typeHelper.type(target))) ?
+            poolHelper.putInlineClass(target) : poolHelper.putClass(target);
+        code.writeChar(poolIdx);
         return thisBuilder();
     }
 
     public C instanceof_(S target) {
         emitOp(Opcode.INSTANCEOF);
-        code.writeChar(poolHelper.putClass(target));
+        int poolIdx = (typeHelper.isInlineClass(typeHelper.type(target))) ?
+            poolHelper.putInlineClass(target) : poolHelper.putClass(target);
+        code.writeChar(poolIdx);
         return thisBuilder();
     }
 
