@@ -3701,16 +3701,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
   assert(new_obj == rax, "needs to be rax, according to barrier asm eden_allocate");
   assert_different_registers(klass, new_obj, t1, t2);
 
-#ifdef ASSERT
-  {
-    Label L;
-    cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
-    jcc(Assembler::equal, L);
-    stop("klass not initialized");
-    bind(L);
-  }
-#endif
-
   // get instance_size in InstanceKlass (scaled to a count of bytes)
   movl(layout_size, Address(klass, Klass::layout_helper_offset()));
   // test to see if it has a finalizer or is malformed in some way
