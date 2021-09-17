@@ -1267,7 +1267,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
   // Step 8
   // Initialize classes of inline fields
-  {
+  if (EnableValhalla) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
@@ -1275,20 +1275,31 @@ void InstanceKlass::initialize_impl(TRAPS) {
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
               Handle(THREAD, class_loader()),
               Handle(THREAD, protection_domain()),
-              true, CHECK);
-          if (klass == NULL) {
-            THROW(vmSymbols::java_lang_NoClassDefFoundError());
-          }
-          if (!klass->is_inline_klass()) {
-            THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
-          }
+              true, THREAD);
           set_inline_type_field_klass(fs.index(), klass);
         }
-        InstanceKlass::cast(klass)->initialize(CHECK);
-        if (fs.access_flags().is_static()) {
-          if (java_mirror()->obj_field(fs.offset()) == NULL) {
-            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
+
+        if (!HAS_PENDING_EXCEPTION) {
+          assert(klass != NULL, "Must  be");
+          InstanceKlass::cast(klass)->initialize(THREAD);
+          if (fs.access_flags().is_static()) {
+            if (java_mirror()->obj_field(fs.offset()) == NULL) {
+              java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
+            }
           }
+        }
+
+        if (HAS_PENDING_EXCEPTION) {
+          Handle e(THREAD, PENDING_EXCEPTION);
+          CLEAR_PENDING_EXCEPTION;
+          {
+            EXCEPTION_MARK;
+            add_initialization_error(THREAD, e);
+            // Locks object, set state, and notify all waiting threads
+            set_initialization_state_and_notify(initialization_error, THREAD);
+            CLEAR_PENDING_EXCEPTION;
+          }
+          THROW_OOP(e());
         }
       }
     }
