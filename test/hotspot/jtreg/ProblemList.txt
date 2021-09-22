@@ -103,6 +103,10 @@ runtime/os/TestTracePageSizes.java#with-Serial 8267460 linux-aarch64
 
 applications/jcstress/copy.java 8229852 linux-x64
 
+# Valhalla
+
+runtime/valhalla/inlinetypes/ClassInitializationFailuresTest.java 8274131 linux-aarch64-debug,macosx-aarch64-debug
+
 #############################################################################
 
 # :hotspot_serviceability
