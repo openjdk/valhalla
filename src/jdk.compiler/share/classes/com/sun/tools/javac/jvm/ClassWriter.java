@@ -1017,8 +1017,7 @@ public class ClassWriter extends ClassFile {
         }
         if (target.hasMethodParameters() && (
                 options.isSet(PARAMETERS)
-                || m.isConstructor() && (m.flags_field & RECORD) != 0
-                || m.isPrimitiveObjectFactory() && (m.flags_field & RECORD) != 0)) {
+                || ((m.flags_field & RECORD) != 0 && (m.isConstructor() || m.isPrimitiveObjectFactory())))) {
             if (!m.isLambdaMethod()) // Per JDK-8138729, do not emit parameters table for lambda bodies.
                 acount += writeMethodParametersAttr(m);
         }
