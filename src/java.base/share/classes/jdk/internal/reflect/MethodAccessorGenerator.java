@@ -52,6 +52,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
     private Class<?>[] parameterTypes;
     private Class<?>   returnType;
     private boolean    isConstructor;
+    private boolean    isStaticFactory;
     private boolean    forSerialization;
 
     private short targetMethodRef;
@@ -60,7 +61,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
     // Constant pool index of CONSTANT_Class_info for first
     // non-primitive parameter type. Should be incremented by 2.
     private short nonPrimitiveParametersBaseIdx;
-    private boolean isConstructingPrimitive;
 
     MethodAccessorGenerator() {
     }
@@ -81,6 +81,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                          modifiers,
                                          false,
                                          false,
+                                         false,
                                          null);
     }
 
@@ -90,13 +91,15 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                                    Class<?>[] checkedExceptions,
                                                    int modifiers)
     {
+        boolean isStaticFactory = declaringClass.isPrimitiveClass();
         return (ConstructorAccessor) generate(declaringClass,
                                               "<init>",
                                               parameterTypes,
-                                              Void.TYPE,
+                                              isStaticFactory ? declaringClass.asValueType() : Void.TYPE,
                                               checkedExceptions,
                                               modifiers,
                                               true,
+                                              isStaticFactory,
                                               false,
                                               null);
     }
@@ -117,6 +120,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
                      checkedExceptions,
                      modifiers,
                      true,
+                     false,
                      true,
                      targetConstructorClass);
     }
@@ -130,20 +134,18 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                        Class<?>[] checkedExceptions,
                                        int modifiers,
                                        boolean isConstructor,
+                                       boolean isStaticFactory,
                                        boolean forSerialization,
                                        Class<?> serializationTargetClass)
     {
         ByteVector vec = ByteVectorFactory.create();
         asm = new ClassFileAssembler(vec);
-        this.isConstructingPrimitive = isConstructor && declaringClass.isPrimitiveClass();
-        if (this.isConstructingPrimitive ) {
-            returnType = declaringClass.asValueType();
-        }
         this.declaringClass = declaringClass;
         this.parameterTypes = parameterTypes;
         this.returnType = returnType;
         this.modifiers = modifiers;
         this.isConstructor = isConstructor;
+        this.isStaticFactory = isStaticFactory;
         this.forSerialization = forSerialization;
 
         asm.emitMagicAndVersion();
@@ -436,7 +438,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
 
         short illegalArgStartPC = 0;
 
-        if (isConstructor && !isConstructingPrimitive) {
+        if (isConstructor && !isStaticFactory) {
             // Instantiate target class before continuing
             // new <target class type>
             // dup
@@ -626,7 +628,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         short invokeStartPC = cb.getLength();
 
         // OK, ready to perform the invocation.
-        if (isConstructor && !isConstructingPrimitive) {
+        if (isConstructor && !isStaticFactory) {
             cb.opc_invokespecial(targetMethodRef, count, 0);
         } else {
             if (isStatic()) {

@@ -26,7 +26,7 @@
  * @test
  * @bug 8273360
  * @summary Test reflection of constructors for primitive classes
- * @run testng/othervm StaticFactoryTest
+ * @run testng/othervm -Dsun.reflect.noInflation=true StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;
@@ -68,10 +68,8 @@ public class StaticFactoryTest {
     @Test
     public static void constructor() throws Exception {
         Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
-        for (int i = 0; i < 20; ++i) {
-            Object o = ctor.newInstance();
-            assertTrue(o.getClass() == PRIMITIVE_TYPE.asPrimaryType());
-        }
+        Object o = ctor.newInstance();
+        assertTrue(o.getClass() == PRIMITIVE_TYPE.asPrimaryType());
     }
 
     // Check that the class has the expected Constructors

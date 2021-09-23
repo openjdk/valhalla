@@ -49,7 +49,7 @@ class ClassFileAssembler implements ClassFileConstants {
     public void emitMagicAndVersion() {
         emitInt(0xCAFEBABE);
         emitShort((short) 0);
-        emitShort((short) 62);
+        emitShort((short) 49);
     }
 
     public void emitInt(int val) {
