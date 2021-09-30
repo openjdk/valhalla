@@ -347,12 +347,12 @@ public class ObjectMethods {
         Arrays.stream(getters).forEach(Objects::requireNonNull);
         MethodType methodType;
         Class<?> receiverType = recordClass.isPrimitiveClass() ? recordClass.asValueType() : recordClass;
-        if (type instanceof MethodType mt)
+        if (type instanceof MethodType mt) {
             methodType = mt;
             if (mt.parameterType(0) != receiverType) {
                 throw new IllegalArgumentException("Bad method type: " + mt);
             }
-        else {
+        } else {
             methodType = null;
             if (!MethodHandle.class.equals(type))
                 throw new IllegalArgumentException(type.toString());
