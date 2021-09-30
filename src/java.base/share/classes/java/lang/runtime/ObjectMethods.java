@@ -349,8 +349,8 @@ public class ObjectMethods {
         Class<?> receiverType = recordClass.isPrimitiveClass() ? recordClass.asValueType() : recordClass;
         if (type instanceof MethodType mt)
             methodType = mt;
-            if (methodType.parameterType(0) != receiverType) {
-                throw new IllegalArgumentException("Bad method type: " + methodType);
+            if (mt.parameterType(0) != receiverType) {
+                throw new IllegalArgumentException("Bad method type: " + mt);
             }
         else {
             methodType = null;
