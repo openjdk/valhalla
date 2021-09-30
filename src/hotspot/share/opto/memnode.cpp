@@ -2435,7 +2435,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       }
 
       // Return root of possible klass
-      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
+      return TypeInstKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
     }
   }
 
@@ -2468,7 +2468,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false, tary->is_not_flat(), tary->is_not_null_free());
+        return TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), tary->is_not_flat(), tary->is_not_null_free());
       } else if (ak->is_type_array_klass()) {
         return TypeKlassPtr::make(ak); // These are always precise
       }
@@ -2495,7 +2495,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
     } else if (klass->is_flat_array_klass() &&
                tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_flat_array_klass()->element_klass();
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
+      return TypeInstKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {

@@ -290,7 +290,7 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
 
 Node* PhaseMacroExpand::array_lh_test(Node* array, jint mask) {
   Node* klass_adr = basic_plus_adr(array, oopDesc::klass_offset_in_bytes());
-  Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+  Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
   Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
   Node* lh_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
   Node* masked = transform_later(new AndINode(lh_val, intcon(mask)));
