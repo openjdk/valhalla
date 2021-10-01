@@ -389,7 +389,7 @@ public class TransPrimitiveClass extends TreeTranslator {
         if (factory != null)
             return factory;
 
-        MethodType factoryType = new MethodType(init.erasure(types).getParameterTypes(),
+        MethodType factoryType = new MethodType(init.type.getParameterTypes(),
                                                 init.owner.type.asValueType(),
                                                 init.type.getThrownTypes(),
                                                 init.owner.type.tsym);
@@ -397,6 +397,12 @@ public class TransPrimitiveClass extends TreeTranslator {
                                         names.init,
                                         factoryType,
                                         init.owner);
+        factory.params = init.params;
+        // Re-patch the return type on the erased method type, or code generation will fail
+        factory.erasure_field = new MethodType(init.erasure(types).getParameterTypes(),
+                init.owner.type.asValueType(),
+                init.type.getThrownTypes(),
+                init.owner.type.tsym);
         factory.setAttributes(init);
         init2factory.put(init, factory);
         return factory;

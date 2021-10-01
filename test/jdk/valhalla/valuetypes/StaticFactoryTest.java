@@ -24,8 +24,10 @@
 
 /*
  * @test
+ * @bug 8273360
  * @summary Test reflection of constructors for primitive classes
  * @run testng/othervm StaticFactoryTest
+ * @run testng/othervm -Dsun.reflect.noInflation=true StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;
