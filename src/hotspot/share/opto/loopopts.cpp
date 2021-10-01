@@ -1001,7 +1001,6 @@ void PhaseIdealLoop::move_flat_array_check_out_of_loop(Node* n) {
   // Check if array is loop invariant
   if (!check_loop->is_member(ary_loop)) {
     // Walk up memory graph from the check until we leave the loop
-    ResourceMark rm;
     VectorSet wq;
     wq.set(mem->_idx);
     while (check_loop->is_member(get_loop(ctrl_or_self(mem)))) {

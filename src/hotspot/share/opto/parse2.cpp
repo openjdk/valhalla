@@ -508,7 +508,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         // The check always fails and therefore profile information is incorrect. Don't use it.
         assert(old_control == slow_ctl, "type check should have been removed");
         set_control(slow_ctl);
-      } else {
+      } else if (!slow_ctl->is_top()) {
         { PreserveJVMState pjvms(this);
           set_control(slow_ctl);
           uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
