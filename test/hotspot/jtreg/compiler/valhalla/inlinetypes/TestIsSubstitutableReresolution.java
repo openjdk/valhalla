@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @bug 8234108
  * @library /testlibrary /test/lib
- * @summary Verify that call reresolution works for C2 compiled calls to java.lang.invoke.ValueBootstrapMethods::isSubstitutable0.
+ * @summary Verify that call reresolution works for C2 compiled calls to java.lang.runtime.PrimitiveObjectMethods::isSubstitutable0.
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution::test
  *                   compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution
  */

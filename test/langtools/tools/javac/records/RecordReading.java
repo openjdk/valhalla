@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
  * @test
  * @summary test the records can be read by javac properly
  * @library /tools/lib
+ * @bug 8273018
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  * @build toolbox.ToolBox toolbox.JavacTask
@@ -119,6 +120,69 @@ public class RecordReading extends TestRunner {
                   public long j();
                 \n\
                   public java.util.List<java.lang.String> l();
+                }
+                """;
+        if (!Objects.equals(expected, output)) {
+            throw new AssertionError("Unexpected output: " + output);
+        }
+    }
+
+    @Test
+    public void testPrimitiveRecordClassFileReading(Path base) throws Exception {
+        Path src = base.resolve("src");
+
+        tb.writeJavaFiles(src,
+                           """
+                           public primitive record R(int i, @A long j, java.util.List<String> l) {}
+                           """,
+                           """
+                           public @interface A {}
+                           """);
+
+        Path out = base.resolve("out");
+        Files.createDirectories(out);
+
+        new JavacTask(tb)
+                .outdir(out)
+                .files(findJavaFiles(src))
+                .run();
+
+        //read the class file back, to verify javac's ClassReader
+        //reads the Record attribute properly:
+        String output = new JavacTask(tb)
+                .options("-Xprint")
+                .classpath(out.toString())
+                .classes("R")
+                .run()
+                .writeAll()
+                .getOutput(Task.OutputKind.STDOUT)
+                .replaceAll("\\R", "\n");
+
+        String expected =
+                """
+                \n\
+                public primitive record R(int i, @A long j, java.util.List<java.lang.String> l) {
+                  private final int i;
+                  @A
+                  private final long j;
+                  private final java.util.List<java.lang.String> l;
+                \n\
+                  public final java.lang.String toString();
+                \n\
+                  public final int hashCode();
+                \n\
+                  public final boolean equals(java.lang.Object arg0);
+                \n\
+                  public int i();
+                \n\
+                  @A
+                  public long j();
+                \n\
+                  public java.util.List<java.lang.String> l();
+                \n\
+                  public R(int i,
+                    @A long j,
+                    java.util.List<java.lang.String> l);
                 }
                 """;
         if (!Objects.equals(expected, output)) {

@@ -50,9 +50,13 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
+  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineTypeBase()) {
     assert(is_get, "inline type field store not supported");
-    InlineTypeNode* vt = pop()->as_InlineType();
+    InlineTypeBaseNode* vt = peek()->as_InlineTypeBase();
+    if (vt->is_InlineTypePtr()) {
+      null_check(vt);
+    }
+    pop();
     Node* value = vt->field_value_by_offset(field->offset());
     push_node(field->layout_type(), value);
     return;
@@ -184,13 +188,9 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     DecoratorSet decorators = IN_HEAP;
     decorators |= field->is_volatile() ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
-    if (field->is_null_free()) {
+    if (field_klass->is_inlinetype()) {
       // Load a non-flattened inline type from memory
-      if (field_klass->as_inline_klass()->is_scalarizable()) {
-        ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass());
-      } else {
-        ld = null2default(ld, field_klass->as_inline_klass());
-      }
+      ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass(), field->is_null_free());
     }
   }
 

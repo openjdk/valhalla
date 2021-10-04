@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,7 +42,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -57,7 +57,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -72,7 +72,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -87,68 +87,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.inlinetypes.InlineOops
- */
-
-/**
- * @test InlineOops_comp_serial
- * @requires vm.gc.Serial
- * @summary Test embedding oops into Inline types
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.inlinetypes.InlineOops
- */
-
-/**
- * @test InlineOops_comp_G1
- * @requires vm.gc.G1
- * @summary Test embedding oops into Inline types
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.inlinetypes.InlineOops 20
- */
-
-/**
- * @test InlineOops_comp_Parallel
- * @requires vm.gc.Parallel
- * @summary Test embedding oops into Inline types
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.inlinetypes.InlineOops
- */
-
-/**
- * @test InlineOops_comp_Z
- * @requires vm.gc.Z
- * @summary Test embedding oops into Inline types
- * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
- * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops

@@ -2112,7 +2112,7 @@ public class TestArrays {
     }
 
     // Additional correctness tests to make sure we have the required null checks
-    @Test()
+    @Test
     public void test88(Object[] array, Integer v) {
         array[0] = v;
     }
@@ -2136,7 +2136,7 @@ public class TestArrays {
         }
     }
 
-    @Test()
+    @Test
     public void test89(MyValue1.ref[] array, Integer v) {
         Object o = v;
         array[0] = (MyValue1.ref)o;
@@ -3101,7 +3101,7 @@ public class TestArrays {
     }
 
     // Empty inline type array access with unknown array type
-    @Test()
+    @Test
     public Object test132(Object[] array) {
         array[0] = new MyValueEmpty();
         return array[1];
@@ -3120,7 +3120,7 @@ public class TestArrays {
     }
 
     // Empty inline type container array access with unknown array type
-    @Test()
+    @Test
     public Object test133(Object[] array) {
         array[0] = new EmptyContainer();
         return array[1];
@@ -3154,7 +3154,7 @@ public class TestArrays {
     }
 
     // Test accessing a locked (inline type) array
-    @Test()
+    @Test
     public Object test135(Object[] array, Object val) {
         array[0] = val;
         return array[1];
@@ -3179,7 +3179,7 @@ public class TestArrays {
     }
 
     // Same as test135 but with locking in compiled method
-    @Test()
+    @Test
     public Object test136(Object[] array, Object val) {
         Object res = null;
         synchronized (array) {
@@ -3206,7 +3206,7 @@ public class TestArrays {
     Object oFld1, oFld2;
 
     // Test loop unwswitching with locked (inline type) array accesses
-    @Test()
+    @Test
     public void test137(Object[] array1, Object[] array2) {
         for (int i = 0; i < array1.length; i++) {
             oFld1 = array1[i];
@@ -3245,7 +3245,7 @@ public class TestArrays {
     }
 
     // Same as test137 but with locking in loop
-    @Test()
+    @Test
     public void test138(Object[] array1, Object[] array2) {
         for (int i = 0; i < array1.length; i++) {
             synchronized (array1) {
@@ -3280,7 +3280,7 @@ public class TestArrays {
 
     // Test load from array that is only known to be non-inline after parsing
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
+    @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE,
                   STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test139() {
         Object[]  array = null;
@@ -3301,7 +3301,7 @@ public class TestArrays {
 
     // Test store to array that is only known to be non-inline after parsing
     @Test
-    @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP,
+    @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP,
                   LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test140(Object val) {
         Object[]  array = null;
@@ -3326,7 +3326,7 @@ public class TestArrays {
     // Test load from array that is only known to be inline after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOC_G, ALLOCA_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object test141() {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3347,7 +3347,7 @@ public class TestArrays {
     // Test store to array that is only known to be inline after parsing
     // TODO 8255938
     @Test
-    // @IR(failOn = {ALLOC, ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
+    // @IR(failOn = {ALLOCA, ALLOC_G, LOOP, LOAD, STORE, TRAP, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE, INLINE_ARRAY_NULL_GUARD})
     public Object[] test142(Object val) {
         Object[]  array = null;
         Object[] iarray = new Integer[1];
@@ -3426,7 +3426,7 @@ public class TestArrays {
     }
 
     // Test that array load slow path correctly initializes non-flattened field of empty inline type
-    @Test()
+    @Test
     public Object test145(Object[] array) {
         return array[0];
     }

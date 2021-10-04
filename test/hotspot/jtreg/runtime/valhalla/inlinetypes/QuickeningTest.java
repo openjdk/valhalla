@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,8 +30,7 @@ import jdk.test.lib.Asserts;
  * @summary Test quickening of getfield and putfield applied to inline fields
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java JumboInline.java QuickeningTest.java
- * @run main/othervm -Xint runtime.valhalla.inlinetypes.QuickeningTest
- * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.QuickeningTest
+ * @run main runtime.valhalla.inlinetypes.QuickeningTest
  */
 
 public class QuickeningTest {

@@ -1912,6 +1912,43 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
   return delay;
 }
 
+// Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
+InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
+  InlineTypeBaseNode* vt = NULL;
+  if (_type->isa_ptr()) {
+    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+  } else {
+    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+  }
+  if (can_reshape) {
+    // Replace phi right away to be able to use the inline
+    // type node when reaching the phi again through data loops.
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+      Node* u = fast_out(i);
+      igvn->rehash_node_delayed(u);
+      imax -= u->replace_edge(this, vt);
+      --i;
+    }
+    assert(outcnt() == 0, "should be dead now");
+  }
+  for (uint i = 1; i < req(); ++i) {
+    Node* n = in(i)->uncast();
+    Node* other = NULL;
+    if (n->is_InlineTypeBase()) {
+      other = n;
+    } else if (phase->type(n)->is_zero_type()) {
+      other = InlineTypePtrNode::make_null(*phase, vk);
+    } else {
+      assert(can_reshape, "can only handle phis during IGVN");
+      other = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
+    }
+    bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
+    vt->merge_with(phase, other->as_InlineTypeBase(), i, transform);
+  }
+  return vt;
+}
+
 //------------------------------Ideal------------------------------------------
 // Return a node which is more "ideal" than the current node.  Must preserve
 // the CFG, but we can still strip out dead paths.
@@ -1924,25 +1961,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // This means we have to use type_or_null to defend against untyped regions.
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return NULL;                // No change
-
-  // If all inputs are inline types of the same type, push the inline type node down
-  // through the phi because inline type nodes should be merged through their input values.
-  if (req() > 2 && in(1) != NULL && in(1)->is_InlineTypeBase() && (can_reshape || in(1)->is_InlineType())) {
-    int opcode = in(1)->Opcode();
-    uint i = 2;
-    // Check if inputs are values of the same type
-    for (; i < req() && in(i) && in(i)->is_InlineTypeBase() && in(i)->cmp(*in(1)); i++) {
-      assert(in(i)->Opcode() == opcode, "mixing pointers and values?");
-    }
-    if (i == req()) {
-      InlineTypeBaseNode* vt = in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
-      for (i = 2; i < req(); ++i) {
-        bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-        vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, transform);
-      }
-      return vt;
-    }
-  }
 
   Node *top = phase->C->top();
   bool new_phi = (outcnt() == 0); // transforming new Phi
@@ -2479,6 +2497,41 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       igvn->register_new_node_with_optimizer(new_vbox_phi, this);
       igvn->register_new_node_with_optimizer(new_vect_phi, this);
       progress = new VectorBoxNode(igvn->C, new_vbox_phi, new_vect_phi, vbox->box_type(), vbox->vec_type());
+    }
+  }
+
+  // Check recursively if inputs are either an inline type, constant null
+  // or another Phi (including self references through data loops). If so,
+  // push the inline types down through the phis to enable folding of loads.
+  if (EnableValhalla && req() > 2 && progress == NULL) {
+    ResourceMark rm;
+    Unique_Node_List worklist;
+    worklist.push(this);
+    bool can_optimize = true;
+    ciInlineKlass* vk = NULL;
+
+    for (uint next = 0; next < worklist.size() && can_optimize; next++) {
+      Node* phi = worklist.at(next);
+      for (uint i = 1; i < phi->req() && can_optimize; i++) {
+        Node* n = phi->in(i);
+        if (n == NULL) {
+          can_optimize = false;
+          break;
+        }
+        n = n->uncast();
+        const Type* t = phase->type(n);
+        if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->can_merge() &&
+            (vk == NULL || vk == t->inline_klass())) {
+          vk = (vk == NULL) ? t->inline_klass() : vk;
+        } else if (n->is_Phi() && can_reshape) {
+          worklist.push(n);
+        } else if (!t->is_zero_type()) {
+          can_optimize = false;
+        }
+      }
+    }
+    if (can_optimize && vk != NULL) {
+      progress = push_inline_types_through(phase, can_reshape, vk);
     }
   }
 
