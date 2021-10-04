@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,8 +49,7 @@ import javax.tools.*;
  * @summary Test data movement with inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @run main/othervm -Xint -Xmx128m -XX:-ShowMessageBoxOnError
- *                   -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -Xmx128m
  *                   runtime.valhalla.inlinetypes.CreationErrorTest
  */
 

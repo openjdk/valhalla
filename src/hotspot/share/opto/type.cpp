@@ -270,7 +270,7 @@ const Type* Type::get_typeflow_type(ciType* type) {
   case T_INLINE_TYPE: {
     bool is_null_free = type->is_null_free();
     ciInlineKlass* vk = type->unwrap()->as_inline_klass();
-    if (vk->is_scalarizable() && is_null_free) {
+    if (is_null_free) {
       return TypeInlineType::make(vk);
     } else {
       return TypeOopPtr::make_from_klass(vk)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);
@@ -2084,7 +2084,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   case T_INLINE_TYPE:
     if (ret_vt_fields) {
       uint pos = TypeFunc::Parms;
-      field_array[pos++] = get_const_type(return_type);
+      field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(sig->returns_null_free_inline_type() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
@@ -4336,9 +4336,9 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
         ptr = NotNull;
       }
       if (tv->inline_klass()->is_subtype_of(_klass)) {
-        return TypeInstPtr::make(ptr, _klass);
+        return make(ptr, _klass, false, NULL, Offset(0), _flatten_array, InstanceBot, _speculative);
       } else {
-        return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
+        return make(ptr, ciEnv::current()->Object_klass());
       }
     }
   }

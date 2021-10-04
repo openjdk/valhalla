@@ -803,13 +803,6 @@ void CallGenerator::do_late_inline_helper() {
       C->set_default_node_notes(entry_nn);
     }
 
-    // Virtual call involves a receiver null check which can be made implicit.
-    if (is_virtual_late_inline()) {
-      GraphKit kit(jvms);
-      kit.null_check_receiver();
-      jvms = kit.transfer_exceptions_into_jvms();
-    }
-
     // Now perform the inlining using the synthesized JVMState
     JVMState* new_jvms = inline_cg()->generate(jvms);
     if (new_jvms == NULL)  return;  // no change
@@ -838,11 +831,9 @@ void CallGenerator::do_late_inline_helper() {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C);
       } else {
-        // Only possible with is_mh_late_inline() when the callee does not "know" that the caller expects an oop
-        assert(is_mh_late_inline(), "sanity");
-        assert(buffer_oop != NULL, "should have allocated a buffer");
         // Result might still be allocated (for example, if it has been stored to a non-flattened field)
         if (!vt->is_allocated(&kit.gvn())) {
+          assert(buffer_oop != NULL, "should have allocated a buffer");
           vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
@@ -1186,9 +1177,8 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool 
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
     kit.set_argument(arg_nb, arg);
   }
-  if (sig_type->is_inlinetypeptr() && !arg->is_InlineType() &&
-      !kit.gvn().type(arg)->maybe_null() && t->as_inline_klass()->is_scalarizable()) {
-    arg = InlineTypeNode::make_from_oop(&kit, arg, t->as_inline_klass());
+  if (sig_type->is_inlinetypeptr() && !arg->is_InlineType()) {
+    arg = InlineTypeNode::make_from_oop(&kit, arg, t->as_inline_klass(), !kit.gvn().type(arg)->maybe_null());
     kit.set_argument(arg_nb, arg);
   }
 }

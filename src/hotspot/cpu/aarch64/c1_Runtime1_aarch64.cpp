@@ -892,11 +892,17 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         address entry = (id == buffer_inline_args_id) ?
           CAST_FROM_FN_PTR(address, buffer_inline_args) :
           CAST_FROM_FN_PTR(address, buffer_inline_args_no_receiver);
-        int call_offset = __ call_RT(r0, noreg, entry, method);
+        // This is called from a C1 method's scalarized entry point
+        // where r0-r7 may be holding live argument values so we can't
+        // return the result in r0 as the other stubs do. LR is used as
+        // a temporay below to avoid the result being clobbered by
+        // restore_live_registers.
+        int call_offset = __ call_RT(lr, noreg, entry, method);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);
-        restore_live_registers_except_r0(sasm);
-        __ verify_oop(r0);  // r0: an array of buffered value objects
+        restore_live_registers(sasm);
+        __ mov(r20, lr);
+        __ verify_oop(r20);  // r20: an array of buffered value objects
      }
      break;
 

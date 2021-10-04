@@ -113,7 +113,7 @@ public class FileMapInfo {
   }
 
   private static void populateMetadataTypeArray(TypeDataBase db) {
-    metadataTypeArray = new Type[8];
+    metadataTypeArray = new Type[10];
 
     metadataTypeArray[0] = db.lookupType("ConstantPool");
     metadataTypeArray[1] = db.lookupType("InstanceKlass");
@@ -123,6 +123,8 @@ public class FileMapInfo {
     metadataTypeArray[5] = db.lookupType("Method");
     metadataTypeArray[6] = db.lookupType("ObjArrayKlass");
     metadataTypeArray[7] = db.lookupType("TypeArrayKlass");
+    metadataTypeArray[8] = db.lookupType("FlatArrayKlass");
+    metadataTypeArray[9] = db.lookupType("InlineKlass");
   }
 
   public FileMapHeader getHeader() {

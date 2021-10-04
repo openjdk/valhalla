@@ -459,18 +459,11 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   }
 
   InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source, CHECK_NULL);
-  if (k->local_interfaces()->length() != _interfaces->length()) {
-    print_specified_interfaces();
-    print_actual_interfaces(k);
-    error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
-          _interfaces->length(), k->local_interfaces()->length());
-  }
+  const int actual_num_interfaces = k->local_interfaces()->length();
+  const int specified_num_interfaces = _interfaces->length(); // specified in classlist
+  int expected_num_interfaces = actual_num_interfaces, i;
 
-  if (k != NULL) {
-    int actual_num_interfaces = k->local_interfaces()->length();
-    int specified_num_interfaces = _interfaces->length();
-    int expected_num_interfaces, i;
-
+  {
     bool identity_object_implemented = false;
     bool identity_object_specified = false;
     bool primitive_object_implemented = false;
@@ -496,29 +489,25 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
       }
     }
 
-    expected_num_interfaces = actual_num_interfaces;
     if ( (identity_object_implemented  && !identity_object_specified) ||
          (primitive_object_implemented && !primitive_object_specified) ){
       // Backwards compatibility -- older classlists do not know about
       // java.lang.IdentityObject or java.lang.PrimitiveObject
       expected_num_interfaces--;
     }
-    if (specified_num_interfaces != expected_num_interfaces) {
-      print_specified_interfaces();
-      print_actual_interfaces(k);
-      error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
-            specified_num_interfaces, expected_num_interfaces);
-    }
+  }
 
-    bool added = SystemDictionaryShared::add_unregistered_class_for_static_archive(THREAD, k);
-    if (!added) {
-      // We allow only a single unregistered class for each unique name.
-      error("Duplicated class %s", _class_name);
-    }
+  if (specified_num_interfaces != expected_num_interfaces) {
+    print_specified_interfaces();
+    print_actual_interfaces(k);
+    error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
+          specified_num_interfaces, expected_num_interfaces);
+  }
 
-    // This tells JVM_FindLoadedClass to not find this class.
-    k->set_shared_classpath_index(UNREGISTERED_INDEX);
-    k->clear_shared_class_loader_type();
+  bool added = SystemDictionaryShared::add_unregistered_class_for_static_archive(THREAD, k);
+  if (!added) {
+    // We allow only a single unregistered class for each unique name.
+    error("Duplicated class %s", _class_name);
   }
 
   // This tells JVM_FindLoadedClass to not find this class.

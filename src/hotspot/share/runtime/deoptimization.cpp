@@ -1057,10 +1057,19 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
   for (int i = 0; i < objects->length(); i++) {
     assert(objects->at(i)->is_object(), "invalid debug information");
     ObjectValue* sv = (ObjectValue*) objects->at(i);
-
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
-    oop obj = NULL;
 
+    // Check if the object may be null and has an additional is_init input that needs
+    // to be checked before using the field values. Skip re-allocation if it is null.
+    if (sv->maybe_null()) {
+      assert(k->is_inline_klass(), "must be an inline klass");
+      StackValue* init_value = StackValue::create_stack_value(fr, reg_map, sv->is_init());
+      if (init_value->get_obj().is_null()) {
+        continue;
+      }
+    }
+
+    oop obj = NULL;
     if (k->is_instance_klass()) {
       if (sv->is_auto_box()) {
         AutoBoxObjectValue* abv = (AutoBoxObjectValue*) sv;
@@ -1458,7 +1467,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
     Handle obj = sv->value();
-    assert(obj.not_null() || realloc_failures, "reallocation was missed");
+    assert(obj.not_null() || realloc_failures || sv->maybe_null(), "reallocation was missed");
     if (PrintDeoptimizationDetails) {
       tty->print_cr("reassign fields for object of type %s!", k->name()->as_C_string());
     }
@@ -1560,9 +1569,13 @@ void Deoptimization::print_objects(GrowableArray<ScopeValue*>* objects, bool rea
 void Deoptimization::print_object(Klass* k, Handle obj, bool realloc_failures) {
   tty->print("     object <" INTPTR_FORMAT "> of type ", p2i(obj()));
   k->print_value();
-  assert(obj.not_null() || realloc_failures, "reallocation was missed");
   if (obj.is_null()) {
-    tty->print(" allocation failed");
+    if (k->is_inline_klass()) {
+      tty->print(" is null");
+    } else {
+      assert(realloc_failures, "reallocation was missed");
+      tty->print(" allocation failed");
+    }
   } else {
     tty->print(" allocated (%d bytes)", obj->size() * HeapWordSize);
   }

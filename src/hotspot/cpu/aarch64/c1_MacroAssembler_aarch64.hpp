@@ -110,6 +110,4 @@ using MacroAssembler::null_check;
 
   void load_parameter(int offset_in_words, Register reg);
 
-  void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
-
 #endif // CPU_AARCH64_C1_MACROASSEMBLER_AARCH64_HPP

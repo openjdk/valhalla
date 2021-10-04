@@ -840,6 +840,8 @@ public:
   virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const { return false; }
   virtual bool would_improve_ptr(ProfilePtrKind ptr_kind) const { return false; }
 
+  virtual bool maybe_null() const { return false; }
+
   static const TypeInlineType* BOTTOM;
 
 #ifndef PRODUCT

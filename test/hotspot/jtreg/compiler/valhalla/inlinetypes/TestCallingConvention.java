@@ -343,7 +343,7 @@ public class TestCallingConvention {
     MyValue3 test15_vt2;
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-        failOn = {ALLOC, LOAD, TRAP})
+        failOn = {ALLOC, TRAP})
     public void test15() {
         test15_vt2 = test15_interp();
     }
@@ -379,7 +379,7 @@ public class TestCallingConvention {
     MyValue3 test17_vt2;
     @Test
     @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-            failOn = {ALLOC, LOAD, TRAP})
+        failOn = {ALLOC, TRAP})
     public void test17() {
         test17_vt2 = test17_comp();
     }
@@ -684,7 +684,7 @@ public class TestCallingConvention {
         return MyValue2.createWithFieldsInline(rI+32, rD);
     }
 
-    @Test()
+    @Test
     public MyValue2 test32(boolean flag) throws Throwable {
         return (MyValue2)test32_mh.invokeExact(this, flag);
     }
@@ -708,7 +708,7 @@ public class TestCallingConvention {
         return MyValue2.createWithFieldsInline(rI+33, rD);
     }
 
-    @Test()
+    @Test
     public MyValue2 test33(boolean flag) throws Throwable {
         Object o = test33_mh.invokeExact(this, flag);
         return (MyValue2)o;
@@ -742,7 +742,7 @@ public class TestCallingConvention {
         return vt.hash() + i1 + i2 + i3 + i4;
     }
 
-    @Test()
+    @Test
     public static long test34(MyValue2 vt, int i1, int i2, int i3, int i4) {
         return test34_callee(vt, i1, i2, i3, i4);
     }
@@ -763,7 +763,7 @@ public class TestCallingConvention {
     }
 
     // Test OSR compilation of method with scalarized argument
-    @Test()
+    @Test
     public static long test35(MyValue2 vt, int i1, int i2, int i3, int i4) {
         int result = 0;
         // Trigger OSR compilation
@@ -913,7 +913,7 @@ public class TestCallingConvention {
     }
 
     // Test passing/returning a large inline type with oop fields
-    @Test()
+    @Test
     public static LargeValueWithOops test39(LargeValueWithOops vt) {
         return vt;
     }
@@ -926,7 +926,7 @@ public class TestCallingConvention {
     }
 
     // Test passing/returning a large inline type with only int/float fields
-    @Test()
+    @Test
     public static LargeValueWithoutOops test40(LargeValueWithoutOops vt) {
         return vt;
     }
@@ -1129,5 +1129,64 @@ public class TestCallingConvention {
     public void test50_verifier() {
         test50(true);
         test50(false);
+    }
+
+    // Test stack repair with stack slots reserved for monitors
+    private static final Object lock1 = new Object();
+    private static final Object lock2 = new Object();
+    private static final Object lock3 = new Object();
+
+    @DontInline
+    static void test51_callee() { }
+
+    @Test
+    public void test51(MyValue1 val) {
+        synchronized (lock1) {
+            test51_callee();
+        }
+    }
+
+    @Run(test = "test51")
+    public void test51_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test51(vt);
+    }
+
+    @DontInline
+    static void test52_callee() { }
+
+    @Test
+    public void test52(MyValue1 val) {
+        synchronized (lock1) {
+            synchronized (lock2) {
+                test52_callee();
+            }
+        }
+    }
+
+    @Run(test = "test52")
+    public void test52_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test52(vt);
+    }
+
+    @DontInline
+    static void test53_callee() { }
+
+    @Test
+    public void test53(MyValue1 val) {
+        synchronized (lock1) {
+            synchronized (lock2) {
+                synchronized (lock3) {
+                    test53_callee();
+                }
+            }
+        }
+    }
+
+    @Run(test = "test53")
+    public void test53_verifier() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        test53(vt);
     }
 }

@@ -42,6 +42,7 @@ import sun.invoke.util.Wrapper;
 
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Array;
+import java.lang.reflect.Field;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1502,6 +1503,16 @@ abstract class MethodHandleImpl {
             @Override
             public VarHandle insertCoordinates(VarHandle target, int pos, Object... values) {
                 return VarHandles.insertCoordinates(target, pos, values);
+            }
+
+            @Override
+            public MethodHandle findStatic(Class<?> cls, String name, MethodType methodType) throws NoSuchMethodException, IllegalAccessException {
+                return IMPL_LOOKUP.findStatic(cls, name, methodType);
+            }
+
+            @Override
+            public MethodHandle unreflectGetter(Field field) throws IllegalAccessException {
+                return IMPL_LOOKUP.unreflectGetter(field);
             }
         });
     }

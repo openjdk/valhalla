@@ -1247,6 +1247,21 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
+  if (value->is_InlineTypePtr()) {
+    // Null checking a scalarized but nullable inline type. Check the is_init
+    // input instead of the oop input to avoid keeping buffer allocations alive.
+    InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
+    while (vtptr->get_oop()->is_InlineTypePtr()) {
+      vtptr = vtptr->get_oop()->as_InlineTypePtr();
+    }
+    null_check_common(vtptr->get_is_init(), type, assert_null, null_control, speculative);
+    if (stopped()) {
+      return top();
+    }
+    bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
+    return cast_not_null(value, do_replace_in_map);
+  }
+
   // Construct NULL check
   Node *chk = NULL;
   switch(type) {
@@ -1424,28 +1439,26 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   return value;
 }
 
-Node* GraphKit::null2default(Node* value, ciInlineKlass* vk) {
-  assert(!vk->is_scalarizable(), "Should only be used for non scalarizable inline klasses");
-  Node* null_ctl = top();
-  value = null_check_oop(value, &null_ctl);
-  if (!null_ctl->is_top()) {
-    // Return default value if oop is null
-    Node* region = new RegionNode(3);
-    region->init_req(1, control());
-    region->init_req(2, null_ctl);
-    value = PhiNode::make(region, value, TypeInstPtr::make(TypePtr::BotPTR, vk));
-    value->set_req(2, InlineTypeNode::default_oop(gvn(), vk));
-    set_control(gvn().transform(region));
-    value = gvn().transform(value);
-  }
-  return value;
-}
-
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
     return obj;
+  } else if (obj->is_InlineTypePtr()) {
+    // Cast oop input instead
+    Node* cast = cast_not_null(obj->as_InlineTypePtr()->get_oop(), do_replace_in_map);
+    if (cast->is_top()) {
+      return top();
+    }
+    // Create a new node with the casted oop input and is_init set
+    InlineTypeBaseNode* vt = new InlineTypePtrNode(obj->as_InlineTypePtr());
+    vt->set_oop(cast);
+    vt->set_is_init(_gvn);
+    vt = _gvn.transform(vt)->as_InlineTypePtr();
+    if (do_replace_in_map) {
+      replace_in_map(obj, vt);
+    }
+    return vt;
   }
   const Type *t = _gvn.type(obj);
   const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
@@ -1455,11 +1468,6 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   Node *cast = new CastPPNode(obj,t_not_null);
   cast->init_req(0, control());
   cast = _gvn.transform( cast );
-
-  if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
-    // Scalarize inline type now that we know it's non-null
-    cast = InlineTypeNode::make_from_oop(this, cast, t->inline_klass())->as_ptr(&gvn());
-  }
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
@@ -1840,7 +1848,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     const Type* t = domain->field_at(i);
     if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
-      InlineTypeNode* vt = arg->as_InlineType();
+      InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
       vt->pass_fields(this, call, idx);
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
@@ -1909,12 +1917,18 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   Node* ret;
   if (call->method() == NULL || call->method()->return_type()->basic_type() == T_VOID) {
     ret = top();
-  } else if (call->tf()->returns_inline_type_as_fields()) {
-    // Return of multiple values (inline type fields): we create a
-    // InlineType node, each field is a projection from the call.
-    ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-    uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
+  } else if (call->method()->return_type()->is_inlinetype()) {
+    const Type* ret_type = call->tf()->range_sig()->field_at(TypeFunc::Parms);
+    if (call->tf()->returns_inline_type_as_fields()) {
+      // Return of multiple values (inline type fields): we create a
+      // InlineType node, each field is a projection from the call.
+      ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
+      uint base_input = TypeFunc::Parms;
+      ret = InlineTypeNode::make_from_multi(this, call, ret_type->inline_klass(), base_input, false);
+    } else {
+      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
+      ret = _gvn.transform(InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass(), !ret_type->maybe_null()));
+    }
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
@@ -2645,7 +2659,7 @@ Node* GraphKit::make_runtime_call(int flags,
   if (parm5 != NULL) { call->init_req(TypeFunc::Parms+5, parm5);
   if (parm6 != NULL) { call->init_req(TypeFunc::Parms+6, parm6);
   if (parm7 != NULL) { call->init_req(TypeFunc::Parms+7, parm7);
-    /* close each nested if ===> */  } } } } } } } }
+  /* close each nested if ===> */  } } } } } } } }
   assert(call->in(call->req()-1) != NULL, "must initialize all parms");
 
   if (!is_leaf) {
@@ -3114,9 +3128,9 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
       // recv_xtype, since now we know what the type will be.
       Node* cast = new CheckCastPPNode(control(), receiver, recv_xtype);
       Node* res = _gvn.transform(cast);
-      if (recv_xtype->is_inlinetypeptr() && recv_xtype->inline_klass()->is_scalarizable()) {
+      if (recv_xtype->is_inlinetypeptr()) {
         assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
-        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_ptr(&gvn());
+        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_InlineTypeBase()->as_ptr(&gvn());
       }
       (*casted_receiver) = res;
       // (User must make the replace_in_map call.)
@@ -3472,6 +3486,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
+  bool safe_for_replace = (failure_control == NULL);
   bool from_inline = obj->is_InlineType();
   assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
 
@@ -3483,7 +3498,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (tk->singleton()) {
     ciKlass* klass = NULL;
-    if (from_inline) {
+    if (obj->is_InlineTypeBase()) {
       klass = _gvn.type(obj)->inline_klass();
     } else {
       const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
@@ -3500,16 +3515,17 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         if (!from_inline) {
           obj = record_profiled_receiver_for_speculation(obj);
           if (null_free) {
+            assert(safe_for_replace, "must be");
             obj = null_check(obj);
           }
-          if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(obj)->maybe_null()) {
-            obj = InlineTypeNode::make_from_oop(this, obj, toop->inline_klass());
-          }
+          assert(stopped() || !toop->is_inlinetypeptr() ||
+                 obj->is_InlineTypeBase(), "should have been scalarized");
         }
         return obj;
       case Compile::SSC_always_false:
         if (from_inline || null_free) {
           if (!from_inline) {
+            assert(safe_for_replace, "must be");
             null_check(obj);
           }
           // Inline type is null-free. Always throw an exception.
@@ -3531,7 +3547,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   }
 
   ciProfileData* data = NULL;
-  bool safe_for_replace = false;
   if (failure_control == NULL) {        // use MDO in regular case only
     assert(java_bc() == Bytecodes::_aastore ||
            java_bc() == Bytecodes::_checkcast,
@@ -3539,7 +3554,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     if (method()->method_data()->is_mature()) {
       data = method()->method_data()->bci_to_data(bci());
     }
-    safe_for_replace = true;
   }
 
   // Make the merge point
@@ -3562,6 +3576,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (from_inline) {
     not_null_obj = obj;
   } else if (null_free) {
+    assert(safe_for_replace, "must be");
     not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
@@ -3622,7 +3637,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         PreserveJVMState pjvms(this);
         set_control(not_subtype_ctrl);
         Node* obj_klass = NULL;
-        if (from_inline) {
+        if (not_null_obj->is_InlineTypeBase()) {
           obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->inline_klass()));
         } else {
           obj_klass = load_object_klass(not_null_obj);
@@ -3691,10 +3706,19 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
   }
 
-  if (!stopped() && !from_inline) {
+  if (!stopped() && !res->is_InlineTypeBase()) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_inlinetypeptr() && toop->inline_klass()->is_scalarizable() && !gvn().type(res)->maybe_null()) {
-      res = InlineTypeNode::make_from_oop(this, res, toop->inline_klass());
+    if (toop->is_inlinetypeptr()) {
+      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+      res = vt;
+      if (safe_for_replace) {
+        if (vt->isa_InlineType() && C->inlining_incrementally()) {
+          vt = vt->as_InlineType()->as_ptr(&_gvn);
+        }
+        replace_in_map(obj, vt);
+        replace_in_map(not_null_obj, vt);
+        replace_in_map(res, vt);
+      }
     }
   }
   return res;
@@ -4714,12 +4738,10 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
                                                         /*is_unsigned_load=*/false);
   if (con_type != NULL) {
     Node* con = makecon(con_type);
-    // Check type of constant which might be more precise
-    if (con_type->is_inlinetypeptr() && con_type->inline_klass()->is_scalarizable()) {
-      assert(!con_type->is_zero_type(), "Inline types are null-free");
-      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
-    } else if (con_type->is_zero_type() && field->is_null_free()) {
-      con = InlineTypeNode::default_oop(gvn(), field->type()->as_inline_klass());
+    if (field->type()->is_inlinetype()) {
+      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
+    } else if (con_type->is_inlinetypeptr()) {
+      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());
     }
     return con;
   }

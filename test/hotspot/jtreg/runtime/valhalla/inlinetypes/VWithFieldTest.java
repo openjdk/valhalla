@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,8 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java
  * @compile -XDallowWithFieldOperator VWithFieldTest.java
- * @run main/othervm -Xint runtime.valhalla.inlinetypes.VWithFieldTest
- * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.VWithFieldTest
+ * @run main runtime.valhalla.inlinetypes.VWithFieldTest
  */
 
 public class VWithFieldTest {

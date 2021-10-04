@@ -4065,8 +4065,10 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  if (!EnableValhalla || (is_interpreter_only() && !is_dumping_archive())) {
-    // Disable calling convention optimizations if inline types are not supported
+  if (!EnableValhalla || (is_interpreter_only() && !is_dumping_archive() && !UseSharedSpaces)) {
+    // Disable calling convention optimizations if inline types are not supported.
+    // Also these aren't useful in -Xint. However, don't disable them when dumping or using
+    // the CDS archive, as the values must match between dumptime and runtime.
     InlineTypePassFieldsAsArgs = false;
     InlineTypeReturnedAsFields = false;
   }

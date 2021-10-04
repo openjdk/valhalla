@@ -372,6 +372,7 @@
   template(class_initializer_name,                    "<clinit>")                                 \
   template(println_name,                              "println")                                  \
   template(printStackTrace_name,                      "printStackTrace")                          \
+  template(getStackTrace_name,                        "getStackTrace")                            \
   template(main_name,                                 "main")                                     \
   template(name_name,                                 "name")                                     \
   template(priority_name,                             "priority")                                 \
@@ -601,7 +602,9 @@
   template(int_String_signature,                      "(I)Ljava/lang/String;")                                    \
   template(boolean_boolean_int_signature,             "(ZZ)I")                                                    \
   template(big_integer_shift_worker_signature,        "([I[IIII)V")                                               \
-  template(reflect_method_signature,                  "Ljava/lang/reflect/Method;")                                                    \
+  template(reflect_method_signature,                  "Ljava/lang/reflect/Method;")                               \
+  template(getStackTrace_signature,                    "()[Ljava/lang/StackTraceElement;")                        \
+                                                                                                                  \
   /* signature symbols needed by intrinsics */                                                                    \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, template, VM_ALIAS_IGNORE)            \
                                                                                                                   \
@@ -715,9 +718,9 @@
   template(toFileURL_signature,                             "(Ljava/lang/String;)Ljava/net/URL;")                 \
   template(url_void_signature,                              "(Ljava/net/URL;)V")                                  \
                                                                                                                   \
-  template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
-  template(isSubstitutable_name,                   "isSubstitutable")                                             \
-  template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
+  template(java_lang_runtime_PrimitiveObjectMethods,        "java/lang/runtime/PrimitiveObjectMethods")           \
+  template(isSubstitutable_name,                            "isSubstitutable")                                    \
+  template(primitiveObjectHashCode_name,                    "primitiveObjectHashCode")                            \
                                                                                                                   \
   /*end*/
 

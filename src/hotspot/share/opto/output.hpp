@@ -243,8 +243,6 @@ public:
 
   int               bang_size_in_bytes() const;
 
-  int               sp_inc_offset()      const  { return _sp_inc_slot_offset_in_bytes; }
-
   uint              node_bundling_limit();
   Bundle*           node_bundling_base();
   void          set_node_bundling_limit(uint n) { _node_bundling_limit = n; }

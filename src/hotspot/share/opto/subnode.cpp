@@ -30,6 +30,7 @@
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/movenode.hpp"
@@ -1141,6 +1142,13 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // checking to see an unknown klass subtypes a known klass with no subtypes;
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  if (in(1)->is_InlineTypePtr() && phase->type(in(2))->is_zero_type()) {
+    // Null checking a scalarized but nullable inline type. Check the is_init
+    // input instead of the oop input to avoid keeping buffer allocations alive.
+    set_req_X(1, in(1)->as_InlineTypePtr()->get_is_init(), phase);
+    return this;
+  }
+
   // Normalize comparisons between Java mirrors into comparisons of the low-
   // level klass, where a dependent load could be shortened.
   //

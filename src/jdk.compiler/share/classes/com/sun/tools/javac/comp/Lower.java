@@ -2526,7 +2526,8 @@ public class Lower extends TreeTranslator {
                             syms.typeDescriptorType).appendList(staticArgTypes),
                     staticArgsValues, bootstrapName, name, false);
 
-            VarSymbol _this = new VarSymbol(SYNTHETIC, names._this, tree.sym.type, tree.sym);
+            Type receiverType = tree.sym.type.isPrimitiveReferenceType() ? tree.sym.type.asValueType() : tree.sym.type;
+            VarSymbol _this = new VarSymbol(SYNTHETIC, names._this, receiverType, tree.sym);
 
             JCMethodInvocation proxyCall;
             if (!isEquals) {
@@ -2610,8 +2611,9 @@ public class Lower extends TreeTranslator {
                 bootstrapName, staticArgTypes, List.nil());
 
         MethodType indyType = msym.type.asMethodType();
+        Type receiverType = tree.sym.type.isPrimitiveReferenceType() ? tree.sym.type.asValueType() : tree.sym.type;
         indyType = new MethodType(
-                isStatic ? List.nil() : indyType.argtypes.prepend(tree.sym.type),
+                isStatic ? List.nil() : indyType.argtypes.prepend(receiverType),
                 indyType.restype,
                 indyType.thrown,
                 syms.methodClass

@@ -391,8 +391,6 @@ class GraphKit : public Phase {
     return null_check_common(value, type, true, NULL, _gvn.type(value)->speculative_always_null());
   }
 
-  Node* null2default(Node* value, ciInlineKlass* vk = NULL);
-
   // Check if value is null and abort if it is
   Node* must_be_not_null(Node* value, bool do_replace_in_map);
 
@@ -707,12 +705,14 @@ class GraphKit : public Phase {
     const int nargs = declared_method->arg_size();
     inc_sp(nargs);
     Node* n = null_check_receiver();
+    // TODO Remove this code once InlineTypeNodes are replaced by InlineTypePtrNodes
+    set_argument(0, n);
     dec_sp(nargs);
     // Scalarize inline type receiver
     const Type* recv_type = gvn().type(n);
-    if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
+    if (recv_type->is_inlinetypeptr()) {
       assert(!recv_type->maybe_null(), "should never be null");
-      InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
+      Node* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);
       if (replace_value && is_Parse()) {
         // Only replace in map if we are not incrementally inlining because we
