@@ -633,7 +633,6 @@ void FieldLayoutBuilder::regular_field_sorting() {
       group->add_oop_field(fs);
       break;
     case T_INLINE_TYPE:
-//      fs.set_inline(true);
       _has_inline_type_fields = true;
       if (group == _static_fields) {
         // static fields are never inlined
@@ -659,7 +658,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
           //too_volatile_to_flatten = false; //FIXME
           // volatile fields are currently never inlined, this could change in the future
         }
-        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
+        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fs.access_flags().is_final()) {
           group->add_inlined_field(fs, vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
           fs.set_inlined(true);
@@ -760,7 +759,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
           //too_volatile_to_flatten = false; //FIXME
           // volatile fields are currently never inlined, this could change in the future
         }
-        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
+        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten) || fs.access_flags().is_final()) {
           group->add_inlined_field(fs, vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
           field_alignment = vk->get_alignment();
