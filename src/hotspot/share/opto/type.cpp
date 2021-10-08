@@ -5702,6 +5702,8 @@ int TypeInstKlassPtr::hash(void) const {
 }
 
 const TypeInstKlassPtr *TypeInstKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array) {
+  flatten_array = flatten_array || k->flatten_array();
+
   TypeInstKlassPtr *r =
     (TypeInstKlassPtr*)(new TypeInstKlassPtr(ptr, k, offset, flatten_array))->hashcons();
 
