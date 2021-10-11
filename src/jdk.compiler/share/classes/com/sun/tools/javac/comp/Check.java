@@ -3351,7 +3351,9 @@ public class Check {
         List<Pair<MethodSymbol,Attribute>> l = repeatable.values;
         if (!l.isEmpty()) {
             Assert.check(l.head.fst.name == names.value);
-            t = ((Attribute.Class)l.head.snd).getValue();
+            if (l.head.snd instanceof Attribute.Class) {
+                t = ((Attribute.Class)l.head.snd).getValue();
+            }
         }
 
         if (t == null) {
