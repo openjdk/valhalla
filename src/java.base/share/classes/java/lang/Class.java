@@ -243,7 +243,7 @@ public final class Class<T> implements java.io.Serializable,
         // Avoid invokedynamic based String concat, might be not available
         s = s.concat(getName());
         if (isPrimitiveClass() && isPrimaryType()) {
-            s.concat(".ref");
+            s = s.concat(".ref");
         }
         return s;
     }
