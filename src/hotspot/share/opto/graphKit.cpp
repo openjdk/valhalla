@@ -1259,12 +1259,6 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     if (stopped()) {
       return top();
     }
-    if (assert_null) {
-      assert(false, "FAIL");
-      return value;
-      //replace_in_map(value, zerocon(type));
-      //return zerocon(type);
-    }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
   }
