@@ -135,12 +135,20 @@ void Parse::array_load(BasicType bt) {
         // ordered with other unknown and known flattened array accesses.
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        kill_dead_locals();
-        Node* call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
-                                       OptoRuntime::load_unknown_inline_type(),
-                                       OptoRuntime::load_unknown_inline_Java(),
-                                       NULL, TypeRawPtr::BOTTOM,
-                                       ary, idx);
+        Node* call = NULL;
+        {
+          // Re-execute flattened array load if runtime call triggers deoptimization
+          PreserveReexecuteState preexecs(this);
+          jvms()->set_bci(_bci);
+          jvms()->set_should_reexecute(true);
+          inc_sp(2);
+          kill_dead_locals();
+          call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                   OptoRuntime::load_unknown_inline_type(),
+                                   OptoRuntime::load_unknown_inline_Java(),
+                                   NULL, TypeRawPtr::BOTTOM,
+                                   ary, idx);
+        }
         make_slow_call_ex(call, env()->Throwable_klass(), false);
         Node* buffer = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
 
