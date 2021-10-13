@@ -1016,11 +1016,11 @@ protected:
   meet_instptr(PTR &ptr, ciKlass* this_klass, ciKlass* tinst_klass, bool this_xk, bool tinst_xk, PTR this_ptr,
                PTR tinst_ptr, bool this_flatten_array, bool tinst_flatten_array, ciKlass*&res_klass, bool &res_xk,
                bool& res_flatten_array);
-  static MeetResult
-  meet_aryptr(PTR& ptr, const Type*& elem, ciKlass* this_klass, ciKlass* tap_klass, bool this_xk, bool tap_xk,
-              PTR this_ptr, PTR tap_ptr, bool this_not_flat, bool tap_not_flat,
-              bool this_not_null_free, bool tap_not_null_free, ciKlass*& res_klass,
-              bool& res_xk, bool& res_not_flat, bool& res_not_null_free);
+
+  static MeetResult meet_aryptr(PTR &ptr, const Type* this_elem, const Type* tap_elem, ciKlass* this_klass, ciKlass* tap_klass,
+                                bool this_xk, bool tap_xk, PTR this_ptr, PTR tap_ptr, bool this_not_flat, bool tap_not_flat,
+                                bool this_not_null_free, bool tap_not_null_free, const Type*& res_elem, ciKlass*&res_klass,
+                                bool &res_xk, bool &res_not_flat, bool &res_not_null_free);
 
 public:
   const Offset _offset;         // Offset into oop, with TOP & BOT

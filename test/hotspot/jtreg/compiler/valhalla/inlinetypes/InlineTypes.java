@@ -114,7 +114,7 @@ public class InlineTypes {
         protected static final String ALLOC_G  = "(.*call,static.*wrapper for: _new_instance_Java" + END;
         protected static final String ALLOCA_G = "(.*call,static.*wrapper for: _new_array_Java" + END;
         // Inline type allocation
-        protected static final String MYVALUE_ARRAY_KLASS = "\\[precise compiler/valhalla/inlinetypes/MyValue";
+        protected static final String MYVALUE_ARRAY_KLASS = "\\[(precise )?compiler/valhalla/inlinetypes/MyValue";
         protected static final String ALLOC  = "(.*precise compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_instance_Java" + END;
         protected static final String ALLOCA = "(.*" + MYVALUE_ARRAY_KLASS + ".*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_array_Java" + END;
         protected static final String LOAD   = START + "Load(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
