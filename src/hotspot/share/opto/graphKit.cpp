@@ -1242,7 +1242,8 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
                                   // optional arguments for variations:
                                   bool assert_null,
                                   Node* *null_control,
-                                  bool speculative) {
+                                  bool speculative,
+                                  bool is_init_check) {
   assert(!assert_null || null_control == NULL, "not both at once");
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
@@ -1254,9 +1255,15 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     while (vtptr->get_oop()->is_InlineTypePtr()) {
       vtptr = vtptr->get_oop()->as_InlineTypePtr();
     }
-    null_check_common(vtptr->get_is_init(), type, assert_null, null_control, speculative);
+    null_check_common(vtptr->get_is_init(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
+    }
+    if (assert_null) {
+      assert(false, "FAIL");
+      return value;
+      //replace_in_map(value, zerocon(type));
+      //return zerocon(type);
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
@@ -1365,7 +1372,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   Deoptimization::DeoptReason reason;
   if (assert_null) {
     reason = Deoptimization::reason_null_assert(speculative);
-  } else if (type == T_OBJECT) {
+  } else if (type == T_OBJECT || is_init_check) {
     reason = Deoptimization::reason_null_check(speculative);
   } else {
     reason = Deoptimization::Reason_div0_check;
@@ -1448,10 +1455,11 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
     // Cast oop input instead
     Node* cast = cast_not_null(obj->as_InlineTypePtr()->get_oop(), do_replace_in_map);
     if (cast->is_top()) {
+      // Always null
       return top();
     }
     // Create a new node with the casted oop input and is_init set
-    InlineTypeBaseNode* vt = new InlineTypePtrNode(obj->as_InlineTypePtr());
+    InlineTypeBaseNode* vt = obj->clone()->as_InlineTypePtr();
     vt->set_oop(cast);
     vt->set_is_init(_gvn);
     vt = _gvn.transform(vt)->as_InlineTypePtr();

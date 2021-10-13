@@ -2386,4 +2386,33 @@ public class TestNullableInlineTypes {
         test86(testValue1);
         Asserts.assertEquals(test86(testValue1), testValue1.hash());
     }
+
+    public static primitive class Test87C0 {
+        int x = rI;
+    }
+
+    public static primitive class Test87C1 {
+        Test87C0 field = Test87C0.default;
+    }
+
+    public static primitive class Test87C2 {
+        Test87C1 field = Test87C1.default;
+    }
+
+    // Test merging .val and .ref in return
+    @Test
+    public Test87C1 test87(boolean b, Test87C2.val v1, Test87C2.ref v2) {
+        if (b) {
+            return v1.field;
+        } else {
+            return v2.field;
+        }
+    }
+
+    @Run(test = "test87")
+    public void test87_verifier(RunInfo info) {
+        Test87C2 v = new Test87C2();
+        Asserts.assertEQ(test87(true, v, v), v.field);
+        Asserts.assertEQ(test87(false, v, v), v.field);
+    }
 }

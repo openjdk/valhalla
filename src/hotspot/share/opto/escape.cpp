@@ -967,7 +967,8 @@ void ConnectionGraph::add_call_node(CallNode* call) {
     ciMethod* meth = call->as_CallJava()->method();
     if (meth == NULL) {
       const char* name = call->as_CallStaticJava()->_name;
-      assert(strncmp(name, "_multianewarray", 15) == 0, "TODO: add failed case check");
+      assert(strncmp(name, "_multianewarray", 15) == 0 ||
+             strncmp(name, "_load_unknown_inline", 20) == 0, "TODO: add failed case check");
       // Returns a newly allocated non-escaped object.
       add_java_object(call, PointsToNode::NoEscape);
       ptnode_adr(call_idx)->set_scalar_replaceable(false);
@@ -1672,7 +1673,8 @@ int ConnectionGraph::find_init_values_phantom(JavaObjectNode* pta) {
 #ifdef ASSERT
   if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == NULL) {
     const char* name = alloc->as_CallStaticJava()->_name;
-    assert(strncmp(name, "_multianewarray", 15) == 0, "sanity");
+    assert(strncmp(name, "_multianewarray", 15) == 0 ||
+           strncmp(name, "_load_unknown_inline", 20) == 0, "sanity");
   }
 #endif
   // Non-escaped allocation returned from Java or runtime call have unknown values in fields.

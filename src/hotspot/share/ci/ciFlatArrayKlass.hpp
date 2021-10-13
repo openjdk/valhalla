@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,17 +41,10 @@ private:
 
 protected:
   ciFlatArrayKlass(Klass* h_k);
-  ciFlatArrayKlass(ciSymbol* array_name,
-                    ciInlineKlass* element_klass,
-                    int dimension);
 
   FlatArrayKlass* get_FlatArrayKlass() {
     return (FlatArrayKlass*)get_Klass();
   }
-
-  static ciArrayKlass* make_impl(ciKlass* element_klass);
-  static ciSymbol* construct_array_name(ciSymbol* element_name,
-                                        int       dimension);
 
   const char* type_string() { return "ciFlatArrayKlass"; }
 
@@ -60,7 +53,6 @@ protected:
 
   oop     protection_domain()        { return _base_element_klass->protection_domain(); }
   jobject protection_domain_handle() { return _base_element_klass->protection_domain_handle(); }
-
 
 public:
   // The one-level type of the array elements.
@@ -76,8 +68,6 @@ public:
 
   // What kind of ciObject is this?
   bool is_flat_array_klass() const { return true; }
-
-  static ciArrayKlass* make(ciKlass* element_klass);
 
   virtual ciKlass* exact_klass();
 
