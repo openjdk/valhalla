@@ -1210,41 +1210,30 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
     return res;
   }
   // verify the control flow is ok
-  Node* c = ctl;
-  Node* copy = NULL;
-  Node* alloc = NULL;
+  Node* call = ctl;
+  MemBarNode* membar = NULL;
   for (;;) {
-    if (c == NULL || c->is_top()) {
+    if (call == NULL || call->is_top()) {
       return false;
     }
-    if (c->is_Proj() || c->is_Catch() || c->is_MemBar()) {
-      c = c->in(0);
-    } else if (c->Opcode() == Op_CallLeaf &&
-               c->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_inline)) {
-      copy = c;
-      c = c->in(0);
-    } else if (c->is_Allocate()) {
-      Node* new_obj = c->as_Allocate()->result_cast();
-      if (copy == NULL || new_obj == NULL) {
-        return false;
-      }
-      Node* copy_dest = copy->in(TypeFunc::Parms + 2);
-      if (copy_dest != new_obj) {
-        return false;
-      }
-      alloc = c;
+    if (call->is_Proj() || call->is_Catch() || call->is_MemBar()) {
+      call = call->in(0);
+    } else if (call->Opcode() == Op_CallStaticJava &&
+               call->as_Call()->entry_point() == OptoRuntime::load_unknown_inline_Java()) {
+      assert(call->in(0)->is_Proj() && call->in(0)->in(0)->is_MemBar(), "missing membar");
+      membar = call->in(0)->in(0)->as_MemBar();
       break;
     } else {
       return false;
     }
   }
 
-  JVMState* jvms = alloc->jvms();
+  JVMState* jvms = call->jvms();
   if (phase->C->too_many_traps(jvms->method(), jvms->bci(), Deoptimization::trap_request_reason(uncommon_trap_request()))) {
     return false;
   }
 
-  Node* alloc_mem = alloc->in(TypeFunc::Memory);
+  Node* alloc_mem = call->in(TypeFunc::Memory);
   if (alloc_mem == NULL || alloc_mem->is_top()) {
     return false;
   }
@@ -1265,14 +1254,9 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
         m1 = m1->in(0);
       } else if (m1->is_MemBar()) {
         m1 = m1->in(TypeFunc::Memory);
-      } else if (m1->Opcode() == Op_CallLeaf &&
-                 m1->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_inline)) {
-        if (m1 != copy) {
-          return false;
-        }
-        m1 = m1->in(TypeFunc::Memory);
-      } else if (m1->is_Allocate()) {
-        if (m1 != alloc) {
+      } else if (m1->Opcode() == Op_CallStaticJava &&
+                 m1->as_Call()->entry_point() == OptoRuntime::load_unknown_inline_Java()) {
+        if (m1 != call) {
           return false;
         }
         break;
@@ -1293,23 +1277,26 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
     igvn->remove_dead_node(alloc_mem);
   }
 
+  // Remove membar preceding the call
+  membar->remove(igvn);
+
   address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
   CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap", NULL);
-  unc->init_req(TypeFunc::Control, alloc->in(0));
-  unc->init_req(TypeFunc::I_O, alloc->in(TypeFunc::I_O));
-  unc->init_req(TypeFunc::Memory, alloc->in(TypeFunc::Memory));
-  unc->init_req(TypeFunc::FramePtr,  alloc->in(TypeFunc::FramePtr));
-  unc->init_req(TypeFunc::ReturnAdr, alloc->in(TypeFunc::ReturnAdr));
+  unc->init_req(TypeFunc::Control, call->in(0));
+  unc->init_req(TypeFunc::I_O, call->in(TypeFunc::I_O));
+  unc->init_req(TypeFunc::Memory, call->in(TypeFunc::Memory));
+  unc->init_req(TypeFunc::FramePtr,  call->in(TypeFunc::FramePtr));
+  unc->init_req(TypeFunc::ReturnAdr, call->in(TypeFunc::ReturnAdr));
   unc->init_req(TypeFunc::Parms+0, unc_arg);
   unc->set_cnt(PROB_UNLIKELY_MAG(4));
-  unc->copy_call_debug_info(igvn, alloc->as_Allocate());
+  unc->copy_call_debug_info(igvn, call->as_CallStaticJava());
 
-  igvn->replace_input_of(alloc, 0, phase->C->top());
+  igvn->replace_input_of(call, 0, phase->C->top());
 
   igvn->register_new_node_with_optimizer(unc);
 
   Node* ctrl = phase->transform(new ProjNode(unc, TypeFunc::Control));
-  Node* halt = phase->transform(new HaltNode(ctrl, alloc->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
+  Node* halt = phase->transform(new HaltNode(ctrl, call->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
   phase->C->root()->add_req(halt);
 
   return true;

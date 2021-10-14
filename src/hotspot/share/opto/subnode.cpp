@@ -1145,8 +1145,7 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (in(1)->is_InlineTypePtr() && phase->type(in(2))->is_zero_type()) {
     // Null checking a scalarized but nullable inline type. Check the is_init
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    set_req_X(1, in(1)->as_InlineTypePtr()->get_is_init(), phase);
-    return this;
+    return new CmpINode(in(1)->as_InlineTypePtr()->get_is_init(), phase->intcon(0));
   }
 
   // Normalize comparisons between Java mirrors into comparisons of the low-
