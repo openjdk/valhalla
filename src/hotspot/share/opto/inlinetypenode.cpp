@@ -35,7 +35,7 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region) {
+InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool not_null) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
   if (vt->is_InlineTypePtr()) {
     // Use nullable type
@@ -46,6 +46,9 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
 
   // Create a PhiNode for merging the oop values
   const Type* phi_type = Type::get_const_type(inline_klass());
+  if (not_null) {
+    phi_type = phi_type->join_speculative(TypePtr::NOTNULL);
+  }
   PhiNode* oop = PhiNode::make(region, vt->get_oop(), phi_type);
   gvn->set_type(oop, phi_type);
   gvn->record_for_igvn(oop);

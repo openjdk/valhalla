@@ -1913,12 +1913,12 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
+InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool not_null) {
   InlineTypeBaseNode* vt = NULL;
   if (_type->isa_ptr()) {
-    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), not_null);
   } else {
-    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), not_null);
   }
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
@@ -1941,7 +1941,7 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       other = InlineTypePtrNode::make_null(*phase, vk);
     } else {
       assert(can_reshape, "can only handle phis during IGVN");
-      other = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
+      other = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, not_null));
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
     vt->merge_with(phase, other->as_InlineTypeBase(), i, transform);
@@ -2509,6 +2509,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     worklist.push(this);
     bool can_optimize = true;
     ciInlineKlass* vk = NULL;
+    bool not_null = true;
 
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
@@ -2523,15 +2524,21 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->can_merge() &&
             (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
+          if (phase->type(n->as_InlineTypeBase()->get_oop())->maybe_null()) {
+            not_null = false;
+          }
         } else if (n->is_Phi() && can_reshape) {
           worklist.push(n);
-        } else if (!t->is_zero_type()) {
+        } else if (t->is_zero_type()) {
+          not_null = false;
+        } else {
           can_optimize = false;
         }
       }
     }
     if (can_optimize && vk != NULL) {
-      progress = push_inline_types_through(phase, can_reshape, vk);
+      assert(!_type->isa_ptr() || _type->maybe_null() || not_null, "Phi not null but a null input was seen");
+      progress = push_inline_types_through(phase, can_reshape, vk, not_null);
     }
   }
 
