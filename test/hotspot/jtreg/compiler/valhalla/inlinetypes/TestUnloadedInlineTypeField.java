@@ -1052,8 +1052,8 @@ public class TestUnloadedInlineTypeField {
         } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
             // Expected
         }
-        Test25ClassB res = test25();
         try {
+            Test25ClassB res = test25();
             Asserts.assertEQ(res.x, 0);
             throw new RuntimeException("Should have thrown NoClassDefFoundError");
         } catch (NoClassDefFoundError e) {
