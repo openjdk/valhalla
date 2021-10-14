@@ -1668,7 +1668,14 @@ Node *LoadNode::split_through_phi(PhaseGVN *phase) {
       the_clone = x;            // Remember for possible deletion.
       // Alter data node to use pre-phi inputs
       if (this->in(0) == region) {
-        x->set_req(0, in);
+        if (mem->is_Phi() && (mem->in(0) == region) && mem->in(i)->in(0) != NULL &&
+            MemNode::all_controls_dominate(address, region)) {
+          // Enable other optimizations such as loop predication which does not work
+          // if we directly pin the node to node `in`
+          x->set_req(0, mem->in(i)->in(0)); // Use same control as memory
+        } else {
+          x->set_req(0, in);
+        }
       } else {
         x->set_req(0, NULL);
       }
@@ -2036,7 +2043,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         return con_type;
       }
     }
-  } else if (tp->base() == Type::KlassPtr) {
+  } else if (tp->base() == Type::KlassPtr || tp->base() == Type::InstKlassPtr || tp->base() == Type::AryKlassPtr) {
     assert( off != Type::OffsetBot ||
             // arrays can be cast to Objects
             tp->is_klassptr()->klass() == NULL ||
@@ -2428,7 +2435,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       }
 
       // Return root of possible klass
-      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
+      return TypeInstKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
     }
   }
 
@@ -2461,7 +2468,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false, tary->is_not_flat(), tary->is_not_null_free());
+        return TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), tary->is_not_flat(), tary->is_not_null_free(), tary->is_null_free());
       } else if (ak->is_type_array_klass()) {
         return TypeKlassPtr::make(ak); // These are always precise
       }
@@ -2488,7 +2495,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
     } else if (klass->is_flat_array_klass() &&
                tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_flat_array_klass()->element_klass();
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
+      return TypeInstKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {

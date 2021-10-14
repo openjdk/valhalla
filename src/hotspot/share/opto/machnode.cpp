@@ -697,6 +697,7 @@ void MachCallNode::dump_spec(outputStream *st) const {
 }
 #endif
 
+#ifndef _LP64
 bool MachCallNode::return_value_is_used() const {
   if (tf()->range_sig()->cnt() == TypeFunc::Parms) {
     // void return
@@ -715,6 +716,7 @@ bool MachCallNode::return_value_is_used() const {
   }
   return false;
 }
+#endif
 
 // Similar to cousin class CallNode::returns_pointer
 // Because this is used in deoptimization, we want the type info, not the data

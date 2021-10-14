@@ -289,7 +289,6 @@ public:
   bool  has_reinterpret_variant(const Type* rt);
   Node* convert_to_reinterpret_load(PhaseGVN& gvn, const Type* rt);
 
-  void pin() { _control_dependency = Pinned; }
   bool has_unknown_control_dependency() const { return _control_dependency == UnknownControl; }
 
 #ifndef PRODUCT
@@ -533,7 +532,7 @@ public:
 
   // Polymorphic factory method:
   static Node* make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at,
-                    const TypeKlassPtr* tk = TypeKlassPtr::OBJECT);
+                    const TypeKlassPtr* tk = TypeInstKlassPtr::OBJECT);
 };
 
 //------------------------------LoadNKlassNode---------------------------------

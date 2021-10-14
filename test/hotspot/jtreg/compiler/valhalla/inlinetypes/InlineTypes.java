@@ -114,8 +114,8 @@ public class InlineTypes {
         protected static final String ALLOC_G  = "(.*call,static.*wrapper for: _new_instance_Java" + END;
         protected static final String ALLOCA_G = "(.*call,static.*wrapper for: _new_array_Java" + END;
         // Inline type allocation
-        protected static final String MYVALUE_ARRAY_KLASS = "precise klass \\[(L|Q)compiler/valhalla/inlinetypes/MyValue";
-        protected static final String ALLOC  = "(.*precise klass compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_instance_Java" + END;
+        protected static final String MYVALUE_ARRAY_KLASS = "\\[precise compiler/valhalla/inlinetypes/MyValue";
+        protected static final String ALLOC  = "(.*precise compiler/valhalla/inlinetypes/MyValue.*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_instance_Java" + END;
         protected static final String ALLOCA = "(.*" + MYVALUE_ARRAY_KLASS + ".*\\R(.*(?i:mov|xorl|nop|spill).*\\R)*.*_new_array_Java" + END;
         protected static final String LOAD   = START + "Load(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/inlinetypes/.*" + END;
         protected static final String LOADK  = START + "LoadK" + MID + END;
@@ -131,7 +131,7 @@ public class InlineTypes {
         protected static final String CALL_LEAF_NOFP = "(CALL, runtime leaf nofp|call_leaf_nofp,runtime)";
         protected static final String STORE_INLINE_FIELDS = START + "CallStaticJava" + MID + "store_inline_type_fields" + END;
         protected static final String SCOBJ = "(.*# ScObj.*" + END;
-        protected static final String LOAD_UNKNOWN_INLINE = "(.*" + CALL_LEAF + ".*load_unknown_inline.*" + END;
+        protected static final String LOAD_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "_load_unknown_inline" + END;
         protected static final String STORE_UNKNOWN_INLINE = "(.*" + CALL_LEAF + ".*store_unknown_inline.*" + END;
         protected static final String INLINE_ARRAY_NULL_GUARD = "(.*call,static.*wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
         protected static final String INTRINSIC_SLOW_PATH = "(.*call,static.*wrapper for: uncommon_trap.*reason='intrinsic_or_type_checked_inlining'.*" + END;
@@ -143,7 +143,7 @@ public class InlineTypes {
         protected static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
         protected static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
         protected static final String MEMBAR = START + "MemBar" + MID + END;
-        protected static final String CHECKCAST_ARRAY = "(((?i:cmp|CLFI|CLR).*" + MYVALUE_ARRAY_KLASS + ".*;:|.*(?i:mov|or).*" + MYVALUE_ARRAY_KLASS + ".*;:.*\\R.*(cmp|CMP|CLR))" + END;
+        protected static final String CHECKCAST_ARRAY = "(((?i:cmp|CLFI|CLR).*" + MYVALUE_ARRAY_KLASS + ".*:|.*(?i:mov|or).*" + MYVALUE_ARRAY_KLASS + ".*;:.*\\R.*(cmp|CMP|CLR))" + END;
         protected static final String CHECKCAST_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*checkcast_arraycopy.*" + END;
         protected static final String JLONG_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*jlong_disjoint_arraycopy.*" + END;
         protected static final String FIELD_ACCESS = "(.*Field: *" + END;

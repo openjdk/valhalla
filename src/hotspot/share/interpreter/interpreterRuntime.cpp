@@ -264,7 +264,7 @@ JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPo
   assert(k->is_inline_klass(), "defaultvalue argument must be the inline type class");
   InlineKlass* vklass = InlineKlass::cast(k);
 
-  vklass->initialize(THREAD);
+  vklass->initialize(CHECK);
   oop res = vklass->default_value();
   current->set_vm_result(res);
 JRT_END
@@ -1552,7 +1552,8 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
                           fingerprint,
                           buffer.insts_size());
             if (buffer.insts_size() > 0) {
-              Disassembler::decode(handler, handler + buffer.insts_size());
+              Disassembler::decode(handler, handler + buffer.insts_size(), tty
+                                   NOT_PRODUCT(COMMA &buffer.asm_remarks()));
             }
 #ifndef PRODUCT
             address rh_begin = Interpreter::result_handler(method()->result_type());

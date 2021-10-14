@@ -1418,14 +1418,8 @@ const intx ObjectAlignmentInBytes = 8;
   product(intx, SpecTrapLimitExtraEntries,  3, EXPERIMENTAL,                \
           "Extra method data trap entries for speculation")                 \
                                                                             \
-  develop(intx, InlineFrequencyRatio,    20,                                \
+  product(double, InlineFrequencyRatio, 0.25, DIAGNOSTIC,                   \
           "Ratio of call site execution to caller method invocation")       \
-          range(0, max_jint)                                                \
-                                                                            \
-  product_pd(intx, InlineFrequencyCount, DIAGNOSTIC,                        \
-          "Count of call site execution necessary to trigger frequent "     \
-          "inlining")                                                       \
-          range(0, max_jint)                                                \
                                                                             \
   develop(intx, InlineThrowCount,    50,                                    \
           "Force inlining of interpreted methods that throw this often")    \
@@ -1459,10 +1453,10 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, PrintMetaspaceStatisticsAtExit, false, DIAGNOSTIC,          \
           "Print metaspace statistics upon VM exit.")                       \
                                                                             \
-  product(bool, MetaspaceGuardAllocations, false, DIAGNOSTIC,               \
+  develop(bool, MetaspaceGuardAllocations, false,                           \
           "Metapace allocations are guarded.")                              \
                                                                             \
-  product(bool, MetaspaceHandleDeallocations, true, DIAGNOSTIC,             \
+  develop(bool, MetaspaceHandleDeallocations, true,                         \
           "Switch off Metapace deallocation handling.")                     \
                                                                             \
   product(uintx, MinHeapFreeRatio, 40, MANAGEABLE,                          \

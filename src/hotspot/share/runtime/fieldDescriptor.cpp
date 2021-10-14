@@ -56,7 +56,7 @@ Symbol* fieldDescriptor::generic_signature() const {
     }
   }
   assert(false, "should never happen");
-  return NULL;
+  return vmSymbols::void_signature(); // return a default value (for code analyzers)
 }
 
 bool fieldDescriptor::is_trusted_final() const {

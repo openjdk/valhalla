@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -163,9 +163,9 @@ public class InstructionHelper {
 
     // loadCode(MethodHandles.Lookup, String, MethodType, Consumer<? super MethodHandleCodeBuilder<?>>) et al...
 
-    public static MethodHandle loadCode(MethodHandles.Lookup lookup, String name, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
+    public static MethodHandle loadCode(MethodHandles.Lookup lookup, String methodName, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
         String className = generateClassNameFromLookupClass(lookup);
-        return loadCode(lookup, className, name, type, builder);
+        return loadCode(lookup, className, methodName, type, builder);
     }
 
     public static MethodHandle loadCode(MethodHandles.Lookup lookup, String className, String methodName, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
@@ -181,29 +181,49 @@ public class InstructionHelper {
                     builder);
     }
 
+    // Helper method to load code built with "buildCode()"
+    public static MethodHandle loadCodeBytes(MethodHandles.Lookup lookup, String methodName, MethodType type, byte[] byteCode) {
+        try {
+            Class<?> clazz = lookup.defineClass(byteCode);
+            return lookup.findStatic(clazz, methodName, type);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to loadCodeBytes \"" + methodName + "\"", t);
+        }
+    }
+
 
     private static <Z, C extends CodeBuilder<Class<?>, String, byte[], ?>> Z loadCode(
             MethodHandles.Lookup lookup, String className, String methodName, String type,
             Function<MethodBuilder<Class<?>, String, byte[]>, ? extends C> builderFunc,
             Function<Class<?>, Z> resFunc, Consumer<? super C> builder) {
-
-        IsolatedMethodBuilder isolatedMethodBuilder = new IsolatedMethodBuilder(className, lookup);
-        isolatedMethodBuilder
-                .withSuperclass(Object.class)
-                .withMajorVersion(62)
-                .withMinorVersion(0)
-                .withFlags(Flag.ACC_PUBLIC)
-                .withMethod(methodName, type, M ->
-                        M.withFlags(Flag.ACC_STATIC, Flag.ACC_PUBLIC)
-                                .withCode(builderFunc, builder));
-
         try {
-            byte[] byteArray = isolatedMethodBuilder.build();
+            byte[] byteArray = buildCode(lookup, className, methodName, type, builderFunc, builder);
             Class<?> clazz = lookup.defineClass(byteArray);
             return resFunc.apply(clazz);
         } catch (Throwable e) {
              throw new IllegalStateException(e);
         }
+    }
+
+    public static byte[] buildCode(MethodHandles.Lookup lookup, String methodName, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
+        String className = generateClassNameFromLookupClass(lookup);
+        return buildCode(lookup, className, methodName, type.toMethodDescriptorString(), MethodHandleCodeBuilder::new, builder);
+    }
+
+    public static <C extends CodeBuilder<Class<?>, String, byte[], ?>> byte[] buildCode(
+        MethodHandles.Lookup lookup, String className, String methodName, String type,
+            Function<MethodBuilder<Class<?>, String, byte[]>, ? extends C> builderFunc,
+            Consumer<? super C> builder) {
+
+                return new IsolatedMethodBuilder(className, lookup)
+                    .withSuperclass(Object.class)
+                    .withMajorVersion(62)
+                    .withMinorVersion(0)
+                    .withFlags(Flag.ACC_PUBLIC)
+                    .withMethod(methodName, type, M ->
+                        M.withFlags(Flag.ACC_STATIC, Flag.ACC_PUBLIC)
+                            .withCode(builderFunc, builder)).build();
+
     }
 
     private static class IsolatedMethodBuilder extends ClassBuilder<Class<?>, String, IsolatedMethodBuilder> {
@@ -221,6 +241,9 @@ public class InstructionHelper {
         }
 
         static String classToInternalName(Class<?> c) {
+            if (c.isArray()) {
+                return c.descriptorString();
+            }
             return c.getName().replace('.', '/');
         }
 
@@ -260,11 +283,7 @@ public class InstructionHelper {
 
             @Override
             public String type(Class<?> aClass) {
-                if (aClass.isArray()) {
-                    return classToInternalName(aClass);
-                } else {
-                    return (aClass.isValueType() ? "Q" : "L") + classToInternalName(aClass) + ";";
-                }
+                return aClass.descriptorString();
             }
 
             @Override
