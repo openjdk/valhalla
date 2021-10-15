@@ -143,7 +143,7 @@ public class InlineTypes {
         protected static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
         protected static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
         protected static final String MEMBAR = START + "MemBar" + MID + END;
-        protected static final String CHECKCAST_ARRAY = "(((?i:cmp|CLFI|CLR).*" + MYVALUE_ARRAY_KLASS + ".*:|.*(?i:mov|or).*" + MYVALUE_ARRAY_KLASS + ".*;:.*\\R.*(cmp|CMP|CLR))" + END;
+        protected static final String CHECKCAST_ARRAY = "(((?i:cmp|CLFI|CLR).*" + MYVALUE_ARRAY_KLASS + ".*:|.*(?i:mov|or).*" + MYVALUE_ARRAY_KLASS + ".*:.*\\R.*(cmp|CMP|CLR))" + END;
         protected static final String CHECKCAST_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*checkcast_arraycopy.*" + END;
         protected static final String JLONG_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*jlong_disjoint_arraycopy.*" + END;
         protected static final String FIELD_ACCESS = "(.*Field: *" + END;

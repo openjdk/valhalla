@@ -108,6 +108,7 @@ applications/jcstress/copy.java 8229852 linux-x64
 # Valhalla
 
 runtime/valhalla/inlinetypes/ClassInitializationFailuresTest.java 8274131 linux-aarch64-debug,macosx-aarch64-debug
+compiler/c2/irTests/TestPostParseCallDevirtualization.java 8274973 generic-all
 
 #############################################################################
 
