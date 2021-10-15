@@ -230,7 +230,7 @@ public class TestLWorldProfiling {
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
         counts = {CALL, "= 3", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
+        counts = {CALL, "= 4", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 1"})
     public Object test6(Number[] array) {
         Number v = array[0];
         test6_helper(array);
@@ -263,7 +263,7 @@ public class TestLWorldProfiling {
     @IR(applyIfOr = {"UseArrayLoadStoreProfile", "true", "TypeProfileLevel", "= 222"},
         counts = {CALL, "= 4", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2", RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIfAnd = {"UseArrayLoadStoreProfile", "false", "TypeProfileLevel", "!= 222"},
-        counts = {CALL, "= 6", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
+        counts = {CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
     public Object test7(Number[] array) {
         Number v = array[0];
         test7_helper(v);
@@ -293,11 +293,10 @@ public class TestLWorldProfiling {
 
     @Test
     @IR(applyIf = {"UseArrayLoadStoreProfile", "true"},
-        counts = {CALL, "= 6", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
-                  RANGE_CHECK_TRAP, "= 1", UNHANDLED_TRAP, "= 1", ALLOC_G, "= 1"})
+        counts = {CALL, "= 5", CLASS_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
+                  RANGE_CHECK_TRAP, "= 1"})
     @IR(applyIf = {"UseArrayLoadStoreProfile", "false"},
-        counts = {CALL, "= 6", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2",
-                  UNHANDLED_TRAP, "= 1", ALLOC_G, "= 1"})
+        counts = {CALL, "= 5", RANGE_CHECK_TRAP, "= 1", NULL_CHECK_TRAP, "= 2"})
     public Object test8(Object[] array) {
         Object v = array[0];
         test8_helper(v);

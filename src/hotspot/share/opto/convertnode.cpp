@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
@@ -61,6 +62,16 @@ const Type* Conv2BNode::Value(PhaseGVN* phase) const {
   return TypeInt::BOOL;
 }
 
+//------------------------------Ideal------------------------------------------
+Node* Conv2BNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  if (in(1)->is_InlineTypePtr()) {
+    // Null checking a scalarized but nullable inline type. Check the is_init
+    // input instead of the oop input to avoid keeping buffer allocations alive.
+    set_req_X(1, in(1)->as_InlineTypePtr()->get_is_init(), phase);
+    return this;
+  }
+  return NULL;
+}
 
 // The conversions operations are all Alpha sorted.  Please keep it that way!
 //=============================================================================

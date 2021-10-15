@@ -271,7 +271,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
 
-  bool inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info);
+  bool inline_type_field_access_prolog(AccessField* x);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);

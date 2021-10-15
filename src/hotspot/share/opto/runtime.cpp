@@ -110,6 +110,7 @@ address OptoRuntime::_rethrow_Java                                = NULL;
 
 address OptoRuntime::_slow_arraycopy_Java                         = NULL;
 address OptoRuntime::_register_finalizer_Java                     = NULL;
+address OptoRuntime::_load_unknown_inline                         = NULL;
 
 ExceptionBlob* OptoRuntime::_exception_blob;
 
@@ -150,9 +151,9 @@ bool OptoRuntime::generate(ciEnv* env) {
   gen(env, _monitor_notify_Java            , monitor_notify_Type          , monitor_notify_C                ,    0 , false, false);
   gen(env, _monitor_notifyAll_Java         , monitor_notify_Type          , monitor_notifyAll_C             ,    0 , false, false);
   gen(env, _rethrow_Java                   , rethrow_Type                 , rethrow_C                       ,    2 , true , true );
-
   gen(env, _slow_arraycopy_Java            , slow_arraycopy_Type          , SharedRuntime::slow_arraycopy_C ,    0 , false, false);
   gen(env, _register_finalizer_Java        , register_finalizer_Type      , register_finalizer              ,    0 , false, false);
+  gen(env, _load_unknown_inline            , load_unknown_inline_type     , load_unknown_inline             ,    0 , true,  false);
 
   return true;
 }
@@ -1776,27 +1777,28 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int index, instanceOopDesc* buffer))
-{
-  array->value_copy_from_index(index, buffer);
-}
+JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int index, JavaThread* current))
+  JRT_BLOCK;
+  flatArrayHandle vah(current, array);
+  oop buffer = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, THREAD);
+  deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
+  current->set_vm_result(buffer);
+  JRT_BLOCK_END;
 JRT_END
 
 const TypeFunc* OptoRuntime::load_unknown_inline_type() {
   // create input type (domain)
-  const Type** fields = TypeTuple::fields(3);
-  // We don't know the number of returned values and their
-  // types. Assume all registers available to the return convention
-  // are used.
+  const Type** fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms] = TypeOopPtr::NOTNULL;
   fields[TypeFunc::Parms+1] = TypeInt::POS;
-  fields[TypeFunc::Parms+2] = TypeInstPtr::NOTNULL;
 
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+2, fields);
 
   // create result type (range)
-  fields = TypeTuple::fields(0);
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
+
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
 
   return TypeFunc::make(domain, range);
 }
@@ -1811,9 +1813,6 @@ JRT_END
 const TypeFunc* OptoRuntime::store_unknown_inline_type() {
   // create input type (domain)
   const Type** fields = TypeTuple::fields(3);
-  // We don't know the number of returned values and their
-  // types. Assume all registers available to the return convention
-  // are used.
   fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
   fields[TypeFunc::Parms+1] = TypeOopPtr::NOTNULL;
   fields[TypeFunc::Parms+2] = TypeInt::POS;
@@ -1822,7 +1821,7 @@ const TypeFunc* OptoRuntime::store_unknown_inline_type() {
 
   // create result type (range)
   fields = TypeTuple::fields(0);
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
 
   return TypeFunc::make(domain, range);
 }
