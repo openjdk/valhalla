@@ -131,7 +131,7 @@ public class InlineTypes {
         protected static final String CALL_LEAF_NOFP = "(CALL, runtime leaf nofp|call_leaf_nofp,runtime)";
         protected static final String STORE_INLINE_FIELDS = START + "CallStaticJava" + MID + "store_inline_type_fields" + END;
         protected static final String SCOBJ = "(.*# ScObj.*" + END;
-        protected static final String LOAD_UNKNOWN_INLINE = "(.*" + CALL_LEAF + ".*load_unknown_inline.*" + END;
+        protected static final String LOAD_UNKNOWN_INLINE = START + "CallStaticJava" + MID + "_load_unknown_inline" + END;
         protected static final String STORE_UNKNOWN_INLINE = "(.*" + CALL_LEAF + ".*store_unknown_inline.*" + END;
         protected static final String INLINE_ARRAY_NULL_GUARD = "(.*call,static.*wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
         protected static final String INTRINSIC_SLOW_PATH = "(.*call,static.*wrapper for: uncommon_trap.*reason='intrinsic_or_type_checked_inlining'.*" + END;

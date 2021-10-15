@@ -191,8 +191,9 @@ StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMap* r
     bool scalar_replaced = ov->value().is_null();
     if (ov->maybe_null()) {
       // Don't treat inline type as scalar replaced if it is null
-      StackValue* is_init_value = StackValue::create_stack_value(fr, reg_map, ov->is_init());
-      scalar_replaced &= is_init_value->get_obj().not_null();
+      intptr_t is_init_value = StackValue::create_stack_value(fr, reg_map, ov->is_init())->get_int();
+      jint is_init = (jint)*((jint*)&is_init_value);
+      scalar_replaced &= (is_init != 0);
     }
     return new StackValue(ov->value(), scalar_replaced ? 1 : 0);
   } else if (sv->is_marker()) {

@@ -1096,8 +1096,9 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
     // to be checked before using the field values. Skip re-allocation if it is null.
     if (sv->maybe_null()) {
       assert(k->is_inline_klass(), "must be an inline klass");
-      StackValue* init_value = StackValue::create_stack_value(fr, reg_map, sv->is_init());
-      if (init_value->get_obj().is_null()) {
+      intptr_t init_value = StackValue::create_stack_value(fr, reg_map, sv->is_init())->get_int();
+      jint is_init = (jint)*((jint*)&init_value);
+      if (is_init == 0) {
         continue;
       }
     }

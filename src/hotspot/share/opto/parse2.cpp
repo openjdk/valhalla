@@ -130,74 +130,36 @@ void Parse::array_load(BasicType bt) {
         ideal.sync_kit(this);
       } else {
         // Element type is unknown, emit runtime call
-        Node* kls = load_object_klass(ary);
-        Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
-        Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
-        Node* obj_size  = NULL;
-        kill_dead_locals();
-        // Re-execute flattened array load if buffering triggers deoptimization
-        PreserveReexecuteState preexecs(this);
-        jvms()->set_bci(_bci);
-        jvms()->set_should_reexecute(true);
-        inc_sp(2);
-        Node* alloc_obj = new_instance(elem_klass, NULL, &obj_size, /*deoptimize_on_exception=*/true);
 
-        AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
-        assert(alloc->maybe_set_complete(&_gvn), "");
-        alloc->initialization()->set_complete_with_arraycopy();
-
-        // This membar keeps this access to an unknown flattened array
-        // correctly ordered with other unknown and known flattened
-        // array accesses.
+        // Below membars keep this access to an unknown flattened array correctly
+        // ordered with other unknown and known flattened array accesses.
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-        // Unknown inline type might contain reference fields
-        if (false && !bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, false, BarrierSetC2::Parsing)) {
-          // FIXME 8230656 also merge changes from 8238759 in
-          int base_off = sizeof(instanceOopDesc);
-          Node* dst_base = basic_plus_adr(alloc_obj, base_off);
-          Node* countx = obj_size;
-          countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
-          countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
-
-          assert(Klass::_lh_log2_element_size_shift == 0, "use shift in place");
-          Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-          Node* elem_shift = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
-          uint header = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE);
-          Node* base  = basic_plus_adr(ary, header);
-          idx = Compile::conv_I2X_index(&_gvn, idx, TypeInt::POS, control());
-          Node* scale = _gvn.transform(new LShiftXNode(idx, elem_shift));
-          Node* adr = basic_plus_adr(ary, base, scale);
-
-          access_clone(adr, dst_base, countx, false);
-        } else {
-          ideal.sync_kit(this);
-          ideal.make_leaf_call(OptoRuntime::load_unknown_inline_type(),
-                               CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_inline),
-                               "load_unknown_inline",
-                               ary, idx, alloc_obj);
-          sync_kit(ideal);
+        Node* call = NULL;
+        {
+          // Re-execute flattened array load if runtime call triggers deoptimization
+          PreserveReexecuteState preexecs(this);
+          jvms()->set_bci(_bci);
+          jvms()->set_should_reexecute(true);
+          inc_sp(2);
+          kill_dead_locals();
+          call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                   OptoRuntime::load_unknown_inline_type(),
+                                   OptoRuntime::load_unknown_inline_Java(),
+                                   NULL, TypeRawPtr::BOTTOM,
+                                   ary, idx);
         }
+        make_slow_call_ex(call, env()->Throwable_klass(), false);
+        Node* buffer = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
 
-        // This makes sure no other thread sees a partially initialized buffered inline type
-        insert_mem_bar_volatile(Op_MemBarStoreStore, Compile::AliasIdxRaw, alloc->proj_out_or_null(AllocateNode::RawAddress));
-
-        // Same as MemBarCPUOrder above: keep this unknown flattened
-        // array access correctly ordered with other flattened array
-        // access
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        // Prevent any use of the newly allocated inline type before it is fully initialized
-        alloc_obj = new CastPPNode(alloc_obj, _gvn.type(alloc_obj), ConstraintCastNode::StrongDependency);
-        alloc_obj->set_req(0, control());
-        alloc_obj = _gvn.transform(alloc_obj);
-
+        // Keep track of the information that the inline type is flattened in arrays
         const Type* unknown_value = elemptr->is_instptr()->cast_to_flatten_array();
-        alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
+        buffer = _gvn.transform(new CheckCastPPNode(control(), buffer, unknown_value));
 
         ideal.sync_kit(this);
-        ideal.set(res, alloc_obj);
+        ideal.set(res, buffer);
       }
     } ideal.end_if();
     sync_kit(ideal);
@@ -302,11 +264,11 @@ void Parse::array_store(BasicType bt) {
         dec_sp(3);
         ideal.sync_kit(this);
       } ideal.else_(); {
+        sync_kit(ideal);
         Node* val = cast_val;
         // flattened
         if (!val->is_InlineType() && tval->maybe_null()) {
           // Add null check
-          sync_kit(ideal);
           Node* null_ctl = top();
           val = null_check_oop(val, &null_ctl);
           if (null_ctl != top()) {
@@ -316,7 +278,6 @@ void Parse::array_store(BasicType bt) {
             uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
             dec_sp(3);
           }
-          ideal.sync_kit(this);
         }
         // Try to determine the inline klass
         ciInlineKlass* vk = NULL;
@@ -330,7 +291,6 @@ void Parse::array_store(BasicType bt) {
         Node* casted_ary = ary;
         if (vk != NULL && !stopped()) {
           // Element type is known, cast and store to flattened representation
-          sync_kit(ideal);
           assert(vk->flatten_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
@@ -345,29 +305,22 @@ void Parse::array_store(BasicType bt) {
           inc_sp(3);
           jvms()->set_should_reexecute(true);
           val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
-          ideal.sync_kit(this);
-        } else if (!ideal.ctrl()->is_top()) {
+        } else if (!stopped()) {
           // Element type is unknown, emit runtime call
-          sync_kit(ideal);
 
-          // This membar keeps this access to an unknown flattened
-          // array correctly ordered with other unknown and known
-          // flattened array accesses.
+          // Below membars keep this access to an unknown flattened array correctly
+          // ordered with other unknown and known flattened array accesses.
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-          ideal.sync_kit(this);
 
-          ideal.make_leaf_call(OptoRuntime::store_unknown_inline_type(),
-                               CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline),
-                               "store_unknown_inline",
-                               val, casted_ary, idx);
+          make_runtime_call(RC_LEAF,
+                            OptoRuntime::store_unknown_inline_type(),
+                            CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline),
+                            "store_unknown_inline", TypeRawPtr::BOTTOM,
+                            val, casted_ary, idx);
 
-          sync_kit(ideal);
-          // Same as MemBarCPUOrder above: keep this unknown
-          // flattened array access correctly ordered with other
-          // flattened array accesses.
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-          ideal.sync_kit(this);
         }
+        ideal.sync_kit(this);
       }
       ideal.end_if();
       sync_kit(ideal);

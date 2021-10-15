@@ -1840,7 +1840,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(!field->is_stable() || !field_value.is_null_or_zero(),
                "stable static w/ default value shouldn't be a constant");
         constant = make_constant(field_value, field);
-      } else if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
+      } else if (field->is_null_free() && field->type()->as_instance_klass()->is_initialized() &&
+                 field->type()->as_inline_klass()->is_empty()) {
         // Loading from a field of an empty inline type. Just return the default instance.
         constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
       }

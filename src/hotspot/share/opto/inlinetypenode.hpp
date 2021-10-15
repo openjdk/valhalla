@@ -73,7 +73,7 @@ public:
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(Node* oop) { set_req(Oop, oop); }
   Node* get_is_init() const { return in(IsInit); }
-  void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, InlineTypeBaseNode::default_oop(gvn, inline_klass())); }
+  void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, gvn.intcon(1)); }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
@@ -127,7 +127,6 @@ private:
     : InlineTypeBaseNode(TypeInlineType::make(vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineType);
     init_req(Oop, oop);
-    init_req(IsInit, oop);
   }
 
   // Checks if the inline type is loaded from memory and if so returns the oop
@@ -184,7 +183,6 @@ public:
       : InlineTypeBaseNode(TypeInstPtr::make(TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, oop);
-    init_req(IsInit, oop);
   }
 
   static InlineTypePtrNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);

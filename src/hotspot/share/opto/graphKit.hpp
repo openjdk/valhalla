@@ -367,7 +367,8 @@ class GraphKit : public Phase {
   Node* null_check_common(Node* value, BasicType type,
                           bool assert_null = false,
                           Node* *null_control = NULL,
-                          bool speculative = false);
+                          bool speculative = false,
+                          bool is_init_check = false);
   Node* null_check(Node* value, BasicType type = T_OBJECT) {
     return null_check_common(value, type, false, NULL, !_gvn.type(value)->speculative_maybe_null());
   }
