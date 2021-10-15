@@ -1897,10 +1897,18 @@ Node* PhaseIdealLoop::clone_iff(PhiNode *phi, IdealLoopTree *loop) {
   } else {
     sample_bool = n;
   }
-  Node *sample_cmp = sample_bool->in(1);
+  Node* sample_cmp = sample_bool->in(1);
+  const Type* t = Type::TOP;
+  const TypePtr* at = NULL;
+  if (sample_cmp->is_FlatArrayCheck()) {
+    // Left input of a FlatArrayCheckNode is memory, set the (adr) type of the phi accordingly
+    assert(sample_cmp->in(1)->bottom_type() == Type::MEMORY, "unexpected input type");
+    t = Type::MEMORY;
+    at = TypeRawPtr::BOTTOM;
+  }
 
   // Make Phis to merge the Cmp's inputs.
-  PhiNode *phi1 = new PhiNode(phi->in(0), Type::TOP);
+  PhiNode *phi1 = new PhiNode(phi->in(0), t, at);
   PhiNode *phi2 = new PhiNode(phi->in(0), Type::TOP);
   for (i = 1; i < phi->req(); i++) {
     Node *n1 = sample_opaque == NULL ? phi->in(i)->in(1)->in(1) : phi->in(i)->in(1)->in(1)->in(1);
