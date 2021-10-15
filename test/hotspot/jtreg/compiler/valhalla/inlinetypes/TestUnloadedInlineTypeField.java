@@ -23,10 +23,7 @@
 
 package compiler.valhalla.inlinetypes;
 
-import compiler.lib.ir_framework.Run;
-import compiler.lib.ir_framework.RunInfo;
-import compiler.lib.ir_framework.Scenario;
-import compiler.lib.ir_framework.Test;
+import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
@@ -52,17 +49,17 @@ public class TestUnloadedInlineTypeField {
         final Scenario[] scenarios = {
                 new Scenario(0),
                 new Scenario(1, "-XX:InlineFieldMaxFlatSize=0"),
-                new Scenario(2, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:-XX:+PatchALot"),
-                new Scenario(3,
-                             "-XX:InlineFieldMaxFlatSize=0",
-                             "-XX:+IgnoreUnrecognizedVMOptions",
-                             "-XX:+PatchALot")
+                new Scenario(2, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot"),
+                new Scenario(3, "-XX:InlineFieldMaxFlatSize=0",
+                                "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot")
         };
-        final String[] CutoffFlags = {"-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
+        final String[] flags = {// Prevent IR Test Framework from loading classes
+                                "-DIgnoreCompilerControls=true",
+                                // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
+                                "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};
         for (Scenario s : scenarios) {
-           s.addFlags(CutoffFlags);
+           s.addFlags(flags);
         }
-
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
                    .start();
@@ -882,5 +879,222 @@ public class TestUnloadedInlineTypeField {
     public void test20_verifier() {
         MyValue20 vt = test20();
         Asserts.assertEQ(vt.obj, null);
+    }
+
+    static primitive class Test21ClassA {
+        static Test21ClassB b;
+        static Test21ClassC c;
+    }
+
+    static primitive class Test21ClassB {
+        static int x = Test21ClassA.c.x;
+    }
+
+    static primitive class Test21ClassC {
+        int x = 42;
+    }
+
+    // Test access to static inline type field with unloaded type
+    @Test
+    public Object test21() {
+        return new Test21ClassA();
+    }
+
+    @Run(test = "test21")
+    public void test21_verifier() {
+        Object ret = test21();
+        Asserts.assertEQ(Test21ClassA.b.x, 0);
+        Asserts.assertEQ(Test21ClassA.c.x, 0);
+    }
+
+    static boolean test22FailInit = true;
+
+    static primitive class Test22ClassA {
+        int x = 0;
+        static Test22ClassB b;
+    }
+
+    static primitive class Test22ClassB {
+        int x = 0;
+        static {
+            if (test22FailInit) {
+                throw new RuntimeException();
+            }
+        }
+    }
+
+    // Test that load from static field of uninitialized inline type throws an exception
+    @Test
+    public Object test22() {
+        return Test22ClassA.b;
+    }
+
+    @Run(test = "test22")
+    public void test22_verifier() {
+        // Trigger initialization error in Test22ClassB
+        try {
+            Test22ClassB b = new Test22ClassB();
+            throw new RuntimeException("Should have thrown error during initialization");
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // Expected
+        }
+        try {
+            test22();
+            throw new RuntimeException("Should have thrown NoClassDefFoundError");
+        } catch (NoClassDefFoundError e) {
+            // Expected
+        }
+    }
+
+    static boolean test23FailInit = true;
+
+    static primitive class Test23ClassA {
+        int x = 0;
+        static Test23ClassB b;
+    }
+
+    static primitive class Test23ClassB {
+        static {
+            if (test23FailInit) {
+                throw new RuntimeException();
+            }
+        }
+    }
+
+    // Same as test22 but with empty ClassB
+    @Test
+    public Object test23() {
+        return Test23ClassA.b;
+    }
+
+    @Run(test = "test23")
+    public void test23_verifier() {
+        // Trigger initialization error in Test23ClassB
+        try {
+            Test23ClassB b = new Test23ClassB();
+            throw new RuntimeException("Should have thrown error during initialization");
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // Expected
+        }
+        try {
+            test23();
+            throw new RuntimeException("Should have thrown NoClassDefFoundError");
+        } catch (NoClassDefFoundError e) {
+            // Expected
+        }
+    }
+
+    static boolean test24FailInit = true;
+
+    static primitive class Test24ClassA {
+        Test24ClassB b = Test24ClassB.default;
+    }
+
+    static primitive class Test24ClassB {
+        int x = 0;
+        static {
+            if (test24FailInit) {
+                throw new RuntimeException();
+            }
+        }
+    }
+
+    // Test that access to non-static field of uninitialized inline type throws an exception
+    @Test
+    public Object test24() {
+        return Test24ClassA.default.b.x;
+    }
+
+    @Run(test = "test24")
+    public void test24_verifier() {
+        // Trigger initialization error in Test24ClassB
+        try {
+            Test24ClassB b = new Test24ClassB();
+            throw new RuntimeException("Should have thrown error during initialization");
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // Expected
+        }
+        try {
+            test24();
+            throw new RuntimeException("Should have thrown NoClassDefFoundError");
+        } catch (NoClassDefFoundError e) {
+            // Expected
+        }
+    }
+
+    static boolean test25FailInit = true;
+
+    static primitive class Test25ClassA {
+        Test25ClassB b = Test25ClassB.default;
+    }
+
+    static primitive class Test25ClassB {
+        int x = 24;
+        static {
+            if (test25FailInit) {
+                throw new RuntimeException();
+            }
+        }
+    }
+
+    // Same as test24 but with field access outside of test method
+    @Test
+    public Test25ClassB test25() {
+        return Test25ClassA.default.b;
+    }
+
+    @Run(test = "test25")
+    public void test25_verifier() {
+        // Trigger initialization error in Test25ClassB
+        try {
+            Test25ClassB b = new Test25ClassB();
+            throw new RuntimeException("Should have thrown error during initialization");
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // Expected
+        }
+        try {
+            Test25ClassB res = test25();
+            Asserts.assertEQ(res.x, 0);
+            throw new RuntimeException("Should have thrown NoClassDefFoundError");
+        } catch (NoClassDefFoundError e) {
+            // Expected
+        }
+    }
+
+    static boolean test26FailInit = true;
+
+    static primitive class Test26ClassA {
+        Test26ClassB b = Test26ClassB.default;
+    }
+
+    static primitive class Test26ClassB {
+        static {
+            if (test26FailInit) {
+                throw new RuntimeException();
+            }
+        }
+    }
+
+    // Same as test25 but with empty ClassB
+    @Test
+    public Object test26() {
+        return Test26ClassA.default.b;
+    }
+
+    @Run(test = "test26")
+    public void test26_verifier() {
+        // Trigger initialization error in Test26ClassB
+        try {
+            Test26ClassB b = new Test26ClassB();
+            throw new RuntimeException("Should have thrown error during initialization");
+        } catch (ExceptionInInitializerError | NoClassDefFoundError e) {
+            // Expected
+        }
+        try {
+            test26();
+            throw new RuntimeException("Should have thrown NoClassDefFoundError");
+        } catch (NoClassDefFoundError e) {
+            // Expected
+        }
     }
 }
