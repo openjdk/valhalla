@@ -5935,21 +5935,22 @@ const Type    *TypeInstKlassPtr::xdual() const {
   return new TypeInstKlassPtr(dual_ptr(), klass(), dual_offset(), flatten_array());
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, int null_free) {
+const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, null_free))->hashcons();
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, int null_free) {
+const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     ciKlass* eklass = klass->as_obj_array_klass()->element_klass();
     const TypeKlassPtr *etype = TypeKlassPtr::make(eklass)->cast_to_exactness(false);
 
+    // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
     if (etype->klass_is_exact() && etype->isa_instklassptr() && etype->is_instklassptr()->klass()->is_inlinetype() && !null_free) {
       etype = TypeInstKlassPtr::make(NotNull, etype->is_instklassptr()->klass(), Offset(etype->is_instklassptr()->offset()), etype->is_instklassptr()->flatten_array());
     }
 
-    const TypeAryKlassPtr* res = TypeAryKlassPtr::make(ptr, etype, NULL, offset, not_flat, not_null_free, null_free ? 1 : 0);
+    const TypeAryKlassPtr* res = TypeAryKlassPtr::make(ptr, etype, NULL, offset, not_flat, not_null_free, null_free);
     assert(res->klass() == klass, "");
     return res;
   } else if (klass->is_type_array_klass()) {
@@ -5966,17 +5967,12 @@ const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset off
 }
 
 const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* k, PTR ptr, Offset offset) {
-  bool not_null_free = k->is_array_klass() && (k->as_array_klass()->element_klass() == NULL ||
-                                               !k->as_array_klass()->element_klass()->can_be_inline_klass(true));
-  bool not_flat = k->is_array_klass() && !k->is_flat_array_klass();
-  bool null_free = k->is_array_klass() && k->as_array_klass()->is_elem_null_free();
-  if (k->is_obj_array_klass() && ptr == Constant) {
-    // An object array can't be flat or null-free if the klass is exact
-    not_flat = true;
-    if (!null_free) {
-      not_null_free = true;
-    }
-  }
+  bool null_free = k->as_array_klass()->is_elem_null_free();
+  bool not_null_free = ptr == Constant ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
+
+  bool not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != NULL &&
+                                                     k->as_array_klass()->element_klass()->is_inlinetype() &&
+                                                     !k->as_array_klass()->element_klass()->flatten_array());
 
   return TypeAryKlassPtr::make(ptr, k, offset, not_flat, not_null_free, null_free);
 }
@@ -6145,7 +6141,7 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type() const {
   assert(k != NULL, "klass should not be NULL");
   bool    xk = klass_is_exact();
   const Type* el = elem()->isa_klassptr() ? elem()->is_klassptr()->as_instance_type()->is_oopptr()->cast_to_exactness(false) : elem();
-  bool null_free = _null_free != 0;
+  bool null_free = _null_free;
   if (null_free && el->isa_ptr()) {
     el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
   }
@@ -6239,9 +6235,9 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
                                  this->is_not_null_free(), tap->is_not_null_free(),
                                  res_elem, res_klass, res_xk, res_not_flat, res_not_null_free);
     assert(res_xk == (ptr == Constant), "");
-    int null_free = _null_free & tap->_null_free;
+    bool null_free = meet_null_free(tap->_null_free);
     if (res == NOT_SUBTYPE) {
-      null_free = 0;
+      null_free = false;
     } else if (res == SUBTYPE) {
       if (above_centerline(tap->ptr()) && !above_centerline(this->ptr())) {
         null_free = _null_free;
@@ -6312,7 +6308,7 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
 const Type    *TypeAryKlassPtr::xdual() const {
-  return new TypeAryKlassPtr(dual_ptr(), elem()->dual(), klass(), dual_offset(), !is_not_flat(), !is_not_null_free(), -_null_free);
+  return new TypeAryKlassPtr(dual_ptr(), elem()->dual(), klass(), dual_offset(), !is_not_flat(), !is_not_null_free(), dual_null_free());
 }
 
 //------------------------------get_con----------------------------------------
