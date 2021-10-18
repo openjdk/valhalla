@@ -35,7 +35,7 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region) {
+InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
   if (vt->is_InlineTypePtr()) {
     // Use nullable type
@@ -52,11 +52,16 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
   vt->set_oop(oop);
 
   // Create a PhiNode for merging the is_init values
-  phi_type = Type::get_const_basic_type(T_BOOLEAN);
-  PhiNode* is_init = PhiNode::make(region, vt->get_is_init(), phi_type);
-  gvn->set_type(is_init, phi_type);
-  gvn->record_for_igvn(is_init);
-  vt->set_req(IsInit, is_init);
+  Node* is_init_node;
+  if (is_init) {
+    is_init_node = gvn->intcon(1);
+  } else {
+    phi_type = Type::get_const_basic_type(T_BOOLEAN);
+    is_init_node = PhiNode::make(region, vt->get_is_init(), phi_type);
+    gvn->set_type(is_init_node, phi_type);
+    gvn->record_for_igvn(is_init_node);
+  }
+  vt->set_req(IsInit, is_init_node);
 
   // Create a PhiNode each for merging the field values
   for (uint i = 0; i < vt->field_count(); ++i) {
@@ -121,10 +126,15 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
     set_oop(gvn->transform(phi));
   }
 
-  phi = get_is_init()->as_Phi();
-  phi->set_req(pnum, other->get_is_init());
-  if (transform) {
-    set_req(IsInit, gvn->transform(phi));
+  Node* is_init = get_is_init();
+  if (is_init->is_Phi()) {
+    phi = is_init->as_Phi();
+    phi->set_req(pnum, other->get_is_init());
+    if (transform) {
+      set_req(IsInit, gvn->transform(phi));
+    }
+  } else {
+    assert(is_init->find_int_con(0) == 1, "only with a non null inline type");
   }
 
   // Merge field values

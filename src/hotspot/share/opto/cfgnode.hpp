@@ -215,7 +215,7 @@ public:
   }
   Node* try_clean_mem_phi(PhaseGVN *phase);
 
-  InlineTypeBaseNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk);
+  InlineTypeBaseNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init);
 
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
