@@ -1016,11 +1016,11 @@ protected:
   meet_instptr(PTR &ptr, ciKlass* this_klass, ciKlass* tinst_klass, bool this_xk, bool tinst_xk, PTR this_ptr,
                PTR tinst_ptr, bool this_flatten_array, bool tinst_flatten_array, ciKlass*&res_klass, bool &res_xk,
                bool& res_flatten_array);
-  static MeetResult
-  meet_aryptr(PTR& ptr, const Type*& elem, ciKlass* this_klass, ciKlass* tap_klass, bool this_xk, bool tap_xk,
-              PTR this_ptr, PTR tap_ptr, bool this_not_flat, bool tap_not_flat,
-              bool this_not_null_free, bool tap_not_null_free, ciKlass*& res_klass,
-              bool& res_xk, bool& res_not_flat, bool& res_not_null_free);
+
+  static MeetResult meet_aryptr(PTR &ptr, const Type* this_elem, const Type* tap_elem, ciKlass* this_klass, ciKlass* tap_klass,
+                                bool this_xk, bool tap_xk, PTR this_ptr, PTR tap_ptr, bool this_not_flat, bool tap_not_flat,
+                                bool this_not_null_free, bool tap_not_null_free, const Type*& res_elem, ciKlass*&res_klass,
+                                bool &res_xk, bool &res_not_flat, bool &res_not_null_free);
 
 public:
   const Offset _offset;         // Offset into oop, with TOP & BOT
@@ -1610,7 +1610,7 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   const Type *_elem;
   const bool _not_flat;      // Array is never flattened
   const bool _not_null_free; // Array is never null-free
-  const int _null_free;
+  const bool _null_free;
 
   TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool null_free)
     : TypeKlassPtr(AryKlassPtr, ptr, klass, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _null_free(null_free) {
@@ -1618,14 +1618,22 @@ class TypeAryKlassPtr : public TypeKlassPtr {
 
   virtual bool must_be_exact() const;
 
+  bool dual_null_free() const {
+    return _null_free;
+  }
+
+  bool meet_null_free(bool other) const {
+    return _null_free && other;
+  }
+
 public:
   virtual ciKlass* klass() const;
 
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, int null_free);
-  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, int null_free);
+  static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
   static const TypeAryKlassPtr* make(ciKlass* klass, PTR ptr = Constant, Offset offset= Offset(0));
 
   const Type *elem() const { return _elem; }
