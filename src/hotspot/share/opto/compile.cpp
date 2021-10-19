@@ -1910,6 +1910,8 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
                n->in(1)->is_Proj() &&
                n->in(1)->in(0)->is_Allocate()) {
       some_allocations = true;
+    } else if (n->is_CheckCastPP()) {
+      wq.push(n->in(1));
     }
   }
   return some_allocations;

@@ -697,8 +697,8 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   // values from a heap-allocated version and also save the oop.
   InlineTypeBaseNode* vt = NULL;
 
-  if (oop->uncast()->isa_InlineTypePtr()) {
-    InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
+  if (oop->isa_InlineTypePtr()) {
+    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
     if (!null_free) {
       return vtptr;
     }
@@ -1106,9 +1106,14 @@ Node* InlineTypePtrNode::Identity(PhaseGVN* phase) {
 }
 
 const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {
+  const Type* t = phase->type(get_oop())->filter_speculative(_type);
+  if (t->singleton()) {
+    // Don't replace InlineTypePtr by a constant
+    t = _type;
+  }
   const Type* tinit = phase->type(in(IsInit));
   if (tinit->isa_int() && tinit->is_int()->is_con(1)) {
-    return _type->join_speculative(TypePtr::NOTNULL);
+    t = t->join_speculative(TypePtr::NOTNULL);
   }
-  return _type;
+  return t;
 }
