@@ -1579,8 +1579,7 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
     }
   }
 
-  // TODO Disabled until JDK-8272448 is fixed.
-  // try_sink_out_of_loop(n);
+  try_sink_out_of_loop(n);
 
   try_move_store_after_loop(n);
 
