@@ -2522,6 +2522,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     ciInlineKlass* vk = NULL;
     // true if all IsInit inputs of all InlineType* nodes are true
     bool is_init = true;
+    Node_List casts;
 
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
@@ -2532,10 +2533,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           break;
         }
         while (n->is_ConstraintCast()) {
-          if (phase->type(n->in(1))->filter_speculative(n->bottom_type()) == Type::TOP) {
-            can_optimize = false;
-            break;
-          }
+          casts.push(n);
           n = n->in(1);
         }
         const Type* t = phase->type(n);
@@ -2552,6 +2550,14 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         } else {
           can_optimize = false;
         }
+      }
+    }
+    // Check if cast nodes can be pushed through
+    const Type* t = Type::get_const_type(vk);
+    while (casts.size() != 0 && can_optimize && t != NULL) {
+      Node* cast = casts.pop();
+      if (t->filter(cast->bottom_type()) == Type::TOP) {
+        can_optimize = false;
       }
     }
     if (can_optimize && vk != NULL) {

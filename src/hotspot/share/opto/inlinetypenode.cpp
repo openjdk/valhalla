@@ -590,13 +590,6 @@ Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
 }
 
 Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  if (phase->C->scalarize_in_safepoints() && can_reshape) {
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-    make_scalar_in_safepoints(igvn);
-    if (outcnt() == 0) {
-      return NULL;
-    }
-  }
   Node* is_init = get_is_init();
   if (is_init->isa_InlineTypePtr()) {
     set_req(IsInit, is_init->as_InlineTypePtr()->get_is_init());
