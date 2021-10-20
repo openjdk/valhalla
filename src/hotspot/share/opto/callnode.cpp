@@ -1600,7 +1600,20 @@ SafePointNode* SafePointNode::next_exception() const {
 // Skip over any collapsed Regions
 Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   assert(_jvms == NULL || ((uintptr_t)_jvms->map() & 1) || _jvms->map() == this, "inconsistent JVMState");
-  return remove_dead_region(phase, can_reshape) ? this : NULL;
+  if (remove_dead_region(phase, can_reshape)) {
+    return this;
+  }
+  // Scalarize inline types in safepoint debug info.
+  // Delay this until all inlining is over to avoid getting inconsistent debug info.
+  if (phase->C->scalarize_in_safepoints() && can_reshape && jvms() != NULL) {
+    for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
+      Node* n = in(i)->uncast();
+      if (n->is_InlineTypeBase()) {
+        n->as_InlineTypeBase()->make_scalar_in_safepoints(phase->is_IterGVN());
+      }
+    }
+  }
+  return NULL;
 }
 
 //------------------------------Identity---------------------------------------

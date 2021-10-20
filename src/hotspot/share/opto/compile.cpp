@@ -1941,6 +1941,12 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   if (_inline_type_nodes.length() == 0) {
     return;
   }
+  // Scalarize inline types in safepoint debug info.
+  // Delay this until all inlining is over to avoid getting inconsistent debug info.
+  set_scalarize_in_safepoints(true);
+  for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
+    _inline_type_nodes.at(i)->as_InlineTypeBase()->make_scalar_in_safepoints(&igvn);
+  }
   if (remove) {
     // Remove inline type nodes
     while (_inline_type_nodes.length() > 0) {
@@ -1985,13 +1991,6 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
 #endif
         igvn.replace_node(vt, igvn.C->top());
       }
-    }
-  } else {
-    // Give inline types a chance to be scalarized in safepoints
-    // Delay this until all inlining is over to avoid getting inconsistent debug info
-    set_scalarize_in_safepoints(true);
-    for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
-      igvn._worklist.push(_inline_type_nodes.at(i));
     }
   }
   igvn.optimize();
@@ -2739,9 +2738,6 @@ void Compile::Optimize() {
 #ifdef ASSERT
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
 #endif
-
-  // Process inline type nodes again after loop opts
-  process_inline_types(igvn);
 
   assert(_late_inlines.length() == 0 || IncrementalInlineMH || IncrementalInlineVirtual, "not empty");
 

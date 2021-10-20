@@ -149,6 +149,14 @@ bool FastLockNode::cmp( const Node &n ) const {
   return (&n == this);                // Always fail except on self
 }
 
+const Type* FastLockNode::Value(PhaseGVN* phase) const {
+  if (phase->type(in(1))->is_inlinetypeptr()) {
+    // Locking on inline types always fails
+    return TypeInt::CC_GT;
+  }
+  return TypeInt::CC;
+}
+
 //=============================================================================
 //-----------------------------hash--------------------------------------------
 uint FastUnlockNode::hash() const { return NO_HASH; }
