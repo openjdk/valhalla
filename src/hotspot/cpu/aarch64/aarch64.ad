@@ -3758,7 +3758,7 @@ encode %{
       // Check that stack depth is unchanged: find majik cookie on stack
       __ call_Unimplemented();
     }
-    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
+    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic() && return_value_is_used()) {
       // An inline type is returned as fields in multiple registers.
       // R0 either contains an oop if the inline type is buffered or a pointer
       // to the corresponding InlineKlass with the lowest bit set to 1. Zero r0

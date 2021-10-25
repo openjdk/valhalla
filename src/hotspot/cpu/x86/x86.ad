@@ -2424,7 +2424,7 @@ encode %{
       __ int3();
       __ bind(L);
     }
-    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
+    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic() && return_value_is_used()) {
       // An inline type is returned as fields in multiple registers.
       // Rax either contains an oop if the inline type is buffered or a pointer
       // to the corresponding InlineKlass with the lowest bit set to 1. Zero rax
