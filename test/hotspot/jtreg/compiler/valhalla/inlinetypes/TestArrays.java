@@ -3491,4 +3491,22 @@ public class TestArrays {
         int res = test147(!info.isWarmUp());
         Asserts.assertEquals(res, MyValue2.createWithFieldsInline(rI, rD).x + (info.isWarmUp() ? 0 : 42));
     }
+
+    // Test that correct basic types are used when folding field
+    // loads from a scalar replaced array through an arraycopy.
+    @Test
+    public void test148(MyValue1 vt) {
+        MyValue1[] src = new MyValue1[1];
+        MyValue1[] dst = new MyValue1[1];
+        src[0] = vt;
+        System.arraycopy(src, 0, dst, 0, 1);
+        if (src[0].hash() != dst[0].hash()) {
+          throw new RuntimeException("Unexpected hash");
+        }
+    }
+
+    @Run(test = "test148")
+    public void test148_verifier() {
+        test148(MyValue1.createWithFieldsInline(rI, rL));
+    }
 }
