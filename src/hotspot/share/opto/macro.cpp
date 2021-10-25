@@ -578,7 +578,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
       value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);
-      BasicType bt = field_type->basic_type();
+      BasicType bt = type2field[field_type->basic_type()];
       if (UseCompressedOops && !is_java_primitive(bt)) {
         ft = ft->make_narrowoop();
         bt = T_NARROWOOP;
