@@ -31,6 +31,7 @@
  * @compile TestTrivialMethods.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
+ *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:CompileCommand=dontinline,*::getter* -XX:CompileCommand=dontinline,*::setter*
  *                   compiler.valhalla.inlinetypes.TestTrivialMethods
  */
