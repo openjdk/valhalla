@@ -870,6 +870,11 @@ bool Method::is_getter() const {
     default:
       return false;
   }
+  if (InlineTypeReturnedAsFields && result_type() == T_INLINE_TYPE) {
+    // Don't treat this as (trivial) getter method because the
+    // inline type should be returned in a scalarized form.
+    return false;
+  }
   return true;
 }
 
@@ -891,6 +896,11 @@ bool Method::is_setter() const {
   }
   if (java_code_at(2) != Bytecodes::_putfield) return false;
   if (java_code_at(5) != Bytecodes::_return)   return false;
+  if (has_scalarized_args()) {
+    // Don't treat this as (trivial) setter method because the
+    // inline type argument should be passed in a scalarized form.
+    return false;
+  }
   return true;
 }
 

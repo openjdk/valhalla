@@ -2553,14 +2553,10 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
           } else {
             st.print("L");
           }
-        }
-        switch (v) {
-          case T_INT:    st.print("I");    break;
-          case T_LONG:   long_prev = true; break;
-          case T_FLOAT:  st.print("F");    break;
-          case T_DOUBLE: st.print("D");    break;
-          case T_VOID:   break;
-          default: ShouldNotReachHere();
+        } else if (v == T_LONG) {
+          long_prev = true;
+        } else if (v != T_VOID){
+          st.print("%c", type2char((BasicType)v));
         }
       }
     }
