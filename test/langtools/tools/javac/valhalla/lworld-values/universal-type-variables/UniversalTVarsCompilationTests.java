@@ -81,16 +81,19 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-
-        setCompileOptions(EMPTY_OPTIONS);
-        assertOKWithWarning("compiler.warn.var.might.not.have.been.initialized",
+        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null",
                 """
                 class Box<__universal T> {
                     T t;
+                    Box(T t) {
+                        this.t = t;
+                    }
                     void m() { t = null; }
                 }
                 """
         );
+
+        setCompileOptions(EMPTY_OPTIONS);
         assertOK(
                 """
                 import java.io.*;
