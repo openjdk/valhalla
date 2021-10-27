@@ -51,6 +51,7 @@ import com.sun.tools.javac.comp.Check;
 import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.ClassFile;
+import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -611,9 +612,13 @@ public class Types {
 
         boolean tValue = t.isPrimitiveClass();
         boolean sValue = s.isPrimitiveClass();
-        if (allowUniversalTVars && (s.hasTag(TYPEVAR)) && ((TypeVar)s).isValueProjection() &&
-                (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isValueProjection())) {
+        if (allowUniversalTVars && ((s.hasTag(TYPEVAR)) && ((TypeVar)s).isValueProjection() &&
+                (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isValueProjection()))) {
             warn.warn(LintCategory.UNIVERSAL);
+            return true;
+        }
+        if (allowUniversalTVars && (s.isPrimitiveClass() && !t.isPrimitiveClass())) {
+            chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
             return true;
         }
         if (tValue != sValue) {

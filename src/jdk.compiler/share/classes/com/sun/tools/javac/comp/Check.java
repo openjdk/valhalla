@@ -283,6 +283,11 @@ public class Check {
             log.warning(LintCategory.UNIVERSAL, pos, warnKey);
     }
 
+    public void warnValueConversion(DiagnosticPosition pos, Warning warnKey) {
+        if (lint.isEnabled(LintCategory.UNIVERSAL))
+            log.warning(LintCategory.UNIVERSAL, pos, warnKey);
+    }
+
     /** Warn about unsafe vararg method decl.
      *  @param pos        Position to be used for error reporting.
      */

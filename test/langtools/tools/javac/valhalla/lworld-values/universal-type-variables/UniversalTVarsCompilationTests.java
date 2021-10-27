@@ -418,6 +418,21 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         );
     }
 
+    public void testPrimitiveValueConversion() {
+        setCompileOptions(LINT_OPTIONS);
+        assertOKWithWarning("compiler.warn.primitive.value.conversion",
+                """
+                primitive class Point {}
+
+                class Test {
+                    void m() {
+                        Point.ref pr = null;
+                        Point p = pr;
+                    }
+                }
+                """);
+    }
+
     public void testUncheckedWarning() {
         /* this one should generate unchecked warning
         interface MyList<__universal E> {}
