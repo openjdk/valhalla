@@ -118,7 +118,8 @@ int InlineKlass::nonstatic_oop_count() {
 
 oop InlineKlass::read_inlined_field(oop obj, int offset, TRAPS) {
   oop res = NULL;
-  this->initialize(CHECK_NULL); // will throw an exception if in error state
+  assert(is_initialized() || is_being_initialized()|| is_in_error_state(),
+        "Must be initialized, initializing or in a corner case of an escaped instance of a class that failed its initialization");
   if (is_empty_inline_type()) {
     res = (instanceOop)default_value();
   } else {
