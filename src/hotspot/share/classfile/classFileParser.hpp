@@ -145,6 +145,7 @@ class ClassFileParser {
   ClassAnnotationCollector* _parsed_annotations;
   FieldAllocationCount* _fac;
   FieldLayoutInfo* _field_info;
+  Array<InlineKlass*>* _inline_type_field_klasses;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
 
