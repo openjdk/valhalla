@@ -38,9 +38,9 @@ public class ClassInitializationFailuresTest {
     static primitive class BadOne {
         int i = 0;
         static {
-        if (ClassInitializationFailuresTest.failingInitialization) {
-            throw new RuntimeException("Failing initialization");
-        }
+            if (ClassInitializationFailuresTest.failingInitialization) {
+                throw new RuntimeException("Failing initialization");
+            }
         }
     }
 
@@ -61,9 +61,9 @@ public class ClassInitializationFailuresTest {
     static void testClassInitialization() {
         Throwable e = null;
         try {
-        TestClass1 t1 = new TestClass1();
+            TestClass1 t1 = new TestClass1();
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Exception should have been thrown");
         Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
@@ -71,9 +71,9 @@ public class ClassInitializationFailuresTest {
         // Second attempt because it doesn't fail the same way
         e = null;
         try {
-        TestClass1 t1 = new TestClass1();
+            TestClass1 t1 = new TestClass1();
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
@@ -83,18 +83,18 @@ public class ClassInitializationFailuresTest {
     static primitive class BadTwo {
         int i = 0;
         static {
-        if (ClassInitializationFailuresTest.failingInitialization) {
-            throw new RuntimeException("Failing initialization");
-        }
+            if (ClassInitializationFailuresTest.failingInitialization) {
+                throw new RuntimeException("Failing initialization");
+            }
         }
     }
 
     static primitive class BadThree {
         int i = 0;
         static {
-        if (ClassInitializationFailuresTest.failingInitialization) {
-            throw new RuntimeException("Failing initialization");
-        }
+            if (ClassInitializationFailuresTest.failingInitialization) {
+                throw new RuntimeException("Failing initialization");
+            }
         }
     }
 
@@ -103,34 +103,34 @@ public class ClassInitializationFailuresTest {
         // Testing anewarray when the primitive element class fails to initialize properly
         Throwable e = null;
         try {
-        BadTwo[] array = new BadTwo[10];
+            BadTwo[] array = new BadTwo[10];
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
         // Second attempt because it doesn't fail the same way
         try {
-        BadTwo[] array = new BadTwo[10];
+            BadTwo[] array = new BadTwo[10];
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
         Asserts.assertTrue(e.getCause().getClass() == ExceptionInInitializerError.class, "Must be an ExceptionInInitializerError");
         // Testing multianewarray when the primitive element class fails to initialize properly
         try {
-        BadThree[][] array = new BadThree[10][20];
+            BadThree[][] array = new BadThree[10][20];
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
         // Second attempt because it doesn't fail the same way
         try {
-        BadThree[][][] array = new BadThree[10][30][10];
+            BadThree[][][] array = new BadThree[10][30][10];
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
@@ -141,10 +141,10 @@ public class ClassInitializationFailuresTest {
         int i = 0;
         static BadFour[] array;
         static {
-        array = new BadFour[10];
-        if (ClassInitializationFailuresTest.failingInitialization) {
-            throw new RuntimeException("Failing initialization");
-        }
+            array = new BadFour[10];
+            if (ClassInitializationFailuresTest.failingInitialization) {
+                throw new RuntimeException("Failing initialization");
+            }
         }
     }
 
@@ -155,17 +155,17 @@ public class ClassInitializationFailuresTest {
     static void testEscapedValueInArray() {
         Throwable e = null;
         try {
-        BadFour bt = new BadFour();
+            BadFour bt = new BadFour();
         } catch (Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error must have been thrown");
         Asserts.assertTrue(e.getClass() == ExceptionInInitializerError.class, " Must be an ExceptionInInitializerError");
         e = null;
         try {
-        BadFour t = BadFour.array[0];
+            BadFour t = BadFour.array[0];
         } catch(Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error should have been thrown");
         Asserts.assertTrue(e.getClass() == NoClassDefFoundError.class, "Must be a NoClassDefFoundError");
@@ -175,10 +175,10 @@ public class ClassInitializationFailuresTest {
     static primitive class BadFive {
         int i = 0;
         static {
-        ClassInitializationFailuresTest.bo = new BadSix();
-        if (ClassInitializationFailuresTest.failingInitialization) {
-            throw new RuntimeException("Failing initialization");
-        }
+            ClassInitializationFailuresTest.bo = new BadSix();
+            if (ClassInitializationFailuresTest.failingInitialization) {
+                throw new RuntimeException("Failing initialization");
+            }
         }
     }
 
@@ -190,9 +190,9 @@ public class ClassInitializationFailuresTest {
     static void testEscapedValueInObject() {
         Throwable e = null;
         try {
-        BadSix bt = new BadSix();
+            BadSix bt = new BadSix();
         } catch (Throwable t) {
-        e = t;
+            e = t;
         }
         Asserts.assertNotNull(e, "Error must have been thrown");
         Asserts.assertNotNull(ClassInitializationFailuresTest.bo, "bo object should have been set");

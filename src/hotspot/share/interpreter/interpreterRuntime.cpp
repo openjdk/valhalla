@@ -287,6 +287,9 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   }
   Handle ref_h(THREAD, ref);
   InlineKlass* ik = InlineKlass::cast(old_value_h()->klass());
+  // Ensure that the class is initialized or being initialized
+  // If the class is in error state, the creation of a new value should not be allowed
+  ik->initialize(CHECK_(ret_adj));
   instanceOop new_value = ik->allocate_instance_buffer(CHECK_(ret_adj));
   Handle new_value_h = Handle(THREAD, new_value);
   ik->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
@@ -402,7 +405,6 @@ JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* current, oopD
   assert(klass->field_is_inlined(index), "Sanity check");
 
   InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
-  assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
   oop res = field_vklass->read_inlined_field(obj_h(), klass->field_offset(index), CHECK);
   current->set_vm_result(res);
