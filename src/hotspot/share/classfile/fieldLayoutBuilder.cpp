@@ -536,20 +536,19 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
 }
 
 FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                                       Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
-                                       Handle protection_domain, FieldLayoutInfo* info) :
+                                       Array<u2>* fields, bool is_contended, bool is_inline_type,
+                                       FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses) :
   _classname(classname),
   _super_klass(super_klass),
   _constant_pool(constant_pool),
   _fields(fields),
   _info(info),
+  _inline_type_field_klasses(inline_type_field_klasses),
   _root_group(NULL),
   _contended_groups(GrowableArray<FieldGroup*>(8)),
   _static_fields(NULL),
   _layout(NULL),
   _static_layout(NULL),
-  _class_loader_data(class_loader_data),
-  _protection_domain(protection_domain),
   _nonstatic_oopmap_count(0),
   _alignment(-1),
   _first_field_offset(-1),
@@ -643,10 +642,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         // This code assumes all verification already have been performed
         // (field's type has been loaded and it is an inline klass)
         JavaThread* THREAD = JavaThread::current();
-        Klass* klass =
-            SystemDictionary::resolve_inline_type_field_or_fail(&fs,
-                                                                Handle(THREAD, _class_loader_data->class_loader()),
-                                                                _protection_domain, true, THREAD);
+        Klass* klass =  _inline_type_field_klasses->at(fs.index());
         assert(klass != NULL, "Sanity check");
         InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
@@ -744,10 +740,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         // This code assumes all verifications have already been performed
         // (field's type has been loaded and it is an inline klass)
         JavaThread* THREAD = JavaThread::current();
-        Klass* klass =
-            SystemDictionary::resolve_inline_type_field_or_fail(&fs,
-                Handle(THREAD, _class_loader_data->class_loader()),
-                _protection_domain, true, CHECK);
+        Klass* klass =  _inline_type_field_klasses->at(fs.index());
         assert(klass != NULL, "Sanity check");
         InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&

@@ -5751,27 +5751,17 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
   bool all_fields_empty = true;
-  int nfields = ik->java_fields_count();
-  if (ik->is_inline_klass()) nfields++;
-  for (int i = 0; i < nfields; i++) {
-    if (((ik->field_access_flags(i) & JVM_ACC_STATIC) == 0)) {
-      if (ik->field_is_null_free_inline_type(i)) {
-        Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
-        // Inline classes for instance fields must have been pre-loaded
-        // Inline classes for static fields might not have been loaded yet
-        InstanceKlass* klass = SystemDictionary::find_instance_klass(klass_name,
-            Handle(THREAD, ik->class_loader()),
-            Handle(THREAD, ik->protection_domain()));
-        assert(klass != NULL, "Just checking");
-        assert(klass->access_flags().is_inline_type(), "Inline type expected");
-        ik->set_inline_type_field_klass(i, klass);
-        klass_name->decrement_refcount();
-        if (!InlineKlass::cast(klass)->is_empty_inline_type()) { all_fields_empty = false; }
+  for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
+    if (!fs.access_flags().is_static()) {
+      if (fs.field_descriptor().is_inline_type()) {
+        Klass* k = _inline_type_field_klasses->at(fs.index());
+        ik->set_inline_type_field_klass(fs.index(), k);
+        if (!InlineKlass::cast(k)->is_empty_inline_type()) { all_fields_empty = false; }
       } else {
         all_fields_empty = false;
       }
-    } else if (is_inline_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)) {
-      InlineKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
+    } else if (is_inline_type() && (fs.name() == vmSymbols::default_value_name())) {
+      InlineKlass::cast(ik)->set_default_value_offset(ik->field_offset(fs.index()));
     }
   }
 
@@ -5901,6 +5891,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _parsed_annotations(NULL),
   _fac(NULL),
   _field_info(NULL),
+  _inline_type_field_klasses(NULL),
   _method_ordering(NULL),
   _all_mirandas(NULL),
   _vtable_size(0),
@@ -6003,6 +5994,10 @@ ClassFileParser::~ClassFileParser() {
   }
   if (_fields != NULL) {
     MetadataFactory::free_array<u2>(_loader_data, _fields);
+  }
+
+  if (_inline_type_field_klasses != NULL) {
+     MetadataFactory::free_array<InlineKlass*>(_loader_data, _inline_type_field_klasses);
   }
 
   if (_methods != NULL) {
@@ -6470,6 +6465,10 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
 
   if (EnableValhalla) {
+    _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
+                                                   java_fields_count(),
+                                                   NULL,
+                                                   CHECK);
     for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE && !fs.access_flags().is_static()) {
         // Pre-load inline class
@@ -6485,6 +6484,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                       _class_name->as_C_string(),
                       InstanceKlass::cast(klass)->external_name()));
         }
+        _inline_type_field_klasses->at_put(fs.index(), InlineKlass::cast(klass));
       }
     }
   }
@@ -6492,7 +6492,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _field_info = new FieldLayoutInfo();
   FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields,
       _parsed_annotations->is_contended(), is_inline_type(),
-      loader_data(), _protection_domain, _field_info);
+      _field_info, _inline_type_field_klasses);
   lb.build_layout(CHECK);
   if (is_inline_type()) {
     _alignment = lb.get_alignment();
