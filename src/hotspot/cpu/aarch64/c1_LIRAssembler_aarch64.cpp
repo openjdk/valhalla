@@ -3063,7 +3063,6 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
   Register obj = op->obj()->as_register();
   Register tmp = op->tmp()->as_pointer_register();
-  Address mdo_addr = as_Address(op->mdp()->as_address_ptr());
   bool not_null = op->not_null();
   int flag = op->flag();
 
@@ -3074,6 +3073,7 @@ void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
 
   __ test_oop_is_not_inline_type(obj, tmp, not_inline_type);
 
+  Address mdo_addr = as_Address(op->mdp()->as_address_ptr(), rscratch2);
   __ ldrb(rscratch1, mdo_addr);
   __ orr(rscratch1, rscratch1, flag);
   __ strb(rscratch1, mdo_addr);
