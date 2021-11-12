@@ -2776,6 +2776,7 @@ void Compile::Optimize() {
   }
 
   DEBUG_ONLY( _modified_nodes = NULL; )
+  DEBUG_ONLY( _late_inlines.clear(); )
 
   assert(igvn._worklist.size() == 0, "not empty");
  } // (End scope of igvn; run destructor if necessary for asserts.)
