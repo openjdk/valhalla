@@ -182,6 +182,9 @@ public final class Unsafe {
      * Returns true if the given field is flattened.
      */
     public boolean isFlattened(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
         return isFlattenedField0(f);
     }
 
