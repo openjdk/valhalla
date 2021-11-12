@@ -105,7 +105,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
           }
           // Now retry from the beginning
           if (null_free) {
-            ek = InlineKlass::cast(element_klass)->null_free_inline_array_klass(CHECK_NULL);
+            ek = InlineKlass::cast(element_klass)->value_array_klass(CHECK_NULL);
           } else {
             ek = element_klass->array_klass(n, CHECK_NULL);
           }
@@ -205,7 +205,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be flatArray, check if we have any special storage requirements
     if (name()->char_at(1) != JVM_SIGNATURE_ARRAY &&  name()->is_Q_array_signature()) {
-      return oopFactory::new_flatArray(element_klass(), length, CHECK_NULL);
+      return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
     }

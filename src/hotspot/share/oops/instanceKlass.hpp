@@ -683,7 +683,7 @@ public:
 
   static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
   static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
-  static u4 misc_flags_is_empty_inline_type() { return _misc_is_empty_inline_type; }
+  static u4 misc_flag_is_empty_inline_type() { return _misc_is_empty_inline_type; }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called

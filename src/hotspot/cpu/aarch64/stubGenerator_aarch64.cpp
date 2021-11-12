@@ -2109,11 +2109,11 @@ class StubGenerator: public StubCodeGenerator {
     __ cbnz(rscratch2, L_failed);
 
     // Check for flat inline type array -> return -1
-    __ tst(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
     __ br(Assembler::NE, L_failed);
 
     // Check for null-free (non-flat) inline type array -> handle as object array
-    __ tst(lh, Klass::_lh_null_free_bit_inplace);
+    __ tst(lh, Klass::_lh_null_free_array_bit_inplace);
     __ br(Assembler::NE, L_failed);
 
     //  if (!src->is_Array()) return -1;

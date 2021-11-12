@@ -1098,7 +1098,7 @@ class CompileReplay : public StackObj {
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
                    field_signature[1] == JVM_SIGNATURE_INLINE_TYPE) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-          value = oopFactory::new_flatArray(kelem, length, CHECK_(true));
+          value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
         } else {
           report_error("unhandled array staticfield");
         }

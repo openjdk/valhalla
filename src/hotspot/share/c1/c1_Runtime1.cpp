@@ -440,7 +440,7 @@ JRT_ENTRY(void, Runtime1::new_flat_array(JavaThread* current, Klass* array_klass
   assert(elem_klass->is_inline_klass(), "must be");
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj = oopFactory::new_flatArray(elem_klass, length, CHECK);
+  arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
   current->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.

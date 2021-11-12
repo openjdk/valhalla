@@ -129,7 +129,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
           elem_super->array_klass(CHECK_NULL);
         }
         // Now retry from the beginning
-        ek = element_klass->null_free_inline_array_klass(CHECK_NULL);
+        ek = element_klass->value_array_klass(CHECK_NULL);
       }  // re-lock
       return FlatArrayKlass::cast(ek);
     }

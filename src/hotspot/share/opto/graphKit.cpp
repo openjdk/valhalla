@@ -3765,7 +3765,7 @@ Node* GraphKit::flat_array_test(Node* ary, bool flat) {
 }
 
 Node* GraphKit::null_free_array_test(Node* klass, bool null_free) {
-  return array_lh_test(klass, Klass::_lh_null_free_bit_inplace, 0, !null_free);
+  return array_lh_test(klass, Klass::_lh_null_free_array_bit_inplace, 0, !null_free);
 }
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
@@ -4393,7 +4393,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* r = new RegionNode(3);
     default_value = new PhiNode(r, TypeInstPtr::BOTTOM);
 
-    Node* bol = array_lh_test(klass_node, Klass::_lh_array_tag_vt_value_bit_inplace | Klass::_lh_null_free_bit_inplace, Klass::_lh_null_free_bit_inplace);
+    Node* bol = array_lh_test(klass_node, Klass::_lh_array_tag_flat_value_bit_inplace | Klass::_lh_null_free_array_bit_inplace, Klass::_lh_null_free_array_bit_inplace);
     IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
     // Null-free, non-flattened inline type array, initialize with the default value

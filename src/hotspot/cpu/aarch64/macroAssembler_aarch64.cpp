@@ -1379,7 +1379,7 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
   }
 #endif
   ldrw(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  andr(temp_reg, temp_reg, InstanceKlass::misc_flags_is_empty_inline_type());
+  andr(temp_reg, temp_reg, InstanceKlass::misc_flag_is_empty_inline_type());
   cbnz(temp_reg, is_empty_inline_type);
 }
 
@@ -1435,22 +1435,22 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 }
 
 void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
-  tst(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   br(Assembler::NE, is_flattened_array);
 }
 
 void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
-  tst(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   br(Assembler::EQ, is_non_flattened_array);
 }
 
 void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
-  tst(lh, Klass::_lh_null_free_bit_inplace);
+  tst(lh, Klass::_lh_null_free_array_bit_inplace);
   br(Assembler::NE, is_null_free_array);
 }
 
 void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
-  tst(lh, Klass::_lh_null_free_bit_inplace);
+  tst(lh, Klass::_lh_null_free_array_bit_inplace);
   br(Assembler::EQ, is_non_null_free_array);
 }
 

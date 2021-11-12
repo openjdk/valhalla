@@ -3152,11 +3152,11 @@ class StubGenerator: public StubCodeGenerator {
     __ movl(rax_lh, Address(r10_src_klass, lh_offset));
 
     // Check for flat inline type array -> return -1
-    __ testl(rax_lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ testl(rax_lh, Klass::_lh_array_tag_flat_value_bit_inplace);
     __ jcc(Assembler::notZero, L_failed);
 
     // Check for null-free (non-flat) inline type array -> handle as object array
-    __ testl(rax_lh, Klass::_lh_null_free_bit_inplace);
+    __ testl(rax_lh, Klass::_lh_null_free_array_bit_inplace);
     __ jcc(Assembler::notZero, L_objArray);
 
     //  if (!src->is_Array()) return -1;
@@ -3288,7 +3288,7 @@ class StubGenerator: public StubCodeGenerator {
         BLOCK_COMMENT("assert not null-free array {");
         Label L;
         __ movl(rklass_tmp, Address(rax, lh_offset));
-        __ testl(rklass_tmp, Klass::_lh_null_free_bit_inplace);
+        __ testl(rklass_tmp, Klass::_lh_null_free_array_bit_inplace);
         __ jcc(Assembler::zero, L);
         __ stop("unexpected null-free array");
         __ bind(L);
