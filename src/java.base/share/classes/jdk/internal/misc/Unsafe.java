@@ -177,14 +177,18 @@ public final class Unsafe {
     @IntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-    private static final int JVM_ACC_FIELD_INLINED = 0x00008000; // HotSpot-specific bit
 
     /**
      * Returns true if the given field is flattened.
      */
     public boolean isFlattened(Field f) {
-        return (f.getModifiers() & JVM_ACC_FIELD_INLINED) == JVM_ACC_FIELD_INLINED;
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return isFlattenedField0(f);
     }
+
+    private native boolean isFlattenedField0(Object o);
 
     /**
      * Returns true if the given class is a flattened array.
