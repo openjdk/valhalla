@@ -2778,7 +2778,6 @@ void Compile::Optimize() {
   DEBUG_ONLY( _modified_nodes = NULL; )
 
   assert(igvn._worklist.size() == 0, "not empty");
-  assert(_late_inlines.length() == 0, "missed optimization opportunity");
  } // (End scope of igvn; run destructor if necessary for asserts.)
 
  check_no_dead_use();
