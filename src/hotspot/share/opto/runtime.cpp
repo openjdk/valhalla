@@ -253,7 +253,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
 
   if (array_type->is_flatArray_klass()) {
     Klass* elem_type = FlatArrayKlass::cast(array_type)->element_klass();
-    result = oopFactory::new_flatArray(elem_type, len, THREAD);
+    result = oopFactory::new_valueArray(elem_type, len, THREAD);
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)

@@ -3690,7 +3690,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
     case FlatArray:
     case NonFlatArray: {
       value = 0;
-      layout_val = _gvn.transform(new AndINode(layout_val, intcon(Klass::_lh_array_tag_vt_value_bit_inplace)));
+      layout_val = _gvn.transform(new AndINode(layout_val, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
       btest = (kind == FlatArray) ? BoolTest::ne : BoolTest::eq;
       break;
     }

@@ -300,12 +300,12 @@ Node* PhaseMacroExpand::array_lh_test(Node* array, jint mask) {
 
 Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region) {
   assert(UseFlatArray, "can never be flattened");
-  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_array_tag_vt_value_bit_inplace), region);
+  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_array_tag_flat_value_bit_inplace), region);
 }
 
 Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array, RegionNode* region) {
   assert(EnableValhalla, "can never be null free");
-  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_null_free_bit_inplace), region);
+  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_null_free_array_bit_inplace), region);
 }
 
 void PhaseMacroExpand::finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type) {

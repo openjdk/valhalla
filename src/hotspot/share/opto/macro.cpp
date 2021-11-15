@@ -2764,7 +2764,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       Node* lh_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
       lhs = _igvn.transform(new OrINode(lhs, lh_val));
     }
-    Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_vt_value_bit_inplace)));
+    Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
     Node* old_bol = check->unique_out();

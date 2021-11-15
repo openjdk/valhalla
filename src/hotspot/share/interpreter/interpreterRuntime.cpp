@@ -422,7 +422,7 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   arrayOop obj;
   if ((!klass->is_array_klass()) && is_qtype_desc) { // Logically creates elements, ensure klass init
     klass->initialize(CHECK);
-    obj = oopFactory::new_flatArray(klass, size, CHECK);
+    obj = oopFactory::new_valueArray(klass, size, CHECK);
   } else {
     obj = oopFactory::new_objArray(klass, size, CHECK);
   }

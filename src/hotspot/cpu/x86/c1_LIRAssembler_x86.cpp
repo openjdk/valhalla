@@ -1997,7 +1997,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
     Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
     __ movl(klass, Address(klass, Klass::layout_helper_offset()));
-    __ testl(klass, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ testl(klass, Klass::_lh_array_tag_flat_value_bit_inplace);
     __ jcc(Assembler::notZero, *op->stub()->entry());
   }
   if (!op->value()->is_illegal()) {
@@ -2009,7 +2009,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
     if (UseArrayMarkWordCheck) {
       __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
     } else {
-      __ testl(klass, Klass::_lh_null_free_bit_inplace);
+      __ testl(klass, Klass::_lh_null_free_array_bit_inplace);
       __ jcc(Assembler::notZero, *op->stub()->entry());
     }
     __ bind(skip);
@@ -2033,7 +2033,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     Register klass = op->tmp()->as_register();
     __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
     __ movl(klass, Address(klass, Klass::layout_helper_offset()));
-    __ testl(klass, Klass::_lh_null_free_bit_inplace);
+    __ testl(klass, Klass::_lh_null_free_array_bit_inplace);
   }
 }
 
@@ -3252,9 +3252,9 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
     if (is_dest) {
       // Take the slow path if it's a null_free destination array, in case the source array contains NULLs.
-      __ testl(tmp, Klass::_lh_null_free_bit_inplace);
+      __ testl(tmp, Klass::_lh_null_free_array_bit_inplace);
     } else {
-      __ testl(tmp, Klass::_lh_array_tag_vt_value_bit_inplace);
+      __ testl(tmp, Klass::_lh_array_tag_flat_value_bit_inplace);
     }
     __ jcc(Assembler::notZero, *slow_path->entry());
   }

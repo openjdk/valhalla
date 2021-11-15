@@ -381,8 +381,8 @@ protected:
   static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
   static const int _lh_null_free_mask  = 1;
 
-  static const jint _lh_array_tag_vt_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
-  static const jint _lh_null_free_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
+  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_null_free_array_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");

@@ -320,7 +320,7 @@ Klass* SystemDictionary::resolve_array_class_or_null(Symbol* class_name,
         if (!k->is_inline_klass()) {
           THROW_MSG_NULL(vmSymbols::java_lang_IncompatibleClassChangeError(), "L/Q mismatch on bottom type");
         }
-        k = InlineKlass::cast(k)->null_free_inline_array_klass(ndims, CHECK_NULL);
+        k = InlineKlass::cast(k)->value_array_klass(ndims, CHECK_NULL);
       } else {
         k = k->array_klass(ndims, CHECK_NULL);
       }
@@ -861,7 +861,7 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
     }
     if (k != NULL) {
       if (class_name->is_Q_array_signature()) {
-        k = InlineKlass::cast(k)->null_free_inline_array_klass_or_null(ndims);
+        k = InlineKlass::cast(k)->value_array_klass_or_null(ndims);
       } else {
         k = k->array_klass_or_null(ndims);
       }
@@ -1861,7 +1861,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     // If element class already loaded, allocate array klass
     if (klass != NULL) {
       if (class_name->is_Q_array_signature()) {
-        klass = InlineKlass::cast(klass)->null_free_inline_array_klass_or_null(ndims);
+        klass = InlineKlass::cast(klass)->value_array_klass_or_null(ndims);
       } else {
         klass = klass->array_klass_or_null(ndims);
       }
