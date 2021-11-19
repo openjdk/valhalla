@@ -1245,7 +1245,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         CallGenerator* cg = C->call_generator(target, vtable_index,
                                               false /* call_does_dispatch */,
                                               jvms,
-                                              true /* allow_inline */,
+                                              allow_inline,
                                               PROB_ALWAYS,
                                               NULL,
                                               true);
