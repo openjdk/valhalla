@@ -1233,6 +1233,25 @@ void InstanceKlass::initialize_impl(TRAPS) {
     set_init_thread(jt);
   }
 
+  // Pre-allocating an instance of the default value
+  if (is_inline_klass()) {
+      InlineKlass* vk = InlineKlass::cast(this);
+      oop val = vk->allocate_instance(THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+          Handle e(THREAD, PENDING_EXCEPTION);
+          CLEAR_PENDING_EXCEPTION;
+          {
+              EXCEPTION_MARK;
+              add_initialization_error(THREAD, e);
+              // Locks object, set state, and notify all waiting threads
+              set_initialization_state_and_notify(initialization_error, THREAD);
+              CLEAR_PENDING_EXCEPTION;
+          }
+          THROW_OOP(e());
+      }
+      vk->set_default_value(val);
+  }
+
   // Step 7
   // Next, if C is a class rather than an interface, initialize it's super class and super
   // interfaces.

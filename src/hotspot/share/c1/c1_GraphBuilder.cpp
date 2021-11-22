@@ -1777,7 +1777,6 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 }
 
 void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field) {
-  assert(vk->nof_nonstatic_fields() > 0, "Empty inline type access should be removed");
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
     assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
@@ -1884,7 +1883,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (!has_pending_field_access() && !has_pending_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
-        if (field->is_null_free() && field->type()->is_loaded() && field->type()->as_inline_klass()->is_empty()) {
+        if (field->is_null_free() && field->type()->as_instance_klass()->is_initialized()
+            && field->type()->as_inline_klass()->is_empty()) {
           // Loading from a field of an empty inline type. Just return the default instance.
           null_check(obj);
           constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
@@ -1986,7 +1986,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
             bool need_membar = false;
-            if (inline_klass->is_empty()) {
+            if (inline_klass->is_initialized() && inline_klass->is_empty()) {
               apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
               if (has_pending_field_access()) {
                 set_pending_field_access(NULL);
