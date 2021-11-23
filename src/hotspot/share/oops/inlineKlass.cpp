@@ -67,7 +67,9 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
 }
 
 oop InlineKlass::default_value() {
+  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(default_value_offset());
+  assert(val != NULL, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");

@@ -1739,7 +1739,9 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
                      NULL, NULL);
 
   if (field->is_null_free()) {
-    assert(field->type()->as_inline_klass()->is_loaded(), "Must be");
+    assert(field->type()->is_loaded(), "Must be");
+    assert(field->type()->is_inlinetype(), "Must be if loaded");
+    assert(field->type()->as_inline_klass()->is_initialized(), "Must be");
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, L_end->label());
@@ -2321,10 +2323,12 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
   } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
+             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_initialized() &&
              x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
     // Load the default instance instead of reading the element
     ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
     LIR_Opr result = rlock_result(x, x->elt_type());
+    assert(elem_klass->is_initialized(), "Must be");
     Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
     if (default_value->is_pinned()) {
       __ move(LIR_OprFact::value_type(default_value->type()), result);

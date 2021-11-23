@@ -1260,12 +1260,6 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
 
   load_shared_class_misc(ik, loader_data);
 
-  if (ik->is_inline_klass()) {
-    InlineKlass* vk = InlineKlass::cast(ik);
-    oop val = ik->allocate_instance(CHECK_NULL);
-    vk->set_default_value(val);
-  }
-
   return ik;
 }
 

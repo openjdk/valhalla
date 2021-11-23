@@ -5498,13 +5498,6 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   fill_instance_klass(ik, changed_by_loadhook, cl_inst_info, CHECK_NULL);
 
   assert(_klass == ik, "invariant");
-
-  if (ik->is_inline_klass()) {
-    InlineKlass* vk = InlineKlass::cast(ik);
-    oop val = ik->allocate_instance(CHECK_NULL);
-    vk->set_default_value(val);
-  }
-
   return ik;
 }
 
