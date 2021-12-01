@@ -1000,6 +1000,7 @@ void JvmtiClassFileReconstituter::copy_bytecodes(const methodHandle& mh,
       case Bytecodes::_putstatic       :  // fall through
       case Bytecodes::_getfield        :  // fall through
       case Bytecodes::_putfield        :  // fall through
+      case Bytecodes::_withfield       :  // fall through
       case Bytecodes::_invokevirtual   :  // fall through
       case Bytecodes::_invokespecial   :  // fall through
       case Bytecodes::_invokestatic    :  // fall through
