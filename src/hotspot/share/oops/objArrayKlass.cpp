@@ -174,14 +174,14 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
   assert(is_objArray_klass(), "sanity");
 }
 
-int ObjArrayKlass::oop_size(oop obj) const {
+size_t ObjArrayKlass::oop_size(oop obj) const {
   assert(obj->is_objArray(), "must be object array");
   return objArrayOop(obj)->object_size();
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  int size = objArrayOopDesc::object_size(length);
+  size_t size = objArrayOopDesc::object_size(length);
   bool populate_null_free = is_null_free_array_klass();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
                                                        /* do_zero */ true, THREAD);

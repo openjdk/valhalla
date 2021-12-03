@@ -641,8 +641,10 @@ bool ParametersTypeData::profiling_enabled() {
 }
 
 void ParametersTypeData::print_data_on(outputStream* st, const char* extra) const {
-  st->print("parameter types"); // FIXME extra ignored?
+  print_shared(st, "ParametersTypeData", extra);
+  tab(st);
   _parameters.print_data_on(st);
+  st->cr();
 }
 
 void SpeculativeTrapData::print_data_on(outputStream* st, const char* extra) const {
@@ -1251,7 +1253,7 @@ void MethodData::post_initialize(BytecodeStream* stream) {
 MethodData::MethodData(const methodHandle& method)
   : _method(method()),
     // Holds Compile_lock
-    _extra_data_lock(Mutex::nonleaf-2, "MDOExtraData_lock", Mutex::_safepoint_check_always),
+    _extra_data_lock(Mutex::safepoint-2, "MDOExtraData_lock"),
     _compiler_counters(),
     _parameters_type_data_di(parameters_uninitialized) {
   initialize();

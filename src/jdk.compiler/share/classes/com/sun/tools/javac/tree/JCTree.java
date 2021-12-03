@@ -697,7 +697,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
     }
 
-    public static abstract class JCStatement extends JCTree implements StatementTree {
+    public abstract static class JCStatement extends JCTree implements StatementTree {
         @Override
         public JCStatement setType(Type type) {
             super.setType(type);
@@ -710,7 +710,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
     }
 
-    public static abstract class JCCaseLabel extends JCTree implements CaseLabelTree {
+    public abstract static class JCCaseLabel extends JCTree implements CaseLabelTree {
         public abstract boolean isExpression();
         public boolean isNullPattern() {
             return isExpression() && TreeInfo.isNull((JCExpression) this);
@@ -718,7 +718,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public abstract boolean isPattern();
     }
 
-    public static abstract class JCExpression extends JCCaseLabel implements ExpressionTree {
+    public abstract static class JCExpression extends JCCaseLabel implements ExpressionTree {
         @Override
         public JCExpression setType(Type type) {
             super.setType(type);
@@ -747,7 +747,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      * Common supertype for all poly expression trees (lambda, method references,
      * conditionals, method and constructor calls)
      */
-    public static abstract class JCPolyExpression extends JCExpression {
+    public abstract static class JCPolyExpression extends JCExpression {
 
         /**
          * A poly expression can only be truly 'poly' in certain contexts
@@ -769,7 +769,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * Common supertype for all functional expression trees (lambda and method references)
      */
-    public static abstract class JCFunctionalExpression extends JCPolyExpression {
+    public abstract static class JCFunctionalExpression extends JCPolyExpression {
 
         public JCFunctionalExpression() {
             //a functional expression is always a 'true' poly
@@ -2122,7 +2122,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
     }
 
-    public static abstract class JCOperatorExpression extends JCExpression {
+    public abstract static class JCOperatorExpression extends JCExpression {
         public enum OperandPos {
             LEFT,
             RIGHT
@@ -2304,7 +2304,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     /**
      * Pattern matching forms.
      */
-    public static abstract class JCPattern extends JCCaseLabel
+    public abstract static class JCPattern extends JCCaseLabel
             implements PatternTree {
 
         @Override
@@ -3055,7 +3055,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         }
     }
 
-    public static abstract class JCDirective extends JCTree
+    public abstract static class JCDirective extends JCTree
         implements DirectiveTree {
     }
 
@@ -3468,7 +3468,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
 
     /** A generic visitor class for trees.
      */
-    public static abstract class Visitor {
+    public abstract static class Visitor {
         public void visitTopLevel(JCCompilationUnit that)    { visitTree(that); }
         public void visitPackageDef(JCPackageDecl that)      { visitTree(that); }
         public void visitImport(JCImport that)               { visitTree(that); }
