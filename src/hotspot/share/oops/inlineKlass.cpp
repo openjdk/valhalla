@@ -212,20 +212,6 @@ Klass* InlineKlass::value_array_klass_or_null() {
   return value_array_klass_or_null(1);
 }
 
-void InlineKlass::array_klasses_do(void f(Klass* k)) {
-  InstanceKlass::array_klasses_do(f);
-  if (value_array_klasses() != NULL) {
-    value_array_klasses()->array_klasses_do(f);
-  }
-}
-
-void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
-  InstanceKlass::array_klasses_do(f, THREAD);
-  if (value_array_klasses() != NULL) {
-    value_array_klasses()->array_klasses_do(f, THREAD);
-  }
-}
-
 // Inline type arguments are not passed by reference, instead each
 // field of the inline type is passed as an argument. This helper
 // function collects the inlined field (recursively)

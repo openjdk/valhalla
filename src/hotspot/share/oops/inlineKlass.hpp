@@ -154,10 +154,6 @@ class InlineKlass: public InstanceKlass {
     return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_INLINE_TYPE);
   }
 
-  // Iterators
-  virtual void array_klasses_do(void f(Klass* k));
-  virtual void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
-
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);
 

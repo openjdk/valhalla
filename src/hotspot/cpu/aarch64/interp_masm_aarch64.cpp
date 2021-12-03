@@ -273,7 +273,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
     SkipIfEqual skip_if(this, &DTraceAllocProbes, 0);
     // Trigger dtrace event for fastpath
     push(atos);
-    call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc), new_obj);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, static_cast<int (*)(oopDesc*)>(SharedRuntime::dtrace_object_alloc)), new_obj);
     pop(atos);
   }
 }
