@@ -113,7 +113,7 @@ class InlineHolder {
 
 public class RedefinePrimitive {
 
-	private static Instrumentation inst;
+    private static Instrumentation inst;
 
     private static final ToolProvider JAR = ToolProvider.findFirst("jar")
         .orElseThrow(() -> new RuntimeException("ToolProvider for jar not found"));
@@ -320,7 +320,7 @@ public class RedefinePrimitive {
             int i = Integer.parseInt(argv[0]);
             Test t = tests[i];
             t.run();
-		}
+        }
    }
 
 
