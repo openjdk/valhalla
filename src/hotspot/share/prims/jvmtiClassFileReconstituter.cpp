@@ -883,7 +883,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   copy_cpool_bytes(writeable_address(cpool_size()));
 
   // JVMSpec|           u2 access_flags;
-  write_u2(ik()->access_flags().get_flags() & JVM_RECOGNIZED_CLASS_MODIFIERS);
+  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_INLINE));
 
   // JVMSpec|           u2 this_class;
   // JVMSpec|           u2 super_class;
@@ -1000,6 +1000,7 @@ void JvmtiClassFileReconstituter::copy_bytecodes(const methodHandle& mh,
       case Bytecodes::_putstatic       :  // fall through
       case Bytecodes::_getfield        :  // fall through
       case Bytecodes::_putfield        :  // fall through
+      case Bytecodes::_withfield       :  // fall through
       case Bytecodes::_invokevirtual   :  // fall through
       case Bytecodes::_invokespecial   :  // fall through
       case Bytecodes::_invokestatic    :  // fall through
