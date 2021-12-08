@@ -945,22 +945,10 @@ void nmethod::maybe_print_nmethod(DirectiveSet* directive) {
   }
 }
 
-static nmethod* _nmethod_to_print = NULL;
-static const CompiledEntrySignature* _nmethod_to_print_ces = NULL;
-
 void nmethod::print_nmethod(bool printmethod) {
   run_nmethod_entry_barrier(); // ensure all embedded OOPs are valid before printing
 
-  ResourceMark rm;
-  CompiledEntrySignature ces(method());
-  ces.compute_calling_conventions();
-  // ces.compute_calling_conventions() needs to grab the ProtectionDomainSet_lock, so we
-  // can't do that (inside nmethod::print_entry_parameters) while holding the ttyLocker.
-  // Hence we have do compute it here and pass via a global. Yuck.
   ttyLocker ttyl;  // keep the following output all in one block
-  assert(_nmethod_to_print == NULL && _nmethod_to_print_ces == NULL, "no nesting");
-  _nmethod_to_print = this;
-  _nmethod_to_print_ces = &ces;
   if (xtty != NULL) {
     xtty->begin_head("print_nmethod");
     log_identity(xtty);
@@ -1040,9 +1028,6 @@ void nmethod::print_nmethod(bool printmethod) {
   if (xtty != NULL) {
     xtty->tail("print_nmethod");
   }
-
-  _nmethod_to_print = NULL;
-  _nmethod_to_print_ces = NULL;
 }
 
 
@@ -3208,9 +3193,6 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     }
   }
 
-  if (_nmethod_to_print != this) {
-    return;
-  }
   Method* m = method();
   if (m == NULL || is_osr_method()) {
     return;
@@ -3227,24 +3209,25 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   }
 
   // Print the arguments for the 3 types of verified entry points
-  const CompiledEntrySignature* ces = _nmethod_to_print_ces;
+  CompiledEntrySignature ces(m);
+  ces.compute_calling_conventions();
   const GrowableArray<SigEntry>* sig_cc;
   const VMRegPair* regs;
   if (block_begin == verified_entry_point()) {
-    sig_cc = &ces->sig_cc();
-    regs = ces->regs_cc();
+    sig_cc = &ces.sig_cc();
+    regs = ces.regs_cc();
   } else if (block_begin == verified_inline_entry_point()) {
-    sig_cc = &ces->sig();
-    regs = ces->regs();
+    sig_cc = &ces.sig();
+    regs = ces.regs();
   } else if (block_begin == verified_inline_ro_entry_point()) {
-    sig_cc = &ces->sig_cc_ro();
-    regs = ces->regs_cc_ro();
+    sig_cc = &ces.sig_cc_ro();
+    regs = ces.regs_cc_ro();
   } else {
     return;
   }
 
   bool has_this = !m->is_static();
-  if (ces->has_inline_recv() && block_begin == verified_entry_point()) {
+  if (ces.has_inline_recv() && block_begin == verified_entry_point()) {
     // <this> argument is scalarized for verified_entry_point()
     has_this = false;
   }
