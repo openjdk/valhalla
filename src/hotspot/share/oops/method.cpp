@@ -2380,6 +2380,30 @@ bool Method::is_valid_method(const Method* m) {
   }
 }
 
+bool Method::is_scalarized_arg(int idx) const {
+  if (!has_scalarized_args()) return false;
+
+  // TODO what about empty inline type args?
+  const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
+  int orig_idx = idx;
+  // ILVSOAT
+  int s = 0;
+  for (int i = 0; i < sig->length(); i++) {
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_INLINE_TYPE) {
+      s++;
+    }
+    if (idx == 0) break;
+    if (bt == T_VOID && (sig->at(i-1)._bt != T_LONG && sig->at(i-1)._bt != T_DOUBLE)) {
+      s--;
+    }
+    if (s == 0 && bt != T_LONG && bt != T_DOUBLE) {
+      idx--;
+    }
+  }
+  return s != 0;
+}
+
 #ifndef PRODUCT
 void Method::print_jmethod_ids_count(const ClassLoaderData* loader_data, outputStream* out) {
   out->print("%d", loader_data->jmethod_ids()->count_methods());

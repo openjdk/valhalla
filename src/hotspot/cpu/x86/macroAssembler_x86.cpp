@@ -5637,6 +5637,16 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     fromReg = r10;
   }
 
+  Label L_null, L_notNull;
+
+  // TODO we should only null check if there is work left
+  // TODO we only need a null check if the arg is nullable (check for pivot field?)
+  bool null_check = reg_state[from->value()] != reg_written;
+  if (null_check) {
+    testptr(fromReg, fromReg);
+    jcc(Assembler::zero, L_null);
+  }
+
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
   bool mark_done = true;
@@ -5644,23 +5654,32 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
   BasicType bt;
   while (stream.next(toReg, bt)) {
     assert(toReg->is_valid(), "destination must be valid");
-    int off = sig->at(stream.sig_index())._offset;
-    assert(off > 0, "offset in object should be positive");
-    Address fromAddr = Address(fromReg, off);
-
     int idx = (int)toReg->value();
     if (reg_state[idx] == reg_readonly) {
-     if (idx != from->value()) {
-       mark_done = false;
-     }
-     done = false;
-     continue;
+      if (idx != from->value()) {
+        mark_done = false;
+      }
+      done = false;
+      continue;
     } else if (reg_state[idx] == reg_written) {
       continue;
     } else {
       assert(reg_state[idx] == reg_writable, "must be writable");
       reg_state[idx] = reg_written;
     }
+
+    int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(Address(rsp, st_off), 1);
+      } else {
+        movq(toReg->as_Register(), 1);
+      }
+      continue;
+    }
+    assert(off > 0, "offset in object should be positive");
+    Address fromAddr = Address(fromReg, off);
 
     if (!toReg->is_XMMRegister()) {
       Register dst = toReg->is_stack() ? r13 : toReg->as_Register();
@@ -5681,6 +5700,40 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       movflt(toReg->as_XMMRegister(), fromAddr);
     }
   }
+  if (null_check) {
+    if (done) {
+      jmp(L_notNull);
+      bind(L_null);
+
+      // Set all fields to 0
+      ScalarizedInlineArgsStream stream1(sig, sig_index, to, to_count, to_index, -1);
+      bool found = false;
+      while (stream1.next(toReg, bt)) {
+        assert(toReg->is_valid(), "destination must be valid");
+        assert(reg_state[(int)toReg->value()] == reg_written, "unexpected state");
+
+        // TODO double check if this is correct
+        if (!toReg->is_XMMRegister()) {
+          if (toReg->is_stack()) {
+            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+            movq(Address(rsp, st_off), 0);
+          } else {
+            xorq(toReg->as_Register(), toReg->as_Register());
+          }
+        } else if (bt == T_DOUBLE) {
+          xorpd(toReg->as_XMMRegister(), toReg->as_XMMRegister());
+        } else {
+          assert(bt == T_FLOAT, "must be float");
+          xorps(toReg->as_XMMRegister(), toReg->as_XMMRegister());
+        }
+      }
+
+      bind(L_notNull);
+    } else {
+      bind(L_null);
+    }
+  }
+
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 

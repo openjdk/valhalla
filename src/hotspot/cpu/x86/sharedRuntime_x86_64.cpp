@@ -921,6 +921,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // type delimiter for this inline type. Inline types are flattened
       // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
+      Label L_null;
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
@@ -935,6 +936,21 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           ignored++;
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
+          if (off == -1) {
+            VMReg reg = regs[next_arg_comp-ignored].first();
+            Label L_OK;
+            if (reg->is_stack()) {
+              int ld_off = reg->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
+              __ testb(Address(rsp, ld_off), 1);
+            } else {
+              __ testb(reg->as_Register(), 1);
+            }
+            __ jcc(Assembler::notZero, L_OK);
+            __ movptr(Address(rsp, st_off), 0);
+            __ jmp(L_null);
+            __ bind(L_OK);
+            continue;
+          }
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
           bool is_oop = is_reference_type(bt);
@@ -944,6 +960,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       } while (vt != 0);
       // pass the buffer to the interpreter
       __ movptr(Address(rsp, st_off), r14);
+      __ bind(L_null);
     }
   }
 

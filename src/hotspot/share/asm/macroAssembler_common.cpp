@@ -190,6 +190,7 @@ void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only,
         vtarg_index++;
         to_index++;
       } else if (!receiver_only || (from_index == 0 && bt == T_VOID)) {
+        // TODO why is this re-declared?
         VMReg from_reg = regs[from_index].first();
         done &= unpack_inline_helper(sig, sig_index,
                                      from_reg, from_index, regs_to, args_passed_to, to_index,

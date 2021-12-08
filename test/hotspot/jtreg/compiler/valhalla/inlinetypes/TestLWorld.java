@@ -31,6 +31,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
+import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
@@ -1329,9 +1330,9 @@ public class TestLWorld {
     public void test40_verifier() {
         int index = Math.abs(rI) % 3;
         long result = test40(testValue1, 0);
-        Asserts.assertEQ(result, testValue1.hash());
+        Asserts.assertEQ(result, testValue1.hashInterpreted());
         result = test40(testValue1Array, index);
-        Asserts.assertEQ(result, testValue1.hash());
+        Asserts.assertEQ(result, testValue1.hashInterpreted());
         result = test40(testValue2, index);
         Asserts.assertEQ(result, testValue2.hash());
         result = test40(testValue2Array, index);

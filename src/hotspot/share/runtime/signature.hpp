@@ -571,6 +571,7 @@ class SignatureStream : public StackObj {
   enum FailureMode { ReturnNull, NCDFError, CachedOrNull };
 
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
+  InlineKlass* is_inline_klass(InstanceKlass* holder);
   InlineKlass* as_inline_klass(InstanceKlass* holder);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
 };

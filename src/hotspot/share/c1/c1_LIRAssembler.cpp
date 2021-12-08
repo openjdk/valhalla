@@ -642,6 +642,7 @@ void LIR_Assembler::emit_std_entries() {
   offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
 
   _masm->align(CodeEntryAlignment);
+  // TODO this should be put into the adapter. If we re-compute, a different result might be returned
   const CompiledEntrySignature* ces = compilation()->compiled_entry_signature();
   if (ces->has_scalarized_args()) {
     assert(InlineTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");

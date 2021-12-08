@@ -40,10 +40,12 @@ public final primitive class MyValue1 extends MyAbstract {
     final MyValue2 v1;
     final MyValue2 v2;
     static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
+    final MyValue2.ref v4;
+    final MyValue2 v5;
     final int c;
 
     @ForceInline
-    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2 v1, MyValue2 v2, int c) {
+    public MyValue1(int x, long y, short z, Integer o, int[] oa, MyValue2 v1, MyValue2 v2, MyValue2.ref v4, MyValue2.ref v5, int c) {
         s = 0;
         this.x = x;
         this.y = y;
@@ -52,6 +54,8 @@ public final primitive class MyValue1 extends MyAbstract {
         this.oa = oa;
         this.v1 = v1;
         this.v2 = v2;
+        this.v4 = v4;
+        this.v5 = v5;
         this.c = c;
     }
 
@@ -82,6 +86,8 @@ public final primitive class MyValue1 extends MyAbstract {
         v = setOA(v, oa);
         v = setV1(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD));
         v = setV2(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + x));
+        v = setV4(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + 2*x));
+        v = setV5(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + 2*x));
         v = setC(v, (int)(x+y));
         return v;
     }
@@ -101,12 +107,15 @@ public final primitive class MyValue1 extends MyAbstract {
         try {
             res += oa[0];
         } catch (NullPointerException npe) {}
+        try {
+            res += v4.hash();
+        } catch (NullPointerException npe) {}
         return res;
     }
 
     @DontCompile
     public long hashInterpreted() {
-        return s + sf + x + y + z + o + oa[0] + c + v1.hashInterpreted() + v2.hashInterpreted() + v3.hashInterpreted();
+        return s + sf + x + y + z + o + oa[0] + c + v1.hashInterpreted() + v2.hashInterpreted() + v3.hashInterpreted() + v4.hashInterpreted() + v5.hashInterpreted();
     }
 
     @ForceInline
@@ -117,46 +126,60 @@ public final primitive class MyValue1 extends MyAbstract {
         v2.print();
         System.out.print("], v3[");
         v3.print();
+        System.out.print("], v4[");
+        v4.print();
+        System.out.print("], v5[");
+        v5.print();
         System.out.print("], c=" + c);
     }
 
     @ForceInline
     static MyValue1 setX(MyValue1 v, int x) {
-        return new MyValue1(x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.c);
+        return new MyValue1(x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v.v5, v.c);
     }
 
     @ForceInline
     static MyValue1 setY(MyValue1 v, long y) {
-        return new MyValue1(v.x, y, v.z, v.o, v.oa, v.v1, v.v2, v.c);
+        return new MyValue1(v.x, y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v.v5, v.c);
     }
 
     @ForceInline
     static MyValue1 setZ(MyValue1 v, short z) {
-        return new MyValue1(v.x, v.y, z, v.o, v.oa, v.v1, v.v2, v.c);
+        return new MyValue1(v.x, v.y, z, v.o, v.oa, v.v1, v.v2, v.v4, v.v5, v.c);
     }
 
     @ForceInline
     static MyValue1 setO(MyValue1 v, Integer o) {
-        return new MyValue1(v.x, v.y, v.z, o, v.oa, v.v1, v.v2, v.c);
+        return new MyValue1(v.x, v.y, v.z, o, v.oa, v.v1, v.v2, v.v4, v.v5, v.c);
     }
 
     @ForceInline
     static MyValue1 setOA(MyValue1 v, int[] oa) {
-        return new MyValue1(v.x, v.y, v.z, v.o, oa, v.v1, v.v2, v.c);
+        return new MyValue1(v.x, v.y, v.z, v.o, oa, v.v1, v.v2, v.v4, v.v5, v.c);
     }
 
     @ForceInline
     static MyValue1 setC(MyValue1 v, int c) {
-        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, c);
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v.v5, c);
     }
 
     @ForceInline
     static MyValue1 setV1(MyValue1 v, MyValue2 v1) {
-        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v1, v.v2, v.c);
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v1, v.v2, v.v4, v.v5, v.c);
     }
 
     @ForceInline
     static MyValue1 setV2(MyValue1 v, MyValue2 v2) {
-        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v2, v.c);
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v2, v.v4, v.v5, v.c);
+    }
+
+    @ForceInline
+    static MyValue1 setV4(MyValue1 v, MyValue2.ref v4) {
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v4, v.v5, v.c);
+    }
+
+    @ForceInline
+    static MyValue1 setV5(MyValue1 v, MyValue2.ref v5) {
+        return new MyValue1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v.v4, v5, v.c);
     }
 }

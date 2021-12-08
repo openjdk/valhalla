@@ -537,6 +537,7 @@ void GraphKit::uncommon_trap_if_should_post_on_exceptions(Deoptimization::DeoptR
 
 }
 
+// TODO arg is unused, also in mainline
 //------------------------------builtin_throw----------------------------------
 void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
   bool must_throw = true;
@@ -1248,7 +1249,15 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
-  if (value->is_InlineTypePtr()) {
+  if (value->is_InlineType()) {
+    InlineTypeNode* vt = value->as_InlineType();
+    null_check_common(vt->get_is_init(), T_INT, assert_null, null_control, speculative, true);
+    if (stopped()) {
+      return top();
+    }
+    bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
+    return cast_not_null(value, do_replace_in_map);
+  } else if (value->is_InlineTypePtr()) {
     // Null checking a scalarized but nullable inline type. Check the is_init
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
@@ -1258,6 +1267,12 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     null_check_common(vtptr->get_is_init(), T_INT, assert_null, null_control, speculative, true);
     if (stopped()) {
       return top();
+    }
+    if (assert_null) {
+      // TODO do we even need this?
+      return value;
+      //replace_in_map(value, zerocon(type));
+      //return zerocon(type);
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
@@ -1444,7 +1459,14 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
-    return obj;
+    // TODO
+    InlineTypeNode* vt = obj->clone()->as_InlineType();
+    vt->set_is_init(_gvn);
+    vt = _gvn.transform(vt)->as_InlineType();
+    if (do_replace_in_map) {
+      replace_in_map(obj, vt);
+    }
+    return vt;
   } else if (obj->is_InlineTypePtr()) {
     // Cast oop input instead
     Node* cast = cast_not_null(obj->as_InlineTypePtr()->get_oop(), do_replace_in_map);
@@ -1453,6 +1475,7 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
       return top();
     }
     // Create a new node with the casted oop input and is_init set
+    // TODO simply use clone here?
     InlineTypeBaseNode* vt = obj->clone()->as_InlineTypePtr();
     vt->set_oop(cast);
     vt->set_is_init(_gvn);
@@ -1846,17 +1869,24 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   // Add the call arguments
   const TypeTuple* domain = call->tf()->domain_sig();
   uint nargs = domain->cnt();
+  int arg_num = 0;
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
-    if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
+    if (t->is_inlinetypeptr() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
+      if (!arg->is_InlineTypeBase()) {
+        // TODO should be null, right?
+        // assert !t->inline_klass()->is_nullable_flattenable()
+        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
+      }
       InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
-      vt->pass_fields(this, call, idx);
+      vt->pass_fields(this, call, idx, !t->maybe_null());
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
+      arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
@@ -1865,6 +1895,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
         arg = arg->as_InlineTypePtr()->get_oop();
       }
     }
+    if (t != Type::HALF) arg_num++;
     call->init_req(idx++, arg);
   }
 }
@@ -3519,20 +3550,18 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         // to the type system as a speculative type.
         if (!from_inline) {
           obj = record_profiled_receiver_for_speculation(obj);
-          if (null_free) {
-            assert(safe_for_replace, "must be");
-            obj = null_check(obj);
-          }
-          assert(stopped() || !toop->is_inlinetypeptr() ||
-                 obj->is_InlineTypeBase(), "should have been scalarized");
         }
+        if (null_free) {
+          assert(safe_for_replace, "must be");
+          obj = null_check(obj);
+        }
+        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineTypeBase(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
         if (from_inline || null_free) {
-          if (!from_inline) {
-            assert(safe_for_replace, "must be");
-            null_check(obj);
-          }
+          assert(safe_for_replace, "must be");
+          // TODO is this correct???
+          null_check(obj);
           // Inline type is null-free. Always throw an exception.
           builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(klass)));
           return top();
@@ -3578,6 +3607,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
   Node* not_null_obj = NULL;
+  // TODO this is wrong
   if (from_inline) {
     not_null_obj = obj;
   } else if (null_free) {
@@ -3590,6 +3620,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // If not_null_obj is dead, only null-path is taken
   if (stopped()) {              // Doing instance-of on a NULL?
     set_control(null_ctl);
+    if (toop->is_inlinetypeptr()) {
+      return InlineTypePtrNode::make_null(_gvn, toop->inline_klass());
+    } else {
+      return null();
+    }
     return null();
   }
   region->init_req(_null_path, null_ctl);

@@ -826,10 +826,10 @@ public:
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
 
   CompiledEntrySignature(Method* method = NULL);
-  void compute_calling_conventions();
+  void compute_calling_conventions(bool init = true);
 
 private:
-  int compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
+  int compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver, bool init);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

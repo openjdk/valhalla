@@ -191,8 +191,8 @@ Node* InlineTypeBaseNode::field_value_by_offset(int offset, bool recursive) cons
   int sub_offset = offset - field_offset(index);
   Node* value = field_value(index);
   assert(value != NULL, "field value not found");
-  if (recursive && value->is_InlineType()) {
-    InlineTypeNode* vt = value->as_InlineType();
+  if (recursive && value->is_InlineTypeBase()) {
+    InlineTypeBaseNode* vt = value->as_InlineTypeBase();
     if (field_is_flattened(index)) {
       // Flattened inline type field
       sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
@@ -202,7 +202,7 @@ Node* InlineTypeBaseNode::field_value_by_offset(int offset, bool recursive) cons
       return vt;
     }
   }
-  assert(!(recursive && value->is_InlineType()), "should not be an inline type");
+  assert(!(recursive && value->is_InlineTypeBase()), "should not be an inline type");
   assert(sub_offset == 0, "offset mismatch");
   return value;
 }
@@ -363,7 +363,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     Node* value = NULL;
     ciType* ft = field_type(i);
     bool null_free = field_is_null_free(i);
-    if (ft->is_inlinetype() && ft->as_inline_klass()->is_empty()) {
+    if (null_free && ft->as_inline_klass()->is_empty()) {
       // Loading from a field of an empty inline type. Just return the default instance.
       value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
     } else if (field_is_flattened(i)) {
@@ -430,11 +430,12 @@ void InlineTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceK
     ciType* ft = field_type(i);
     if (field_is_flattened(i)) {
       // Recursively store the flattened inline type field
-      if (!value->is_InlineType()) {
-        assert(!kit->gvn().type(value)->maybe_null(), "Inline types are null-free");
+      // TODO re-enable
+      //assert(!kit->gvn().type(value)->maybe_null(), "Flattened inline types are null-free");
+      if (!value->is_InlineTypeBase()) {
         value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass());
       }
-      value->as_InlineType()->store_flattened(kit, base, ptr, holder, offset, decorators);
+      value->as_InlineTypeBase()->store_flattened(kit, base, ptr, holder, offset, decorators);
     } else {
       // Store field value to memory
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
@@ -453,32 +454,49 @@ void InlineTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceK
 
 InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_replace) {
   assert(is_InlineType(), "sanity");
-  // Check if inline type is already allocated
-  Node* null_ctl = kit->top();
-  Node* not_null_oop = kit->null_check_oop(get_oop(), &null_ctl);
-  if (null_ctl->is_top()) {
-    // Inline type is allocated
+
+  // Check if inline type is already buffered
+  // TODO set replace in map?
+  Node* not_buffered_ctl = kit->top();
+  Node* not_null_oop = kit->null_check_oop(get_oop(), &not_buffered_ctl);
+  if (not_buffered_ctl->is_top()) {
+    // Already buffered
     return as_ptr(&kit->gvn());
   }
-  assert(!is_allocated(&kit->gvn()), "should not be allocated");
-  RegionNode* region = new RegionNode(3);
+  Node* buffered_ctl = kit->control();
+  kit->set_control(not_buffered_ctl);
 
-  // Oop is non-NULL, use it
-  region->init_req(1, kit->control());
-  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr()->join_speculative(TypePtr::NOTNULL));
+  // Inline type is not buffered, check if it is null.
+  // TODO we should replace in map
+  Node* null_ctl = kit->top();
+  kit->null_check_common(get_is_init(), T_INT, false, &null_ctl);
+  bool null_free = null_ctl->is_top();
+
+  RegionNode* region = new RegionNode(4);
+  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr()->join_speculative(null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM));
+
+  // InlineType is already buffered
+  region->init_req(1, buffered_ctl);
+  oop->init_req(1, not_null_oop);
+
+  // InlineType is null
+  region->init_req(2, null_ctl);
+  oop->init_req(2, kit->gvn().zerocon(T_OBJECT));
+
   PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
   PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
   int bci = kit->bci();
   bool reexecute = kit->jvms()->should_reexecute();
-  {
+  if (!kit->stopped()) {
+    assert(!is_allocated(&kit->gvn()), "should not be allocated");
     // Oop is NULL, allocate and initialize buffer
     PreserveJVMState pjvms(kit);
     // Propagate re-execution state and bci
     kit->set_bci(bci);
     kit->jvms()->set_bci(bci);
     kit->jvms()->set_should_reexecute(reexecute);
-    kit->set_control(null_ctl);
+
     kit->kill_dead_locals();
     ciInlineKlass* vk = inline_klass();
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
@@ -491,10 +509,16 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
     assert(alloc != NULL, "must have an allocation node");
     kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
-    region->init_req(2, kit->control());
-    oop   ->init_req(2, alloc_oop);
-    io    ->init_req(2, kit->i_o());
-    mem   ->init_req(2, kit->merged_memory());
+    region->init_req(3, kit->control());
+    oop   ->init_req(3, alloc_oop);
+    io    ->init_req(3, kit->i_o());
+    mem   ->init_req(3, kit->merged_memory());
+  } else {
+    // TODO remove
+    region->init_req(3, kit->top());
+    oop   ->init_req(3, kit->top());
+    io    ->init_req(3, kit->top());
+    mem   ->init_req(3, kit->top());
   }
 
   // Update GraphKit
@@ -517,7 +541,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
   // InlineTypeNode::remove_redundant_allocations piggybacks on split if.
   // Make sure it gets a chance to remove this allocation.
   kit->C->set_has_split_ifs(true);
-  return vt->as_ptr(&kit->gvn());
+  return vt->as_ptr(&kit->gvn(), null_free);
 }
 
 bool InlineTypeBaseNode::is_allocated(PhaseGVN* phase) const {
@@ -526,12 +550,12 @@ bool InlineTypeBaseNode::is_allocated(PhaseGVN* phase) const {
   return !oop_type->maybe_null();
 }
 
-InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase) const {
-  assert(is_allocated(phase), "must be allocated");
+InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase, bool null_free) const {
+  assert(!null_free || is_allocated(phase), "must be allocated");
   if (is_InlineTypePtr()) {
     return as_InlineTypePtr();
   }
-  return phase->transform(new InlineTypePtrNode(this))->as_InlineTypePtr();
+  return phase->transform(new InlineTypePtrNode(this, null_free))->as_InlineTypePtr();
 }
 
 // When a call returns multiple values, it has several result
@@ -662,6 +686,12 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
 }
 
 bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
+  // TODO needed? Do we have a test?
+  const Type* tinit = gvn->type(in(IsInit));
+  if (!tinit->isa_int() || !tinit->is_int()->is_con(1)) {
+    // May be null
+    return false;
+  }
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
     if (value->is_InlineTypePtr()) {
@@ -678,11 +708,11 @@ bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
 Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
 
-  if (vk->is_empty()) {
+  if (vk->is_empty() && null_free) {
     Node* def = make_default(gvn, vk);
-    if (!null_free) {
-      def = gvn.transform(new InlineTypePtrNode(def->as_InlineType(), false));
-    }
+    //if (!null_free) {
+//      def = gvn.transform(new InlineTypePtrNode(def->as_InlineType(), false));
+    //}
     kit->record_for_igvn(def);
     return def;
   }
@@ -691,6 +721,8 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   InlineTypeBaseNode* vt = NULL;
 
   if (oop->isa_InlineTypePtr()) {
+    return oop;
+    /*
     InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
     if (!null_free) {
       return vtptr;
@@ -702,6 +734,7 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
     }
     kit->record_for_igvn(vt);
     return gvn.transform(vt);
+    */
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null
     Node* null_ctl = kit->top();
@@ -717,18 +750,14 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
       kit->record_for_igvn(vt);
       return vt;
     }
-    if (null_free) {
-      vt = new InlineTypeNode(vk, not_null_oop);
-    } else {
-      vt = new InlineTypePtrNode(vk, not_null_oop);
-    }
+    vt = new InlineTypePtrNode(vk, not_null_oop, null_free);
     vt->set_is_init(gvn);
     vt->load(kit, not_null_oop, not_null_oop, vk, /* holder_offset */ 0);
 
     if (null_ctl != kit->top()) {
       InlineTypeBaseNode* null_vt = NULL;
       if (null_free) {
-        null_vt = make_default(gvn, vk);
+        null_vt = make_default(gvn, vk)->as_ptr(&gvn);
       } else {
         null_vt = InlineTypePtrNode::make_null(gvn, vk);
       }
@@ -741,17 +770,13 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
       kit->set_control(gvn.transform(region));
     }
   } else {
-    if (null_free) {
-      vt = new InlineTypeNode(vk, oop);
-    } else {
-      vt = new InlineTypePtrNode(vk, oop);
-    }
     // Oop can never be null
+    vt = new InlineTypePtrNode(vk, oop, /* null_free= */ true);
     Node* init_ctl = kit->control();
     vt->set_is_init(gvn);
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
-    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
-           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
+ //   assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
+ //          AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
   assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
   kit->record_for_igvn(vt);
@@ -774,14 +799,14 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in) {
+InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
   if (!in) {
     // Keep track of the oop. The returned inline type might already be buffered.
     Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
     vt->set_oop(oop);
   }
-  vt->initialize_fields(kit, multi, base_input, in);
+  vt->initialize_fields(kit, multi, base_input, in, null_free);
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
@@ -831,8 +856,14 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
     vk = inline_klass();
   }
   if (field_count() == 0) {
-    assert(is_allocated(phase), "must be allocated");
-    return get_oop();
+    const Type* tinit = phase->type(in(IsInit));
+    if (tinit->isa_int() && tinit->is_int()->is_con(1)) {
+      assert(is_allocated(phase), "must be allocated");
+      return get_oop();
+    } else {
+      // TODO
+      return NULL;
+    }
   }
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
@@ -888,12 +919,12 @@ Node* InlineTypeBaseNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
+void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool null_free) {
+  if (!null_free) {
+    n->init_req(base_input++, get_is_init());
+  }
   for (uint i = 0; i < field_count(); i++) {
-    int offset = field_offset(i);
-    ciType* type = field_type(i);
     Node* arg = field_value(i);
-
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = arg->as_InlineType();
@@ -915,8 +946,22 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
   }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
+  if (!null_free) {
+    // TODO code duplication
+    Node* parm = NULL;
+    if (multi->is_Start()) {
+      assert(in, "return from start?");
+      parm = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+    } else if (in) {
+      parm = multi->as_Call()->in(base_input);
+    } else {
+      parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+    }
+    set_req(IsInit, parm);
+    base_input++;
+  }
   for (uint i = 0; i < field_count(); ++i) {
     ciType* type = field_type(i);
     bool null_free = field_is_null_free(i);
@@ -1074,7 +1119,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
 }
 
 InlineTypePtrNode* InlineTypePtrNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
-  InlineTypePtrNode* ptr = new InlineTypePtrNode(vk, gvn.zerocon(T_OBJECT));
+  InlineTypePtrNode* ptr = new InlineTypePtrNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false);
   ptr->set_req(IsInit, gvn.intcon(0));
   for (uint i = 0; i < ptr->field_count(); i++) {
     ciType* field_type = ptr->field_type(i);

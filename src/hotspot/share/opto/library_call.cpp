@@ -3432,6 +3432,7 @@ bool LibraryCallKit::inline_Class_cast() {
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
   // Check for null if casting to QMyValue
+  // TODO not correct
   requires_null_check &= !obj->is_InlineType();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
@@ -3485,6 +3486,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
+    // TODO
     if (EnableValhalla && !obj->is_InlineType() && !requires_null_check) {
       // Check if we are casting to QMyValue
       Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), NULL);

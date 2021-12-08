@@ -2079,10 +2079,18 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
 
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
-    PreserveReexecuteState preexecs(this);
-    inc_sp(2);
-    jvms()->set_should_reexecute(true);
-    left = left->as_InlineType()->buffer(this)->get_oop();
+    if (_gvn.type(right)->is_zero_type()) {
+      // Null checking a scalarized but nullable inline type. Check the is_init
+      // input instead of the oop input to avoid keeping buffer allocations alive.
+      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
+      do_if(btest, cmp);
+      return;
+    } else {
+      PreserveReexecuteState preexecs(this);
+      inc_sp(2);
+      jvms()->set_should_reexecute(true);
+      left = left->as_InlineType()->buffer(this)->get_oop();
+    }
   }
   if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
@@ -2096,6 +2104,15 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   Node* cmp = CmpP(left, right);
   cmp = optimize_cmp_with_klass(cmp);
+
+  // TODO remove
+  if (left->is_InlineTypeBase() && _gvn.type(left->as_InlineTypeBase()->get_is_init())->is_int()->is_con(0)) {
+    tleft = NULL;
+  }
+  if (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_int()->is_con(0)) {
+    tright = NULL;
+  }
+
   if (tleft == NULL || !tleft->can_be_inline_type() ||
       tright == NULL || !tright->can_be_inline_type()) {
     // This is sufficient, if one of the operands can't be an inline type
@@ -3383,8 +3400,9 @@ void Parse::do_one_bytecode() {
     a = null();
     b = pop();
     if (b->is_InlineType()) {
+      // TODO
       // Return constant false because 'b' is always non-null
-      c = _gvn.makecon(TypeInt::CC_GT);
+      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {

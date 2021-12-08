@@ -1950,7 +1950,8 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       // Update the cast input and let ConstraintCastNode::Ideal push it through the InlineTypePtrNode
       Node* cast = casts.pop();
       phase->hash_delete(cast);
-      cast->set_req(1, n);
+      cast->set_req_X(1, n, phase);
+      phase->hash_insert(cast);
       n = phase->transform(cast);
       assert(n->is_InlineTypePtr(), "Failed to push cast through InlineTypePtr");
     }
@@ -2533,6 +2534,11 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           break;
         }
         while (n->is_ConstraintCast()) {
+          if (n->in(0) != NULL && n->in(0)->is_top()) {
+            // Will die, don't optimize
+            can_optimize = false;
+            break;
+          }
           casts.push(n);
           n = n->in(1);
         }

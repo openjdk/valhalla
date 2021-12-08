@@ -895,6 +895,8 @@ public:
     _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
   }
 
+  bool is_scalarized_arg(int idx) const;
+
   bool c1_needs_stack_repair() {
     return (_flags & _c1_needs_stack_repair) != 0;
   }

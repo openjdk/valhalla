@@ -53,9 +53,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
   if (is_field && field_holder->is_inlinetype() && peek()->is_InlineTypeBase()) {
     assert(is_get, "inline type field store not supported");
     InlineTypeBaseNode* vt = peek()->as_InlineTypeBase();
-    if (vt->is_InlineTypePtr()) {
-      null_check(vt);
-    }
+    null_check(vt);
     pop();
     Node* value = vt->field_value_by_offset(field->offset());
     push_node(field->layout_type(), value);
@@ -237,10 +235,14 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     return;
   } else if (field->is_flattened()) {
     // Storing to a flattened inline type field.
+    // TODO enable
+    //assert(!gvn().type(value)->maybe_null(), "Flattened inline types are null-free");
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
-    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset);
+    inc_sp(1);
+    val->as_InlineTypeBase()->store_flattened(this, obj, obj, field->holder(), offset);
+    dec_sp(1);
   } else {
     // Store the value.
     const Type* field_type;

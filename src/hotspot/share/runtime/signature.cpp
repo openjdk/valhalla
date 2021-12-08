@@ -388,6 +388,23 @@ Symbol* SignatureStream::find_symbol() {
   return name;
 }
 
+InlineKlass* SignatureStream::is_inline_klass(InstanceKlass* holder) {
+  JavaThread* THREAD = JavaThread::current();
+  Handle class_loader(THREAD, holder->class_loader());
+  Handle protection_domain(THREAD, holder->protection_domain());
+  // TODO we need to check parent method args, look at klassVtable::needs_new_vtable_entry
+  // TODO Make sure no classes are loaded
+  //Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);
+  // TODO For now, load all signature classe
+  Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
+  assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved inline klass");
+  if (k != NULL && k->is_inline_klass()) {
+    return InlineKlass::cast(k);
+  } else {
+    return NULL;
+  }
+}
+
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   JavaThread* THREAD = JavaThread::current();
   Handle class_loader(THREAD, holder->class_loader());

@@ -758,18 +758,20 @@ void CallGenerator::do_late_inline_helper() {
     assert(domain_sig->cnt() - TypeFunc::Parms == nargs, "inconsistent signature");
 
     uint j = TypeFunc::Parms;
+    int arg_num = 0;
     for (uint i1 = 0; i1 < nargs; i1++) {
       const Type* t = domain_sig->field_at(TypeFunc::Parms + i1);
-      if (method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
+      if (t->is_inlinetypeptr() && method()->is_scalarized_arg(arg_num)) {
         // Inline type arguments are not passed by reference: we get an argument per
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
-        InlineTypeNode* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, true);
+        InlineTypeNode* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {
         map->set_argument(jvms, i1, call->in(j++));
       }
+      if (t != Type::HALF) arg_num++;
     }
 
     C->print_inlining_assert_ready();

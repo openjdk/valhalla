@@ -1517,12 +1517,36 @@ bool ciMethod::is_consistent_info(ciMethod* declared_method, ciMethod* resolved_
 
 // ------------------------------------------------------------------
 
+bool ciMethod::is_scalarized_arg(int idx) const {
+  VM_ENTRY_MARK;
+  bool scalarized = get_Method()->is_scalarized_arg(idx);
+
+  // TODO remove this
+  if (InlineTypePassFieldsAsArgs) {
+    if (scalarized) {
+      if ((idx != 0 || is_static()) && !signature()->is_null_free_at(idx - (is_static() ? 0 : 1))) {
+        assert(false, "Sanity");
+      }
+    } else {
+      if (get_Method()->adapter()->get_sig_cc() != NULL && (idx != 0 || is_static()) && signature()->is_null_free_at(idx - (is_static() ? 0 : 1))) {
+        tty->print_cr("%d", idx);
+        const GrowableArray<SigEntry>* sig = get_Method()->adapter()->get_sig_cc();
+        for (int i = 0; i < sig->length(); i++) {
+          tty->print_cr("%c", type2char(sig->at(i)._bt));
+        }
+        assert(false, "Not loaded at adapter creation time?");
+      }
+    }
+  }
+  return scalarized;
+}
+
 bool ciMethod::has_scalarized_args() const {
   VM_ENTRY_MARK;
   return get_Method()->has_scalarized_args();
 }
 
-const GrowableArray<SigEntry>* ciMethod::get_sig_cc() {
+const GrowableArray<SigEntry>* ciMethod::get_sig_cc() const {
   VM_ENTRY_MARK;
   if (get_Method()->adapter() == NULL) {
     return NULL;

@@ -25,6 +25,8 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
+import jdk.experimental.bytecode.TypeTag;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -38,8 +40,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test correct handling of nullable inline types.
- * @library /test/lib /
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
 
@@ -2368,7 +2371,8 @@ public class TestNullableInlineTypes {
     // Test scalarization with phi referencing itself
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC, LOAD, STORE})
+        failOn = {ALLOC, STORE},
+        counts = {LOAD, " = 4"}) // 4 loads from the non-flattened MyValue1.v4 fields
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, STORE})
     public long test86(MyValue1 vt) {
@@ -2465,6 +2469,414 @@ public class TestNullableInlineTypes {
         try {
             test89(true);
             throw new RuntimeException("No ClassCastException thrown");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+
+
+// TODO add IR verification below to make sure we don't allocate at calls/returns (but that only works if we can guarantee that args are loaded when method is linked ...)
+// TODO also add IR verification for field loads, probably need to add traps
+// TODO adjust naming of classes below
+
+    // TODO
+    MyValue1.ref nullValField = null;
+    MyValue1.ref testField1;
+    MyValue1.ref testField2;
+    MyValue1.ref testField3;
+    MyValue1.ref testField4;
+    static MyValue1.ref testField5;
+    static MyValue1.ref testField6;
+    static MyValue1.ref testField7;
+    static MyValue1.ref testField8;
+
+    // Test field loads
+    @Test
+    public long test90(boolean b) {
+        MyValue1.ref val1 = b ? testField3 : MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1.ref val2 = b ? testField7 : MyValue1.createWithFieldsInline(rI, rL);
+        long res = 0;
+        res += testField1.hash();
+        res += ((Object)testField2 == null) ? 42 : testField2.hash();
+        res += val1.hash();
+        res += testField4.hash();
+
+        res += testField5.hash();
+        res += ((Object)testField6 == null) ? 42 : testField6.hash();
+        res += val2.hash();
+        res += testField8.hash();
+        return res;
+    }
+
+    @Run(test = "test90")
+    public void test90_verifier() {
+        testField1 = testValue1;
+        testField2 = nullValField;
+        testField3 = testValue1;
+        testField4 = testValue1;
+
+        testField5 = testValue1;
+        testField6 = nullValField;
+        testField7 = testValue1;
+        testField8 = testValue1;
+        long res = test90(true);
+        Asserts.assertEquals(res, 2*42 + 6*testValue1.hash());
+
+        testField2 = testValue1;
+        testField6 = testValue1;
+        res = test90(false);
+        Asserts.assertEquals(res, 8*testValue1.hash());
+    }
+
+    // Test field stores
+    @Test
+    public MyValue1.ref test91(MyValue1.ref val1) {
+        MyValue1.ref ret = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1.ref val2 = MyValue1.setV4(testValue1, null);
+        testField1 = testField4;
+        testField2 = val1;
+        testField3 = val2;
+
+        testField5 = ret;
+        testField6 = val1;
+        testField7 = val2;
+        testField8 = testField4;
+        return ret;
+    }
+
+    @Run(test = "test91")
+    public void test91_verifier() {
+        testField4 = testValue1;
+        MyValue1.ref ret = test91(null);
+        MyValue1.ref val2 = MyValue1.setV4(testValue1, null);
+        Asserts.assertEquals(testField1, testValue1);
+        Asserts.assertEquals(testField2, null);
+        Asserts.assertEquals(testField3, val2);
+
+        Asserts.assertEquals(testField5, ret);
+        Asserts.assertEquals(testField6, null);
+        Asserts.assertEquals(testField7, val2);
+        Asserts.assertEquals(testField8, testField4);
+
+        testField4 = null;
+        test91(null);
+        Asserts.assertEquals(testField1, testField4);
+        Asserts.assertEquals(testField8, testField4);
+    }
+
+    // Non-primitive Wrapper
+    static class Test92Wrapper {
+        MyValue1.ref val;
+
+        public Test92Wrapper(MyValue1.ref val) {
+            this.val = val;
+        }
+    }
+
+    // Test scalarization in safepoint debug info and re-allocation on deopt
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public long test92(boolean deopt, boolean b1, boolean b2, Method m) {
+        MyValue1.ref ret = MyValue1.createWithFieldsInline(rI, rL);
+        if (b1) {
+            ret = null;
+        }
+        if (b2) {
+            ret = MyValue1.setV4(ret, null);
+        }
+        Test92Wrapper wrapper = new Test92Wrapper(ret);
+        if (deopt) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        long res = ((Object)ret != null && (Object)ret.v4 != null) ? ret.hash() : 42;
+        res += ((Object)wrapper.val != null && (Object)wrapper.val.v4 != null) ? wrapper.val.hash() : 0;
+        return res;
+    }
+
+    @Run(test = "test92")
+    public void test92_verifier(RunInfo info) {
+        Asserts.assertEquals(test92(false, false, false, info.getTest()), 2*testValue1.hash());
+        Asserts.assertEquals(test92(false, true, false, info.getTest()), 42L);
+        if (!info.isWarmUp()) {
+            switch (rI % 4) {
+            case 0:
+                Asserts.assertEquals(test92(true, false, false, info.getTest()), 2*testValue1.hash());
+                break;
+            case 1:
+                Asserts.assertEquals(test92(true, true, false, info.getTest()), 42L);
+                break;
+            case 2:
+                Asserts.assertEquals(test92(true, false, true, info.getTest()), 42L);
+                break;
+            case 3:
+                try {
+                    Asserts.assertEquals(test92(true, true, true, info.getTest()), 42L);
+                    throw new RuntimeException("NullPointerException expected");
+                } catch (NullPointerException e) {
+                    // Expected
+                }
+                break;
+            }
+        }
+    }
+
+    // Test scalarization in safepoint debug info and re-allocation on deopt
+    @Test
+    @IR(failOn = {ALLOC, STORE})
+    public boolean test93(boolean deopt, boolean b, Method m) {
+        MyValue1.ref val = b ? null : MyValue1.createWithFieldsInline(rI, rL);
+        Test92Wrapper wrapper = new Test92Wrapper(val);
+        if (deopt) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+        }
+        return (Object)wrapper.val == null;
+    }
+
+    @Run(test = "test93")
+    public void test93_verifier(RunInfo info) {
+        Asserts.assertTrue(test93(false, true, info.getTest()));
+        Asserts.assertFalse(test93(false, false, info.getTest()));
+        if (!info.isWarmUp()) {
+            switch (rI % 2) {
+                case 0:
+                    Asserts.assertTrue(test93(true, true, info.getTest()));
+                    break;
+                case 1:
+                    Asserts.assertFalse(test93(false, false, info.getTest()));
+                    break;
+            }
+        }
+    }
+
+    static primitive class SmallNullable2 {
+        float f1;
+        double f2;
+        public SmallNullable2() {
+            f1 = (float)rL;
+            f2 = (double)rL;
+        }
+    }
+
+    static primitive class SmallNullable1 {
+        char c;
+        byte b;
+        short s;
+        int i;
+        SmallNullable2.ref vt;
+
+        public SmallNullable1(boolean useNull) {
+            c = (char)rL;
+            b = (byte)rL;
+            s = (short)rL;
+            i = (int)rL;
+            vt = useNull ? null : new SmallNullable2();
+        }
+    }
+
+    @DontCompile
+    public SmallNullable1.ref test94_interpreted(boolean b1, boolean b2) {
+        return b1 ? null : new SmallNullable1(b2);
+    }
+
+    @DontInline
+    public SmallNullable1.ref test94_compiled(boolean b1, boolean b2) {
+        return b1 ?null : new SmallNullable1(b2);
+    }
+
+    SmallNullable1.ref test94_field1;
+    SmallNullable1.ref test94_field2;
+
+    // Test scalarization in returns
+    @Test
+    public SmallNullable1.ref test94(boolean b1, boolean b2) {
+        SmallNullable1.ref ret = test94_interpreted(b1, b2);
+        if (b1 != ((Object)ret == null)) {
+            throw new RuntimeException("test94 failed");
+        }
+        test94_field1 = ret;
+        ret = test94_compiled(b1, b2);
+        if (b1 != ((Object)ret == null)) {
+            throw new RuntimeException("test94 failed");
+        }
+        test94_field2 = ret;
+        return ret;
+    }
+
+    @Run(test = "test94")
+    public void test94_verifier() {
+        SmallNullable1.ref vt = new SmallNullable1(false);
+        Asserts.assertEquals(test94(true, false), null);
+        Asserts.assertEquals(test94_field1, null);
+        Asserts.assertEquals(test94_field2, null);
+        Asserts.assertEquals(test94(false, false), vt);
+        Asserts.assertEquals(test94_field1, vt);
+        Asserts.assertEquals(test94_field2, vt);
+        vt = new SmallNullable1(true);
+        Asserts.assertEquals(test94(true, true), null);
+        Asserts.assertEquals(test94_field1, null);
+        Asserts.assertEquals(test94_field2, null);
+        Asserts.assertEquals(test94(false, true), vt);
+        Asserts.assertEquals(test94_field1, vt);
+        Asserts.assertEquals(test94_field2, vt);
+    }
+
+    static primitive class Empty2 {
+
+    }
+
+    static primitive class Empty1 {
+        Empty2.ref empty2 = Empty2.default;
+    }
+
+    static primitive class Container {
+        int x = 0;
+        Empty1.ref empty1;
+        Empty2.ref empty2 = Empty2.default;
+        public Container(Empty1.ref val) {
+            empty1 = val;
+        }
+    }
+
+    @DontInline
+    public static Empty1.ref test95_helper1(Empty1.ref vt) {
+        return vt;
+    }
+
+    @DontInline
+    public static Empty2.ref test95_helper2(Empty2.ref vt) {
+        return vt;
+    }
+
+    @DontInline
+    public static Container test95_helper3(Container vt) {
+        return vt;
+    }
+
+    // Test scalarization in calls and returns with empty nullable inline types
+    @Test
+    public Empty1.ref test95(Empty1.ref vt) {
+        Empty1.ref empty1 = test95_helper1(vt);
+        test95_helper2((empty1 != null) ? empty1.empty2 : null);
+        Container c = test95_helper3(new Container(empty1));
+        return c.empty1;
+    }
+
+    @Run(test = "test95")
+    @Warmup(10000) // Warmup to make sure helper methods are compiled as well
+    public void test95_verifier() {
+        Asserts.assertEQ(test95(Empty1.default), Empty1.default);
+        Asserts.assertEQ(test95(null), null);
+    }
+
+    @DontCompile
+    public void test96_helper2(boolean doit) {
+        if (doit) {
+            // uncommon trap
+            try {
+                TestFramework.deoptimize(getClass().getDeclaredMethod("test96", boolean.class, boolean.class, boolean.class));
+            } catch (NoSuchMethodException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    // Test deoptimization at call return with inline type returned in registers
+    @DontInline
+    public SmallNullable1.ref test96_helper1(boolean deopt, boolean b1, boolean b2) {
+        test96_helper2(deopt);
+        return b1 ? null : new SmallNullable1(b2);
+    }
+
+    @Test
+    public SmallNullable1.ref test96(boolean flag, boolean b1, boolean b2) {
+        return test96_helper1(flag, b1, b2);
+    }
+
+    @Run(test = "test96")
+    @Warmup(10000)
+    public void test96_verifier(RunInfo info) {
+        boolean b1 = ((rI % 3) == 0);
+        boolean b2 = ((rI % 3) == 1);
+        SmallNullable1.ref result = test96(!info.isWarmUp(), b1, b2);
+        SmallNullable1.ref vt = new SmallNullable1(b2);
+        Asserts.assertEQ(result, b1 ? null : vt);
+    }
+
+    // Test calling a method returning a nullable inline type as fields via reflection
+    @Test
+    public SmallNullable1.ref test97(boolean b1, boolean b2) {
+        return b1 ? null : new SmallNullable1(b2);
+    }
+
+    @Run(test = "test97")
+    @Warmup(1) // Make sure we call through runtime instead of generating bytecodes for reflective call
+    public void test97_verifier() throws Exception {
+        Method m = getClass().getDeclaredMethod("test97", boolean.class, boolean.class);
+        Asserts.assertEQ(m.invoke(this, false, true), new SmallNullable1(true));
+        Asserts.assertEQ(m.invoke(this, false, false), new SmallNullable1(false));
+        Asserts.assertEQ(m.invoke(this, true, false), null);
+    }
+
+    // Test .ref types as arg/return
+    @Test
+    public SmallNullable1.ref test98(MyValue1.ref vt1, MyValue1.ref vt2, boolean b1, boolean b2) {
+        Asserts.assertEQ(vt1, testValue1);
+        if (b1) {
+            Asserts.assertEQ(vt2, null);
+        } else {
+            Asserts.assertEQ(vt2, testValue1);
+        }
+        return b1 ? null : new SmallNullable1(b2);
+    }
+
+    @Run(test = "test98")
+    public void test98_verifier() {
+        Asserts.assertEQ(test98(testValue1, testValue1, false, true), new SmallNullable1(true));
+        Asserts.assertEQ(test98(testValue1, testValue1, false, false), new SmallNullable1(false));
+        Asserts.assertEQ(test98(testValue1, null, true, false), null);
+    }
+
+    private static final MethodHandle refCheckCast = InstructionHelper.loadCode(MethodHandles.lookup(),
+        "refCheckCast",
+        MethodType.methodType(MyValue2.class.asPrimaryType(), TestNullableInlineTypes.class, MyValue1.class.asPrimaryType()),
+        CODE -> {
+            CODE.
+            aload_1().
+            checkcast(MyValue2.class.asPrimaryType()).
+            return_(TypeTag.A);
+        });
+
+    // Test checkcast that only passes with null
+    @Test
+    public Object test99(MyValue1.ref vt) throws Throwable {
+        return refCheckCast.invoke(this, vt);
+    }
+
+    @Run(test = "test99")
+    @Warmup(10000)
+    public void test99_verifier() throws Throwable {
+        Asserts.assertEQ(test99(null), null);
+    }
+
+    // Class.cast
+    @Test
+    public Object test100(Class c, MyValue1.ref vt) {
+        return c.cast(vt);
+    }
+
+    @Run(test = "test100")
+    public void test100_verifier() {
+        Asserts.assertEQ(test100(MyValue1.class.asPrimaryType(), testValue1), testValue1);
+        Asserts.assertEQ(test100(MyValue1.class.asValueType(), testValue1), testValue1);
+        Asserts.assertEQ(test100(MyValue1.class.asPrimaryType(), null), null);
+        Asserts.assertEQ(test100(MyValue2.class.asPrimaryType(), null), null);
+        Asserts.assertEQ(test100(Integer.class, null), null);
+        try {
+            test100(MyValue2.class.asPrimaryType(), testValue1);
+            throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
         }

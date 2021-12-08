@@ -1142,6 +1142,7 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // checking to see an unknown klass subtypes a known klass with no subtypes;
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  // TODO in(1) could be cast and in(1)->in(1) could be InlineTypePtr, add check that it is on IGVN worklist to be pushed through
   if (in(1)->is_InlineTypePtr() && phase->type(in(2))->is_zero_type()) {
     // Null checking a scalarized but nullable inline type. Check the is_init
     // input instead of the oop input to avoid keeping buffer allocations alive.

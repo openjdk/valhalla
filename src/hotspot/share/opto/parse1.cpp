@@ -155,12 +155,12 @@ Node* Parse::fetch_interpreter_state(int index,
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
                                     SafePointNode* &bad_type_exit) {
-  const TypeOopPtr* tp = type->isa_oopptr();
   if (type->isa_inlinetype() != NULL) {
     // The interpreter passes inline types as oops
-    tp = TypeOopPtr::make_from_klass(type->inline_klass());
-    tp = tp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    type = TypeOopPtr::make_from_klass(type->inline_klass());
+    type = type->join_speculative(TypePtr::NOTNULL)->is_oopptr();
   }
+  const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.
   if (type == TypePtr::NULL_PTR ||
@@ -861,10 +861,11 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   }
   PhaseGVN& gvn = *initial_gvn();
   uint i = 0;
+  int arg_num = 0;
   for (uint j = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
-    if (has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
+    if (t->is_inlinetypeptr() && method()->is_scalarized_arg(arg_num)) {
       // Inline type arguments are not passed by reference: we get an argument per
       // field of the inline type. Build InlineTypeNodes from the inline type arguments.
       GraphKit kit(jvms, &gvn);
@@ -872,7 +873,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       Node* old_mem = map->memory();
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
-      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, true);
+      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -881,6 +882,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     map->init_req(i, parm);
     // Record all these guys for later GVN.
     record_for_igvn(parm);
+    if (i >= TypeFunc::Parms && t != Type::HALF) arg_num++;
   }
   for (; i < map->req(); i++) {
     map->init_req(i, top());
@@ -2379,7 +2381,7 @@ void Parse::return_current(Node* value) {
         assert(tf()->returns_inline_type_as_fields(), "must be returned as fields");
         jvms()->set_should_reexecute(true);
         inc_sp(1);
-        value = value->as_InlineType()->allocate_fields(this);
+        value = value->as_InlineTypeBase()->allocate_fields(this);
       }
     } else if (value->is_InlineType()) {
       // Inline type is returned as oop, make sure it is buffered and re-execute

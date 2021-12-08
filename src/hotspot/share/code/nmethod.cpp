@@ -950,9 +950,10 @@ static const CompiledEntrySignature* _nmethod_to_print_ces = NULL;
 void nmethod::print_nmethod(bool printmethod) {
   run_nmethod_entry_barrier(); // ensure all embedded OOPs are valid before printing
 
+  // TODO we shouldn't re-compute the calling convention here!
   ResourceMark rm;
   CompiledEntrySignature ces(method());
-  ces.compute_calling_conventions();
+  ces.compute_calling_conventions(false);
   // ces.compute_calling_conventions() needs to grab the ProtectionDomainSet_lock, so we
   // can't do that (inside nmethod::print_entry_parameters) while holding the ttyLocker.
   // Hence we have do compute it here and pass via a global. Yuck.

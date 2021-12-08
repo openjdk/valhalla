@@ -2161,11 +2161,13 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       field_array[pos++] = TypeInt::INT;
       break;
     case T_INLINE_TYPE: {
-      bool is_null_free = sig->is_null_free_at(i);
-      if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields() && is_null_free) {
+      if (vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
+        if (!sig->is_null_free_at(i)) {
+          field_array[pos++] = get_const_basic_type(T_BOOLEAN); // TODO
+        }
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
-        field_array[pos++] = get_const_type(type)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+        field_array[pos++] = get_const_type(type)->join_speculative(sig->is_null_free_at(i) ? TypePtr::NOTNULL : TypePtr::BOTTOM);
       }
       break;
     }

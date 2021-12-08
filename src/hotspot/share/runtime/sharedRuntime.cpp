@@ -2851,7 +2851,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
       return _obj_arg_handler;
     }
     switch (method->signature()->char_at(1)) {
-      case JVM_SIGNATURE_CLASS:
+      // TODO re-enable
+      //case JVM_SIGNATURE_CLASS:
       case JVM_SIGNATURE_ARRAY:
         return _obj_arg_handler;
       case JVM_SIGNATURE_INT:
@@ -2864,7 +2865,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
   } else if (total_args_passed == 2 &&
              !method->is_static() && !method->method_holder()->is_inline_klass()) {
     switch (method->signature()->char_at(1)) {
-      case JVM_SIGNATURE_CLASS:
+      // TODO re-enable
+      //case JVM_SIGNATURE_CLASS:
       case JVM_SIGNATURE_ARRAY:
         return _obj_obj_arg_handler;
       case JVM_SIGNATURE_INT:
@@ -2888,27 +2890,38 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _sig_cc_ro = _sig;
 }
 
-int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
+int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver, bool init) {
   InstanceKlass* holder = _method->method_holder();
   sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
+  int idx = 0;
   if (!_method->is_static()) {
     if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields()) {
       sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT, holder->name());
     }
+    idx++;
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_INLINE_TYPE) {
-      InlineKlass* vk = ss.as_inline_klass(holder);
-      if (vk->can_be_passed_as_fields()) {
+    BasicType bt = ss.type();
+    if (bt == T_INLINE_TYPE) {
+    //if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
+      InlineKlass* vk = ss.is_inline_klass(holder);
+      if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
+        int last = sig_cc->length();
         sig_cc->appendAll(vk->extended_sig());
+        if (bt == T_OBJECT) {
+          // Nullable
+          sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
+        }
       } else {
         SigEntry::add_entry(sig_cc, T_OBJECT, ss.as_symbol());
       }
     } else {
+      // TODO symbol is only needed for reference types
       SigEntry::add_entry(sig_cc, ss.type(), ss.as_symbol());
     }
+    if (bt != T_VOID) idx++;
   }
   regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
   return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
@@ -2953,25 +2966,31 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   }
 }
 
-void CompiledEntrySignature::compute_calling_conventions() {
+void CompiledEntrySignature::compute_calling_conventions(bool init) {
   // Get the (non-scalarized) signature and check for inline type arguments
   if (_method != NULL) {
+    int idx = 0;
     if (!_method->is_static()) {
       if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
         _has_inline_recv = true;
         _num_inline_args++;
       }
       SigEntry::add_entry(_sig, T_OBJECT, _method->name());
+      idx++;
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
       if (bt == T_INLINE_TYPE) {
-        if (ss.as_inline_klass(_method->method_holder())->can_be_passed_as_fields()) {
+      //if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
+        InlineKlass* vk = ss.is_inline_klass(_method->method_holder());
+        // TODO what if klass is loaded just after this and before we compute the scalarized CC?
+        if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
           _num_inline_args++;
         }
         bt = T_OBJECT;
       }
       SigEntry::add_entry(_sig, bt, ss.as_symbol());
+      if (bt != T_VOID) idx++;
     }
     if (_method->is_abstract() && !has_inline_arg()) {
       return;
@@ -2989,14 +3008,14 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _args_on_stack_cc_ro = _args_on_stack;
 
   if (has_inline_arg() && !_method->is_native()) {
-    _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true);
+    _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true, init);
 
     _sig_cc_ro = _sig_cc;
     _regs_cc_ro = _regs_cc;
     _args_on_stack_cc_ro = _args_on_stack_cc;
     if (_has_inline_recv) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
-      _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
+      _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false, init);
     }
 
     // Upper bound on stack arguments to avoid hitting the argument limit and
@@ -3631,11 +3650,14 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
   allocate_receiver &= !callee->is_static() && holder->is_inline_klass();
+    // TODO
   if (allocate_receiver) {
     nb_slots++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
+    // TODO
     if (ss.type() == T_INLINE_TYPE) {
+    //if (ss.is_inline_klass(holder)) {
       nb_slots++;
     }
   }
@@ -3649,7 +3671,9 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     i++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
+    // TODO
     if (ss.type() == T_INLINE_TYPE) {
+    //if (ss.is_inline_klass(holder)) {
       InlineKlass* vk = ss.as_inline_klass(holder);
       oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
