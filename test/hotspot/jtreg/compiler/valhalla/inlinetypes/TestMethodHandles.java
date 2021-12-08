@@ -164,6 +164,7 @@ public class TestMethodHandles {
     }
 
     @Run(test = "test1")
+    @Warmup(10000)
     public void test1_verifier() throws Throwable {
         MyValue3 vt = test1();
         test1_vt.verify(vt);
