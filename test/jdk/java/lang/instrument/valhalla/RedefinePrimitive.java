@@ -58,6 +58,9 @@ import lib.jdb.ClassTransformer;
 primitive class MyPrimitive {
 
     long sum() {
+        // This adds a number of new entries in the beginning of the CP
+        // and this causes CP mapping during class redefinition.
+        // @2 uncomment System.out.println(RedefinePrimitive.class);
         return x + z;
     }
     public MyPrimitive(int x, long z) {
@@ -509,6 +512,26 @@ public class RedefinePrimitive {
                 }
             },
 
+            new Test("CP mapping", "MyPrimitive") {
+                byte[] redefineClassBytes;
+
+                @Override
+                public void prologue() throws Exception {
+                    String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
+                            .transform(2, className);
+                    redefineClassBytes = loadClassBytes(new File(transformedClassFile));
+                }
+
+                @Override
+                public byte[] transform(String className, byte[] classBytes) {
+                    // with wrong mapping retransformClasses() fails with InternalError
+                    return redefineClassBytes;
+                }
+
+                @Override
+                public void epilogue() throws Exception {
+                }
+            },
     };
 
 }
