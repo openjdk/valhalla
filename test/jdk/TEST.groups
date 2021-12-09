@@ -114,7 +114,7 @@ jdk_lang = \
 jdk_valhalla = \
     java/lang/invoke \
     valhalla \
-	java/lang/instrument/valhalla
+    java/lang/instrument/valhalla
 
 
 # All of the java.util package
