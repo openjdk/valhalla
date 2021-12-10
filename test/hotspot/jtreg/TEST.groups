@@ -54,7 +54,8 @@ hotspot_serviceability = \
 
 hotspot_valhalla = \
   runtime/valhalla \
-  compiler/valhalla
+  compiler/valhalla \
+  serviceability/jvmti/Valhalla
 
 hotspot_valhalla_runtime = \
   runtime/valhalla
