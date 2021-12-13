@@ -45,7 +45,7 @@ import sun.awt.AppContext;
  */
 public class WindowsRadioButtonUI extends BasicRadioButtonUI
 {
-    private static final Object WINDOWS_RADIO_BUTTON_UI_KEY = new Object();
+    private static final Object WINDOWS_RADIO_BUTTON_UI_KEY = java.util.Objects.newIdentity();
 
     protected int dashedRectGapX;
     protected int dashedRectGapY;

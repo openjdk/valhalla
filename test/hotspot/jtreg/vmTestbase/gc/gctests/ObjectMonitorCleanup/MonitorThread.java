@@ -53,7 +53,7 @@ public class MonitorThread extends Thread {
      */
     public MonitorThread(ExecutionController stresser) {
         this.stresser = stresser;
-        this.otherObject = new Object(); /* avoid null on first reference */
+        this.otherObject = java.util.Objects.newIdentity(); /* avoid null on first reference */
     }
 
     /**

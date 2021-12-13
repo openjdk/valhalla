@@ -58,7 +58,7 @@ public class MetalCheckBoxUI extends MetalRadioButtonUI {
     // of BasicCheckBoxUI because we want to pick up all the
     // painting changes made in MetalRadioButtonUI.
 
-    private static final Object METAL_CHECK_BOX_UI_KEY = new Object();
+    private static final Object METAL_CHECK_BOX_UI_KEY = java.util.Objects.newIdentity();
 
     private static final String propertyPrefix = "CheckBox" + ".";
 

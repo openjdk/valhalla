@@ -49,7 +49,7 @@ import java.util.*;
 public class VMDeathRequestTest extends TestScaffold {
     boolean requestedVMDeathOccurred = false;
     boolean defaultVMDeathOccurred = false;
-    Object syncer = new Object();
+    Object syncer = java.util.Objects.newIdentity();
     boolean disconnected = false;
     VMDeathRequest deathRequest;
     EventSet currentEventSet;

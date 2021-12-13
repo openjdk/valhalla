@@ -46,7 +46,7 @@ package java.beans;
  */
 public class Expression extends Statement {
 
-    private static Object unbound = new Object();
+    private static Object unbound = java.util.Objects.newIdentity();
 
     private Object value = unbound;
 

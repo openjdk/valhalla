@@ -3121,7 +3121,7 @@ public class TCKLocalDateTime extends AbstractDateTimeTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void compareToNonLocalDateTime() {
        Comparable c = TEST_2007_07_15_12_30_40_987654321;
-       c.compareTo(new Object());
+       c.compareTo(java.util.Objects.newIdentity());
     }
 
     //-----------------------------------------------------------------------

@@ -31,9 +31,9 @@ public class JvmtiTest {
     final static int JCK_STATUS_BASE = 95;
     final static int THREADS_LIMIT = 5;
     final static String NAME_PREFIX = "JvmtiTest-";
-    static Object counterLock = new Object();
+    static Object counterLock = java.util.Objects.newIdentity();
     static int counter = 0;
-    static Object finalLock = new Object();
+    static Object finalLock = java.util.Objects.newIdentity();
 
     static {
         try {

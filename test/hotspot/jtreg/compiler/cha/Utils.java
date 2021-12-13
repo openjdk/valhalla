@@ -101,8 +101,8 @@ public class Utils {
     public static abstract class ATest<T> implements Test<T> {
         public static final WhiteBox WB = WhiteBox.getWhiteBox();
 
-        public static final Object CORRECT = new Object();
-        public static final Object WRONG   = new Object();
+        public static final Object CORRECT = java.util.Objects.newIdentity();
+        public static final Object WRONG   = java.util.Objects.newIdentity();
 
         final Method TEST;
         private final Class<T> declared;

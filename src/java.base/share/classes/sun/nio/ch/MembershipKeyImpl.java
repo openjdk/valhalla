@@ -47,7 +47,7 @@ class MembershipKeyImpl
     private volatile boolean invalid;
 
     // lock used when creating or accessing blockedSet
-    private final Object stateLock = new Object();
+    private final Object stateLock = java.util.Objects.newIdentity();
 
     // set of source addresses that are blocked
     private HashSet<InetAddress> blockedSet;

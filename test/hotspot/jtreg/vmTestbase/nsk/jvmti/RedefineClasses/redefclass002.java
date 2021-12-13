@@ -55,7 +55,7 @@ public class redefclass002 {
     private PipedOutputStream pipeOut;
     private redefclass002r redefClsObj;
     private runRedefCls runRedefClsThr;
-    private volatile Object readyObj = new Object();
+    private volatile Object readyObj = java.util.Objects.newIdentity();
 
     static {
         try {

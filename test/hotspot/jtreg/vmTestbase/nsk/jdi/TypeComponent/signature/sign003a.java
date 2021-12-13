@@ -68,7 +68,7 @@ class sign003aClassToCheck {
     static float[] sf = new float[10];
 
     static { sb = true; }
-    static { sO = new Object(); }
+    static { sO = java.util.Objects.newIdentity(); }
     static {
         for (int i = 0; i < 10; i++) {
             sf[i] = (float)i;

@@ -47,7 +47,7 @@ public class TestOverunrolling {
         // memory path (because the last store was replaced by TOP). We crash
         // because we use a memory edge from a non-dominating region.
         for (int i = 0; i < lim; ++i) {
-            arr[i] = new Object();
+            arr[i] = java.util.Objects.newIdentity();
         }
         // Avoid EA
         return arr;

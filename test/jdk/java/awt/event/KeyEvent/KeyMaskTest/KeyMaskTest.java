@@ -79,7 +79,7 @@ public class KeyMaskTest extends KeyAdapter {
     private int keyCode = -1;
 
     KeyMaskTest() throws Exception {
-        lock = new Object();
+        lock = java.util.Objects.newIdentity();
         robot = new ExtendedRobot();
         EventQueue.invokeAndWait( this::createGUI );
     }

@@ -33,7 +33,7 @@ public interface MultipleImplementersInterface {
     float FLOAT_CONSTANT = Float.MAX_VALUE;
     double DOUBLE_CONSTANT = Double.MAX_VALUE;
     String STRING_CONSTANT = "Hello";
-    Object OBJECT_CONSTANT = new Object();
+    Object OBJECT_CONSTANT = java.util.Objects.newIdentity();
 
     default void defaultMethod() {
         // empty

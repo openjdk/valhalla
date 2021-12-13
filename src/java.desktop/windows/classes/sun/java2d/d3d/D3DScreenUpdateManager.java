@@ -76,7 +76,7 @@ public class D3DScreenUpdateManager extends ScreenUpdateManager
     /**
      * Object used by the screen updater thread for waiting
      */
-    private Object runLock = new Object();
+    private Object runLock = java.util.Objects.newIdentity();
     /**
      * List of D3DWindowSurfaceData surfaces. Surfaces are added to the
      * list when a graphics object is created, and removed when the surface

@@ -70,7 +70,7 @@ public class RandomAccessFile implements DataOutput, DataInput, Closeable {
      */
     private final String path;
 
-    private final Object closeLock = new Object();
+    private final Object closeLock = java.util.Objects.newIdentity();
 
     private volatile boolean closed;
 

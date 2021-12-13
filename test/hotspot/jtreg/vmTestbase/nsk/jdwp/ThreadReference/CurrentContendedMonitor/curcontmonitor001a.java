@@ -43,9 +43,9 @@ public class curcontmonitor001a {
     public static final int FRAMES_COUNT = 10;
 
     // notification object to notify debuggee that thread is started
-    private static Object threadStarting = new Object();
+    private static Object threadStarting = java.util.Objects.newIdentity();
     // object which thread will wait for before being interruted
-    private static Object threadWaiting = new Object();
+    private static Object threadWaiting = java.util.Objects.newIdentity();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;
@@ -118,7 +118,7 @@ public class curcontmonitor001a {
         // field with the tested Thread value
         public static volatile TestedClass thread = null;
         // field with monitor object which thread will infinitively wait for
-        public static volatile Object monitor = new Object();
+        public static volatile Object monitor = java.util.Objects.newIdentity();
 
         public TestedClass(String name) {
             super(name);

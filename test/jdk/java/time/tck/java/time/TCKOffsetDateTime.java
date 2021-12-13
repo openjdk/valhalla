@@ -1413,7 +1413,7 @@ public class TCKOffsetDateTime extends AbstractDateTimeTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void compareToNonOffsetDateTime() {
        Comparable c = TEST_2008_6_30_11_30_59_000000500;
-       c.compareTo(new Object());
+       c.compareTo(java.util.Objects.newIdentity());
     }
 
     //-----------------------------------------------------------------------

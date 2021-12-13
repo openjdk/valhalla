@@ -46,7 +46,7 @@ public class SynthButtonUI extends BasicButtonUI implements
                                  PropertyChangeListener, SynthUI {
     private SynthStyle style;
 
-    private static final Object SYNTH_BUTTON_UI_KEY = new Object();
+    private static final Object SYNTH_BUTTON_UI_KEY = java.util.Objects.newIdentity();
 
     /**
      * Constructs a {@code SynthButtonUI}.

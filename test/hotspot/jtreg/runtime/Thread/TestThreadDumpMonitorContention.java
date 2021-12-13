@@ -85,7 +85,7 @@ public class TestThreadDumpMonitorContention {
     final static Pattern WAITING_PATTERN = Pattern.compile(
         ".* waiting to lock \\<.*\\(a TestThreadDumpMonitorContention.*");
 
-    final static Object barrier = new Object();
+    final static Object barrier = java.util.Objects.newIdentity();
     volatile static boolean done = false;
 
     static int barrier_cnt = 0;

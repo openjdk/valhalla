@@ -48,7 +48,7 @@ public class BogusRTTAForUnusedVarTest {
     class Foo {
         void something() {
             {
-                @MyAnno Object o = new Object();
+                @MyAnno Object o = java.util.Objects.newIdentity();
             }
         }
     }

@@ -84,7 +84,7 @@ public class getvalues002a {
 
         // static fields with object values
         public static Object      nullObject           = null;
-        public static Object      baseObject           = new Object();
+        public static Object      baseObject           = java.util.Objects.newIdentity();
         public static TestedClass derivedObject        = new TestedClass();
         public static String      stringObject         = new String("string");
         public static int[]       primitiveArrayObject = new int[10];

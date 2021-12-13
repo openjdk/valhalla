@@ -153,7 +153,7 @@ class SourceCodeAnalysisImpl extends SourceCodeAnalysis {
     private final Map<Path, ClassIndex> currentIndexes = new HashMap<>();
     private int indexVersion;
     private int classpathVersion;
-    private final Object suspendLock = new Object();
+    private final Object suspendLock = java.util.Objects.newIdentity();
     private int suspend;
 
     SourceCodeAnalysisImpl(JShell proc) {

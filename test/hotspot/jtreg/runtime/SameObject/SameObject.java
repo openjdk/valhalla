@@ -35,7 +35,7 @@ import jdk.test.lib.Asserts;
  */
 public class SameObject {
 
-    public Object obj = new Object();
+    public Object obj = java.util.Objects.newIdentity();
 
     static {
         System.loadLibrary("SameObject");

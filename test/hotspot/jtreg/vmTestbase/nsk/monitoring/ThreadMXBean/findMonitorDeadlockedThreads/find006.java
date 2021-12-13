@@ -34,7 +34,7 @@ public class find006 {
 
     private static Wicket mainEntrance;
     private static boolean testFailed = false;
-    private static Object waiter = new Object();
+    private static Object waiter = java.util.Objects.newIdentity();
 
     public static void main(String[] argv) {
         System.exit(Consts.JCK_STATUS_BASE + run(argv, System.out));

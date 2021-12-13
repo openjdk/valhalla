@@ -155,8 +155,8 @@ public class nextevent001a {
         System.exit(exitCode + PASS_BASE);
     }
 
-    static Object waitnotifyObj = new Object();
-    static Object lockingObject = new Object();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
+    static Object lockingObject = java.util.Objects.newIdentity();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {
@@ -177,7 +177,7 @@ public class nextevent001a {
         throw new NullPointerException("test");
     }
 
-    static Object lockingObject2 = new Object();
+    static Object lockingObject2 = java.util.Objects.newIdentity();
     static Object locks[]        = new Object[threadsN];
 
     static volatile int n = 0;
@@ -189,7 +189,7 @@ public class nextevent001a {
         public Thread1nextevent001a(String threadName) {
             super(threadName);
             threadIndex = n;
-            locks[threadIndex] = new Object();
+            locks[threadIndex] = java.util.Objects.newIdentity();
             n++;
         }
 
@@ -220,7 +220,7 @@ public class nextevent001a {
         public Thread2nextevent001a(String threadName) {
             super(threadName);
             threadIndex = n;
-            locks[threadIndex] = new Object();
+            locks[threadIndex] = java.util.Objects.newIdentity();
             n++;
         }
 

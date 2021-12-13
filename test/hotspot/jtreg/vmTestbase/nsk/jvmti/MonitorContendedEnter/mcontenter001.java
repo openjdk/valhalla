@@ -114,8 +114,8 @@ public class mcontenter001 extends DebugeeClass {
 /* =================================================================== */
 
 class mcontenter001Thread extends Thread {
-    public Object startingMonitor = new Object();
-    public Object endingMonitor = new Object();
+    public Object startingMonitor = java.util.Objects.newIdentity();
+    public Object endingMonitor = java.util.Objects.newIdentity();
 
     public mcontenter001Thread(String name) {
         super(name);

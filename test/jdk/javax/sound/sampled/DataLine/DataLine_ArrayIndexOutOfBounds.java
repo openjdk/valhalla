@@ -107,8 +107,8 @@ public class DataLine_ArrayIndexOutOfBounds {
         private final DataLine line;
         private final long delayMS;  // delay before stop the line
         private final Thread thread;
-        private final Object readyEvent = new Object();
-        private final Object startEvent = new Object();
+        private final Object readyEvent = java.util.Objects.newIdentity();
+        private final Object startEvent = java.util.Objects.newIdentity();
 
         public AsyncLineStopper(DataLine line, long delayMS) {
             this.line = line;

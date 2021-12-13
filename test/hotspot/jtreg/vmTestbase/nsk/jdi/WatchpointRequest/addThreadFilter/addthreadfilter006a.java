@@ -131,8 +131,8 @@ public class addthreadfilter006a {
     }
 
 
-    static Object lockObj       = new Object();
-    static Object waitnotifyObj = new Object();
+    static Object lockObj       = java.util.Objects.newIdentity();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {

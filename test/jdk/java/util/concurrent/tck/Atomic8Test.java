@@ -599,7 +599,7 @@ public class Atomic8Test extends JSR166TestCase {
         final AtomicLongFieldUpdater longUpdater = aLongFieldUpdater();
         final AtomicIntegerFieldUpdater intUpdater = anIntFieldUpdater();
         final AtomicReferenceFieldUpdater refUpdater = anItemFieldUpdater();
-        for (Object x : new Object[]{ new Object(), null }) {
+        for (Object x : new Object[]{ java.util.Objects.newIdentity(), null }) {
             assertThrows(
                 ClassCastException.class,
                 () -> longUpdater.get(x),

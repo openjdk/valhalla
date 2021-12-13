@@ -43,8 +43,8 @@ public class fieldmod001 {
     native static void getReady(Object o1, Object o2, int a1[], int a2[]);
     native static int check();
 
-    static Object obj1 = new Object();
-    static Object obj2 = new Object();
+    static Object obj1 = java.util.Objects.newIdentity();
+    static Object obj2 = java.util.Objects.newIdentity();
     static int arr1[] = new int[1];
     static int arr2[] = new int[2];
 

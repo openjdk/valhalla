@@ -572,7 +572,7 @@ final class ProcessImpl extends Process {
      * able to read any buffered data lingering in the OS pipe buffer.
      */
     private static class ProcessPipeInputStream extends BufferedInputStream {
-        private final Object closeLock = new Object();
+        private final Object closeLock = java.util.Objects.newIdentity();
 
         ProcessPipeInputStream(int fd) {
             super(new PipeInputStream(newFileDescriptor(fd)));
@@ -656,7 +656,7 @@ final class ProcessImpl extends Process {
             super(fd);
         }
 
-        private Object lock = new Object();     // For the following fields
+        private Object lock = java.util.Objects.newIdentity();     // For the following fields
         private boolean closePending = false;
         private int useCount = 0;
         private InputStream streamToClose;
@@ -768,7 +768,7 @@ final class ProcessImpl extends Process {
     private static class DeferredCloseProcessPipeInputStream
         extends BufferedInputStream {
 
-        private final Object closeLock = new Object();
+        private final Object closeLock = java.util.Objects.newIdentity();
         private int useCount = 0;
         private boolean closePending = false;
 

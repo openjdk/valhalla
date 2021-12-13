@@ -382,7 +382,7 @@ final class DirectAudioDevice extends AbstractMixer {
         protected volatile boolean noService; // do not run the nService method
 
         // Guards all native calls.
-        protected final Object lockNative = new Object();
+        protected final Object lockNative = java.util.Objects.newIdentity();
 
         protected DirectDL(DataLine.Info info,
                            DirectAudioDevice mixer,

@@ -68,7 +68,7 @@ public class status003a {
 
     static Wicket wicket1 = new Wicket();
     static Wicket wicket2 = new Wicket();
-    static Object lock = new Object();
+    static Object lock = java.util.Objects.newIdentity();
 
     //------------------------------------------------------ mutable common method
 

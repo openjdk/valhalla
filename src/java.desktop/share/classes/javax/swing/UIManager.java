@@ -232,7 +232,7 @@ public class UIManager implements Serializable
 
     /* Lock object used in place of class object for synchronization. (4187686)
      */
-    private static final Object classLock = new Object();
+    private static final Object classLock = java.util.Objects.newIdentity();
 
     /**
      * Constructs a {@code UIManager}.

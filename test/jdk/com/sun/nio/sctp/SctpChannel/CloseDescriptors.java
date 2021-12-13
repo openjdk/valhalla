@@ -153,7 +153,7 @@ public class CloseDescriptors {
     }
 
     private static class SelectorThread extends Thread {
-        private Object lock = new Object();
+        private Object lock = java.util.Objects.newIdentity();
         private SctpChannel channel;
         private SelectionKey key;
 

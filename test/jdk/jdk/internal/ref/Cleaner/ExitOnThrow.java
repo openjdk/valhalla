@@ -52,7 +52,7 @@ public class ExitOnThrow {
                         .shouldHaveExitValue(1)
                         .shouldContain("java.lang.RuntimeException: Foo!");
         } else {
-            Cleaner.create(new Object(),
+            Cleaner.create(java.util.Objects.newIdentity(),
                            () -> { throw new RuntimeException("Foo!"); } );
             while (true) {
                 System.gc();

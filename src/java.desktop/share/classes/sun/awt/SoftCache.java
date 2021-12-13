@@ -118,7 +118,7 @@ public class SoftCache extends AbstractMap<Object, Object> implements Map<Object
 
 
     private static class ValueCell extends SoftReference<Object> {
-        private static Object INVALID_KEY = new Object();
+        private static Object INVALID_KEY = java.util.Objects.newIdentity();
         private static int dropped = 0;
         private Object key;
 

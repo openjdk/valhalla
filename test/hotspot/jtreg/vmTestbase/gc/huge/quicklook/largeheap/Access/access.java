@@ -79,7 +79,7 @@ public class access extends ThreadedGCTest {
     // An array to eat 4G of heap
     private static long[][] storage = new long[STORAGE_SIZE_DIM1][];
     private volatile boolean is4GAllocated = false;
-    private final Object lock = new Object();
+    private final Object lock = java.util.Objects.newIdentity();
 
     private class Worker implements Runnable {
 

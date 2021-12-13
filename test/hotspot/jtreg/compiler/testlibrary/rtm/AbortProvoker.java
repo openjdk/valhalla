@@ -171,7 +171,7 @@ public abstract class AbortProvoker implements CompilableTest {
     protected final Object monitor;
 
     protected AbortProvoker() {
-        this(new Object());
+        this(java.util.Objects.newIdentity());
     }
 
     protected AbortProvoker(Object monitor) {

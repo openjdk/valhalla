@@ -33,7 +33,7 @@ import nsk.share.TestFailure;
 public class RunningThread extends RecursiveMonitoringThread {
         private volatile boolean running = false;
         private volatile boolean ready = false;
-        private Object readyLock = new Object();
+        private Object readyLock = java.util.Objects.newIdentity();
         private static final String[] expectedMethods = {
                 "nsk.monitoring.share.thread.RunningThread.runInside",
                 "java.lang.Thread.yield"

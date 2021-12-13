@@ -64,7 +64,7 @@ public class InputMethodContext
     // Creation of the context's composition area handler is
     // delayed until we really need a composition area.
     private CompositionAreaHandler compositionAreaHandler;
-    private Object compositionAreaHandlerLock = new Object();
+    private Object compositionAreaHandlerLock = java.util.Objects.newIdentity();
 
     private static boolean belowTheSpotInputRequested;
     private boolean inputMethodSupportsBelowTheSpot;

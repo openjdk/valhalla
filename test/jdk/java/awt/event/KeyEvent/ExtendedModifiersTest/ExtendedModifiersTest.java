@@ -144,7 +144,7 @@ public class ExtendedModifiersTest implements KeyListener {
     }
 
     public ExtendedModifiersTest() throws Exception {
-        lock = new Object();
+        lock = java.util.Objects.newIdentity();
         robot = new ExtendedRobot();
         EventQueue.invokeAndWait(this::createGUI);
     }

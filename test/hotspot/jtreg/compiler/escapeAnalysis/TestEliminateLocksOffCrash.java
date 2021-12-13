@@ -41,7 +41,7 @@ public class TestEliminateLocksOffCrash {
     }
 
     private static void test() throws Exception {
-        Object obj = new Object();
+        Object obj = java.util.Objects.newIdentity();
         synchronized (obj) {
             throw new Exception();
         }

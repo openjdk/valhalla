@@ -50,7 +50,7 @@ public class EarlyTimeout extends Thread {
     static final int THREADS_COUNT = 2;
     static final int TIMEOUT = 1000;
 
-    static Object referent = new Object();
+    static Object referent = java.util.Objects.newIdentity();
     static final ReferenceQueue<Object> queue = new ReferenceQueue<Object>();
     static final WeakReference<Object> weakReference = new WeakReference<Object>(referent, queue);
     static final CountDownLatch startedSignal = new CountDownLatch(THREADS_COUNT);

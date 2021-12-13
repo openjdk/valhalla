@@ -89,13 +89,13 @@ class Test {
     public volatile Object vo;
 
     private static final int si = 408-343-1407;;
-    private static final Object so = new Object();
+    private static final Object so = java.util.Objects.newIdentity();
 
     Test() {
         i = 911;
         ni = i;
         vi = i;
-        o = new Object();
+        o = java.util.Objects.newIdentity();
         no = o;
         vo = o;
     }
@@ -136,7 +136,7 @@ class Test {
         Object saved = no;
         try {
             Field f = this.getClass().getDeclaredField("no");
-            f.set(this, new Object());
+            f.set(this, java.util.Objects.newIdentity());
             if (no == saved) {
                 System.out.println("set() did not work");
             }
@@ -152,7 +152,7 @@ class Test {
         Object saved = so;
         try {
             Field f = this.getClass().getDeclaredField("so");
-            f.set(this, new Object());
+            f.set(this, java.util.Objects.newIdentity());
             if (so == saved) {
                 System.out.println("set() did not work for static");
             }
@@ -201,7 +201,7 @@ class Test {
         try {
             Field f = this.getClass().getDeclaredField("o");
             f.setAccessible(true);
-            f.set(this, new Object());
+            f.set(this, java.util.Objects.newIdentity());
             if (o == saved) {
                 System.out.println("set() did not work");
             }
@@ -218,7 +218,7 @@ class Test {
         try {
             Field f = this.getClass().getDeclaredField("so");
             f.setAccessible(true);
-            f.set(this, new Object());
+            f.set(this, java.util.Objects.newIdentity());
             if (so == saved) {
                 System.out.println("set() did not work for static");
             }
@@ -252,7 +252,7 @@ class Test {
         try {
             Field f = this.getClass().getDeclaredField("vo");
             f.setAccessible(true);
-            f.set(this, new Object());
+            f.set(this, java.util.Objects.newIdentity());
             if (vo == saved) {
                 System.out.println("set() did not work");
             }

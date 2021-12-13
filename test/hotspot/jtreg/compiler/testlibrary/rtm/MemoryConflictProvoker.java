@@ -46,7 +46,7 @@ class MemoryConflictProvoker extends AbortProvoker {
     private final Runnable conflictingThread;
 
     public MemoryConflictProvoker() {
-        this(new Object());
+        this(java.util.Objects.newIdentity());
     }
 
     public MemoryConflictProvoker(Object monitor) {

@@ -115,7 +115,7 @@ final class RendererContext extends ReentrantContext implements MarlinConst {
         if (LOG_CREATE_CONTEXT) {
             MarlinUtils.logInfo("new RendererContext = " + name);
         }
-        this.cleanerObj = new Object();
+        this.cleanerObj = java.util.Objects.newIdentity();
 
         // create first stats (needed by newOffHeapArray):
         if (DO_STATS || DO_MONITORS) {

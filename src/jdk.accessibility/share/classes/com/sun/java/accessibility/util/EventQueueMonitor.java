@@ -93,7 +93,7 @@ public class EventQueueMonitor
      * component event dispatch thread ({@link #queueComponentEvent})
      * and the thing that processes the events ({@link ComponentEvtDispatchThread}).
      */
-    static Object componentEventQueueLock = new Object();
+    static Object componentEventQueueLock = java.util.Objects.newIdentity();
 
     /**
      * Create a new {@code EventQueueMonitor} instance.  Normally, this will

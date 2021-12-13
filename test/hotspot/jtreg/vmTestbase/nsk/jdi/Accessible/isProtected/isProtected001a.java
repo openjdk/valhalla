@@ -54,7 +54,7 @@ public class isProtected001a {
     Integer   I0 = Integer.valueOf(-1),         I1[]={I0}, I2[][]={I1};
     Long      L0 = Long.valueOf(-1l),           L1[]={L0}, L2[][]={L1};
     String    S0 = new String("4434819"),       S1[]={S0}, S2[][]={S1};
-    Object    O0 = new Object(),                O1[]={O0}, O2[][]={O1};
+    Object    O0 = java.util.Objects.newIdentity(),                O1[]={O0}, O2[][]={O1};
 
     private   static class  U {}
     protected static class  V {}

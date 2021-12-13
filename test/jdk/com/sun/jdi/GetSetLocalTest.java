@@ -130,11 +130,11 @@ class GetSetLocalTarg {
              intArg++;
         }
         {
-             { Object obj_1 = new Object();
+             { Object obj_1 = java.util.Objects.newIdentity();
                intArg++;
              }
 
-             Object obj_2 = new Object();
+             Object obj_2 = java.util.Objects.newIdentity();
              intArg++;  // STOP_LINE. Last stop is at this point.
                         //     Only obj_2 and intArg are valid
                         // Note: even result is not valid here!

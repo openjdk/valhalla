@@ -54,7 +54,7 @@ public class WindowsToggleButtonUI extends BasicToggleButtonUI
 
     protected Color focusColor;
 
-    private static final Object WINDOWS_TOGGLE_BUTTON_UI_KEY = new Object();
+    private static final Object WINDOWS_TOGGLE_BUTTON_UI_KEY = java.util.Objects.newIdentity();
 
     private boolean defaults_initialized = false;
 

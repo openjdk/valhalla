@@ -47,13 +47,13 @@ public class MethodHandlesIdentity {
 
     @Setup
     public void setup() {
-        cachedArg = new Object();
+        cachedArg = java.util.Objects.newIdentity();
         mh = MethodHandles.identity(Object.class);
     }
 
     @Benchmark
     public Object baselineRaw() throws Throwable {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
     @Benchmark
@@ -63,7 +63,7 @@ public class MethodHandlesIdentity {
 
     @Benchmark
     public Object testInvoke() throws Throwable {
-        return mh.invoke(new Object());
+        return mh.invoke(java.util.Objects.newIdentity());
     }
 
     @Benchmark

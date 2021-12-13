@@ -164,7 +164,7 @@ public class NoFormatsCrashTest {
 class TestTransferable implements Transferable {
 
     public static DataFlavor dataFlavor = null;
-    static final Object data = new Object();
+    static final Object data = java.util.Objects.newIdentity();
 
     static {
         DataFlavor df = null;

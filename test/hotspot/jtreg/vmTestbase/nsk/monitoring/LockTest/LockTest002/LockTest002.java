@@ -41,7 +41,7 @@ import nsk.share.TestFailure;
 
 public class LockTest002
 {
-  private Object syncObj = new Object();
+  private Object syncObj = java.util.Objects.newIdentity();
 
   public LockTest002()
   {  }

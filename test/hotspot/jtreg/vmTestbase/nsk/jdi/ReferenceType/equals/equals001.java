@@ -188,7 +188,7 @@ public class equals001 {
                 boolean is_equal = true;
                 String unequal_refType_str = null;
                 if ( unequal_refType == null ) {
-                    Object object_for_compare = new Object();
+                    Object object_for_compare = java.util.Objects.newIdentity();
                     is_equal = refType_1.equals(object_for_compare);
                     unequal_refType_str = object_for_compare.toString();
                 }

@@ -46,11 +46,11 @@ public class TrayIconEventsTest {
     ExtendedRobot robot;
 
     boolean actionPerformed = false;
-    Object actionLock = new Object();
-    Object pressLock = new Object();
-    Object releaseLock = new Object();
-    Object clickLock = new Object();
-    Object moveLock = new Object();
+    Object actionLock = java.util.Objects.newIdentity();
+    Object pressLock = java.util.Objects.newIdentity();
+    Object releaseLock = java.util.Objects.newIdentity();
+    Object clickLock = java.util.Objects.newIdentity();
+    Object moveLock = java.util.Objects.newIdentity();
 
     String caption = "Sample Icon";
     boolean mousePressed = false;

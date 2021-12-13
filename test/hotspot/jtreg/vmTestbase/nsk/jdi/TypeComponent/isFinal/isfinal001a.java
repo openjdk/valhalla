@@ -91,7 +91,7 @@ class isfinal001aClassToCheck {
     Object    O0, O1[]={O0}, O2[][]={O1};
 
     final isfinal001aClass     X0F = new isfinal001aClass(), X1F[]={X0F}, X2F[][]={X1F};
-    final Object    O0F = new Object(), O1F[]={O0F}, O2F[][]={O1F};
+    final Object    O0F = java.util.Objects.newIdentity(), O1F[]={O0F}, O2F[][]={O1F};
 
     static    Long LS0, LS1[]={LS0}, LS2[][]={LS1};
     private   Long LP0, LP1[]={LP0}, LP2[][]={LP1};

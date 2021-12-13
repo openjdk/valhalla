@@ -57,7 +57,7 @@ public class uninit006 {
 
     public Object recursiveMethod(int i ) {
         if(i <= 0) {
-            return new Object();
+            return java.util.Objects.newIdentity();
         } else {
             Object o = null;
             o = recursiveMethod(i-1);

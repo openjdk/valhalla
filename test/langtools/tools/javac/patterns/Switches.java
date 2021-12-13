@@ -94,7 +94,7 @@ public class Switches {
         assertEquals(2, mapper.apply(2));
         assertEquals(3, mapper.apply(3));
         assertEquals(-1, mapper.apply(2.0));
-        assertEquals(-1, mapper.apply(new Object()));
+        assertEquals(-1, mapper.apply(java.util.Objects.newIdentity()));
     }
 
     void runArrayTypeTest(Function<Object, String> mapper) {

@@ -34,7 +34,7 @@ public class StreamPipe extends Thread {
     private InputStream in;
     private OutputStream out;
 
-    private static Object countLock = new Object();
+    private static Object countLock = java.util.Objects.newIdentity();
     private static int count = 0;
 
     /**

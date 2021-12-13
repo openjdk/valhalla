@@ -117,7 +117,7 @@ public class ReflectionColdstartBenchmark {
     @Setup(Level.Trial)
     public void setup() {
         methods = Nested.class.getDeclaredMethods();
-        arg = new Object();
+        arg = java.util.Objects.newIdentity();
     }
 
     @Benchmark

@@ -49,8 +49,8 @@ public class frameloc003 {
         System.exit(run(args, System.out) + JCK_STATUS_BASE);
     }
 
-    public static Object lockStart = new Object();
-    public static Object lockFinish = new Object();
+    public static Object lockStart = java.util.Objects.newIdentity();
+    public static Object lockFinish = java.util.Objects.newIdentity();
 
     public static int run(String args[], PrintStream out) {
         TestThread t = new TestThread();

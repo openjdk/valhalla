@@ -215,7 +215,7 @@ public final class ExternalHashingTest {
         /* Create the list of victims. */
         Object[] candidates = new Object[BATCH_SIZE];
         for (int i = 0; i < candidates.length; i++) {
-            candidates[i] = new Object();
+            candidates[i] = java.util.Objects.newIdentity();
         }
 
         Object[] lockedList = randomize(candidates);
@@ -242,7 +242,7 @@ public final class ExternalHashingTest {
             allHashes.add(Integer.valueOf(foundHashes[i]));
 
             /* Create even more garbage for the GC to find */
-            garbageMonger[i] = new Object();
+            garbageMonger[i] = java.util.Objects.newIdentity();
         }
 
         // just some noise to make sure that do-nothing code is not optimized

@@ -72,7 +72,7 @@ public class MemoryCacheImageInputStream extends ImageInputStreamImpl {
 
         disposerRecord = new StreamDisposerRecord(cache);
         if (getClass() == MemoryCacheImageInputStream.class) {
-            disposerReferent = new Object();
+            disposerReferent = java.util.Objects.newIdentity();
             Disposer.addRecord(disposerReferent, disposerRecord);
         } else {
             disposerReferent = new StreamFinalizer(this);

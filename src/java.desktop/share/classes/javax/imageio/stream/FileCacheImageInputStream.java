@@ -110,7 +110,7 @@ public class FileCacheImageInputStream extends ImageInputStreamImpl {
 
         disposerRecord = new StreamDisposerRecord(cacheFile, cache);
         if (getClass() == FileCacheImageInputStream.class) {
-            disposerReferent = new Object();
+            disposerReferent = java.util.Objects.newIdentity();
             Disposer.addRecord(disposerReferent, disposerRecord);
         } else {
             disposerReferent = new StreamFinalizer(this);

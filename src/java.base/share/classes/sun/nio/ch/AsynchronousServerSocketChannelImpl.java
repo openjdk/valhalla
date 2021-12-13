@@ -55,7 +55,7 @@ abstract class AsynchronousServerSocketChannelImpl
     protected volatile InetSocketAddress localAddress;
 
     // need this lock to set local address
-    private final Object stateLock = new Object();
+    private final Object stateLock = java.util.Objects.newIdentity();
 
     // close support
     private ReadWriteLock closeLock = new ReentrantReadWriteLock();

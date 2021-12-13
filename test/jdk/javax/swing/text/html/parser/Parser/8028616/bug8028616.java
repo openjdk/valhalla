@@ -34,7 +34,7 @@ import java.io.StringReader;
 
 public class bug8028616 {
     private static final String text = "/ at start is bad";
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
     private static boolean isCallbackInvoked = false;
     private static Exception exception = null;
 

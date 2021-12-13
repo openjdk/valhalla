@@ -41,7 +41,7 @@ public abstract class BasicVtblAccess implements VtblAccess {
     this.dllNames = dllNames;
   }
 
-  static Object nullAddress = new Object();
+  static Object nullAddress = java.util.Objects.newIdentity();
 
   public Address getVtblForType(Type type) {
     if (type == null) {

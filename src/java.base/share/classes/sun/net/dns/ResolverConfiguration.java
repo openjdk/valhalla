@@ -39,7 +39,7 @@ import java.util.List;
 
 public abstract class ResolverConfiguration {
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
 
     private static ResolverConfiguration provider;
 

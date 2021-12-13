@@ -38,14 +38,14 @@ package compiler.arraycopy;
 public class TestArrayCopyStoppedAfterGuards {
 
     static void test() {
-        Object src = new Object();
+        Object src = java.util.Objects.newIdentity();
         int[] dst = new int[10];
         System.arraycopy(src, 0, dst, 0, 10);
     }
 
     static public void main(String[] args) {
         // warmup
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         int[] src = new int[10];
         int[] dst = new int[10];
         System.arraycopy(src, 0, dst, 0, 10);

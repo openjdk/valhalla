@@ -125,7 +125,7 @@ public class objfree001 {
 
             Object obj[] = new Object[OBJ_NUM];
             for (int i=0; i<OBJ_NUM; i++) {
-                obj[i] =  new Object();
+                obj[i] =  java.util.Objects.newIdentity();
             }
 
             unClsObj = null;

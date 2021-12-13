@@ -45,7 +45,7 @@ public class popframe005 {
     private PrintStream out;
     private popFrameCls popFrameClsThr;
     private objWaiter objWaiterThr1, objWaiterThr2;
-    private Object allThreadsStoppedBarrier = new Object();
+    private Object allThreadsStoppedBarrier = java.util.Objects.newIdentity();
     private Wicket startGuarantee;
     private Wicket finishGuarantee;
     private Wicket allThreadsStoppedGuarantee;
@@ -78,8 +78,8 @@ public class popframe005 {
 
         this.out = out;
 
-        lockObj[0] = new Object();
-        lockObj[1] = new Object();
+        lockObj[0] = java.util.Objects.newIdentity();
+        lockObj[1] = java.util.Objects.newIdentity();
 
         startGuarantee = new Wicket("startGuarantee", 1, System.out);
         finishGuarantee = new Wicket("finishGuarantee", 1, System.out);

@@ -193,8 +193,8 @@ public class ConcurrentSkipListSubSetTest extends JSR166TestCase {
         ConcurrentSkipListSet<Object> src = new ConcurrentSkipListSet<>();
         NavigableSet<Object> q = src.tailSet(minusOne, true);
         try {
-            q.add(new Object());
-            q.add(new Object());
+            q.add(java.util.Objects.newIdentity());
+            q.add(java.util.Objects.newIdentity());
             shouldThrow();
         } catch (ClassCastException success) {}
     }
@@ -689,8 +689,8 @@ public class ConcurrentSkipListSubSetTest extends JSR166TestCase {
     public void testDescendingAddNonComparable() {
         NavigableSet<Object> q = new ConcurrentSkipListSet<>();
         try {
-            q.add(new Object());
-            q.add(new Object());
+            q.add(java.util.Objects.newIdentity());
+            q.add(java.util.Objects.newIdentity());
             shouldThrow();
         } catch (ClassCastException success) {}
     }

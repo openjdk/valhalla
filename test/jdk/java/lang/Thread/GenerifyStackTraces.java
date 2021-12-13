@@ -32,7 +32,7 @@ import java.util.*;
 
 public class GenerifyStackTraces {
 
-    private static Object go = new Object();
+    private static Object go = java.util.Objects.newIdentity();
     private static String[] methodNames = {"run", "A", "B", "C", "Done"};
     private static int DONE_DEPTH = 5;
     private static boolean testFailed = false;

@@ -52,8 +52,8 @@ public class em01t002 extends DebugeeClass {
     long timeout = 0;
     int status = Consts.TEST_PASSED;
 
-    static public Object threadStarting = new Object();
-    static public Object threadWaiting = new Object();
+    static public Object threadStarting = java.util.Objects.newIdentity();
+    static public Object threadWaiting = java.util.Objects.newIdentity();
 
     /* =================================================================== */
 

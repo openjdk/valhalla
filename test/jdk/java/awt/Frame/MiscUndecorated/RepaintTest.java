@@ -61,7 +61,7 @@ public class RepaintTest {
     private Component button;
     private Component textField;
     private ExtendedRobot robot;
-    private final Object buttonLock = new Object();
+    private final Object buttonLock = java.util.Objects.newIdentity();
     private boolean passed = true;
     private boolean buttonClicked = false;
     private final int MAX_TOLERANCE_LEVEL = 10;

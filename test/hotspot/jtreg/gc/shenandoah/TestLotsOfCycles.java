@@ -134,7 +134,7 @@ public class TestLotsOfCycles {
         long count = TARGET_MB * 1024 * 1024 / 16;
         for (long c = 0; c < count; c += STRIDE) {
             for (long s = 0; s < STRIDE; s++) {
-                sink = new Object();
+                sink = java.util.Objects.newIdentity();
             }
             Thread.sleep(1);
         }

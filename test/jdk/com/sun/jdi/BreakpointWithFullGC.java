@@ -45,7 +45,7 @@ class BreakpointWithFullGCTarg {
 
     private static void init(int numObjs) {
         for (int i = 0; i < numObjs; i++) {
-            objList.add(new Object());
+            objList.add(java.util.Objects.newIdentity());
         }
     }
 

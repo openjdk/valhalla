@@ -36,12 +36,12 @@ public class ExceptionParameters {
 
     @TADescription(annotation = "TA", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
     public String exception() {
-        return "void exception() { try { new Object(); } catch(@TA Exception e) { } }";
+        return "void exception() { try { java.util.Objects.newIdentity(); } catch(@TA Exception e) { } }";
     }
 
     @TADescription(annotation = "TA", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
     public String finalException() {
-        return "void finalException() { try { new Object(); } catch(final @TA Exception e) { } }";
+        return "void finalException() { try { java.util.Objects.newIdentity(); } catch(final @TA Exception e) { } }";
     }
 
     @TADescription(annotation = "TA", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
@@ -49,9 +49,9 @@ public class ExceptionParameters {
     @TADescription(annotation = "TC", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multipleExceptions1() {
         return "void multipleExceptions() { " +
-            "try { new Object(); } catch(@TA Exception e) { }" +
-            "try { new Object(); } catch(@TB Exception e) { }" +
-            "try { new Object(); } catch(@TC Exception e) { }" +
+            "try { java.util.Objects.newIdentity(); } catch(@TA Exception e) { }" +
+            "try { java.util.Objects.newIdentity(); } catch(@TB Exception e) { }" +
+            "try { java.util.Objects.newIdentity(); } catch(@TC Exception e) { }" +
             " }";
     }
 
@@ -60,9 +60,9 @@ public class ExceptionParameters {
     @TADescription(annotation = "TC", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multipleExceptions2() {
         return "void multipleExceptions() { " +
-            "  try { new Object(); " +
-            "    try { new Object(); " +
-            "      try { new Object(); } catch(@TA Exception e) { }" +
+            "  try { java.util.Objects.newIdentity(); " +
+            "    try { java.util.Objects.newIdentity(); " +
+            "      try { java.util.Objects.newIdentity(); } catch(@TA Exception e) { }" +
             "    } catch(@TB Exception e) { }" +
             "  } catch(@TC Exception e) { }" +
             "}";
@@ -73,11 +73,11 @@ public class ExceptionParameters {
     @TADescription(annotation = "TC", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multipleExceptions3() {
         return "void multipleExceptions() { " +
-            "  try { new Object(); " +
+            "  try { java.util.Objects.newIdentity(); " +
             "  } catch(@TA Exception e1) { "+
-            "    try { new Object(); " +
+            "    try { java.util.Objects.newIdentity(); " +
             "    } catch(@TB Exception e2) {" +
-            "      try { new Object(); } catch(@TC Exception e3) { }" +
+            "      try { java.util.Objects.newIdentity(); } catch(@TC Exception e3) { }" +
             "    }" +
             "  }" +
             "}";
@@ -85,7 +85,7 @@ public class ExceptionParameters {
 
     @TADescription(annotation = "RTAs", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
     public String exceptionRepeatableAnnotation() {
-        return "void exception() { try { new Object(); } catch(@RTA @RTA Exception e) { } }";
+        return "void exception() { try { java.util.Objects.newIdentity(); } catch(@RTA @RTA Exception e) { } }";
     }
 
     @TADescription(annotation = "RTAs", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
@@ -93,9 +93,9 @@ public class ExceptionParameters {
     @TADescription(annotation = "RTCs", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multipleExceptionsRepeatableAnnotation1() {
         return "void multipleExceptions() { " +
-                "try { new Object(); } catch(@RTA @RTA Exception e) { }" +
-                "try { new Object(); } catch(@RTB @RTB Exception e) { }" +
-                "try { new Object(); } catch(@RTC @RTC Exception e) { }" +
+                "try { java.util.Objects.newIdentity(); } catch(@RTA @RTA Exception e) { }" +
+                "try { java.util.Objects.newIdentity(); } catch(@RTB @RTB Exception e) { }" +
+                "try { java.util.Objects.newIdentity(); } catch(@RTC @RTC Exception e) { }" +
                 " }";
     }
 
@@ -104,9 +104,9 @@ public class ExceptionParameters {
     @TADescription(annotation = "RTCs", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multipleExceptionsRepeatableAnnotation2() {
         return "void multipleExceptions() { " +
-                "  try { new Object(); " +
-                "    try { new Object(); " +
-                "      try { new Object(); } catch(@RTA @RTA Exception e) { }" +
+                "  try { java.util.Objects.newIdentity(); " +
+                "    try { java.util.Objects.newIdentity(); " +
+                "      try { java.util.Objects.newIdentity(); } catch(@RTA @RTA Exception e) { }" +
                 "    } catch(@RTB @RTB Exception e) { }" +
                 "  } catch(@RTC @RTC Exception e) { }" +
                 "}";
@@ -117,11 +117,11 @@ public class ExceptionParameters {
     @TADescription(annotation = "RTCs", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multipleExceptionsRepeatableAnnotation3() {
         return "void multipleExceptions() { " +
-                "  try { new Object(); " +
+                "  try { java.util.Objects.newIdentity(); " +
                 "  } catch(@RTA @RTA Exception e1) { "+
-                "    try { new Object(); " +
+                "    try { java.util.Objects.newIdentity(); " +
                 "    } catch(@RTB @RTB Exception e2) {" +
-                "      try { new Object(); } catch(@RTC @RTC Exception e3) { }" +
+                "      try { java.util.Objects.newIdentity(); } catch(@RTC @RTC Exception e3) { }" +
                 "    }" +
                 "  }" +
                 "}";

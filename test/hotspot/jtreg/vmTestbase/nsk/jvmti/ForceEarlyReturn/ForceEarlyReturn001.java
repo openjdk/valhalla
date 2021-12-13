@@ -71,7 +71,7 @@ public class ForceEarlyReturn001 {
         out.println("Thread is already suspended.");
 
         out.println("Forcing thread to early return...");
-        if (!doForceEarlyReturnObject(thread, new Object())) {
+        if (!doForceEarlyReturnObject(thread, java.util.Objects.newIdentity())) {
             out.println("Failed to force thread to early return.");
             thread.stopThread();
             return Consts.TEST_FAILED;

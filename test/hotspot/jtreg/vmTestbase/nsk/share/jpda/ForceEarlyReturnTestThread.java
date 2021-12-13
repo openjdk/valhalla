@@ -450,7 +450,7 @@ extends Thread
     public static Class<?> expectedClassObjectValue = ForceEarlyReturnTestThread.class;
     public static ClassLoader expectedClassLoaderValue = new URLClassLoader(new URL[]{});
     public static String expectedStringValue = "EXPECTED STRING";
-    public static Object expectedObjectValue = new Object();
+    public static Object expectedObjectValue = java.util.Objects.newIdentity();
     public static Boolean expectedBooleanWrapperValue = Boolean.valueOf(Boolean.TRUE);
     public static Byte expectedByteWrapperValue = Byte.valueOf(Byte.MAX_VALUE);
     public static Character expectedCharWrapperValue = Character.valueOf(Character.MAX_VALUE);
@@ -476,7 +476,7 @@ extends Thread
     public static ThreadGroup unexpectedThreadGroupValue = new ThreadGroup("Unexpected thread group");
     public static Class<?> unexpectedClassObjectValue = Object.class;
     public static ClassLoader unexpectedClassLoaderValue = new URLClassLoader(new URL[]{});
-    public static Object unexpectedObjectValue = new Object();
+    public static Object unexpectedObjectValue = java.util.Objects.newIdentity();
     public static Boolean unexpectedBooleanWrapperValue = Boolean.valueOf(Boolean.FALSE);
     public static Byte unexpectedByteWrapperValue = Byte.valueOf((byte)0);
     public static Character unexpectedCharWrapperValue = Character.valueOf((char)0);
@@ -533,7 +533,7 @@ extends Thread
     public static ThreadGroup invalidThreadValue = new ThreadGroup("Invalid thread group");
     public static Class<?> invalidThreadGroupValue = ForceEarlyReturnTestThread.class;
     public static ClassLoader invalidClassObjectValue = new URLClassLoader(new URL[]{});
-    public static Object invalidClassLoaderValue = new Object();
+    public static Object invalidClassLoaderValue = java.util.Objects.newIdentity();
     public static Byte invalidBooleanWrapperValue = Byte.valueOf(Byte.MAX_VALUE);
     public static Short invalidByteWrapperValue = Short.valueOf(Short.MAX_VALUE);
     public static Character invalidShortWrapperValue = Character.valueOf(Character.MAX_VALUE);

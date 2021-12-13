@@ -94,7 +94,7 @@ public class event002 {
     private volatile int tot_res = PASSED;
 
 // for notification a main thread about received events
-    private Object gotEvent = new Object();
+    private Object gotEvent = java.util.Objects.newIdentity();
 
     public static void main (String argv[]) {
         System.exit(run(argv,System.out) + JCK_STATUS_BASE);

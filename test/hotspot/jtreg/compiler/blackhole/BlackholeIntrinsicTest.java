@@ -236,7 +236,7 @@ public class BlackholeIntrinsicTest {
 
     private static void test_Object_1() {
         for (int c = 0; c < CYCLES; c++) {
-            Object o = new Object();
+            Object o = java.util.Objects.newIdentity();
             BlackholeTarget.bh_s_Object_1(o);
         }
     }
@@ -291,8 +291,8 @@ public class BlackholeIntrinsicTest {
 
     private static void test_Object_2() {
         for (int c = 0; c < CYCLES; c++) {
-            Object o1 = new Object();
-            Object o2 = new Object();
+            Object o1 = java.util.Objects.newIdentity();
+            Object o2 = java.util.Objects.newIdentity();
             BlackholeTarget.bh_s_Object_2(o1, o2);
         }
     }

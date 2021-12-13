@@ -88,7 +88,7 @@ public class Jdb extends LocalProcess implements Finalizable {
     /** Internal buffer to save all not-null string from <i>jdb</i> stdout */
     volatile private static StringBuffer stdoutBuffer = new StringBuffer();
 
-    volatile private Object startNotify = new Object();
+    volatile private Object startNotify = java.util.Objects.newIdentity();
 
     /** Returns <i>Launcher</i> that created this <i>Jdb</i> object. */
     public static Launcher getLauncher() {
@@ -453,7 +453,7 @@ public class Jdb extends LocalProcess implements Finalizable {
             throw new TestBug("Wrong number of prompts count in Jdb.waitForPrompt(): " + count);
         }
 
-        Object dummy = new Object();
+        Object dummy = java.util.Objects.newIdentity();
         while ((total += delta) <= max) {
             int found = 0;
 
@@ -516,7 +516,7 @@ public class Jdb extends LocalProcess implements Finalizable {
         long total = 0;    // total time has waited.
         long max = getLauncher().getJdbArgumentHandler().getWaitTime() * 60 * 1000;  // maximum time to wait.
 
-        Object dummy = new Object();
+        Object dummy = java.util.Objects.newIdentity();
         while ((total += delta) <= max) {
             int found = 0;
 

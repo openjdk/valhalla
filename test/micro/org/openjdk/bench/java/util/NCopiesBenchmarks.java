@@ -23,7 +23,7 @@ public class NCopiesBenchmarks {
 
     @Setup
     public void prepare() {
-        list = Collections.nCopies(size, new Object());
+        list = Collections.nCopies(size, java.util.Objects.newIdentity());
     }
 
     @Benchmark

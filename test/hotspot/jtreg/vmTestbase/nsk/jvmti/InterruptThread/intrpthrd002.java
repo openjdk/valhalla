@@ -75,7 +75,7 @@ public class intrpthrd002 {
 }
 
 class intrpthrd002a extends Thread {
-    public Object syncObject = new Object();
+    public Object syncObject = java.util.Objects.newIdentity();
 
     public void run() {
         synchronized (syncObject) {

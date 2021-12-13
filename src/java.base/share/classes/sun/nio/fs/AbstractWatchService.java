@@ -54,7 +54,7 @@ abstract class AbstractWatchService implements WatchService {
 
     // used when closing watch service
     private volatile boolean closed;
-    private final Object closeLock = new Object();
+    private final Object closeLock = java.util.Objects.newIdentity();
 
     protected AbstractWatchService() {
     }

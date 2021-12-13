@@ -41,8 +41,8 @@ class thread001a {
 
     public static Log log;
 
-    public static Object lock = new Object();
-    public static Object waitnotify = new Object();
+    public static Object lock = java.util.Objects.newIdentity();
+    public static Object waitnotify = java.util.Objects.newIdentity();
 
     private static Thread threads[] = new Thread[THREADS_COUNT];
 

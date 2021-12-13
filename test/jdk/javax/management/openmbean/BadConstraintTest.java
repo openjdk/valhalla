@@ -395,15 +395,15 @@ public class BadConstraintTest {
          {"minValue", 25L}},
 
         {{oint},
-         {"minValue", new Object()}}, // not even Comparable
+         {"minValue", java.util.Objects.newIdentity()}}, // not even Comparable
         {{oint},
-         {"maxValue", new Object()}}, // not even Comparable
-        {{oint},
-         {"defaultValue", 3,
-          "minValue", new Object()}},
+         {"maxValue", java.util.Objects.newIdentity()}}, // not even Comparable
         {{oint},
          {"defaultValue", 3,
-          "maxValue", new Object()}},
+          "minValue", java.util.Objects.newIdentity()}},
+        {{oint},
+         {"defaultValue", 3,
+          "maxValue", java.util.Objects.newIdentity()}},
 
         {{oint},
          {"legalValues", new int[] {3}}}, // should be new Integer[] to work

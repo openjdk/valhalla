@@ -54,8 +54,8 @@ public class RacyDeregister {
     static long t0;
 
     static boolean notified;
-    static final Object selectorLock = new Object();
-    static final Object notifyLock = new Object();
+    static final Object selectorLock = java.util.Objects.newIdentity();
+    static final Object notifyLock = java.util.Objects.newIdentity();
     /**
      * null: not terminated
      * true: passed

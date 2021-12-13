@@ -44,7 +44,7 @@ public class resume001 extends TestDebuggerType2 {
     }
 
     class EventListener extends EventHandler.EventListener {
-        Object lock = new Object();
+        Object lock = java.util.Objects.newIdentity();
 
         volatile int breakpointCounter;
 

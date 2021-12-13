@@ -66,7 +66,7 @@ class fieldacc002a {
     static float staticFloat = 0.5F;
     static double staticDouble = 0.6;
     static char staticChar = '\u0007';
-    static Object staticObject = new Object();
+    static Object staticObject = java.util.Objects.newIdentity();
     static int staticArrInt[] = {8};
 
     boolean instanceBoolean = false;
@@ -77,6 +77,6 @@ class fieldacc002a {
     float instanceFloat = 0.05F;
     double instanceDouble = 0.06;
     char instanceChar = '\u0070';
-    Object instanceObject = new Object();
+    Object instanceObject = java.util.Objects.newIdentity();
     int instanceArrInt[] = {80};
 }

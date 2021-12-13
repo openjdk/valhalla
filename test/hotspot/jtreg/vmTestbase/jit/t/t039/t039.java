@@ -44,7 +44,7 @@ public class t039
     public static final GoldChecker goldChecker = new GoldChecker( "t039" );
 
     private static long f0 = 0, f1 = 1;
-    private static Object x = new Object();
+    private static Object x = java.util.Objects.newIdentity();
 
     private static long nextFib()
     {

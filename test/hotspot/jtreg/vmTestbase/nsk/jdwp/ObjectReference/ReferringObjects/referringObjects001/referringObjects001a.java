@@ -41,7 +41,7 @@ public class referringObjects001a extends AbstractJDWPDebuggee {
             return true;
 
         if (command.equals(COMMAND_CREATE_TEST_INSTANCES)) {
-            testInstance = new Object();
+            testInstance = java.util.Objects.newIdentity();
 
             // create objects refering to 'testInstance' via references with types which should be supported by command ObjectReference.ReferringObjects
             for (String referenceType : HeapwalkingDebuggee.includedIntoReferrersCountTypes) {

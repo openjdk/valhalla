@@ -58,8 +58,8 @@ public class ArrayCopy {
     @Setup
     public void setup() {
         for (int i = 0; i < TEST_OBJECTS.length; i++) {
-            TEST_OBJECTS[i] = new Object();
-            dummyObjectArray[i] = new Object();
+            TEST_OBJECTS[i] = java.util.Objects.newIdentity();
+            dummyObjectArray[i] = java.util.Objects.newIdentity();
         }
     }
 

@@ -289,14 +289,14 @@ public class Exchanger<V> {
      * methods. Needed because the API originally didn't disallow null
      * arguments, which it should have.
      */
-    private static final Object NULL_ITEM = new Object();
+    private static final Object NULL_ITEM = java.util.Objects.newIdentity();
 
     /**
      * Sentinel value returned by internal exchange methods upon
      * timeout, to avoid need for separate timed versions of these
      * methods.
      */
-    private static final Object TIMED_OUT = new Object();
+    private static final Object TIMED_OUT = java.util.Objects.newIdentity();
 
     /**
      * Nodes hold partially exchanged data, plus other per-thread

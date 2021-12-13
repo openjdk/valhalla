@@ -140,7 +140,7 @@ public class ToStringCache {
         checkUnequal(a, b);
         a = b;
 
-        sb.insert(0, new Object());
+        sb.insert(0, java.util.Objects.newIdentity());
         b = sb.toString();
         checkUnequal(a, b);
         a = b;

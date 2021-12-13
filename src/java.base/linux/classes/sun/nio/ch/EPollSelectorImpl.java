@@ -65,11 +65,11 @@ class EPollSelectorImpl extends SelectorImpl {
     private final Map<Integer, SelectionKeyImpl> fdToKey = new HashMap<>();
 
     // pending new registrations/updates, queued by setEventOps
-    private final Object updateLock = new Object();
+    private final Object updateLock = java.util.Objects.newIdentity();
     private final Deque<SelectionKeyImpl> updateKeys = new ArrayDeque<>();
 
     // interrupt triggering and clearing
-    private final Object interruptLock = new Object();
+    private final Object interruptLock = java.util.Objects.newIdentity();
     private boolean interruptTriggered;
 
     EPollSelectorImpl(SelectorProvider sp) throws IOException {

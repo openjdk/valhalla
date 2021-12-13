@@ -24,5 +24,5 @@
 // key: compiler.note.cant.instantiate.object.directly
 
 class CantInstantiateObjectDirectly {
-    { new Object(); }
+    { java.util.Objects.newIdentity(); }
 }

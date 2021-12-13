@@ -34,7 +34,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 public final class TestCheckedSortedMap {
-    private static final Object OBJECT = new Object();
+    private static final Object OBJECT = java.util.Objects.newIdentity();
 
     public static void main(String[] args) {
         SortedMap<String, String> map = new TreeMap<String, String>();

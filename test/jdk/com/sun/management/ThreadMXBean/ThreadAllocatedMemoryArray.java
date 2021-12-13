@@ -36,7 +36,7 @@ public class ThreadAllocatedMemoryArray {
     private static boolean testFailed = false;
     private static boolean done = false;
     private static boolean done1 = false;
-    private static Object obj = new Object();
+    private static Object obj = java.util.Objects.newIdentity();
     private static final int NUM_THREADS = 10;
     private static Thread[] threads = new Thread[NUM_THREADS];
 

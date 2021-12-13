@@ -96,7 +96,7 @@ public class INDIFY_Test extends MlvmTest {
                         name.getClass(), name,
                         type.getClass(), type) + ") called");
 
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
     public static void target(INDIFY_Test arg) {

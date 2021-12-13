@@ -37,7 +37,7 @@ import java.lang.reflect.*;
 public class WindowUpdateFocusabilityTest {
     Robot robot;
     boolean focusGained = false;
-    final Object monitor = new Object();
+    final Object monitor = java.util.Objects.newIdentity();
     FocusListener listener = new FocusAdapter () {
             public void focusGained(FocusEvent e) {
                 System.out.println(e.toString());

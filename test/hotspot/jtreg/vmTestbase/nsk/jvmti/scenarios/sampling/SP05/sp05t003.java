@@ -56,7 +56,7 @@ public class sp05t003 extends DebugeeClass {
     int status = Consts.TEST_PASSED;
 
     // monitors for threads synchronization
-    static Object endingMonitor = new Object();
+    static Object endingMonitor = java.util.Objects.newIdentity();
 
     // tested threads list
     static sp05t003Thread threads[] = null;

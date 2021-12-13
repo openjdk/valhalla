@@ -56,7 +56,7 @@ import javax.swing.text.View;
 @SuppressWarnings("serial") // Same-version serialization only
 public class MetalRadioButtonUI extends BasicRadioButtonUI {
 
-    private static final Object METAL_RADIO_BUTTON_UI_KEY = new Object();
+    private static final Object METAL_RADIO_BUTTON_UI_KEY = java.util.Objects.newIdentity();
 
     /**
      * The color of the focused radio button.

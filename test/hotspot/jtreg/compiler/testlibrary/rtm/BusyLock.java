@@ -47,7 +47,7 @@ public class BusyLock implements CompilableTest, Runnable {
 
     public BusyLock(int timeout) {
         this.timeout = timeout;
-        this.monitor = new Object();
+        this.monitor = java.util.Objects.newIdentity();
         this.barrier = new CyclicBarrier(2);
     }
 

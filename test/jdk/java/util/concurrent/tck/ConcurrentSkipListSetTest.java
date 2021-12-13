@@ -219,8 +219,8 @@ public class ConcurrentSkipListSetTest extends JSR166TestCase {
     public void testAddNonComparable() {
         ConcurrentSkipListSet<Object> q = new ConcurrentSkipListSet<>();
         try {
-            q.add(new Object());
-            q.add(new Object());
+            q.add(java.util.Objects.newIdentity());
+            q.add(java.util.Objects.newIdentity());
             shouldThrow();
         } catch (ClassCastException success) {
             assertTrue(q.size() < 2);

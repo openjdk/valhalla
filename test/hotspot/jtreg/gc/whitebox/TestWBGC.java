@@ -64,7 +64,7 @@ public class TestWBGC {
         public static Object obj;
 
         public static void main(String args[]) {
-            obj = new Object();
+            obj = java.util.Objects.newIdentity();
             Asserts.assertFalse(wb.isObjectInOldGen(obj));
             wb.youngGC();
             wb.youngGC();

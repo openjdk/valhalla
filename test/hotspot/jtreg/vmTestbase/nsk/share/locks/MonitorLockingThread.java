@@ -27,7 +27,7 @@ package nsk.share.locks;
  *
  *   Example of usage:
  *
- *   Object lockToHold = new Object();
+ *   Object lockToHold = java.util.Objects.newIdentity();
  *   MonitorLockingThread lockingThread = new MonitorLockingThread(lockToHold);
  *
  *   // after calling this method lock 'lockToHold' is acquired by lockingThread
@@ -46,7 +46,7 @@ public class MonitorLockingThread extends Thread {
      *
      *   Example of usage of MonitorLockingThread and LockFreeThread:
      *
-     *   Object lock = new Object();
+     *   Object lock = java.util.Objects.newIdentity();
      *   MonitorLockingThread monitorLockingThread = new MonitorLockingThread(lock);
      *
      *   MonitorLockingThread.LockFreeThread lockFreeThread =

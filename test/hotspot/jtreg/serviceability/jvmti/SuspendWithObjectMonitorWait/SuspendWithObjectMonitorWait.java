@@ -73,9 +73,9 @@ public class SuspendWithObjectMonitorWait {
     public static final int TS_CALL_RESUME     = 7;  // call resume on waiter
     public static final int TS_WAITER_DONE     = 8;  // waiter has run; done
 
-    public static Object barrierLaunch = new Object();   // controls thread launch
-    public static Object barrierResumer = new Object();  // controls resumer
-    public static Object threadLock = new Object();      // testing object
+    public static Object barrierLaunch = java.util.Objects.newIdentity();   // controls thread launch
+    public static Object barrierResumer = java.util.Objects.newIdentity();  // controls resumer
+    public static Object threadLock = java.util.Objects.newIdentity();      // testing object
 
     public static long count = 0;
     public static boolean printDebug = false;

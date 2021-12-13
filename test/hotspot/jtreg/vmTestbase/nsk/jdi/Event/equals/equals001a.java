@@ -62,8 +62,8 @@ public class equals001a {
 
     //------------------------------------------------------ test specific fields
 
-    static Object lock = new Object();
-    static Object wait = new Object();
+    static Object lock = java.util.Objects.newIdentity();
+    static Object wait = java.util.Objects.newIdentity();
 
     //------------------------------------------------------ mutable common method
 

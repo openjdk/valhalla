@@ -43,9 +43,9 @@ public class stop001a {
     public static final int FRAMES_COUNT = 10;
 
     // notification object to notify debuggee that thread is started
-    private static Object threadStarting = new Object();
+    private static Object threadStarting = java.util.Objects.newIdentity();
     // object which thread will wait for before being interruted
-    private static Object threadWaiting = new Object();
+    private static Object threadWaiting = java.util.Objects.newIdentity();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;

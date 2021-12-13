@@ -221,7 +221,7 @@ abstract class TestArrayCopyUtils {
         }
 
         for (int i = 0; i < 5; i++) {
-            small_object_src[i] = new Object();
+            small_object_src[i] = java.util.Objects.newIdentity();
         }
     }
 }

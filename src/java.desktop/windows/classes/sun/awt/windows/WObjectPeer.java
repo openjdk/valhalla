@@ -46,7 +46,7 @@ abstract class WObjectPeer {
     volatile Error createError;
 
     // used to synchronize the state of this peer
-    private final Object stateLock = new Object();
+    private final Object stateLock = java.util.Objects.newIdentity();
 
     private volatile Map<WObjectPeer, WObjectPeer> childPeers;
 

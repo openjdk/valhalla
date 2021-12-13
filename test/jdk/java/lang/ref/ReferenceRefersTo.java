@@ -56,10 +56,10 @@ public class ReferenceRefersTo {
     public static void main(String[] args) throws Exception {
         var queue = new ReferenceQueue<Object>();
 
-        var obj0 = new Object();
-        var obj1 = new Object();
-        var obj2 = new Object();
-        var obj3 = new Object();
+        var obj0 = java.util.Objects.newIdentity();
+        var obj1 = java.util.Objects.newIdentity();
+        var obj2 = java.util.Objects.newIdentity();
+        var obj3 = java.util.Objects.newIdentity();
 
         var pref = new PhantomReference(obj0, queue);
         var wref = new WeakReference(obj1);

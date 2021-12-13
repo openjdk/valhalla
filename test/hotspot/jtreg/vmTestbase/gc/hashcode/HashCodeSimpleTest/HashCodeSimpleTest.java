@@ -67,7 +67,7 @@ public class HashCodeSimpleTest extends ThreadedGCTest {
             @Override
             public void run() {
 
-                Object object = new Object();
+                Object object = java.util.Objects.newIdentity();
                 int hashCode0 = object.hashCode();
 
                 for (int i = 0; i < 100; i++) {

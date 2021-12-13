@@ -73,7 +73,7 @@ public class ByteCodeLoader extends SecureClassLoader {
         this(Map.of(className, byteCode), parent);
     }
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
 
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {

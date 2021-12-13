@@ -154,7 +154,7 @@ public class Compiler {
             if (!Utils.BACKGROUND_COMPILATION) {
                 return;
             }
-            final Object obj = new Object();
+            final Object obj = java.util.Objects.newIdentity();
             synchronized (obj) {
                 for (int i = 0;
                      i < 10 && WHITE_BOX.isMethodQueuedForCompilation(method);

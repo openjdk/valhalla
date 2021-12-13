@@ -32,7 +32,7 @@ import java.lang.reflect.*;
 
 class Bar {
     static { System.out.println("Bar.<clinit> called"); }
-    static Object obj = new Object();
+    static Object obj = java.util.Objects.newIdentity();
 }
 
 public class StaticInitializerTest {

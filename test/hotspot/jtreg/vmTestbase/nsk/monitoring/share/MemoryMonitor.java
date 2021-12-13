@@ -1268,7 +1268,7 @@ public class MemoryMonitor extends Monitor implements NotificationListener,
     class Polling extends Thread {
 
         final static long WAIT_TIME = 100; // Milliseconds
-        Object object = new Object();
+        Object object = java.util.Objects.newIdentity();
         long[] thresholdCounts;
         boolean goOn = true;
 

@@ -58,8 +58,8 @@ class MonitorEventTestTarg {
     }
 
     public static void main(String[] args){
-        endingMonitor = new Object();
-        startingMonitor = new Object();
+        endingMonitor = java.util.Objects.newIdentity();
+        startingMonitor = java.util.Objects.newIdentity();
 
         myThread t1 = new myThread();
         foo();

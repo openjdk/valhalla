@@ -86,7 +86,7 @@ public class Test8005065 {
     }
 
     private static void testStatement() {
-        Object[] array = { new Object() };
+        Object[] array = { java.util.Objects.newIdentity() };
         Statement statement = new Statement(null, null, array);
         test(statement.getArguments());
         array[0] = null;

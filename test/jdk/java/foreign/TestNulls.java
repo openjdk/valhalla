@@ -138,7 +138,7 @@ public class TestNulls {
         addDefaultMapping(Constable.class, "Hello!");
         addDefaultMapping(Class.class, String.class);
         addDefaultMapping(Runnable.class, () -> {});
-        addDefaultMapping(Object.class, new Object());
+        addDefaultMapping(Object.class, java.util.Objects.newIdentity());
         addDefaultMapping(VarHandle.class, MemoryHandles.varHandle(int.class, ByteOrder.nativeOrder()));
         addDefaultMapping(MethodHandle.class, MethodHandles.identity(int.class));
         addDefaultMapping(List.class, List.of());

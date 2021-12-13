@@ -34,7 +34,7 @@ package compiler.c1;
 
 public class Test8004051 {
     public static void main(String[] argv) {
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         fillPrimRect(1.1f, 1.2f, 1.3f, 1.4f,
                      o, o,
                      1.5f, 1.6f, 1.7f, 1.8f,

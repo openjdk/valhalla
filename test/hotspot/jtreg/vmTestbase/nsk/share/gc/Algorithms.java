@@ -59,7 +59,7 @@ public class Algorithms {
         private static Failure failure = null;
 
         // This object is intended for wait()
-        private static Object object = new Object();
+        private static Object object = java.util.Objects.newIdentity();
 
         /**
          * Default constructor.

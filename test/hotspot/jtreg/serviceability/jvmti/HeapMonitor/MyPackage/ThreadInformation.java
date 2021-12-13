@@ -144,7 +144,7 @@ class Allocator implements Runnable {
   }
 
   public void stopRun() throws InterruptedException {
-    jobCanStop.put(new Object());
+    jobCanStop.put(java.util.Objects.newIdentity());
   }
 
   public void run() {
@@ -160,7 +160,7 @@ class Allocator implements Runnable {
 
     try {
       // Tell the main thread we are done.
-      jobDone.put(new Object());
+      jobDone.put(java.util.Objects.newIdentity());
 
       System.err.println("Waiting for main: " + name);
       // Wait until the main thread says we can stop.
@@ -189,7 +189,7 @@ class Allocator implements Runnable {
 
   public void start() {
     try {
-      jobCanStart.put(new Object());
+      jobCanStart.put(java.util.Objects.newIdentity());
     } catch(InterruptedException e) {
       throw new RuntimeException("Thread got interrupted...");
     }

@@ -32,7 +32,7 @@
 package compiler.membars;
 
 public class TestMemBarAcquire {
-    private volatile static Object defaultObj = new Object();
+    private volatile static Object defaultObj = java.util.Objects.newIdentity();
     private Object obj;
 
     public TestMemBarAcquire(Object param) {
@@ -50,7 +50,7 @@ public class TestMemBarAcquire {
     public static void main(String[] args) throws Exception {
         // Make sure TestMemBarAcquire::<init> is compiled
         for (int i = 0; i < 100000; ++i) {
-            TestMemBarAcquire p = new TestMemBarAcquire(new Object());
+            TestMemBarAcquire p = new TestMemBarAcquire(java.util.Objects.newIdentity());
         }
     }
 }

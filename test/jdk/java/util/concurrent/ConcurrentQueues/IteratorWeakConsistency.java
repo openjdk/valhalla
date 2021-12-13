@@ -147,7 +147,7 @@ public class IteratorWeakConsistency {
 
         try {
             q.clear();
-            Object x = new Object();
+            Object x = java.util.Objects.newIdentity();
             for (int i = 0; i < 20; i++)
                 q.add(x);
             equal(20, q.size());

@@ -53,8 +53,8 @@ public class crstepreq004a {
 
     //------------------------------------------------------ test specific fields
 
-    static Object lockObj       = new Object();
-    static Object lockObj1      = new Object();
+    static Object lockObj       = java.util.Objects.newIdentity();
+    static Object lockObj1      = java.util.Objects.newIdentity();
     private static volatile boolean isFirstThreadReady = false;
     private static volatile boolean isSecondThreadReady = false;
 

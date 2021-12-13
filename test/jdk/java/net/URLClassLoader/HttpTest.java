@@ -48,7 +48,7 @@ public class HttpTest {
         private static Counters cnts = null;
         private static ServerSocket ss;
 
-        private static Object counterLock = new Object();
+        private static Object counterLock = java.util.Objects.newIdentity();
         private static int getCount = 0;
         private static int headCount = 0;
 

@@ -151,8 +151,8 @@ class Threadsetvalue004a extends NamedTask {
         super(threadName);
     }
 
-    public static Object waitnotifyObj = new Object();
-    public static Object lockingObject = new Object();
+    public static Object waitnotifyObj = java.util.Objects.newIdentity();
+    public static Object lockingObject = java.util.Objects.newIdentity();
 
     private int i1 = 0, i2 = 10;
 
@@ -178,7 +178,7 @@ class Threadsetvalue004a extends NamedTask {
     int i0 = 0;
 
     public void runt1() {
-        Object testObj = new Object();
+        Object testObj = java.util.Objects.newIdentity();
         boolean bl1 = true,  bl2 = false;
         byte    bt1 = 0,     bt2 = 1;
         char    ch1 = 0,     ch2 = 1;

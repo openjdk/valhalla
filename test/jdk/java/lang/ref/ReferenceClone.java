@@ -38,7 +38,7 @@ public class ReferenceClone {
 
     public void test() {
         // test Reference::clone that throws CNSE
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         assertCloneNotSupported(new SoftRef(o));
         assertCloneNotSupported(new WeakRef(o));
         assertCloneNotSupported(new PhantomRef(o));

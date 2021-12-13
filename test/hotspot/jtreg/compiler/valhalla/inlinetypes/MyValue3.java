@@ -177,7 +177,7 @@ public final primitive class MyValue3 extends MyAbstract {
         v = setS(v, (short)r.nextInt());
         v = setI(v, r.nextInt());
         v = setL(v, r.nextLong());
-        v = setO(v, new Object());
+        v = setO(v, java.util.Objects.newIdentity());
         v = setF1(v, r.nextFloat());
         v = setF2(v, r.nextDouble());
         v = setF3(v, r.nextFloat());

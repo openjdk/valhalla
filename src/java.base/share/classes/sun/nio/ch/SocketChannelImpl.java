@@ -90,7 +90,7 @@ class SocketChannelImpl
 
     // Lock held by any thread that modifies the state fields declared below
     // DO NOT invoke a blocking I/O operation while holding this lock!
-    private final Object stateLock = new Object();
+    private final Object stateLock = java.util.Objects.newIdentity();
 
     // Input/Output closed
     private volatile boolean isInputClosed;

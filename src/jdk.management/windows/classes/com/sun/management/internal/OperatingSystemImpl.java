@@ -41,7 +41,7 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
 
     // psapiLock is a lock to make sure only one thread loading
     // PSAPI DLL.
-    private static Object psapiLock = new Object();
+    private static Object psapiLock = java.util.Objects.newIdentity();
 
     OperatingSystemImpl(VMManagement vm) {
         super(vm);

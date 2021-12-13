@@ -58,11 +58,11 @@ class WEPollSelectorImpl extends SelectorImpl {
     private final Map<Integer, SelectionKeyImpl> fdToKey = new HashMap<>();
 
     // pending new registrations/updates, queued by setEventOps
-    private final Object updateLock = new Object();
+    private final Object updateLock = java.util.Objects.newIdentity();
     private final Deque<SelectionKeyImpl> updateKeys = new ArrayDeque<>();
 
     // interrupt/wakeup
-    private final Object interruptLock = new Object();
+    private final Object interruptLock = java.util.Objects.newIdentity();
     private boolean interruptTriggered;
     private final PipeImpl pipe;
     private final int fd0Val, fd1Val;

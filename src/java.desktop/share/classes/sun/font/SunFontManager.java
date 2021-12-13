@@ -2664,7 +2664,7 @@ public abstract class SunFontManager implements FontSupport, FontManagerForSGE {
         return installedNames;
     }
 
-    private static final Object regFamilyLock  = new Object();
+    private static final Object regFamilyLock  = java.util.Objects.newIdentity();
     private Hashtable<String,FontFamily> createdByFamilyName;
     private Hashtable<String,Font2D>     createdByFullName;
     private boolean fontsAreRegistered = false;

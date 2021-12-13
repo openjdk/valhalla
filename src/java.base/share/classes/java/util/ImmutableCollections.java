@@ -101,7 +101,7 @@ class ImmutableCollections {
     static {
         CDS.initializeFromArchive(ImmutableCollections.class);
         if (archivedObjects == null) {
-            EMPTY = new Object();
+            EMPTY = java.util.Objects.newIdentity();
             EMPTY_LIST = new ListN<>(new Object[0], false);
             EMPTY_LIST_NULLS = new ListN<>(new Object[0], true);
             EMPTY_SET = new SetN<>();

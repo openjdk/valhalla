@@ -94,7 +94,7 @@ public class GetConstantPoolTest {
     }
     private static void testObject() {
         try {
-            Object cp = CompilerToVMHelper.getConstantPool(new Object());
+            Object cp = CompilerToVMHelper.getConstantPool(java.util.Objects.newIdentity());
             throw new AssertionError("Test OBJECT."
                 + " Expected IllegalArgumentException has not been caught");
         } catch (IllegalArgumentException iae) {

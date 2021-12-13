@@ -138,7 +138,7 @@ final class Util implements AWTEventListener {
 
     public static final int FRAME_ACTIVATION_TIMEOUT = 3000;
 
-    static final Object SYNC_LOCK = new Object();
+    static final Object SYNC_LOCK = java.util.Objects.newIdentity();
     static final int MOUSE_RELEASE_TIMEOUT = 1000;
 
     static final Util theInstance = new Util();

@@ -64,7 +64,7 @@ class type002aClassToCheck {
     Integer   I0 = Integer.valueOf(1);
     Long      L0 = Long.valueOf(1l);
     String    S0 = new String();
-    Object    O0 = new Object();
+    Object    O0 = java.util.Objects.newIdentity();
 
     static    Long LS0 = Long.valueOf(1l);
     private   Long LP0 = Long.valueOf(1l);

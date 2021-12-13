@@ -146,7 +146,7 @@ public final class OptimalCapacity {
 
             // Check that map is initially properly sized
             tmp = new HashMap<>(initialCapacity);
-            tmp.put(new Object(), new Object()); // trigger storage init
+            tmp.put(java.util.Objects.newIdentity(), java.util.Objects.newIdentity()); // trigger storage init
             if (internalArraySize(map) != internalArraySize(tmp)) {
                 throw new RuntimeException("Requested capacity of '" + field +
                     "' was " + initialCapacity +
@@ -206,7 +206,7 @@ public final class OptimalCapacity {
 
             // Check that map was initially properly sized
             tmp = new IdentityHashMap<>(expectedMaxSize);
-            tmp.put(new Object(), new Object()); // trigger storage init
+            tmp.put(java.util.Objects.newIdentity(), java.util.Objects.newIdentity()); // trigger storage init
             if (internalArraySize(map) != internalArraySize(tmp)) {
                 throw new RuntimeException("Requested number of elements in '" + field +
                     "' was " + expectedMaxSize +

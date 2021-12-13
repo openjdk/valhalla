@@ -38,7 +38,7 @@ import java.util.LinkedList;
  */
 public class XEmbedServerTester implements XEventDispatcher {
     private static final PlatformLogger xembedLog = PlatformLogger.getLogger("sun.awt.X11.xembed.XEmbedServerTester");
-    private final Object EVENT_LOCK = new Object();
+    private final Object EVENT_LOCK = java.util.Objects.newIdentity();
     static final int SYSTEM_EVENT_MASK = 0x8000;
     int my_version, server_version;
     XEmbedHelper xembed = new XEmbedHelper();

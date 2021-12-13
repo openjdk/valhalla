@@ -227,7 +227,7 @@ public class TestStackBangMonitorOwned {
     static volatile boolean monitor_acquired = false;
     static volatile boolean method_entered = false;
 
-    static Object monitor = new Object();
+    static Object monitor = java.util.Objects.newIdentity();
 
     static public void main(String[] args) {
         // get m1 compiled

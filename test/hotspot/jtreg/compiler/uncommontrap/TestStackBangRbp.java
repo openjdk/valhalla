@@ -255,7 +255,7 @@ public class TestStackBangRbp {
         return false;
     }
 
-    static volatile Object o1 = new Object();
+    static volatile Object o1 = java.util.Objects.newIdentity();
 
     static volatile int i1 = 1;
     static volatile int i2 = 2;

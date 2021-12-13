@@ -39,7 +39,7 @@ import sun.security.action.GetPropertyAction;
 public abstract class UNIXToolkit extends SunToolkit
 {
     /** All calls into GTK should be synchronized on this lock */
-    public static final Object GTK_LOCK = new Object();
+    public static final Object GTK_LOCK = java.util.Objects.newIdentity();
 
     private static final int[] BAND_OFFSETS = { 0, 1, 2 };
     private static final int[] BAND_OFFSETS_ALPHA = { 0, 1, 2, 3 };

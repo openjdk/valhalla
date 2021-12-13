@@ -119,7 +119,7 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
         Function<Path, ApplicationLayout> initAppImageLayout = imageRoot -> {
             ApplicationLayout layout = appImageLayout(params);
-            layout.pathGroup().setPath(new Object(),
+            layout.pathGroup().setPath(java.util.Objects.newIdentity(),
                     AppImageFile.getPathInAppImage(Path.of("")));
             return layout.resolveAt(imageRoot);
         };

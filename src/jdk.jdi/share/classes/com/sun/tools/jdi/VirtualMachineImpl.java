@@ -155,7 +155,7 @@ class VirtualMachineImpl extends MirrorImpl
     // coordinates state changes and corresponding listener notifications
     private VMState state = new VMState(this);
 
-    private Object initMonitor = new Object();
+    private Object initMonitor = java.util.Objects.newIdentity();
     private boolean initComplete = false;
     private boolean shutdown = false;
 

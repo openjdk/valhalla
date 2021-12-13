@@ -52,7 +52,7 @@ import jdk.internal.net.http.common.Utils;
  */
 class PlainHttpConnection extends HttpConnection {
 
-    private final Object reading = new Object();
+    private final Object reading = java.util.Objects.newIdentity();
     protected final SocketChannel chan;
     private final SocketTube tube; // need SocketTube to call signalClosed().
     private final PlainHttpPublisher writePublisher = new PlainHttpPublisher(reading);

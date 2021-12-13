@@ -61,7 +61,7 @@ public class thrstat002 {
 
     public static Wicket startingBarrier;
     public static Wicket runningBarrier;
-    public static Object blockingMonitor = new Object();
+    public static Object blockingMonitor = java.util.Objects.newIdentity();
     public static Lock endingMonitor = new Lock();
 
     static volatile boolean targetAboutToLock = false;

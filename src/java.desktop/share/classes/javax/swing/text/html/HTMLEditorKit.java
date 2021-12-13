@@ -703,7 +703,7 @@ public class HTMLEditorKit extends StyledEditorKit implements Accessible {
     private static final ViewFactory defaultFactory = new HTMLFactory();
 
     MutableAttributeSet input;
-    private static final Object DEFAULT_STYLES_KEY = new Object();
+    private static final Object DEFAULT_STYLES_KEY = java.util.Objects.newIdentity();
     private LinkController linkHandler = new LinkController();
     private static Parser defaultParser = null;
     private Cursor defaultCursor = DefaultCursor;

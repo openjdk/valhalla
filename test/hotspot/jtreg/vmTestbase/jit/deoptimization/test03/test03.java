@@ -75,7 +75,7 @@ class A {
                 }
         }
 
-        Object extern_Lock = new Object();
+        Object extern_Lock = java.util.Objects.newIdentity();
 }
 
 class B extends A {

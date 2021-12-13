@@ -26,7 +26,7 @@ package test;
 
 public class IAE78_A {
 
-    static Object f = new Object();
+    static Object f = java.util.Objects.newIdentity();
 
     IAE78_A() {
         // Nothing to do.

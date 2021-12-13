@@ -516,7 +516,7 @@ public class VMPanel extends JTabbedPane implements PropertyChangeListener {
 
     // Note: This method is called on a TimerTask thread. Any GUI manipulation
     // must be performed with invokeLater() or invokeAndWait().
-    private Object lockObject = new Object();
+    private Object lockObject = java.util.Objects.newIdentity();
 
     private void update() {
         synchronized (lockObject) {

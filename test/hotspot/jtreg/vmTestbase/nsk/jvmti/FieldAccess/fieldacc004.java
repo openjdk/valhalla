@@ -59,7 +59,7 @@ public class fieldacc004 {
 }
 
 interface fieldacc004i {
-    static Object interfaceObject = new Object();
+    static Object interfaceObject = java.util.Objects.newIdentity();
     static int interfaceArrInt[] = {1, 2};
 }
 

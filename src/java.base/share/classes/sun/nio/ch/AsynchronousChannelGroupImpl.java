@@ -67,7 +67,7 @@ abstract class AsynchronousChannelGroupImpl
 
     // group shutdown
     private final AtomicBoolean shutdown = new AtomicBoolean();
-    private final Object shutdownNowLock = new Object();
+    private final Object shutdownNowLock = java.util.Objects.newIdentity();
     private volatile boolean terminateInitiated;
 
     AsynchronousChannelGroupImpl(AsynchronousChannelProvider provider,

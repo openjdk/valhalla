@@ -58,7 +58,7 @@ public class TestCheckedEnsureLocalCapacity {
 
     public static void main(String[] args) throws Throwable {
         if (args.length == 2) {
-            ensureCapacity(new Object(),
+            ensureCapacity(java.util.Objects.newIdentity(),
                            Integer.parseInt(args[0]),
                            Integer.parseInt(args[1]));
             return;

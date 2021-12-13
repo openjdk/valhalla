@@ -53,8 +53,8 @@ public class setfmodw005 {
     double fld5;
     static Object fld6;
     Object fld7;
-    static Object copy6 = new Object();
-    static Object copy7 = new Object();
+    static Object copy6 = java.util.Objects.newIdentity();
+    static Object copy7 = java.util.Objects.newIdentity();
     static boolean fld8;
     boolean fld9;
     static byte fld10;

@@ -185,7 +185,7 @@ public class AnnotationSharing {
     }
 
     @Foo @Bar("someValue") @Baz({"1", "22", "33"})
-    public Object f = new Object();
+    public Object f = java.util.Objects.newIdentity();
 }
 
 @Retention(RetentionPolicy.RUNTIME)

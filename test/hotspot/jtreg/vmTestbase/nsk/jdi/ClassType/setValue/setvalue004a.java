@@ -56,7 +56,7 @@ public class setvalue004a {
 
     //====================================================== test program
 
-    static    Object testObj = new Object();
+    static    Object testObj = java.util.Objects.newIdentity();
 
     static    boolean bl1 = true,  bl2 = false;
     static    byte    bt1 = 0,     bt2 = 1;

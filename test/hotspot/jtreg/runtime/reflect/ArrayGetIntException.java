@@ -57,7 +57,7 @@ public class ArrayGetIntException {
 
         // this access is not legal, but needs to generate the proper exception message
         try {
-            System.out.println(Array.getInt(new Object(), 0));
+            System.out.println(Array.getInt(java.util.Objects.newIdentity(), 0));
             failTest("Test #3 FAILS - no exception");
         } catch(Exception e) {
             System.out.println(e);

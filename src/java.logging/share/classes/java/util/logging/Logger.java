@@ -454,7 +454,7 @@ public class Logger {
 
     // The fields relating to parent-child relationships and levels
     // are managed under a separate lock, the treeLock.
-    private static final Object treeLock = new Object();
+    private static final Object treeLock = java.util.Objects.newIdentity();
     // We keep weak references from parents to children, but strong
     // references from children to parents.
     private volatile Logger parent;    // our nearest parent.

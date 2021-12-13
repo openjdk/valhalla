@@ -40,7 +40,7 @@ public class threadgroup002a {
 
     static int numThreadGroups = 3;
     static int numThreads      = 15;
-    static Object waitnotify   = new Object();
+    static Object waitnotify   = java.util.Objects.newIdentity();
     final static String THREADGROUP_NAME = "MyThreadGroup#";
 
     public int runIt(String args[], PrintStream out) {

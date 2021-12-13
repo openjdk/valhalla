@@ -40,8 +40,8 @@ import sun.hotspot.WhiteBox;
 public class TestReferenceClearDuringMarking {
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
 
-    private static Object testA = new Object();
-    private static Object testB = new Object();
+    private static Object testA = java.util.Objects.newIdentity();
+    private static Object testB = java.util.Objects.newIdentity();
 
     private static final WeakReference<Object> refA1 = new WeakReference<Object>(testA);
     private static final WeakReference<Object> refA2 = new WeakReference<Object>(testA);

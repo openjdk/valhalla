@@ -342,14 +342,14 @@ public class MatMul {
                                 lCounter3.inc();
                             }
                         }
-                        synchronized (new Object()) {
+                        synchronized (java.util.Objects.newIdentity()) {
                             synchronized (lCounter2) {
                                 lCounter2.inc();
                             }
                             for (int i = 0; i < dim; i++) {
                                 for (int j = 0; j < dim; j++) {
                                     synchronized (bCounter1) {
-                                        synchronized (new Object()) {
+                                        synchronized (java.util.Objects.newIdentity()) {
                                             bCounter1.inc();
                                         }
                                     }

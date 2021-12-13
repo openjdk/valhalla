@@ -43,9 +43,9 @@ public class frames001a {
     public static final int FRAMES_COUNT = 10;
 
     // notification object to notify debuggee that thread is ready
-    private static Object threadReady = new Object();
+    private static Object threadReady = java.util.Objects.newIdentity();
     // lock object to prevent thread from exit
-    private static Object threadLock = new Object();
+    private static Object threadLock = java.util.Objects.newIdentity();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;

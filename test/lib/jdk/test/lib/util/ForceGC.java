@@ -37,7 +37,7 @@ public class ForceGC {
     private Object o;
 
     public ForceGC() {
-        this.o = new Object();
+        this.o = java.util.Objects.newIdentity();
         cleaner.register(o, () -> cleanerInvoked.countDown());
     }
 

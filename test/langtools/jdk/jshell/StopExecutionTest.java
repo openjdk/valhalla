@@ -50,7 +50,7 @@ import static org.testng.Assert.fail;
 @Test
 public class StopExecutionTest extends KullaTesting {
 
-    private final Object lock = new Object();
+    private final Object lock = java.util.Objects.newIdentity();
     private boolean isStopped;
 
     @Test(enabled = false) // TODO 8129546

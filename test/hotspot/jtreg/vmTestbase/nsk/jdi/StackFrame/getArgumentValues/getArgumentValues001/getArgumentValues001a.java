@@ -128,7 +128,7 @@ public class getArgumentValues001a extends AbstractJDIDebuggee {
                 arg1 = (int)(i * arg2 - v1);
                 arg2 += 1;
                 arg2 += v1;
-                arg3 = (i % 2 == 0) ? null : new Object();
+                arg3 = (i % 2 == 0) ? null : java.util.Objects.newIdentity();
                 TestClass.expectedArgumentValues = new Object[] { new Value(arg1), new Value(arg2), arg3};
                 log.display("testMethod15");  // testLocations.at(18)
             }
@@ -169,7 +169,7 @@ public class getArgumentValues001a extends AbstractJDIDebuggee {
                 arg1 = (int)(i * arg2 - v1);
                 arg2 += 1;
                 arg2 += v1;
-                arg3 = (i % 2 == 0) ? null : new Object();
+                arg3 = (i % 2 == 0) ? null : java.util.Objects.newIdentity();
                 TestClass.expectedArgumentValues = new Object[] { log, new Value(arg1), new Value(arg2), arg3};
                 log.display("testMethod18"); // testLocations.at(25)
             }
@@ -377,7 +377,7 @@ public class getArgumentValues001a extends AbstractJDIDebuggee {
             TestClass.expectedArgumentValues = new Object[] { new Value((double) 10) };
             testClass.testMethod8((double) 10);
 
-            Object arg = new Object();
+            Object arg = java.util.Objects.newIdentity();
             TestClass.expectedArgumentValues = new Object[] { arg };
             testClass.testMethod9(arg);
 
@@ -392,7 +392,7 @@ public class getArgumentValues001a extends AbstractJDIDebuggee {
             TestClass.expectedArgumentValues = new Object[] {};
             testClass.testMethod12();
 
-            arg = new Object();
+            arg = java.util.Objects.newIdentity();
             TestClass.expectedArgumentValues = new Object[] { new Value(false), new Value((byte) 0), new Value((short) 1), new Value((char) 2), new Value(3),
                     new Value((long) 4), new Value((float) 5), new Value((double) 6), arg };
             testClass.testMethod13(false, (byte) 0, (short) 1, (char) 2, 3, 4, 5, 6, arg);
@@ -406,9 +406,9 @@ public class getArgumentValues001a extends AbstractJDIDebuggee {
             TestClass.expectedArgumentValues = new Object[] { new Value((int) 10) };
             testClass.testMethod14(10);
 
-            testClass.testMethod15(11, 0.1f, new Object());
+            testClass.testMethod15(11, 0.1f, java.util.Objects.newIdentity());
 
-            arg = new Object();
+            arg = java.util.Objects.newIdentity();
             TestClass.expectedArgumentValues = new Object[] { log, new Value(false), new Value((short) 1), new Value((char) 2), new Value(3),
                     new Value((long) 4), new Value((float) 5), new Value((double) 6), arg };
             TestClass.testMethod16(log, false, (short) 1, (char) 2, 3, 4, 5, 6, arg);
@@ -416,7 +416,7 @@ public class getArgumentValues001a extends AbstractJDIDebuggee {
             TestClass.expectedArgumentValues = new Object[] {log, new Value((int) 10) };
             TestClass.testMethod17(log, 10);
 
-            TestClass.testMethod18(log, 11, 0.1f, new Object());
+            TestClass.testMethod18(log, 11, 0.1f, java.util.Objects.newIdentity());
 
             {
                 boolean[] arg1 = {};

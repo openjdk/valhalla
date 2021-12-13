@@ -68,7 +68,7 @@ public class Test6724218 {
             } else {
                 t = new Test6724218();
             }
-            t.value = new Object();
+            t.value = java.util.Objects.newIdentity();
             t.next = list;
             list = t;
             size += 1;

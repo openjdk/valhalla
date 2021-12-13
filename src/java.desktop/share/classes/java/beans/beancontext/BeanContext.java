@@ -131,5 +131,5 @@ public interface BeanContext extends BeanContextChild, Collection, DesignMode, V
      * to serialize changes in a {@code BeanContext}
      * hierarchy and any service requests etc.
      */
-    public static final Object globalHierarchyLock = new Object();
+    public static final Object globalHierarchyLock = java.util.Objects.newIdentity();
 }

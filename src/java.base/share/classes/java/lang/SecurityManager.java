@@ -1196,11 +1196,11 @@ public class SecurityManager {
      */
     private static boolean packageAccessValid = false;
     private static String[] packageAccess;
-    private static final Object packageAccessLock = new Object();
+    private static final Object packageAccessLock = java.util.Objects.newIdentity();
 
     private static boolean packageDefinitionValid = false;
     private static String[] packageDefinition;
-    private static final Object packageDefinitionLock = new Object();
+    private static final Object packageDefinitionLock = java.util.Objects.newIdentity();
 
     private static String[] getPackages(String p) {
         String packages[] = null;

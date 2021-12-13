@@ -105,7 +105,7 @@ public class TestDieWithHeapDump {
 
     public static void main(String... args) {
       for (int c = 0; c < COUNT; c++) {
-        sink = new Object();
+        sink = java.util.Objects.newIdentity();
       }
     }
   }

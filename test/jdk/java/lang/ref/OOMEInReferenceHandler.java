@@ -79,7 +79,7 @@ public class OOMEInReferenceHandler {
          }
 
          ReferenceQueue<Object> refQueue = new ReferenceQueue<>();
-         Object referent = new Object();
+         Object referent = java.util.Objects.newIdentity();
          WeakReference<Object> weakRef = new WeakReference<>(referent, refQueue);
 
          Object waste = fillHeap();

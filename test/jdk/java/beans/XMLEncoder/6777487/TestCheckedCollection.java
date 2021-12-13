@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.List;
 
 public final class TestCheckedCollection {
-    private static final Object OBJECT = new Object();
+    private static final Object OBJECT = java.util.Objects.newIdentity();
 
     public static void main(String[] args) {
         List<String> list = Collections.emptyList();

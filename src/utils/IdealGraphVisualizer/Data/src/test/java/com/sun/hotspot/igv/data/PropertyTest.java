@@ -91,7 +91,7 @@ public class PropertyTest {
     @Test
     public void testEquals() {
         final Property p = new Property("name", "value");
-        final Object o = new Object();
+        final Object o = java.util.Objects.newIdentity();
         assertFalse(p.equals(o));
         assertFalse(p.equals(null));
         assertTrue(p.equals(p));

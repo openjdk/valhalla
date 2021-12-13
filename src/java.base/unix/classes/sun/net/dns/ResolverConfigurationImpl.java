@@ -41,7 +41,7 @@ public class ResolverConfigurationImpl
     extends ResolverConfiguration
 {
     // Lock helds whilst loading configuration or checking
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
 
     // Time of last refresh.
     private static long lastRefresh = -1;

@@ -43,7 +43,7 @@ public class TestAllocSmallObj {
         Object[] root = new Object[COUNT];
         sink = root;
         for (int c = 0; c < COUNT; c++) {
-            root[c] = new Object();
+            root[c] = java.util.Objects.newIdentity();
         }
     }
 

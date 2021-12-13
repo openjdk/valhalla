@@ -297,7 +297,7 @@ public class remove004 extends JDIBase {
             }
             log2("mainThread is out of: synchronized (lockingObject)");
 
-            Object waitObj = new Object();
+            Object waitObj = java.util.Objects.newIdentity();
 
             synchronized (waitObj) {
                 waitObj.wait(waitTime);
@@ -332,8 +332,8 @@ public class remove004 extends JDIBase {
     // ============================== test's additional methods
 
 
-    public static Object waitnotifyObj = new Object();
-    public static Object lockingObject = new Object();
+    public static Object waitnotifyObj = java.util.Objects.newIdentity();
+    public static Object lockingObject = java.util.Objects.newIdentity();
 
     class Threadremove004 extends Thread {
 

@@ -63,7 +63,7 @@ public final class ClassInfo {
         CACHE.remove(clz);
     }
 
-    private final Object mutex = new Object();
+    private final Object mutex = java.util.Objects.newIdentity();
     private final Class<?> type;
     private List<Method> methods;
     private Map<String,PropertyInfo> properties;

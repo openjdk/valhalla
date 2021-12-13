@@ -46,7 +46,7 @@ public class TestMethods extends PropertyChangeSupport implements PropertyChange
     private static final String NAME = "property";
 
     public static void main(String[] args) {
-        Object source = new Object();
+        Object source = java.util.Objects.newIdentity();
         new TestMethods(source).firePropertyChange(new PropertyChangeEvent(source, NAME, null, null));
         new TestMethods(source).firePropertyChange(NAME, null, null);
         new TestMethods(source).firePropertyChange(NAME, 0, 1);

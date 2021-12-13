@@ -285,7 +285,7 @@ public class ReflectionSpeedBenchmark {
     public void setup() {
         a = nextRnd();
         b = nextRnd();
-        o = new Object();
+        o = java.util.Objects.newIdentity();
         instance = new NestedInstance();
 
         if (polluteProfile) {

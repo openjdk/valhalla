@@ -42,7 +42,7 @@ import javax.sound.sampled.Mixer;
 public class ClipLinuxCrash2 implements LineListener{
     Clip clip;
     int stopOccured;
-    static final Object lock = new Object();
+    static final Object lock = java.util.Objects.newIdentity();
 
     public static long bytes2Ms(long bytes, AudioFormat format) {
         return (long) (bytes/format.getFrameRate()*1000/format.getFrameSize());

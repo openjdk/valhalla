@@ -80,7 +80,7 @@ public class strace007 {
     static PrintStream out;
     static long waitTime = 2;
 
-    static Object doSnapshot = new Object();
+    static Object doSnapshot = java.util.Objects.newIdentity();
     static volatile boolean isSnapshotDone = false;
     static volatile int achivedCount = 0;
     static Log log;

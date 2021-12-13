@@ -37,14 +37,14 @@ public class HeadTailTypeError {
     public static void main(String[] args) throws Exception {
         try {
             SortedMap m = new TreeMap();
-            m.headMap(new Object());
+            m.headMap(java.util.Objects.newIdentity());
             throw new Exception("headMap, natural ordering");
         } catch (ClassCastException e) {
         }
 
         try {
             SortedMap m = new TreeMap();
-            m.tailMap(new Object());
+            m.tailMap(java.util.Objects.newIdentity());
             throw new Exception("tailMap, natural ordering");
         } catch (ClassCastException e) {
         }
@@ -65,14 +65,14 @@ public class HeadTailTypeError {
 
         try {
             SortedSet m = new TreeSet();
-            m.headSet(new Object());
+            m.headSet(java.util.Objects.newIdentity());
             throw new Exception("headSet, natural ordering");
         } catch (ClassCastException e) {
         }
 
         try {
             SortedSet m = new TreeSet();
-            m.tailSet(new Object());
+            m.tailSet(java.util.Objects.newIdentity());
             throw new Exception("tailSet, natural ordering");
         } catch (ClassCastException e) {
         }

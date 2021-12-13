@@ -135,7 +135,7 @@ interface getvalue003aInterfaceForCheck {
     static final float   s_iface_float   = 99;
     static final int     s_iface_int     = 100;
     static final long    s_iface_long    = 1000;
-    static final Object  s_iface_object  = new Object();
+    static final Object  s_iface_object  = java.util.Objects.newIdentity();
 }
 
 class getvalue003aClassForCheck_2 implements getvalue003aInterfaceForCheck {

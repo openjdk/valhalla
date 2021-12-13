@@ -194,7 +194,7 @@ public abstract class Monitor
     /**
      * Lock for executors map.
      */
-    private static final Object executorsLock = new Object();
+    private static final Object executorsLock = java.util.Objects.newIdentity();
 
     /**
      * Maximum Pool Size

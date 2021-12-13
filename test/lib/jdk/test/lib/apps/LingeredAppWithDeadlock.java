@@ -26,8 +26,8 @@ import java.util.concurrent.Phaser;
 
 public class LingeredAppWithDeadlock extends LingeredApp {
 
-    private static final Object Lock1 = new Object();
-    private static final Object Lock2 = new Object();
+    private static final Object Lock1 = java.util.Objects.newIdentity();
+    private static final Object Lock2 = java.util.Objects.newIdentity();
 
     private static volatile int reachCount = 0;
 

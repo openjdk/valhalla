@@ -195,7 +195,7 @@ public class TestAllocHumongousFragment {
             int[] newObj = new int[min + rng.nextInt(max - min)];
             current += newObj.length * 4 + 16;
             objects.add(newObj);
-            sink = new Object();
+            sink = java.util.Objects.newIdentity();
 
             System.out.println("Allocated: " + (current / 1024 / 1024) + " Mb");
         }

@@ -49,7 +49,7 @@ public class IOLoop {
     private static ByteArrayOutputStream baos;
     private static int expectedBytes;
     private static int receivedBytes;
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
     private static long lastTimestamp;
 
     public static void main(String[] args) throws Exception {

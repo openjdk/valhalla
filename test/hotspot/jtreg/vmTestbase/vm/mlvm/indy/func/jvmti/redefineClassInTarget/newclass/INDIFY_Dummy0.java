@@ -76,8 +76,8 @@ public class INDIFY_Dummy0 {
     }
 
     private static boolean invokeTarget0() throws Throwable {
-        //return (boolean) InvokeDynamic.greet(new Object(), "Redefined", 456);
-        Object o = new Object();
+        //return (boolean) InvokeDynamic.greet(java.util.Objects.newIdentity(), "Redefined", 456);
+        Object o = java.util.Objects.newIdentity();
         String s = "Redefined";
         int i = 456;
         return (Boolean) INDY_call().invokeExact(o, s, i);

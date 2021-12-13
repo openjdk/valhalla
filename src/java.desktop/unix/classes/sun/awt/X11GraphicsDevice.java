@@ -63,7 +63,7 @@ public final class X11GraphicsDevice extends GraphicsDevice
 
     private static AWTPermission fullScreenExclusivePermission;
     private static Boolean xrandrExtSupported;
-    private final Object configLock = new Object();
+    private final Object configLock = java.util.Objects.newIdentity();
     private SunDisplayChanger topLevels = new SunDisplayChanger();
     private DisplayMode origDisplayMode;
     private boolean shutdownHookRegistered;
@@ -85,7 +85,7 @@ public final class X11GraphicsDevice extends GraphicsDevice
         synchronized (x11ProxyKeyMap) {
             Object o = x11ProxyKeyMap.get(st);
             if (o == null) {
-                o = new Object();
+                o = java.util.Objects.newIdentity();
                 x11ProxyKeyMap.put(st, o);
             }
             return o;

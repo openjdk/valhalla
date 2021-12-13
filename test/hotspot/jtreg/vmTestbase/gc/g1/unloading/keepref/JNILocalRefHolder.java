@@ -44,7 +44,7 @@ public class JNILocalRefHolder implements RefHolder {
     @Override
     public Object hold(Object object) {
         objectToKeep = object;
-        final Object syncObject = new Object();
+        final Object syncObject = java.util.Objects.newIdentity();
         Thread keepingThread = new Thread(new Runnable() {
             @Override
             public void run() {

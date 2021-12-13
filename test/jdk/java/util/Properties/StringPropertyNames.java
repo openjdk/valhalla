@@ -91,7 +91,7 @@ public class StringPropertyNames {
 
         // Add a non-String key
         props1.put(new Integer(5), "good.value.5");
-        props2.put(new Object(), new Object());
+        props2.put(java.util.Objects.newIdentity(), java.util.Objects.newIdentity());
         checkProperties(props1,
                         NUM_PROPS1 + NUM_SHARE_PROPS + 1, // size of props1
                         NUM_PROPS1 + NUM_SHARE_PROPS, // num of string keys

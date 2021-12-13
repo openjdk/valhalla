@@ -66,7 +66,7 @@ public class DisplayChangeVITest extends JFrame implements Runnable {
     private VolatileImage volSprite;
 
     private static boolean done = false;
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static final int TEST_REPS = 3;
 
     private ArrayList<DisplayMode> dms;

@@ -54,7 +54,7 @@ public class MetalLabelUI extends BasicLabelUI
     */
     protected static MetalLabelUI metalLabelUI = new MetalLabelUI();
 
-    private static final Object METAL_LABEL_UI_KEY = new Object();
+    private static final Object METAL_LABEL_UI_KEY = java.util.Objects.newIdentity();
 
     /**
      * Constructs a {@code MetalLabelUI}.

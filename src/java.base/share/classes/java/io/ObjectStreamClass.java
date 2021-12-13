@@ -440,7 +440,7 @@ public class ObjectStreamClass implements Serializable {
      */
     private static class EntryFuture {
 
-        private static final Object unset = new Object();
+        private static final Object unset = java.util.Objects.newIdentity();
         private final Thread owner = Thread.currentThread();
         private Object entry = unset;
 

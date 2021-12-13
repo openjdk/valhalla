@@ -50,6 +50,6 @@ public class objmonusage002 {
     }
 
     public static int run(String args[], PrintStream out) {
-        return check(new Object());
+        return check(java.util.Objects.newIdentity());
     }
 }

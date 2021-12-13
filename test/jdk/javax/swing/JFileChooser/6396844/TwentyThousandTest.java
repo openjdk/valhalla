@@ -150,7 +150,7 @@ public class TwentyThousandTest {
 
         disposerComplete = false;
 
-        Disposer.addRecord(new Object(), disposerRecord);
+        Disposer.addRecord(java.util.Objects.newIdentity(), disposerRecord);
 
         while (!disposerComplete) {
             Util.generateOOME();

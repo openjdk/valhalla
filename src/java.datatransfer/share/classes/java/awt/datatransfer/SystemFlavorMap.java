@@ -61,7 +61,7 @@ public final class SystemFlavorMap implements FlavorMap, FlavorTable {
      */
     private static String JavaMIME = "JAVA_DATAFLAVOR:";
 
-    private static final Object FLAVOR_MAP_KEY = new Object();
+    private static final Object FLAVOR_MAP_KEY = java.util.Objects.newIdentity();
 
     /**
      * The list of valid, decoded text flavor representation classes, in order

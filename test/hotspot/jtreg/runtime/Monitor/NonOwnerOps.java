@@ -34,7 +34,7 @@ public class NonOwnerOps {
         int error_count = 0;
         Object obj;
 
-        obj = new Object();
+        obj = java.util.Objects.newIdentity();
         try {
             obj.wait();
             System.err.println("ERROR: wait() by non-owner thread did not " +
@@ -50,7 +50,7 @@ public class NonOwnerOps {
             System.out.println("    " + imse);
         }
 
-        obj = new Object();
+        obj = java.util.Objects.newIdentity();
         try {
             obj.notify();
             System.err.println("ERROR: notify() by non-owner thread did not " +
@@ -62,7 +62,7 @@ public class NonOwnerOps {
             System.out.println("    " + imse);
         }
 
-        obj = new Object();
+        obj = java.util.Objects.newIdentity();
         try {
             obj.notifyAll();
             System.err.println("ERROR: notifyAll() by non-owner thread did " +

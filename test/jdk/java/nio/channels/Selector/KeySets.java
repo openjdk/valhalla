@@ -70,12 +70,12 @@ public class KeySets {
     static void testNoAddition(final Set s) throws Exception {
         new Catch(UnsupportedOperationException.class) {
                 void go() throws Exception {
-                    s.add(new Object());
+                    s.add(java.util.Objects.newIdentity());
                 }};
         new Catch(UnsupportedOperationException.class) {
                 void go() throws Exception {
                     ArrayList al = new ArrayList();
-                    al.add(new Object());
+                    al.add(java.util.Objects.newIdentity());
                     s.addAll(al);
                 }};
     }

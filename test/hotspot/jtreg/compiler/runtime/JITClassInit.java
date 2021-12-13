@@ -51,20 +51,20 @@ class TokenTable {
 
 class Token {
     public Object keyword_character_class() {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 }
 
 class NameOrKeywordToken extends Token {
     static TokenTable kt = new TokenTable();
     public Object keyword_character_class() {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 }
 
 class CapKeywordToken extends NameOrKeywordToken {
     public Object keyword_character_class() {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 };
 

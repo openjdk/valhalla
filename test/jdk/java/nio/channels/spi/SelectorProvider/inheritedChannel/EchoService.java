@@ -113,7 +113,7 @@ public class EchoService {
 
     static class Worker implements Runnable {
         private static int count = 0;
-        private static Object lock = new Object();
+        private static Object lock = java.util.Objects.newIdentity();
 
         public static int count() {
             synchronized (lock) {

@@ -46,7 +46,7 @@ public class popframe009 {
     native static void getReady();
     native static int check(Thread thread);
 
-    public static Object lock = new Object();
+    public static Object lock = java.util.Objects.newIdentity();
     public static int fibonacciNumber = -1;
 
     public static void main(String args[]) {

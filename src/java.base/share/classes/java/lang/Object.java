@@ -38,13 +38,13 @@ import java.util.Objects;
  * @see     java.lang.Class
  * @since   1.0
  */
-public class Object {
+public abstract class Object {
 
     /**
      * Constructs a new object.
      *
      * @apiNote {@link Objects#newIdentity java.util.Objects.newIdentity()}
-     * should be used instead of {@code new Object()}.
+     * should be used instead of {@code java.util.Objects.newIdentity()}.
      */
     @IntrinsicCandidate
     public Object() {}

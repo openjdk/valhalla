@@ -84,7 +84,7 @@ class ClassToCheck {
     static Inter  E2[][]={E1, E1};
     static Class  X1[]={new Class()};
     static Class  X2[][]={X1};
-    static Object O1[]={new Object(), new Object()};
+    static Object O1[]={java.util.Objects.newIdentity(), java.util.Objects.newIdentity()};
     static Object O2[][]={};
 
     static final     Long LF1[]={Long.valueOf(1), Long.valueOf(-2), Long.valueOf(3)};

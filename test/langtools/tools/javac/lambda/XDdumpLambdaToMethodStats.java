@@ -42,8 +42,8 @@ public class XDdumpLambdaToMethodStats {
     public void run() {
         printHash(this::m);
         printHash(XDdumpLambdaToMethodStats::sm);
-        printHash(() -> { o = new Object(); });
-        printHash(() -> { s = new Object(); });
+        printHash(() -> { o = java.util.Objects.newIdentity(); });
+        printHash(() -> { s = java.util.Objects.newIdentity(); });
     }
 
     private void printHash(Runnable function) {

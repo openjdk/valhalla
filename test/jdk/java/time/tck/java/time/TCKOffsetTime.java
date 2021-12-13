@@ -1226,7 +1226,7 @@ public class TCKOffsetTime extends AbstractDateTimeTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void compareToNonOffsetTime() {
        Comparable c = TEST_11_30_59_500_PONE;
-       c.compareTo(new Object());
+       c.compareTo(java.util.Objects.newIdentity());
     }
 
     private Instant convertInstant(OffsetTime ot) {

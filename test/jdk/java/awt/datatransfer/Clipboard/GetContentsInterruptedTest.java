@@ -47,7 +47,7 @@ public class GetContentsInterruptedTest implements ClipboardOwner {
 
     final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
     final Transferable transferable = new StringSelection("TEXT");
-    private final Object o = new Object();
+    private final Object o = java.util.Objects.newIdentity();
 
     public static void main(String args[]) throws Exception {
         if (System.getProperty("os.name").startsWith("Mac")) {

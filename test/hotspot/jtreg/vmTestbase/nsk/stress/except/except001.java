@@ -171,7 +171,7 @@ public class except001 {
 
             for (; index < pool.length; index++) {
                 //-------------------------
-                pool[index] = new Object();
+                pool[index] = java.util.Objects.newIdentity();
                 long nextTimeMark = System.currentTimeMillis();
                 long elapsed = nextTimeMark - timeMark;
                 timeMark = nextTimeMark;
@@ -180,7 +180,7 @@ public class except001 {
                     double seconds = elapsed / 1000.0;
                     display(
                             "pool[" + index +
-                                    "]=new Object(); // elapsed " + seconds + "s");
+                                    "]=java.util.Objects.newIdentity(); // elapsed " + seconds + "s");
                     totalDelay += seconds;
                     if (totalDelay > 300) {
                         complain(

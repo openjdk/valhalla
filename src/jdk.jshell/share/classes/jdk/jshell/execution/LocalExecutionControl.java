@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class LocalExecutionControl extends DirectExecutionControl {
 
-    private final Object STOP_LOCK = new Object();
+    private final Object STOP_LOCK = java.util.Objects.newIdentity();
     private boolean userCodeRunning = false;
     private ThreadGroup execThreadGroup;
 

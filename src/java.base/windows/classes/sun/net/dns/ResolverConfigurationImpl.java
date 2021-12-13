@@ -37,7 +37,7 @@ public class ResolverConfigurationImpl
     extends ResolverConfiguration
 {
     // Lock held whilst loading configuration or checking
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
 
     // Resolver options
     private final Options opts;

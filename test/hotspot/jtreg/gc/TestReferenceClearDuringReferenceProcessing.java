@@ -57,7 +57,7 @@ import sun.hotspot.WhiteBox;
 public class TestReferenceClearDuringReferenceProcessing {
     private static final WhiteBox WB = WhiteBox.getWhiteBox();
 
-    private static Object testObject = new Object();
+    private static Object testObject = java.util.Objects.newIdentity();
     private static final ReferenceQueue<Object> queue = new ReferenceQueue<Object>();
     private static final WeakReference<Object> ref = new WeakReference<Object>(testObject, queue);
 

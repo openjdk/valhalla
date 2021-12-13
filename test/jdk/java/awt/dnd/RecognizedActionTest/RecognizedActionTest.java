@@ -73,7 +73,7 @@ public class RecognizedActionTest implements AWTEventListener {
         }
     };
 
-    final Object SYNC_LOCK = new Object();
+    final Object SYNC_LOCK = java.util.Objects.newIdentity();
     final int FRAME_ACTIVATION_TIMEOUT = 2000;
     final int MOUSE_RELEASE_TIMEOUT = 1000;
 

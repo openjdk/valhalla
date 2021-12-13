@@ -64,7 +64,7 @@ public class SourceClippingBlitTest extends Canvas {
     static Robot robot;
     static private boolean showErrors;
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static volatile boolean done = false;
 
     BufferedImage grabbedBI;

@@ -67,7 +67,7 @@ public class HandshakeDirectTest  implements Runnable {
                     handshakeCount.incrementAndGet();
                 }
             }
-            locks[me] = new Object();
+            locks[me] = java.util.Objects.newIdentity();
         }
     }
 
@@ -76,7 +76,7 @@ public class HandshakeDirectTest  implements Runnable {
 
         // Initialize locks
         for (int i = 0; i < WORKING_THREADS; i++) {
-            locks[i] = new Object();
+            locks[i] = java.util.Objects.newIdentity();
         }
 
         // Fire-up working threads.

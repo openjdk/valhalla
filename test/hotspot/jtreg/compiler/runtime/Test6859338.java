@@ -35,7 +35,7 @@
 package compiler.runtime;
 
 public class Test6859338 {
-    static Object[] o = new Object[] { new Object(), null };
+    static Object[] o = new Object[] { java.util.Objects.newIdentity(), null };
     public static void main(String[] args) {
         int total = 0;
         try {

@@ -117,7 +117,7 @@ public class location001a {
     }
 
 
-    static Object waitnotifyObj = new Object();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {

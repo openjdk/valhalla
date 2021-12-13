@@ -61,7 +61,7 @@ public class ModifierRobotKeyTest extends KeyAdapter {
     private boolean[] modifierStatus, textStatus;
 
     private final static int WAIT_DELAY = 5000;
-    private final Object lock = new Object();
+    private final Object lock = java.util.Objects.newIdentity();
 
     public static void main(String[] args) throws Exception {
         ModifierRobotKeyTest test = new ModifierRobotKeyTest();

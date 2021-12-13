@@ -40,7 +40,7 @@ public class StateTestThread extends Thread {
     // thread states available through ThreadReference.state()
     public static String stateTestThreadStates[] = { "UNKNOWN", "RUNNING", "SLEEPING", "WAIT", "MONITOR", "ZOMBIE" };
 
-    private Object waitOnObject = new Object();
+    private Object waitOnObject = java.util.Objects.newIdentity();
 
     public StateTestThread(String name) {
         super(name);

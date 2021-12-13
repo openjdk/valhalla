@@ -74,7 +74,7 @@ public class Basic {
     static void createNoise() throws InterruptedException {
         fork(new Runnable() {
             public void run() {
-                keep.addElement(new PhantomReference(new Object(), q2));
+                keep.addElement(new PhantomReference(java.util.Objects.newIdentity(), q2));
             }
         });
     }

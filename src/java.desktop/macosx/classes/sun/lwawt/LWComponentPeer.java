@@ -91,14 +91,14 @@ public abstract class LWComponentPeer<T extends Component, D extends JComponent>
      * bounds, background, font, etc.) It should be the last lock in the lock
      * chain
      */
-    private final Object stateLock = new Object();
+    private final Object stateLock = java.util.Objects.newIdentity();
 
     /**
      * The lock to operate with the peers hierarchy. AWT tree lock is not used
      * as there are many peers related ops to be done on the toolkit thread, and
      * we don't want to depend on a public lock on this thread
      */
-    private static final Object peerTreeLock = new Object();
+    private static final Object peerTreeLock = java.util.Objects.newIdentity();
 
     /**
      * The associated AWT object.
@@ -148,7 +148,7 @@ public abstract class LWComponentPeer<T extends Component, D extends JComponent>
     private final D delegate;
     private Container delegateContainer;
     private Component delegateDropTarget;
-    private final Object dropTargetLock = new Object();
+    private final Object dropTargetLock = java.util.Objects.newIdentity();
 
     private int fNumDropTargets = 0;
     private PlatformDropTarget fDropTarget = null;

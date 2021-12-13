@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import nsk.share.TestBug;
 
 public class StreamMessageInput implements MessageInput {
-        private Object sync = new Object();
+        private Object sync = java.util.Objects.newIdentity();
         private List<String> lines = new ArrayList<String>();
         private int position = 0;
         private volatile boolean active = false;

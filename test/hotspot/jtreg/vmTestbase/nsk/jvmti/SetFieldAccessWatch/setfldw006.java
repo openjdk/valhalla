@@ -52,7 +52,7 @@ public class setfldw006 {
     static float staticFloat = 0.5F;
     static double staticDouble = 0.6;
     static char staticChar = '\u0007';
-    static Object staticObject = new Object();
+    static Object staticObject = java.util.Objects.newIdentity();
     static int staticArrInt[] = {8};
 
     boolean instanceBoolean = false;
@@ -63,7 +63,7 @@ public class setfldw006 {
     float instanceFloat = 0.05F;
     double instanceDouble = 0.06;
     char instanceChar = '\u0070';
-    Object instanceObject = new Object();
+    Object instanceObject = java.util.Objects.newIdentity();
     int instanceArrInt[] = {80};
 
     public static void main(String args[]) {

@@ -86,6 +86,6 @@ class visibfield004aSuperClassForCheck  {
 interface visibfield004aInterfaceForCheck {
 
     static final long    ambiguous_prim_field = 1;
-    static final Object  ambiguous_ref_field = new Object();
+    static final Object  ambiguous_ref_field = java.util.Objects.newIdentity();
 
 }

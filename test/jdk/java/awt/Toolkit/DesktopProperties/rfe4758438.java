@@ -93,7 +93,7 @@ public class rfe4758438 implements PropertyChangeListener {
     Toolkit toolkit = Toolkit.getDefaultToolkit();
     String changedProperty;
     Object changedValue;
-    Object lock = new Object();
+    Object lock = java.util.Objects.newIdentity();
 
     /**
      * Implementation of PropertyChangeListener method

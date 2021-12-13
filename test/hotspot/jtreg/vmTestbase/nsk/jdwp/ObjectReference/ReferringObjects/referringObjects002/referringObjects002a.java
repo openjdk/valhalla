@@ -27,7 +27,7 @@ import nsk.share.ReferringObject;
 import nsk.share.jdwp.*;
 
 public class referringObjects002a extends AbstractJDWPDebuggee {
-    public static Object testInstance = new Object();
+    public static Object testInstance = java.util.Objects.newIdentity();
 
     // create 5 referrers for 'testInstance'
     public static ReferringObject referringObject1 = new ReferringObject(testInstance, ObjectInstancesManager.STRONG_REFERENCE);

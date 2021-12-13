@@ -73,7 +73,7 @@ public class TransportImpl implements Transport {
     private final Demand demand = new Demand();
     private final SequentialScheduler receiveScheduler;
     private final RawChannel channel;
-    private final Object closeLock = new Object();
+    private final Object closeLock = java.util.Objects.newIdentity();
     private final RawChannel.RawEvent writeEvent = new WriteEvent();
     private final RawChannel.RawEvent readEvent = new ReadEvent();
     private final AtomicReference<ChannelState> writeState

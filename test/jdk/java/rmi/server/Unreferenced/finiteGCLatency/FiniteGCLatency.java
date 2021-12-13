@@ -53,7 +53,7 @@ public class FiniteGCLatency implements Remote, Unreferenced {
     private final static long GC_INTERVAL = 6000;
     private final static long TIMEOUT = 50000;
 
-    private Object lock = new Object();
+    private Object lock = java.util.Objects.newIdentity();
     private boolean unreferencedInvoked = false;
 
     public void unreferenced() {

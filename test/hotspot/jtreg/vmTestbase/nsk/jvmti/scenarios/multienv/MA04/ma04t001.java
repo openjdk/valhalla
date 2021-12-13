@@ -52,7 +52,7 @@ public class ma04t001 extends DebugeeClass {
     int status = Consts.TEST_PASSED;
 
     // tested object
-    static Object testedObject = new Object();
+    static Object testedObject = java.util.Objects.newIdentity();
 
     // run debuggee
     public int runIt(String argv[], PrintStream out) {

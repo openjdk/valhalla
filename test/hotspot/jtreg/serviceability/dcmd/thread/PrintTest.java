@@ -59,7 +59,7 @@ public class PrintTest {
     }
 
     class MonitorThread extends Thread {
-        Object lock = new Object();
+        Object lock = java.util.Objects.newIdentity();
 
         public void run() {
             /* Hold lock on "lock" to show up in thread dump */

@@ -119,7 +119,7 @@ public class BasicSerialization {
 
     @Test(dataProvider = "Map<IntegerEnum,String>")
     public void testSerialization(String description, Map<IntegerEnum, String> map) {
-        Object foo = new Object();
+        Object foo = java.util.Objects.newIdentity();
 
         Map<IntegerEnum, String> clone = mapClone(map);
         Map<IntegerEnum, String> serialClone = serialClone(map);

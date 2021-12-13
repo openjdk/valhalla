@@ -106,7 +106,7 @@ public class TestPinnedGarbage {
     }
 
     public static class MyClass {
-        public Object ref = new Object();
+        public Object ref = java.util.Objects.newIdentity();
     }
 
 }

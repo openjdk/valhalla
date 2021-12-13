@@ -47,7 +47,7 @@ import java.security.PrivilegedAction;
  */
 @SuppressWarnings("serial") // Same-version serialization only
 public class ParserDelegator extends HTMLEditorKit.Parser implements Serializable {
-    private static final Object DTD_KEY = new Object();
+    private static final Object DTD_KEY = java.util.Objects.newIdentity();
 
     /**
      * Sets the default DTD.

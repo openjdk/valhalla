@@ -80,7 +80,7 @@ public class MouseButtonsTest implements MouseListener {
 
 
     MouseButtonsTest() throws Exception {
-        lock = new Object();
+        lock = java.util.Objects.newIdentity();
         robot = new ExtendedRobot();
         EventQueue.invokeAndWait( this::createGUI );
     }

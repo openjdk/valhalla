@@ -54,7 +54,7 @@ public class objmonusage001 {
         objmonusage001a runn[] = new objmonusage001a[NUMBER_OF_THREADS];
 
         for (int i = 0; i < NUMBER_OF_THREADS; i++) {
-            syncObject[i] = new Object();
+            syncObject[i] = java.util.Objects.newIdentity();
             runn[i] = new objmonusage001a(i, syncObject[i]);
         }
 

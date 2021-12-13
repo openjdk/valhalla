@@ -112,7 +112,7 @@ public abstract class BasicLookAndFeel extends LookAndFeel implements Serializab
     /**
      * Lock used when manipulating clipPlaying.
      */
-    private transient Object audioLock = new Object();
+    private transient Object audioLock = java.util.Objects.newIdentity();
     /**
      * The Clip that is currently playing (set in AudioAction).
      */

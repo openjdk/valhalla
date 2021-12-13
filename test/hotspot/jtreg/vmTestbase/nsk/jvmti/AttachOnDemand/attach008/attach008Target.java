@@ -38,7 +38,7 @@ public class attach008Target extends TargetApplicationWaitingAgents {
 
         public void run() {
             try {
-                Object lock = new Object();
+                Object lock = java.util.Objects.newIdentity();
                 MonitorLockingThread monitorLockingThread = new MonitorLockingThread(lock);
 
                 MonitorLockingThread.LockFreeThread lockFreeThread =

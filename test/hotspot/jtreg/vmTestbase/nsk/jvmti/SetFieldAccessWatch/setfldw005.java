@@ -53,8 +53,8 @@ public class setfldw005 {
     float fld3 = 223.456F;
     static double fld4 = 123456.654321;
     double fld5 = 223456.654321;
-    static Object fld6 = new Object();
-    Object fld7 = new Object();
+    static Object fld6 = java.util.Objects.newIdentity();
+    Object fld7 = java.util.Objects.newIdentity();
     static Object copy6;
     static Object copy7;
     static boolean fld8 = true;

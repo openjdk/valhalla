@@ -128,7 +128,7 @@ public class TestDynamicSoftMaxHeapSize {
             // Sizes specifically include heaps below Xms and above Xmx to test saturation code.
             jcmd.execute("VM.set_flag SoftMaxHeapSize " + r.nextInt(768*1024*1024), true);
             for (long s = 0; s < STRIDE; s++) {
-                sink = new Object();
+                sink = java.util.Objects.newIdentity();
             }
             Thread.sleep(1);
         }

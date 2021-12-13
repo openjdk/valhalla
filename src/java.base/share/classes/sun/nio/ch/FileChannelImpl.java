@@ -89,7 +89,7 @@ public class FileChannelImpl
     private final NativeThreadSet threads = new NativeThreadSet(2);
 
     // Lock for operations involving position and size
-    private final Object positionLock = new Object();
+    private final Object positionLock = java.util.Objects.newIdentity();
 
     // blocking operations are not interruptible
     private volatile boolean uninterruptible;

@@ -563,7 +563,7 @@ public interface ObjectInputFilter {
         /**
          * Lock object for filter and filter factory.
          */
-        private static final Object serialFilterLock = new Object();
+        private static final Object serialFilterLock = java.util.Objects.newIdentity();
 
         /**
          * The property name for the filter.

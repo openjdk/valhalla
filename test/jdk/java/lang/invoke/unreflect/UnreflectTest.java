@@ -91,8 +91,8 @@ public class UnreflectTest {
     }
 
     static record TestRecord(int i) {
-        static final Object STATIC_FINAL = new Object();
-        static Object STATIC_NON_FINAL = new Object();
+        static final Object STATIC_FINAL = java.util.Objects.newIdentity();
+        static Object STATIC_NON_FINAL = java.util.Objects.newIdentity();
     }
 
     /*

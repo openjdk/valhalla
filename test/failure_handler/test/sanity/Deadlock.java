@@ -34,8 +34,8 @@ public class Deadlock {
         new Deadlock().test();
     }
     private void test() {
-        final Object a = new Object();
-        final Object b = new Object();
+        final Object a = java.util.Objects.newIdentity();
+        final Object b = java.util.Objects.newIdentity();
 
         new Thread(new Runnable() {
             @Override

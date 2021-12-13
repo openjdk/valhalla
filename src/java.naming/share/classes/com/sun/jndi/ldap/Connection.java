@@ -174,7 +174,7 @@ public final class Connection implements Runnable {
     private volatile boolean isUpgradedToStartTls;
 
     // Lock to maintain isUpgradedToStartTls state
-    final Object startTlsLock = new Object();
+    final Object startTlsLock = java.util.Objects.newIdentity();
 
     private static final boolean IS_HOSTNAME_VERIFICATION_DISABLED
             = hostnameVerificationDisabledValue();
@@ -783,7 +783,7 @@ public final class Connection implements Runnable {
      * the safest thing to do is to shut it down.
      */
 
-    private final Object pauseLock = new Object();  // lock for reader to wait on while paused
+    private final Object pauseLock = java.util.Objects.newIdentity();  // lock for reader to wait on while paused
     private boolean paused = false;           // paused state of reader
 
     /*

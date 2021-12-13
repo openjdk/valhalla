@@ -34,8 +34,8 @@ public class TestWrongArrayMember {
     public static void main(String... args) throws Exception {
         Object[] src = new Object[3];
         src[0] = new Integer(0);
-        src[1] = new Object();
-        src[2] = new Object();
+        src[1] = java.util.Objects.newIdentity();
+        src[2] = java.util.Objects.newIdentity();
         Object[] dst = new Integer[3];
         dst[0] = new Integer(1);
         dst[1] = new Integer(2);

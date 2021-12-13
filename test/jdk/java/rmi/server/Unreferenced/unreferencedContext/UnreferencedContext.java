@@ -58,7 +58,7 @@ public class UnreferencedContext implements Remote, Unreferenced, Runnable {
     private final static long GC_INTERVAL = 6000;
     private final static long TIMEOUT = 60000;
 
-    private Object lock = new Object();
+    private Object lock = java.util.Objects.newIdentity();
     private boolean unreferencedInvoked = false;
     private ClassLoader unreferencedContext;
 

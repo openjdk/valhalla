@@ -215,8 +215,8 @@ public class SocketFactoryTest {
             testEquals(client1,server1,false);
             System.out.println("testEquals(client21,server2,false)");
             testEquals(client21,server2,false);
-            System.out.println("testEquals(client1,new Object(),false)");
-            testEquals(client1,new Object(),false);
+            System.out.println("testEquals(client1,java.util.Objects.newIdentity(),false)");
+            testEquals(client1,java.util.Objects.newIdentity(),false);
 
             // servers
             System.out.println("testEquals(server1,server1,true)");
@@ -263,8 +263,8 @@ public class SocketFactoryTest {
             testEquals(server1,client2,false);
             System.out.println("testEquals(server2,client11,false)");
             testEquals(server2,client11,false);
-            System.out.println("testEquals(server1,new Object(),false)");
-            testEquals(server1,new Object(),false);
+            System.out.println("testEquals(server1,java.util.Objects.newIdentity(),false)");
+            testEquals(server1,java.util.Objects.newIdentity(),false);
 
             // client subclass
             System.out.println("testEquals(subclient1,subclient1,true)");
@@ -283,8 +283,8 @@ public class SocketFactoryTest {
             testEquals(server1,subclient1,false);
             System.out.println("testEquals(subclient2,subserver2,false)");
             testEquals(subclient1,subserver2,false);
-            System.out.println("testEquals(subclient1,new Object(),false)");
-            testEquals(subclient1,new Object(),false);
+            System.out.println("testEquals(subclient1,java.util.Objects.newIdentity(),false)");
+            testEquals(subclient1,java.util.Objects.newIdentity(),false);
 
             // server subclass
             System.out.println("testEquals(subserver1,subserver1,true)");
@@ -343,8 +343,8 @@ public class SocketFactoryTest {
             testEquals(subserver1,subclient2,false);
             System.out.println("testEquals(client1,subserver2,false)");
             testEquals(client1,subserver2,false);
-            System.out.println("testEquals(subserver1,new Object(),false)");
-            testEquals(subserver1,new Object(),false);
+            System.out.println("testEquals(subserver1,java.util.Objects.newIdentity(),false)");
+            testEquals(subserver1,java.util.Objects.newIdentity(),false);
 
             System.out.println("SocketFactoryTest PASSED.");
         } catch (Exception x) {

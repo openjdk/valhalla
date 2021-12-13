@@ -32,7 +32,7 @@ import java.io.*;
 // This class is the debugged application in the test
 
 class thread001a {
-    public static Object threadExitLock = new Object();
+    public static Object threadExitLock = java.util.Objects.newIdentity();
 
     public static void main(String args[]) {
         thread001a _thread001a = new thread001a();
@@ -58,7 +58,7 @@ class thread001a {
 
         class InnerThread extends Thread {
             public volatile boolean started = false;
-            public volatile Object startedNotification = new Object();
+            public volatile Object startedNotification = java.util.Objects.newIdentity();
 
             InnerThread (String name) {
                 super(name);
@@ -142,7 +142,7 @@ class thread001a {
 
 class OuterThread extends Thread {
     public volatile boolean started = false;
-    public volatile Object startedNotification = new Object();
+    public volatile Object startedNotification = java.util.Objects.newIdentity();
 
     OuterThread (String name) {
         super(name);

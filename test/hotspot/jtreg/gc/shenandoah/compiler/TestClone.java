@@ -212,7 +212,7 @@ public class TestClone {
         for (int i = 0; i < 10000; i++) {
             Object[] src = new Object[i];
             for (int c = 0; c < src.length; c++) {
-                src[c] = new Object();
+                src[c] = java.util.Objects.newIdentity();
             }
             testWith(src);
         }

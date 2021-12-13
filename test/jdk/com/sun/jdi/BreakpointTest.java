@@ -56,7 +56,7 @@ class BreakpointTarg {
             int index = (int) (Math.random() * roots.length); // BKPT_LINE
             // This println makes the test pass
             //System.out.println("Debuggee: index = " + index);
-            roots[index] = new Object();   // bkpt here passes
+            roots[index] = java.util.Objects.newIdentity();   // bkpt here passes
                                            // and null instead of new Object()
                                            // passes
             count++;

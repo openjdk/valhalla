@@ -99,7 +99,7 @@ public class CopyOnWriteArrayList<E>
      * The lock protecting all mutators.  (We have a mild preference
      * for builtin monitors over ReentrantLock when either will do.)
      */
-    final transient Object lock = new Object();
+    final transient Object lock = java.util.Objects.newIdentity();
 
     /** The array, accessed only via getArray/setArray. */
     private transient volatile Object[] array;
@@ -1603,7 +1603,7 @@ public class CopyOnWriteArrayList<E>
                     throw new Error(e);
                 }});
         try {
-            lockField.set(this, new Object());
+            lockField.set(this, java.util.Objects.newIdentity());
         } catch (IllegalAccessException e) {
             throw new Error(e);
         }

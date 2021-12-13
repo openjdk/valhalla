@@ -56,7 +56,7 @@ public final class MultipleContextsUnitTest {
         }
 
         for (AppContext app : apps) {
-            SunToolkit.postEvent(app, new InvocationEvent(new Object(), () -> {
+            SunToolkit.postEvent(app, new InvocationEvent(java.util.Objects.newIdentity(), () -> {
                 try {
                     go.await();
                 } catch (InterruptedException e) {
@@ -74,7 +74,7 @@ public final class MultipleContextsUnitTest {
             AWTEvent eventThree = getSequencedEvent();
             SunToolkit.postEvent(app, eventThree);
             SunToolkit.postEvent(app, eventTwo);
-            SunToolkit.postEvent(app, new InvocationEvent(new Object(), () -> {
+            SunToolkit.postEvent(app, new InvocationEvent(java.util.Objects.newIdentity(), () -> {
                 System.err.println(AppContext.getAppContext());
                 end.countDown();
             }));
@@ -90,7 +90,7 @@ public final class MultipleContextsUnitTest {
             AtomicReference<Boolean> called1 = new AtomicReference(false);
             AtomicReference<Boolean> called2 = new AtomicReference(false);
             int num1 = createSENumber;
-            SunToolkit.postEvent(app, new InvocationEvent(new Object(), () -> {
+            SunToolkit.postEvent(app, new InvocationEvent(java.util.Objects.newIdentity(), () -> {
                 if (dispatchSENumber < num1) {
                     throw new RuntimeException("Dispatched too early");
                 }
@@ -102,7 +102,7 @@ public final class MultipleContextsUnitTest {
             AWTEvent eventThree = getSequencedEvent();
             SunToolkit.postEvent(app, eventThree);
             int num2 = createSENumber;
-            SunToolkit.postEvent(app, new InvocationEvent(new Object(), () -> {
+            SunToolkit.postEvent(app, new InvocationEvent(java.util.Objects.newIdentity(), () -> {
                 if (dispatchSENumber < num2) {
                     throw new RuntimeException("Dispatched too early");
                 }
@@ -119,7 +119,7 @@ public final class MultipleContextsUnitTest {
 
         // eventOne should flush all EDT
         SunToolkit.postEvent(apps[0], eventOne);
-        SunToolkit.postEvent(apps[0], new InvocationEvent(new Object(), () -> {
+        SunToolkit.postEvent(apps[0], new InvocationEvent(java.util.Objects.newIdentity(), () -> {
             System.err.println(AppContext.getAppContext());
             end.countDown();
         }));
@@ -142,7 +142,7 @@ public final class MultipleContextsUnitTest {
     {
         int num = createSENumber++;
 
-        InvocationEvent wrapMe = new InvocationEvent(new Object(), () -> {
+        InvocationEvent wrapMe = new InvocationEvent(java.util.Objects.newIdentity(), () -> {
             if (num != dispatchSENumber++) {
                 System.err.println("num: " + num);
                 System.err.println("dispatchSENumber: " + dispatchSENumber);

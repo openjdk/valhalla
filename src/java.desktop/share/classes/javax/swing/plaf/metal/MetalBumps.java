@@ -50,7 +50,7 @@ class MetalBumps implements Icon {
     protected Color shadowColor;
     protected Color backColor;
 
-    private static final Object METAL_BUMPS = new Object();
+    private static final Object METAL_BUMPS = java.util.Objects.newIdentity();
     protected BumpBuffer buffer;
 
     /**

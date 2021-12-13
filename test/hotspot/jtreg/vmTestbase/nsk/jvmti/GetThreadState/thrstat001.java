@@ -48,7 +48,7 @@ public class thrstat001 {
 
     // barriers for testing thread status values
     public static Lock startingMonitor = new Lock();
-    public static Object blockingMonitor = new Object();
+    public static Object blockingMonitor = java.util.Objects.newIdentity();
     public static Lock endingMonitor = new Lock();
 
     void meth() {

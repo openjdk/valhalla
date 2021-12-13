@@ -133,7 +133,7 @@ public class EmptyNavigableSet {
     @Test(dataProvider = "NavigableSet<?>", dataProviderClass = EmptyNavigableSet.class)
     public void testContainsRequiresComparable(String description, NavigableSet<?> navigableSet) {
         assertThrowsCCE(
-            () -> navigableSet.contains(new Object()),
+            () -> navigableSet.contains(java.util.Objects.newIdentity()),
             description + ": Comparable should be required");
     }
 
@@ -193,7 +193,7 @@ public class EmptyNavigableSet {
             description + ": Must throw NullPointerException for null element");
 
         assertThrowsCCE(
-            () -> { NavigableSet ns = navigableSet.headSet(new Object(), true); },
+            () -> { NavigableSet ns = navigableSet.headSet(java.util.Objects.newIdentity(), true); },
             description + ": Must throw ClassCastException for non-Comparable element");
 
         NavigableSet ns = navigableSet.headSet("1", false);
@@ -240,8 +240,8 @@ public class EmptyNavigableSet {
             },
             description + ": Must throw NullPointerException for null element");
 
-        Object obj1 = new Object();
-        Object obj2 = new Object();
+        Object obj1 = java.util.Objects.newIdentity();
+        Object obj2 = java.util.Objects.newIdentity();
 
         assertThrowsCCE(
             () -> {
@@ -347,7 +347,7 @@ public class EmptyNavigableSet {
             description + ": Must throw NullPointerException for null element");
 
         assertThrowsCCE(
-            () -> navigableSet.tailSet(new Object()),
+            () -> navigableSet.tailSet(java.util.Objects.newIdentity()),
             description);
 
         NavigableSet ss = navigableSet.tailSet("1", true);

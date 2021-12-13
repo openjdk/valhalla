@@ -36,7 +36,7 @@ import sun.awt.AppContext;
 public class Test8012933 {
     private AppContext appContext = null;
     final ThreadGroup threadGroup = new ThreadGroup("test thread group");
-    final Object lock = new Object();
+    final Object lock = java.util.Objects.newIdentity();
     boolean isCreated = false;
 
     public static void main(String[] args) throws Exception {

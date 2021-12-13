@@ -117,7 +117,7 @@ public class InlineAccessors {
         o.setFloat(0F);
         o.setLong(0L);
         o.setDouble(0D);
-        o.setObject(new Object());
+        o.setObject(java.util.Objects.newIdentity());
         o.setArray(new Object[1]);
 
         o.getBool();

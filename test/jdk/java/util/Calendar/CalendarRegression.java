@@ -692,8 +692,8 @@ public class CalendarRegression extends IntlTest {
         }
 
         // Now try adding and rolling
-        Object ADD = new Object();
-        Object ROLL = new Object();
+        Object ADD = java.util.Objects.newIdentity();
+        Object ROLL = java.util.Objects.newIdentity();
         @SuppressWarnings("deprecation")
         Object[] ADDROLL = {
             ADD, 1, new Date(98, DECEMBER, 25), new Date(99, JANUARY, 1),

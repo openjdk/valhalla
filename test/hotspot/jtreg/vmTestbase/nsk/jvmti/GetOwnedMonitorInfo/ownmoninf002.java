@@ -74,7 +74,7 @@ public class ownmoninf002 {
 
 class ownmoninf002a extends Thread {
     private synchronized void meth() {
-        Object lock = new Object();
+        Object lock = java.util.Objects.newIdentity();
         synchronized (lock) {
             ownmoninf002.startingBarrier.unlock();
             ownmoninf002.endingBarrier.waitFor();

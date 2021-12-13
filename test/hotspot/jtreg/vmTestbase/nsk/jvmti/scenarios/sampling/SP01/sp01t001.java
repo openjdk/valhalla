@@ -99,7 +99,7 @@ public class sp01t001 extends DebugeeClass {
 
 // basic class for tested threads
 abstract class sp01t001Thread extends Thread {
-    public Object startingMonitor = new Object();
+    public Object startingMonitor = java.util.Objects.newIdentity();
 }
 
 /* =================================================================== */

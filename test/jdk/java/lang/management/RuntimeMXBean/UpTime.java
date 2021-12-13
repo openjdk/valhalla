@@ -59,7 +59,7 @@ public class UpTime {
                                      + " minutes).");
 
         // Wait for DELAY seconds
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         while (System_milliTime() < systemStartInner + DELAY * MULTIPLIER) {
             synchronized (o) {
                 try {

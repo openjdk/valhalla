@@ -1789,7 +1789,7 @@ public class TransferHandler implements Serializable {
          * Key used in app context to lookup Clipboard to use if access to
          * System clipboard is denied.
          */
-        private static Object SandboxClipboardKey = new Object();
+        private static Object SandboxClipboardKey = java.util.Objects.newIdentity();
 
     }
 

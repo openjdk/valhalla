@@ -42,9 +42,9 @@ public class EarlyReturnThread001 extends Thread {
     private ReentrantLock lock = new ReentrantLock();
 
     public Wicket startingBarrier = new Wicket();
-    public Object barrier = new Object();
+    public Object barrier = java.util.Objects.newIdentity();
 
-    private static Object ordinaryResult = new Object();
+    private static Object ordinaryResult = java.util.Objects.newIdentity();
 
     private MethodType methodType;
 

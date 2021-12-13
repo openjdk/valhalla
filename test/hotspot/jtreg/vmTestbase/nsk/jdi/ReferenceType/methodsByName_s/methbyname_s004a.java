@@ -96,27 +96,27 @@ abstract class methbyname_s004aClassForCheck extends methbyname_s004aSuperClassF
     // overloaded static methods
     static void  s_overloaded_method() {}
     static String  s_overloaded_method(String s) {return "string";}
-    static Object  s_overloaded_method(Object obj) {return new Object();}
-    static Object  s_overloaded_method(long l, String s) {return new Object();}
+    static Object  s_overloaded_method(Object obj) {return java.util.Objects.newIdentity();}
+    static Object  s_overloaded_method(long l, String s) {return java.util.Objects.newIdentity();}
 
-    static Object  s_super_overloaded_method(long l, String s) {return new Object();}
+    static Object  s_super_overloaded_method(long l, String s) {return java.util.Objects.newIdentity();}
 
     // overloaded instance methods
     void  i_overloaded_method() {}
     long  i_overloaded_method(Object obj) {return (long)1;}
     String  i_overloaded_method(String s) {return "string";}
-    Object  i_overloaded_method(long l, String s) {return new Object();}
+    Object  i_overloaded_method(long l, String s) {return java.util.Objects.newIdentity();}
 
-    Object  i_super_overloaded_method(long l, String s) {return new Object();}
-    Object  i_interf_overloaded_method(long l, String s) {return new Object();}
+    Object  i_super_overloaded_method(long l, String s) {return java.util.Objects.newIdentity();}
+    Object  i_interf_overloaded_method(long l, String s) {return java.util.Objects.newIdentity();}
 
 
 }
 
 abstract class methbyname_s004aSuperClassForCheck  {
 
-    static Object  s_super_overloaded_method(long l) {return new Object();}
-    Object  i_super_overloaded_method(long l) {return new Object();}
+    static Object  s_super_overloaded_method(long l) {return java.util.Objects.newIdentity();}
+    Object  i_super_overloaded_method(long l) {return java.util.Objects.newIdentity();}
 
 }
 

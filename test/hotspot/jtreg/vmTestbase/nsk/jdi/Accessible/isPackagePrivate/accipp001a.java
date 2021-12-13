@@ -50,7 +50,7 @@ public class accipp001a {
     Long      L0  = Long.valueOf(0),        L1[] ={L0},  L2[][]={L1},   L3[][][]={L2},   L4[][][][]={L3};
     Short     Sh0 = Short.valueOf("1"),     Sh1[]={Sh0}, Sh2[][]={Sh1}, Sh3[][][]={Sh2}, Sh4[][][][]={Sh3};
     String    S0  = new String(" "),        S1[] ={S0},  S2[][]={S1},   S3[][][]={S2},   S4[][][][]={S3};
-    Object    O0  = new Object(),           O1[] ={O0},  O2[][]={O1},   O3[][][]={O2},   O4[][][][]={O3};
+    Object    O0  = java.util.Objects.newIdentity(),           O1[] ={O0},  O2[][]={O1},   O3[][][]={O2},   O4[][][][]={O3};
 
     private   static class  U {} // private ==> package private
     protected static class  V {}

@@ -78,7 +78,7 @@ public class disposeobj001a {
     public static class TestedClass {
 
         // tested objects
-        static Object objectValue = new Object();
+        static Object objectValue = java.util.Objects.newIdentity();
         static String stringValue = new String();
         static TestedClass classValue = new TestedClass();
 

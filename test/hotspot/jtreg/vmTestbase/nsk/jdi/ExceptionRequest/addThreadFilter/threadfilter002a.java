@@ -116,7 +116,7 @@ public class threadfilter002a {
         System.exit(exitCode + PASS_BASE);
     }
 
-    static Object waitnotifyObj = new Object();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {

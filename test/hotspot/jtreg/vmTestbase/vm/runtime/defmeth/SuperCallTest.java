@@ -342,10 +342,10 @@ public class SuperCallTest extends DefMethTest {
      * interface I extends J<String> { int m(String s) default { return J.super.m(); } }
      * class C implements I {}
      *
-     * TEST: I i = new C(); i.m(new Object()) == 1;
-     * TESTL J j = new C(); j.m(new Object()) == 1;
+     * TEST: I i = new C(); i.m(java.util.Objects.newIdentity()) == 1;
+     * TESTL J j = new C(); j.m(java.util.Objects.newIdentity()) == 1;
      * TEST: J j = new C(); j.m("") == 1;
-     * TEST: C c = new C(); c.m(new Object()) == 1;
+     * TEST: C c = new C(); c.m(java.util.Objects.newIdentity()) == 1;
      * TEST: C c = new C(); c.m("") == 1;
      */
     public void testSuperGeneric(TestBuilder b) {

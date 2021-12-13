@@ -29,7 +29,7 @@ import nsk.share.*;
 
 public class getlockname001 {
     private static Wicket mainEntrance = new Wicket();
-    private static Object backDoor = new Object();
+    private static Object backDoor = java.util.Objects.newIdentity();
     private static String lock
         = backDoor.getClass().getName() + "@"
         + Integer.toHexString(System.identityHashCode(backDoor));

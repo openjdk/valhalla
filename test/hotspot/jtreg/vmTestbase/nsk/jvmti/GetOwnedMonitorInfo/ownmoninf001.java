@@ -37,7 +37,7 @@ public class ownmoninf001 {
 
     public static Wicket waitingBarrier;
     public static Wicket startingBarrier;
-    static Object lockFld = new Object();
+    static Object lockFld = java.util.Objects.newIdentity();
 
     static boolean DEBUG_MODE = false;
     static PrintStream out;
@@ -55,7 +55,7 @@ public class ownmoninf001 {
                 DEBUG_MODE = true;
         }
 
-        Object lock = new Object();
+        Object lock = java.util.Objects.newIdentity();
         Thread currThr = Thread.currentThread();
 
         if (DEBUG_MODE)
@@ -127,7 +127,7 @@ class ownmoninf001a extends Thread {
     public boolean isWaiting = false;
     public boolean wasNotified = false;
 
-    public Object lock = new Object();
+    public Object lock = java.util.Objects.newIdentity();
     private volatile boolean flag = true;
 
     public void letItGo() {

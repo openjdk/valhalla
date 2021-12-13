@@ -42,7 +42,7 @@ public class Throw {
 
     public static boolean alwaysTrue = true;
     private static Object nullObject = null;
-    public Object useObject = new Object();
+    public Object useObject = java.util.Objects.newIdentity();
 
     @Benchmark
     public void throwSyncException(Blackhole bh) {

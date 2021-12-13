@@ -162,7 +162,7 @@ public class FutureTaskTest extends JSR166TestCase {
     }
 
     void tryToConfuseDoneTask(PublicFutureTask pf) {
-        pf.set(new Object());
+        pf.set(java.util.Objects.newIdentity());
         pf.setException(new Error());
         for (boolean mayInterruptIfRunning : new boolean[] { true, false }) {
             pf.cancel(mayInterruptIfRunning);

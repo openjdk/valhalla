@@ -146,7 +146,7 @@ public class JPopupMenu extends JComponent implements Accessible,MenuElement {
     /* Lock object used in place of class object for synchronization.
      * (4187686)
      */
-    private static final Object classLock = new Object();
+    private static final Object classLock = java.util.Objects.newIdentity();
 
     /* diagnostic aids -- should be false for production builds. */
     private static final boolean TRACE =   false; // trace creates and disposes

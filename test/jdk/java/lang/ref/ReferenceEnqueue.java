@@ -47,7 +47,7 @@ public class ReferenceEnqueue {
         final int iterations = 1000;
 
         WeakRef() {
-            this.ref = new WeakReference<Object>(new Object(), queue);
+            this.ref = new WeakReference<Object>(java.util.Objects.newIdentity(), queue);
         }
 
         void run() throws InterruptedException {
@@ -79,9 +79,9 @@ public class ReferenceEnqueue {
         final int iterations = 1000;
 
         ExplicitEnqueue() {
-            this.refs.add(new SoftReference<>(new Object(), queue));
-            this.refs.add(new WeakReference<>(new Object(), queue));
-            this.refs.add(new PhantomReference<>(new Object(), queue));
+            this.refs.add(new SoftReference<>(java.util.Objects.newIdentity(), queue));
+            this.refs.add(new WeakReference<>(java.util.Objects.newIdentity(), queue));
+            this.refs.add(new PhantomReference<>(java.util.Objects.newIdentity(), queue));
         }
 
         void run() throws InterruptedException {

@@ -103,7 +103,7 @@ public class GCRetention {
         // Schedule custom tasks with strong references.
         class Task implements Runnable {
             final Object x;
-            Task() { refs.add(new WeakReference<>(x = new Object(), q)); }
+            Task() { refs.add(new WeakReference<>(x = java.util.Objects.newIdentity(), q)); }
             public void run() { System.out.println(x); }
         }
         // Give tasks added later earlier expiration, to ensure

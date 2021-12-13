@@ -41,7 +41,7 @@ public abstract class TimerTask implements Runnable {
     /**
      * This object is used to control access to the TimerTask internals.
      */
-    final Object lock = new Object();
+    final Object lock = java.util.Objects.newIdentity();
 
     /**
      * The state of this task, chosen from the constants below.

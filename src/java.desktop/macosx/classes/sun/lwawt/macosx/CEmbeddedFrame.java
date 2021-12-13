@@ -38,7 +38,7 @@ import sun.lwawt.LWWindowPeer;
 public class CEmbeddedFrame extends EmbeddedFrame {
 
     private CPlatformResponder responder;
-    private static final Object classLock = new Object();
+    private static final Object classLock = java.util.Objects.newIdentity();
     private static volatile CEmbeddedFrame globalFocusedWindow;
     private CEmbeddedFrame browserWindowFocusedApplet;
     private boolean parentWindowActive = true;

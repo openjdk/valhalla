@@ -312,7 +312,7 @@ class ClassInitializerTest {
     static Object o;
     static {
         i = 3;
-        o = new Object();
+        o = java.util.Objects.newIdentity();
     }
     @Test
     public void test() {}

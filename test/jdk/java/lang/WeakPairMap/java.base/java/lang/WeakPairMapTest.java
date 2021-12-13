@@ -34,8 +34,8 @@ import java.util.Objects;
 public class WeakPairMapTest {
     public static void main(String[] args) {
         WeakPairMap<Object, Object, String> pm = new WeakPairMap<>();
-        Object key1 = new Object();
-        Object key2 = new Object();
+        Object key1 = java.util.Objects.newIdentity();
+        Object key2 = java.util.Objects.newIdentity();
 
         // check for emptiness
         assertEquals(pm.containsKeyPair(key1, key2), false);
@@ -118,8 +118,8 @@ public class WeakPairMapTest {
         assertEquals(gcAndWaitRemoved(pm, "abc", cleanupTimeout), true);
 
         // new insertion
-        key1 = new Object();
-        key2 = new Object();
+        key1 = java.util.Objects.newIdentity();
+        key2 = java.util.Objects.newIdentity();
         assertEquals(pm.putIfAbsent(key1, key2, "abc"), null);
         assertEquals(pm.get(key1, key2), "abc");
 
@@ -133,8 +133,8 @@ public class WeakPairMapTest {
         Reference.reachabilityFence(key2);
 
         // new insertion
-        key1 = new Object();
-        key2 = new Object();
+        key1 = java.util.Objects.newIdentity();
+        key2 = java.util.Objects.newIdentity();
         assertEquals(pm.putIfAbsent(key1, key2, "abc"), null);
         assertEquals(pm.get(key1, key2), "abc");
 

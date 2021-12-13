@@ -126,7 +126,7 @@ public class EmptyNavigableMap {
     @Test(dataProvider = "NavigableMap<?,?>", dataProviderClass = EmptyNavigableMap.class)
     public void testContainsRequiresComparable(String description, NavigableMap<?,?> navigableMap) {
         assertThrowsCCE(
-            () -> navigableMap.containsKey(new Object()),
+            () -> navigableMap.containsKey(java.util.Objects.newIdentity()),
             description + ": Comparable should be required");
     }
 
@@ -182,7 +182,7 @@ public class EmptyNavigableMap {
             description + ": Must throw NullPointerException for null element");
 
         assertThrowsCCE(
-            () -> { NavigableMap ss = navigableMap.headMap(new Object(), true); },
+            () -> { NavigableMap ss = navigableMap.headMap(java.util.Objects.newIdentity(), true); },
             description + ": Must throw ClassCastException for non-Comparable element");
 
         NavigableMap ss = navigableMap.headMap("1", false);
@@ -221,8 +221,8 @@ public class EmptyNavigableMap {
             },
             description + ": Must throw NullPointerException for null element");
 
-        Object obj1 = new Object();
-        Object obj2 = new Object();
+        Object obj1 = java.util.Objects.newIdentity();
+        Object obj2 = java.util.Objects.newIdentity();
 
         assertThrowsCCE(
             () -> {
@@ -327,7 +327,7 @@ public class EmptyNavigableMap {
             description + ": Must throw NullPointerException for null element");
 
         assertThrowsCCE(
-            () -> navigableMap.tailMap(new Object()),
+            () -> navigableMap.tailMap(java.util.Objects.newIdentity()),
             description);
 
         NavigableMap ss = navigableMap.tailMap("1", true);

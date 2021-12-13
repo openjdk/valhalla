@@ -178,7 +178,7 @@ public class Pending {
         }
     }
 
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
     private static class MyObject {
         Object[] dummy = new Object[10];
         public void finalize () {

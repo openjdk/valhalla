@@ -54,7 +54,7 @@ public class TrayIconEventModifiersTest {
     TrayIcon icon;
     ExtendedRobot robot;
 
-    Object mouseLock = new Object();
+    Object mouseLock = java.util.Objects.newIdentity();
 
     String caption = "Sample Icon";
     boolean mousePressed = false;

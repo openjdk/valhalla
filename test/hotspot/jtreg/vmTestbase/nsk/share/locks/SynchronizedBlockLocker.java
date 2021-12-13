@@ -29,7 +29,7 @@ import nsk.share.Wicket;
  *  using synchronized block
  */
 public class SynchronizedBlockLocker extends DeadlockLocker {
-    private Object object = new Object();
+    private Object object = java.util.Objects.newIdentity();
 
     public SynchronizedBlockLocker(Wicket step1, Wicket step2, Wicket readyWicket) {
         super(step1, step2, readyWicket);

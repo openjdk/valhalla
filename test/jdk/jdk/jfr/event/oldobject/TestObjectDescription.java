@@ -125,9 +125,9 @@ public class TestObjectDescription {
             List<Object> arrayLists = new ArrayList<>(OldObjects.MIN_SIZE);
             for (int i = 0; i < OldObjects.MIN_SIZE; i++) {
                 List<Object> arrayList = new ArrayList<>();
-                arrayList.add(new Object());
-                arrayList.add(new Object());
-                arrayList.add(new Object());
+                arrayList.add(java.util.Objects.newIdentity());
+                arrayList.add(java.util.Objects.newIdentity());
+                arrayList.add(java.util.Objects.newIdentity());
                 arrayLists.add(arrayList);
             }
             return arrayLists;

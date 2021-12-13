@@ -51,7 +51,7 @@ public class MetafactoryDescriptorTest {
         public static double m_double(String arg) { return 12; }
         public static String m_String(String arg) { return ""; }
         public static Integer m_Integer(String arg) { return 23; }
-        public static Object m_Object(String arg) { return new Object(); }
+        public static Object m_Object(String arg) { return java.util.Objects.newIdentity(); }
 
         public static String n_boolean(boolean arg) { return ""; }
         public static String n_char(char arg) { return ""; }

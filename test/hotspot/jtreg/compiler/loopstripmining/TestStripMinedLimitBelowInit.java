@@ -52,7 +52,7 @@ public class TestStripMinedLimitBelowInit {
         int i = start;
         do {
             // So ciTypeFlow doesn't clone the loop head
-            synchronized (new Object()) {
+            synchronized (java.util.Objects.newIdentity()) {
             }
             sum += i;
             i++;
@@ -64,7 +64,7 @@ public class TestStripMinedLimitBelowInit {
         int sum = 0;
         int i = start;
         do {
-            synchronized (new Object()) {
+            synchronized (java.util.Objects.newIdentity()) {
             }
             sum += i;
             i--;

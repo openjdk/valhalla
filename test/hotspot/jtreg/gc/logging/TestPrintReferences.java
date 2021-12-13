@@ -236,7 +236,7 @@ public class TestPrintReferences {
 
         public static void main(String [] args) {
              for (int i = 0; i < SIZE; i++) {
-                  dummy[i] = new SoftReference<>(new Object());
+                  dummy[i] = new SoftReference<>(java.util.Objects.newIdentity());
              }
         }
     }

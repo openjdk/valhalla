@@ -263,7 +263,7 @@ public class ObjectInputStream
     private static final int NULL_HANDLE = -1;
 
     /** marker for unshared objects in internal handle table */
-    private static final Object unsharedMarker = new Object();
+    private static final Object unsharedMarker = java.util.Objects.newIdentity();
 
     /**
      * immutable table mapping primitive type names to corresponding

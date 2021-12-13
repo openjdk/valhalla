@@ -79,7 +79,7 @@ public class getvalue003t {
     }
 
     private void startThread() {
-        Object readyObj = new Object();
+        Object readyObj = java.util.Objects.newIdentity();
 
         auxThr = new OtherThr(readyObj,
             getvalue003.DEBUGGEE_THRDNAMES[1]);

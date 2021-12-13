@@ -42,8 +42,8 @@ public class suspend001a {
 
     static void breakHere () {}
 
-    static Object lock                   = new Object();
-    static Object waitnotify             = new Object();
+    static Object lock                   = java.util.Objects.newIdentity();
+    static Object waitnotify             = java.util.Objects.newIdentity();
     public static volatile int notSuspended = 0;
 
     public int runIt(String args[], PrintStream out) {

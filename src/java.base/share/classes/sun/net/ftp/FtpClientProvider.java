@@ -45,7 +45,7 @@ public abstract class FtpClientProvider {
      * @return The created {@link FtpClient}.
      */
     public abstract FtpClient createFtpClient();
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static FtpClientProvider provider = null;
 
     /**

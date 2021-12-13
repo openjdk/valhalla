@@ -44,7 +44,7 @@ class SpreadLockDebuggee extends Thread {
         setName(THREAD_NAME);
     }
 
-    Object monitor = new Object();
+    Object monitor = java.util.Objects.newIdentity();
 
     public void c() {
         synchronized (monitor) {

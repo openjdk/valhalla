@@ -93,12 +93,12 @@ public class WriteBarrier {
 
         for (int i = 0; i < NUM_REFERENCES_SMALL; i++) {
             indicesSmall[i] = get_random() % (NUM_REFERENCES_SMALL - 1);
-            realReferencesSmall[i] = new Object();
+            realReferencesSmall[i] = java.util.Objects.newIdentity();
         }
 
         for (int i = 0; i < NUM_REFERENCES_LARGE; i++) {
             indicesLarge[i] = get_random() % (NUM_REFERENCES_LARGE - 1);
-            realReferencesLarge[i] = new Object();
+            realReferencesLarge[i] = java.util.Objects.newIdentity();
         }
 
         // Build a small linked structure

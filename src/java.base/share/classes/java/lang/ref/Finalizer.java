@@ -41,7 +41,7 @@ final class Finalizer extends FinalReference<Object> { /* Package-private; must 
     private static Finalizer unfinalized = null;
 
     /** Lock guarding access to unfinalized list. */
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
 
     private Finalizer next, prev;
 

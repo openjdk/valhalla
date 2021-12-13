@@ -78,7 +78,7 @@ public class LUTCompareTest implements ImageObserver {
         checkResults(img);
     }
 
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
 
     Image image;
 

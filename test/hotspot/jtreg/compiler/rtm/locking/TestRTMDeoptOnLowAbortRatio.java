@@ -124,7 +124,7 @@ public class TestRTMDeoptOnLowAbortRatio {
 
     public static class Test implements CompilableTest {
         private final XAbortProvoker xabort = new XAbortProvoker();
-        private final Object monitor = new Object();
+        private final Object monitor = java.util.Objects.newIdentity();
 
         @Override
         public String getMethodWithLockName() {

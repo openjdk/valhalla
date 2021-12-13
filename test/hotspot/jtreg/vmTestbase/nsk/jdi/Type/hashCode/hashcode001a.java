@@ -72,7 +72,7 @@ public class hashcode001a {
     static short   r0 = 0,    r1[] = {r0}, r2[][] = {r1};
 
     static String  s0 = "0",  s1[] = {s0}, s2[][] = {s1};
-    static Object  o0 = new Object(), o1[] = {o0}, o2[][] = {o1};
+    static Object  o0 = java.util.Objects.newIdentity(), o1[] = {o0}, o2[][] = {o1};
 
     //------------------------------------------------------ mutable common method
 
@@ -114,7 +114,7 @@ public class hashcode001a {
     short   Mr () { return (short)0; };
 
     String  Ms () { return "0"; };
-    Object  Mo () { return new Object(); };
+    Object  Mo () { return java.util.Objects.newIdentity(); };
 
 }
 

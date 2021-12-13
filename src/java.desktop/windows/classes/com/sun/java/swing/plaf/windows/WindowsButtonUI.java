@@ -69,7 +69,7 @@ public class WindowsButtonUI extends BasicButtonUI
 
     private boolean defaults_initialized = false;
 
-    private static final Object WINDOWS_BUTTON_UI_KEY = new Object();
+    private static final Object WINDOWS_BUTTON_UI_KEY = java.util.Objects.newIdentity();
 
     // ********************************
     //          Create PLAF

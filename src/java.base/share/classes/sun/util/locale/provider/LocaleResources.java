@@ -96,7 +96,7 @@ public class LocaleResources {
     private static final String TZNB_EXCITY_PREFIX = "timezone.excity.";
 
     // null singleton cache value
-    private static final Object NULLOBJECT = new Object();
+    private static final Object NULLOBJECT = java.util.Objects.newIdentity();
 
     LocaleResources(ResourceBundleBasedAdapter adapter, Locale locale) {
         this.locale = locale;

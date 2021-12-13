@@ -50,11 +50,11 @@ public class TestBigObj extends BigParent {
     public static Object trash;
     public static void main(String argv[]) {
         TestBigObj c = new TestBigObj();
-        Object o = c.o = new Object();
+        Object o = c.o = java.util.Objects.newIdentity();
 
         // Provoke GC so o is moved (if this is a moving collector).
         for (int i = 0; i < 64 * 1024 * 1024; i++) {
-            trash = new Object();
+            trash = java.util.Objects.newIdentity();
         }
 
         if (o != c.o) {

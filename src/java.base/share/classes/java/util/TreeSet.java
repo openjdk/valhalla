@@ -98,7 +98,7 @@ public class TreeSet<E> extends AbstractSet<E>
     private transient NavigableMap<E,Object> m;
 
     // Dummy value to associate with an Object in the backing Map
-    private static final Object PRESENT = new Object();
+    private static final Object PRESENT = java.util.Objects.newIdentity();
 
     /**
      * Constructs a set backed by the specified navigable map.

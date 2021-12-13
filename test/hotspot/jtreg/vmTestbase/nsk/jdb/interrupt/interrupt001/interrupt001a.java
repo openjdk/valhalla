@@ -76,7 +76,7 @@ public class interrupt001a {
     static final int numThreads         = 5;   // number of threads
     static volatile boolean allWorkersAreWaiting = false;
 
-    private final Object waitnotify            = new Object();
+    private final Object waitnotify            = java.util.Objects.newIdentity();
     private volatile boolean threadRunning;
     private volatile boolean[] flags     = new boolean[numThreads];
 
@@ -95,7 +95,7 @@ public class interrupt001a {
         Object[] locks = new Object[numThreads];
 
         for (i = 0; i < numThreads ; i++) {
-            locks[i] = new Object();
+            locks[i] = java.util.Objects.newIdentity();
             holder[i] = new MyThread(locks[i], i, MYTHREAD + "-" + i);
         }
 

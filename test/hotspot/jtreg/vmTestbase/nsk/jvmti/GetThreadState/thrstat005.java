@@ -221,7 +221,7 @@ public class thrstat005 {
 
         public volatile boolean _fRun = true;
         public volatile boolean _fInTest = false;
-        public Object _mon = new Object();
+        public Object _mon = java.util.Objects.newIdentity();
 
         public void sendTestState(int state) throws BrokenBarrierException, InterruptedException {
             _taskQueue.put(state);

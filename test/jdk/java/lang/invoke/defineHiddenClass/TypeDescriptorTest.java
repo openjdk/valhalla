@@ -168,7 +168,7 @@ public class TypeDescriptorTest {
 }
 
 class HiddenClass {
-    private static final Object f = new Object();
+    private static final Object f = java.util.Objects.newIdentity();
     public static void m() {
     }
 }

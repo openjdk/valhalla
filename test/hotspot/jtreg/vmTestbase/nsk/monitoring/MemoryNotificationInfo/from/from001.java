@@ -190,7 +190,7 @@ class from001Listener implements NotificationListener {
         boolean messageNotSent = true;
         while(messageNotSent){
             try {
-                queue.put(new Object());
+                queue.put(java.util.Objects.newIdentity());
                 messageNotSent = false;
             } catch(InterruptedException e) {
                 messageNotSent = true;

@@ -55,7 +55,7 @@ public class VirtualMachineManagerImpl implements VirtualMachineManagerService {
     private static final int majorVersion = Runtime.version().feature();
     private static final int minorVersion = 0;
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static VirtualMachineManagerImpl vmm;
 
     public static VirtualMachineManager virtualMachineManager() {

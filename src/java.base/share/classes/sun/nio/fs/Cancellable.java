@@ -39,7 +39,7 @@ abstract class Cancellable implements Runnable {
     private static final Unsafe unsafe = Unsafe.getUnsafe();
 
     private final long pollingAddress;
-    private final Object lock = new Object();
+    private final Object lock = java.util.Objects.newIdentity();
 
     // the following require lock when examining or changing
     private boolean completed;

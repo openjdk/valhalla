@@ -85,7 +85,7 @@ import sun.nio.ch.Interruptible;
 public abstract class AbstractInterruptibleChannel
     implements Channel, InterruptibleChannel
 {
-    private final Object closeLock = new Object();
+    private final Object closeLock = java.util.Objects.newIdentity();
     private volatile boolean closed;
 
     /**

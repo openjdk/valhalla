@@ -44,7 +44,7 @@ public class TestMethods extends VetoableChangeSupport implements VetoableChange
     private static final String NAME = "property";
 
     public static void main(String[] args) throws PropertyVetoException {
-        Object source = new Object();
+        Object source = java.util.Objects.newIdentity();
         new TestMethods(source).fireVetoableChange(new PropertyChangeEvent(source, NAME, null, null));
         new TestMethods(source).fireVetoableChange(NAME, null, null);
         new TestMethods(source).fireVetoableChange(NAME, 0, 1);

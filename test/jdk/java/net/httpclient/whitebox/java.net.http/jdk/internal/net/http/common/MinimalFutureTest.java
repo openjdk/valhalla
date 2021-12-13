@@ -102,7 +102,7 @@ public class MinimalFutureTest {
     }
 
     private static CompletableFuture<Object> otherFuture() {
-        return MinimalFuture.completedFuture(new Object());
+        return MinimalFuture.completedFuture(java.util.Objects.newIdentity());
     }
 
     private static Object relay(Object r, Throwable e) {
@@ -126,11 +126,11 @@ public class MinimalFutureTest {
     }
 
     private static Object apply(Object arg) {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
     private static Object apply(Object arg1, Object arg2) {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
 
@@ -141,12 +141,12 @@ public class MinimalFutureTest {
         mf.completeExceptionally(new Throwable());
 
         MinimalFuture<Object> mf1 = new MinimalFuture<>();
-        mf1.complete(new Object());
+        mf1.complete(java.util.Objects.newIdentity());
 
         return new Object[][]{
                 new Object[]{new MinimalFuture<>()},
                 new Object[]{MinimalFuture.failedFuture(new Throwable())},
-                new Object[]{MinimalFuture.completedFuture(new Object())},
+                new Object[]{MinimalFuture.completedFuture(java.util.Objects.newIdentity())},
                 new Object[]{mf},
                 new Object[]{mf1},
         };

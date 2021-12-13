@@ -90,7 +90,7 @@ public class ObjectMethodsTest {
         assertFalse((boolean)handle.invokeExact(c, (Object)new C(5, 4)));
         assertFalse((boolean)handle.invokeExact(c, (Object)new C(4, 5)));
         assertFalse((boolean)handle.invokeExact(c, (Object)null));
-        assertFalse((boolean)handle.invokeExact(c, new Object()));
+        assertFalse((boolean)handle.invokeExact(c, java.util.Objects.newIdentity()));
     }
 
     public void testEqualsEmpty() throws Throwable {
@@ -100,7 +100,7 @@ public class ObjectMethodsTest {
         assertTrue((boolean)handle.invokeExact(e, (Object)e));
         assertTrue((boolean)handle.invokeExact(e, (Object)new Empty()));
         assertFalse((boolean)handle.invokeExact(e, (Object)null));
-        assertFalse((boolean)handle.invokeExact(e, new Object()));
+        assertFalse((boolean)handle.invokeExact(e, java.util.Objects.newIdentity()));
     }
 
     public void testHashCodeC() throws Throwable {

@@ -47,7 +47,7 @@ public class AppletIsNotUsed {
         Hashtable<Object, Object> env = new Hashtable<>();
         // Deliberately put java.lang.Object rather than java.applet.Applet
         // if an applet was used we would see a ClassCastException down there
-        env.put(appletProperty, new Object());
+        env.put(appletProperty, java.util.Objects.newIdentity());
         // It's ok to instantiate InitialContext with no parameters
         // and be unaware of it right until you try to use it
         Context ctx = new InitialContext(env);

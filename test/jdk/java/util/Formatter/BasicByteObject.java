@@ -452,7 +452,7 @@ public class BasicByteObject extends Basic {
         tryCatch("%c", IllegalFormatConversionException.class,
                  (float) 0.1);
         tryCatch("%c", IllegalFormatConversionException.class,
-                 new Object());
+                 java.util.Objects.newIdentity());
         tryCatch("%c", IllegalFormatCodePointException.class,
                  Byte.MIN_VALUE);
         tryCatch("%c", IllegalFormatCodePointException.class,

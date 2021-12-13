@@ -52,7 +52,7 @@ class Judd
                 oo = new Object[100];
                 for (int i = 0; i < 100; i ++)
                 {
-                        oo[i] = new Object();
+                        oo[i] = java.util.Objects.newIdentity();
                 }
         }
 }

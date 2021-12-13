@@ -58,8 +58,8 @@ public class Atomic {
      */
     @Setup(Level.Iteration)
     public void setupIteration() {
-        testObject1 = new Object();
-        testObject2 = new Object();
+        testObject1 = java.util.Objects.newIdentity();
+        testObject2 = java.util.Objects.newIdentity();
         aInteger = new AtomicInteger(0);
         aBool = new AtomicBoolean(false);
         aReference = new AtomicReference<>(testObject1);

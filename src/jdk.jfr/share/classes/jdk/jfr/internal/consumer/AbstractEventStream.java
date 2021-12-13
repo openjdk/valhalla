@@ -54,7 +54,7 @@ import jdk.jfr.internal.SecuritySupport;
 public abstract class AbstractEventStream implements EventStream {
     private static final AtomicLong counter = new AtomicLong();
 
-    private final Object terminated = new Object();
+    private final Object terminated = java.util.Objects.newIdentity();
     private final Runnable flushOperation = () -> dispatcher().runFlushActions();
     @SuppressWarnings("removal")
     private final AccessControlContext accessControllerContext;

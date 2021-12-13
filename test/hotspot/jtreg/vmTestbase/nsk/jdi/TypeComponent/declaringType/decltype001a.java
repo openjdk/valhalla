@@ -113,7 +113,7 @@ interface MainInter {
     static    long l0S = 1l, l1S[]={l0S}, l2S[][]={l1S};
 
     Class     X0 = new Class(),  X1[]={X0}, X2[][]={X1};
-    Object    O0 = new Object(), O1[]={O0}, O2[][]={O1};
+    Object    O0 = java.util.Objects.newIdentity(), O1[]={O0}, O2[][]={O1};
 
     final     Long LF0 = Long.valueOf(1), LF1[]={LF0}, LF2[][]={LF1};
     public    Long LU0 = Long.valueOf(1), LU1[]={LU0}, LU2[][]={LU1};

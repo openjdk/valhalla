@@ -45,8 +45,8 @@ public class TestEliminatedLoadPinnedOnBackedge {
             test1(flags);
             test2(flags, 1);
             test3(flags);
-            inlined(new Object(), 1);
-            inlined(new Object(), 4);
+            inlined(java.util.Objects.newIdentity(), 1);
+            inlined(java.util.Objects.newIdentity(), 4);
             inlined2(42);
             inlined2(0x42);
         }
@@ -65,7 +65,7 @@ public class TestEliminatedLoadPinnedOnBackedge {
         int v = array[0];
         array[1] = 42;
         // No use for o. Allocation removed at macro expansion time.
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         inlined(o, k);
         int i = 0;
         for (; ; ) {
@@ -91,7 +91,7 @@ public class TestEliminatedLoadPinnedOnBackedge {
         notInlined(array);
         int v = array[0];
         array[1] = 42;
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         inlined(o, k);
         int i = 0;
         for (; ; ) {
@@ -119,7 +119,7 @@ public class TestEliminatedLoadPinnedOnBackedge {
         int v1 = array[0];
         int v2 = array[2];
         array[1] = 42;
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         inlined(o, k);
         int i = 0;
         for (; ; ) {

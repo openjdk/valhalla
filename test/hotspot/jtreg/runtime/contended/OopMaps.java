@@ -51,20 +51,20 @@ public class OopMaps {
     public static final int COUNT = 10000;
 
     public static void main(String[] args) throws Exception {
-        Object o01 = new Object();
-        Object o02 = new Object();
-        Object o03 = new Object();
-        Object o04 = new Object();
-        Object o05 = new Object();
-        Object o06 = new Object();
-        Object o07 = new Object();
-        Object o08 = new Object();
-        Object o09 = new Object();
-        Object o10 = new Object();
-        Object o11 = new Object();
-        Object o12 = new Object();
-        Object o13 = new Object();
-        Object o14 = new Object();
+        Object o01 = java.util.Objects.newIdentity();
+        Object o02 = java.util.Objects.newIdentity();
+        Object o03 = java.util.Objects.newIdentity();
+        Object o04 = java.util.Objects.newIdentity();
+        Object o05 = java.util.Objects.newIdentity();
+        Object o06 = java.util.Objects.newIdentity();
+        Object o07 = java.util.Objects.newIdentity();
+        Object o08 = java.util.Objects.newIdentity();
+        Object o09 = java.util.Objects.newIdentity();
+        Object o10 = java.util.Objects.newIdentity();
+        Object o11 = java.util.Objects.newIdentity();
+        Object o12 = java.util.Objects.newIdentity();
+        Object o13 = java.util.Objects.newIdentity();
+        Object o14 = java.util.Objects.newIdentity();
 
         R1[] rs = new R1[COUNT];
 

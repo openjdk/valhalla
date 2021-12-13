@@ -76,7 +76,7 @@ public class FileInputStream extends InputStream
 
     private volatile FileChannel channel;
 
-    private final Object closeLock = new Object();
+    private final Object closeLock = java.util.Objects.newIdentity();
 
     private volatile boolean closed;
 

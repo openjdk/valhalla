@@ -43,7 +43,7 @@ class EarlyReturnThread002 extends Thread {
     private PrintStream out = System.out;
 
     public Wicket startingBarrier = new Wicket();
-    public Object barrier = new Object();
+    public Object barrier = java.util.Objects.newIdentity();
 
     private Method methodToExecute;
 
@@ -101,7 +101,7 @@ class EarlyReturnThread002 extends Thread {
         }
 
         checkResults();
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
     public A method2 () {

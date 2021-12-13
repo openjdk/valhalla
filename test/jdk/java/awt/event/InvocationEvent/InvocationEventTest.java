@@ -47,7 +47,7 @@ public class InvocationEventTest
             public void run() {
             }
         };
-        Object lock = new Object();
+        Object lock = java.util.Objects.newIdentity();
         InvocationEvent event = new InvocationEvent(tk, runnable, lock, true);
 
         if (event.isDispatched()) {

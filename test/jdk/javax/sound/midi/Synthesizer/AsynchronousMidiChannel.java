@@ -56,7 +56,7 @@ public class AsynchronousMidiChannel {
         Soundbank sBank;
         Instrument[] insArr;
         Instrument instr = null;
-        Object ev = new Object();
+        Object ev = java.util.Objects.newIdentity();
 
         try {
             synth = MidiSystem.getSynthesizer();

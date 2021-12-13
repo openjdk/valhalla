@@ -171,7 +171,7 @@ public class MXBeanSupport extends MBeanSupport<ConvertingMethod> {
             }
         }
     }
-    private final Object lock = new Object(); // for mxbeanLookup and objectName
+    private final Object lock = java.util.Objects.newIdentity(); // for mxbeanLookup and objectName
 
     private MXBeanLookup mxbeanLookup;
     private ObjectName objectName;

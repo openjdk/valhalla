@@ -125,8 +125,8 @@ public class size001a {
         System.exit(exitCode + PASS_BASE);
     }
 
-    static Object lockObj       = new Object();
-    static Object waitnotifyObj = new Object();
+    static Object lockObj       = java.util.Objects.newIdentity();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {

@@ -38,7 +38,7 @@ public class bug6690791 {
         MouseEvent me = new MouseEvent(new JLabel(), MouseEvent.MOUSE_CLICKED,
                 System.currentTimeMillis(), MouseEvent.ALT_MASK,
                 10, 10, 100, 100, 1, false, MouseEvent.BUTTON1);
-        me.setSource(new Object());
+        me.setSource(java.util.Objects.newIdentity());
         MenuSelectionManager.defaultManager().processMouseEvent(me);
     }
 }

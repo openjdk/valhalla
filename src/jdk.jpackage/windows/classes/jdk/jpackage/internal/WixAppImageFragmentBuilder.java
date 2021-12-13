@@ -91,7 +91,7 @@ class WixAppImageFragmentBuilder extends WixFragmentBuilder {
             // Don't want AppImageFile.FILENAME in installed application.
             // Register it with app image at a role without a match in installed
             // app layout to exclude it from layout transformation.
-            layout.pathGroup().setPath(new Object(),
+            layout.pathGroup().setPath(java.util.Objects.newIdentity(),
                     AppImageFile.getPathInAppImage(Path.of("")));
 
             // Want absolute paths to source files in generated WiX sources.
@@ -180,7 +180,7 @@ class WixAppImageFragmentBuilder extends WixFragmentBuilder {
 
         associations.stream().filter(fa -> fa.iconPath != null).forEach(fa -> {
             // Need to add fa icon in the image.
-            Object key = new Object();
+            Object key = java.util.Objects.newIdentity();
             appImage.pathGroup().setPath(key, fa.iconPath);
             installedAppImage.pathGroup().setPath(key, getInstalledFaIcoPath(fa));
         });

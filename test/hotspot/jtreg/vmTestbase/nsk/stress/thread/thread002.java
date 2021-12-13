@@ -181,7 +181,7 @@ public class thread002 extends Thread {
         // Since Java 2, the method Thread.sleep() doesn't guarantee
         // to yield to other threads. So, call Object.wait() to yield:
         //
-        Object lock = new Object(); // local scope, nobody can notify it
+        Object lock = java.util.Objects.newIdentity(); // local scope, nobody can notify it
         synchronized (lock) {
             lock.wait(time);
         }

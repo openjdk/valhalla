@@ -77,7 +77,7 @@ import java.util.ServiceLoader;
 
 public abstract class AttachProvider {
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static List<AttachProvider> providers = null;
 
     /**

@@ -51,7 +51,7 @@ class CompositionAreaHandler implements InputMethodListener,
                                                  InputMethodRequests {
 
     private static CompositionArea compositionArea;
-    private static Object compositionAreaLock = new Object();
+    private static Object compositionAreaLock = java.util.Objects.newIdentity();
     private static CompositionAreaHandler compositionAreaOwner; // synchronized through compositionArea
 
     private AttributedCharacterIterator composedText;

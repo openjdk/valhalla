@@ -52,7 +52,7 @@ public class MultipleMouseButtonsTest implements MouseListener {
     private final static int robotDelay = 1000;
 
     private final ExtendedRobot robot;
-    private final Object lock = new Object();
+    private final Object lock = java.util.Objects.newIdentity();
 
     private Frame frame;
 

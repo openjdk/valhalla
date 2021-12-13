@@ -69,7 +69,7 @@ public final class AWTAutoShutdown implements Runnable {
     /**
      * This lock object is used to synchronize shutdown operations.
      */
-    private final Object mainLock = new Object();
+    private final Object mainLock = java.util.Objects.newIdentity();
 
     /**
      * This lock object is to secure that when a new blocker thread is
@@ -77,7 +77,7 @@ public final class AWTAutoShutdown implements Runnable {
      * the thread that created the new blocker released the main lock
      * by calling lock.wait() to wait for the blocker to start.
      */
-    private final Object activationLock = new Object();
+    private final Object activationLock = java.util.Objects.newIdentity();
 
     /**
      * This set keeps references to all the event dispatch threads that

@@ -83,10 +83,10 @@ public class SctpChannelImpl extends SctpChannel
     private volatile long senderThread = 0;
 
     /* Lock held by current receiving or connecting thread */
-    private final Object receiveLock = new Object();
+    private final Object receiveLock = java.util.Objects.newIdentity();
 
     /* Lock held by current sending or connecting thread */
-    private final Object sendLock = new Object();
+    private final Object sendLock = java.util.Objects.newIdentity();
 
     private final ThreadLocal<Boolean> receiveInvoked =
         new ThreadLocal<Boolean>() {
@@ -97,7 +97,7 @@ public class SctpChannelImpl extends SctpChannel
 
     /* Lock held by any thread that modifies the state fields declared below
        DO NOT invoke a blocking I/O operation while holding this lock! */
-    private final Object stateLock = new Object();
+    private final Object stateLock = java.util.Objects.newIdentity();
 
     private enum ChannelState {
         UNINITIALIZED,

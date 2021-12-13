@@ -48,7 +48,7 @@ public class JVMDefineModule {
 /* Invalid test, won't compile.
         // Invalid classloader argument, expect an IAE
         try {
-            m = ModuleHelper.ModuleObject("mymodule_one", new Object(), new String[] { "mypackage1" });
+            m = ModuleHelper.ModuleObject("mymodule_one", java.util.Objects.newIdentity(), new String[] { "mypackage1" });
             ModuleHelper.DefineModule(m, false, "9.0", "mymodule/here", new String[] { "mypackage1" });
             throw new RuntimeException("Failed to get expected IAE for bad loader");
         } catch(IllegalArgumentException e) {
@@ -74,7 +74,7 @@ public class JVMDefineModule {
 
         // Invalid module argument, expect an IAE
         try {
-            ModuleHelper.DefineModule(new Object(), false, "9.0", "mymodule/here", new String[] { "mypackage1" });
+            ModuleHelper.DefineModule(java.util.Objects.newIdentity(), false, "9.0", "mymodule/here", new String[] { "mypackage1" });
             throw new RuntimeException("Failed to get expected IAE or NPE for bad module");
         } catch(IllegalArgumentException e) {
             if (!e.getMessage().contains("module is not an instance of type java.lang.Module")) {

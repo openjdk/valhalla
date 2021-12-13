@@ -162,7 +162,7 @@ public class getlocal003 {
                }
              }
 
-             Object obj_1 = new Object();
+             Object obj_1 = java.util.Objects.newIdentity();
              if (intArg < 17) {
                  System.out.println(" JAVA: staticMeth: Finished " + intArg);
                  return intArg;   // <-- MethodExit event here
@@ -183,7 +183,7 @@ public class getlocal003 {
              }
         }
         {
-             { Object obj_2 = new Object();
+             { Object obj_2 = java.util.Objects.newIdentity();
                if (intArg < 20) {
                    System.out.println(" JAVA: staticMeth: Finished " + intArg);
                    return intArg; // <-- MethodExit event here

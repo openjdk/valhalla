@@ -32,7 +32,7 @@ public class FinThreads {
 
     static Thread mainThread;
 
-    static Object lock = new Object();    /* Protects following two fields */
+    static Object lock = java.util.Objects.newIdentity();    /* Protects following two fields */
     static Thread finalizerThread = null;
     static Thread finalizedBy = null;
 

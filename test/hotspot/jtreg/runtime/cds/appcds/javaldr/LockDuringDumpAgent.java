@@ -26,7 +26,7 @@ import java.lang.instrument.Instrumentation;
 
 public class LockDuringDumpAgent implements Runnable {
     static boolean threadStarted = false;
-    static Object lock = new Object();
+    static Object lock = java.util.Objects.newIdentity();
 
     // The following literal string will be stored into the VM's interned string table when this
     // class (or the LockDuringDumpApp class) is loaded during -Xshare:dump. As a result it will be

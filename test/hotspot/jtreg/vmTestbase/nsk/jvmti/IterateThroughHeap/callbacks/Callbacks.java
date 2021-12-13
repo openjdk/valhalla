@@ -167,7 +167,7 @@ class PublicPrimitives {
                                                Constants.DOUBLE+2,
                                                Constants.DOUBLE+3,
                                                Constants.DOUBLE+4};
-    public Object objectField = new Object();
+    public Object objectField = java.util.Objects.newIdentity();
     public Object[] objectArray = new Object[100];
     public int[][] multyArray = new int[10][10];
 
@@ -216,7 +216,7 @@ class PublicPrimitives {
                                                             Constants.DOUBLE+2,
                                                             Constants.DOUBLE+3,
                                                             Constants.DOUBLE+4};
-    public static Object objectStaticField = new Object();
+    public static Object objectStaticField = java.util.Objects.newIdentity();
     public static Object[] objectStaticArray = new Object[100];
     public static int[][] multyStaticArray = new int[10][10];
 
@@ -268,7 +268,7 @@ class ProtectedPrimitives {
                                                Constants.DOUBLE+2,
                                                Constants.DOUBLE+3,
                                                Constants.DOUBLE+4};
-    protected Object objectField = new Object();
+    protected Object objectField = java.util.Objects.newIdentity();
     protected Object[] objectArray = new Object[100];
     protected int[][] multyArray = new int[10][10];
 
@@ -317,7 +317,7 @@ class ProtectedPrimitives {
                                                             Constants.DOUBLE+2,
                                                             Constants.DOUBLE+3,
                                                             Constants.DOUBLE+4};
-    protected static Object objectStaticField = new Object();
+    protected static Object objectStaticField = java.util.Objects.newIdentity();
     protected static Object[] objectStaticArray = new Object[100];
     protected static int[][] multyStaticArray = new int[10][10];
 }
@@ -368,7 +368,7 @@ class PrivatePrimitives {
                                                Constants.DOUBLE+2,
                                                Constants.DOUBLE+3,
                                                Constants.DOUBLE+4};
-    private Object objectField = new Object();
+    private Object objectField = java.util.Objects.newIdentity();
     private Object[] objectArray = new Object[100];
     private int[][] multyArray = new int[10][10];
 
@@ -417,7 +417,7 @@ class PrivatePrimitives {
                                                             Constants.DOUBLE+2,
                                                             Constants.DOUBLE+3,
                                                             Constants.DOUBLE+4};
-    private static Object objectStaticField = new Object();
+    private static Object objectStaticField = java.util.Objects.newIdentity();
     private static Object[] objectStaticArray = new Object[100];
     private static int[][] multyStaticArray = new int[10][10];
 }
@@ -468,7 +468,7 @@ class DefaultPrimitives {
                                                Constants.DOUBLE+2,
                                                Constants.DOUBLE+3,
                                                Constants.DOUBLE+4};
-    Object objectField = new Object();
+    Object objectField = java.util.Objects.newIdentity();
     Object[] objectArray = new Object[100];
     int[][] multyArray = new int[10][10];
 
@@ -517,7 +517,7 @@ class DefaultPrimitives {
                                                             Constants.DOUBLE+2,
                                                             Constants.DOUBLE+3,
                                                             Constants.DOUBLE+4};
-    static Object objectStaticField = new Object();
+    static Object objectStaticField = java.util.Objects.newIdentity();
     static Object[] objectStaticArray = new Object[100];
     static int[][] multyStaticArray = new int[10][10];
 }

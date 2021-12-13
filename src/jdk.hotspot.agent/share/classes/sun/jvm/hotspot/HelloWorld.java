@@ -30,7 +30,7 @@ public class HelloWorld {
   private static String helloWorldString = "Hello, world!";
   private static volatile int helloWorldTrigger = 0;
   private static final boolean useMethodInvoke = false;
-  private static Object lock = new Object();
+  private static Object lock = java.util.Objects.newIdentity();
 
   public static void main(String[] args) {
     int foo = a();

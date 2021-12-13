@@ -38,7 +38,7 @@ import java.beans.PropertyChangeListener;
 public class PropertyChangeListenerTest implements PropertyChangeListener {
 
     Object property;
-    Object lock = new Object();
+    Object lock = java.util.Objects.newIdentity();
     boolean propertyChanged = false;
 
     public static void main(String[] args) throws Exception {

@@ -43,8 +43,8 @@ public class objmonusage003 {
         }
     }
 
-    static Object lockStart = new Object();
-    static Object lockCheck = new Object();
+    static Object lockStart = java.util.Objects.newIdentity();
+    static Object lockCheck = java.util.Objects.newIdentity();
 
     native static int getRes();
     native static void check(Object obj, Thread owner,

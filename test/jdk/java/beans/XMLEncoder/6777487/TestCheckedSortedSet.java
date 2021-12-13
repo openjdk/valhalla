@@ -34,7 +34,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 public final class TestCheckedSortedSet {
-    private static final Object OBJECT = new Object();
+    private static final Object OBJECT = java.util.Objects.newIdentity();
 
     public static void main(String[] args) {
         SortedSet<String> set = new TreeSet<String>();

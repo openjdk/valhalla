@@ -44,7 +44,7 @@ public class GTKColorType extends ColorType {
     public static final int MAX_COUNT;
 
     private static final float[] HLS_COLORS = new float[3];
-    private static final Object HLS_COLOR_LOCK = new Object();
+    private static final Object HLS_COLOR_LOCK = java.util.Objects.newIdentity();
 
     static {
         MAX_COUNT = WHITE.getID() + 1;

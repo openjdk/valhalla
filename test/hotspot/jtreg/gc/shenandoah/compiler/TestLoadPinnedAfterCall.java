@@ -34,7 +34,7 @@
 
 public class TestLoadPinnedAfterCall {
     private A staticField1;
-    private static Object staticField2 = new Object();
+    private static Object staticField2 = java.util.Objects.newIdentity();
     private static volatile int staticField3;
     private static int staticField4;
     static TestLoadPinnedAfterCall object = new TestLoadPinnedAfterCall();

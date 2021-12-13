@@ -39,7 +39,7 @@ public class threads002a {
     static void lastBreak () {}
 
     static int numThreads = 5;   // number of threads
-    static Object waitnotify = new Object();
+    static Object waitnotify = java.util.Objects.newIdentity();
 
     public int runIt(String args[], PrintStream out) {
         JdbArgumentHandler argumentHandler = new JdbArgumentHandler(args);

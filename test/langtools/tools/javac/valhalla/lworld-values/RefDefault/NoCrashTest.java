@@ -53,7 +53,7 @@ public class NoCrashTest {
         V.val [] xs = new V.val[0];
         Object [] os = new Object [0];
         Object [] o = args.length == 0 ? xs : os;
-        Object o2 = (o == null) ? new V()  : new Object();
+        Object o2 = (o == null) ? new V()  : java.util.Objects.newIdentity();
 
         triggerNPE(new V.ref[1]); // NO NPE.
         try {

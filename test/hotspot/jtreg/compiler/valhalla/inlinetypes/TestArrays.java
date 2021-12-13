@@ -1681,7 +1681,7 @@ public class TestArrays {
     @Run(test = "test72")
     public void test72_verifier() {
         Object[] arr = new Object[1];
-        Object elem = new Object();
+        Object elem = java.util.Objects.newIdentity();
         test72(arr, true, elem);
         test72(arr, false, elem);
     }
@@ -3051,13 +3051,13 @@ public class TestArrays {
     @Run(test = "test129")
     public void test129_verifier() {
         try {
-            test129(new Object(), new Object[0], 0);
+            test129(java.util.Objects.newIdentity(), new Object[0], 0);
             throw new RuntimeException("ArrayStoreException expected");
         } catch (ArrayStoreException e) {
             // expected
         }
         try {
-            test129(new Object[0], new Object(), 0);
+            test129(new Object[0], java.util.Objects.newIdentity(), 0);
             throw new RuntimeException("ArrayStoreException expected");
         } catch (ArrayStoreException e) {
             // expected

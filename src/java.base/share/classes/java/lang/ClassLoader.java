@@ -380,7 +380,7 @@ public abstract class ClassLoader {
         this.unnamedModule = new Module(this);
         if (ParallelLoaders.isRegistered(this.getClass())) {
             parallelLockMap = new ConcurrentHashMap<>();
-            assertionLock = new Object();
+            assertionLock = java.util.Objects.newIdentity();
         } else {
             // no finer-grained lock; lock on the classloader instance
             parallelLockMap = null;
@@ -663,7 +663,7 @@ public abstract class ClassLoader {
     protected Object getClassLoadingLock(String className) {
         Object lock = this;
         if (parallelLockMap != null) {
-            Object newLock = new Object();
+            Object newLock = java.util.Objects.newIdentity();
             lock = parallelLockMap.putIfAbsent(className, newLock);
             if (lock == null) {
                 lock = newLock;

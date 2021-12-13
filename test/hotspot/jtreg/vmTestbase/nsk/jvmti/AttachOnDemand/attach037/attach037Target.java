@@ -47,7 +47,7 @@ public class attach037Target extends TargetApplicationWaitingAgents {
                     log.display("You should never see this " + msg);
                 }
 
-                Object monitor = new Object();
+                Object monitor = java.util.Objects.newIdentity();
 
                 log.display(Thread.currentThread() + " is provoking MonitorWait/MonitorWaited events");
 

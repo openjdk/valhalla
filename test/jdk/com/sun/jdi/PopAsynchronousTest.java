@@ -68,7 +68,7 @@ public class PopAsynchronousTest extends TestScaffold {
     ThreadReference mainThread;
     int result = -1;
     boolean harassTarget = true;
-    Object harassLock = new Object();
+    Object harassLock = java.util.Objects.newIdentity();
 
     PopAsynchronousTest (String args[]) {
         super(args);

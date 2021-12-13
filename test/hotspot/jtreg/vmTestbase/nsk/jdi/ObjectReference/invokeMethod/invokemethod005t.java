@@ -84,7 +84,7 @@ class invokemethod005tDummyClass {
 
     // provoke runtime IllegalMonitorStateException
     long illegalMonitorMeth() {
-        Object obj = new Object();
+        Object obj = java.util.Objects.newIdentity();
         obj.notify();
         return 9223372036854775807L;
     }

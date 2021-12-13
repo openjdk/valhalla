@@ -53,7 +53,7 @@ public class crstepreq003a {
 
     //------------------------------------------------------ test specific fields
 
-    static Object waitnotifyObj = new Object();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
 
     //------------------------------------------------------ mutable common method
 
@@ -133,7 +133,7 @@ public class crstepreq003a {
     }
 
     static void breakInThread() {
-        Object dummy = new Object();
+        Object dummy = java.util.Objects.newIdentity();
         synchronized(dummy) { // crstepreq003.lineForBreakInThread
             int i = 1;        // This is line of step event's location for STEP_OVER and STEP_INTO -- crstepreq003.checkedLines[0-1]
         }

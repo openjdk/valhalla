@@ -54,7 +54,7 @@ public abstract class MultipleAbstractImplementer
         floatField = Float.MAX_VALUE;
         doubleField = Double.MAX_VALUE;
         stringField = "Message";
-        objectField = new Object();
+        objectField = java.util.Objects.newIdentity();
     }
 
     public abstract void abstractMethod();

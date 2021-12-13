@@ -50,7 +50,7 @@ public class PipelineSetup {
 
     @Benchmark
     public Object baseline_newObject() {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
     @Benchmark

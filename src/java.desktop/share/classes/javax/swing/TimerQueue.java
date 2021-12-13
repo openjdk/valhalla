@@ -59,7 +59,7 @@ class TimerQueue implements Runnable
     /* Lock object used in place of class object for synchronization.
      * (4187686)
      */
-    private static final Object classLock = new Object();
+    private static final Object classLock = java.util.Objects.newIdentity();
 
     /** Base of nanosecond timings, to avoid wrapping */
     private static final long NANO_ORIGIN = System.nanoTime();

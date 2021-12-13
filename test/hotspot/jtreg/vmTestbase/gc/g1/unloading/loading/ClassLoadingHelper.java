@@ -302,7 +302,7 @@ public class ClassLoadingHelper {
             while (!wb.isMethodCompiled(m) && executionController.continueExecution()) {
                 sleep(50);
                 try {
-                    m.invoke(object, new Object());
+                    m.invoke(object, java.util.Objects.newIdentity());
                 } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
                     throw new RuntimeException("Something went wrong while compilation", e);
                 }

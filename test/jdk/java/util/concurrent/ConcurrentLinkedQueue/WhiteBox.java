@@ -117,8 +117,8 @@ public class WhiteBox {
     public Object[][] traversalActions() {
         return List.<Consumer<ConcurrentLinkedQueue>>of(
             q -> q.forEach(e -> {}),
-            q -> assertFalse(q.contains(new Object())),
-            q -> assertFalse(q.remove(new Object())),
+            q -> assertFalse(q.contains(java.util.Objects.newIdentity())),
+            q -> assertFalse(q.remove(java.util.Objects.newIdentity())),
             q -> q.spliterator().forEachRemaining(e -> {}),
             q -> q.stream().collect(toList()),
             q -> assertFalse(q.removeIf(e -> false)),

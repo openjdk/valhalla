@@ -33,7 +33,7 @@
 public class StoreMovedBeforeInfiniteLoop {
     public static void main(String[] args) {
         field = -1;
-        test(new Object());
+        test(java.util.Objects.newIdentity());
     }
 
     static int field;

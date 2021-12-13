@@ -75,7 +75,7 @@ public abstract class HttpServerProvider {
                                                   int backlog)
         throws IOException;
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static HttpServerProvider provider = null;
 
     /**

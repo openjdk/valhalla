@@ -37,7 +37,7 @@ import java.lang.invoke.MethodType;
  */
 
 public class InvokeDynamic extends CallsBase {
-    private static final Object LOCK = new Object();
+    private static final Object LOCK = java.util.Objects.newIdentity();
 
     public static void main(String args[]) {
         new InvokeDynamic().runTest(args);

@@ -55,7 +55,7 @@ public class GetWithTests {
 
         Object[] objs = new Object[4000];
         for (int i=0; i<4000; i++) {
-            objs[i] = new Object();
+            objs[i] = java.util.Objects.newIdentity();
         }
         for (int i=0; i<1000; i++) {
             Heap.setTag(objs[i], 1);

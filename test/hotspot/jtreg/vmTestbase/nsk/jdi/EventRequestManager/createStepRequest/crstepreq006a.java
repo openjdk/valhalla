@@ -68,7 +68,7 @@ public class crstepreq006a {
     //------------------------------------------------------ test specific fields
 
     static final int maxCase = 3;
-    static Object waitnotifyObj = new Object();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
     static Thread thread1;
 
     //------------------------------------------------------ mutable common method

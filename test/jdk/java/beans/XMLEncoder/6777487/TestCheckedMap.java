@@ -34,7 +34,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public final class TestCheckedMap {
-    private static final Object OBJECT = new Object();
+    private static final Object OBJECT = java.util.Objects.newIdentity();
 
     public static void main(String[] args) {
         Map<String, String> map = Collections.emptyMap();

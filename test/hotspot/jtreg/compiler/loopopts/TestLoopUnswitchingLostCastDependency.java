@@ -38,15 +38,15 @@ public class TestLoopUnswitchingLostCastDependency {
 
     public static void main(String[] args) {
         Object[] array = new Object[100];
-        Arrays.fill(array, new Object());
+        Arrays.fill(array, java.util.Objects.newIdentity());
         for (int i = 0; i < 20_000; i++) {
             array[1] = null;
             test(array);
-            array[1] = new Object();
+            array[1] = java.util.Objects.newIdentity();
             objectField = null;
             test(array);
-            array[1] = new Object();
-            objectField = new Object();
+            array[1] = java.util.Objects.newIdentity();
+            objectField = java.util.Objects.newIdentity();
             test(array);
         }
     }

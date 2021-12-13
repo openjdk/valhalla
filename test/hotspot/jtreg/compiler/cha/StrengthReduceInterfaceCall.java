@@ -143,7 +143,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();
@@ -230,7 +230,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();
@@ -354,7 +354,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();
@@ -479,7 +479,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();
@@ -580,7 +580,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();
@@ -654,7 +654,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();
@@ -724,7 +724,7 @@ public class StrengthReduceInterfaceCall {
         @Override
         public void checkInvalidReceiver() {
             shouldThrow(IncompatibleClassChangeError.class, () -> {
-                I o = (I) unsafeCastMH(I.class).invokeExact(new Object()); // unrelated
+                I o = (I) unsafeCastMH(I.class).invokeExact(java.util.Objects.newIdentity()); // unrelated
                 test(o);
             });
             assertCompiled();

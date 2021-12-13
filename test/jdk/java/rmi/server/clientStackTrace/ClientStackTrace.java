@@ -62,13 +62,13 @@ class MyRemoteObject extends UnicastRemoteObject
 }
 
 public class ClientStackTrace {
-    Object dummy = new Object();
+    Object dummy = java.util.Objects.newIdentity();
 
     public static void main(String[] args) {
 
         TestLibrary.suggestSecurityManager("java.rmi.RMISecurityManager");
 
-        Object dummy = new Object();
+        Object dummy = java.util.Objects.newIdentity();
         MyRemoteObject myRobj = null;
         MyRemoteInterface myStub = null;
 

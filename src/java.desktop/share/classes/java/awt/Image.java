@@ -139,7 +139,7 @@ public abstract class Image {
      * The {@code UndefinedProperty} object should be returned whenever a
      * property which was not defined for a particular image is fetched.
      */
-    public static final Object UndefinedProperty = new Object();
+    public static final Object UndefinedProperty = java.util.Objects.newIdentity();
 
     /**
      * Creates a scaled version of this image.

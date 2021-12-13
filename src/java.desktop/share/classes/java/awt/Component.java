@@ -706,7 +706,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
      * Note: this field is considered final, though readObject() prohibits
      * initializing final fields.
      */
-    private transient Object objectLock = new Object();
+    private transient Object objectLock = java.util.Objects.newIdentity();
     Object getObjectLock() {
         return objectLock;
     }
@@ -8988,7 +8988,7 @@ public abstract class Component implements ImageObserver, MenuContainer,
     private void readObject(ObjectInputStream s)
       throws ClassNotFoundException, IOException
     {
-        objectLock = new Object();
+        objectLock = java.util.Objects.newIdentity();
 
         acc = AccessController.getContext();
 

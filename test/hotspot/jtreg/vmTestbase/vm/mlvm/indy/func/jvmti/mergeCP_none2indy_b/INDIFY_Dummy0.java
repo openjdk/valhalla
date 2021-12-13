@@ -70,7 +70,7 @@ public class INDIFY_Dummy0 {
     }
 
     private static boolean invokeTarget0() throws Throwable {
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         String s = "Original";
         int i = 456;
         return target(o, s, i);

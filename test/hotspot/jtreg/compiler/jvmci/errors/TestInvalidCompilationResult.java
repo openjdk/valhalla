@@ -163,7 +163,7 @@ public class TestInvalidCompilationResult extends CodeInstallerTest {
 
     @Test(expected = JVMCIError.class)
     public void testInvalidMark() {
-        installEmptyCode(new Site[]{new Mark(0, new Object())}, new Assumption[0], new Comment[0], 16, new DataPatch[0], null);
+        installEmptyCode(new Site[]{new Mark(0, java.util.Objects.newIdentity())}, new Assumption[0], new Comment[0], 16, new DataPatch[0], null);
     }
 
     @Test(expected = JVMCIError.class)

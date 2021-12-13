@@ -138,7 +138,7 @@ public abstract class InputMethodManager {
     /**
      * Object for global locking
      */
-    private static final Object LOCK = new Object();
+    private static final Object LOCK = java.util.Objects.newIdentity();
 
     /**
      * The InputMethodManager instance

@@ -152,10 +152,10 @@ public class popframes001a {
         return;
     }
 
-    static Object waitnotifyObj = new Object();
-    static Object lockingObject = new Object();
+    static Object waitnotifyObj = java.util.Objects.newIdentity();
+    static Object lockingObject = java.util.Objects.newIdentity();
 
-    static Object lockingObject2 = new Object();
+    static Object lockingObject2 = java.util.Objects.newIdentity();
 
     static class Threadpopframes001a extends NamedTask {
 

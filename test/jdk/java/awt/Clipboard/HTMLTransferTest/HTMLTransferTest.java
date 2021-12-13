@@ -422,7 +422,7 @@ class THTMLProducer extends HTMLTransferer {
 
 class THTMLConsumer extends HTMLTransferer
 {
-    private static final Object LOCK = new Object();
+    private static final Object LOCK = java.util.Objects.newIdentity();
     private static boolean failed;
     int fi = 0; // next format index
 

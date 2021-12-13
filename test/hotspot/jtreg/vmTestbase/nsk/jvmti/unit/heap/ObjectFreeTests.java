@@ -60,7 +60,7 @@ public class ObjectFreeTests {
         int count = 50*1000;
 
         for (int i=0; i<count; i++) {
-            Heap.setTag(new Object(), 100);
+            Heap.setTag(java.util.Objects.newIdentity(), 100);
         }
 
         // do a few GCs - hopefully objects will be GC'ed

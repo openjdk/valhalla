@@ -60,7 +60,7 @@ public class sp06t003 extends DebugeeClass {
     int status = Consts.TEST_PASSED;
 
     // monitors for threads synchronization
-    static Object endingMonitor = new Object();
+    static Object endingMonitor = java.util.Objects.newIdentity();
 
     // tested threads list
     sp06t003Thread threads[] = null;
@@ -209,7 +209,7 @@ class sp06t003ThreadEntering extends sp06t003Thread {
 }
 
 class sp06t003ThreadWaiting extends sp06t003Thread {
-    private Object waitingMonitor = new Object();
+    private Object waitingMonitor = java.util.Objects.newIdentity();
 
     public sp06t003ThreadWaiting(String name, Log log) {
         super(name, log);
@@ -267,7 +267,7 @@ class sp06t003ThreadSleeping extends sp06t003Thread {
 }
 
 class sp06t003ThreadRunningInterrupted extends sp06t003Thread {
-    private Object waitingMonitor = new Object();
+    private Object waitingMonitor = java.util.Objects.newIdentity();
 
     public sp06t003ThreadRunningInterrupted(String name, Log log) {
         super(name, log);

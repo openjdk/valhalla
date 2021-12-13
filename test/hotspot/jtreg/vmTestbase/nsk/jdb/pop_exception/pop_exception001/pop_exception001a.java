@@ -47,7 +47,7 @@ public class pop_exception001a {
         int i = 0;
         Object item = null;
         try {
-            item = new Object();
+            item = java.util.Objects.newIdentity();
             i = 5; // expectedFinish
             item = getItem(i);
         } finally {

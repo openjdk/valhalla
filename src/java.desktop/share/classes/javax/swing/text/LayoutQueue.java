@@ -36,7 +36,7 @@ import sun.awt.AppContext;
  */
 public class LayoutQueue {
 
-    private static final Object DEFAULT_QUEUE = new Object();
+    private static final Object DEFAULT_QUEUE = java.util.Objects.newIdentity();
 
     private Vector<Runnable> tasks;
     private Thread worker;

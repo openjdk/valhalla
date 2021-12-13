@@ -39,7 +39,7 @@ public class kill002a {
 
     static final String MYTHREAD         = "MyThread";
     static final int numThreads          = 5;   // number of threads
-    static Object waitnotify             = new Object();
+    static Object waitnotify             = java.util.Objects.newIdentity();
     public static volatile int notKilled = 0;
     static final String message          = "kill002a's Exception";
 
@@ -64,7 +64,7 @@ public class kill002a {
         Object[] locks = new Object[numThreads];
 
         for (i = 0; i < numThreads ; i++) {
-            locks[i] = new Object();
+            locks[i] = java.util.Objects.newIdentity();
             holder[i] = new MyThread(locks[i], MYTHREAD + "-" + i);
         }
 

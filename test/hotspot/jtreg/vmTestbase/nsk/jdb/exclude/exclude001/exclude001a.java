@@ -47,7 +47,7 @@ public class exclude001a {
     static JdbArgumentHandler argumentHandler;
     static Log log;
 
-    static Object waitnotify = new Object();
+    static Object waitnotify = java.util.Objects.newIdentity();
 
     public int runIt(String args[], PrintStream out) {
 

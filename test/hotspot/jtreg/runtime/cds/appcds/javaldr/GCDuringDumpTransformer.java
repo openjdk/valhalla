@@ -43,7 +43,7 @@ public class GCDuringDumpTransformer implements ClassFileTransformer {
     static {
         if (TEST_WITH_CLEANER) {
             cleaner = Cleaner.create();
-            garbage = new Object();
+            garbage = java.util.Objects.newIdentity();
             cleaner.register(garbage, new MyCleaner());
             System.out.println("Registered cleaner");
         }
@@ -115,7 +115,7 @@ public class GCDuringDumpTransformer implements ClassFileTransformer {
         public void run() {
             // Allocate something. This will cause G1 to allocate an EDEN region.
             // See JDK-8245925
-            Object o = new Object();
+            Object o = java.util.Objects.newIdentity();
             System.out.println("cleaning " + i);
         }
     }

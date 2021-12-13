@@ -106,13 +106,13 @@ public class SocketStreaming {
         /** setTcpNoDelay(noNagle) */
         private boolean noNagle;
         /** Lock needed to send sendBytes requests. */
-        private final Object sendBytesLock = new Object();
+        private final Object sendBytesLock = java.util.Objects.newIdentity();
         /** Indicates that a sendBytes has been requested. */
         private boolean sendBytesRequested;
         /** Indicates that no more sendBytes will be requested. Time to shutdown. */
         private boolean sendBytesDone;
         /** Lock needed to protect the connectPort variable. */
-        private final Object connectLock = new Object();
+        private final Object connectLock = java.util.Objects.newIdentity();
         /** The port the read socket should connect to. */
         private int connectPort = -1;
 

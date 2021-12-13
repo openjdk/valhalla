@@ -53,7 +53,7 @@ public class MultipleImplementer2 implements MultipleImplementersInterface {
         floatField = Float.MAX_VALUE;
         doubleField = Double.MAX_VALUE;
         stringField = "Message";
-        objectField = new Object();
+        objectField = java.util.Objects.newIdentity();
     }
 
     @Override

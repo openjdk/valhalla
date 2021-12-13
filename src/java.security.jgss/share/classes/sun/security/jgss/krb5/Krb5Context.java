@@ -104,8 +104,8 @@ class Krb5Context implements GSSContextSpi {
      * checking of per-message tokens is enabled.
      */
 
-    private Object mySeqNumberLock = new Object();
-    private Object peerSeqNumberLock = new Object();
+    private Object mySeqNumberLock = java.util.Objects.newIdentity();
+    private Object peerSeqNumberLock = java.util.Objects.newIdentity();
 
     private EncryptionKey key;
     private Krb5NameElement myName;

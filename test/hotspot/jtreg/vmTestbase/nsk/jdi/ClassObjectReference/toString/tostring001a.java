@@ -78,7 +78,7 @@ public class tostring001a {
     Long      L0 = Long.valueOf(-1l),           L1[]={L0}, L2[][]={L1};
     Short     H0 = Short.valueOf((short)-1),    H1[]={H0}, H2[][]={H1};
     String    S0 = new String("4434819"),       S1[]={S0}, S2[][]={S1};
-    Object    O0 = new Object(),                O1[]={O0}, O2[][]={O1};
+    Object    O0 = java.util.Objects.newIdentity(),                O1[]={O0}, O2[][]={O1};
 
     // Interfaces must be loaded and linked, so classes that implement
     // interfaces must be initialized.

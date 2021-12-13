@@ -386,7 +386,7 @@ public class TestDeoptOOM {
 
         free_memory();
 
-        final Object lock = new Object();
+        final Object lock = java.util.Objects.newIdentity();
 
         for (int i = 0; i < 20000; i++) {
             m7(false, lock);

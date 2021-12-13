@@ -45,7 +45,7 @@ public class MarshalledObjectGet implements Remote, Unreferenced {
     private static final long GC_INTERVAL = 6000;
     private static final long TIMEOUT = 50000;
 
-    private Object lock = new Object();
+    private Object lock = java.util.Objects.newIdentity();
     private boolean unreferencedInvoked;
 
     public void unreferenced() {

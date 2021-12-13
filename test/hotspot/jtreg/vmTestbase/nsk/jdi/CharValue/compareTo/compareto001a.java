@@ -102,7 +102,7 @@ public class compareto001a {
     };
 
     static Object   cmpObjNULL  = null;
-    static Object   cmpObject   = new Object();
+    static Object   cmpObject   = java.util.Objects.newIdentity();
     static boolean  cmpBoolMAX  = true;
     static boolean  cmpBoolMIN  = false;
     static byte     cmpByteMAX  = Byte.MAX_VALUE;

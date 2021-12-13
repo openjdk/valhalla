@@ -157,7 +157,7 @@ public class MyOwnSynchronizer {
         }
         public void run() {
             mutex.lock();
-            Object o = new Object();
+            Object o = java.util.Objects.newIdentity();
             synchronized(o) {
                 try {
                     o.wait();

@@ -66,7 +66,7 @@ public class TryFinallyTest {
                 { long.class, 2L },
                 { float.class, 2f },
                 { double.class, 2D },
-                { Object.class, new Object() }
+                { Object.class, java.util.Objects.newIdentity() }
         };
     }
 

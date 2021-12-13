@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 
 public class VerifierErrorInnerPlusLambda {
     public static void main(String[] args) {
-        Object a = new Object();
+        Object a = java.util.Objects.newIdentity();
         class Local { Object ref = a; }
         new Object() {
             void unused() {

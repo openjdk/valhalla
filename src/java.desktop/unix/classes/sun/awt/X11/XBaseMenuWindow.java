@@ -87,7 +87,7 @@ public abstract class XBaseMenuWindow extends XWindow {
      * no other locks should be taken when
      * thread own this lock.
      */
-    private static Object menuTreeLock = new Object();
+    private static Object menuTreeLock = java.util.Objects.newIdentity();
 
     /************************************************
      *

@@ -50,13 +50,13 @@ public class BasicTagTests {
 
         Object[] o = new Object[50*1000];
         for (int i=0; i<o.length; i++) {
-            o[i] = new Object();
+            o[i] = java.util.Objects.newIdentity();
             Heap.setTag(o[i], i+99);
         }
 
         // Create another object but don't tag it.
 
-        Object not_me = new Object();
+        Object not_me = java.util.Objects.newIdentity();
 
         // do a few GCs to "force" the objects to be promoted
         for (int i=0; i<5; i++) {

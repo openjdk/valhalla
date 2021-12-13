@@ -114,7 +114,7 @@ public class PreserveDispatchThread {
         }
     }
 
-    private static final Object test3Lock = new Object();
+    private static final Object test3Lock = java.util.Objects.newIdentity();
     private static boolean test3Sync = false;
 
     /*

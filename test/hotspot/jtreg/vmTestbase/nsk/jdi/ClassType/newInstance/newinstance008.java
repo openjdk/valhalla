@@ -253,7 +253,7 @@ public class newinstance008 {
 }
 
 class im008ListeningThread extends Thread {
-    public static Object waitDisconnecting = new Object();
+    public static Object waitDisconnecting = java.util.Objects.newIdentity();
     public volatile static boolean isNotified = false;
     public void run() {
         newinstance008.display("");

@@ -161,7 +161,7 @@ final class Win32ShellFolder2 extends ShellFolder {
     public static final int SHGDN_FORPARSING        = 0x8000;
 
     /** The referent to be registered with the Disposer. */
-    private Object disposerReferent = new Object();
+    private Object disposerReferent = java.util.Objects.newIdentity();
 
     // Values for system call LoadIcon()
     public enum SystemIcon {

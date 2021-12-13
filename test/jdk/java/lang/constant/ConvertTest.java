@@ -52,7 +52,7 @@ public class ConvertTest {
 
     @DataProvider
     public static Object[][] goodInputs() {
-        Object o = new Object();
+        Object o = java.util.Objects.newIdentity();
         return new Object[][]{
             { Object.class, null, null },
             { Object.class, o, o },

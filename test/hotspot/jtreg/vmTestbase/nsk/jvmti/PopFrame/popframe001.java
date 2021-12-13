@@ -43,7 +43,7 @@ public class popframe001 {
     static volatile int totRes = PASSED;
     private PrintStream out;
     private popFrameCls popFrameClsThr;
-    static Object barrier = new Object();
+    static Object barrier = java.util.Objects.newIdentity();
     static Wicket startingBarrier;
 
     static {

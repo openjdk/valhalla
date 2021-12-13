@@ -61,7 +61,7 @@ public class ToolTipManager extends MouseAdapter implements MouseMotionListener 
     JComponent insideComponent;
     MouseEvent mouseEvent;
     boolean showImmediately;
-    private static final Object TOOL_TIP_MANAGER_KEY = new Object();
+    private static final Object TOOL_TIP_MANAGER_KEY = java.util.Objects.newIdentity();
     transient Popup tipWindow;
     /** The Window tip is being displayed in. This will be non-null if
      * the Window tip is in differs from that of insideComponent's Window.

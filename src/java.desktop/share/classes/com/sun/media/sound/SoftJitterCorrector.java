@@ -49,7 +49,7 @@ public final class SoftJitterCorrector extends AudioInputStream {
         int writepos = 0;
         int readpos = 0;
         byte[][] buffers;
-        private final Object buffers_mutex = new Object();
+        private final Object buffers_mutex = java.util.Objects.newIdentity();
 
         // Adapative Drift Statistics
         int w_count = 1000;

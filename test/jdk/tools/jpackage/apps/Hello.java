@@ -144,7 +144,7 @@ public class Hello implements OpenFilesHandler {
     }
 
     private List<String> files;
-    private final Object lock = new Object();
+    private final Object lock = java.util.Objects.newIdentity();
     private final static Hello openFilesHandler = createInstance();
 
     private static Hello createInstance() {

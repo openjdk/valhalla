@@ -195,7 +195,7 @@ public class TestEliminateArrayCopy {
         for (int i = 0; i < 7000; i++) {
             m1(0);
         }
-        m1_array[0] = new Object();
+        m1_array[0] = java.util.Objects.newIdentity();
         for (int i = 0; i < 20000; i++) {
             m1(0);
         }

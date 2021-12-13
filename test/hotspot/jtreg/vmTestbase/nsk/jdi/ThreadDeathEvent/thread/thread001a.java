@@ -46,11 +46,11 @@ class thread001a {
     public static ArgumentHandler argHandler;
     public static Log log;
 
-    public static Object threadsLock = new Object();
-    public static Object mainThreadLock = new Object();
+    public static Object threadsLock = java.util.Objects.newIdentity();
+    public static Object mainThreadLock = java.util.Objects.newIdentity();
 
-    public static Object threadsStarted = new Object();
-    public static Object mainThreadCompleted = new Object();
+    public static Object threadsStarted = java.util.Objects.newIdentity();
+    public static Object mainThreadCompleted = java.util.Objects.newIdentity();
 
     public static void main(String args[]) {
         argHandler = new ArgumentHandler(args);

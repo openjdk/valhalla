@@ -49,7 +49,7 @@ public class UnsafeAccess {
 
     static Object helperUnsafeAccess(Object o, boolean isObjArray) {
         if (isObjArray) {
-            U.putReference(o, off, new Object());
+            U.putReference(o, off, java.util.Objects.newIdentity());
         }
         return o;
     }
@@ -64,7 +64,7 @@ public class UnsafeAccess {
     static Object helperUnsafeLoadStore(Object o, boolean isObjArray) {
         if (isObjArray) {
             Object o1 = U.getReference(o, off);
-            U.compareAndSetReference(o, off, o1, new Object());
+            U.compareAndSetReference(o, off, o1, java.util.Objects.newIdentity());
         }
         return o;
     }

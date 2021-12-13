@@ -90,7 +90,7 @@ public class popframes007t {
     }
 
     private void startThread() {
-        Object readyObj = new Object();
+        Object readyObj = java.util.Objects.newIdentity();
 
         auxThr = new OtherThr(readyObj,
             popframes007.DEBUGGEE_THRDS[1], this);

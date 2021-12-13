@@ -173,7 +173,7 @@ public class NotSerializableNotifTest {
             for (int i=1; i<=nb.intValue(); i++) {
                 notif = new Notification(myType, this, i);
 
-                notif.setUserData(new Object());
+                notif.setUserData(java.util.Objects.newIdentity());
                 sendNotification(notif);
             }
         }

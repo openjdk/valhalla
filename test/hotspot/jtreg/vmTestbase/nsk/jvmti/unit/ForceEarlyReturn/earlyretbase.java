@@ -40,7 +40,7 @@ public class earlyretbase {
     static volatile int errCode = Consts.TEST_PASSED;
     private PrintStream out;
     private earlyretThread earlyretThr;
-    static Object barrier = new Object();
+    static Object barrier = java.util.Objects.newIdentity();
     static Wicket startingBarrier;
 
     static {

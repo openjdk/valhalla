@@ -120,7 +120,7 @@ public class NotCompliantCauseTest {
 
     public static class NotCompliant implements NotCompliantMXBean {
         public Object returnObject() {
-            return new Object();
+            return java.util.Objects.newIdentity();
         }
     }
 

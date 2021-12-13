@@ -36,7 +36,7 @@ public class ClearChanged extends Observable {
     public static void main(String[] args) {
         ClearChanged test = new ClearChanged();
         test.setChanged();
-        test.notifyObservers(new Object());
+        test.notifyObservers(java.util.Objects.newIdentity());
 
         if (!test.clearChangedCalled)
            throw new RuntimeException("setChanged method not called.");

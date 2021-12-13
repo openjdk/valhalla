@@ -40,8 +40,8 @@ public class where006a {
 
     static int numThreads = 5;   // number of threads. one lock per thread.
 
-    static Object lock = new Object();
-    static Object waitnotify = new Object();
+    static Object lock = java.util.Objects.newIdentity();
+    static Object waitnotify = java.util.Objects.newIdentity();
 
     public int runIt(String args[], PrintStream out) {
         JdbArgumentHandler argumentHandler = new JdbArgumentHandler(args);

@@ -2896,7 +2896,7 @@ public class TCKDuration extends AbstractTCKTest {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public void compareToNonDuration() {
        Comparable c = Duration.ofSeconds(0L);
-       c.compareTo(new Object());
+       c.compareTo(java.util.Objects.newIdentity());
     }
 
     //-----------------------------------------------------------------------

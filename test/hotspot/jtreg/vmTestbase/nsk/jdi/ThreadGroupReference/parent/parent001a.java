@@ -160,8 +160,8 @@ class Threadparent001a extends Thread {
         super(threadName);
     }
 
-    public static Object waitnotifyObj = new Object();
-    public static Object lockingObject = new Object();
+    public static Object waitnotifyObj = java.util.Objects.newIdentity();
+    public static Object lockingObject = java.util.Objects.newIdentity();
 
     private static ThreadGroup thread2GroupObj1 = null;
     private static ThreadGroup thread2GroupObj2 = null;

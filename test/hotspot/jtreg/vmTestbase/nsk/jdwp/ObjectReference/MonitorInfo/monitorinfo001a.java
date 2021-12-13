@@ -41,7 +41,7 @@ public class monitorinfo001a {
                             { "monitorWaiter1", "monitorWaiter2" };
 
     // lock object to prevent thread from exit
-    private static Object threadExiting = new Object();
+    private static Object threadExiting = java.util.Objects.newIdentity();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;
@@ -217,7 +217,7 @@ public class monitorinfo001a {
     // thread which will owns monitor of the tested object
     public static class MonitorOwnerThread extends Thread {
 
-        public Object ready = new Object();
+        public Object ready = java.util.Objects.newIdentity();
 
         public MonitorOwnerThread(String name) {
             super(name);
@@ -250,7 +250,7 @@ public class monitorinfo001a {
     // thread which will wait for monitor of the tested object
     public static class MonitorWaiterThread extends Thread {
 
-        public Object ready = new Object();
+        public Object ready = java.util.Objects.newIdentity();
 
         public MonitorWaiterThread(String name) {
             super(name);

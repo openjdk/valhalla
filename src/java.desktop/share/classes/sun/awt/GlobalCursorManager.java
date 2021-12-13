@@ -82,7 +82,7 @@ public abstract class GlobalCursorManager {
      * Locking object for synchronizing access to lastUpdateMillis. The VM
      * does not guarantee atomicity of longs.
      */
-    private final Object lastUpdateLock = new Object();
+    private final Object lastUpdateLock = java.util.Objects.newIdentity();
 
     /**
      * Should be called for any activity at the Java level which may affect

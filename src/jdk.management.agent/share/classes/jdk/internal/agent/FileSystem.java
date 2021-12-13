@@ -35,7 +35,7 @@ import java.io.IOException;
  */
 public abstract class FileSystem {
 
-    private static final Object lock = new Object();
+    private static final Object lock = java.util.Objects.newIdentity();
     private static FileSystem fs;
 
     protected FileSystem() { }

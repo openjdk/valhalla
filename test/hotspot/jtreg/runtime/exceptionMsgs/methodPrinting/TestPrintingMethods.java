@@ -80,7 +80,7 @@ public class TestPrintingMethods {
         }
 
         try {
-            c.m\u20ac\u00a3a(new java.lang.Object());
+            c.m\u20ac\u00a3a(java.util.Objects.newIdentity());
             throw new RuntimeException("Expected AbstractMethodError was not thrown.");
         } catch (AbstractMethodError e) {
             checkMsg(e, expectedErrorMessage_unicode);
@@ -145,7 +145,7 @@ class TeMe3_C extends TeMe3_B {
         return new TeMe3_C[3][3];
     }
     public java.lang.Object m\u20ac\u00a3a(java.lang.Object s) {
-        return new java.lang.Object();
+        return java.util.Objects.newIdentity();
     }
 }
 

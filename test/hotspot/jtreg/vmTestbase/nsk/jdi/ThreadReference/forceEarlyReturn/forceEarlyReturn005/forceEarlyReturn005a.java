@@ -30,10 +30,10 @@ import nsk.share.jdi.*;
 //    THIS TEST IS LINE NUMBER SENSITIVE
 class TestThread extends Thread {
     // lock acquired through synchronized block
-    private Object javaLock = new Object();
+    private Object javaLock = java.util.Objects.newIdentity();
 
     // lock acquired through JNI MonitorEnter
-    private Object nativeLock = new Object();
+    private Object nativeLock = java.util.Objects.newIdentity();
 
     // java.util.concurrent.ReentrantLock
     private ReentrantLock reentrantLock = new ReentrantLock();

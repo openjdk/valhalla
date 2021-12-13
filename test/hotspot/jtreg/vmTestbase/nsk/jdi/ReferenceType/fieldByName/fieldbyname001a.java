@@ -150,13 +150,13 @@ interface fieldbyname001aInterfaceForCheck {
     static final float   s_interf_float_field = 99;
     static final int     s_interf_int_field = 100;
     static final long    s_interf_long_field = 1000;
-    static final Object  s_interf_object_field = new Object();
+    static final Object  s_interf_object_field = java.util.Objects.newIdentity();
 
     static final long    s_interf_hidden_prim_field = 1;
-    static final Object  s_interf_hidden_ref_field = new Object();
+    static final Object  s_interf_hidden_ref_field = java.util.Objects.newIdentity();
 
     static final long    ambiguous_prim_field = 1;
-    static final Object  ambiguous_ref_field = new Object();
+    static final Object  ambiguous_ref_field = java.util.Objects.newIdentity();
 
 
 }

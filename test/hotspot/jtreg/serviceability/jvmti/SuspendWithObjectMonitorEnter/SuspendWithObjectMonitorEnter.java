@@ -72,10 +72,10 @@ public class SuspendWithObjectMonitorEnter {
     public static final int TS_CALL_RESUME       = 8;  // call resume on contender
     public static final int TS_CONTENDER_DONE    = 9;  // contender has run; done
 
-    public static Object barrierLaunch = new Object();   // controls thread launch
-    public static Object barrierBlocker = new Object();  // controls blocker
-    public static Object barrierResumer = new Object();  // controls resumer
-    public static Object threadLock = new Object();      // testing object
+    public static Object barrierLaunch = java.util.Objects.newIdentity();   // controls thread launch
+    public static Object barrierBlocker = java.util.Objects.newIdentity();  // controls blocker
+    public static Object barrierResumer = java.util.Objects.newIdentity();  // controls resumer
+    public static Object threadLock = java.util.Objects.newIdentity();      // testing object
 
     public static long count = 0;
     public static boolean printDebug = false;

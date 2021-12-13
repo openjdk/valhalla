@@ -38,7 +38,7 @@ public class TestSubTypeOfAsbtractClassWrongResult {
             if (!test1(A.class)) {
                 throw new RuntimeException("Wrong result");
             }
-            test2(new Object());
+            test2(java.util.Objects.newIdentity());
             test3(new Exception());
         }
     }

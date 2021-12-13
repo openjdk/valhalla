@@ -60,7 +60,7 @@ class UnixAsynchronousSocketChannelImpl
 
     // used to ensure that the context for I/O operations that complete
     // ascynrhonously is visible to the pooled threads handling I/O events.
-    private final Object updateLock = new Object();
+    private final Object updateLock = java.util.Objects.newIdentity();
 
     // pending connect (updateLock)
     private boolean connectPending;

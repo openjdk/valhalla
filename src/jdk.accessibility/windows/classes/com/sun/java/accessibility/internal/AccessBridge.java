@@ -7277,7 +7277,7 @@ public final class AccessBridge {
                 throws InterruptedException, InvocationTargetException {
 
             EventQueue eq = SunToolkit.getSystemEventQueueImplPP(appContext);
-            Object lock = new Object();
+            Object lock = java.util.Objects.newIdentity();
             Toolkit source = Toolkit.getDefaultToolkit();
             InvocationEvent event =
                     new InvocationEvent(source, runnable, lock, true);

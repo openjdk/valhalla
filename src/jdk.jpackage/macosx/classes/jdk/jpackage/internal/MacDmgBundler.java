@@ -341,7 +341,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             // DMG and copy files manually. See JDK-8248059.
             copyAppImage = true;
 
-            long size = new PathGroup(Map.of(new Object(), srcFolder)).sizeInBytes();
+            long size = new PathGroup(Map.of(java.util.Objects.newIdentity(), srcFolder)).sizeInBytes();
             size += 50 * 1024 * 1024; // Add extra 50 megabytes. Actually DMG size will
             // not be bigger, but it will able to hold additional 50 megabytes of data.
             // We need extra room for icons and background image. When we providing

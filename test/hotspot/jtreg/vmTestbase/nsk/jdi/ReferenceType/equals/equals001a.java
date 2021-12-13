@@ -56,7 +56,7 @@ public class equals001a {
     Integer   I0 = Integer.valueOf(-1),         I1[]={I0}, I2[][]={I1};
     Long      L0 = Long.valueOf(-1l),           L1[]={L0}, L2[][]={L1};
     String    S0 = new String("4434819"),       S1[]={S0}, S2[][]={S1};
-    Object    O0 = new Object(),                O1[]={O0}, O2[][]={O1};
+    Object    O0 = java.util.Objects.newIdentity(),                O1[]={O0}, O2[][]={O1};
 
     static class  s_class {}
     s_class s_class_0 = new s_class(), s_class_1[]={s_class_0},
@@ -146,7 +146,7 @@ interface InterfaceForCheck {
     static final float   s_interf_float_field = 99;
     static final int     s_interf_int_field = 100;
     static final long    s_interf_long_field = 1000;
-    static final Object  s_interf_object_field = new Object();
+    static final Object  s_interf_object_field = java.util.Objects.newIdentity();
 }
 
 class InterfaceForCheck_impl implements InterfaceForCheck {}

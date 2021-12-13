@@ -60,7 +60,7 @@ public class getthrdgrpchld001 extends DebugeeClass {
     public static final int DEFAULT_THREADS_COUNT = 4;
 
     // monitors
-    public static Object endingMonitor = new Object();
+    public static Object endingMonitor = java.util.Objects.newIdentity();
 
     // tested thread groups
     ThreadGroup rootGroup = new ThreadGroup("rootThreadGroup");
@@ -150,7 +150,7 @@ class getthrdgrpchld001Thread extends Thread {
 
 // tested thread running
 class getthrdgrpchld001ThreadRunning extends getthrdgrpchld001Thread {
-    public Object startingMonitor = new Object();
+    public Object startingMonitor = java.util.Objects.newIdentity();
 
     public getthrdgrpchld001ThreadRunning(ThreadGroup group, String name) {
         super(group, name);

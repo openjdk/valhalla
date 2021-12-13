@@ -41,8 +41,8 @@ public class kill001a {
 
     static final String MYTHREAD         = "MyThread";
     static final int numThreads          = 5;   // number of threads. one lock per thread.
-    static Object lock                   = new Object();
-    static Object waitnotify             = new Object();
+    static Object lock                   = java.util.Objects.newIdentity();
+    static Object waitnotify             = java.util.Objects.newIdentity();
     public static volatile int notKilled = 0;
     static final String message          = "kill001a's Exception";
     static int waitTime;

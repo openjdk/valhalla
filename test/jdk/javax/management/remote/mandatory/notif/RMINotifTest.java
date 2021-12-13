@@ -142,7 +142,7 @@ public class RMINotifTest {
 
             // more test
             NotificationFilterSupport filter = new NotificationFilterSupport();
-            Object o = new Object();
+            Object o = java.util.Objects.newIdentity();
             client.addNotificationListener(mbean, listener, filter, o);
             client.removeNotificationListener(mbean, listener, filter, o);
 

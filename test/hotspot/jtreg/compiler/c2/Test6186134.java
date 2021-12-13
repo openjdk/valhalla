@@ -51,7 +51,7 @@ public class Test6186134 {
         int n = 0;
         boolean more = more();
         while ((n++ < maxResults) && more) {
-            res.add(new Object());
+            res.add(java.util.Objects.newIdentity());
             more = more();
         }
         return res;

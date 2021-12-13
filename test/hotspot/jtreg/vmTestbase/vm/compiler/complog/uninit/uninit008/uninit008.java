@@ -66,7 +66,7 @@ public class uninit008 extends uninit008s {
 class uninit008s {
 
     public Object copy() {
-        return new Object();
+        return java.util.Objects.newIdentity();
     }
 
 }

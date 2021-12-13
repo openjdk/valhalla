@@ -38,7 +38,7 @@ import java.awt.*;
 
 public class bug8048110 {
     private static Robot robot;
-    private static Object lock = new Object();
+    private static Object lock = java.util.Objects.newIdentity();
     private static boolean isRealSyncPerformed = false;
     private static final String htmlText = "<table width=\"100%\" cellpadding=\"10\" cellspacing=\"5\" align=\"center\">" +
             "<tr><th align=\"left\" bgcolor=\"#bec3c6\">Devices</th><th align=\"left\" bgcolor=\"#bec3c6\">State</th></tr>" +

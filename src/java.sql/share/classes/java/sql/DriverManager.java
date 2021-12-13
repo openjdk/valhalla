@@ -89,9 +89,9 @@ public class DriverManager {
     private static volatile java.io.PrintWriter logWriter = null;
     private static volatile java.io.PrintStream logStream = null;
     // Used in println() to synchronize logWriter
-    private static final Object logSync = new Object();
+    private static final Object logSync = java.util.Objects.newIdentity();
     // Used in ensureDriversInitialized() to synchronize driversInitialized
-    private static final Object lockForInitDrivers = new Object();
+    private static final Object lockForInitDrivers = java.util.Objects.newIdentity();
     private static volatile boolean driversInitialized;
     private static final String JDBC_DRIVERS_PROPERTY = "jdbc.drivers";
 

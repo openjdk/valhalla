@@ -89,7 +89,7 @@ class RTFGenerator extends Object
     protected static CharacterKeywordPair[] textKeywords;
 
     static {
-        MagicToken = new Object();
+        MagicToken = java.util.Objects.newIdentity();
 
         Dictionary<String, String> textKeywordDictionary = RTFReader.textKeywords;
         Enumeration<String> keys = textKeywordDictionary.keys();

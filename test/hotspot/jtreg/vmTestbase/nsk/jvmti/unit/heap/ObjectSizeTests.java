@@ -60,7 +60,7 @@ public class ObjectSizeTests {
 
         // sizeof objects
 
-        long o_size = Heap.getObjectSize( new Object() );
+        long o_size = Heap.getObjectSize( java.util.Objects.newIdentity() );
 
         long a_size = Heap.getObjectSize( new A() );
         long b_size = Heap.getObjectSize( new B() );

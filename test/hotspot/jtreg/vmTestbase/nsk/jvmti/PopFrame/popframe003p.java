@@ -36,7 +36,7 @@ public class popframe003p extends Thread {
     private PrintStream out;
 
     public static volatile int totRes = PASSED;
-    public static Object barrier = new Object();
+    public static Object barrier = java.util.Objects.newIdentity();
     public Wicket startingBarrier;
 
     // dummy global static fields

@@ -62,7 +62,7 @@ public class TestWBDeflateIdleMonitors {
         public static Object obj;
 
         public static void main(String args[]) {
-            obj = new Object();
+            obj = java.util.Objects.newIdentity();
             synchronized (obj) {
                 // HotSpot implementation detail: asking for the hash code
                 // when the object is locked causes monitor inflation.

@@ -35,7 +35,7 @@ public final class LongMap<T> {
     private static final long[] EMPTY_KEYS = new long[0];
     private static final Object[] EMPTY_OBJECTS = new Object[0];
     private static final int DEFAULT_SIZE = 32;
-    private static final Object NULL_OBJECT = new Object();
+    private static final Object NULL_OBJECT = java.util.Objects.newIdentity();
 
     private final int bitCount;
     private BitSet bitSet;

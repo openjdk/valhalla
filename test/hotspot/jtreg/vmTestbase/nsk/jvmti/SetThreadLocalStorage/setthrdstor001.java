@@ -109,9 +109,9 @@ public class setthrdstor001 extends DebugeeClass {
 
 // basic class for tested threads
 class setthrdstor001Thread extends Thread {
-    public Object startingMonitor = new Object();
-    public Object runningMonitor = new Object();
-    public Object endingMonitor = new Object();
+    public Object startingMonitor = java.util.Objects.newIdentity();
+    public Object runningMonitor = java.util.Objects.newIdentity();
+    public Object endingMonitor = java.util.Objects.newIdentity();
 
     // make thread with specific name
     public setthrdstor001Thread(String name) {

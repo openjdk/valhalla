@@ -1641,8 +1641,8 @@ public class TestLWorld {
 
     @Run(test = "test53")
     public void test53_verifier() {
-        test53(new Object(), false);
-        MyValue1 result = (MyValue1)test53(new Object(), true);
+        test53(java.util.Objects.newIdentity(), false);
+        MyValue1 result = (MyValue1)test53(java.util.Objects.newIdentity(), true);
         Asserts.assertEQ(result.hash(), hash());
     }
 
@@ -1753,9 +1753,9 @@ public class TestLWorld {
 
     @Run(test = "test59")
     public void test59_verifier() {
-        test59(new Object(), false);
+        test59(java.util.Objects.newIdentity(), false);
         try {
-            test59(new Object(), true);
+            test59(java.util.Objects.newIdentity(), true);
             throw new RuntimeException("test59 failed: no exception thrown");
         } catch (IllegalMonitorStateException ex) {
             // Expected
@@ -2341,7 +2341,7 @@ public class TestLWorld {
     @Warmup(0)
     public void test85_verifier(RunInfo info) {
         Object[] src = new Object[100];
-        Arrays.fill(src, new Object());
+        Arrays.fill(src, java.util.Objects.newIdentity());
         src[0] = null;
         Object[] dst = new Object[100];
         rerun_and_recompile_for(info.getTest(), 10,
@@ -2413,7 +2413,7 @@ public class TestLWorld {
         Arrays.fill(src1, testValue2);
         MyValue2[] dst1 = new MyValue2[100];
         Object[] src2 = new Object[100];
-        Arrays.fill(src2, new Object());
+        Arrays.fill(src2, java.util.Objects.newIdentity());
         Object[] dst2 = new Object[100];
 
         rerun_and_recompile_for(info.getTest(), 10,
@@ -2430,7 +2430,7 @@ public class TestLWorld {
     @Run(test = "test89")
     public void test89_verifier() {
         Asserts.assertTrue(test89(Integer.valueOf(42)));
-        Asserts.assertFalse(test89(new Object()));
+        Asserts.assertFalse(test89(java.util.Objects.newIdentity()));
     }
 
     @Test
@@ -2442,7 +2442,7 @@ public class TestLWorld {
     public void test90_verifier() {
         test90(Integer.valueOf(42));
         try {
-            test90(new Object());
+            test90(java.util.Objects.newIdentity());
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2457,7 +2457,7 @@ public class TestLWorld {
     @Run(test = "test91")
     public void test91_verifier() {
         Asserts.assertTrue(test91(new MyValue2[1]));
-        Asserts.assertFalse(test91(new Object()));
+        Asserts.assertFalse(test91(java.util.Objects.newIdentity()));
     }
 
     static primitive class Test92Value {
@@ -2568,8 +2568,8 @@ public class TestLWorld {
     @Run(test = "test95")
     @Warmup(10000)
     public void test95_verifier() {
-        Object o1 = new Object();
-        Object o2 = new Object();
+        Object o1 = java.util.Objects.newIdentity();
+        Object o2 = java.util.Objects.newIdentity();
         Asserts.assertTrue(test95(o1, o1));
         Asserts.assertTrue(test95(null, null));
         Asserts.assertFalse(test95(o1, null));
@@ -2584,8 +2584,8 @@ public class TestLWorld {
     @Run(test = "test96")
     @Warmup(10000)
     public void test96_verifier(RunInfo info) {
-        Object o1 = new Object();
-        Object o2 = new Object();
+        Object o1 = java.util.Objects.newIdentity();
+        Object o2 = java.util.Objects.newIdentity();
         Asserts.assertTrue(test96(o1, o1));
         Asserts.assertFalse(test96(o1, o2));
         if (!info.isWarmUp()) {
@@ -2944,7 +2944,7 @@ public class TestLWorld {
         MyValue2[] src1 = new MyValue2[100];
         Arrays.fill(src1, testValue2);
         Object[] src2 = new Object[100];
-        Object obj = new Object();
+        Object obj = java.util.Objects.newIdentity();
         Arrays.fill(src2, obj);
         rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test107(src1, src2);
@@ -2974,7 +2974,7 @@ public class TestLWorld {
     public void test108_verifier(RunInfo info) {
         MyValue2[] dst1 = new MyValue2[100];
         Object[] dst2 = new Object[100];
-        Object o1 = new Object();
+        Object o1 = java.util.Objects.newIdentity();
         rerun_and_recompile_for(info.getTest(), 10,
                                 () -> { test108(dst1, dst2, testValue2, o1);
                                         for (int i = 0; i < dst1.length; i++) {

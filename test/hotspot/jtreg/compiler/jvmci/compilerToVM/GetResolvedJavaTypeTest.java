@@ -209,7 +209,7 @@ public class GetResolvedJavaTypeTest {
     private static void testObjectBase() {
         try {
             HotSpotResolvedObjectType type
-                    = CompilerToVMHelper.getResolvedJavaType(new Object(), 0L,
+                    = CompilerToVMHelper.getResolvedJavaType(java.util.Objects.newIdentity(), 0L,
                             COMPRESSED);
             throw new AssertionError("Test OBJECT_BASE."
                 + " Expected IllegalArgumentException has not been caught");

@@ -106,7 +106,7 @@ public class ExcludeFrameTest implements AWTEventListener {
             type = "Print setup";
         }
 
-        windowLock = new Object();
+        windowLock = java.util.Objects.newIdentity();
         robot = new ExtendedRobot();
         EventQueue.invokeAndWait( this::createGUI );
     }

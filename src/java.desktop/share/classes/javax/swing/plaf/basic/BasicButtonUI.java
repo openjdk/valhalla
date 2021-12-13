@@ -69,7 +69,7 @@ public class BasicButtonUI extends ButtonUI{
 
     private static final String propertyPrefix = "Button" + ".";
 
-    private static final Object BASIC_BUTTON_UI_KEY = new Object();
+    private static final Object BASIC_BUTTON_UI_KEY = java.util.Objects.newIdentity();
 
     private KeyListener keyListener = null;
 

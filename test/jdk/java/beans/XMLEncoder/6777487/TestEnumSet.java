@@ -33,7 +33,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 
 public final class TestEnumSet {
-    private static final Object OBJECT = new Object();
+    private static final Object OBJECT = java.util.Objects.newIdentity();
 
     public static void main(String[] args) {
         TestEncoder.test(

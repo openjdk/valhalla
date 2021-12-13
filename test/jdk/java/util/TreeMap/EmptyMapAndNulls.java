@@ -95,7 +95,7 @@ public class EmptyMapAndNulls {
 
         // insert non-String into empty map (5045147 failure)
         try {
-            comparator.put(new Object(), "anything");
+            comparator.put(java.util.Objects.newIdentity(), "anything");
             fail("Object shouldn't be accepted");
         } catch (ClassCastException failed) {
             pass();

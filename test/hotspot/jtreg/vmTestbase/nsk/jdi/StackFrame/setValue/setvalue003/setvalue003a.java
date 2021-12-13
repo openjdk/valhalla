@@ -151,8 +151,8 @@ class Threadsetvalue003a extends NamedTask {
         super(threadName);
     }
 
-    public static Object waitnotifyObj = new Object();
-    public static Object lockingObject = new Object();
+    public static Object waitnotifyObj = java.util.Objects.newIdentity();
+    public static Object lockingObject = java.util.Objects.newIdentity();
 
     private int i1 = 0, i2 = 10;
 
@@ -241,7 +241,7 @@ interface InterfaceForCheck {
     static final float   s_iface_float   = 99;
     static final int     s_iface_int     = 100;
     static final long    s_iface_long    = 1000;
-    static final Object  s_iface_object  = new Object();
+    static final Object  s_iface_object  = java.util.Objects.newIdentity();
 }
 
 
