@@ -286,6 +286,10 @@ void Parse::do_new() {
   assert(will_link, "_new: typeflow responsibility");
   assert(!klass->is_inlinetype(), "unexpected inline type");
 
+  if (klass == C->env()->Object_klass() && C->env()->Object_klass()->is_abstract()) {
+    klass = C->env()->ObjectWithIdentity_klass();
+  }
+
   // Should throw an InstantiationError?
   if (klass->is_abstract() || klass->is_interface() ||
       klass->name() == ciSymbols::java_lang_Class() ||
