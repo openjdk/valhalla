@@ -501,7 +501,7 @@ public class Enter extends JCTree.Visitor {
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;
-        ct.flavor = ct.flavor.metamorphose(c.flags_field);
+        ct.flavor = ct.flavor.metamorphose((c.flags_field & PRIMITIVE_CLASS) != 0);
 
         if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
             // We are seeing a local or inner class.

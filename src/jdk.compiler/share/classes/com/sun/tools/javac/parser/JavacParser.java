@@ -2371,7 +2371,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~(Flags.FINAL | Flags.REFERENCE_FAVORING) : mods.flags;
+                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             if (typeArgs == null) {
@@ -2442,7 +2442,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL | Flags.REFERENCE_FAVORING);
+            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL);
             if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
@@ -2451,7 +2451,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~(Flags.FINAL | Flags.REFERENCE_FAVORING) : mods.flags;
+                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             return newClass;
@@ -4017,16 +4017,6 @@ public class JavacParser implements Parser {
         accept(CLASS);
         Name name = typeName();
 
-        if ((mods.flags & Flags.PRIMITIVE_CLASS) != 0) {
-            if (token.kind == DOT) {
-                final Token pastDot = S.token(1);
-                if (pastDot.kind == IDENTIFIER && pastDot.name() == names.val) {
-                    nextToken(); nextToken(); // discard .val
-                    mods.flags |= Flags.REFERENCE_FAVORING;
-                }
-            }
-        }
-
         List<JCTypeParameter> typarams = typeParametersOpt();
 
         JCExpression extending = null;
@@ -4052,15 +4042,6 @@ public class JavacParser implements Parser {
         nextToken();
         mods.flags |= Flags.RECORD;
         Name name = typeName();
-        if ((mods.flags & Flags.PRIMITIVE_CLASS) != 0) {
-            if (token.kind == DOT) {
-                final Token pastDot = S.token(1);
-                if (pastDot.kind == IDENTIFIER && pastDot.name() == names.val) {
-                    nextToken(); nextToken(); // discard .val
-                    mods.flags |= Flags.REFERENCE_FAVORING;
-                }
-            }
-        }
 
         List<JCTypeParameter> typarams = typeParametersOpt();
 
@@ -4496,7 +4477,6 @@ public class JavacParser implements Parser {
         if (token.kind == IDENTIFIER && token.name() == names.record &&
             (peekToken(TokenKind.IDENTIFIER, TokenKind.LPAREN) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.EOF) ||
-             peekToken(TokenKind.IDENTIFIER, TokenKind.DOT) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.LT))) {
             checkSourceLevel(Feature.RECORDS);
             return true;

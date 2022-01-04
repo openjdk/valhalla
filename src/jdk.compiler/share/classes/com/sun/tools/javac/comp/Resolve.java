@@ -427,7 +427,7 @@ public class Resolve {
             // A type is accessible in a reference projection if it was
             // accessible in the value projection.
             if (site.isReferenceProjection())
-                site = site.asValueType();
+                site = site.valueProjection();
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {

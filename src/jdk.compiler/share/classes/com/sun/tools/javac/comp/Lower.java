@@ -1136,8 +1136,6 @@ public class Lower extends TreeTranslator {
                 // Make sure not to lose type fidelity due to symbol sharing between projections
                 boolean requireReferenceProjection =
                         tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref && tree.type.isReferenceProjection();
-                boolean requireValueProjection =
-                        tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.val && tree.type.isValueProjection();
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
                 Name flatname = Convert.shortName(sym.flatName());
@@ -1155,16 +1153,12 @@ public class Lower extends TreeTranslator {
                     ((JCIdent) tree).name = flatname;
                     if (requireReferenceProjection) {
                         tree.setType(tree.type.referenceProjection());
-                    } else if (requireValueProjection) {
-                        tree.setType(tree.type.asValueType());
                     }
                 } else {
                     ((JCFieldAccess) tree).selected = base;
                     ((JCFieldAccess) tree).name = flatname;
                     if (requireReferenceProjection) {
                         tree.setType(tree.type.referenceProjection());
-                    } else if (requireValueProjection) {
-                        tree.setType(tree.type.asValueType());
                     }
                 }
             }
@@ -2526,8 +2520,7 @@ public class Lower extends TreeTranslator {
                             syms.typeDescriptorType).appendList(staticArgTypes),
                     staticArgsValues, bootstrapName, name, false);
 
-            Type receiverType = tree.sym.type.isPrimitiveReferenceType() ? tree.sym.type.asValueType() : tree.sym.type;
-            VarSymbol _this = new VarSymbol(SYNTHETIC, names._this, receiverType, tree.sym);
+            VarSymbol _this = new VarSymbol(SYNTHETIC, names._this, tree.sym.type, tree.sym);
 
             JCMethodInvocation proxyCall;
             if (!isEquals) {
@@ -2611,9 +2604,8 @@ public class Lower extends TreeTranslator {
                 bootstrapName, staticArgTypes, List.nil());
 
         MethodType indyType = msym.type.asMethodType();
-        Type receiverType = tree.sym.type.isPrimitiveReferenceType() ? tree.sym.type.asValueType() : tree.sym.type;
         indyType = new MethodType(
-                isStatic ? List.nil() : indyType.argtypes.prepend(receiverType),
+                isStatic ? List.nil() : indyType.argtypes.prepend(tree.sym.type),
                 indyType.restype,
                 indyType.thrown,
                 syms.methodClass
@@ -4110,7 +4102,7 @@ public class Lower extends TreeTranslator {
          * always the "primary" mirror - representing the primitive reference runtime type - thereby
          * always matching the behavior of Object::getClass
          */
-        boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isPrimitiveReferenceType();
+        boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isReferenceProjection();
         tree.selected = translate(tree.selected);
         if (needPrimaryMirror && tree.selected.type.isPrimitiveClass()) {
             tree.selected.setType(tree.selected.type.referenceProjection());
