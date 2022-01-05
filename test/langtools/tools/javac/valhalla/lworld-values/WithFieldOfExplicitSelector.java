@@ -43,7 +43,7 @@ public class WithFieldOfExplicitSelector {
         X() {
             i = 10;
         }
-        
+
         X getX(int i, Integer in) {
             X xl = __WithField(this.i, i);
             xl = __WithField(xl.i, in);

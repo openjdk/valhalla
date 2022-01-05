@@ -43,7 +43,7 @@ public class WithFieldOfImplicitThis {
         X() {
             x = 10;
         }
-        
+
         X getX(Integer xVal, int xi) {
             X xl = X.default;
             xl = __WithField(x, xi);
