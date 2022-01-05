@@ -352,12 +352,6 @@ public class ClassWriter extends ClassFile {
             endAttr(alenIdx);
             acount++;
         }
-        if ((flags & REFERENCE_FAVORING) != 0) {
-            int alenIdx = writeAttr(names.JavaFlags);
-            databuf.appendChar(ACC_REF_DEFAULT);
-            endAttr(alenIdx);
-            acount++;
-        }
         return acount;
     }
 

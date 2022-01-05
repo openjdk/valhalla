@@ -139,11 +139,6 @@ public class Flags {
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 
-    /**
-     * Flag is set for a reference favoring primitive class.
-     */
-    public static final int REFERENCE_FAVORING          = 1<<19;
-
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -412,11 +407,6 @@ public class Flags {
      */
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
-    // Encodings for extended flags stored using attributes
-    /**
-     * Flag to indicate that the primitive class is reference default.
-     */
-    public static final int ACC_REF_DEFAULT = 1;
 
     /** Modifier masks.
      */
@@ -511,7 +501,6 @@ public class Flags {
         HASINIT(Flags.HASINIT),
         HASINITBLOCK(Flags.HASINITBLOCK),
         EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
-        REFERENCE_FAVORING(Flags.REFERENCE_FAVORING),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

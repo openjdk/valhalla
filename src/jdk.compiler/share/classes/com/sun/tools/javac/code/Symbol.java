@@ -416,14 +416,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags_field & Flags.AccessFlags) == PRIVATE;
     }
 
-    public boolean isSynthetic() {
-        return (flags_field & SYNTHETIC) != 0;
-    }
-
-    public boolean isReferenceFavoringPrimitiveClass() {
-        return (flags() & REFERENCE_FAVORING) != 0;  // bit set only for primitive classes
-    }
-
     public boolean isPrimitiveClass() {
         return (flags() & PRIMITIVE_CLASS) != 0;
     }
@@ -1437,7 +1429,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             } finally {
                 if (this.type != null && this.type.hasTag(CLASS)) {
                     ClassType ct = (ClassType) this.type;
-                    ct.flavor = ct.flavor.metamorphose(this.flags_field);
+                    ct.flavor = ct.flavor.metamorphose((this.flags_field & PRIMITIVE_CLASS) != 0);
                     if (!this.type.isIntersection() && this.erasure_field != null && this.erasure_field.hasTag(CLASS)) {
                         ((ClassType) this.erasure_field).flavor = ct.flavor;
                     }

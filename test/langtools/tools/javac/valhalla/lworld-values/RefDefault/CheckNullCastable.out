@@ -1,4 +1,0 @@
-CheckNullCastable.java:10:62: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, CheckNullCastable.val)
-CheckNullCastable.java:11:17: compiler.err.incomparable.types: CheckNullCastable.val, compiler.misc.type.null
-CheckNullCastable.java:12:18: compiler.err.incomparable.types: compiler.misc.type.null, CheckNullCastable.val
-3 errors

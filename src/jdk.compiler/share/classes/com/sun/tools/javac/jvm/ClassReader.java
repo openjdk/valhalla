@@ -1276,19 +1276,6 @@ public class ClassReader {
                     }
                 }
             },
-            new AttributeReader(names.JavaFlags, V61, CLASS_ATTRIBUTE) {
-                @Override
-                protected boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowPrimitiveClasses;
-                }
-                protected void read(Symbol sym, int attrLen) {
-                    if (sym.kind == TYP) {
-                        int extendedFlags = nextChar();
-                        if ((extendedFlags & ACC_REF_DEFAULT) != 0)
-                        ((ClassSymbol)sym).flags_field |= REFERENCE_FAVORING;
-                    }
-                }
-            }
         };
 
         for (AttributeReader r: readers)

@@ -805,12 +805,9 @@ public class Check {
                 t = types.createErrorType(t);
             } else {
                 // Projection types may not be mentioned in constructor references
-                JCExpression instantiation = expr;
-                if (instantiation.hasTag(TYPEAPPLY))
-                    instantiation = ((JCTypeApply) instantiation).clazz;
-                if (instantiation.hasTag(SELECT)) {
-                    JCFieldAccess fieldAccess = (JCFieldAccess) instantiation;
-                    if (fieldAccess.selected.type.tsym.isPrimitiveClass() &&
+                if (expr.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) expr;
+                    if (fieldAccess.selected.type.isPrimitiveClass() &&
                             (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                         log.error(expr, Errors.ProjectionCantBeInstantiated);
                         t = types.createErrorType(t);
@@ -871,7 +868,7 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.isPrimitive() || t.tsym.isPrimitiveClass())
+        if (t.isPrimitive() || t.isPrimitiveClass() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
@@ -1372,7 +1369,7 @@ public class Check {
                 mask = implicit = InterfaceVarFlags;
             else {
                 mask = VarFlags;
-                if (sym.owner.isPrimitiveClass() && (flags & STATIC) == 0) {
+                if (types.isPrimitiveClass(sym.owner.type) && (flags & STATIC) == 0) {
                     implicit |= FINAL;
                 }
             }
@@ -1684,15 +1681,12 @@ public class Check {
         public void visitSelectInternal(JCFieldAccess tree) {
             if (tree.type.tsym.isStatic() &&
                 tree.selected.type.isParameterized() &&
-                    (!tree.type.tsym.isPrimitiveClass() || (tree.name != names.ref && tree.name != names.val))) {
+                    (tree.name != names.ref || !tree.type.isReferenceProjection())) {
                 // The enclosing type is not a class, so we are
                 // looking at a static member type.  However, the
                 // qualifying expression is parameterized.
-
-                // Tolerate the pseudo-select V.ref/V.val: V<T>.ref/val will be static if V<T> is and
-                // should not be confused as selecting a static member of a parameterized type. Both
-                // these constructs are illegal anyway & will be more appropriately complained against shortly.
-                // Note: the canonicl form is V.ref<T> and V.val<T> not V<T>.ref and V<T>.val
+                // Tolerate the pseudo-select V.ref: V<T>.ref will be static if V<T> is and
+                // should not be confused as selecting a static member of a parameterized type.
                 log.error(tree.pos(), Errors.CantSelectStaticClassFromParamType);
             } else {
                 // otherwise validate the rest of the expression
@@ -2756,9 +2750,9 @@ public class Check {
 
         boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
         boolean implementsPrimitiveObject = types.asSuper(c.referenceProjectionOrSelf(), syms.primitiveObjectType.tsym) != null;
-        if (c.tsym.isPrimitiveClass() && implementsIdentityObject) {
+        if (c.isPrimitiveClass() && implementsIdentityObject) {
             log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
-        } else if (implementsPrimitiveObject && !c.tsym.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
+        } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
             log.error(pos, Errors.IdentityClassMustNotImplementPrimitiveObject(c));
         } else if (implementsPrimitiveObject && implementsIdentityObject) {
             log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
