@@ -381,8 +381,8 @@ protected:
   static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
   static const int _lh_null_free_mask  = 1;
 
-  static const jint _lh_array_tag_vt_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
-  static const jint _lh_null_free_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
+  static const jint _lh_array_tag_flat_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_null_free_array_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
 
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
@@ -570,8 +570,8 @@ protected:
   // ALL FUNCTIONS BELOW THIS POINT ARE DISPATCHED FROM AN OOP
   // These functions describe behavior for the oop not the KLASS.
 
-  // actual oop size of obj in memory
-  virtual int oop_size(oop obj) const = 0;
+  // actual oop size of obj in memory in word size.
+  virtual size_t oop_size(oop obj) const = 0;
 
   // Size of klass in word size.
   virtual int size() const = 0;
@@ -695,8 +695,6 @@ protected:
     clean_weak_klass_links(/*unloading_occurred*/ true , /* clean_alive_klasses */ false);
   }
 
-  virtual void array_klasses_do(void f(Klass* k)) {}
-
   // Return self, except for abstract classes with exactly 1
   // implementor.  Then return the 1 concrete implementation.
   Klass *up_cast_abstract();
@@ -705,7 +703,7 @@ protected:
   Symbol* name() const                   { return _name; }
   void set_name(Symbol* n);
 
-  virtual void release_C_heap_structures();
+  virtual void release_C_heap_structures(bool release_constant_pool = true);
 
  public:
   virtual jint compute_modifier_flags() const = 0;

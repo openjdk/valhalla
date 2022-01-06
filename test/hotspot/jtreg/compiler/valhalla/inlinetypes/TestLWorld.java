@@ -3683,6 +3683,7 @@ public class TestLWorld {
     }
 
     @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -3727,6 +3728,7 @@ public class TestLWorld {
 
     // Test locking on object that is known to be an inline type only after CCP
     @Test
+    @IR(failOn = {ALLOC, LOAD, STORE})
     public void test132() {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         Object obj = Integer.valueOf(42);

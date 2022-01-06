@@ -1001,7 +1001,6 @@ void PhaseIdealLoop::move_flat_array_check_out_of_loop(Node* n) {
   // Check if array is loop invariant
   if (!check_loop->is_member(ary_loop)) {
     // Walk up memory graph from the check until we leave the loop
-    ResourceMark rm;
     VectorSet wq;
     wq.set(mem->_idx);
     while (check_loop->is_member(get_loop(ctrl_or_self(mem)))) {
@@ -1137,7 +1136,7 @@ Node *PhaseIdealLoop::split_if_with_blocks_pre( Node *n ) {
 
   // If the loop is a candidate for range check elimination,
   // delay splitting through it's phi until a later loop optimization
-  if (n_blk->is_CountedLoop()) {
+  if (n_blk->is_BaseCountedLoop()) {
     IdealLoopTree *lp = get_loop(n_blk);
     if (lp && lp->_rce_candidate) {
       return n;
@@ -1555,7 +1554,8 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
       Node *prevdom = n;
       Node *dom = idom(prevdom);
       while (dom != cutoff) {
-        if (dom->req() > 1 && dom->in(1) == bol && prevdom->in(0) == dom) {
+        if (dom->req() > 1 && dom->in(1) == bol && prevdom->in(0) == dom &&
+            safe_for_if_replacement(dom)) {
           // It's invalid to move control dependent data nodes in the inner
           // strip-mined loop, because:
           //  1) break validation of LoopNode::verify_strip_mined()
@@ -1580,8 +1580,7 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
     }
   }
 
-  // TODO Disabled until JDK-8272448 is fixed.
-  // try_sink_out_of_loop(n);
+  try_sink_out_of_loop(n);
 
   try_move_store_after_loop(n);
 
@@ -1599,6 +1598,25 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
   }
 }
 
+bool PhaseIdealLoop::safe_for_if_replacement(const Node* dom) const {
+  if (!dom->is_CountedLoopEnd()) {
+    return true;
+  }
+  CountedLoopEndNode* le = dom->as_CountedLoopEnd();
+  CountedLoopNode* cl = le->loopnode();
+  if (cl == NULL) {
+    return true;
+  }
+  if (!cl->is_main_loop()) {
+    return true;
+  }
+  if (cl->is_canonical_loop_entry() == NULL) {
+    return true;
+  }
+  // Further unrolling is possible so loop exit condition might change
+  return false;
+}
+
 // See if a shared loop-varying computation has no loop-varying uses.
 // Happens if something is only used for JVM state in uncommon trap exits,
 // like various versions of induction variable+offset.  Clone the
@@ -1614,9 +1632,20 @@ void PhaseIdealLoop::try_sink_out_of_loop(Node* n) {
       !n->is_MergeMem() &&
       !n->is_CMove() &&
       !is_raw_to_oop_cast && // don't extend live ranges of raw oops
-      n->Opcode() != Op_Opaque4) {
+      n->Opcode() != Op_Opaque4 &&
+      !n->is_Type()) {
     Node *n_ctrl = get_ctrl(n);
     IdealLoopTree *n_loop = get_loop(n_ctrl);
+
+    if (n->in(0) != NULL) {
+      IdealLoopTree* loop_ctrl = get_loop(n->in(0));
+      if (n_loop != loop_ctrl && n_loop->is_member(loop_ctrl)) {
+        // n has a control input inside a loop but get_ctrl() is member of an outer loop. This could happen, for example,
+        // for Div nodes inside a loop (control input inside loop) without a use except for an UCT (outside the loop).
+        // Rewire control of n to right outside of the loop, regardless if its input(s) are later sunk or not.
+        _igvn.replace_input_of(n, 0, place_outside_loop(n_ctrl, loop_ctrl));
+      }
+    }
     if (n_loop != _ltree_root && n->outcnt() > 1) {
       // Compute early control: needed for anti-dependence analysis. It's also possible that as a result of
       // previous transformations in this loop opts round, the node can be hoisted now: early control will tell us.
@@ -1887,10 +1916,18 @@ Node* PhaseIdealLoop::clone_iff(PhiNode *phi, IdealLoopTree *loop) {
   } else {
     sample_bool = n;
   }
-  Node *sample_cmp = sample_bool->in(1);
+  Node* sample_cmp = sample_bool->in(1);
+  const Type* t = Type::TOP;
+  const TypePtr* at = NULL;
+  if (sample_cmp->is_FlatArrayCheck()) {
+    // Left input of a FlatArrayCheckNode is memory, set the (adr) type of the phi accordingly
+    assert(sample_cmp->in(1)->bottom_type() == Type::MEMORY, "unexpected input type");
+    t = Type::MEMORY;
+    at = TypeRawPtr::BOTTOM;
+  }
 
   // Make Phis to merge the Cmp's inputs.
-  PhiNode *phi1 = new PhiNode(phi->in(0), Type::TOP);
+  PhiNode *phi1 = new PhiNode(phi->in(0), t, at);
   PhiNode *phi2 = new PhiNode(phi->in(0), Type::TOP);
   for (i = 1; i < phi->req(); i++) {
     Node *n1 = sample_opaque == NULL ? phi->in(i)->in(1)->in(1) : phi->in(i)->in(1)->in(1)->in(1);

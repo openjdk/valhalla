@@ -458,7 +458,6 @@ final class MemberName implements Member, Cloneable {
     static final int SYNTHETIC   = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
     static final int ENUM        = 0x00004000;
-    static final int FLATTENED   = 0x00008000;
 
     /** Utility method to query the modifier flags of this member; returns false if the member is not a method. */
     public boolean isBridge() {
@@ -474,7 +473,7 @@ final class MemberName implements Member, Cloneable {
     }
 
     /** Query whether this member is a flattened field */
-    public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
+    public boolean isFlattened() { return (flags & MN_FLATTENED) == MN_FLATTENED; }
 
     /** Query whether this member is a field of a primitive class. */
     public boolean isInlineableField()  {
@@ -487,6 +486,7 @@ final class MemberName implements Member, Cloneable {
 
     static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
 
+    // modifiers exported by the JVM:
     // modifiers exported by the JVM:
     static final int RECOGNIZED_MODIFIERS = 0xFFFF;
 

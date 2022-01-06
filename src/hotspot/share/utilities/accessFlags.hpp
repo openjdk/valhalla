@@ -69,6 +69,7 @@ enum {
   JVM_ACC_IS_SHARED_CLASS         = 0x02000000,     // True if klass is shared
   JVM_ACC_IS_HIDDEN_CLASS         = 0x04000000,     // True if klass is hidden
   JVM_ACC_IS_VALUE_BASED_CLASS    = 0x08000000,     // True if klass is marked as a ValueBased class
+  JVM_ACC_IS_BEING_REDEFINED      = 0x00100000,     // True if the klass is being redefined.
 
   // Klass* and Method* flags
   JVM_ACC_HAS_LOCAL_VARIABLE_TABLE= 0x00200000,
@@ -88,14 +89,12 @@ enum {
   JVM_ACC_FIELD_STABLE                    = 0x00000020, // @Stable field, same as JVM_ACC_SYNCHRONIZED and JVM_ACC_SUPER
   JVM_ACC_FIELD_INITIALIZED_FINAL_UPDATE  = 0x00000200, // (static) final field updated outside (class) initializer, same as JVM_ACC_NATIVE
   JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE     = 0x00000800, // field has generic signature
-  JVM_ACC_FIELD_INLINED                   = 0x00008000, // field is inlined
 
   JVM_ACC_FIELD_INTERNAL_FLAGS       = JVM_ACC_FIELD_ACCESS_WATCHED |
                                        JVM_ACC_FIELD_MODIFICATION_WATCHED |
                                        JVM_ACC_FIELD_INTERNAL |
                                        JVM_ACC_FIELD_STABLE |
-                                       JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE |
-                                       JVM_ACC_FIELD_INLINED,
+                                       JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE,
 
                                                     // flags accepted by set_field_flags()
   JVM_ACC_FIELD_FLAGS                = JVM_RECOGNIZED_FIELD_MODIFIERS | JVM_ACC_FIELD_INTERNAL_FLAGS
@@ -161,6 +160,10 @@ class AccessFlags {
   bool has_localvariable_table () const { return (_flags & JVM_ACC_HAS_LOCAL_VARIABLE_TABLE) != 0; }
   void set_has_localvariable_table()    { atomic_set_bits(JVM_ACC_HAS_LOCAL_VARIABLE_TABLE); }
   void clear_has_localvariable_table()  { atomic_clear_bits(JVM_ACC_HAS_LOCAL_VARIABLE_TABLE); }
+
+  bool is_being_redefined() const       { return (_flags & JVM_ACC_IS_BEING_REDEFINED) != 0; }
+  void set_is_being_redefined()         { atomic_set_bits(JVM_ACC_IS_BEING_REDEFINED); }
+  void clear_is_being_redefined()       { atomic_clear_bits(JVM_ACC_IS_BEING_REDEFINED); }
 
   // field flags
   bool is_field_access_watched() const  { return (_flags & JVM_ACC_FIELD_ACCESS_WATCHED) != 0; }

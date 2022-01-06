@@ -1156,7 +1156,7 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   // convert the one to the other.
   const TypePtr* ttp = _type->make_ptr();
   const TypeInstPtr* ttip = (ttp != NULL) ? ttp->isa_instptr() : NULL;
-  const TypeKlassPtr* ttkp = (ttp != NULL) ? ttp->isa_klassptr() : NULL;
+  const TypeKlassPtr* ttkp = (ttp != NULL) ? ttp->isa_instklassptr() : NULL;
   bool is_intf = false;
   if (ttip != NULL && ttip->is_loaded() && ttip->klass()->is_interface()) {
     is_intf = true;
@@ -1244,7 +1244,7 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
     // because the type system doesn't interact well with interfaces.
     const TypePtr *jtp = jt->make_ptr();
     const TypeInstPtr *jtip = (jtp != NULL) ? jtp->isa_instptr() : NULL;
-    const TypeKlassPtr *jtkp = (jtp != NULL) ? jtp->isa_klassptr() : NULL;
+    const TypeKlassPtr *jtkp = (jtp != NULL) ? jtp->isa_instklassptr() : NULL;
     if( jtip && ttip ) {
       if( jtip->is_loaded() &&  jtip->klass()->is_interface() &&
           ttip->is_loaded() && !ttip->klass()->is_interface() ) {
@@ -1377,9 +1377,12 @@ Node* PhiNode::Identity(PhaseGVN* phase) {
   }
 
   int true_path = is_diamond_phi();
-  if (true_path != 0) {
+  // Delay CMove'ing identity if Ideal has not had the chance to handle unsafe cases, yet.
+  if (true_path != 0 && !(phase->is_IterGVN() && wait_for_region_igvn(phase))) {
     Node* id = is_cmove_id(phase, true_path);
-    if (id != NULL)  return id;
+    if (id != NULL) {
+      return id;
+    }
   }
 
   if (phase->is_IterGVN()) {
@@ -1913,12 +1916,12 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk) {
+InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
   InlineTypeBaseNode* vt = NULL;
   if (_type->isa_ptr()) {
-    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
   } else {
-    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0));
+    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
   }
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
@@ -1932,19 +1935,30 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
     }
     assert(outcnt() == 0, "should be dead now");
   }
+  ResourceMark rm;
+  Node_List casts;
   for (uint i = 1; i < req(); ++i) {
-    Node* n = in(i)->uncast();
-    Node* other = NULL;
-    if (n->is_InlineTypeBase()) {
-      other = n;
-    } else if (phase->type(n)->is_zero_type()) {
-      other = InlineTypePtrNode::make_null(*phase, vk);
-    } else {
+    Node* n = in(i);
+    while (n->is_ConstraintCast()) {
+      casts.push(n);
+      n = n->in(1);
+    }
+    if (phase->type(n)->is_zero_type()) {
+      n = InlineTypePtrNode::make_null(*phase, vk);
+    } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle phis during IGVN");
-      other = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk));
+      n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, is_init));
+    }
+    while (casts.size() != 0) {
+      // Update the cast input and let ConstraintCastNode::Ideal push it through the InlineTypePtrNode
+      Node* cast = casts.pop();
+      phase->hash_delete(cast);
+      cast->set_req(1, n);
+      n = phase->transform(cast);
+      assert(n->is_InlineTypePtr(), "Failed to push cast through InlineTypePtr");
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, other->as_InlineTypeBase(), i, transform);
+    vt->merge_with(phase, n->as_InlineTypeBase(), i, transform);
   }
   return vt;
 }
@@ -2459,56 +2473,18 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 #endif
 
-  // Phi (VB ... VB) => VB (Phi ...) (Phi ...)
-  if (EnableVectorReboxing && can_reshape && progress == NULL) {
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-
-    bool all_inputs_are_equiv_vboxes = true;
-    for (uint i = 1; i < req(); ++i) {
-      Node* n = in(i);
-      if (in(i)->Opcode() != Op_VectorBox) {
-        all_inputs_are_equiv_vboxes = false;
-        break;
-      }
-      // Check that vector type of vboxes is equivalent
-      if (i != 1) {
-        if (Type::cmp(in(i-0)->in(VectorBoxNode::Value)->bottom_type(),
-                      in(i-1)->in(VectorBoxNode::Value)->bottom_type()) != 0) {
-          all_inputs_are_equiv_vboxes = false;
-          break;
-        }
-        if (Type::cmp(in(i-0)->in(VectorBoxNode::Box)->bottom_type(),
-                      in(i-1)->in(VectorBoxNode::Box)->bottom_type()) != 0) {
-          all_inputs_are_equiv_vboxes = false;
-          break;
-        }
-      }
-    }
-
-    if (all_inputs_are_equiv_vboxes) {
-      VectorBoxNode* vbox = static_cast<VectorBoxNode*>(in(1));
-      PhiNode* new_vbox_phi = new PhiNode(r, vbox->box_type());
-      PhiNode* new_vect_phi = new PhiNode(r, vbox->vec_type());
-      for (uint i = 1; i < req(); ++i) {
-        VectorBoxNode* old_vbox = static_cast<VectorBoxNode*>(in(i));
-        new_vbox_phi->set_req(i, old_vbox->in(VectorBoxNode::Box));
-        new_vect_phi->set_req(i, old_vbox->in(VectorBoxNode::Value));
-      }
-      igvn->register_new_node_with_optimizer(new_vbox_phi, this);
-      igvn->register_new_node_with_optimizer(new_vect_phi, this);
-      progress = new VectorBoxNode(igvn->C, new_vbox_phi, new_vect_phi, vbox->box_type(), vbox->vec_type());
-    }
-  }
-
   // Check recursively if inputs are either an inline type, constant null
   // or another Phi (including self references through data loops). If so,
   // push the inline types down through the phis to enable folding of loads.
-  if (EnableValhalla && req() > 2 && progress == NULL) {
+  if (EnableValhalla && (_type->isa_ptr() || _type->isa_inlinetype()) && req() > 2) {
     ResourceMark rm;
     Unique_Node_List worklist;
     worklist.push(this);
     bool can_optimize = true;
     ciInlineKlass* vk = NULL;
+    // true if all IsInit inputs of all InlineType* nodes are true
+    bool is_init = true;
+    Node_List casts;
 
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
@@ -2518,24 +2494,140 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           can_optimize = false;
           break;
         }
-        n = n->uncast();
+        while (n->is_ConstraintCast()) {
+          casts.push(n);
+          n = n->in(1);
+        }
         const Type* t = phase->type(n);
         if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->can_merge() &&
             (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
-        } else if (n->is_Phi() && can_reshape) {
+          if (phase->find_int_con(n->as_InlineTypeBase()->get_is_init(), 0) != 1) {
+            is_init = false;
+          }
+        } else if (n->is_Phi() && can_reshape && (n->bottom_type()->isa_ptr() || n->bottom_type()->isa_inlinetype())) {
           worklist.push(n);
-        } else if (!t->is_zero_type()) {
+        } else if (t->is_zero_type()) {
+          is_init = false;
+        } else {
           can_optimize = false;
         }
       }
     }
+    // Check if cast nodes can be pushed through
+    const Type* t = Type::get_const_type(vk);
+    while (casts.size() != 0 && can_optimize && t != NULL) {
+      Node* cast = casts.pop();
+      if (t->filter(cast->bottom_type()) == Type::TOP) {
+        can_optimize = false;
+      }
+    }
     if (can_optimize && vk != NULL) {
-      progress = push_inline_types_through(phase, can_reshape, vk);
+// TODO 8275400
+//      assert(!_type->isa_ptr() || _type->maybe_null() || is_init, "Phi not null but a possible null was seen");
+      return push_inline_types_through(phase, can_reshape, vk, is_init);
     }
   }
 
+  // Phi (VB ... VB) => VB (Phi ...) (Phi ...)
+  if (EnableVectorReboxing && can_reshape && progress == NULL && type()->isa_oopptr()) {
+    progress = merge_through_phi(this, phase->is_IterGVN());
+  }
+
   return progress;              // Return any progress
+}
+
+Node* PhiNode::clone_through_phi(Node* root_phi, const Type* t, uint c, PhaseIterGVN* igvn) {
+  Node_Stack stack(1);
+  VectorSet  visited;
+  Node_List  node_map;
+
+  stack.push(root_phi, 1); // ignore control
+  visited.set(root_phi->_idx);
+
+  Node* new_phi = new PhiNode(root_phi->in(0), t);
+  node_map.map(root_phi->_idx, new_phi);
+
+  while (stack.is_nonempty()) {
+    Node* n   = stack.node();
+    uint  idx = stack.index();
+    assert(n->is_Phi(), "not a phi");
+    if (idx < n->req()) {
+      stack.set_index(idx + 1);
+      Node* def = n->in(idx);
+      if (def == NULL) {
+        continue; // ignore dead path
+      } else if (def->is_Phi()) { // inner node
+        Node* new_phi = node_map[n->_idx];
+        if (!visited.test_set(def->_idx)) { // not visited yet
+          node_map.map(def->_idx, new PhiNode(def->in(0), t));
+          stack.push(def, 1); // ignore control
+        }
+        Node* new_in = node_map[def->_idx];
+        new_phi->set_req(idx, new_in);
+      } else if (def->Opcode() == Op_VectorBox) { // leaf
+        assert(n->is_Phi(), "not a phi");
+        Node* new_phi = node_map[n->_idx];
+        new_phi->set_req(idx, def->in(c));
+      } else {
+        assert(false, "not optimizeable");
+        return NULL;
+      }
+    } else {
+      Node* new_phi = node_map[n->_idx];
+      igvn->register_new_node_with_optimizer(new_phi, n);
+      stack.pop();
+    }
+  }
+  return new_phi;
+}
+
+Node* PhiNode::merge_through_phi(Node* root_phi, PhaseIterGVN* igvn) {
+  Node_Stack stack(1);
+  VectorSet  visited;
+
+  stack.push(root_phi, 1); // ignore control
+  visited.set(root_phi->_idx);
+
+  VectorBoxNode* cached_vbox = NULL;
+  while (stack.is_nonempty()) {
+    Node* n   = stack.node();
+    uint  idx = stack.index();
+    if (idx < n->req()) {
+      stack.set_index(idx + 1);
+      Node* in = n->in(idx);
+      if (in == NULL) {
+        continue; // ignore dead path
+      } else if (in->isa_Phi()) {
+        if (!visited.test_set(in->_idx)) {
+          stack.push(in, 1); // ignore control
+        }
+      } else if (in->Opcode() == Op_VectorBox) {
+        VectorBoxNode* vbox = static_cast<VectorBoxNode*>(in);
+        if (cached_vbox == NULL) {
+          cached_vbox = vbox;
+        } else if (vbox->vec_type() != cached_vbox->vec_type()) {
+          // TODO: vector type mismatch can be handled with additional reinterpret casts
+          assert(Type::cmp(vbox->vec_type(), cached_vbox->vec_type()) != 0, "inconsistent");
+          return NULL; // not optimizable: vector type mismatch
+        } else if (vbox->box_type() != cached_vbox->box_type()) {
+          assert(Type::cmp(vbox->box_type(), cached_vbox->box_type()) != 0, "inconsistent");
+          return NULL; // not optimizable: box type mismatch
+        }
+      } else {
+        return NULL; // not optimizable: neither Phi nor VectorBox
+      }
+    } else {
+      stack.pop();
+    }
+  }
+
+  assert(cached_vbox != NULL, "sanity");
+  const TypeInstPtr* btype = cached_vbox->box_type();
+  const TypeVect*    vtype = cached_vbox->vec_type();
+  Node* new_vbox_phi = clone_through_phi(root_phi, btype, VectorBoxNode::Box,   igvn);
+  Node* new_vect_phi = clone_through_phi(root_phi, vtype, VectorBoxNode::Value, igvn);
+  return new VectorBoxNode(igvn->C, new_vbox_phi, new_vect_phi, btype, vtype);
 }
 
 bool PhiNode::is_data_loop(RegionNode* r, Node* uin, const PhaseGVN* phase) {
@@ -2823,7 +2915,7 @@ const Type* NeverBranchNode::Value(PhaseGVN* phase) const {
 //------------------------------Ideal------------------------------------------
 // Check for no longer being part of a loop
 Node *NeverBranchNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (can_reshape && !in(0)->is_Loop()) {
+  if (can_reshape && !in(0)->is_Region()) {
     // Dead code elimination can sometimes delete this projection so
     // if it's not there, there's nothing to do.
     Node* fallthru = proj_out_or_null(0);

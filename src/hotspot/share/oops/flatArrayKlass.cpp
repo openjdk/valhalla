@@ -129,7 +129,7 @@ FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* eklass, TRAPS) {
           elem_super->array_klass(CHECK_NULL);
         }
         // Now retry from the beginning
-        ek = element_klass->null_free_inline_array_klass(CHECK_NULL);
+        ek = element_klass->value_array_klass(CHECK_NULL);
       }  // re-lock
       return FlatArrayKlass::cast(ek);
     }
@@ -194,7 +194,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
   return lh;
 }
 
-int FlatArrayKlass::oop_size(oop obj) const {
+size_t FlatArrayKlass::oop_size(oop obj) const {
   assert(obj->klass()->is_flatArray_klass(),"must be an flat array");
   flatArrayOop array = flatArrayOop(obj);
   return array->object_size();

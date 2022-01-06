@@ -76,6 +76,13 @@ tier3 = \
     :jdk_rmi \
     :jdk_jfr_tier3
 
+# Everything not in other tiers
+tier4 = \
+    / \
+   -:tier1 \
+   -:tier2 \
+   -:tier3
+
 ###############################################################################
 #
 # Other test definitions; generally smaller granularity than tiers
@@ -106,7 +113,8 @@ jdk_lang = \
 # valhalla lworld tests
 jdk_valhalla = \
     java/lang/invoke \
-    valhalla
+    valhalla \
+    java/lang/instrument/valhalla
 
 
 # All of the java.util package
@@ -382,6 +390,9 @@ jdk_accessibility = \
 jfc_demo = \
      demo/jfc
 
+jdk_editpad = \
+     jdk/editpad
+
 jdk_desktop = \
     :jdk_awt \
     :jdk_2d \
@@ -391,7 +402,8 @@ jdk_desktop = \
     :jdk_imageio \
     :jdk_accessibility \
     :jfc_demo \
-    :jdk_client_sanity
+    :jdk_client_sanity \
+    :jdk_editpad
 
 # SwingSet3 tests.
 jdk_client_sanity = \

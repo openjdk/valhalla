@@ -349,7 +349,7 @@ void ConstantPool::restore_unshareable_info(TRAPS) {
   if (vmClasses::Object_klass_loaded()) {
     ClassLoaderData* loader_data = pool_holder()->class_loader_data();
 #if INCLUDE_CDS_JAVA_HEAP
-    if (HeapShared::open_regions_mapped() &&
+    if (HeapShared::is_fully_available() &&
         _cache->archived_references() != NULL) {
       oop archived = _cache->archived_references();
       // Create handle for the archived resolved reference array object
@@ -2166,7 +2166,6 @@ int ConstantPool::copy_cpool_bytes(int cpool_size,
       case JVM_CONSTANT_Class:
       case JVM_CONSTANT_UnresolvedClass:
       case JVM_CONSTANT_UnresolvedClassInError: {
-        assert(!tag_at(idx).is_Qdescriptor_klass(), "Failed to encode QDesc");
         *bytes = JVM_CONSTANT_Class;
         Symbol* sym = klass_name_at(idx);
         idx1 = tbl->symbol_to_value(sym);

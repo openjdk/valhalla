@@ -887,7 +887,7 @@ public:
     _flags = x ? (_flags | _reserved_stack_access) : (_flags & ~_reserved_stack_access);
   }
 
-  bool has_scalarized_args() {
+  bool has_scalarized_args() const {
     return (_flags & _scalarized_args) != 0;
   }
 

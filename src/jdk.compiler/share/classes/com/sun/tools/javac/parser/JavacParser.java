@@ -322,13 +322,6 @@ public class JavacParser implements Parser {
                 tk3.test(S.token(lookahead + 3).kind);
     }
 
-    protected boolean peekToken(int lookahead, Predicate<TokenKind> tk1, Predicate<TokenKind> tk2, Predicate<TokenKind> tk3, Predicate<TokenKind> tk4) {
-        return tk1.test(S.token(lookahead + 1).kind) &&
-                tk2.test(S.token(lookahead + 2).kind) &&
-                tk3.test(S.token(lookahead + 3).kind) &&
-                tk4.test(S.token(lookahead + 4).kind);
-    }
-
     @SuppressWarnings("unchecked")
     protected boolean peekToken(Predicate<TokenKind>... kinds) {
         return peekToken(0, kinds);
@@ -1829,8 +1822,8 @@ public class JavacParser implements Parser {
                 case ASSERT:
                 case ENUM:
                 case IDENTIFIER:
-                    if (peekToken(lookahead, LAX_IDENTIFIER) || (peekToken(lookahead, QUES, LAX_IDENTIFIER) && (peekToken(lookahead + 2, RPAREN) || peekToken(lookahead + 2, COMMA)))) {
-                        // Identifier[?], Identifier/'_'/'assert'/'enum' -> explicit lambda
+                    if (peekToken(lookahead, LAX_IDENTIFIER)) {
+                        // Identifier, Identifier/'_'/'assert'/'enum' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
                         // Identifier, ')' '->' -> implicit lambda
@@ -1882,8 +1875,6 @@ public class JavacParser implements Parser {
                             return ParensResult.CAST;
                         } else if (peekToken(lookahead, LAX_IDENTIFIER, COMMA) ||
                                 peekToken(lookahead, LAX_IDENTIFIER, RPAREN, ARROW) ||
-                                peekToken(lookahead, QUES, LAX_IDENTIFIER, COMMA) ||
-                                peekToken(lookahead, QUES, LAX_IDENTIFIER, RPAREN, ARROW) ||
                                 peekToken(lookahead, ELLIPSIS)) {
                             // '>', Identifier/'_'/'assert'/'enum', ',' -> explicit lambda
                             // '>', Identifier/'_'/'assert'/'enum', ')', '->' -> explicit lambda
@@ -2385,7 +2376,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~(Flags.FINAL | Flags.REFERENCE_FAVORING) : mods.flags;
+                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             if (typeArgs == null) {
@@ -2456,7 +2447,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL | Flags.REFERENCE_FAVORING);
+            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL);
             if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
@@ -2465,7 +2456,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~(Flags.FINAL | Flags.REFERENCE_FAVORING) : mods.flags;
+                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
                 log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             }
             return newClass;
@@ -3129,9 +3120,9 @@ public class JavacParser implements Parser {
         }
         case DEFAULT: {
             nextToken();
+            JCCaseLabel defaultPattern = toP(F.at(pos).DefaultCaseLabel());
             CaseTree.CaseKind caseKind;
             JCTree body = null;
-            int patternPos = token.pos;
             if (token.kind == ARROW) {
                 checkSourceLevel(Feature.SWITCH_RULE);
                 accept(ARROW);
@@ -3147,7 +3138,6 @@ public class JavacParser implements Parser {
                 caseKind = JCCase.STATEMENT;
                 stats = blockStatements();
             }
-            JCCaseLabel defaultPattern = toP(F.at(patternPos).DefaultCaseLabel());
             c = F.at(pos).Case(caseKind, List.of(defaultPattern), stats, body);
             if (stats.isEmpty())
                 storeEnd(c, S.prevToken().endPos);
@@ -4032,16 +4022,6 @@ public class JavacParser implements Parser {
         accept(CLASS);
         Name name = typeName();
 
-        if ((mods.flags & Flags.PRIMITIVE_CLASS) != 0) {
-            if (token.kind == DOT) {
-                final Token pastDot = S.token(1);
-                if (pastDot.kind == IDENTIFIER && pastDot.name() == names.val) {
-                    nextToken(); nextToken(); // discard .val
-                    mods.flags |= Flags.REFERENCE_FAVORING;
-                }
-            }
-        }
-
         List<JCTypeParameter> typarams = typeParametersOpt();
 
         JCExpression extending = null;
@@ -4067,15 +4047,6 @@ public class JavacParser implements Parser {
         nextToken();
         mods.flags |= Flags.RECORD;
         Name name = typeName();
-        if ((mods.flags & Flags.PRIMITIVE_CLASS) != 0) {
-            if (token.kind == DOT) {
-                final Token pastDot = S.token(1);
-                if (pastDot.kind == IDENTIFIER && pastDot.name() == names.val) {
-                    nextToken(); nextToken(); // discard .val
-                    mods.flags |= Flags.REFERENCE_FAVORING;
-                }
-            }
-        }
 
         List<JCTypeParameter> typarams = typeParametersOpt();
 
@@ -4511,7 +4482,6 @@ public class JavacParser implements Parser {
         if (token.kind == IDENTIFIER && token.name() == names.record &&
             (peekToken(TokenKind.IDENTIFIER, TokenKind.LPAREN) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.EOF) ||
-             peekToken(TokenKind.IDENTIFIER, TokenKind.DOT) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.LT))) {
             checkSourceLevel(Feature.RECORDS);
             return true;
@@ -5154,7 +5124,7 @@ public class JavacParser implements Parser {
 
     }
 
-    protected static abstract class AbstractEndPosTable implements EndPosTable {
+    protected abstract static class AbstractEndPosTable implements EndPosTable {
         /**
          * The current parser.
          */

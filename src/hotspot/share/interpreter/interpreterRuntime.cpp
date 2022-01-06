@@ -287,6 +287,9 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   }
   Handle ref_h(THREAD, ref);
   InlineKlass* ik = InlineKlass::cast(old_value_h()->klass());
+  // Ensure that the class is initialized or being initialized
+  // If the class is in error state, the creation of a new value should not be allowed
+  ik->initialize(CHECK_(ret_adj));
   instanceOop new_value = ik->allocate_instance_buffer(CHECK_(ret_adj));
   Handle new_value_h = Handle(THREAD, new_value);
   ik->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
@@ -402,7 +405,6 @@ JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* current, oopD
   assert(klass->field_is_inlined(index), "Sanity check");
 
   InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
-  assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
   oop res = field_vklass->read_inlined_field(obj_h(), klass->field_offset(index), CHECK);
   current->set_vm_result(res);
@@ -420,7 +422,7 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* current, ConstantPool*
   arrayOop obj;
   if ((!klass->is_array_klass()) && is_qtype_desc) { // Logically creates elements, ensure klass init
     klass->initialize(CHECK);
-    obj = oopFactory::new_flatArray(klass, size, CHECK);
+    obj = oopFactory::new_valueArray(klass, size, CHECK);
   } else {
     obj = oopFactory::new_objArray(klass, size, CHECK);
   }
@@ -1552,7 +1554,8 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
                           fingerprint,
                           buffer.insts_size());
             if (buffer.insts_size() > 0) {
-              Disassembler::decode(handler, handler + buffer.insts_size());
+              Disassembler::decode(handler, handler + buffer.insts_size(), tty
+                                   NOT_PRODUCT(COMMA &buffer.asm_remarks()));
             }
 #ifndef PRODUCT
             address rh_begin = Interpreter::result_handler(method()->result_type());

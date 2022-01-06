@@ -210,6 +210,7 @@ public class Flow {
     private final JCDiagnostic.Factory diags;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
+    private final DeferredCompletionFailureHandler dcfh;
     private final boolean allowEffectivelyFinalInInnerClasses;
     private final boolean allowUniversalTVars;
 
@@ -335,6 +336,7 @@ public class Flow {
         lint = Lint.instance(context);
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
+        dcfh = DeferredCompletionFailureHandler.instance(context);
         Source source = Source.instance(context);
         allowEffectivelyFinalInInnerClasses = Feature.EFFECTIVELY_FINAL_IN_INNER_CLASSES.allowedInSource(source);
         Preview preview = Preview.instance(context);
@@ -345,7 +347,7 @@ public class Flow {
      * Base visitor class for all visitors implementing dataflow analysis logic.
      * This class define the shared logic for handling jumps (break/continue statements).
      */
-    static abstract class BaseAnalyzer extends TreeScanner {
+    abstract static class BaseAnalyzer extends TreeScanner {
 
         enum JumpKind {
             BREAK(JCTree.Tag.BREAK) {
@@ -776,18 +778,35 @@ public class Flow {
 
                     case TYP -> {
                         for (Type sup : types.directSupertypes(sym.type)) {
-                            if (sup.tsym.kind == TYP && sup.tsym.isAbstract() && sup.tsym.isSealed()) {
-                                boolean hasAll = ((ClassSymbol) sup.tsym).permitted
-                                                                         .stream()
-                                                                         .allMatch(covered::contains);
-
-                                if (hasAll && covered.add(sup.tsym)) {
+                            if (sup.tsym.kind == TYP) {
+                                if (isTransitivelyCovered(sup.tsym, covered) &&
+                                    covered.add(sup.tsym)) {
                                     todo = todo.prepend(sup.tsym);
                                 }
                             }
                         }
                     }
                 }
+            }
+        }
+
+        private boolean isTransitivelyCovered(Symbol sealed, Set<Symbol> covered) {
+            DeferredCompletionFailureHandler.Handler prevHandler =
+                    dcfh.setHandler(dcfh.speculativeCodeHandler);
+            try {
+                if (covered.stream().anyMatch(c -> sealed.isSubClass(c, types)))
+                    return true;
+                if (sealed.kind == TYP && sealed.isAbstract() && sealed.isSealed()) {
+                    return ((ClassSymbol) sealed).permitted
+                                                 .stream()
+                                                 .allMatch(s -> isTransitivelyCovered(s, covered));
+                }
+                return false;
+            } catch (CompletionFailure cf) {
+                //safe to ignore, the symbol will be un-completed when the speculative handler is removed.
+                return false;
+            } finally {
+                dcfh.setHandler(prevHandler);
             }
         }
 
@@ -2199,7 +2218,7 @@ public class Flow {
                         firstadr = nextadr;
                         this.thisExposability = ALLOWED;
                     } else {
-                        if (tree.sym.owner.isPrimitiveClass())
+                        if (types.isPrimitiveClass(tree.sym.owner.type))
                             this.thisExposability = BANNED;
                         else
                             this.thisExposability = ALLOWED;

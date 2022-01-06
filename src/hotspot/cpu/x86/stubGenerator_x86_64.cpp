@@ -1499,7 +1499,7 @@ class StubGenerator: public StubCodeGenerator {
         __ subq(temp1, loop_size[shift]);
 
         // Main loop with aligned copy block size of 192 bytes at 32 byte granularity.
-        __ align(32);
+        __ align32();
         __ BIND(L_main_loop);
            __ copy64_avx(to, from, temp4, xmm1, false, shift, 0);
            __ copy64_avx(to, from, temp4, xmm1, false, shift, 64);
@@ -1566,7 +1566,7 @@ class StubGenerator: public StubCodeGenerator {
 
         // Main loop with aligned copy block size of 192 bytes at
         // 64 byte copy granularity.
-        __ align(32);
+        __ align32();
         __ BIND(L_main_loop_64bytes);
            __ copy64_avx(to, from, temp4, xmm1, false, shift, 0 , true);
            __ copy64_avx(to, from, temp4, xmm1, false, shift, 64, true);
@@ -1706,7 +1706,7 @@ class StubGenerator: public StubCodeGenerator {
         __ BIND(L_main_pre_loop);
 
         // Main loop with aligned copy block size of 192 bytes at 32 byte granularity.
-        __ align(32);
+        __ align32();
         __ BIND(L_main_loop);
            __ copy64_avx(to, from, temp1, xmm1, true, shift, -64);
            __ copy64_avx(to, from, temp1, xmm1, true, shift, -128);
@@ -1739,7 +1739,7 @@ class StubGenerator: public StubCodeGenerator {
 
         // Main loop with aligned copy block size of 192 bytes at
         // 64 byte copy granularity.
-        __ align(32);
+        __ align32();
         __ BIND(L_main_loop_64bytes);
            __ copy64_avx(to, from, temp1, xmm1, true, shift, -64 , true);
            __ copy64_avx(to, from, temp1, xmm1, true, shift, -128, true);
@@ -2128,13 +2128,14 @@ class StubGenerator: public StubCodeGenerator {
 
     BLOCK_COMMENT("Entry:");
 
-    const Register to       = c_rarg0;  // source array address
+    const Register to       = c_rarg0;  // destination array address
     const Register value    = c_rarg1;  // value
     const Register count    = c_rarg2;  // elements count
+    __ mov(r11, count);
 
     __ enter(); // required for proper stackwalking of RuntimeStub frame
 
-    __ generate_fill(t, aligned, to, value, count, rax, xmm0);
+    __ generate_fill(t, aligned, to, value, r11, rax, xmm0);
 
     __ vzeroupper();
     __ leave(); // required for proper stackwalking of RuntimeStub frame
@@ -3152,11 +3153,11 @@ class StubGenerator: public StubCodeGenerator {
     __ movl(rax_lh, Address(r10_src_klass, lh_offset));
 
     // Check for flat inline type array -> return -1
-    __ testl(rax_lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ testl(rax_lh, Klass::_lh_array_tag_flat_value_bit_inplace);
     __ jcc(Assembler::notZero, L_failed);
 
     // Check for null-free (non-flat) inline type array -> handle as object array
-    __ testl(rax_lh, Klass::_lh_null_free_bit_inplace);
+    __ testl(rax_lh, Klass::_lh_null_free_array_bit_inplace);
     __ jcc(Assembler::notZero, L_objArray);
 
     //  if (!src->is_Array()) return -1;
@@ -3288,7 +3289,7 @@ class StubGenerator: public StubCodeGenerator {
         BLOCK_COMMENT("assert not null-free array {");
         Label L;
         __ movl(rklass_tmp, Address(rax, lh_offset));
-        __ testl(rklass_tmp, Klass::_lh_null_free_bit_inplace);
+        __ testl(rklass_tmp, Klass::_lh_null_free_array_bit_inplace);
         __ jcc(Assembler::zero, L);
         __ stop("unexpected null-free array");
         __ bind(L);
@@ -4233,7 +4234,7 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_upper_word_mask() {
-    __ align(64);
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "upper_word_mask");
     address start = __ pc();
     __ emit_data64(0x0000000000000000, relocInfo::none);
@@ -4242,7 +4243,7 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_shuffle_byte_flip_mask() {
-    __ align(64);
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "shuffle_byte_flip_mask");
     address start = __ pc();
     __ emit_data64(0x08090a0b0c0d0e0f, relocInfo::none);
@@ -4287,7 +4288,7 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   address generate_pshuffle_byte_flip_mask() {
-    __ align(64);
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "pshuffle_byte_flip_mask");
     address start = __ pc();
     __ emit_data64(0x0405060700010203, relocInfo::none);
@@ -4313,7 +4314,7 @@ class StubGenerator: public StubCodeGenerator {
 
   //Mask for byte-swapping a couple of qwords in an XMM register using (v)pshufb.
   address generate_pshuffle_byte_flip_mask_sha512() {
-    __ align(32);
+    __ align32();
     StubCodeMark mark(this, "StubRoutines", "pshuffle_byte_flip_mask_sha512");
     address start = __ pc();
     if (VM_Version::supports_avx2()) {
@@ -4451,7 +4452,9 @@ class StubGenerator: public StubCodeGenerator {
     const Register state = c_rarg5;
     const Address subkeyH_mem(rbp, 2 * wordSize);
     const Register subkeyHtbl = r11;
-    const Address counter_mem(rbp, 3 * wordSize);
+    const Address avx512_subkeyH_mem(rbp, 3 * wordSize);
+    const Register avx512_subkeyHtbl = r13;
+    const Address counter_mem(rbp, 4 * wordSize);
     const Register counter = r12;
 #else
     const Address key_mem(rbp, 6 * wordSize);
@@ -4460,7 +4463,9 @@ class StubGenerator: public StubCodeGenerator {
     const Register state = r13;
     const Address subkeyH_mem(rbp, 8 * wordSize);
     const Register subkeyHtbl = r14;
-    const Address counter_mem(rbp, 9 * wordSize);
+    const Address avx512_subkeyH_mem(rbp, 9 * wordSize);
+    const Register avx512_subkeyHtbl = r12;
+    const Address counter_mem(rbp, 10 * wordSize);
     const Register counter = rsi;
 #endif
     __ enter();
@@ -4477,9 +4482,10 @@ class StubGenerator: public StubCodeGenerator {
     __ movptr(state, state_mem);
 #endif
     __ movptr(subkeyHtbl, subkeyH_mem);
+    __ movptr(avx512_subkeyHtbl, avx512_subkeyH_mem);
     __ movptr(counter, counter_mem);
 
-    __ aesgcm_encrypt(in, len, ct, out, key, state, subkeyHtbl, counter);
+    __ aesgcm_encrypt(in, len, ct, out, key, state, subkeyHtbl, avx512_subkeyHtbl, counter);
 
     // Restore state before leaving routine
 #ifdef _WIN64
@@ -4498,7 +4504,7 @@ class StubGenerator: public StubCodeGenerator {
 
   // This mask is used for incrementing counter value(linc0, linc4, etc.)
   address counter_mask_addr() {
-    __ align(64);
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "counter_mask_addr");
     address start = __ pc();
     __ emit_data64(0x08090a0b0c0d0e0f, relocInfo::none);//lbswapmask
@@ -5417,7 +5423,7 @@ address generate_avx_ghash_processBlocks() {
 
   address base64_shuffle_addr()
   {
-    __ align(64, (unsigned long long)__ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "shuffle_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5435,7 +5441,7 @@ address generate_avx_ghash_processBlocks() {
 
   address base64_avx2_shuffle_addr()
   {
-    __ align(32);
+    __ align32();
     StubCodeMark mark(this, "StubRoutines", "avx2_shuffle_base64");
     address start = __ pc();
     __ emit_data64(0x0809070805060405, relocInfo::none);
@@ -5447,7 +5453,7 @@ address generate_avx_ghash_processBlocks() {
 
   address base64_avx2_input_mask_addr()
   {
-    __ align(32);
+    __ align32();
     StubCodeMark mark(this, "StubRoutines", "avx2_input_mask_base64");
     address start = __ pc();
     __ emit_data64(0x8000000000000000, relocInfo::none);
@@ -5459,7 +5465,7 @@ address generate_avx_ghash_processBlocks() {
 
   address base64_avx2_lut_addr()
   {
-    __ align(32);
+    __ align32();
     StubCodeMark mark(this, "StubRoutines", "avx2_lut_base64");
     address start = __ pc();
     __ emit_data64(0xfcfcfcfcfcfc4741, relocInfo::none);
@@ -5477,7 +5483,7 @@ address generate_avx_ghash_processBlocks() {
 
   address base64_encoding_table_addr()
   {
-    __ align(64, (unsigned long long)__ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "encoding_table_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0, "Alignment problem (0x%08llx)", (unsigned long long)start);
@@ -5564,7 +5570,7 @@ address generate_avx_ghash_processBlocks() {
       __ evmovdquq(xmm2, Address(encode_table, 0), Assembler::AVX_512bit);
       __ evpbroadcastq(xmm1, rax, Assembler::AVX_512bit);
 
-      __ align(32);
+      __ align32();
       __ BIND(L_vbmiLoop);
 
       __ vpermb(xmm0, xmm3, Address(source, start_offset), Assembler::AVX_512bit);
@@ -5764,7 +5770,7 @@ address generate_avx_ghash_processBlocks() {
       __ cmpl(length, 31);
       __ jcc(Assembler::belowEqual, L_process3);
 
-      __ align(32);
+      __ align32();
       __ BIND(L_32byteLoop);
 
       // Get next 32 bytes
@@ -5884,7 +5890,7 @@ address generate_avx_ghash_processBlocks() {
 
   // base64 AVX512vbmi tables
   address base64_vbmi_lookup_lo_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "lookup_lo_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5901,7 +5907,7 @@ address generate_avx_ghash_processBlocks() {
   }
 
   address base64_vbmi_lookup_hi_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "lookup_hi_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5917,7 +5923,7 @@ address generate_avx_ghash_processBlocks() {
     return start;
   }
   address base64_vbmi_lookup_lo_url_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "lookup_lo_base64url");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5934,7 +5940,7 @@ address generate_avx_ghash_processBlocks() {
   }
 
   address base64_vbmi_lookup_hi_url_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "lookup_hi_base64url");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5951,7 +5957,7 @@ address generate_avx_ghash_processBlocks() {
   }
 
   address base64_vbmi_pack_vec_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "pack_vec_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5968,7 +5974,7 @@ address generate_avx_ghash_processBlocks() {
   }
 
   address base64_vbmi_join_0_1_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "join_0_1_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -5985,7 +5991,7 @@ address generate_avx_ghash_processBlocks() {
   }
 
   address base64_vbmi_join_1_2_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "join_1_2_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -6002,7 +6008,7 @@ address generate_avx_ghash_processBlocks() {
   }
 
   address base64_vbmi_join_2_3_addr() {
-    __ align(64, (unsigned long long) __ pc());
+    __ align64();
     StubCodeMark mark(this, "StubRoutines", "join_2_3_base64");
     address start = __ pc();
     assert(((unsigned long long)start & 0x3f) == 0,
@@ -6211,7 +6217,7 @@ address generate_avx_ghash_processBlocks() {
       __ evmovdquq(join12, ExternalAddress(StubRoutines::x86::base64_vbmi_join_1_2_addr()), Assembler::AVX_512bit, r13);
       __ evmovdquq(join23, ExternalAddress(StubRoutines::x86::base64_vbmi_join_2_3_addr()), Assembler::AVX_512bit, r13);
 
-      __ align(32);
+      __ align32();
       __ BIND(L_process256);
       // Grab input data
       __ evmovdquq(input0, Address(source, start_offset, Address::times_1, 0x00), Assembler::AVX_512bit);
@@ -6293,7 +6299,7 @@ address generate_avx_ghash_processBlocks() {
       __ cmpl(length, 63);
       __ jcc(Assembler::lessEqual, L_finalBit);
 
-      __ align(32);
+      __ align32();
       __ BIND(L_process64Loop);
 
       // Handle first 64-byte block
@@ -6429,7 +6435,7 @@ address generate_avx_ghash_processBlocks() {
       __ shrq(rax, 1);
       __ jmp(L_donePadding);
 
-      __ align(32);
+      __ align32();
       __ BIND(L_bruteForce);
     }   // End of if(avx512_vbmi)
 
@@ -6473,7 +6479,7 @@ address generate_avx_ghash_processBlocks() {
 
     __ jmp(L_bottomLoop);
 
-    __ align(32);
+    __ align32();
     __ BIND(L_forceLoop);
     __ shll(byte1, 18);
     __ shll(byte2, 12);
@@ -7855,6 +7861,7 @@ address generate_avx_ghash_processBlocks() {
     StubRoutines::x86::_vector_double_sign_mask = generate_vector_mask("vector_double_sign_mask", 0x7FFFFFFFFFFFFFFF);
     StubRoutines::x86::_vector_double_sign_flip = generate_vector_mask("vector_double_sign_flip", 0x8000000000000000);
     StubRoutines::x86::_vector_all_bits_set = generate_vector_mask("vector_all_bits_set", 0xFFFFFFFFFFFFFFFF);
+    StubRoutines::x86::_vector_int_mask_cmp_bits = generate_vector_mask("vector_int_mask_cmp_bits", 0x0000000100000001);
     StubRoutines::x86::_vector_short_to_byte_mask = generate_vector_mask("vector_short_to_byte_mask", 0x00ff00ff00ff00ff);
     StubRoutines::x86::_vector_byte_perm_mask = generate_vector_byte_perm_mask("vector_byte_perm_mask");
     StubRoutines::x86::_vector_int_to_byte_mask = generate_vector_mask("vector_int_to_byte_mask", 0x000000ff000000ff);
@@ -8012,15 +8019,15 @@ address generate_avx_ghash_processBlocks() {
     }
 
     // Get svml stub routine addresses
-    void *libsvml = NULL;
+    void *libjsvml = NULL;
     char ebuf[1024];
     char dll_name[JVM_MAXPATHLEN];
-    if (os::dll_locate_lib(dll_name, sizeof(dll_name), Arguments::get_dll_dir(), "svml")) {
-      libsvml = os::dll_load(dll_name, ebuf, sizeof ebuf);
+    if (os::dll_locate_lib(dll_name, sizeof(dll_name), Arguments::get_dll_dir(), "jsvml")) {
+      libjsvml = os::dll_load(dll_name, ebuf, sizeof ebuf);
     }
-    if (libsvml != NULL) {
+    if (libjsvml != NULL) {
       // SVML method naming convention
-      //   All the methods are named as __svml_op<T><N>_ha_<VV>
+      //   All the methods are named as __jsvml_op<T><N>_ha_<VV>
       //   Where:
       //      ha stands for high accuracy
       //      <T> is optional to indicate float/double
@@ -8031,10 +8038,10 @@ address generate_avx_ghash_processBlocks() {
       //              e.g. 128 bit float vector has 4 float elements
       //      <VV> indicates the avx/sse level:
       //              z0 is AVX512, l9 is AVX2, e9 is AVX1 and ex is for SSE2
-      //      e.g. __svml_expf16_ha_z0 is the method for computing 16 element vector float exp using AVX 512 insns
-      //           __svml_exp8_ha_z0 is the method for computing 8 element vector double exp using AVX 512 insns
+      //      e.g. __jsvml_expf16_ha_z0 is the method for computing 16 element vector float exp using AVX 512 insns
+      //           __jsvml_exp8_ha_z0 is the method for computing 8 element vector double exp using AVX 512 insns
 
-      log_info(library)("Loaded library %s, handle " INTPTR_FORMAT, JNI_LIB_PREFIX "svml" JNI_LIB_SUFFIX, p2i(libsvml));
+      log_info(library)("Loaded library %s, handle " INTPTR_FORMAT, JNI_LIB_PREFIX "jsvml" JNI_LIB_SUFFIX, p2i(libjsvml));
       if (UseAVX > 2) {
         for (int op = 0; op < VectorSupport::NUM_SVML_OP; op++) {
           int vop = VectorSupport::VECTOR_OP_SVML_START + op;
@@ -8042,11 +8049,11 @@ address generate_avx_ghash_processBlocks() {
               (vop == VectorSupport::VECTOR_OP_LOG || vop == VectorSupport::VECTOR_OP_LOG10 || vop == VectorSupport::VECTOR_OP_POW)) {
             continue;
           }
-          snprintf(ebuf, sizeof(ebuf), "__svml_%sf16_ha_z0", VectorSupport::svmlname[op]);
-          StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_512][op] = (address)os::dll_lookup(libsvml, ebuf);
+          snprintf(ebuf, sizeof(ebuf), "__jsvml_%sf16_ha_z0", VectorSupport::svmlname[op]);
+          StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_512][op] = (address)os::dll_lookup(libjsvml, ebuf);
 
-          snprintf(ebuf, sizeof(ebuf), "__svml_%s8_ha_z0", VectorSupport::svmlname[op]);
-          StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_512][op] = (address)os::dll_lookup(libsvml, ebuf);
+          snprintf(ebuf, sizeof(ebuf), "__jsvml_%s8_ha_z0", VectorSupport::svmlname[op]);
+          StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_512][op] = (address)os::dll_lookup(libjsvml, ebuf);
         }
       }
       const char* avx_sse_str = (UseAVX >= 2) ? "l9" : ((UseAVX == 1) ? "e9" : "ex");
@@ -8055,23 +8062,23 @@ address generate_avx_ghash_processBlocks() {
         if (vop == VectorSupport::VECTOR_OP_POW) {
           continue;
         }
-        snprintf(ebuf, sizeof(ebuf), "__svml_%sf4_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
-        StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_64][op] = (address)os::dll_lookup(libsvml, ebuf);
+        snprintf(ebuf, sizeof(ebuf), "__jsvml_%sf4_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
+        StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_64][op] = (address)os::dll_lookup(libjsvml, ebuf);
 
-        snprintf(ebuf, sizeof(ebuf), "__svml_%sf4_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
-        StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_128][op] = (address)os::dll_lookup(libsvml, ebuf);
+        snprintf(ebuf, sizeof(ebuf), "__jsvml_%sf4_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
+        StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_128][op] = (address)os::dll_lookup(libjsvml, ebuf);
 
-        snprintf(ebuf, sizeof(ebuf), "__svml_%sf8_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
-        StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_256][op] = (address)os::dll_lookup(libsvml, ebuf);
+        snprintf(ebuf, sizeof(ebuf), "__jsvml_%sf8_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
+        StubRoutines::_vector_f_math[VectorSupport::VEC_SIZE_256][op] = (address)os::dll_lookup(libjsvml, ebuf);
 
-        snprintf(ebuf, sizeof(ebuf), "__svml_%s1_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
-        StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_64][op] = (address)os::dll_lookup(libsvml, ebuf);
+        snprintf(ebuf, sizeof(ebuf), "__jsvml_%s1_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
+        StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_64][op] = (address)os::dll_lookup(libjsvml, ebuf);
 
-        snprintf(ebuf, sizeof(ebuf), "__svml_%s2_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
-        StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_128][op] = (address)os::dll_lookup(libsvml, ebuf);
+        snprintf(ebuf, sizeof(ebuf), "__jsvml_%s2_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
+        StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_128][op] = (address)os::dll_lookup(libjsvml, ebuf);
 
-        snprintf(ebuf, sizeof(ebuf), "__svml_%s4_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
-        StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_256][op] = (address)os::dll_lookup(libsvml, ebuf);
+        snprintf(ebuf, sizeof(ebuf), "__jsvml_%s4_ha_%s", VectorSupport::svmlname[op], avx_sse_str);
+        StubRoutines::_vector_d_math[VectorSupport::VEC_SIZE_256][op] = (address)os::dll_lookup(libjsvml, ebuf);
       }
     }
 #endif // COMPILER2

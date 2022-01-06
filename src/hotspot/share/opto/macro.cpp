@@ -578,7 +578,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
       value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);
-      BasicType bt = field_type->basic_type();
+      BasicType bt = type2field[field_type->basic_type()];
       if (UseCompressedOops && !is_java_primitive(bt)) {
         ft = ft->make_narrowoop();
         bt = T_NARROWOOP;
@@ -1766,7 +1766,8 @@ void PhaseMacroExpand::expand_dtrace_alloc_probe(AllocateNode* alloc, Node* oop,
     // Slow-path call
     int size = TypeFunc::Parms + 2;
     CallLeafNode *call = new CallLeafNode(OptoRuntime::dtrace_object_alloc_Type(),
-                                          CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc_base),
+                                          CAST_FROM_FN_PTR(address,
+                                          static_cast<int (*)(Thread*, oopDesc*)>(SharedRuntime::dtrace_object_alloc)),
                                           "dtrace_object_alloc",
                                           TypeRawPtr::BOTTOM);
 
@@ -2496,7 +2497,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     Node* mask2 = MakeConX(-2);
     Node* masked2 = transform_later(new AndXNode(cast, mask2));
     Node* rawklassptr = transform_later(new CastX2PNode(masked2));
-    Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeKlassPtr::OBJECT_OR_NULL));
+    Node* klass_node = transform_later(new CheckCastPPNode(allocation_ctl, rawklassptr, TypeInstKlassPtr::OBJECT_OR_NULL));
     Node* layout_val = make_load(NULL, mem, klass_node, in_bytes(Klass::layout_helper_offset()), TypeInt::INT, T_INT);
     Node* size_in_bytes = ConvI2X(layout_val);
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -2665,7 +2666,7 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
       subklass = obj_or_subklass;
     } else {
       Node* k_adr = basic_plus_adr(obj_or_subklass, oopDesc::klass_offset_in_bytes());
-      subklass = _igvn.transform(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+      subklass = _igvn.transform(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
     }
 
     Node* not_subtype_ctrl = Phase::gen_subtype_check(subklass, superklass, &ctrl, NULL, _igvn);
@@ -2731,7 +2732,7 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
         if (ary->is_top()) continue;
         // Make loads control dependent to make sure they are only executed if array is locked
         Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-        Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+        Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
         Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
         Node* proto_load = _igvn.transform(LoadNode::make(_igvn, ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
         proto = _igvn.transform(new OrXNode(proto, proto_load));
@@ -2759,12 +2760,12 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       const TypeAryPtr* t = _igvn.type(ary)->isa_aryptr();
       assert(!t->is_flat() && !t->is_not_flat(), "Should have been optimized out");
       Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-      Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+      Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
       Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
       Node* lh_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
       lhs = _igvn.transform(new OrINode(lhs, lh_val));
     }
-    Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_vt_value_bit_inplace)));
+    Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
     Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
     Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
     Node* old_bol = check->unique_out();

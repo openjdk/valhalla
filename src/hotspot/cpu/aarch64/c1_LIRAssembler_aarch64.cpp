@@ -1594,7 +1594,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   } else {
     __ load_klass(klass, op->array()->as_register());
     __ ldrw(klass, Address(klass, Klass::layout_helper_offset()));
-    __ tst(klass, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ tst(klass, Klass::_lh_array_tag_flat_value_bit_inplace);
     __ br(Assembler::NE, *op->stub()->entry());
   }
   if (!op->value()->is_illegal()) {
@@ -1605,7 +1605,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
     if (UseArrayMarkWordCheck) {
       __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
     } else {
-      __ tst(klass, Klass::_lh_null_free_bit_inplace);
+      __ tst(klass, Klass::_lh_null_free_array_bit_inplace);
       __ br(Assembler::NE, *op->stub()->entry());
     }
     __ bind(skip);
@@ -1628,7 +1628,7 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
     Register klass = op->tmp()->as_register();
     __ load_klass(klass, op->array()->as_register());
     __ ldr(klass, Address(klass, Klass::layout_helper_offset()));
-    __ tst(klass, Klass::_lh_null_free_bit_inplace);
+    __ tst(klass, Klass::_lh_null_free_array_bit_inplace);
   }
 }
 
@@ -1732,7 +1732,7 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
     assert(op->addr()->is_address(), "what else?");
     LIR_Address* addr_ptr = op->addr()->as_address_ptr();
     assert(addr_ptr->disp() == 0, "need 0 disp");
-    assert(addr_ptr->index() == LIR_OprDesc::illegalOpr(), "need 0 index");
+    assert(addr_ptr->index() == LIR_Opr::illegalOpr(), "need 0 index");
     addr = as_reg(addr_ptr->base());
   }
   Register newval = as_reg(op->new_value());
@@ -2413,9 +2413,9 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     __ ldr(tmp, Address(tmp, Klass::layout_helper_offset()));
     if (is_dest) {
       // Take the slow path if it's a null_free destination array, in case the source array contains NULLs.
-      __ tst(tmp, Klass::_lh_null_free_bit_inplace);
+      __ tst(tmp, Klass::_lh_null_free_array_bit_inplace);
     } else {
-      __ tst(tmp, Klass::_lh_array_tag_vt_value_bit_inplace);
+      __ tst(tmp, Klass::_lh_array_tag_flat_value_bit_inplace);
     }
     __ br(Assembler::NE, *slow_path->entry());
   }
@@ -3063,7 +3063,6 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
   Register obj = op->obj()->as_register();
   Register tmp = op->tmp()->as_pointer_register();
-  Address mdo_addr = as_Address(op->mdp()->as_address_ptr());
   bool not_null = op->not_null();
   int flag = op->flag();
 
@@ -3074,6 +3073,7 @@ void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
 
   __ test_oop_is_not_inline_type(obj, tmp, not_inline_type);
 
+  Address mdo_addr = as_Address(op->mdp()->as_address_ptr(), rscratch2);
   __ ldrb(rscratch1, mdo_addr);
   __ orr(rscratch1, rscratch1, flag);
   __ strb(rscratch1, mdo_addr);
@@ -3212,7 +3212,7 @@ void LIR_Assembler::membar_loadstore() { __ membar(MacroAssembler::LoadStore); }
 void LIR_Assembler::membar_storeload() { __ membar(MacroAssembler::StoreLoad); }
 
 void LIR_Assembler::on_spin_wait() {
-  Unimplemented();
+  __ spin_wait();
 }
 
 void LIR_Assembler::get_thread(LIR_Opr result_reg) {

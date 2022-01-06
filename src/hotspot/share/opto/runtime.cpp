@@ -110,6 +110,7 @@ address OptoRuntime::_rethrow_Java                                = NULL;
 
 address OptoRuntime::_slow_arraycopy_Java                         = NULL;
 address OptoRuntime::_register_finalizer_Java                     = NULL;
+address OptoRuntime::_load_unknown_inline                         = NULL;
 
 ExceptionBlob* OptoRuntime::_exception_blob;
 
@@ -150,9 +151,9 @@ bool OptoRuntime::generate(ciEnv* env) {
   gen(env, _monitor_notify_Java            , monitor_notify_Type          , monitor_notify_C                ,    0 , false, false);
   gen(env, _monitor_notifyAll_Java         , monitor_notify_Type          , monitor_notifyAll_C             ,    0 , false, false);
   gen(env, _rethrow_Java                   , rethrow_Type                 , rethrow_C                       ,    2 , true , true );
-
   gen(env, _slow_arraycopy_Java            , slow_arraycopy_Type          , SharedRuntime::slow_arraycopy_C ,    0 , false, false);
   gen(env, _register_finalizer_Java        , register_finalizer_Type      , register_finalizer              ,    0 , false, false);
+  gen(env, _load_unknown_inline            , load_unknown_inline_type     , load_unknown_inline             ,    0 , true,  false);
 
   return true;
 }
@@ -252,7 +253,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
 
   if (array_type->is_flatArray_klass()) {
     Klass* elem_type = FlatArrayKlass::cast(array_type)->element_klass();
-    result = oopFactory::new_flatArray(elem_type, len, THREAD);
+    result = oopFactory::new_valueArray(elem_type, len, THREAD);
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -307,7 +308,7 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_nozero_C(Klass* array_type, int len
   if ((len > 0) && (result != NULL) &&
       is_deoptimized_caller_frame(current)) {
     // Zero array here if the caller is deoptimized.
-    int size = TypeArrayKlass::cast(array_type)->oop_size(result);
+    const size_t size = TypeArrayKlass::cast(array_type)->oop_size(result);
     BasicType elem_type = TypeArrayKlass::cast(array_type)->element_type();
     const size_t hs = arrayOopDesc::header_size(elem_type);
     // Align to next 8 bytes to avoid trashing arrays's length.
@@ -964,7 +965,7 @@ const TypeFunc* OptoRuntime::counterMode_aescrypt_Type() {
 //for counterMode calls of aescrypt encrypt/decrypt, four pointers and a length, returning int
 const TypeFunc* OptoRuntime::galoisCounterMode_aescrypt_Type() {
   // create input type (domain)
-  int num_args = 8;
+  int num_args = 9;
   int argcnt = num_args;
   const Type** fields = TypeTuple::fields(argcnt);
   int argp = TypeFunc::Parms;
@@ -975,6 +976,7 @@ const TypeFunc* OptoRuntime::galoisCounterMode_aescrypt_Type() {
   fields[argp++] = TypePtr::NOTNULL; // byte[] key from AESCrypt obj
   fields[argp++] = TypePtr::NOTNULL; // long[] state from GHASH obj
   fields[argp++] = TypePtr::NOTNULL; // long[] subkeyHtbl from GHASH obj
+  fields[argp++] = TypePtr::NOTNULL; // long[] avx512_subkeyHtbl newly created
   fields[argp++] = TypePtr::NOTNULL; // byte[] counter from GCTR obj
 
   assert(argp == TypeFunc::Parms + argcnt, "correct decoding");
@@ -1285,6 +1287,11 @@ static void trace_exception(outputStream* st, oop exception_oop, address excepti
 // directly from compiled code. Compiled code will call the C++ method following.
 // We can't allow async exception to be installed during  exception processing.
 JRT_ENTRY_NO_ASYNC(address, OptoRuntime::handle_exception_C_helper(JavaThread* current, nmethod* &nm))
+  // The frame we rethrow the exception to might not have been processed by the GC yet.
+  // The stack watermark barrier takes care of detecting that and ensuring the frame
+  // has updated oops.
+  StackWatermarkSet::after_unwind(current);
+
   // Do not confuse exception_oop with pending_exception. The exception_oop
   // is only used to pass arguments into the method. Not for general
   // exception handling.  DO NOT CHANGE IT to use pending_exception, since
@@ -1427,7 +1434,7 @@ address OptoRuntime::handle_exception_C(JavaThread* current) {
   // deoptimized frame
 
   if (nm != NULL) {
-    RegisterMap map(current, false);
+    RegisterMap map(current, false /* update_map */, false /* process_frames */);
     frame caller = current->last_frame().sender(&map);
 #ifdef ASSERT
     assert(caller.is_compiled_frame(), "must be");
@@ -1465,11 +1472,6 @@ address OptoRuntime::rethrow_C(oopDesc* exception, JavaThread* thread, address r
 
   // Enable WXWrite: the function called directly by compiled code.
   MACOS_AARCH64_ONLY(ThreadWXEnable wx(WXWrite, thread));
-
-  // The frame we rethrow the exception to might not have been processed by the GC yet.
-  // The stack watermark barrier takes care of detecting that and ensuring the frame
-  // has updated oops.
-  StackWatermarkSet::after_unwind(thread);
 
 #ifndef PRODUCT
   SharedRuntime::_rethrow_ctr++;               // count rethrows
@@ -1775,27 +1777,28 @@ const TypeFunc *OptoRuntime::pack_inline_type_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int index, instanceOopDesc* buffer))
-{
-  array->value_copy_from_index(index, buffer);
-}
+JRT_BLOCK_ENTRY(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int index, JavaThread* current))
+  JRT_BLOCK;
+  flatArrayHandle vah(current, array);
+  oop buffer = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, THREAD);
+  deoptimize_caller_frame(current, HAS_PENDING_EXCEPTION);
+  current->set_vm_result(buffer);
+  JRT_BLOCK_END;
 JRT_END
 
 const TypeFunc* OptoRuntime::load_unknown_inline_type() {
   // create input type (domain)
-  const Type** fields = TypeTuple::fields(3);
-  // We don't know the number of returned values and their
-  // types. Assume all registers available to the return convention
-  // are used.
+  const Type** fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms] = TypeOopPtr::NOTNULL;
   fields[TypeFunc::Parms+1] = TypeInt::POS;
-  fields[TypeFunc::Parms+2] = TypeInstPtr::NOTNULL;
 
-  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+3, fields);
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms+2, fields);
 
   // create result type (range)
-  fields = TypeTuple::fields(0);
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  fields = TypeTuple::fields(1);
+  fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
+
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+1, fields);
 
   return TypeFunc::make(domain, range);
 }
@@ -1810,9 +1813,6 @@ JRT_END
 const TypeFunc* OptoRuntime::store_unknown_inline_type() {
   // create input type (domain)
   const Type** fields = TypeTuple::fields(3);
-  // We don't know the number of returned values and their
-  // types. Assume all registers available to the return convention
-  // are used.
   fields[TypeFunc::Parms] = TypeInstPtr::NOTNULL;
   fields[TypeFunc::Parms+1] = TypeOopPtr::NOTNULL;
   fields[TypeFunc::Parms+2] = TypeInt::POS;
@@ -1821,7 +1821,7 @@ const TypeFunc* OptoRuntime::store_unknown_inline_type() {
 
   // create result type (range)
   fields = TypeTuple::fields(0);
-  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms, fields);
 
   return TypeFunc::make(domain, range);
 }

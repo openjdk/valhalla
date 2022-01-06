@@ -130,74 +130,36 @@ void Parse::array_load(BasicType bt) {
         ideal.sync_kit(this);
       } else {
         // Element type is unknown, emit runtime call
-        Node* kls = load_object_klass(ary);
-        Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
-        Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
-        Node* obj_size  = NULL;
-        kill_dead_locals();
-        // Re-execute flattened array load if buffering triggers deoptimization
-        PreserveReexecuteState preexecs(this);
-        jvms()->set_bci(_bci);
-        jvms()->set_should_reexecute(true);
-        inc_sp(2);
-        Node* alloc_obj = new_instance(elem_klass, NULL, &obj_size, /*deoptimize_on_exception=*/true);
 
-        AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
-        assert(alloc->maybe_set_complete(&_gvn), "");
-        alloc->initialization()->set_complete_with_arraycopy();
-
-        // This membar keeps this access to an unknown flattened array
-        // correctly ordered with other unknown and known flattened
-        // array accesses.
+        // Below membars keep this access to an unknown flattened array correctly
+        // ordered with other unknown and known flattened array accesses.
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-        // Unknown inline type might contain reference fields
-        if (false && !bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, false, BarrierSetC2::Parsing)) {
-          // FIXME 8230656 also merge changes from 8238759 in
-          int base_off = sizeof(instanceOopDesc);
-          Node* dst_base = basic_plus_adr(alloc_obj, base_off);
-          Node* countx = obj_size;
-          countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
-          countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
-
-          assert(Klass::_lh_log2_element_size_shift == 0, "use shift in place");
-          Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-          Node* elem_shift = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
-          uint header = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE);
-          Node* base  = basic_plus_adr(ary, header);
-          idx = Compile::conv_I2X_index(&_gvn, idx, TypeInt::POS, control());
-          Node* scale = _gvn.transform(new LShiftXNode(idx, elem_shift));
-          Node* adr = basic_plus_adr(ary, base, scale);
-
-          access_clone(adr, dst_base, countx, false);
-        } else {
-          ideal.sync_kit(this);
-          ideal.make_leaf_call(OptoRuntime::load_unknown_inline_type(),
-                               CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_inline),
-                               "load_unknown_inline",
-                               ary, idx, alloc_obj);
-          sync_kit(ideal);
+        Node* call = NULL;
+        {
+          // Re-execute flattened array load if runtime call triggers deoptimization
+          PreserveReexecuteState preexecs(this);
+          jvms()->set_bci(_bci);
+          jvms()->set_should_reexecute(true);
+          inc_sp(2);
+          kill_dead_locals();
+          call = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
+                                   OptoRuntime::load_unknown_inline_type(),
+                                   OptoRuntime::load_unknown_inline_Java(),
+                                   NULL, TypeRawPtr::BOTTOM,
+                                   ary, idx);
         }
+        make_slow_call_ex(call, env()->Throwable_klass(), false);
+        Node* buffer = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
 
-        // This makes sure no other thread sees a partially initialized buffered inline type
-        insert_mem_bar_volatile(Op_MemBarStoreStore, Compile::AliasIdxRaw, alloc->proj_out_or_null(AllocateNode::RawAddress));
-
-        // Same as MemBarCPUOrder above: keep this unknown flattened
-        // array access correctly ordered with other flattened array
-        // access
         insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
 
-        // Prevent any use of the newly allocated inline type before it is fully initialized
-        alloc_obj = new CastPPNode(alloc_obj, _gvn.type(alloc_obj), ConstraintCastNode::StrongDependency);
-        alloc_obj->set_req(0, control());
-        alloc_obj = _gvn.transform(alloc_obj);
-
+        // Keep track of the information that the inline type is flattened in arrays
         const Type* unknown_value = elemptr->is_instptr()->cast_to_flatten_array();
-        alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
+        buffer = _gvn.transform(new CheckCastPPNode(control(), buffer, unknown_value));
 
         ideal.sync_kit(this);
-        ideal.set(res, alloc_obj);
+        ideal.set(res, buffer);
       }
     } ideal.end_if();
     sync_kit(ideal);
@@ -302,11 +264,11 @@ void Parse::array_store(BasicType bt) {
         dec_sp(3);
         ideal.sync_kit(this);
       } ideal.else_(); {
+        sync_kit(ideal);
         Node* val = cast_val;
         // flattened
         if (!val->is_InlineType() && tval->maybe_null()) {
           // Add null check
-          sync_kit(ideal);
           Node* null_ctl = top();
           val = null_check_oop(val, &null_ctl);
           if (null_ctl != top()) {
@@ -316,7 +278,6 @@ void Parse::array_store(BasicType bt) {
             uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
             dec_sp(3);
           }
-          ideal.sync_kit(this);
         }
         // Try to determine the inline klass
         ciInlineKlass* vk = NULL;
@@ -330,7 +291,6 @@ void Parse::array_store(BasicType bt) {
         Node* casted_ary = ary;
         if (vk != NULL && !stopped()) {
           // Element type is known, cast and store to flattened representation
-          sync_kit(ideal);
           assert(vk->flatten_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* null_free */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
@@ -345,29 +305,22 @@ void Parse::array_store(BasicType bt) {
           inc_sp(3);
           jvms()->set_should_reexecute(true);
           val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
-          ideal.sync_kit(this);
-        } else if (!ideal.ctrl()->is_top()) {
+        } else if (!stopped()) {
           // Element type is unknown, emit runtime call
-          sync_kit(ideal);
 
-          // This membar keeps this access to an unknown flattened
-          // array correctly ordered with other unknown and known
-          // flattened array accesses.
+          // Below membars keep this access to an unknown flattened array correctly
+          // ordered with other unknown and known flattened array accesses.
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-          ideal.sync_kit(this);
 
-          ideal.make_leaf_call(OptoRuntime::store_unknown_inline_type(),
-                               CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline),
-                               "store_unknown_inline",
-                               val, casted_ary, idx);
+          make_runtime_call(RC_LEAF,
+                            OptoRuntime::store_unknown_inline_type(),
+                            CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_inline),
+                            "store_unknown_inline", TypeRawPtr::BOTTOM,
+                            val, casted_ary, idx);
 
-          sync_kit(ideal);
-          // Same as MemBarCPUOrder above: keep this unknown
-          // flattened array access correctly ordered with other
-          // flattened array accesses.
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::INLINES));
-          ideal.sync_kit(this);
         }
+        ideal.sync_kit(this);
       }
       ideal.end_if();
       sync_kit(ideal);
@@ -508,7 +461,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         // The check always fails and therefore profile information is incorrect. Don't use it.
         assert(old_control == slow_ctl, "type check should have been removed");
         set_control(slow_ctl);
-      } else {
+      } else if (!slow_ctl->is_top()) {
         { PreserveJVMState pjvms(this);
           set_control(slow_ctl);
           uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
@@ -805,8 +758,8 @@ static void merge_ranges(SwitchRange* ranges, int& rp) {
 void Parse::do_tableswitch() {
   // Get information about tableswitch
   int default_dest = iter().get_dest_table(0);
-  int lo_index     = iter().get_int_table(1);
-  int hi_index     = iter().get_int_table(2);
+  jint lo_index    = iter().get_int_table(1);
+  jint hi_index    = iter().get_int_table(2);
   int len          = hi_index - lo_index + 1;
 
   if (len < 1) {
@@ -833,9 +786,9 @@ void Parse::do_tableswitch() {
   SwitchRange* ranges = NEW_RESOURCE_ARRAY(SwitchRange, rnum);
   int rp = -1;
   if (lo_index != min_jint) {
-    uint cnt = 1;
+    float cnt = 1.0F;
     if (profile != NULL) {
-      cnt = profile->default_count() / (hi_index != max_jint ? 2 : 1);
+      cnt = (float)profile->default_count() / (hi_index != max_jint ? 2.0F : 1.0F);
     }
     ranges[++rp].setRange(min_jint, lo_index-1, default_dest, cnt);
   }
@@ -843,9 +796,9 @@ void Parse::do_tableswitch() {
     jint match_int = lo_index+j;
     int  dest      = iter().get_dest_table(j+3);
     makes_backward_branch |= (dest <= bci());
-    uint cnt = 1;
+    float cnt = 1.0F;
     if (profile != NULL) {
-      cnt = profile->count_at(j);
+      cnt = (float)profile->count_at(j);
     }
     if (rp < 0 || !ranges[rp].adjoin(match_int, dest, cnt, trim_ranges)) {
       ranges[++rp].set(match_int, dest, cnt);
@@ -854,9 +807,9 @@ void Parse::do_tableswitch() {
   jint highest = lo_index+(len-1);
   assert(ranges[rp].hi() == highest, "");
   if (highest != max_jint) {
-    uint cnt = 1;
+    float cnt = 1.0F;
     if (profile != NULL) {
-      cnt = profile->default_count() / (lo_index != min_jint ? 2 : 1);
+      cnt = (float)profile->default_count() / (lo_index != min_jint ? 2.0F : 1.0F);
     }
     if (!ranges[rp].adjoinRange(highest+1, max_jint, default_dest, cnt, trim_ranges)) {
       ranges[++rp].setRange(highest+1, max_jint, default_dest, cnt);
@@ -882,7 +835,7 @@ void Parse::do_tableswitch() {
 void Parse::do_lookupswitch() {
   // Get information about lookupswitch
   int default_dest = iter().get_dest_table(0);
-  int len          = iter().get_int_table(1);
+  jint len          = iter().get_int_table(1);
 
   if (len < 1) {    // If this is a backward branch, add safepoint
     maybe_add_safepoint(default_dest);
@@ -908,26 +861,15 @@ void Parse::do_lookupswitch() {
       table[3*j+0] = iter().get_int_table(2+2*j);
       table[3*j+1] = iter().get_dest_table(2+2*j+1);
       // Handle overflow when converting from uint to jint
-      table[3*j+2] = (profile == NULL) ? 1 : MIN2<uint>(max_jint, profile->count_at(j));
+      table[3*j+2] = (profile == NULL) ? 1 : (jint)MIN2<uint>((uint)max_jint, profile->count_at(j));
     }
     qsort(table, len, 3*sizeof(table[0]), jint_cmp);
   }
 
-  float defaults = 0;
-  jint prev = min_jint;
-  for (int j = 0; j < len; j++) {
-    jint match_int = table[3*j+0];
-    if (match_int != prev) {
-      defaults += (float)match_int - prev;
-    }
-    prev = match_int+1;
-  }
-  if (prev != min_jint) {
-    defaults += (float)max_jint - prev + 1;
-  }
-  float default_cnt = 1;
+  float default_cnt = 1.0F;
   if (profile != NULL) {
-    default_cnt = profile->default_count()/defaults;
+    juint defaults = max_juint - len;
+    default_cnt = (float)profile->default_count()/(float)defaults;
   }
 
   int rnum = len*2+1;
@@ -936,25 +878,25 @@ void Parse::do_lookupswitch() {
   int rp = -1;
   for (int j = 0; j < len; j++) {
     jint match_int   = table[3*j+0];
-    int  dest        = table[3*j+1];
-    int  cnt         = table[3*j+2];
-    int  next_lo     = rp < 0 ? min_jint : ranges[rp].hi()+1;
+    jint  dest        = table[3*j+1];
+    jint  cnt         = table[3*j+2];
+    jint  next_lo     = rp < 0 ? min_jint : ranges[rp].hi()+1;
     makes_backward_branch |= (dest <= bci());
-    float c = default_cnt * ((float)match_int - next_lo);
+    float c = default_cnt * ((float)match_int - (float)next_lo);
     if (match_int != next_lo && (rp < 0 || !ranges[rp].adjoinRange(next_lo, match_int-1, default_dest, c, trim_ranges))) {
       assert(default_dest != never_reached, "sentinel value for dead destinations");
       ranges[++rp].setRange(next_lo, match_int-1, default_dest, c);
     }
-    if (rp < 0 || !ranges[rp].adjoin(match_int, dest, cnt, trim_ranges)) {
+    if (rp < 0 || !ranges[rp].adjoin(match_int, dest, (float)cnt, trim_ranges)) {
       assert(dest != never_reached, "sentinel value for dead destinations");
-      ranges[++rp].set(match_int, dest, cnt);
+      ranges[++rp].set(match_int, dest,  (float)cnt);
     }
   }
   jint highest = table[3*(len-1)];
   assert(ranges[rp].hi() == highest, "");
   if (highest != max_jint &&
-      !ranges[rp].adjoinRange(highest+1, max_jint, default_dest, default_cnt * ((float)max_jint - highest), trim_ranges)) {
-    ranges[++rp].setRange(highest+1, max_jint, default_dest, default_cnt * ((float)max_jint - highest));
+      !ranges[rp].adjoinRange(highest+1, max_jint, default_dest, default_cnt * ((float)max_jint - (float)highest), trim_ranges)) {
+    ranges[++rp].setRange(highest+1, max_jint, default_dest, default_cnt * ((float)max_jint - (float)highest));
   }
   assert(rp < rnum, "not too many ranges");
 

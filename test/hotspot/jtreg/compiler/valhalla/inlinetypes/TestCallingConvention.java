@@ -957,6 +957,7 @@ public class TestCallingConvention {
     static primitive class EmptyContainer {
         private MyValueEmpty empty;
 
+        @ForceInline
         EmptyContainer(MyValueEmpty empty) {
             this.empty = empty;
         }
@@ -972,6 +973,7 @@ public class TestCallingConvention {
         public int val;
         private EmptyContainer empty;
 
+        @ForceInline
         MixedContainer(int val, EmptyContainer empty) {
             this.val = val;
             this.empty = empty;

@@ -194,7 +194,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
           extak = TypeKlassPtr::make(array_type);
         }
       }
-    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak != TypeKlassPtr::OBJECT) {
+    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak != TypeInstKlassPtr::OBJECT) {
       // If the compiler has determined that the type of array 'ary' (represented
       // by 'array_klass') is java/lang/Object, the compiler must not assume that
       // the array 'ary' is monomorphic.

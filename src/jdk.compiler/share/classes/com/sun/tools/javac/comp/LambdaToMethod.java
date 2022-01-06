@@ -2278,7 +2278,7 @@ public class LambdaToMethod extends TreeTranslator {
                Todo: Investigate to see if a defect should be reported against runtime lambda machinery
             */
             boolean receiverIsReferenceProjection() {
-                return tree.getQualifierExpression().type.isPrimitiveReferenceType();
+                return tree.getQualifierExpression().type.isReferenceProjection();
             }
 
             /**

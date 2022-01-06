@@ -75,13 +75,13 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
-  ArrayKlass* volatile* adr_null_free_inline_array_klasses() const {
+  ArrayKlass* volatile* adr_value_array_klasses() const {
     assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
     return (ArrayKlass* volatile*) ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _null_free_inline_array_klasses));
   }
 
-  ArrayKlass* null_free_inline_array_klasses() const {
-    return *adr_null_free_inline_array_klasses();
+  ArrayKlass* value_array_klasses() const {
+    return *adr_value_array_klasses();
   }
 
   address adr_alignment() const {
@@ -154,10 +154,6 @@ class InlineKlass: public InstanceKlass {
     return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_INLINE_TYPE);
   }
 
-  // Iterators
-  virtual void array_klasses_do(void f(Klass* k));
-  virtual void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
-
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);
 
@@ -190,12 +186,12 @@ class InlineKlass: public InstanceKlass {
 
   // null free inline array klass, akin to InstanceKlass::array_klass()
   // Returns the array class for the n'th dimension
-  Klass* null_free_inline_array_klass(int n, TRAPS);
-  Klass* null_free_inline_array_klass_or_null(int n);
+  Klass* value_array_klass(int n, TRAPS);
+  Klass* value_array_klass_or_null(int n);
 
   // Returns the array class with this class as element type
-  Klass* null_free_inline_array_klass(TRAPS);
-  Klass* null_free_inline_array_klass_or_null();
+  Klass* value_array_klass(TRAPS);
+  Klass* value_array_klass_or_null();
 
 
   // General store methods

@@ -125,7 +125,7 @@ static inline void assert_field_offset_sane(oop p, jlong field_offset) {
     assert(byte_offset >= 0 && byte_offset <= (jlong)MAX_OBJECT_SIZE, "sane offset");
     if (byte_offset == (jint)byte_offset) {
       void* ptr_plus_disp = cast_from_oop<address>(p) + byte_offset;
-      assert(p->field_addr((jint)byte_offset) == ptr_plus_disp,
+      assert(p->field_addr<void>((jint)byte_offset) == ptr_plus_disp,
              "raw [ptr+disp] must be consistent with oop::field_addr");
     }
     jlong p_size = HeapWordSize * (jlong)(p->size());
@@ -223,44 +223,25 @@ public:
   }
 
   T get() {
-    if (_obj == NULL) {
-      GuardUnsafeAccess guard(_thread);
-      T ret = RawAccess<>::load(addr());
-      return normalize_for_read(ret);
-    } else {
-      T ret = HeapAccess<>::load_at(_obj, _offset);
-      return normalize_for_read(ret);
-    }
+    GuardUnsafeAccess guard(_thread);
+    return normalize_for_read(*addr());
   }
 
   void put(T x) {
-    if (_obj == NULL) {
-      GuardUnsafeAccess guard(_thread);
-      RawAccess<>::store(addr(), normalize_for_write(x));
-    } else {
-      assert(!_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
-      HeapAccess<>::store_at(_obj, _offset, normalize_for_write(x));
-    }
+    GuardUnsafeAccess guard(_thread);
+    assert(_obj == NULL || !_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
+    *addr() = normalize_for_write(x);
   }
 
   T get_volatile() {
-    if (_obj == NULL) {
-      GuardUnsafeAccess guard(_thread);
-      volatile T ret = RawAccess<MO_SEQ_CST>::load(addr());
-      return normalize_for_read(ret);
-    } else {
-      T ret = HeapAccess<MO_SEQ_CST>::load_at(_obj, _offset);
-      return normalize_for_read(ret);
-    }
+    GuardUnsafeAccess guard(_thread);
+    volatile T ret = RawAccess<MO_SEQ_CST>::load(addr());
+    return normalize_for_read(ret);
   }
 
   void put_volatile(T x) {
-    if (_obj == NULL) {
-      GuardUnsafeAccess guard(_thread);
-      RawAccess<MO_SEQ_CST>::store(addr(), normalize_for_write(x));
-    } else {
-      HeapAccess<MO_SEQ_CST>::store_at(_obj, _offset, normalize_for_write(x));
-    }
+    GuardUnsafeAccess guard(_thread);
+    RawAccess<MO_SEQ_CST>::store(addr(), normalize_for_write(x));
   }
 };
 
@@ -348,6 +329,13 @@ UNSAFE_ENTRY(jlong, Unsafe_ValueHeaderSize(JNIEnv *env, jobject unsafe, jclass c
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
   InlineKlass* vk = InlineKlass::cast(k);
   return vk->first_field_offset();
+} UNSAFE_END
+
+UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedField(JNIEnv *env, jobject unsafe, jobject o)) {
+  oop f = JNIHandles::resolve_non_null(o);
+  Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
+  int slot = java_lang_reflect_Field::slot(f);
+  return InstanceKlass::cast(k)->field_is_inlined(slot);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
@@ -466,14 +454,6 @@ DEFINE_GETSETOOP_VOLATILE(jfloat, Float);
 DEFINE_GETSETOOP_VOLATILE(jdouble, Double);
 
 #undef DEFINE_GETSETOOP_VOLATILE
-
-UNSAFE_LEAF(void, Unsafe_LoadFence(JNIEnv *env, jobject unsafe)) {
-  OrderAccess::acquire();
-} UNSAFE_END
-
-UNSAFE_LEAF(void, Unsafe_StoreFence(JNIEnv *env, jobject unsafe)) {
-  OrderAccess::release();
-} UNSAFE_END
 
 UNSAFE_LEAF(void, Unsafe_FullFence(JNIEnv *env, jobject unsafe)) {
   OrderAccess::fence();
@@ -882,24 +862,14 @@ UNSAFE_ENTRY(jobject, Unsafe_CompareAndExchangeReference(JNIEnv *env, jobject un
 
 UNSAFE_ENTRY(jint, Unsafe_CompareAndExchangeInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x)) {
   oop p = JNIHandles::resolve(obj);
-  if (p == NULL) {
-    volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
-    return RawAccess<>::atomic_cmpxchg(addr, e, x);
-  } else {
-    assert_field_offset_sane(p, offset);
-    return HeapAccess<>::atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x);
-  }
+  volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
+  return Atomic::cmpxchg(addr, e, x);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jlong, Unsafe_CompareAndExchangeLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
-  if (p == NULL) {
-    volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
-    return RawAccess<>::atomic_cmpxchg(addr, e, x);
-  } else {
-    assert_field_offset_sane(p, offset);
-    return HeapAccess<>::atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x);
-  }
+  volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
+  return Atomic::cmpxchg(addr, e, x);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetReference(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jobject e_h, jobject x_h)) {
@@ -913,24 +883,14 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetReference(JNIEnv *env, jobject unsafe
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x)) {
   oop p = JNIHandles::resolve(obj);
-  if (p == NULL) {
-    volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
-    return RawAccess<>::atomic_cmpxchg(addr, e, x) == e;
-  } else {
-    assert_field_offset_sane(p, offset);
-    return HeapAccess<>::atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x) == e;
-  }
+  volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
+  return Atomic::cmpxchg(addr, e, x) == e;
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
-  if (p == NULL) {
-    volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
-    return RawAccess<>::atomic_cmpxchg(addr, e, x) == e;
-  } else {
-    assert_field_offset_sane(p, offset);
-    return HeapAccess<>::atomic_cmpxchg_at(p, (ptrdiff_t)offset, e, x) == e;
-  }
+  volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
+  return Atomic::cmpxchg(addr, e, x) == e;
 } UNSAFE_END
 
 static void post_thread_park_event(EventThreadPark* event, const oop obj, jlong timeout_nanos, jlong until_epoch_millis) {
@@ -1039,6 +999,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "putReferenceVolatile", CC "(" OBJ "J" OBJ ")V",  FN_PTR(Unsafe_PutReferenceVolatile)},
 
     {CC "isFlattenedArray", CC "(" CLS ")Z",                     FN_PTR(Unsafe_IsFlattenedArray)},
+    {CC "isFlattenedField0", CC "(" OBJ ")Z",                    FN_PTR(Unsafe_IsFlattenedField)},
     {CC "getValue",         CC "(" OBJ "J" CLS ")" OBJ,          FN_PTR(Unsafe_GetValue)},
     {CC "putValue",         CC "(" OBJ "J" CLS OBJ ")V",         FN_PTR(Unsafe_PutValue)},
     {CC "uninitializedDefaultValue", CC "(" CLS ")" OBJ,         FN_PTR(Unsafe_UninitializedDefaultValue)},
@@ -1094,8 +1055,6 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
 
     {CC "shouldBeInitialized0", CC "(" CLS ")Z",         FN_PTR(Unsafe_ShouldBeInitialized0)},
 
-    {CC "loadFence",          CC "()V",                  FN_PTR(Unsafe_LoadFence)},
-    {CC "storeFence",         CC "()V",                  FN_PTR(Unsafe_StoreFence)},
     {CC "fullFence",          CC "()V",                  FN_PTR(Unsafe_FullFence)},
 };
 

@@ -1088,7 +1088,8 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
           opc == Op_MemBarRelease ||
           opc == Op_StoreFence ||
           opc == Op_MemBarReleaseLock ||
-          opc == Op_MemBarStoreStore) {
+          opc == Op_MemBarStoreStore ||
+          opc == Op_StoreStoreFence) {
         Node* mem = current->in(0)->in(TypeFunc::Memory);
         if (mem->is_MergeMem()) {
           MergeMemNode* merge = mem->as_MergeMem();
@@ -1143,7 +1144,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
         return NULL;
       }
       // LoadVector/StoreVector needs additional check to ensure the types match.
-      if (store_Opcode() == Op_StoreVector) {
+      if (st->is_StoreVector()) {
         const TypeVect*  in_vt = st->as_StoreVector()->vect_type();
         const TypeVect* out_vt = is_Load() ? as_LoadVector()->vect_type() : as_StoreVector()->vect_type();
         if (in_vt != out_vt) {
@@ -1241,9 +1242,8 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* addr = in(Address);
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  InlineTypePtrNode* vt = (base != NULL) ? base->uncast()->isa_InlineTypePtr() : NULL;
-  if (vt != NULL && offset > oopDesc::klass_offset_in_bytes()) {
-    Node* value = vt->field_value_by_offset((int)offset, true);
+  if (base != NULL && base->is_InlineTypePtr() && offset > oopDesc::klass_offset_in_bytes()) {
+    Node* value = base->as_InlineTypePtr()->field_value_by_offset((int)offset, true);
     if (value->is_InlineType()) {
       // Non-flattened inline type field
       InlineTypeNode* vt = value->as_InlineType();
@@ -1668,7 +1668,14 @@ Node *LoadNode::split_through_phi(PhaseGVN *phase) {
       the_clone = x;            // Remember for possible deletion.
       // Alter data node to use pre-phi inputs
       if (this->in(0) == region) {
-        x->set_req(0, in);
+        if (mem->is_Phi() && (mem->in(0) == region) && mem->in(i)->in(0) != NULL &&
+            MemNode::all_controls_dominate(address, region)) {
+          // Enable other optimizations such as loop predication which does not work
+          // if we directly pin the node to node `in`
+          x->set_req(0, mem->in(i)->in(0)); // Use same control as memory
+        } else {
+          x->set_req(0, in);
+        }
       } else {
         x->set_req(0, NULL);
       }
@@ -2036,7 +2043,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         return con_type;
       }
     }
-  } else if (tp->base() == Type::KlassPtr) {
+  } else if (tp->base() == Type::KlassPtr || tp->base() == Type::InstKlassPtr || tp->base() == Type::AryKlassPtr) {
     assert( off != Type::OffsetBot ||
             // arrays can be cast to Objects
             tp->is_klassptr()->klass() == NULL ||
@@ -2428,7 +2435,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       }
 
       // Return root of possible klass
-      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
+      return TypeInstKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
     }
   }
 
@@ -2461,7 +2468,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false, tary->is_not_flat(), tary->is_not_null_free());
+        return TypeAryKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), tary->is_not_flat(), tary->is_not_null_free(), tary->is_null_free());
       } else if (ak->is_type_array_klass()) {
         return TypeKlassPtr::make(ak); // These are always precise
       }
@@ -2488,7 +2495,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
     } else if (klass->is_flat_array_klass() &&
                tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_flat_array_klass()->element_klass();
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
+      return TypeInstKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -3418,13 +3425,14 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
   case Op_LoadFence:         return new LoadFenceNode(C, atp, pn);
   case Op_MemBarRelease:     return new MemBarReleaseNode(C, atp, pn);
   case Op_StoreFence:        return new StoreFenceNode(C, atp, pn);
+  case Op_MemBarStoreStore:  return new MemBarStoreStoreNode(C, atp, pn);
+  case Op_StoreStoreFence:   return new StoreStoreFenceNode(C, atp, pn);
   case Op_MemBarAcquireLock: return new MemBarAcquireLockNode(C, atp, pn);
   case Op_MemBarReleaseLock: return new MemBarReleaseLockNode(C, atp, pn);
   case Op_MemBarVolatile:    return new MemBarVolatileNode(C, atp, pn);
   case Op_MemBarCPUOrder:    return new MemBarCPUOrderNode(C, atp, pn);
   case Op_OnSpinWait:        return new OnSpinWaitNode(C, atp, pn);
   case Op_Initialize:        return new InitializeNode(C, atp, pn);
-  case Op_MemBarStoreStore:  return new MemBarStoreStoreNode(C, atp, pn);
   case Op_Blackhole:         return new BlackholeNode(C, atp, pn);
   default: ShouldNotReachHere(); return NULL;
   }

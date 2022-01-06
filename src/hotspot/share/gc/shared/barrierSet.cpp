@@ -53,6 +53,7 @@ void BarrierSet::set_barrier_set(BarrierSet* barrier_set) {
 }
 
 void BarrierSet::throw_array_null_pointer_store_exception(arrayOop src, arrayOop dst, TRAPS) {
+  ResourceMark rm(THREAD);
   Klass* bound = ObjArrayKlass::cast(dst->klass())->element_klass();
   stringStream ss;
   ss.print("arraycopy: can not copy null values into %s[]",

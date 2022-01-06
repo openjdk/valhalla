@@ -32,22 +32,9 @@
 
 public class TestReflectiveMirrors {
 
-    static primitive class RefDefault.val {}
     static primitive class ValDefault {}
 
     public static void main(String [] args) {
-
-        if (RefDefault.class != new RefDefault().getClass()) {
-            throw new AssertionError("Wrong mirror");
-        }
-
-        if (RefDefault.ref.class != new RefDefault().getClass()) {
-            throw new AssertionError("Wrong mirror");
-        }
-
-        if (RefDefault.val.class != new RefDefault().getClass().asValueType()) {
-            throw new AssertionError("Wrong mirror");
-        }
 
         if (ValDefault.class != new ValDefault().getClass()) {
             throw new AssertionError("Wrong mirror");
@@ -58,18 +45,6 @@ public class TestReflectiveMirrors {
         }
 
         if (ValDefault.val.class != new ValDefault().getClass().asValueType()) {
-            throw new AssertionError("Wrong mirror");
-        }
-
-        if (TestReflectiveMirrors.RefDefault.class != new RefDefault().getClass()) {
-            throw new AssertionError("Wrong mirror");
-        }
-
-        if (TestReflectiveMirrors.RefDefault.ref.class != new RefDefault().getClass()) {
-            throw new AssertionError("Wrong mirror");
-        }
-
-        if (TestReflectiveMirrors.RefDefault.val.class != new RefDefault().getClass().asValueType()) {
             throw new AssertionError("Wrong mirror");
         }
 

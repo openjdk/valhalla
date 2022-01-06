@@ -43,7 +43,6 @@ import javax.tools.JavaFileObject;
 import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Lint.LintCategory;
 import com.sun.tools.javac.code.Source.Feature;
-import com.sun.tools.javac.code.Type.ClassType.Flavor;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.TypeMetadata.Entry.Kind;
 import com.sun.tools.javac.comp.AttrContext;
@@ -1259,8 +1258,7 @@ public class Types {
                 // If t is an intersection, sup might not be a class type
                 if (!sup.hasTag(CLASS)) return isSubtypeNoCapture(sup, s);
                 return sup.tsym == s.tsym
-                    && (t.tsym != s.tsym ||
-                        (t.isReferenceProjection() == s.isReferenceProjection() && t.isValueProjection() == s.isValueProjection()))
+                    && (t.tsym != s.tsym || t.isReferenceProjection() == s.isReferenceProjection())
                      // Check type variable containment
                     && (!s.isParameterized() || containsTypeRecursive(s, sup))
                     && isSubtypeNoCapture(sup.getEnclosingType(),
@@ -1507,7 +1505,6 @@ public class Types {
                 }
                 return t.tsym == s.tsym
                     && t.isReferenceProjection() == s.isReferenceProjection()
-                    && t.isValueProjection() == s.isValueProjection()
                     && visit(getEnclosingType(t), getEnclosingType(s))
                     && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments());
             }
@@ -1515,7 +1512,7 @@ public class Types {
                 private Type getEnclosingType(Type t) {
                     Type et = t.getEnclosingType();
                     if (et.isReferenceProjection()) {
-                        et = et.asValueType();
+                        et = et.valueProjection();
                     }
                     return et;
                 }
@@ -1781,7 +1778,7 @@ public class Types {
                 && s.hasTag(CLASS) && s.tsym.kind.matches(Kinds.KindSelector.TYP)
                 && (t.tsym.isSealed() || s.tsym.isSealed())) {
             return (t.isCompound() || s.isCompound()) ?
-                    false :
+                    true :
                     !areDisjoint((ClassSymbol)t.tsym, (ClassSymbol)s.tsym);
         }
         return result;
@@ -2323,7 +2320,7 @@ public class Types {
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
-            if (t.hasTag(CLASS) && !t.tsym.isPrimitiveClass() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
                 return syms.identityObjectType;
             }
             if (implicitIdentityType(t)) {
@@ -2686,18 +2683,10 @@ public class Types {
             public Type visitClassType(ClassType t, Boolean recurse) {
                 // erasure(projection(primitive)) = projection(erasure(primitive))
                 Type erased = eraseClassType(t, recurse);
-                Flavor wantedFlavor = t.flavor;
-                if (t.isIntersection()) {
-                    IntersectionClassType ict = (IntersectionClassType) t;
-                    Type firstExplicitBound = ict.getExplicitComponents().head;
-                    if (firstExplicitBound.hasTag(CLASS))
-                        wantedFlavor = firstExplicitBound.getFlavor();
-                    // Todo: Handle Type variable case.
-                }
-                if (erased.hasTag(CLASS) && wantedFlavor != erased.getFlavor()) {
+                if (erased.hasTag(CLASS) && t.flavor != erased.getFlavor()) {
                     erased = new ClassType(erased.getEnclosingType(),
                             List.nil(), erased.tsym,
-                            erased.getMetadata(), wantedFlavor);
+                            erased.getMetadata(), t.flavor);
                 }
                 return erased;
             }
@@ -5182,7 +5171,7 @@ public class Types {
      * type itself) of the operation implemented by this visitor; use
      * Void if a second argument is not needed.
      */
-    public static abstract class DefaultTypeVisitor<R,S> implements Type.Visitor<R,S> {
+    public abstract static class DefaultTypeVisitor<R,S> implements Type.Visitor<R,S> {
         public final R visit(Type t, S s)               { return t.accept(this, s); }
         public R visitClassType(ClassType t, S s)       { return visitType(t, s); }
         public R visitWildcardType(WildcardType t, S s) { return visitType(t, s); }
@@ -5209,7 +5198,7 @@ public class Types {
      * symbol itself) of the operation implemented by this visitor; use
      * Void if a second argument is not needed.
      */
-    public static abstract class DefaultSymbolVisitor<R,S> implements Symbol.Visitor<R,S> {
+    public abstract static class DefaultSymbolVisitor<R,S> implements Symbol.Visitor<R,S> {
         public final R visit(Symbol s, S arg)                   { return s.accept(this, arg); }
         public R visitClassSymbol(ClassSymbol s, S arg)         { return visitSymbol(s, arg); }
         public R visitMethodSymbol(MethodSymbol s, S arg)       { return visitSymbol(s, arg); }
@@ -5232,7 +5221,7 @@ public class Types {
      * type itself) of the operation implemented by this visitor; use
      * Void if a second argument is not needed.
      */
-    public static abstract class SimpleVisitor<R,S> extends DefaultTypeVisitor<R,S> {
+    public abstract static class SimpleVisitor<R,S> extends DefaultTypeVisitor<R,S> {
         @Override
         public R visitCapturedType(CapturedType t, S s) {
             return visitTypeVar(t, s);
@@ -5252,7 +5241,7 @@ public class Types {
      * form Type&nbsp;&times;&nbsp;Type&nbsp;&rarr;&nbsp;Boolean.
      * <!-- In plain text: Type x Type -> Boolean -->
      */
-    public static abstract class TypeRelation extends SimpleVisitor<Boolean,Type> {}
+    public abstract static class TypeRelation extends SimpleVisitor<Boolean,Type> {}
 
     /**
      * A convenience visitor for implementing operations that only
@@ -5262,7 +5251,7 @@ public class Types {
      * @param <R> the return type of the operation implemented by this
      * visitor; use Void if no return type is needed.
      */
-    public static abstract class UnaryVisitor<R> extends SimpleVisitor<R,Void> {
+    public abstract static class UnaryVisitor<R> extends SimpleVisitor<R,Void> {
         public final R visit(Type t) { return t.accept(this, null); }
     }
 
@@ -5327,7 +5316,7 @@ public class Types {
 
     // <editor-fold defaultstate="collapsed" desc="Signature Generation">
 
-    public static abstract class SignatureGenerator {
+    public abstract static class SignatureGenerator {
 
         public static class InvalidSignatureException extends RuntimeException {
             private static final long serialVersionUID = 0;

@@ -1,5 +1,0 @@
-ClassLiteralTypingNegativeTest.java:14:51: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Class<compiler.misc.type.captureof: 1, ? extends java.lang.Object>, java.lang.Class<? extends ClassLiteralTypingNegativeTest.Foo>)
-ClassLiteralTypingNegativeTest.java:17:30: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Class<compiler.misc.type.captureof: 1, ? extends java.lang.Object>, java.lang.Class<? extends ClassLiteralTypingNegativeTest.Foo>)
-ClassLiteralTypingNegativeTest.java:31:51: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Class<compiler.misc.type.captureof: 1, ? extends java.lang.Object&ClassLiteralTypingNegativeTest.I>, java.lang.Class<? extends ClassLiteralTypingNegativeTest.Bar>)
-ClassLiteralTypingNegativeTest.java:34:30: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Class<compiler.misc.type.captureof: 1, ? extends java.lang.Object&ClassLiteralTypingNegativeTest.I>, java.lang.Class<? extends ClassLiteralTypingNegativeTest.Bar>)
-4 errors

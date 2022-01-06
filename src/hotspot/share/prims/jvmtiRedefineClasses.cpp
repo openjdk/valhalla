@@ -2241,6 +2241,8 @@ void VM_RedefineClasses::rewrite_cp_refs_in_method(methodHandle method,
       case Bytecodes::_checkcast      : // fall through
       case Bytecodes::_getfield       : // fall through
       case Bytecodes::_getstatic      : // fall through
+      case Bytecodes::_defaultvalue   : // fall through
+      case Bytecodes::_withfield      : // fall through
       case Bytecodes::_instanceof     : // fall through
       case Bytecodes::_invokedynamic  : // fall through
       case Bytecodes::_invokeinterface: // fall through
@@ -4411,6 +4413,9 @@ void VM_RedefineClasses::redefine_single_class(Thread* current, jclass the_jclas
   scratch_class->set_enclosing_method_indices(old_class_idx, old_method_idx);
 
   the_class->set_has_been_redefined();
+
+  // Scratch class is unloaded but still needs cleaning, and skipping for CDS.
+  scratch_class->set_is_scratch_class();
 
   // keep track of previous versions of this class
   the_class->add_previous_version(scratch_class, emcp_method_count);
