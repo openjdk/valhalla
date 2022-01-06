@@ -23,7 +23,7 @@
  */
 /*
  * @test
- * @summary test that if a class file has ACC_INLINE set then it must be run
+ * @summary test that if a class file has ACC_PRIMITIVE set then it must be run
  *          with option -XX:+EnableValhalla.
  * @compile cfpTests.jcod
  * @run main/othervm -XX:-EnableValhalla BadACCValue
@@ -44,7 +44,7 @@ public class BadACCValue {
 
     public static void main(String[] args) throws Exception {
 
-        // Test ACC_INLINE causes a CFE unless -XX:+EnableValhalla is specified.
+        // Test ACC_PRIMITIVE causes a CFE unless -XX:+EnableValhalla is specified.
         runTest("ValueFieldNotFinal",
                 "Class modifier ACC_INLINE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
     }

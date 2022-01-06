@@ -829,9 +829,8 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
-            char flags = (char) adjustFlags(inner.flags_field);
+            char flags = (char) adjustFlags(inner.flags_field & ~STRICTFP); // inner classes should not have the strictfp flag set.
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
-            flags &= ~STRICTFP; //inner classes should not have the strictfp flag set.
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
@@ -1546,9 +1545,9 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
-            flags = adjustFlags(c.flags() & ~DEFAULT);
+            flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & (ClassFlags | ACC_PRIMITIVE) & ~STRICTFP;
+            flags = flags & ClassFlags;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
