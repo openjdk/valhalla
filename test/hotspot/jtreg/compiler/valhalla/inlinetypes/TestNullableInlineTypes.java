@@ -2353,7 +2353,7 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test85")
     public void test85_verifier() {
-        Asserts.assertEquals(test82(), test82Result);
+        Asserts.assertEquals(test85(), test85Result);
     }
 
     static final class ObjectWrapper {
@@ -2385,5 +2385,88 @@ public class TestNullableInlineTypes {
     public void test86_verifier() {
         test86(testValue1);
         Asserts.assertEquals(test86(testValue1), testValue1.hash());
+    }
+
+    public static primitive class Test87C0 {
+        int x = rI;
+    }
+
+    public static primitive class Test87C1 {
+        Test87C0 field = Test87C0.default;
+    }
+
+    public static primitive class Test87C2 {
+        Test87C1 field = Test87C1.default;
+    }
+
+    // Test merging .val and .ref in return
+    @Test
+    public Test87C1 test87(boolean b, Test87C2.val v1, Test87C2.ref v2) {
+        if (b) {
+            return v1.field;
+        } else {
+            return v2.field;
+        }
+    }
+
+    @Run(test = "test87")
+    public void test87_verifier() {
+        Test87C2 v = new Test87C2();
+        Asserts.assertEQ(test87(true, v, v), v.field);
+        Asserts.assertEQ(test87(false, v, v), v.field);
+    }
+
+    static primitive class Test88Value {
+        int x = 0;
+    }
+
+    static class Test88MyClass {
+        int x = 0;
+        int y = rI;
+    }
+
+    @ForceInline
+    Object test88Helper() {
+        return new Test88Value();
+    }
+
+    // Test LoadNode::Identity optimization with always failing checkcast
+    @Test
+    public int test88() {
+        Object obj = test88Helper();
+        return ((Test88MyClass)obj).y;
+    }
+
+    @Run(test = "test88")
+    public void test88_verifier() {
+        try {
+            test88();
+            throw new RuntimeException("No ClassCastException thrown");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    // Same as test88 but with Phi
+    @Test
+    public int test89(boolean b) {
+        Test88MyClass obj = b ? (Test88MyClass)test88Helper() : (Test88MyClass)test88Helper();
+        return obj.y;
+    }
+
+    @Run(test = "test89")
+    public void test89_verifier() {
+        try {
+            test89(false);
+            throw new RuntimeException("No ClassCastException thrown");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            test89(true);
+            throw new RuntimeException("No ClassCastException thrown");
+        } catch (ClassCastException e) {
+            // Expected
+        }
     }
 }

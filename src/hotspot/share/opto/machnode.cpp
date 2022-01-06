@@ -703,8 +703,6 @@ bool MachCallNode::return_value_is_used() const {
     return false;
   }
 
-  assert(tf()->returns_inline_type_as_fields(), "multiple return values not supported");
-
   // find the projection corresponding to the return value
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node *use = fast_out(i);

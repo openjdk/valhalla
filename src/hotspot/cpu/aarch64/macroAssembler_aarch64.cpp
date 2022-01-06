@@ -1379,7 +1379,7 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
   }
 #endif
   ldrw(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  andr(temp_reg, temp_reg, InstanceKlass::misc_flags_is_empty_inline_type());
+  andr(temp_reg, temp_reg, InstanceKlass::misc_flag_is_empty_inline_type());
   cbnz(temp_reg, is_empty_inline_type);
 }
 
@@ -1435,22 +1435,22 @@ void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_re
 }
 
 void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
-  tst(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   br(Assembler::NE, is_flattened_array);
 }
 
 void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
-  tst(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  tst(lh, Klass::_lh_array_tag_flat_value_bit_inplace);
   br(Assembler::EQ, is_non_flattened_array);
 }
 
 void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
-  tst(lh, Klass::_lh_null_free_bit_inplace);
+  tst(lh, Klass::_lh_null_free_array_bit_inplace);
   br(Assembler::NE, is_null_free_array);
 }
 
 void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
-  tst(lh, Klass::_lh_null_free_bit_inplace);
+  tst(lh, Klass::_lh_null_free_array_bit_inplace);
   br(Assembler::EQ, is_non_null_free_array);
 }
 
@@ -2017,15 +2017,6 @@ void MacroAssembler::increment(Address dst, int value)
   str(rscratch1, dst);
 }
 
-
-void MacroAssembler::pusha() {
-  push(0x7fffffff, sp);
-}
-
-void MacroAssembler::popa() {
-  pop(0x7fffffff, sp);
-}
-
 // Push lots of registers in the bit set supplied.  Don't push sp.
 // Return the number of words pushed
 int MacroAssembler::push(unsigned int bitset, Register stack) {
@@ -2149,7 +2140,7 @@ int MacroAssembler::push_fp(unsigned int bitset, Register stack) {
   return count * 2;
 }
 
-// Return the number of dwords poped
+// Return the number of dwords popped
 int MacroAssembler::pop_fp(unsigned int bitset, Register stack) {
   int words_pushed = 0;
   bool use_sve = false;
@@ -2206,6 +2197,80 @@ int MacroAssembler::pop_fp(unsigned int bitset, Register stack) {
   assert(words_pushed == count, "oops, pushed(%d) != count(%d)", words_pushed, count);
 
   return count * 2;
+}
+
+// Return the number of dwords pushed
+int MacroAssembler::push_p(unsigned int bitset, Register stack) {
+  bool use_sve = false;
+  int sve_predicate_size_in_slots = 0;
+
+#ifdef COMPILER2
+  use_sve = Matcher::supports_scalable_vector();
+  if (use_sve) {
+    sve_predicate_size_in_slots = Matcher::scalable_predicate_reg_slots();
+  }
+#endif
+
+  if (!use_sve) {
+    return 0;
+  }
+
+  unsigned char regs[PRegisterImpl::number_of_saved_registers];
+  int count = 0;
+  for (int reg = 0; reg < PRegisterImpl::number_of_saved_registers; reg++) {
+    if (1 & bitset)
+      regs[count++] = reg;
+    bitset >>= 1;
+  }
+
+  if (count == 0) {
+    return 0;
+  }
+
+  int total_push_bytes = align_up(sve_predicate_size_in_slots *
+                                  VMRegImpl::stack_slot_size * count, 16);
+  sub(stack, stack, total_push_bytes);
+  for (int i = 0; i < count; i++) {
+    sve_str(as_PRegister(regs[i]), Address(stack, i));
+  }
+  return total_push_bytes / 8;
+}
+
+// Return the number of dwords popped
+int MacroAssembler::pop_p(unsigned int bitset, Register stack) {
+  bool use_sve = false;
+  int sve_predicate_size_in_slots = 0;
+
+#ifdef COMPILER2
+  use_sve = Matcher::supports_scalable_vector();
+  if (use_sve) {
+    sve_predicate_size_in_slots = Matcher::scalable_predicate_reg_slots();
+  }
+#endif
+
+  if (!use_sve) {
+    return 0;
+  }
+
+  unsigned char regs[PRegisterImpl::number_of_saved_registers];
+  int count = 0;
+  for (int reg = 0; reg < PRegisterImpl::number_of_saved_registers; reg++) {
+    if (1 & bitset)
+      regs[count++] = reg;
+    bitset >>= 1;
+  }
+
+  if (count == 0) {
+    return 0;
+  }
+
+  int total_pop_bytes = align_up(sve_predicate_size_in_slots *
+                                 VMRegImpl::stack_slot_size * count, 16);
+  for (int i = count - 1; i >= 0; i--) {
+    sve_ldr(as_PRegister(regs[i]), Address(stack, i));
+  }
+  add(stack, stack, total_pop_bytes);
+  return total_pop_bytes / 8;
 }
 
 #ifdef ASSERT
@@ -2666,8 +2731,8 @@ void MacroAssembler::pop_call_clobbered_registers_except(RegSet exclude) {
 }
 
 void MacroAssembler::push_CPU_state(bool save_vectors, bool use_sve,
-                                    int sve_vector_size_in_bytes) {
-  push(0x3fffffff, sp);         // integer registers except lr & sp
+                                    int sve_vector_size_in_bytes, int total_predicate_in_bytes) {
+  push(RegSet::range(r0, r29), sp); // integer registers except lr & sp
   if (save_vectors && use_sve && sve_vector_size_in_bytes > 16) {
     sub(sp, sp, sve_vector_size_in_bytes * FloatRegisterImpl::number_of_registers);
     for (int i = 0; i < FloatRegisterImpl::number_of_registers; i++) {
@@ -2683,10 +2748,22 @@ void MacroAssembler::push_CPU_state(bool save_vectors, bool use_sve,
     }
     st1(v0, v1, v2, v3, save_vectors ? T2D : T1D, sp);
   }
+  if (save_vectors && use_sve && total_predicate_in_bytes > 0) {
+    sub(sp, sp, total_predicate_in_bytes);
+    for (int i = 0; i < PRegisterImpl::number_of_saved_registers; i++) {
+      sve_str(as_PRegister(i), Address(sp, i));
+    }
+  }
 }
 
 void MacroAssembler::pop_CPU_state(bool restore_vectors, bool use_sve,
-                                   int sve_vector_size_in_bytes) {
+                                   int sve_vector_size_in_bytes, int total_predicate_in_bytes) {
+  if (restore_vectors && use_sve && total_predicate_in_bytes > 0) {
+    for (int i = PRegisterImpl::number_of_saved_registers - 1; i >= 0; i--) {
+      sve_ldr(as_PRegister(i), Address(sp, i));
+    }
+    add(sp, sp, total_predicate_in_bytes);
+  }
   if (restore_vectors && use_sve && sve_vector_size_in_bytes > 16) {
     for (int i = FloatRegisterImpl::number_of_registers - 1; i >= 0; i--) {
       sve_ldr(as_FloatRegister(i), Address(sp, i));
@@ -2699,11 +2776,20 @@ void MacroAssembler::pop_CPU_state(bool restore_vectors, bool use_sve,
           as_FloatRegister(i+3), restore_vectors ? T2D : T1D, Address(post(sp, step)));
   }
 
-  if (restore_vectors) {
+  // We may use predicate registers and rely on ptrue with SVE,
+  // regardless of wide vector (> 8 bytes) used or not.
+  if (use_sve) {
     reinitialize_ptrue();
   }
 
-  pop(0x3fffffff, sp);         // integer registers except lr & sp
+  // integer registers except lr & sp
+  pop(RegSet::range(r0, r17), sp);
+#ifdef R18_RESERVED
+  ldp(zr, r19, Address(post(sp, 2 * wordSize)));
+  pop(RegSet::range(r20, r29), sp);
+#else
+  pop(RegSet::range(r18_tls, r29), sp);
+#endif
 }
 
 /**
@@ -4294,17 +4380,6 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
   assert(new_obj == r0, "needs to be r0, according to barrier asm eden_allocate");
   assert_different_registers(klass, new_obj, t1, t2);
 
-#ifdef ASSERT
-  {
-    Label L;
-    ldrb(rscratch1, Address(klass, InstanceKlass::init_state_offset()));
-    cmpw(rscratch1, InstanceKlass::fully_initialized);
-    br(Assembler::EQ, L);
-    stop("klass not initialized");
-    bind(L);
-  }
-#endif
-
   // get instance_size in InstanceKlass (scaled to a count of bytes)
   ldrw(layout_size, Address(klass, Klass::layout_helper_offset()));
   // test to see if it has a finalizer or is malformed in some way
@@ -5172,23 +5247,37 @@ void MacroAssembler::fill_words(Register base, Register cnt, Register value)
 {
 //  Algorithm:
 //
-//    scratch1 = cnt & 7;
+//    if (cnt == 0) {
+//      return;
+//    }
+//    if ((p & 8) != 0) {
+//      *p++ = v;
+//    }
+//
+//    scratch1 = cnt & 14;
 //    cnt -= scratch1;
 //    p += scratch1;
-//    switch (scratch1) {
+//    switch (scratch1 / 2) {
 //      do {
-//        cnt -= 8;
-//          p[-8] = v;
+//        cnt -= 16;
+//          p[-16] = v;
+//          p[-15] = v;
 //        case 7:
-//          p[-7] = v;
+//          p[-14] = v;
+//          p[-13] = v;
 //        case 6:
-//          p[-6] = v;
+//          p[-12] = v;
+//          p[-11] = v;
 //          // ...
 //        case 1:
+//          p[-2] = v;
 //          p[-1] = v;
 //        case 0:
-//          p += 8;
+//          p += 16;
 //      } while (cnt);
+//    }
+//    if ((cnt & 1) == 1) {
+//      *p++ = v;
 //    }
 
   assert_different_registers(base, cnt, value, rscratch1, rscratch2);
@@ -5891,3 +5980,21 @@ void MacroAssembler::verify_cross_modify_fence_not_required() {
   }
 }
 #endif
+
+void MacroAssembler::spin_wait() {
+  for (int i = 0; i < VM_Version::spin_wait_desc().inst_count(); ++i) {
+    switch (VM_Version::spin_wait_desc().inst()) {
+      case SpinWait::NOP:
+        nop();
+        break;
+      case SpinWait::ISB:
+        isb();
+        break;
+      case SpinWait::YIELD:
+        yield();
+        break;
+      default:
+        ShouldNotReachHere();
+    }
+  }
+}

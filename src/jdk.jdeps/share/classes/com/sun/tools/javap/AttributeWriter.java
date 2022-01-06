@@ -48,7 +48,6 @@ import com.sun.tools.classfile.EnclosingMethod_attribute;
 import com.sun.tools.classfile.Exceptions_attribute;
 import com.sun.tools.classfile.InnerClasses_attribute;
 import com.sun.tools.classfile.InnerClasses_attribute.Info;
-import com.sun.tools.classfile.JavaFlags_attribute;
 import com.sun.tools.classfile.LineNumberTable_attribute;
 import com.sun.tools.classfile.LocalVariableTable_attribute;
 import com.sun.tools.classfile.LocalVariableTypeTable_attribute;
@@ -352,16 +351,6 @@ public class AttributeWriter extends BasicWriter
         }
         if (!first)
             indent(-1);
-        return null;
-    }
-
-    @Override
-    public Void visitJavaFlags(JavaFlags_attribute attr, Void unused) {
-        println("Extended Flags:");
-        indent(+1);
-        if ((attr.extendedFlags & ACC_REF_DEFAULT) != 0)
-            println("ACC_REF_DEFAULT");
-        indent(-1);
         return null;
     }
 

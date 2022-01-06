@@ -106,7 +106,9 @@ public class InlineOops {
     static final String TEST_STRING1 = "Test String 1";
     static final String TEST_STRING2 = "Test String 2";
 
-    static boolean USE_COMPILER = WhiteBox.getWhiteBox().getBooleanVMFlag("UseCompiler");
+    static WhiteBox WB = WhiteBox.getWhiteBox();
+
+    static boolean USE_COMPILER = WB.getBooleanVMFlag("UseCompiler");
 
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
@@ -199,7 +201,7 @@ public class InlineOops {
      * Check oop map generation for klass layout and frame...
      */
     public static void testOopMaps() {
-        Object[] objects = WhiteBox.getWhiteBox().getObjectsViaKlassOopMaps(new Couple());
+        Object[] objects = WB.getObjectsViaKlassOopMaps(new Couple());
         assertTrue(objects.length == 4, "Expected 4 oops");
         for (int i = 0; i < objects.length; i++) {
             assertTrue(objects[i] == null, "not-null");
@@ -212,14 +214,14 @@ public class InlineOops {
         Couple couple = new Couple();
         couple.onePerson = Person.create(0, fn1, ln1);
         couple.otherPerson = Person.create(1, fn2, ln2);
-        objects = WhiteBox.getWhiteBox().getObjectsViaKlassOopMaps(couple);
+        objects = WB.getObjectsViaKlassOopMaps(couple);
         assertTrue(objects.length == 4, "Expected 4 oops");
         assertTrue(objects[0] == fn1, "Bad oop fn1");
         assertTrue(objects[1] == ln1, "Bad oop ln1");
         assertTrue(objects[2] == fn2, "Bad oop fn2");
         assertTrue(objects[3] == ln2, "Bad oop ln2");
 
-        objects = WhiteBox.getWhiteBox().getObjectsViaOopIterator(couple);
+        objects = WB.getObjectsViaOopIterator(couple);
         assertTrue(objects.length == 4, "Expected 4 oops");
         assertTrue(objects[0] == fn1, "Bad oop fn1");
         assertTrue(objects[1] == ln1, "Bad oop ln1");
@@ -227,7 +229,7 @@ public class InlineOops {
         assertTrue(objects[3] == ln2, "Bad oop ln2");
 
         // Array..
-        objects = WhiteBox.getWhiteBox().getObjectsViaOopIterator(createPeople());
+        objects = WB.getObjectsViaOopIterator(createPeople());
         assertTrue(objects.length == NOF_PEOPLE * 2, "Unexpected length: " + objects.length);
         int o = 0;
         for (int i = 0; i < NOF_PEOPLE; i++) {
@@ -251,7 +253,7 @@ public class InlineOops {
     static final String GET_OOP_MAP_DESC = "()[Ljava/lang/Object;";
 
     public static Object[] getOopMap() {
-        Object[] oopMap = WhiteBox.getWhiteBox().getObjectsViaFrameOopIterator(2);
+        Object[] oopMap = WB.getObjectsViaFrameOopIterator(2);
         /* Remove this frame (class mirror for this method), and above class mirror */
         Object[] trimmedOopMap = new Object[oopMap.length - 2];
         System.arraycopy(oopMap, 2, trimmedOopMap, 0, trimmedOopMap.length);
@@ -372,11 +374,9 @@ public class InlineOops {
         catch (Throwable t) { fail("testOverGc", t); }
     }
 
-    static void submitNewWork(ForkJoinPool fjPool, int size) {
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < 100; j++) {
-                fjPool.execute(InlineOops::testValues);
-            }
+    static void submitNewWork(ForkJoinPool fjPool) {
+        for (int j = 0; j < 100; j++) {
+            fjPool.execute(InlineOops::testValues);
         }
     }
 
@@ -392,8 +392,7 @@ public class InlineOops {
      */
     public static void testActiveGc() {
         try {
-            int nofThreads = 7;
-            int workSize = nofThreads * 10;
+            int nofThreads = 1;
 
             Object longLivedObjects = createLongLived();
             Object longLivedPeople = createPeople();
@@ -403,44 +402,27 @@ public class InlineOops {
 
             doGc();
 
+            // Setup some background work, where GC roots are stack local only, short lifetimes...
             ForkJoinPool fjPool = new ForkJoinPool(nofThreads, ForkJoinPool.defaultForkJoinWorkerThreadFactory, null, true);
 
-            // submit work until we see some GC
-            Reference ref = createRef();
-            submitNewWork(fjPool, workSize);
-            while (ref.get() != null) {
-                if (fjPool.hasQueuedSubmissions()) {
-                    sleepNoThrow(1L);
+            // Work on this stack's long and medium lived objects
+            for (int nofActiveGc = 0; nofActiveGc < MIN_ACTIVE_GC_COUNT; nofActiveGc++) {
+                // Medium lifetime, check and renew
+                if (nofActiveGc % MED_ACTIVE_GC_COUNT == 0) {
+                    validateLongLived(medLivedObjects);
+                    validatePeople(medLivedPeople);
+
+                    medLivedObjects = createLongLived();
+                    medLivedPeople = createPeople();
                 }
-                else {
-                    workSize *= 2; // Grow the submission size
-                    submitNewWork(fjPool, workSize);
+                // More short lived background, if needed
+                if (!fjPool.hasQueuedSubmissions()) {
+                    submitNewWork(fjPool);
                 }
+                // Forced, synchronous GC
+                doGc();
             }
 
-            // Keep working and actively GC, until MIN_ACTIVE_GC_COUNT
-            int nofActiveGc = 1;
-            ref = createRef();
-            while (nofActiveGc < MIN_ACTIVE_GC_COUNT) {
-                if (ref.get() == null) {
-                    nofActiveGc++;
-                    ref = createRef();
-                    if (nofActiveGc % MED_ACTIVE_GC_COUNT == 0) {
-                        validateLongLived(medLivedObjects);
-                        validatePeople(medLivedPeople);
-
-                        medLivedObjects = createLongLived();
-                        medLivedPeople = createPeople();
-                    }
-                }
-                else if (fjPool.hasQueuedSubmissions()) {
-                    sleepNoThrow((long) Utils.getRandomInstance().nextInt(1000));
-                    doGc();
-                }
-                else {
-                    submitNewWork(fjPool, workSize);
-                }
-            }
             fjPool.shutdown();
 
             validateLongLived(medLivedObjects);
@@ -462,15 +444,7 @@ public class InlineOops {
     static final ReferenceQueue<Object> REFQ = new ReferenceQueue<>();
 
     public static void doGc() {
-        // Create Reference, wait until it clears...
-        Reference ref = createRef();
-        while (ref.get() != null) {
-            System.gc();
-        }
-    }
-
-    static Reference createRef() {
-        return new WeakReference<Object>(new Object(), REFQ);
+        WB.fullGC();
     }
 
     static void validatePerson(Person person, int id, String fn, String ln, boolean equals) {

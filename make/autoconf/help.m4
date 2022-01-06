@@ -80,6 +80,14 @@ cygwin_help() {
       PKGHANDLER_COMMAND="( cd <location of cygwin setup.exe> && cmd /c setup -q -P make )"
       HELP_MSG="You might be able to fix this by running '$PKGHANDLER_COMMAND'."
       ;;
+    i686-w64-mingw32-gcc)
+      PKGHANDLER_COMMAND="( cd <location of cygwin setup.exe> && cmd /c setup -q -P gcc-core i686-w64-mingw32-gcc-core mingw64-i686-glib2.0 )"
+      HELP_MSG="You might be able to fix this by running '$PKGHANDLER_COMMAND'."
+      ;;
+    x86_64-w64-mingw32-gcc)
+      PKGHANDLER_COMMAND="( cd <location of cygwin setup.exe> && cmd /c setup -q -P gcc-core x86_64-w64-mingw32-gcc-core mingw64-x86_64-glib2.0 )"
+      HELP_MSG="You might be able to fix this by running '$PKGHANDLER_COMMAND'."
+      ;;
   esac
 }
 
@@ -274,7 +282,7 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
 
   printf "\n"
   printf "Build performance summary:\n"
-  printf "* Cores to use:   $JOBS\n"
+  printf "* Build jobs:     $JOBS\n"
   printf "* Memory limit:   $MEMORY_SIZE MB\n"
   if test "x$CCACHE_STATUS" != "x"; then
     printf "* ccache status:  $CCACHE_STATUS\n"

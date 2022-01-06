@@ -271,7 +271,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
 
-  bool inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info);
+  bool inline_type_field_access_prolog(AccessField* x);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
@@ -326,7 +326,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIR_Opr atomic_add(BasicType type, LIR_Opr addr, LIRItem& new_value);
 
 #ifdef CARDTABLEBARRIERSET_POST_BARRIER_HELPER
-  virtual void CardTableBarrierSet_post_barrier_helper(LIR_OprDesc* addr, LIR_Const* card_table_base);
+  virtual void CardTableBarrierSet_post_barrier_helper(LIR_Opr addr, LIR_Const* card_table_base);
 #endif
 
   // specific implementations
@@ -524,7 +524,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   LIRGenerator(Compilation* compilation, ciMethod* method)
     : _compilation(compilation)
     , _method(method)
-    , _virtual_register_number(LIR_OprDesc::vreg_base)
+    , _virtual_register_number(LIR_Opr::vreg_base)
     , _vreg_flags(num_vreg_flags)
     , _in_conditional_code(false)
     , _barrier_set(BarrierSet::barrier_set()->barrier_set_c1()) {

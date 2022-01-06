@@ -135,6 +135,7 @@ class OptoRuntime : public AllStatic {
 
   static address _slow_arraycopy_Java;
   static address _register_finalizer_Java;
+  static address _load_unknown_inline;
 
   //
   // Implementation of runtime methods
@@ -208,6 +209,7 @@ private:
 
   static address slow_arraycopy_Java()                   { return _slow_arraycopy_Java; }
   static address register_finalizer_Java()               { return _register_finalizer_Java; }
+  static address load_unknown_inline_Java()              { return _load_unknown_inline; }
 
   static ExceptionBlob*    exception_blob()                      { return _exception_blob; }
 
@@ -297,7 +299,7 @@ private:
   static const TypeFunc* store_inline_type_fields_Type();
   static const TypeFunc* pack_inline_type_Type();
 
-  static void load_unknown_inline(flatArrayOopDesc* array, int index, instanceOopDesc* buffer);
+  static void load_unknown_inline(flatArrayOopDesc* array, int index, JavaThread* current);
   static const TypeFunc* load_unknown_inline_type();
   static void store_unknown_inline(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
   static const TypeFunc* store_unknown_inline_type();

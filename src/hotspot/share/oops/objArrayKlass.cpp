@@ -105,7 +105,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
           }
           // Now retry from the beginning
           if (null_free) {
-            ek = InlineKlass::cast(element_klass)->null_free_inline_array_klass(CHECK_NULL);
+            ek = InlineKlass::cast(element_klass)->value_array_klass(CHECK_NULL);
           } else {
             ek = element_klass->array_klass(n, CHECK_NULL);
           }
@@ -174,14 +174,14 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name, bool nul
   assert(is_objArray_klass(), "sanity");
 }
 
-int ObjArrayKlass::oop_size(oop obj) const {
+size_t ObjArrayKlass::oop_size(oop obj) const {
   assert(obj->is_objArray(), "must be object array");
   return objArrayOop(obj)->object_size();
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
-  int size = objArrayOopDesc::object_size(length);
+  size_t size = objArrayOopDesc::object_size(length);
   bool populate_null_free = is_null_free_array_klass();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
                                                        /* do_zero */ true, THREAD);
@@ -205,7 +205,7 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be flatArray, check if we have any special storage requirements
     if (name()->char_at(1) != JVM_SIGNATURE_ARRAY &&  name()->is_Q_array_signature()) {
-      return oopFactory::new_flatArray(element_klass(), length, CHECK_NULL);
+      return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
     }

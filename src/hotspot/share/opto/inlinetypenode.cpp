@@ -35,7 +35,7 @@
 
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region) {
+InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
   if (vt->is_InlineTypePtr()) {
     // Use nullable type
@@ -52,10 +52,16 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
   vt->set_oop(oop);
 
   // Create a PhiNode for merging the is_init values
-  PhiNode* is_init = PhiNode::make(region, vt->get_is_init(), phi_type);
-  gvn->set_type(is_init, phi_type);
-  gvn->record_for_igvn(is_init);
-  vt->set_req(IsInit, is_init);
+  Node* is_init_node;
+  if (is_init) {
+    is_init_node = gvn->intcon(1);
+  } else {
+    phi_type = Type::get_const_basic_type(T_BOOLEAN);
+    is_init_node = PhiNode::make(region, vt->get_is_init(), phi_type);
+    gvn->set_type(is_init_node, phi_type);
+    gvn->record_for_igvn(is_init_node);
+  }
+  vt->set_req(IsInit, is_init_node);
 
   // Create a PhiNode each for merging the field values
   for (uint i = 0; i < vt->field_count(); ++i) {
@@ -120,10 +126,15 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
     set_oop(gvn->transform(phi));
   }
 
-  phi = get_is_init()->as_Phi();
-  phi->set_req(pnum, other->get_is_init());
-  if (transform) {
-    set_req(IsInit, gvn->transform(phi));
+  Node* is_init = get_is_init();
+  if (is_init->is_Phi()) {
+    phi = is_init->as_Phi();
+    phi->set_req(pnum, other->get_is_init());
+    if (transform) {
+      set_req(IsInit, gvn->transform(phi));
+    }
+  } else {
+    assert(is_init->find_int_con(0) == 1, "only with a non null inline type");
   }
 
   // Merge field values
@@ -251,7 +262,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Nod
   sobj->init_req(0, igvn->C->root());
   // Nullable inline types have an is_init field that needs
   // to be checked before using the field values.
-  if (igvn->type(get_is_init())->maybe_null()) {
+  if (!igvn->type(get_is_init())->is_int()->is_con(1)) {
     sfpt->add_req(get_is_init());
   } else {
     sfpt->add_req(igvn->C->top());
@@ -579,13 +590,6 @@ Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
 }
 
 Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  if (phase->C->scalarize_in_safepoints() && can_reshape) {
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-    make_scalar_in_safepoints(igvn);
-    if (outcnt() == 0) {
-      return NULL;
-    }
-  }
   Node* is_init = get_is_init();
   if (is_init->isa_InlineTypePtr()) {
     set_req(IsInit, is_init->as_InlineTypePtr()->get_is_init());
@@ -620,6 +624,7 @@ Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with default values
   InlineTypeNode* vt = new InlineTypeNode(vk, default_oop(gvn, vk));
+  vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
     Node* value = gvn.zerocon(field_type->basic_type());
@@ -640,6 +645,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
 
 InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
   InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT));
+  vt->set_req(IsInit, gvn.intcon(0));
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* field_type = vt->field_type(i);
     Node* value = gvn.zerocon(field_type->basic_type());
@@ -684,8 +690,8 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
   // values from a heap-allocated version and also save the oop.
   InlineTypeBaseNode* vt = NULL;
 
-  if (oop->uncast()->isa_InlineTypePtr()) {
-    InlineTypePtrNode* vtptr = oop->uncast()->as_InlineTypePtr();
+  if (oop->isa_InlineTypePtr()) {
+    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
     if (!null_free) {
       return vtptr;
     }
@@ -1069,6 +1075,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
 
 InlineTypePtrNode* InlineTypePtrNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
   InlineTypePtrNode* ptr = new InlineTypePtrNode(vk, gvn.zerocon(T_OBJECT));
+  ptr->set_req(IsInit, gvn.intcon(0));
   for (uint i = 0; i < ptr->field_count(); i++) {
     ciType* field_type = ptr->field_type(i);
     Node* value = gvn.zerocon(field_type->basic_type());
@@ -1092,8 +1099,14 @@ Node* InlineTypePtrNode::Identity(PhaseGVN* phase) {
 }
 
 const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {
-  if (phase->type(in(IsInit))->isa_ptr() && !phase->type(in(IsInit))->is_ptr()->maybe_null()) {
-    return _type->join_speculative(TypePtr::NOTNULL);
+  const Type* t = phase->type(get_oop())->filter_speculative(_type);
+  if (t->singleton()) {
+    // Don't replace InlineTypePtr by a constant
+    t = _type;
   }
-  return _type;
+  const Type* tinit = phase->type(in(IsInit));
+  if (tinit->isa_int() && tinit->is_int()->is_con(1)) {
+    t = t->join_speculative(TypePtr::NOTNULL);
+  }
+  return t;
 }

@@ -71,7 +71,7 @@ final class PrimitiveObjectMethods {
                 .filter(f -> !Modifier.isStatic(f.getModifiers()))
                 .map(f -> {
                     try {
-                        return JLIA.unreflectGetter(f);
+                        return JLIA.unreflectField(f, false);
                     } catch (IllegalAccessException e) {
                         throw newLinkageError(e);
                     }
@@ -260,7 +260,7 @@ final class PrimitiveObjectMethods {
         private static MethodHandle findStatic(Class<?> cls, String name, MethodType methodType) {
             try {
                 return JLIA.findStatic(cls, name, methodType);
-            } catch (NoSuchMethodException|IllegalAccessException e) {
+            } catch (IllegalAccessException e) {
                 throw newLinkageError(e);
             }
         }

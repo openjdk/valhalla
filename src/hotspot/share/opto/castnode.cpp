@@ -81,7 +81,21 @@ const Type* ConstraintCastNode::Value(PhaseGVN* phase) const {
 // Return a node which is more "ideal" than the current node.  Strip out
 // control copies
 Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  return (in(0) && remove_dead_region(phase, can_reshape)) ? this : NULL;
+  if (in(0) && remove_dead_region(phase, can_reshape)) {
+    return this;
+  }
+
+  // Push cast through InlineTypePtrNode
+  InlineTypePtrNode* vt = in(1)->isa_InlineTypePtr();
+  if (vt != NULL && phase->type(vt)->filter_speculative(_type) != Type::TOP) {
+    Node* cast = clone();
+    cast->set_req(1, vt->get_oop());
+    vt = vt->clone()->as_InlineTypePtr();
+    vt->set_oop(phase->transform(cast));
+    return vt;
+  }
+
+  return NULL;
 }
 
 bool ConstraintCastNode::cmp(const Node &n) const {

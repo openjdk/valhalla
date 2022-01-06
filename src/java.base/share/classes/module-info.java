@@ -150,6 +150,7 @@ module java.base {
         java.management,
         java.naming,
         java.rmi,
+        jdk.charsets,
         jdk.jartool,
         jdk.jlink,
         jdk.net,
@@ -317,7 +318,8 @@ module java.base {
         jdk.crypto.ec,
         jdk.security.auth;
     exports sun.security.provider.certpath to
-        java.naming;
+        java.naming,
+        jdk.jartool;
     exports sun.security.rsa to
         jdk.crypto.cryptoki;
     exports sun.security.timestamp to
@@ -366,6 +368,7 @@ module java.base {
 
     uses java.lang.System.LoggerFinder;
     uses java.net.ContentHandlerFactory;
+    uses java.net.spi.InetAddressResolverProvider;
     uses java.net.spi.URLStreamHandlerProvider;
     uses java.nio.channels.spi.AsynchronousChannelProvider;
     uses java.nio.channels.spi.SelectorProvider;

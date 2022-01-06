@@ -949,7 +949,6 @@ public:
   virtual const RegMask &in_RegMask(uint) const;
   virtual int ret_addr_offset() { return 0; }
 
-  bool returns_long() const { return tf()->return_type() == T_LONG; }
   bool return_value_is_used() const;
 
   // Similar to cousin class CallNode::returns_pointer

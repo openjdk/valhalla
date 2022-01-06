@@ -24,7 +24,7 @@
 
 #include "precompiled.hpp"
 #include <new>
-#include "cds/cdsoffsets.hpp"
+#include "cds/cdsConstants.hpp"
 #include "cds/filemap.hpp"
 #include "cds/heapShared.inline.hpp"
 #include "cds/metaspaceShared.hpp"
@@ -2091,8 +2091,8 @@ WB_ENTRY(jboolean, WB_IsJVMCISupportedByGC(JNIEnv* env))
 #endif
 WB_END
 
-WB_ENTRY(jboolean, WB_IsJavaHeapArchiveSupported(JNIEnv* env))
-  return HeapShared::is_heap_object_archiving_allowed();
+WB_ENTRY(jboolean, WB_CanWriteJavaHeapArchive(JNIEnv* env))
+  return HeapShared::can_write();
 WB_END
 
 
@@ -2106,11 +2106,18 @@ WB_END
 
 #if INCLUDE_CDS
 
-WB_ENTRY(jint, WB_GetOffsetForName(JNIEnv* env, jobject o, jstring name))
+WB_ENTRY(jint, WB_GetCDSOffsetForName(JNIEnv* env, jobject o, jstring name))
   ResourceMark rm;
   char* c_name = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(name));
-  int result = CDSOffsets::find_offset(c_name);
-  return (jint)result;
+  jint result = (jint)CDSConstants::get_cds_offset(c_name);
+  return result;
+WB_END
+
+WB_ENTRY(jint, WB_GetCDSConstantForName(JNIEnv* env, jobject o, jstring name))
+  ResourceMark rm;
+  char* c_name = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(name));
+  jint result = (jint)CDSConstants::get_cds_constant(c_name);
+  return result;
 WB_END
 
 #endif // INCLUDE_CDS
@@ -2153,10 +2160,13 @@ WB_ENTRY(jboolean, WB_HandshakeReadMonitors(JNIEnv* env, jobject wb, jobject thr
   };
 
   ReadMonitorsClosure rmc;
-  oop thread_oop = JNIHandles::resolve(thread_handle);
-  if (thread_oop != NULL) {
-    JavaThread* target = java_lang_Thread::thread(thread_oop);
-    Handshake::execute(&rmc, target);
+  if (thread_handle != NULL) {
+    ThreadsListHandle tlh;
+    JavaThread* target = nullptr;
+    bool is_alive = tlh.cv_internal_thread_to_JavaThread(thread_handle, &target, NULL);
+    if (is_alive) {
+      Handshake::execute(&rmc, &tlh, target);
+    }
   }
   return rmc.executed();
 WB_END
@@ -2184,11 +2194,12 @@ WB_ENTRY(jint, WB_HandshakeWalkStack(JNIEnv* env, jobject wb, jobject thread_han
 
   if (all_threads) {
     Handshake::execute(&tsc);
-  } else {
-    oop thread_oop = JNIHandles::resolve(thread_handle);
-    if (thread_oop != NULL) {
-      JavaThread* target = java_lang_Thread::thread(thread_oop);
-      Handshake::execute(&tsc, target);
+  } else if (thread_handle != NULL) {
+    ThreadsListHandle tlh;
+    JavaThread* target = nullptr;
+    bool is_alive = tlh.cv_internal_thread_to_JavaThread(thread_handle, &target, NULL);
+    if (is_alive) {
+      Handshake::execute(&tsc, &tlh, target);
     }
   }
   return tsc.num_threads_completed();
@@ -2212,11 +2223,14 @@ WB_ENTRY(void, WB_AsyncHandshakeWalkStack(JNIEnv* env, jobject wb, jobject threa
   public:
     TraceSelfClosure(JavaThread* self_target) : AsyncHandshakeClosure("WB_TraceSelf"), _self(self_target) {}
   };
-  oop thread_oop = JNIHandles::resolve(thread_handle);
-  if (thread_oop != NULL) {
-    JavaThread* target = java_lang_Thread::thread(thread_oop);
-    TraceSelfClosure* tsc = new TraceSelfClosure(target);
-    Handshake::execute(tsc, target);
+  if (thread_handle != NULL) {
+    ThreadsListHandle tlh;
+    JavaThread* target = nullptr;
+    bool is_alive = tlh.cv_internal_thread_to_JavaThread(thread_handle, &target, NULL);
+    if (is_alive) {
+      TraceSelfClosure* tsc = new TraceSelfClosure(target);
+      Handshake::execute(tsc, target);
+    }
   }
 WB_END
 
@@ -2473,22 +2487,19 @@ WB_ENTRY(void, WB_CheckThreadObjOfTerminatingThread(JNIEnv* env, jobject wb, job
 WB_END
 
 WB_ENTRY(void, WB_VerifyFrames(JNIEnv* env, jobject wb, jboolean log, jboolean update_map))
-  intx tty_token = -1;
-  if (log) {
-    tty_token = ttyLocker::hold_tty();
-    tty->print_cr("[WhiteBox::VerifyFrames] Walking Frames");
-  }
   ResourceMark rm; // for verify
+  stringStream st;
   for (StackFrameStream fst(JavaThread::current(), update_map, true); !fst.is_done(); fst.next()) {
     frame* current_frame = fst.current();
     if (log) {
-      current_frame->print_value();
+      current_frame->print_value_on(&st, NULL);
     }
     current_frame->verify(fst.register_map());
   }
   if (log) {
+    tty->print_cr("[WhiteBox::VerifyFrames] Walking Frames");
+    tty->print_raw(st.as_string());
     tty->print_cr("[WhiteBox::VerifyFrames] Done");
-    ttyLocker::release_tty(tty_token);
   }
 WB_END
 
@@ -2547,7 +2558,8 @@ static JNINativeMethod methods[] = {
   {CC"readFromNoaccessArea",CC"()V",                  (void*)&WB_ReadFromNoaccessArea},
   {CC"stressVirtualSpaceResize",CC"(JJJ)I",           (void*)&WB_StressVirtualSpaceResize},
 #if INCLUDE_CDS
-  {CC"getOffsetForName0", CC"(Ljava/lang/String;)I",  (void*)&WB_GetOffsetForName},
+  {CC"getCDSOffsetForName0", CC"(Ljava/lang/String;)I",  (void*)&WB_GetCDSOffsetForName},
+  {CC"getCDSConstantForName0", CC"(Ljava/lang/String;)I",  (void*)&WB_GetCDSConstantForName},
 #endif
 #if INCLUDE_G1GC
   {CC"g1InConcurrentMark", CC"()Z",                   (void*)&WB_G1InConcurrentMark},
@@ -2739,7 +2751,7 @@ static JNINativeMethod methods[] = {
   {CC"isJFRIncluded",                     CC"()Z",    (void*)&WB_IsJFRIncluded },
   {CC"isC2OrJVMCIIncluded",               CC"()Z",    (void*)&WB_isC2OrJVMCIIncluded },
   {CC"isJVMCISupportedByGC",              CC"()Z",    (void*)&WB_IsJVMCISupportedByGC},
-  {CC"isJavaHeapArchiveSupported",        CC"()Z",    (void*)&WB_IsJavaHeapArchiveSupported },
+  {CC"canWriteJavaHeapArchive",           CC"()Z",    (void*)&WB_CanWriteJavaHeapArchive },
   {CC"cdsMemoryMappingFailed",            CC"()Z",    (void*)&WB_CDSMemoryMappingFailed },
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },

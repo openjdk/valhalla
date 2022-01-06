@@ -870,6 +870,11 @@ bool Method::is_getter() const {
     default:
       return false;
   }
+  if (InlineTypeReturnedAsFields && result_type() == T_INLINE_TYPE) {
+    // Don't treat this as (trivial) getter method because the
+    // inline type should be returned in a scalarized form.
+    return false;
+  }
   return true;
 }
 
@@ -891,6 +896,11 @@ bool Method::is_setter() const {
   }
   if (java_code_at(2) != Bytecodes::_putfield) return false;
   if (java_code_at(5) != Bytecodes::_return)   return false;
+  if (has_scalarized_args()) {
+    // Don't treat this as (trivial) setter method because the
+    // inline type argument should be passed in a scalarized form.
+    return false;
+  }
   return true;
 }
 
@@ -1711,21 +1721,6 @@ void Method::init_intrinsic_id(vmSymbolID klass_id) {
 
   // A few slightly irregular cases:
   switch (klass_id) {
-  case VM_SYMBOL_ENUM_NAME(java_lang_StrictMath):
-    // Second chance: check in regular Math.
-    switch (name_id) {
-    case VM_SYMBOL_ENUM_NAME(min_name):
-    case VM_SYMBOL_ENUM_NAME(max_name):
-    case VM_SYMBOL_ENUM_NAME(sqrt_name):
-      // pretend it is the corresponding method in the non-strict class:
-      klass_id = VM_SYMBOL_ENUM_NAME(java_lang_Math);
-      id = vmIntrinsics::find_id(klass_id, name_id, sig_id, flags);
-      break;
-    default:
-      break;
-    }
-    break;
-
   // Signature-polymorphic methods: MethodHandle.invoke*, InvokeDynamic.*., VarHandle
   case VM_SYMBOL_ENUM_NAME(java_lang_invoke_MethodHandle):
   case VM_SYMBOL_ENUM_NAME(java_lang_invoke_VarHandle):

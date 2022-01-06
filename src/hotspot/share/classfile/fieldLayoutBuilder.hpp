@@ -244,13 +244,12 @@ class FieldLayoutBuilder : public ResourceObj {
   ConstantPool* _constant_pool;
   Array<u2>* _fields;
   FieldLayoutInfo* _info;
+  Array<InlineKlass*>* _inline_type_field_klasses;
   FieldGroup* _root_group;
   GrowableArray<FieldGroup*> _contended_groups;
   FieldGroup* _static_fields;
   FieldLayout* _layout;
   FieldLayout* _static_layout;
-  ClassLoaderData* _class_loader_data;
-  Handle _protection_domain;
   int _nonstatic_oopmap_count;
   int _alignment;
   int _first_field_offset;
@@ -267,8 +266,7 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
-      Handle protection_domain, FieldLayoutInfo* info);
+      Array<u2>* fields, bool is_contended, bool is_inline_type, FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");

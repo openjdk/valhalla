@@ -334,7 +334,7 @@ public class Attr extends JCTree.Visitor {
                    withfield operator -This does not result in mutation of final fields; the code generator
                    would implement `copy on write' semantics via the opcode `withfield'.
                 */
-                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && v.owner.isPrimitiveClass()) {
+                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && types.isPrimitiveClass(v.owner.type)) {
                     if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
                         complain = false;
                 }
@@ -635,7 +635,10 @@ public class Attr extends JCTree.Visitor {
                 }
                 @Override
                 public void report(DiagnosticPosition pos, JCDiagnostic details) {
-                    if (pt == Type.recoveryType) {
+                    boolean needsReport = pt == Type.recoveryType ||
+                            (details.getDiagnosticPosition() != null &&
+                            details.getDiagnosticPosition().getTree().hasTag(LAMBDA));
+                    if (needsReport) {
                         chk.basicHandler.report(pos, details);
                     }
                 }
@@ -1333,7 +1336,7 @@ public class Attr extends JCTree.Visitor {
                as these can undergo updates via copy on write.
             */
             if (tree.init != null) {
-                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && v.owner.isPrimitiveClass()) ||
+                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && types.isPrimitiveClass(v.owner.type)) ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
@@ -1536,7 +1539,7 @@ public class Attr extends JCTree.Visitor {
             if (tree.field.type != null && !tree.field.type.isErroneous()) {
                 final Symbol sym = TreeInfo.symbol(tree.field);
                 if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
-                        (sym.flags() & STATIC) != 0 || !sym.owner.isPrimitiveClass()) {
+                        (sym.flags() & STATIC) != 0 || !types.isPrimitiveClass(sym.owner.type)) {
                     log.error(tree.field.pos(), Errors.PrimitiveClassInstanceFieldExpectedHere);
                 } else {
                     Type ownType = sym.owner.type;
@@ -1550,8 +1553,7 @@ public class Attr extends JCTree.Visitor {
                             ownType = fieldAccess.selected.type;
                             break;
                     }
-                    // withfield always evaluates to the primitive value type.
-                    capturedType = capture(ownType.asValueType());
+                    capturedType = capture(ownType);
                 }
             }
             result = check(tree, capturedType, KindSelector.VAL, resultInfo);
@@ -1618,7 +1620,7 @@ public class Attr extends JCTree.Visitor {
                     // Check the return type of the method iterator().
                     // This is the bare minimum we need to verify to make sure code generation doesn't crash.
                     Symbol iterSymbol = rs.resolveInternalMethod(tree.pos(),
-                            loopEnv, exprType, names.iterator, List.nil(), List.nil());
+                            loopEnv, types.skipTypeVars(exprType, false), names.iterator, List.nil(), List.nil());
                     if (types.asSuper(iterSymbol.type.getReturnType().referenceProjectionOrSelf(), syms.iteratorType.tsym) == null) {
                         log.error(tree.pos(),
                                 Errors.ForeachNotApplicableToType(exprType, Fragments.TypeReqArrayOrIterable));
@@ -1872,6 +1874,7 @@ public class Attr extends JCTree.Visitor {
                 }
                 addVars(c.stats, switchEnv.info.scope);
 
+                preFlow(c);
                 c.completesNormally = flow.aliveAfter(caseEnv, c, make);
 
                 prevBindings = c.caseKind == CaseTree.CaseKind.STATEMENT && c.completesNormally ? currentBindings
@@ -2213,7 +2216,7 @@ public class Attr extends JCTree.Visitor {
             // value conversions bring about a convergence.
             condTypes = condTypes.stream()
                                  .map(t -> t.isPrimitive() ? types.boxedClass(t).type
-                                         : t.isPrimitiveReferenceType() ? t.asValueType() : t)
+                                         : t.isReferenceProjection() ? t.valueProjection() : t)
                                  .collect(List.collector());
 
             for (Type type : condTypes) {
@@ -2658,7 +2661,7 @@ public class Attr extends JCTree.Visitor {
             if (symbol != null) {
                 /* Is this an ill conceived attempt to invoke jlO methods not available on primitive class types ??
                  */
-                boolean superCallOnPrimitiveReceiver = env.enclClass.sym.isPrimitiveClass()
+                boolean superCallOnPrimitiveReceiver = types.isPrimitiveClass(env.enclClass.sym.type)
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
@@ -2709,7 +2712,7 @@ public class Attr extends JCTree.Visitor {
     //where
         Type adjustMethodReturnType(Symbol msym, Type qualifierType, Name methodName, List<Type> argtypes, Type restype) {
             if (msym != null &&
-                    msym.owner == syms.objectType.tsym &&
+                    (msym.owner == syms.objectType.tsym || msym.owner.isInterface()) &&
                     methodName == names.getClass &&
                     argtypes.isEmpty()) {
                 // as a special case, x.getClass() has type Class<? extends |X|>
@@ -2896,12 +2899,9 @@ public class Attr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             boolean skipNonDiamondPath = false;
             // Check that it is an instantiation of a class and not a projection type
-            JCExpression instantiation = clazz;
-            if (instantiation.hasTag(TYPEAPPLY))
-                instantiation = ((JCTypeApply) instantiation).clazz;
-            if (instantiation.hasTag(SELECT)) {
-                JCFieldAccess fieldAccess = (JCFieldAccess) instantiation;
-                if (fieldAccess.selected.type.tsym.isPrimitiveClass() &&
+            if (clazz.hasTag(SELECT)) {
+                JCFieldAccess fieldAccess = (JCFieldAccess) clazz;
+                if (fieldAccess.selected.type.isPrimitiveClass() &&
                         (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                     log.error(tree.pos(), Errors.ProjectionCantBeInstantiated);
                 }
@@ -2994,10 +2994,6 @@ public class Attr extends JCTree.Visitor {
 
             if (tree.constructor != null && tree.constructor.kind == MTH)
                 owntype = clazztype;
-        }
-        // For primitive classes construction always returns the value type.
-        if (owntype.tsym.isPrimitiveClass()) {
-            owntype = owntype.asValueType();
         }
         result = check(tree, owntype, KindSelector.VAL, resultInfo);
         InferenceContext inferenceContext = resultInfo.checkContext.inferenceContext();
@@ -3100,7 +3096,7 @@ public class Attr extends JCTree.Visitor {
                 }
 
                 if (resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK &&
-                    isSerializable(clazztype)) {
+                    rs.isSerializable(clazztype)) {
                     localEnv.info.isSerializable = true;
                 }
 
@@ -3228,7 +3224,7 @@ public class Attr extends JCTree.Visitor {
         boolean needsRecovery =
                 resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK;
         try {
-            if (needsRecovery && isSerializable(pt())) {
+            if (needsRecovery && rs.isSerializable(pt())) {
                 localEnv.info.isSerializable = true;
                 localEnv.info.isSerializableLambda = true;
             }
@@ -3729,7 +3725,7 @@ public class Attr extends JCTree.Visitor {
 
             boolean isTargetSerializable =
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.CHECK &&
-                    isSerializable(pt());
+                    rs.isSerializable(pt());
             TargetInfo targetInfo = getTargetInfo(that, resultInfo, null);
             Type currentTarget = targetInfo.target;
             Type desc = targetInfo.descriptor;
@@ -4336,15 +4332,9 @@ public class Attr extends JCTree.Visitor {
         }
         tree.sym = sym;
 
-        // (1) Also find the environment current for the class where
-        //     sym is defined (`symEnv').
-        // Only for pre-tiger versions (1.4 and earlier):
-        // (2) Also determine whether we access symbol out of an anonymous
-        //     class in a this or super call.  This is illegal for instance
-        //     members since such classes don't carry a this$n link.
-        //     (`noOuterThisPath').
+        // Also find the environment current for the class where
+        // sym is defined (`symEnv').
         Env<AttrContext> symEnv = env;
-        boolean noOuterThisPath = false;
         if (env.enclClass.sym.owner.kind != PCK && // we are in an inner class
             sym.kind.matches(KindSelector.VAL_MTH) &&
             sym.owner.kind == TYP &&
@@ -4353,8 +4343,6 @@ public class Attr extends JCTree.Visitor {
             // Find environment in which identifier is defined.
             while (symEnv.outer != null &&
                    !sym.isMemberOf(symEnv.enclClass.sym, types)) {
-                if ((symEnv.enclClass.sym.flags() & NOOUTERTHIS) != 0)
-                    noOuterThisPath = false;
                 symEnv = symEnv.outer;
             }
         }
@@ -4376,7 +4364,7 @@ public class Attr extends JCTree.Visitor {
         // In a constructor body,
         // if symbol is a field or instance method, check that it is
         // not accessed before the supertype constructor is called.
-        if ((symEnv.info.isSelfCall || noOuterThisPath) &&
+        if (symEnv.info.isSelfCall &&
             sym.kind.matches(KindSelector.VAL_MTH) &&
             sym.owner.kind == TYP &&
             (sym.flags() & STATIC) == 0) {
@@ -4587,8 +4575,8 @@ public class Attr extends JCTree.Visitor {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
-                } else if ((name == names.ref || name == names.val) && site.tsym != null && site.tsym.isPrimitiveClass() && isType(location) && resultInfo.pkind.contains(KindSelector.TYP)) {
-                    return site.tsym; // TODO: JDK-8244229: Need more robust handling of .ref and .val reference in source code
+                } else if (site.isPrimitiveClass() && isType(location) && resultInfo.pkind.contains(KindSelector.TYP) && (name == names.ref || name == names.val)) {
+                    return site.tsym;
                 } else {
                     // We are seeing a plain identifier as selector.
                     Symbol sym = rs.findIdentInType(pos, env, site, name, resultInfo.pkind);
@@ -4702,31 +4690,11 @@ public class Attr extends JCTree.Visitor {
                     chk.checkForBadAuxiliaryClassAccess(tree.pos(), env, (ClassSymbol)sym);
                     Type ownOuter = owntype.getEnclosingType();
 
-                    // (a) If symbol is a primitive class and its reference/value projection
-                    // is requested via the .ref/.val notation, then adjust the computed type to
+                    // (a) If symbol is a primitive class and its reference projection
+                    // is requested via the .ref notation, then adjust the computed type to
                     // reflect this.
-                    if (sym.isPrimitiveClass()) {
-                        if (sym.isReferenceFavoringPrimitiveClass()) {
-                            Assert.check(owntype.getFlavor() == Flavor.L_TypeOf_Q);
-                        } else {
-                            Assert.check(owntype.getFlavor() == Flavor.Q_TypeOf_Q);
-                        }
-                        if (tree.hasTag(SELECT)) {
-                            Name name = ((JCFieldAccess)tree).name;
-                            if (name == names.ref) {
-                                if (sym.isReferenceFavoringPrimitiveClass()) {
-                                    // We should already be good to go with owntype
-                                } else {
-                                    owntype = new ClassType(ownOuter, owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), Flavor.L_TypeOf_Q);
-                                }
-                            } else if (name == names.val) {
-                                if (sym.isReferenceFavoringPrimitiveClass()) {
-                                    owntype = new ClassType(ownOuter, owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), Flavor.Q_TypeOf_L);
-                                } else {
-                                    // We should already be good to go with owntype
-                                }
-                            }
-                        }
+                    if (owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
+                        owntype = new ClassType(owntype.getEnclosingType(), owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), Flavor.L_TypeOf_Q);
                     }
 
                     // (b) If the symbol's type is parameterized, erase it
@@ -5339,6 +5307,14 @@ public class Attr extends JCTree.Visitor {
         Assert.error("should be handled in annotate");
     }
 
+    @Override
+    public void visitModifiers(JCModifiers tree) {
+        //error recovery only:
+        Assert.check(resultInfo.pkind == KindSelector.ERR);
+
+        attribAnnotationTypes(tree.annotations, env);
+    }
+
     public void visitAnnotatedType(JCAnnotatedType tree) {
         attribAnnotationTypes(tree.annotations, env);
         Type underlyingType = attribType(tree.underlyingType, env);
@@ -5436,7 +5412,7 @@ public class Attr extends JCTree.Visitor {
         try {
             annotate.flush();
             attribClass(c);
-            if (c.isPrimitiveClass()) {
+            if (types.isPrimitiveClass(c.type)) {
                 final Env<AttrContext> env = typeEnvs.get(c);
                 if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
                     chk.checkNonCyclicMembership((JCClassDecl)env.tree);
@@ -5547,9 +5523,16 @@ public class Attr extends JCTree.Visitor {
 
             if (sealedSupers.isEmpty()) {
                 if ((c.flags_field & Flags.NON_SEALED) != 0) {
-                    boolean hasErrorSuper = types.directSupertypes(c.type)
-                                                 .stream()
-                                                 .anyMatch(s -> s.tsym.kind == Kind.ERR);
+                    boolean hasErrorSuper = false;
+
+                    hasErrorSuper |= types.directSupertypes(c.type)
+                                          .stream()
+                                          .anyMatch(s -> s.tsym.kind == Kind.ERR);
+
+                    ClassType ct = (ClassType) c.type;
+
+                    hasErrorSuper |= !ct.isCompound() && ct.interfaces_field != ct.all_interfaces_field;
+
                     if (!hasErrorSuper) {
                         log.error(TreeInfo.diagnosticPositionFor(c, env.tree), Errors.NonSealedWithNoSealedSupertype(c));
                     }
@@ -5605,7 +5588,7 @@ public class Attr extends JCTree.Visitor {
                     log.error(env.tree.pos(), Errors.EnumTypesNotExtensible);
                 }
 
-                if (isSerializable(c.type)) {
+                if (rs.isSerializable(c.type)) {
                     env.info.isSerializable = true;
                 }
 
@@ -5748,12 +5731,12 @@ public class Attr extends JCTree.Visitor {
         // Check for cycles among annotation elements.
         chk.checkNonCyclicElements(tree);
 
-        // Check for proper use of serialVersionUID
+        // Check for proper use of serialVersionUID and other
+        // serialization-related fields and methods
         if (env.info.lint.isEnabled(LintCategory.SERIAL)
-                && isSerializable(c.type)
-                && (c.flags() & (Flags.ENUM | Flags.INTERFACE)) == 0
+                && rs.isSerializable(c.type)
                 && !c.isAnonymous()) {
-            checkSerialVersionUID(tree, c, env);
+            chk.checkSerialStructure(tree, c);
         }
         if (allowTypeAnnos) {
             // Correctly organize the positions of the type annotations
@@ -5772,59 +5755,6 @@ public class Attr extends JCTree.Visitor {
             }
 
             return null;
-        }
-
-        /** check if a type is a subtype of Serializable, if that is available. */
-        boolean isSerializable(Type t) {
-            try {
-                syms.serializableType.complete();
-            }
-            catch (CompletionFailure e) {
-                return false;
-            }
-            return types.isSubtype(t, syms.serializableType);
-        }
-
-        /** Check that an appropriate serialVersionUID member is defined. */
-        private void checkSerialVersionUID(JCClassDecl tree, ClassSymbol c, Env<AttrContext> env) {
-
-            // check for presence of serialVersionUID
-            VarSymbol svuid = null;
-            for (Symbol sym : c.members().getSymbolsByName(names.serialVersionUID)) {
-                if (sym.kind == VAR) {
-                    svuid = (VarSymbol)sym;
-                    break;
-                }
-            }
-
-            if (svuid == null) {
-                if (!c.isRecord())
-                    log.warning(LintCategory.SERIAL, tree.pos(), Warnings.MissingSVUID(c));
-                return;
-            }
-
-            // Check if @SuppressWarnings("serial") is an annotation of serialVersionUID.
-            // See JDK-8231622 for more information.
-            Lint lint = env.info.lint.augment(svuid);
-            if (lint.isSuppressed(LintCategory.SERIAL)) {
-                return;
-            }
-
-            // check that it is static final
-            if ((svuid.flags() & (STATIC | FINAL)) !=
-                (STATIC | FINAL))
-                log.warning(LintCategory.SERIAL,
-                        TreeInfo.diagnosticPositionFor(svuid, tree), Warnings.ImproperSVUID(c));
-
-            // check that it is long
-            else if (!svuid.type.hasTag(LONG))
-                log.warning(LintCategory.SERIAL,
-                        TreeInfo.diagnosticPositionFor(svuid, tree), Warnings.LongSVUID(c));
-
-            // check constant
-            else if (svuid.getConstValue() == null)
-                log.warning(LintCategory.SERIAL,
-                        TreeInfo.diagnosticPositionFor(svuid, tree), Warnings.ConstantSVUID(c));
         }
 
     private Type capture(Type type) {
@@ -6166,6 +6096,8 @@ public class Attr extends JCTree.Visitor {
 
         @Override
         public void visitBindingPattern(JCBindingPattern that) {
+            initTypeIfNeeded(that);
+            initTypeIfNeeded(that.var);
             if (that.var.sym == null) {
                 that.var.sym = new BindingSymbol(0, that.var.name, that.var.type, syms.noSymbol);
                 that.var.sym.adr = 0;

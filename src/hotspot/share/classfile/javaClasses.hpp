@@ -378,8 +378,8 @@ class java_lang_Class : AllStatic {
   static oop source_file(oop java_class);
   static void set_source_file(oop java_class, oop source_file);
 
-  static int oop_size(oop java_class);
-  static void set_oop_size(HeapWord* java_class, int size);
+  static size_t oop_size(oop java_class);
+  static void set_oop_size(HeapWord* java_class, size_t size);
   static int static_oop_field_count(oop java_class);
   static void set_static_oop_field_count(oop java_class, int size);
 
@@ -1184,6 +1184,7 @@ class java_lang_invoke_MemberName: AllStatic {
     MN_IS_TYPE               = 0x00080000, // nested type
     MN_CALLER_SENSITIVE      = 0x00100000, // @CallerSensitive annotation detected
     MN_TRUSTED_FINAL         = 0x00200000, // trusted final field
+    MN_FLATTENED             = 0x00400000, // flattened field
     MN_REFERENCE_KIND_SHIFT  = 24, // refKind
     MN_REFERENCE_KIND_MASK   = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
     // The SEARCH_* bits are not for MN.flags but for the matchFlags argument of MHN.getMembers:

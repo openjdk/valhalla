@@ -386,6 +386,7 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
     if (k->is_inline_klass()) {
       return new (arena()) ciInlineKlass(k);
     } else if (k->is_instance_klass()) {
+      assert(!ReplayCompiles || ciReplay::no_replay_state() || !ciReplay::is_klass_unresolved((InstanceKlass*)k), "must be whitelisted for replay compilation");
       return new (arena()) ciInstanceKlass(k);
     } else if (k->is_flatArray_klass()) {
       return new (arena()) ciFlatArrayKlass(k);

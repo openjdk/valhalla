@@ -1066,7 +1066,7 @@ public class Gen extends JCTree.Visitor {
             // If method is not static, create a new local variable address
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
-                Type selfType = meth.owner.isPrimitiveClass() ? meth.owner.type.asValueType() : meth.owner.type;
+                Type selfType = meth.owner.type;
                 if (meth.isConstructor() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
@@ -1561,8 +1561,8 @@ public class Gen extends JCTree.Visitor {
     //where
         /** Generate code for a try or synchronized statement
          *  @param body      The body of the try or synchronized statement.
-         *  @param catchers  The lis of catch clauses.
-         *  @param env       the environment current for the body.
+         *  @param catchers  The list of catch clauses.
+         *  @param env       The current environment of the body.
          */
         void genTry(JCTree body, List<JCCatch> catchers, Env<GenContext> env) {
             int limit = code.nextreg;
@@ -1574,7 +1574,13 @@ public class Gen extends JCTree.Visitor {
             code.statBegin(TreeInfo.endPos(body));
             genFinalizer(env);
             code.statBegin(TreeInfo.endPos(env.tree));
-            Chain exitChain = code.branch(goto_);
+            Chain exitChain;
+            boolean actualTry = env.tree.hasTag(TRY);
+            if (startpc == endpc && actualTry) {
+                exitChain = code.branch(dontgoto);
+            } else {
+                exitChain = code.branch(goto_);
+            }
             endFinalizerGap(env);
             env.info.finalize.afterBody();
             boolean hasFinalizer =
@@ -1592,7 +1598,7 @@ public class Gen extends JCTree.Visitor {
                 }
                 endFinalizerGap(env);
             }
-            if (hasFinalizer) {
+            if (hasFinalizer && (startpc != endpc || !actualTry)) {
                 // Create a new register segment to avoid allocating
                 // the same variables in finalizers and other statements.
                 code.newRegSegment();
@@ -2280,7 +2286,7 @@ public class Gen extends JCTree.Visitor {
         // primitive reference conversion is a nop when we bifurcate the primitive class, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
-            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.asValueType(), tree.expr.type) || true) &&
+            (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type) || true) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isPrimitiveClass(tree.clazz.type)) {
