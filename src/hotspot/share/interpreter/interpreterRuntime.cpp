@@ -312,6 +312,12 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
     case ltos:
       if (old_value_h()->long_field(offset) == *(jlong*)ptr) can_skip = true;
       break;
+    case ftos:
+      if (memcmp(old_value_h()->field_addr<jfloat>(offset), (jfloat*)ptr, sizeof(jfloat)) == 0) can_skip = true;
+      break;
+    case dtos:
+      if (memcmp(old_value_h()->field_addr<jdouble>(offset), (jdouble*)ptr, sizeof(jdouble)) == 0) can_skip = true;
+      break;
     case atos:
       if (!cpe->is_inlined() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
       break;
