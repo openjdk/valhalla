@@ -98,7 +98,11 @@ public class Flags {
     /** Added in SE8, represents constructs implicitly declared in source. */
     public static final int MANDATED     = 1<<15;
 
-    /** Marks a type as a primitive class */
+    /** Marks a type as a primitive class. We can't reuse the class file encoding (ACC_PRIMITIVE)
+     * since the latter shares its value (0x800) with ACC_STRICT (javac speak: STRICT_FP) and while
+     * STRICT_FP is not a valid flag for a class in the class file level, javac's ASTs flag a class
+     * as being STRICT_FP so as to propagate the FP strictness to methods of the class thereby causing
+     * a clash */
     public static final int PRIMITIVE_CLASS  = 1<<16;
 
     public static final int StandardFlags = 0x0fff;
@@ -110,7 +114,7 @@ public class Flags {
     public static final int ACC_SUPER    = 0x0020;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
-    public static final int ACC_PRIMITIVE = 0x0100;
+    public static final int ACC_PRIMITIVE = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************
@@ -412,8 +416,8 @@ public class Flags {
      */
     public static final int
         AccessFlags                       = PUBLIC | PROTECTED | PRIVATE,
-        LocalClassFlags                   = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC  | PRIMITIVE_CLASS,
-        StaticLocalFlags                  = LocalClassFlags | STATIC | INTERFACE,
+        LocalClassFlags                   = FINAL | ABSTRACT | ENUM | SYNTHETIC  | ACC_PRIMITIVE,
+        StaticLocalClassFlags             = LocalClassFlags | STATIC | INTERFACE,
         MemberClassFlags                  = LocalClassFlags | INTERFACE | AccessFlags,
         MemberStaticClassFlags            = MemberClassFlags | STATIC,
         ClassFlags                        = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
@@ -428,10 +432,12 @@ public class Flags {
                                             SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
         ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS,
-        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED,
-        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED,
-        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED,
-        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED,
+        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS,
+        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS,
+        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS,
+        ExtendedLocalClassFlags           = (long) LocalClassFlags | PRIMITIVE_CLASS,
+        ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | PRIMITIVE_CLASS,
+        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,
         LocalVarFlags                     = FINAL | PARAMETER,

@@ -411,7 +411,7 @@ class compiler/valhalla/inlinetypes/PointN {
     Utf8 "Lookup"; // #37
   } // Constant Pool
 
-  0x0131; // access
+  0x0831; // access
   #1;// this_cpx
   #14;// super_cpx
 
@@ -615,7 +615,7 @@ class compiler/valhalla/inlinetypes/RectangleN {
     Utf8 "Lookup"; // #42
   } // Constant Pool
 
-  0x0131; // access
+  0x0831; // access
   #1;// this_cpx
   #20;// super_cpx
 
@@ -819,7 +819,7 @@ class compiler/valhalla/inlinetypes/RectangleP {
     Utf8 "Lookup"; // #42
   } // Constant Pool
 
-  0x0131; // access
+  0x0831; // access
   #1;// this_cpx
   #20;// super_cpx
 
