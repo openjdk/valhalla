@@ -222,3 +222,4 @@ compiler.err.super.method.cannot.be.synchronized
 compiler.err.super.no.arg.constructor.must.be.empty
 compiler.err.generic.parameterization.with.primitive.class
 compiler.misc.feature.primitive.classes
+compiler.misc.feature.value.classes

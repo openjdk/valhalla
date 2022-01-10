@@ -1719,6 +1719,8 @@ public class ClassWriter extends ClassFile {
             result &= ~ABSTRACT;
         if ((flags & PRIMITIVE_CLASS) != 0)
             result |= ACC_PRIMITIVE;
+        if ((flags & VALUE_CLASS) != 0)
+            result |= ACC_VALUE;
         return result;
     }
 
