@@ -116,6 +116,8 @@ public class Names {
     public final Name java_lang_System;
     public final Name __primitive__;
     public final Name java_lang___primitive__;
+    public final Name __value__;
+    public final Name java_lang___value__;
     public final Name java_lang_IdentityObject;
 
     // names of builtin classes
@@ -309,6 +311,8 @@ public class Names {
         java_lang_System = fromString("java.lang.System");
         __primitive__ = fromString("__primitive__");
         java_lang___primitive__ = fromString("java.lang.__primitive__");
+        __value__ = fromString("__value__");
+        java_lang___value__ = fromString("java.lang.__value__");
         java_lang_IdentityObject = fromString("java.lang.IdentityObject");
 
         // names of builtin classes

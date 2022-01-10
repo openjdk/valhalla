@@ -63,11 +63,6 @@ public enum Modifier {
      * @since 1.8
      */
      DEFAULT,
-    /**
-     * The modifier {@code primitive}
-     * @since 1.17
-     */
-    PRIMITIVE,
 
     /** The modifier {@code static} */          STATIC,
 
@@ -86,6 +81,19 @@ public enum Modifier {
             return "non-sealed";
         }
     },
+
+    /**
+     * The modifier {@code primitive}
+     * @since 18
+     */
+    PRIMITIVE,
+
+    /**
+     * The modifier {@code value}
+     * @since 18
+     */
+    VALUE,
+
     /** The modifier {@code final} */           FINAL,
     /** The modifier {@code transient} */       TRANSIENT,
     /** The modifier {@code volatile} */        VOLATILE,
