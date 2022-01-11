@@ -4143,4 +4143,143 @@ public class TestLWorld {
     public void test151_verifier() {
         Asserts.assertEquals(test151(testValue2), testValue2.hash());
     }
+
+    static interface MyInterface2 {
+        public int val();
+    }
+
+    static abstract class MyAbstract2 implements MyInterface2 {
+
+    }
+
+    static class MyClass152 extends MyAbstract2 {
+        private int val;
+
+        @ForceInline
+        public MyClass152(int val) {
+            this.val = val;
+        }
+
+        @Override
+        public int val() {
+            return val;
+        }
+    }
+
+    static primitive class MyValue152 extends MyAbstract2 {
+        private int unused = 0; // Make sure sub-offset of val is field non-zero
+        private int val;
+
+        @ForceInline
+        public MyValue152(int val) {
+            this.val = val;
+        }
+
+        @Override
+        public int val() {
+            return val;
+        }
+    }
+
+    static primitive class MyWrapper152 {
+        private int unused = 0; // Make sure sub-offset of val field is non-zero
+        MyValue152 val;
+
+        @ForceInline
+        public MyWrapper152(MyInterface2 val) {
+            this.val = (MyValue152)val;
+        }
+    }
+
+    // Test that checkcast with speculative type does not break scalarization in return
+    @Test
+    public MyWrapper152 test152(MyInterface2 val) {
+        return new MyWrapper152(val);
+    }
+
+    @Run(test = "test152")
+    @Warmup(10000) // Make sure profile information is available at cast
+    public void test152_verifier() {
+        MyClass152 unused = new MyClass152(rI);
+        MyValue152 val = new MyValue152(rI);
+        Asserts.assertEquals(test152(val).val, val);
+    }
+
+    @DontInline
+    static void test153_helper(MyWrapper152 arg) {
+
+    }
+
+    // Test that checkcast with speculative type does not prevent scalarization in args
+    @Test
+    public void test153(MyInterface2 val) {
+        test153_helper(new MyWrapper152(val));
+    }
+
+    @Run(test = "test153")
+    @Warmup(10000) // Make sure profile information is available at cast
+    public void test153_verifier() {
+        MyClass152 unused = new MyClass152(rI);
+        MyValue152 val = new MyValue152(rI);
+        test153(val);
+    }
+
+    // Test that checkcast with speculative type enables scalarization
+    @Test
+    @IR(failOn = {ALLOC_G, STORE})
+    public int test154(Method m, MyInterface2 val, boolean b1, boolean b2) {
+        MyInterface2 obj = new MyValue152(rI);
+        if (b1) {
+            // Speculative cast to MyValue152 enables scalarization
+            obj = (MyAbstract2)val;
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+            return obj.val();
+        }
+        return -1;
+    }
+
+    @Run(test = "test154")
+    @Warmup(10000) // Make sure profile information is available at cast
+    public void test154_verifier(RunInfo info) {
+        MyClass152 unused = new MyClass152(rI);
+        MyValue152 val = new MyValue152(rI);
+        Asserts.assertEquals(test154(info.getTest(), val, false, false), -1);
+        Asserts.assertEquals(test154(info.getTest(), val, true, false), -1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test154(info.getTest(), val, false, true), rI);
+        }
+    }
+
+    // Same as test154 but with null val
+    @Test
+    @IR(failOn = {ALLOC_G, STORE})
+    public int test155(Method m, MyInterface2 val, boolean b1, boolean b2) {
+        MyInterface2 obj = new MyValue152(rI);
+        if (b1) {
+            // Speculative cast to MyValue152 enables scalarization
+            obj = (MyAbstract2)val;
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+            return obj.val();
+        }
+        return -1;
+    }
+
+    @Run(test = "test155")
+    @Warmup(10000) // Make sure profile information is available at cast
+    public void test155_verifier(RunInfo info) {
+        MyClass152 unused = new MyClass152(rI);
+        MyValue152 val = new MyValue152(rI);
+        Asserts.assertEquals(test155(info.getTest(), val, false, false), -1);
+        Asserts.assertEquals(test155(info.getTest(), val, true, false), -1);
+        Asserts.assertEquals(test155(info.getTest(), null, true, false), -1);
+        if (!info.isWarmUp()) {
+            Asserts.assertEquals(test155(info.getTest(), val, false, true), rI);
+        }
+    }
 }
