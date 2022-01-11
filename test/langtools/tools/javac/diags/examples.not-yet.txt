@@ -210,10 +210,10 @@ compiler.err.preview.without.source.or.release
 # Value types
 compiler.err.cyclic.primitive.class.membership
 compiler.err.primitive.class.does.not.support
-compiler.err.primitive.class.may.not.extend
+compiler.err.value.class.may.not.extend
 compiler.err.this.exposed.prematurely
-compiler.err.primitive.class.must.not.implement.identity.object
-compiler.err.concrete.supertype.for.primitive.class
+compiler.err.value.class.must.not.implement.identity.object
+compiler.err.concrete.supertype.for.value.class
 compiler.err.super.class.cannot.be.inner
 compiler.err.super.class.declares.init.block
 compiler.err.super.constructor.cannot.take.arguments

@@ -46,8 +46,8 @@ public class QTypeTest {
                                             Paths.get(System.getProperty("test.classes"),
                                                 "QTypedValue.class").toString() };
         runCheck(params, new String [] {
-              "final primitive class QTypedValue",
-              "  flags: (0x0830) ACC_FINAL, ACC_SUPER, ACC_PRIMITIVE",
+              "final primitive value class QTypedValue",
+              "  flags: (0x0930) ACC_FINAL, ACC_SUPER, ACC_PRIMITIVE, ACC_VALUE",
               "  this_class: #1                          // QTypedValue",
               "   #1 = Class              #2             // QTypedValue",
               "   #2 = Utf8               QTypedValue",
