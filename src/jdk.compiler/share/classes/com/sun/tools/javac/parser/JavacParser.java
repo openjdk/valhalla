@@ -2377,8 +2377,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & (Flags.PRIMITIVE_CLASS | Flags.VALUE_CLASS)) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
-                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
+                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(mods.flags)));
             }
             if (typeArgs == null) {
                 if (newAnnotations.isEmpty()) {
@@ -2457,8 +2456,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & (Flags.PRIMITIVE_CLASS | Flags.VALUE_CLASS)) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
-                log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
+                log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(mods.flags)));
             }
             return newClass;
         } else {
@@ -3392,16 +3390,6 @@ public class JavacParser implements Parser {
          * has no text position. */
         if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
             pos = Position.NOPOS;
-
-        // Force primitive classes to be automatically final.
-        if ((flags & (Flags.PRIMITIVE_CLASS | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.PRIMITIVE_CLASS) {
-            flags |= Flags.FINAL;
-        }
-
-        // Force value classes to be automatically final.
-        if ((flags & (Flags.VALUE_CLASS | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.VALUE_CLASS) {
-            flags |= Flags.FINAL;
-        }
 
         JCModifiers mods = F.at(pos).Modifiers(flags, annotations.toList());
         if (pos != Position.NOPOS)

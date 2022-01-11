@@ -1013,6 +1013,10 @@ public class Types {
         return t != null && t.isPrimitiveClass();
     }
 
+    public boolean isValueClass(Type t) {
+        return t != null && t.isValueClass();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -2260,7 +2264,7 @@ public class Types {
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
-            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+            if (t.hasTag(CLASS) && !t.isValueClass() && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
                 return syms.identityObjectType;
             }
             if (implicitIdentityType(t)) {
