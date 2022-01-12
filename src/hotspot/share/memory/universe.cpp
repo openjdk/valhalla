@@ -366,7 +366,7 @@ void Universe::genesis(TRAPS) {
       assert(_the_single_IdentityObject_klass_array->at(0) ==
           vmClasses::IdentityObject_klass(), "u3");
       assert(_the_single_PrimitiveObject_klass_array->at(0) ==
-          vmClasses::PrimitiveObject_klass(), "u3");
+          vmClasses::ValueObject_klass(), "u3");
     } else
 #endif
     {
@@ -488,7 +488,7 @@ void Universe::initialize_the_single_IdentityObject_klass_array(InstanceKlass* i
 
 void Universe::initialize_the_single_PrimitiveObject_klass_array(InstanceKlass* ik, TRAPS) {
     assert(_the_single_PrimitiveObject_klass_array == NULL, "Must not be initialized twice");
-    assert(ik->name() == vmSymbols::java_lang_PrimitiveObject(), "Must be");
+    assert(ik->name() == vmSymbols::java_lang_ValueObject(), "Must be");
     Array<InstanceKlass*>* array = MetadataFactory::new_array<InstanceKlass*>(ik->class_loader_data(), 1, NULL, CHECK);
     array->at_put(0, ik);
     _the_single_PrimitiveObject_klass_array = array;

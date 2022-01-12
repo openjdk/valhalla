@@ -36,7 +36,7 @@ package java.lang;
  * two objects created by different instance creation operations can have the same
  * identity.
  *
- * Every object is either an *identity object* or a *primitive object*. Primitive
+ * Every object is either an *identity object* or a *value object*. Value
  * objects lack identity.
  *
  * The following operations have special behavior when applied to identity objects:
@@ -52,14 +52,14 @@ package java.lang;
  * - The `synchronized` modifier and `synchronized` statement are only able to
  * successfully acquire a lock when applied to an identity object.
  *
- * A class may implement `IdentityObject` or `PrimitiveObject`, but never both.
- * Primitive classes always implement `PrimitiveObject`, while all other concrete
+ * A class may implement `IdentityObject` or `ValueObject`, but never both.
+ * Value classes always implement `ValueObject`, while all other concrete
  * classes (except `Object`) implicitly implement `IdentityObject`.
  *
  * Abstract classes and interfaces may implement or extend this interface if they
  * wish to guarantee that all instances of the class or interface have identity.
  *
- * @since 1.16
+ * @since 1.18
  */
 public interface IdentityObject {
 }

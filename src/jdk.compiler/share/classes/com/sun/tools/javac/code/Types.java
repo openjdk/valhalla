@@ -2270,9 +2270,9 @@ public class Types {
             if (implicitIdentityType(t)) {
                 return syms.identityObjectType;
             } // else fall through and look for explicit coded super interface
-        } else if (sym == syms.primitiveObjectType.tsym) {
-            if (t.isReferenceProjection())
-                return syms.primitiveObjectType;
+        } else if (sym == syms.valueObjectType.tsym) {
+            if (t.isValueClass() || t.isReferenceProjection())
+                return syms.valueObjectType;
             if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
                 return null;
             // else fall through and look for explicit coded super interface
@@ -2340,7 +2340,7 @@ public class Types {
 
         // where
         private boolean implicitIdentityType(Type t) {
-            /* An abstract class can be declared to implement either IdentityObject or PrimitiveObject;
+            /* An abstract class can be declared to implement either IdentityObject or ValueObject;
              * or, if it declares a field, an instance initializer, a non-empty constructor, or
              * a synchronized method, it implicitly implements IdentityObject.
              */

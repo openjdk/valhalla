@@ -23,7 +23,7 @@
  */
 /*
  * @test
- * @summary test that PrimitiveObject interface is injected correctly
+ * @summary test that ValueObject interface is injected correctly
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder
  * @compile TestPrimitiveObject.java
@@ -67,21 +67,21 @@ public class TestPrimitiveObject {
     static void checkPrimitiveObject(Class c, boolean subtype) {
         boolean s;
         try {
-            c.asSubclass(PrimitiveObject.class);
+            c.asSubclass(ValueObject.class);
             s = true;
         } catch(ClassCastException e) {
             s = false;
         }
         if (subtype != s) {
             if (subtype) {
-                throw new RuntimeException("Type " + c.getName() + " is missing PrimitiveObject");
+                throw new RuntimeException("Type " + c.getName() + " is missing ValueObject");
             } else {
-                throw new RuntimeException("Type " + c.getName() + " should not implement PrimitiveObject");
+                throw new RuntimeException("Type " + c.getName() + " should not implement ValueObject");
             }
         }
     }
 
-    // Define classes that implement PrimitiveObject but are invalid supers
+    // Define classes that implement ValueObject but are invalid supers
     static void checkIcceOnInvalidSupers() {
         MethodHandles.Lookup mhLookup = MethodHandles.lookup();
         checkIcce(mhLookup, createClass().build());
@@ -93,7 +93,7 @@ public class TestPrimitiveObject {
     static ClassBuilder createClass() {
         return new BasicClassBuilder("ANormalClass", 62, 0)
             .withSuperclass("java/lang/Object")
-            .withSuperinterface("java/lang/PrimitiveObject");
+            .withSuperinterface("java/lang/ValueObject");
     }
 
     static ClassBuilder createAbstractWithField() {
@@ -101,7 +101,7 @@ public class TestPrimitiveObject {
             .withSuperclass("java/lang/Object")
             .withFlags(Flag.ACC_ABSTRACT)
             .withField("aFieldWhichIsIllegalAsAnAbstractSuperToPrimitiveObject", "I")
-            .withSuperinterface("java/lang/PrimitiveObject");
+            .withSuperinterface("java/lang/ValueObject");
     }
 
     static ClassBuilder createAbstractIdentity() {
@@ -109,14 +109,14 @@ public class TestPrimitiveObject {
             .withSuperclass("java/lang/Object")
             .withFlags(Flag.ACC_ABSTRACT)
             .withSuperinterface("java/lang/IdentityObject")
-            .withSuperinterface("java/lang/PrimitiveObject");
+            .withSuperinterface("java/lang/ValueObject");
     }
 
   static ClassBuilder createIdentity() {
         return new BasicClassBuilder("Identity", 62, 0)
             .withSuperclass("java/lang/Object")
             .withSuperinterface("java/lang/IdentityObject")
-            .withSuperinterface("java/lang/PrimitiveObject");
+            .withSuperinterface("java/lang/ValueObject");
     }
 
     static void checkIcce(MethodHandles.Lookup mhLookup, byte[] clazzBytes) {

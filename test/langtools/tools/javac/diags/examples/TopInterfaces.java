@@ -21,9 +21,9 @@
  * questions.
  */
 
-// key: compiler.err.identity.class.must.not.implement.primitive.object
+// key: compiler.err.identity.class.must.not.implement.value.object
 // key: compiler.err.mutually.incompatible.super.interfaces
 
-class Identity implements PrimitiveObject {
-    abstract class Inner implements IdentityObject, PrimitiveObject {}
+class Identity implements ValueObject {
+    abstract class Inner implements IdentityObject, ValueObject {}
 }

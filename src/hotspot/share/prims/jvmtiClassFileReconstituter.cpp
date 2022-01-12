@@ -903,7 +903,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
     HandleMark hm(thread());
     InstanceKlass* iik = interfaces->at(index);
     if ( (!ik()->has_injected_identityObject() || iik != vmClasses::IdentityObject_klass()) &&
-         (!ik()->has_injected_primitiveObject() || iik != vmClasses::PrimitiveObject_klass())) {
+         (!ik()->has_injected_primitiveObject() || iik != vmClasses::ValueObject_klass())) {
       write_u2(class_symbol_to_cpool_index(iik->name()));
     }
   }

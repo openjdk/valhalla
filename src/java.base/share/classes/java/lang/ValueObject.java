@@ -26,41 +26,41 @@
 package java.lang;
 
 /**
- * A restricted interface implemented by all primitive objects.
+ * A restricted interface implemented by all value objects.
  *
- * A primitive object is an instance of a primitive class, lacking identity.
+ * A value object is an instance of a value class, lacking identity.
  *
- * Every object is either an *identity object* or a *primitive object*. Identity
+ * Every object is either an *identity object* or a *value object*. Identity
  * objects have a unique identity determined for them at instance creation time and
  * preserved throughout their life.
  *
- * Primitive objects do *not* have an identity. Instead, they simply aggregate a
+ * value objects do *not* have an identity. Instead, they simply aggregate a
  * set of immutable field values. The lack of identity enables certain performance
  * optimizations by Java Virtual Machine implementations.
- * The following operations have special behavior when applied to primitive
+ * The following operations have special behavior when applied to value
  * objects:
  *
  * - The `==` operator, and the default implementation of the `Object.equals`
- * method, compare the values of the operands' fields. Primitive objects
+ * method, compare the values of the operands' fields. Value objects
  * created at different points in a program may be `==`.
  *
  * - The `System.identityHashCode` method, and the default implementation of the
  * `Object.hashCode` method, generate a hash code from the hash codes of a
- * primitive object's fields.
+ * value object's fields.
  *
  * - The `synchronized` modifier and `synchronized` statement always fail when
- * applied to a primitive object.
+ * applied to a value object.
  *
- * A class may implement `PrimitiveObject` or `IdentityObject`, but never both.
- * Primitive classes always implement `PrimitiveObject`, while all other concrete
+ * A class may implement `ValueObject` or `IdentityObject`, but never both.
+ * Value classes always implement `ValueObject`, while all other concrete
  * classes (except `Object`) implicitly implement `IdentityObject`.
  *
  * Abstract classes and interfaces may implement or extend this interface if they
- * wish to guarantee that all instances of the class or interface are primitive
+ * wish to guarantee that all instances of the class or interface are value
  * objects.
  *
- * @since 1.16
+ * @since 1.18
  */
 
-public interface PrimitiveObject {
+public interface ValueObject {
 }

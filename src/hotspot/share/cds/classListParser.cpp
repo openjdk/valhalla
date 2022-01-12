@@ -481,7 +481,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
         identity_object_implemented = true;
         break;
       }
-      if (k->local_interfaces()->at(i) == vmClasses::PrimitiveObject_klass()) {
+      if (k->local_interfaces()->at(i) == vmClasses::ValueObject_klass()) {
         primitive_object_implemented = true;
         break;
       }
@@ -491,7 +491,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
         identity_object_specified = true;
         break;
       }
-      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::PrimitiveObject_klass()) {
+      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::ValueObject_klass()) {
         primitive_object_specified = true;
         break;
       }
@@ -500,7 +500,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
     if ( (identity_object_implemented  && !identity_object_specified) ||
          (primitive_object_implemented && !primitive_object_specified) ){
       // Backwards compatibility -- older classlists do not know about
-      // java.lang.IdentityObject or java.lang.PrimitiveObject
+      // java.lang.IdentityObject or java.lang.ValueObject
       expected_num_interfaces--;
     }
   }
@@ -738,10 +738,10 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
     // java.lang.IdentityObject.
     return vmClasses::IdentityObject_klass();
   }
-  if (interface_name == vmSymbols::java_lang_PrimitiveObject()) {
+  if (interface_name == vmSymbols::java_lang_ValueObject()) {
     // Backwards compatibility -- older classlists do not know about
-    // java.lang.PrimitiveObject.
-    return vmClasses::PrimitiveObject_klass();
+    // java.lang.ValueObject.
+    return vmClasses::ValueObject_klass();
   }
 
   const int n = _interfaces->length();
