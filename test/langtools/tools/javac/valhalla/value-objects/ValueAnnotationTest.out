@@ -1,3 +1,4 @@
 ValueAnnotationTest.java:10:50: compiler.err.cant.inherit.from.final: ValueAnnotationTest.X
 ValueAnnotationTest.java:11:28: compiler.err.cant.inherit.from.final: ValueAnnotationTest.Y
-2 errors
+ValueAnnotationTest.java:10:34: compiler.err.concrete.supertype.for.value.class: ValueAnnotationTest.Y, ValueAnnotationTest.X
+3 errors

@@ -1739,7 +1739,7 @@ public class Flow {
      */
     enum ThisExposability {
         ALLOWED,     // identity Object classes - NOP
-        BANNED,      // primitive classes - Error
+        BANNED,      // primitive/value classes - Error
     }
 
     /**
@@ -2202,7 +2202,7 @@ public class Flow {
                         firstadr = nextadr;
                         this.thisExposability = ALLOWED;
                     } else {
-                        if (types.isPrimitiveClass(tree.sym.owner.type))
+                        if (types.isValueClass(tree.sym.owner.type))
                             this.thisExposability = BANNED;
                         else
                             this.thisExposability = ALLOWED;

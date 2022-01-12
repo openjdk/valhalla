@@ -748,14 +748,14 @@ public class Check {
                                     : t;
         }
 
-    void checkSuperConstraintsOfPrimitiveClass(DiagnosticPosition pos, ClassSymbol c) {
+    void checkSuperConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
         for(Type st = types.supertype(c.type); st != Type.noType; st = types.supertype(st)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 return;
             if  (st.tsym == syms.objectType.tsym)
                 return;
             if (!st.tsym.isAbstract()) {
-                log.error(pos, Errors.ConcreteSupertypeForPrimitiveClass(c, st));
+                log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
             }
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
@@ -868,7 +868,7 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.isPrimitive() || t.isPrimitiveClass() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.isValueClass() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
@@ -1369,7 +1369,7 @@ public class Check {
                 mask = implicit = InterfaceVarFlags;
             else {
                 mask = VarFlags;
-                if (types.isPrimitiveClass(sym.owner.type) && (flags & STATIC) == 0) {
+                if (types.isValueClass(sym.owner.type) && (flags & STATIC) == 0) {
                     implicit |= FINAL;
                 }
             }
@@ -1399,9 +1399,10 @@ public class Check {
                 }
             } else if ((sym.owner.flags_field & RECORD) != 0) {
                 mask = RecordMethodFlags;
+                // FIXME: We tolerate synchronized methods in value records
             } else {
-                // instance methods of primitive classes do not have a monitor associated with their `this'
-                mask = ((sym.owner.flags_field & PRIMITIVE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
+                // value objects do not have an associated monitor/lock
+                mask = ((sym.owner.flags_field & VALUE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
             }
             if ((flags & STRICTFP) != 0) {
@@ -1439,8 +1440,8 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or primitive
-                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS);
+                // enums can't be declared abstract, final, sealed or non-sealed or primitive/value
+                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
@@ -1453,6 +1454,15 @@ public class Check {
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
+
+            // primitive classes are implicitly final value classes.
+            if ((flags & PRIMITIVE_CLASS) != 0)
+                implicit |= VALUE_CLASS | FINAL;
+
+            // value classes are implicitly final
+            if ((flags & VALUE_CLASS) != 0)
+                implicit |= FINAL;
+
             break;
         default:
             throw new AssertionError();
@@ -1481,7 +1491,7 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                                ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS)
+                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS | VALUE_CLASS)
                  &&
                  checkDisjoint(pos, flags,
                                PUBLIC,
@@ -2013,10 +2023,10 @@ public class Check {
             return;
         }
 
-        if (origin.isPrimitiveClass() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
+        if (origin.isValueClass() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
             if (m.name == names.clone || m.name == names.finalize) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),
-                        Errors.PrimitiveClassMayNotOverride(m.name));
+                        Errors.ValueClassMayNotOverride(m.name));
                 m.flags_field |= BAD_OVERRIDE;
                 return;
             }
@@ -2750,8 +2760,8 @@ public class Check {
 
         boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
         boolean implementsPrimitiveObject = types.asSuper(c.referenceProjectionOrSelf(), syms.primitiveObjectType.tsym) != null;
-        if (c.isPrimitiveClass() && implementsIdentityObject) {
-            log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
+        if (c.isValueClass() && implementsIdentityObject) {
+            log.error(pos, Errors.ValueClassMustNotImplementIdentityObject(c));
         } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
             log.error(pos, Errors.IdentityClassMustNotImplementPrimitiveObject(c));
         } else if (implementsPrimitiveObject && implementsIdentityObject) {

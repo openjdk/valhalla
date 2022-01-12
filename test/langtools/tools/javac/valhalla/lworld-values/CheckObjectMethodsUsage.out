@@ -1,5 +1,5 @@
-CheckObjectMethodsUsage.java:11:17: compiler.err.primitive.class.may.not.override: finalize
-CheckObjectMethodsUsage.java:12:19: compiler.err.primitive.class.may.not.override: clone
+CheckObjectMethodsUsage.java:11:17: compiler.err.value.class.may.not.override: finalize
+CheckObjectMethodsUsage.java:12:19: compiler.err.value.class.may.not.override: clone
 CheckObjectMethodsUsage.java:15:23: compiler.err.primitive.class.does.not.support: finalize
 CheckObjectMethodsUsage.java:16:13: compiler.err.primitive.class.does.not.support: wait
 CheckObjectMethodsUsage.java:17:19: compiler.err.primitive.class.does.not.support: wait

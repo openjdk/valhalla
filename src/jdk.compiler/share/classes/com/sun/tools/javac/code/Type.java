@@ -241,6 +241,10 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
+    public boolean isValueClass() {
+        return false;
+    }
+
     /**
      * Return the `flavor' associated with a ClassType.
      * @see ClassType.Flavor
@@ -1322,6 +1326,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public boolean isPrimitiveClass() {
             return !isReferenceProjection() && tsym != null && tsym.isPrimitiveClass();
+        }
+
+        @Override
+        public boolean isValueClass() {
+            return tsym != null && tsym.isValueClass();
         }
 
         @Override
