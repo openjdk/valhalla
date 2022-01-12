@@ -925,7 +925,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       if (ik->name() == vmSymbols::java_lang_ValueObject()) {
         // further checks for "is_invalid_super_for_inline_type()" needed later
         // needs field parsing, delay unitl post_process_parse_stream()
-        _implements_primitiveObject = true;
+        _implements_valueObject = true;
       }
       _temp_local_interfaces->append(ik);
     }
@@ -4487,7 +4487,7 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
       return Universe::the_single_IdentityObject_klass_array();
     }
     if (length == 1 && result->at(0) == vmClasses::ValueObject_klass()) {
-      return Universe::the_single_PrimitiveObject_klass_array();
+      return Universe::the_single_ValueObject_klass_array();
     }
 
     Array<InstanceKlass*>* const new_result =
@@ -5585,7 +5585,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (_has_injected_identityObject) {
     ik->set_has_injected_identityObject();
   }
-  if (_has_injected_primitiveObject) {
+  if (_has_injected_valueObject) {
     ik->set_has_injected_primitiveObject();
   }
 
@@ -5829,7 +5829,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     Universe::initialize_the_single_IdentityObject_klass_array(ik, CHECK);
   }
   if (ik->name() == vmSymbols::java_lang_ValueObject()) {
-    Universe::initialize_the_single_PrimitiveObject_klass_array(ik, CHECK);
+    Universe::initialize_the_single_ValueObject_klass_array(ik, CHECK);
   }
 
   debug_only(ik->verify();)
@@ -5928,8 +5928,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _invalid_identity_super(false),
   _implements_identityObject(false),
   _has_injected_identityObject(false),
-  _implements_primitiveObject(false),
-  _has_injected_primitiveObject(false),
+  _implements_valueObject(false),
+  _has_injected_valueObject(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6403,7 +6403,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     _has_injected_identityObject = true;
   }
   // Check if declared as PrimitiveObject...else add if needed
-  if (_implements_primitiveObject) {
+  if (_implements_valueObject) {
     if (!is_inline_type() && invalid_inline_super()) {
       classfile_icce_error("class %s can not implement %s, neither valid inline classes or valid supertype",
                             vmClasses::ValueObject_klass(), THREAD);
@@ -6411,7 +6411,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
   } else if (is_inline_type()) {
     _temp_local_interfaces->append(vmClasses::ValueObject_klass());
-    _has_injected_primitiveObject = true;
+    _has_injected_valueObject = true;
   }
 
   int itfs_len = _temp_local_interfaces->length();
@@ -6420,7 +6420,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::IdentityObject_klass()) {
     _local_interfaces = Universe::the_single_IdentityObject_klass_array();
   } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::ValueObject_klass()) {
-    _local_interfaces = Universe::the_single_PrimitiveObject_klass_array();
+    _local_interfaces = Universe::the_single_ValueObject_klass_array();
   } else {
     _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
     for (int i = 0; i < itfs_len; i++) {
