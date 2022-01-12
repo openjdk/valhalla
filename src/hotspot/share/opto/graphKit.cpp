@@ -3444,9 +3444,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
           set_control(null_ctl);    // Null is the only remaining possibility.
           return intcon(0);
         }
-        if (cast_obj != NULL &&
-            // A value that's sometimes null is not something we can optimize well
-            !(cast_obj->is_InlineType() && null_ctl != top())) {
+        if (cast_obj != NULL) {
           not_null_obj = cast_obj;
           is_value = not_null_obj->is_InlineType();
         }
@@ -3614,13 +3612,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     ciKlass* spec_obj_type = obj_type->speculative_type();
     if (spec_obj_type != NULL || data != NULL) {
       cast_obj = maybe_cast_profiled_receiver(not_null_obj, tk->klass(), spec_obj_type, safe_for_replace);
-      if (cast_obj != NULL && cast_obj->is_InlineType()) {
-        if (null_ctl != top()) {
-          cast_obj = NULL; // A value that's sometimes null is not something we can optimize well
-        } else {
-          return cast_obj;
-        }
-      }
       if (cast_obj != NULL) {
         if (failure_control != NULL) // failure is now impossible
           (*failure_control) = top();
@@ -3717,7 +3708,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
       res = vt;
       if (safe_for_replace) {
-        if (vt->isa_InlineType() && C->inlining_incrementally()) {
+        if (vt->is_InlineType() && C->inlining_incrementally()) {
           vt = vt->as_InlineType()->as_ptr(&_gvn);
         }
         replace_in_map(obj, vt);
