@@ -3011,7 +3011,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   if (object_check) {
     __ if_then(kls, BoolTest::eq, makecon(TypeKlassPtr::make(C->env()->Object_klass())));
     sync_kit(ideal);
-    Node* obj = new_instance(makecon(TypeKlassPtr::make(C->env()->ObjectWithIdentity_klass())));
+    Node* obj = new_instance(makecon(TypeKlassPtr::make(C->env()->Identity_klass())));
     ideal.sync_kit(this);
     ideal.set(result, obj);
     __ else_();

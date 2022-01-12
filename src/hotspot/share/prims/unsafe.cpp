@@ -465,7 +465,7 @@ UNSAFE_ENTRY(jobject, Unsafe_AllocateInstance(JNIEnv *env, jobject unsafe, jclas
   oop mirror = JNIHandles::resolve_non_null(cls);
   InstanceKlass* k = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   if (k == vmClasses::Object_klass() && vmClasses::Object_klass()->is_abstract()) {
-    k = vmClasses::ObjectWithIdentity_klass();
+    k = vmClasses::Identity_klass();
   }
   instanceOop i = InstanceKlass::allocate_instance(k->java_mirror(), CHECK_NULL);
   return JNIHandles::make_local(THREAD, i);

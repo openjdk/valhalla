@@ -499,9 +499,6 @@ public final class Objects {
         return Preconditions.checkFromIndexSize(fromIndex, size, length, null);
     }
 
-    private final static class ObjectWithIdentity implements IdentityObject {
-        public ObjectWithIdentity() {}
-    }
     /**
      * {@return a new instance of an unspecified class}
      * The object has a unique identity; no other references to it exist.
@@ -511,6 +508,6 @@ public final class Objects {
      * @since 17
      */
     public static Object newIdentity() {
-        return new ObjectWithIdentity();
+        return new Identity();
     }
 }

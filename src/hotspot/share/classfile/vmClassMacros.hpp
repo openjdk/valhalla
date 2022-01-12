@@ -185,7 +185,7 @@
   do_klass(vector_VectorMask_klass,                     jdk_internal_vm_vector_VectorMask                     ) \
   do_klass(vector_VectorShuffle_klass,                  jdk_internal_vm_vector_VectorShuffle                  ) \
                                                                                                                 \
-  do_klass(ObjectWithIdentity_klass,                    java_util_Objects_ObjectWithIdentity                  ) \
+  do_klass(Identity_klass,                              java_lang_Identity                                    ) \
                                                                                                                 \
   /*end*/
 

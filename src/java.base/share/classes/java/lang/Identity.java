@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,25 +23,16 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 6707226
- * @summary Tests the value updating in Expression
- * @author Sergey Malenkov
+package java.lang;
+
+/**  A class with no other purpose than providing instances with identity
+ * to be used as synchronization point.
+ * When the bytecode {@code new} is executed with {@code java.lang.Object} in
+ * argument, an instance of this class is allocated and a reference to it is
+ * pushed on the stack.
  */
+public final class Identity implements IdentityObject {
 
-import java.beans.Expression;
-
-public class Test6707226 {
-    public static void main(String[] args) throws Exception {
-        Object value = java.util.Objects.newIdentity();
-
-        Expression expression = new Expression(value, java.lang.Identity.class, "new", null);
-        if (!value.equals(expression.getValue()))
-            throw new Error("the value is updated unexpectedly");
-
-        expression.execute();
-        if (value.equals(expression.getValue()))
-            throw new Error("the value is not updated as expected");
-    }
+  /** Create a new instance with an identity */
+  public Identity() { }
 }

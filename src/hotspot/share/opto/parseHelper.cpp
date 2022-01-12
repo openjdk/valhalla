@@ -287,7 +287,7 @@ void Parse::do_new() {
   assert(!klass->is_inlinetype(), "unexpected inline type");
 
   if (klass == C->env()->Object_klass() && C->env()->Object_klass()->is_abstract()) {
-    klass = C->env()->ObjectWithIdentity_klass();
+    klass = C->env()->Identity_klass();
   }
 
   // Should throw an InstantiationError?

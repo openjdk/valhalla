@@ -840,7 +840,7 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   ciKlass* klass = str->get_klass(will_link);
 
   if (klass == outer()->env()->Object_klass() && outer()->env()->Object_klass()->is_abstract()) {
-    klass = outer()->env()->ObjectWithIdentity_klass();
+    klass = outer()->env()->Identity_klass();
   }
 
   if (!will_link || str->is_unresolved_klass() || klass->is_inlinetype()) {

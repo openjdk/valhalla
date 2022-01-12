@@ -2490,7 +2490,7 @@ void GraphBuilder::new_instance(int klass_index) {
   assert(klass->is_instance_klass(), "must be an instance klass");
   ciKlass* ik = klass;
   if (ik == compilation()->env()->Object_klass() && compilation()->env()->Object_klass()->is_abstract()) {
-    ik = compilation()->env()->ObjectWithIdentity_klass();
+    ik = compilation()->env()->Identity_klass();
   }
   NewInstance* new_instance = new NewInstance(ik->as_instance_klass(), state_before, stream()->is_unresolved_klass());
   _memory->new_instance(new_instance);

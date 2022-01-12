@@ -227,7 +227,7 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
 
   if (klass->is_abstract()) {
     if (klass == vmClasses::Object_klass()) {
-      klass = vmClasses::ObjectWithIdentity_klass();
+      klass = vmClasses::Identity_klass();
     } else {
       THROW(vmSymbols::java_lang_InstantiationError());
     }
