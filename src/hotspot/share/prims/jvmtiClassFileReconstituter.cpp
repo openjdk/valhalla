@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -883,7 +883,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   copy_cpool_bytes(writeable_address(cpool_size()));
 
   // JVMSpec|           u2 access_flags;
-  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_INLINE));
+  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_INLINE | JVM_ACC_VALUE));
 
   // JVMSpec|           u2 this_class;
   // JVMSpec|           u2 super_class;
