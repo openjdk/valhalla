@@ -191,15 +191,15 @@ Node* InlineTypeBaseNode::field_value_by_offset(int offset, bool recursive) cons
   int sub_offset = offset - field_offset(index);
   Node* value = field_value(index);
   assert(value != NULL, "field value not found");
-  if (recursive && value->is_InlineType()) {
-    InlineTypeNode* vt = value->as_InlineType();
+  if (recursive && value->is_InlineTypeBase()) {
     if (field_is_flattened(index)) {
       // Flattened inline type field
+      InlineTypeBaseNode* vt = value->as_InlineTypeBase();
       sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
       return vt->field_value_by_offset(sub_offset, recursive);
     } else {
       assert(sub_offset == 0, "should not have a sub offset");
-      return vt;
+      return value;
     }
   }
   assert(!(recursive && value->is_InlineType()), "should not be an inline type");
@@ -575,13 +575,13 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile
 Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
   for (uint i = 0; i < field_count(); i++) {
-     InlineTypeNode* value = field_value(i)->isa_InlineType();
+     Node* value = field_value(i);
      if (field_is_flattened(i)) {
        // Flattened inline type field
-       vt->set_field_value(i, value->allocate_fields(kit));
-     } else if (value != NULL) {
+       vt->set_field_value(i, value->as_InlineTypeBase()->allocate_fields(kit));
+     } else if (value->is_InlineType()) {
        // Non-flattened inline type field
-       vt->set_field_value(i, value->buffer(kit));
+       vt->set_field_value(i, value->as_InlineType()->buffer(kit));
      }
   }
   vt = kit->gvn().transform(vt)->as_InlineTypeBase();
@@ -896,8 +896,7 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
 
     if (field_is_flattened(i)) {
       // Flattened inline type field
-      InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(kit, n, base_input);
+      arg->as_InlineTypeBase()->pass_fields(kit, n, base_input);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field

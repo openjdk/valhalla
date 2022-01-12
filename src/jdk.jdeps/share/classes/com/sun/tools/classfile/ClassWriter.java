@@ -474,12 +474,6 @@ public class ClassWriter {
             return null;
         }
 
-        @Override
-        public Void visitJavaFlags(JavaFlags_attribute attr, ClassOutputStream out) {
-            out.writeShort(attr.extendedFlags);
-            return null;
-        }
-
         protected void writeInnerClassesInfo(InnerClasses_attribute.Info info, ClassOutputStream out) {
             out.writeShort(info.inner_class_info_index);
             out.writeShort(info.outer_class_info_index);

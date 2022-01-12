@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,24 +23,45 @@
  * questions.
  */
 
-package com.sun.tools.classfile;
+/*
+ * @test
+ * @bug 8279368
+ * @summary Add parser support for declaration of value classes
+ * @compile Substring.java
+ */
 
-import java.io.IOException;
+public value class Substring implements CharSequence {
+    private String str;
+    private int start;
+    private int end;
 
-public class JavaFlags_attribute extends Attribute {
-
-    JavaFlags_attribute(ClassReader cr, int name_index, int length) throws IOException {
-        super(name_index, length);
-        extendedFlags = cr.readUnsignedShort();
+    public Substring(String str, int start, int end) {
+        checkBounds(start, end, str.length());
+        this.str = str;
+        this.start = start;
+        this.end = end;
     }
 
-    public int getExtendedFlags() {
-        return extendedFlags;
+    public int length() {
+        return end - start;
     }
 
-    public <R, D> R accept(Visitor<R, D> visitor, D data) {
-        return visitor.visitJavaFlags(this, data);
+    public char charAt(int i) {
+        checkBounds(0, i, length());
+        return str.charAt(start + i);
     }
 
-    public final int extendedFlags;
+    public Substring subSequence(int s, int e) {
+        checkBounds(s, e, length());
+        return new Substring(str, start + s, start + e);
+    }
+
+    public String toString() {
+        return str.substring(start, end);
+    }
+
+    private static void checkBounds(int start, int end, int length) {
+        if (start < 0 || end < start || length < end)
+            throw new IndexOutOfBoundsException();
+    }
 }

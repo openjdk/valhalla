@@ -139,7 +139,7 @@ class HiddenPoint {
     Utf8 "Lookup"; // #59     at 0x03D4
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #26;// super_cpx
 

@@ -155,7 +155,7 @@ class WithFieldNoAccessTest$V {
     Utf8 "java/lang/invoke/MethodHandles"; // #57     at 0x0340
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #8;// super_cpx
 

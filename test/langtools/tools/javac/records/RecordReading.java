@@ -161,7 +161,7 @@ public class RecordReading extends TestRunner {
         String expected =
                 """
                 \n\
-                public primitive record R(int i, @A long j, java.util.List<java.lang.String> l) {
+                public primitive value record R(int i, @A long j, java.util.List<java.lang.String> l) {
                   private final int i;
                   @A
                   private final long j;

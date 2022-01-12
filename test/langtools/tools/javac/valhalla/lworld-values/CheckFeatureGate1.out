@@ -1,4 +1,2 @@
-CheckFeatureGate1.java:10:12: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
-CheckFeatureGate1.java:10:21: compiler.err.expected: token.identifier
+CheckFeatureGate1.java:10:12: compiler.err.feature.not.supported.in.source.plural: (compiler.misc.feature.primitive.classes), 13, 18
 1 error
-1 warning

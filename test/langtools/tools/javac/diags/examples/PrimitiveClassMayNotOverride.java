@@ -21,7 +21,7 @@
  * questions.
  */
 
-// key: compiler.err.primitive.class.may.not.override
+// key: compiler.err.value.class.may.not.override
 
 primitive class InlineBogusOverride {
     int x = 42;

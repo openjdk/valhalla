@@ -91,7 +91,7 @@ class defValBadCP {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -192,7 +192,7 @@ class defValBadMajorVersion {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -293,7 +293,7 @@ class defValWrongCPType {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -387,7 +387,7 @@ class wthFldBadCP {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -478,7 +478,7 @@ class wthFldBadFldVal {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -568,7 +568,7 @@ class wthFldBadFldRef {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -666,7 +666,7 @@ class wthFldBadMajorVersion {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -760,7 +760,7 @@ class wthFldWrongCPType {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -877,7 +877,7 @@ class defValueObj {
     Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02A5
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #6;// super_cpx
 
@@ -1083,7 +1083,7 @@ class withfieldL {
     Utf8 "Point"; // #27     at 0xE2
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #13;// super_cpx
 
@@ -1300,7 +1300,7 @@ class NoNullVT {
     Utf8 "java/lang/invoke/MethodHandles"; // #62     at 0x030D
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 

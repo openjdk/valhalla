@@ -282,6 +282,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   int recv_offset = type2size[as_BasicType(cpe->flag_state())];
   assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");
   int ret_adj = (recv_offset + type2size[T_OBJECT] )* AbstractInterpreter::stackElementSize;
+  int offset = cpe->f2_as_offset();
   obj = (oopDesc*)(((uintptr_t*)ptr)[recv_offset * Interpreter::stackElementWords]);
   if (obj == NULL) {
     THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
@@ -298,10 +299,47 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   // Ensure that the class is initialized or being initialized
   // If the class is in error state, the creation of a new value should not be allowed
   ik->initialize(CHECK_(ret_adj));
+
+  bool can_skip = false;
+  switch(cpe->flag_state()) {
+    case ztos:
+      if (old_value_h()->bool_field(offset) == (jboolean)(*(jint*)ptr)) can_skip = true;
+      break;
+    case btos:
+      if (old_value_h()->byte_field(offset) == (jbyte)(*(jint*)ptr)) can_skip = true;
+      break;
+    case ctos:
+      if (old_value_h()->char_field(offset) == (jchar)(*(jint*)ptr)) can_skip = true;
+      break;
+    case stos:
+      if (old_value_h()->short_field(offset) == (jshort)(*(jint*)ptr)) can_skip = true;
+      break;
+    case itos:
+      if (old_value_h()->int_field(offset) == *(jint*)ptr) can_skip = true;
+      break;
+    case ltos:
+      if (old_value_h()->long_field(offset) == *(jlong*)ptr) can_skip = true;
+      break;
+    case ftos:
+      if (memcmp(old_value_h()->field_addr<jfloat>(offset), (jfloat*)ptr, sizeof(jfloat)) == 0) can_skip = true;
+      break;
+    case dtos:
+      if (memcmp(old_value_h()->field_addr<jdouble>(offset), (jdouble*)ptr, sizeof(jdouble)) == 0) can_skip = true;
+      break;
+    case atos:
+      if (!cpe->is_inlined() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
+      break;
+    default:
+      break;
+  }
+  if (can_skip) {
+    current->set_vm_result(old_value_h());
+    return ret_adj;
+  }
+
   instanceOop new_value = ik->allocate_instance_buffer(CHECK_(ret_adj));
   Handle new_value_h = Handle(THREAD, new_value);
   ik->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
-  int offset = cpe->f2_as_offset();
   switch(cpe->flag_state()) {
     case ztos:
       new_value_h()->bool_field_put(offset, (jboolean)(*(jint*)ptr));

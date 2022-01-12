@@ -98,7 +98,11 @@ public class Flags {
     /** Added in SE8, represents constructs implicitly declared in source. */
     public static final int MANDATED     = 1<<15;
 
-    /** Marks a type as a primitive class */
+    /** Marks a type as a primitive class. We can't reuse the class file encoding (ACC_PRIMITIVE)
+     * since the latter shares its value (0x800) with ACC_STRICT (javac speak: STRICT_FP) and while
+     * STRICT_FP is not a valid flag for a class in the class file level, javac's ASTs flag a class
+     * as being STRICT_FP so as to propagate the FP strictness to methods of the class thereby causing
+     * a clash */
     public static final int PRIMITIVE_CLASS  = 1<<16;
 
     public static final int StandardFlags = 0x0fff;
@@ -110,7 +114,8 @@ public class Flags {
     public static final int ACC_SUPER    = 0x0020;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
-    public static final int ACC_PRIMITIVE = 0x0100;
+    public static final int ACC_VALUE    = 0x0100;
+    public static final int ACC_PRIMITIVE = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
 
     /*****************************************
@@ -139,19 +144,13 @@ public class Flags {
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 
-    /**
-     * Flag is set for a reference favoring primitive class.
-     */
-    public static final int REFERENCE_FAVORING          = 1<<19;
-
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
     public static final int BLOCK            = 1<<20;
 
-    /** Flag bit 21 is available. (used earlier to tag compiler-generated abstract methods that implement
-     *  an interface method (Miranda methods)).
-     */
+    /** Marks a type as a value class */
+    public static final int VALUE_CLASS  = 1<<21;
 
     /** Flag is set for nested classes that do not access instance members
      *  or `this' of an outer class and therefore don't need to be passed
@@ -412,18 +411,13 @@ public class Flags {
      */
     public static final long NON_SEALED = 1L<<63; // ClassSymbols
 
-    // Encodings for extended flags stored using attributes
-    /**
-     * Flag to indicate that the primitive class is reference default.
-     */
-    public static final int ACC_REF_DEFAULT = 1;
 
     /** Modifier masks.
      */
     public static final int
         AccessFlags                       = PUBLIC | PROTECTED | PRIVATE,
-        LocalClassFlags                   = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC  | PRIMITIVE_CLASS,
-        StaticLocalFlags                  = LocalClassFlags | STATIC | INTERFACE,
+        LocalClassFlags                   = FINAL | ABSTRACT | ENUM | SYNTHETIC  | ACC_PRIMITIVE | ACC_VALUE,
+        StaticLocalClassFlags             = LocalClassFlags | STATIC | INTERFACE,
         MemberClassFlags                  = LocalClassFlags | INTERFACE | AccessFlags,
         MemberStaticClassFlags            = MemberClassFlags | STATIC,
         ClassFlags                        = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
@@ -437,11 +431,13 @@ public class Flags {
         RecordMethodFlags                 = AccessFlags | ABSTRACT | STATIC |
                                             SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
-        ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS,
-        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED,
-        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED,
-        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED,
-        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED,
+        ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
+        ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
+        ExtendedMemberStaticClassFlags    = (long) MemberStaticClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
+        ExtendedClassFlags                = (long)ClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
+        ExtendedLocalClassFlags           = (long) LocalClassFlags | PRIMITIVE_CLASS | VALUE_CLASS,
+        ExtendedStaticLocalClassFlags     = (long) StaticLocalClassFlags | PRIMITIVE_CLASS | VALUE_CLASS,
+        ModifierFlags                     = ((long)StandardFlags & ~INTERFACE) | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
         InterfaceMethodMask               = ABSTRACT | PRIVATE | STATIC | PUBLIC | STRICTFP | DEFAULT,
         AnnotationTypeElementMask         = ABSTRACT | PUBLIC,
         LocalVarFlags                     = FINAL | PARAMETER,
@@ -468,6 +464,7 @@ public class Flags {
             if (0 != (flags & STRICTFP))  modifiers.add(Modifier.STRICTFP);
             if (0 != (flags & DEFAULT))   modifiers.add(Modifier.DEFAULT);
             if (0 != (flags & PRIMITIVE_CLASS))     modifiers.add(Modifier.PRIMITIVE);
+            if (0 != (flags & VALUE_CLASS))     modifiers.add(Modifier.VALUE);
             modifiers = Collections.unmodifiableSet(modifiers);
             modifierSets.put(flags, modifiers);
         }
@@ -511,11 +508,11 @@ public class Flags {
         HASINIT(Flags.HASINIT),
         HASINITBLOCK(Flags.HASINITBLOCK),
         EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
-        REFERENCE_FAVORING(Flags.REFERENCE_FAVORING),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
         PRIMITIVE(Flags.PRIMITIVE_CLASS),
+        VALUE(Flags.VALUE_CLASS),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),
         COMPOUND(Flags.COMPOUND),

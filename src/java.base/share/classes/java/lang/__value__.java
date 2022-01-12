@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,23 +23,18 @@
  * questions.
  */
 
-primitive class QTypedValue.val {
+package java.lang;
 
-    QTypedValue.val [] f1 = new QTypedValue.val[10];
-    QTypedValue.val [] f2 = new QTypedValue.val[10];
+import java.lang.annotation.*;
+import static java.lang.annotation.ElementType.*;
 
-    QTypedValue.val [][][] f3 = new QTypedValue.val[10][10][];
-    QTypedValue.val [][][] f4 = new QTypedValue.val[10][10][];
-
-    void foo(QTypedValue.val x, int i) {
-        foo(new QTypedValue(), 10);
-        QTypedValue.val x1, x2, x4, x5, x6;
-        if (i == 0) {
-            int j = 0; double d = 0.0;
-            x1 = new QTypedValue();
-            if (j == 0)
-                return;
-            QTypedValue.val x9 = new QTypedValue();
-        }
-    }
+/**
+ * A class annotated {@code @__value__} is a value class.
+ * This is a temporary workaround to enable use of value classes
+ * in editors and IDEs that do not yet understand the 'value' modifier.
+ * @since 18
+ */
+@Retention(RetentionPolicy.SOURCE)
+@Target(value={ElementType.TYPE, ElementType.TYPE_USE})
+public @interface __value__ {
 }
