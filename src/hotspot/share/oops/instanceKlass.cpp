@@ -586,7 +586,7 @@ void InstanceKlass::deallocate_interfaces(ClassLoaderData* loader_data,
                     InstanceKlass::cast(super_klass)->transitive_interfaces();
     if (ti != sti && ti != NULL && !ti->is_shared() &&
         ti != Universe::the_single_IdentityObject_klass_array() &&
-        ti != Universe::the_single_PrimitiveObject_klass_array()) {
+        ti != Universe::the_single_ValueObject_klass_array()) {
       MetadataFactory::free_array<InstanceKlass*>(loader_data, ti);
     }
   }
@@ -595,7 +595,7 @@ void InstanceKlass::deallocate_interfaces(ClassLoaderData* loader_data,
   if (local_interfaces != Universe::the_empty_instance_klass_array() &&
       local_interfaces != NULL && !local_interfaces->is_shared() &&
       local_interfaces != Universe::the_single_IdentityObject_klass_array() &&
-      local_interfaces != Universe::the_single_PrimitiveObject_klass_array()) {
+      local_interfaces != Universe::the_single_ValueObject_klass_array()) {
     MetadataFactory::free_array<InstanceKlass*>(loader_data, local_interfaces);
   }
 }

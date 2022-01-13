@@ -209,8 +209,8 @@ class ClassFileParser {
   bool _invalid_identity_super; // if true, invalid super type for an identity type.
   bool _implements_identityObject;
   bool _has_injected_identityObject;
-  bool _implements_primitiveObject;
-  bool _has_injected_primitiveObject;
+  bool _implements_valueObject;
+  bool _has_injected_valueObject;
 
   // precomputed flags
   bool _has_finalizer;
