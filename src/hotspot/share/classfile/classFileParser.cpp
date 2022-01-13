@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3321,7 +3321,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     }
     // JVM_ACC_INLINE is defined for class file version 55 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_INLINE;
+      recognized_modifiers |= JVM_ACC_INLINE | JVM_ACC_VALUE;
     }
 
     // Access flags
@@ -6113,7 +6113,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
   // JVM_ACC_INLINE is defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_INLINE;
+    recognized_modifiers |= JVM_ACC_INLINE | JVM_ACC_VALUE;
   }
 
   // Access flags
