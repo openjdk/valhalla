@@ -721,9 +721,6 @@ public class TypeEnter implements Completer {
                 iface = clearTypeParams(iface);
                 Type it = attr.attribBase(iface, baseEnv, false, true, true);
                 if (it.hasTag(CLASS)) {
-                    if (isPrimitiveClass && it.tsym == syms.cloneableType.tsym) {
-                        log.error(tree, Errors.PrimitiveClassMustNotImplementCloneable(ct));
-                    }
                     interfaces.append(it);
                     if (all_interfaces != null) all_interfaces.append(it);
                 } else {
