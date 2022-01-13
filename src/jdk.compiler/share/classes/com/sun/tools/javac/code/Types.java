@@ -795,10 +795,10 @@ public class Types {
                 }
             }
             // Not functional if extending either of the top interface types.
-            Type topInferface;
-            if ((topInferface = asSuper(origin.type, syms.identityObjectType.tsym)) != null ||
-                    (topInferface = asSuper(origin.type, syms.valueObjectType.tsym)) != null) {
-                throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.MayNotExtendTopInterfaceType(topInferface)));
+            Type topInterface;
+            if ((topInterface = asSuper(origin.type, syms.identityObjectType.tsym)) != null ||
+                    (topInterface = asSuper(origin.type, syms.valueObjectType.tsym)) != null) {
+                throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.MayNotExtendTopInterfaceType(topInterface)));
             }
             return descRes;
         }
