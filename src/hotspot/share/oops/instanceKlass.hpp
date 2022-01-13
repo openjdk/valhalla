@@ -480,7 +480,7 @@ class InstanceKlass: public Klass {
     _misc_flags |= _misc_has_injected_identityObject;
   }
 
-  bool has_injected_primitiveObject() const {
+  bool has_injected_valueObject() const {
     return (_misc_flags & _misc_has_injected_primitiveObject);
   }
 

@@ -241,7 +241,7 @@ public class BasicTest {
     }
 
     class C implements IdentityObject { }
-    primitive class T implements PrimitiveObject { }
+    primitive class T implements ValueObject { }
 
     @DataProvider(name="intfs")
     Object[][] intfs() {
@@ -249,8 +249,8 @@ public class BasicTest {
         Point[] array = new Point[] { point };
         return new Object[][]{
                 new Object[]{ new BasicTest(), new Class<?>[] { IdentityObject.class }},
-                new Object[]{ point, new Class<?>[] { PrimitiveObject.class }},
-                new Object[]{ new T(), new Class<?>[] { PrimitiveObject.class }},
+                new Object[]{ point, new Class<?>[] { ValueObject.class }},
+                new Object[]{ new T(), new Class<?>[] { ValueObject.class }},
                 new Object[]{ new C(), new Class<?>[] { IdentityObject.class }},
                 new Object[]{ Objects.newIdentity(), new Class<?>[] { IdentityObject.class }},
                 new Object[]{ array, new Class<?>[] { Cloneable.class, Serializable.class, IdentityObject.class }},
@@ -262,8 +262,8 @@ public class BasicTest {
         Class<?> type = o.getClass();
         assertEquals(type.getInterfaces(), expectedInterfaces);
         if (type.isPrimitiveClass()) {
-            assertTrue(PrimitiveObject.class.isAssignableFrom(type));
-            assertTrue(o instanceof PrimitiveObject);
+            assertTrue(ValueObject.class.isAssignableFrom(type));
+            assertTrue(o instanceof ValueObject);
         } else {
             assertTrue(IdentityObject.class.isAssignableFrom(type));
             assertTrue(o instanceof IdentityObject);

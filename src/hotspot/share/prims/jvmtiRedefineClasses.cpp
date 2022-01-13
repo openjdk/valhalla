@@ -337,8 +337,8 @@ bool VM_RedefineClasses::is_modifiable_class(oop klass_mirror) {
   if (k->name() == vmSymbols::java_lang_IdentityObject()) {
     return false;
   }
-  // Cannot redefine or retransform interface java.lang.PrimitiveObject.
-  if (k->name() == vmSymbols::java_lang_PrimitiveObject()) {
+  // Cannot redefine or retransform interface java.lang.ValueObject.
+  if (k->name() == vmSymbols::java_lang_ValueObject()) {
     return false;
   }
 

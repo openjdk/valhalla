@@ -22,6 +22,6 @@
  *
  */
 
-public abstract class AbstractSpecified implements PrimitiveObject {
+public abstract class AbstractSpecified implements ValueObject {
 
 }

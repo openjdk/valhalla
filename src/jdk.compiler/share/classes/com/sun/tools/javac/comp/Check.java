@@ -2759,12 +2759,12 @@ public class Check {
         checkCompatibleConcretes(pos, c);
 
         boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
-        boolean implementsPrimitiveObject = types.asSuper(c.referenceProjectionOrSelf(), syms.primitiveObjectType.tsym) != null;
+        boolean implementsValueObject = types.asSuper(c.referenceProjectionOrSelf(), syms.valueObjectType.tsym) != null;
         if (c.isValueClass() && implementsIdentityObject) {
             log.error(pos, Errors.ValueClassMustNotImplementIdentityObject(c));
-        } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
-            log.error(pos, Errors.IdentityClassMustNotImplementPrimitiveObject(c));
-        } else if (implementsPrimitiveObject && implementsIdentityObject) {
+        } else if (implementsValueObject && !c.isValueClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
+            log.error(pos, Errors.IdentityClassMustNotImplementValueObject(c));
+        } else if (implementsValueObject && implementsIdentityObject) {
             log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
         }
     }
