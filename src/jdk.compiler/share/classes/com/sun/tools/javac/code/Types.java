@@ -769,10 +769,12 @@ public class Types {
                 //t must define a suitable non-generic method
                 throw failure("not.a.functional.intf.1", origin,
                             diags.fragment(Fragments.NoAbstracts(Kinds.kindName(origin), origin)));
-            } else if (abstracts.size() == 1) {
-                return new FunctionDescriptor(abstracts.first());
+            }
+            FunctionDescriptor descRes;
+            if (abstracts.size() == 1) {
+                descRes = new FunctionDescriptor(abstracts.first());
             } else { // size > 1
-                FunctionDescriptor descRes = mergeDescriptors(origin, abstracts.toList());
+                descRes = mergeDescriptors(origin, abstracts.toList());
                 if (descRes == null) {
                     //we can get here if the functional interface is ill-formed
                     ListBuffer<JCDiagnostic> descriptors = new ListBuffer<>();
@@ -791,8 +793,14 @@ public class Types {
                             new JCDiagnostic.MultilineDiagnostic(msg, descriptors.toList());
                     throw failure(incompatibleDescriptors);
                 }
-                return descRes;
             }
+            // Not functional if extending either of the top interface types.
+            Type topInterface;
+            if ((topInterface = asSuper(origin.type, syms.identityObjectType.tsym)) != null ||
+                    (topInterface = asSuper(origin.type, syms.valueObjectType.tsym)) != null) {
+                throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.MayNotExtendTopInterfaceType(topInterface)));
+            }
+            return descRes;
         }
 
         /**
