@@ -365,7 +365,7 @@ class putfieldPrimitive {
     Utf8 "putfieldPrimitive.java"; // #19     at 0x9D
   } // Constant Pool
 
-  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -506,7 +506,7 @@ class withfieldPrimitive {
     Utf8 "withfieldPrimitive.java"; // #19     at 0x9D
   } // Constant Pool
 
-  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -629,7 +629,7 @@ class withfieldNull {
     Utf8 "withfieldNull.java"; // #14     at 0x80
   } // Constant Pool
 
-  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -739,7 +739,7 @@ class WrongPrimWF$Dot {
     Utf8 "Dot"; // #19     at 0xE8
   } // Constant Pool
 
-  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -828,7 +828,7 @@ class WrongPrimWF$Loc {
     Utf8 "Loc"; // #19     at 0xE8
   } // Constant Pool
 
-  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -931,7 +931,7 @@ class WrongPrimWF$Both {
     Utf8 "Loc"; // #33     at 0x018B
   } // Constant Pool
 
-  0x0831; // access [ ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #15;// super_cpx
 
