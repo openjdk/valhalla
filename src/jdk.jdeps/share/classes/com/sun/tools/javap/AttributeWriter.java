@@ -80,6 +80,7 @@ import com.sun.tools.classfile.Type;
 
 import static com.sun.tools.classfile.AccessFlags.*;
 
+import com.sun.tools.classfile.Preload_attribute;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.StringUtils;
 
@@ -1109,6 +1110,27 @@ public class AttributeWriter extends BasicWriter
     @Override
     public Void visitSynthetic(Synthetic_attribute attr, Void ignore) {
         println("Synthetic: true");
+        return null;
+    }
+
+    @Override
+    public Void visitPreload(Preload_attribute attr, Void ignore) {
+        boolean first = true;
+        for (int index : attr.value_class_info_index) {
+            if (first) {
+                println("Classes to be preloaded:");
+                indent(+1);
+                first = false;
+            }
+            print("#" + index);
+            print(";");
+            tab();
+            print("// value ");
+            constantWriter.write(index);
+            println();
+        }
+        if (!first)
+            indent(-1);
         return null;
     }
 

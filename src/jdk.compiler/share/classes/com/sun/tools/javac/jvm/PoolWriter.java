@@ -51,6 +51,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -93,6 +94,8 @@ public class PoolWriter {
 
     /** The inner classes to be written, as an ordered set (enclosing first). */
     LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>();
+
+    HashSet<ClassSymbol> valueClasses = new HashSet<>();
 
     /** The list of entries in the BootstrapMethods attribute. */
     Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();
@@ -235,15 +238,36 @@ public class PoolWriter {
     /**
      * Enter an inner class into the `innerClasses' set.
      */
-    void enterInner(ClassSymbol c) {
+    void enterInnerClass(ClassSymbol c) {
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
         c.complete();
         if (c.owner.enclClass() != null && !innerClasses.contains(c)) {
-            enterInner(c.owner.enclClass());
+            enterInnerClass(c.owner.enclClass());
             innerClasses.add(c);
         }
+    }
+
+    /** Enter a value class into the `valueClasses' set.
+     */
+    void enterValueClass(ClassSymbol c) {
+        if (c.type.isCompound()) {
+            throw new AssertionError("Unexpected intersection type: " + c.type);
+        }
+        c.complete();
+        if (c.isValueClass()) {
+            valueClasses.add(c);
+        }
+        if (c.owner.enclClass() != null) {
+            enterValueClass(c.owner.enclClass());
+        }
+    }
+
+
+    void enterInnerAndValueClass(ClassSymbol c) {
+        enterInnerClass(c);
+        enterValueClass(c);
     }
 
     /**
@@ -331,7 +355,7 @@ public class PoolWriter {
 
         @Override
         protected void classReference(ClassSymbol c) {
-            enterInner(c);
+            enterInnerAndValueClass(c);
         }
 
         protected void reset() {
@@ -384,7 +408,7 @@ public class PoolWriter {
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {
-                        enterInner((ClassSymbol)ct.tsym);
+                        enterInnerAndValueClass((ClassSymbol)ct.tsym);
                     }
                     break;
                 }
@@ -523,6 +547,7 @@ public class PoolWriter {
 
     void reset() {
         innerClasses.clear();
+        valueClasses.clear();
         bootstrapMethods.clear();
         pool.reset();
     }

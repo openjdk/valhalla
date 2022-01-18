@@ -846,6 +846,17 @@ public class ClassWriter extends ClassFile {
         endAttr(alenIdx);
     }
 
+     /** Write out "Preload" attribute by enumerating the value classes encountered during this compilation.
+      */
+     void writeValueClasses() {
+        int alenIdx = writeAttr(names.Preload);
+        databuf.appendChar(poolWriter.valueClasses.size());
+        for (ClassSymbol c : poolWriter.valueClasses) {
+            databuf.appendChar(poolWriter.putClass(c));
+        }
+        endAttr(alenIdx);
+     }
+
     int writeRecordAttribute(ClassSymbol csym) {
         int alenIdx = writeAttr(names.Record);
         Scope s = csym.members();
@@ -1576,14 +1587,14 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: poolWriter.enterInner((ClassSymbol)sym); break;
+            case TYP: poolWriter.enterInnerAndValueClass((ClassSymbol)sym); break;
             default : Assert.error();
             }
         }
 
         if (c.trans_local != null) {
             for (ClassSymbol local : c.trans_local) {
-                poolWriter.enterInner(local);
+                poolWriter.enterInnerAndValueClass(local);
             }
         }
 
@@ -1671,6 +1682,11 @@ public class ClassWriter extends ClassFile {
 
         if (!poolWriter.innerClasses.isEmpty()) {
             writeInnerClasses();
+            acount++;
+        }
+
+        if (!poolWriter.valueClasses.isEmpty()) {
+            writeValueClasses();
             acount++;
         }
 
