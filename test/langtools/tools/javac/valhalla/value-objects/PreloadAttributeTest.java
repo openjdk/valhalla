@@ -37,7 +37,7 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 public class PreloadAttributeTest {
 
     static final value class X {
-        final V1 [] v1 = null; // field descriptor 
+        final V1 [] v1 = null; // field descriptor
         V2[] foo() {  // method descriptor encoding value type
             return null;
         }
@@ -71,7 +71,7 @@ public class PreloadAttributeTest {
         if (preloads.number_of_classes != 6) {
             throw new AssertionError("Incorrect number of Preload classes");
         }
-        
+
         int mask = 0x3F;
         for (int i = 0; i < preloads.number_of_classes; i++) {
             CONSTANT_Class_info clsInfo = cls.constant_pool.getClassInfo(
@@ -92,7 +92,7 @@ public class PreloadAttributeTest {
             }
         }
         if (mask != 0) {
-          throw new AssertionError("Some Preload class entries are missing!");  
+          throw new AssertionError("Some Preload class entries are missing!");
         }
     }
 }
