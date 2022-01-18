@@ -97,19 +97,19 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 import java.io.*;
-                class C<__universal T extends Reader> { T x = null; /* ok */ }
+                class C<__universal T extends Reader> { T x = null; }
                 """
         );
         assertOK(
                 """
                 import java.io.*;
-                class C<T extends Reader> { T x = null; /* ok */ }
+                class C<T extends Reader> { T x = null; }
                 """
         );
         assertOK(
                 """
                 import java.io.*;
-                class C<__universal T extends Reader> { T.ref x = null; /* ok */ }
+                class C<__universal T extends Reader> { T.ref x = null; }
                 """
         );
     }
@@ -135,11 +135,10 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
                 class Test {
                     void m(Box<Point> lp) {
-                        /* this invocation will provoke a subtype checking, basically a check testing if:
-                         * `Box<Point> <: Box<? extends Shape>`, this should stress the new `isBoundedBy` relation,
-                         * in particular it should check if `Point` is bounded by `Shape`, which is true as
-                         * `Point.ref` isBoundedBy Shape
-                         */
+                        // this invocation will provoke a subtype checking, basically a check testing if:
+                        // `Box<Point> <: Box<? extends Shape>`, this should stress the new `isBoundedBy` relation,
+                        // in particular it should check if `Point` is bounded by `Shape`, which is true as
+                        // `Point.ref` isBoundedBy Shape
                         foo(lp);
                     }
 
@@ -201,7 +200,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 """
                 class C<__universal T> {
                     T.ref x = null;
-                    void set(T arg) { x = arg; /* ok */ }
+                    void set(T arg) { x = arg; }
                 }
                 """
         );
@@ -284,19 +283,18 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 """
         );
         // this one will probably be a lint warning
-        /*
-        assertOKWithWarning("compiler.warn.method.should.not.be.invoked.on.universal.tvars",
-                """
-                primitive class Point {}
 
-                class Test<__universal T> {
-                    void m(T t) throws Throwable {
-                        t.wait();
-                    }
-                }
-                """
-        );
-        */
+        //assertOKWithWarning("compiler.warn.method.should.not.be.invoked.on.universal.tvars",
+        //        """
+        //        primitive class Point {}
+
+        //        class Test<__universal T> {
+        //            void m(T t) throws Throwable {
+        //                t.wait();
+        //            }
+        //        }
+        //        """
+        //);
     }
 
     public void testPosCompilations2() {
@@ -434,26 +432,73 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testUncheckedWarning() {
-        /* this one should generate unchecked warning
-        interface MyList<__universal E> {}
+        // this one should generate unchecked warning
+        //interface MyList<__universal E> {}
 
-        class MyArrays {
-            @SafeVarargs
-            @SuppressWarnings("varargs")
-            public static <__universal T> MyList<T> asList(T... a) {
-                return null;
-            }
-        }
+        //class MyArrays {
+        //    @SafeVarargs
+        //    @SuppressWarnings("varargs")
+        //    public static <__universal T> MyList<T> asList(T... a) {
+        //        return null;
+        //    }
+        //}
 
-        class Test<__universal T> {
-            MyList<T.ref> newList() {
-                return MyArrays.asList(null, null);
-            }
+        //class Test<__universal T> {
+        //    MyList<T.ref> newList() {
+        //        return MyArrays.asList(null, null);
+        //    }
 
-            void foo() {
-                MyList<T> list = newList(); // unchecked warning
-            }
-        }
-        */
+        //    void foo() {
+        //        MyList<T> list = newList(); // unchecked warning
+        //    }
+        //}
+    }
+
+    public void testNegCompilationTests() {
+        setCompileOptions(EMPTY_OPTIONS);
+        // should fail unexpected type, reference expected type variable `T` is not universal
+        assertFail("compiler.err.type.found.req",
+                """
+                primitive class Point {}
+
+                class C<T> {
+                    C<Point> cp;
+                }
+                """
+        );
+    }
+
+    public void testWildcards() {
+        setCompileOptions(EMPTY_OPTIONS);
+        assertFail("compiler.err.prob.found.req",
+                """
+                primitive class Point {}
+
+                class MyList<__universal T> {
+                    void add(T e) {}
+                }
+
+                class Test {
+                    void m(MyList<? super Point> ls) {
+                        ls.add(null);
+                    }
+                }
+                """
+        );
+
+        // primitive classes don't have subtypes
+        assertFail("compiler.err.not.within.bounds",
+                """
+                primitive class Point {}
+
+                class MyList<__universal T> {}
+
+                class Test {
+                    void m() {
+                        MyList<? extends Point> ls = null;
+                    }
+                }
+                """
+        );
     }
 }
