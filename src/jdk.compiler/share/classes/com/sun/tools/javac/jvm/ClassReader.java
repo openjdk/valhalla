@@ -1007,7 +1007,7 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isPrimitiveClass()) {
+                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValueClass()) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),

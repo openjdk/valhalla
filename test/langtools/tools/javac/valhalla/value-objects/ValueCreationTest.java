@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,57 +25,69 @@
  * @test
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDallowWithFieldOperator WithFieldOfImplicitThis.java
- * @run main/othervm -Xverify:none WithFieldOfImplicitThis
- * @modules jdk.compiler
+ * @run main ValueCreationTest
  */
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Paths;
 
-public class WithFieldOfImplicitThis {
+public class ValueCreationTest {
 
-    final primitive class X {
+    static final value class Point {
 
         final int x;
+        final int y;
 
-        X() {
-            x = 10;
+        Point (int x, int y) {
+            this.x = x;
+            this.y = y;
         }
 
-        X getX(Integer xVal, int xi) {
-            X xl = X.default;
-            xl = __WithField(x, xi);
-            xl = __WithField(x, xVal);
-            return xl;
+        public static void main(String [] args) {
+            Point p = new Point(10, 20);
         }
     }
 
     public static void main(String[] args) {
-        new WithFieldOfImplicitThis().run();
+        new ValueCreationTest().run();
     }
 
     void run() {
         String [] params = new String [] { "-v",
                                             Paths.get(System.getProperty("test.classes"),
-                                                "WithFieldOfImplicitThis$X.class").toString() };
+                                                "ValueCreationTest$Point.class").toString() };
         runCheck(params, new String [] {
 
-         "0: aconst_init   #1                  // class WithFieldOfImplicitThis$X",
-         "3: astore_3",
-         "4: aload_0",
-         "5: iload_2",
-         "6: withfield     #7                  // Field x:I",
-         "9: astore_3",
-        "10: aload_0",
-        "11: aload_1",
-        "12: invokevirtual #11                 // Method java/lang/Integer.intValue:()I",
-        "15: withfield     #7                  // Field x:I",
-        "18: astore_3",
-        "19: aload_3",
-        "20: areturn"
+         "final value class ValueCreationTest$Point",
+         "flags: (0x0130) ACC_FINAL, ACC_SUPER, ACC_VALUE",
+
+         // Check that constructor invocation has been lowered into invokestatic
+         // of the factory method.
+         "4: invokestatic  #10                 // Method \"<init>\":(II)LValueCreationTest$Point;",
+
+
+
+         // Check that constructor has been lowered into a static factory method
+         "static ValueCreationTest$Point ValueCreationTest$Point(int, int);",
+         "descriptor: (II)LValueCreationTest$Point;",
+         "flags: (0x0008) ACC_STATIC",
+         "0: aconst_init   #1                  // class ValueCreationTest$Point",
+         "3: astore_2",
+         "4: iload_0",
+         "5: aload_2",
+         "6: swap",
+         "7: withfield     #3                  // Field x:I",
+        "10: astore_2",
+        "11: iload_1",
+        "12: aload_2",
+        "13: swap",
+        "14: withfield     #7                  // Field y:I",
+        "17: astore_2",
+        "18: aload_2",
+        "19: areturn"
          });
+
      }
 
      void runCheck(String [] params, String [] expectedOut) {

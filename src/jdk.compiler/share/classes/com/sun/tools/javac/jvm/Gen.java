@@ -78,7 +78,7 @@ public class Gen extends JCTree.Visitor {
     private final Lower lower;
     private final Annotate annotate;
     private final StringConcat concat;
-    private final TransPrimitiveClass transPrimitiveClass;
+    private final TransValues transValues;
 
     /** Format of stackmap tables to be generated. */
     private final Code.StackMapFormat stackMap;
@@ -115,7 +115,7 @@ public class Gen extends JCTree.Visitor {
         accessDollar = names.
             fromString("access" + target.syntheticNameChar());
         lower = Lower.instance(context);
-        transPrimitiveClass = TransPrimitiveClass.instance(context);
+        transValues = TransValues.instance(context);
 
         Options options = Options.instance(context);
         lineDebugInfo =
@@ -1000,7 +1000,7 @@ public class Gen extends JCTree.Visitor {
                     if (env.enclMethod == null ||
                         env.enclMethod.sym.type.getReturnType().hasTag(VOID)) {
                         code.emitop0(return_);
-                    } else if (env.enclMethod.sym.isPrimitiveObjectFactory()) {
+                    } else if (env.enclMethod.sym.isValueObjectFactory()) {
                         items.makeLocalItem(env.enclMethod.factoryProduct).load();
                         code.emitop0(areturn);
                     } else {
@@ -2416,8 +2416,8 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitDefaultValue(JCDefaultValue tree) {
-        if (tree.type.isPrimitiveClass()) {
-            code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+        if (tree.type.isValueClass()) {
+            code.emitop2(aconst_init, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
         } else if (tree.type.isReference()) {
             code.emitop0(aconst_null);
         } else {
@@ -2483,7 +2483,7 @@ public class Gen extends JCTree.Visitor {
             /* method normalizeDefs() can add references to external classes into the constant pool
              */
             cdef.defs = normalizeDefs(cdef.defs, c);
-            cdef = transPrimitiveClass.translateTopLevelClass(cdef, make);
+            cdef = transValues.translateTopLevelClass(cdef, make);
             generateReferencesToPrunedTree(c);
             Env<GenContext> localEnv = new Env<>(cdef, new GenContext());
             localEnv.toplevel = env.toplevel;

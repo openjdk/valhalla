@@ -468,9 +468,9 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
-    /** Is this symbol a primitive object factory?
+    /** Is this symbol a value object factory?
      */
-    public boolean isPrimitiveObjectFactory() {
+    public boolean isValueObjectFactory() {
         return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 

@@ -243,8 +243,8 @@ public interface ByteCodes {
         jsr_w           = 201,
         breakpoint      = 202,
 
-        // primitive classes related bytecodes
-        defaultvalue    = 203,
+        // value classes related bytecodes
+        aconst_init     = 203,
         withfield       = 204,
 
         ByteCodeCount   = 205;
