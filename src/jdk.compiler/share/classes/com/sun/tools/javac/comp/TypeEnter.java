@@ -691,7 +691,6 @@ public class TypeEnter implements Completer {
             // Determine supertype.
             Type supertype;
             JCExpression extending;
-            final boolean isPrimitiveClass = (tree.mods.flags & Flags.PRIMITIVE_CLASS) != 0;
 
             if (tree.extending != null) {
                 extending = clearTypeParams(tree.extending);

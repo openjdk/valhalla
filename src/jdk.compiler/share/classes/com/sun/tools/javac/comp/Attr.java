@@ -2673,7 +2673,6 @@ public class Attr extends JCTree.Visitor {
                             break;
                         case "notify":
                         case "notifyAll":
-                        case "clone":
                         case "finalize":
                             if (argSize == 0)
                                 log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
