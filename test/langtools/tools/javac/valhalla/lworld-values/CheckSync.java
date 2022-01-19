@@ -21,7 +21,6 @@ public final primitive class CheckSync {
             notify();
             notifyAll();
             finalize();
-            clone();
         }
     }
 
