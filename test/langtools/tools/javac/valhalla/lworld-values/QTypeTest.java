@@ -116,7 +116,7 @@ public class QTypeTest {
               "    flags: (0x0008) ACC_STATIC",
               "    Code:",
               "      stack=2, locals=1, args_size=0",
-              "         0: defaultvalue  #1                  // class QTypedValue",
+              "         0: aconst_init   #1                  // class QTypedValue",
               "         3: astore_0",
               "         4: bipush        10",
               "         6: anewarray     #3                  // class \"QQTypedValue;\"",

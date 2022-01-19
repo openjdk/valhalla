@@ -1330,7 +1330,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
 
         @Override
         public boolean isValueClass() {
-            return tsym != null && tsym.isValueClass();
+            return !isReferenceProjection() && tsym != null && tsym.isValueClass();
         }
 
         @Override

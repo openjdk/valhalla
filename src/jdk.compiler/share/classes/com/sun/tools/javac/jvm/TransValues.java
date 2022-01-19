@@ -32,7 +32,6 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
 import com.sun.tools.javac.code.Type;
-import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
@@ -68,7 +67,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.EXEC;
 import static com.sun.tools.javac.tree.JCTree.Tag.IDENT;
 
 /**
- * This pass translates primitive class constructors into static factory methods and patches up constructor
+ * This pass translates value class constructors into static factory methods and patches up constructor
  * calls to become invocations of those static factory methods.
  *
  * We get commissioned as a subpass of Gen. Constructor trees undergo plenty of change in Lower
@@ -79,9 +78,9 @@ import static com.sun.tools.javac.tree.JCTree.Tag.IDENT;
  * See https://bugs.openjdk.java.net/browse/JDK-8198749 for the kind of transformations we do.
  *
  */
-public class TransPrimitiveClass extends TreeTranslator {
+public class TransValues extends TreeTranslator {
 
-    protected static final Context.Key<TransPrimitiveClass> transPrimitiveClass = new Context.Key<>();
+    protected static final Context.Key<TransValues> transValueClass = new Context.Key<>();
 
     private Symtab syms;
     private TreeMaker make;
@@ -105,15 +104,15 @@ public class TransPrimitiveClass extends TreeTranslator {
     // Map from constructor symbols to factory symbols.
     private Map<MethodSymbol, MethodSymbol> init2factory = new HashMap<>();
 
-    public static TransPrimitiveClass instance(Context context) {
-        TransPrimitiveClass instance = context.get(transPrimitiveClass);
+    public static TransValues instance(Context context) {
+        TransValues instance = context.get(transValueClass);
         if (instance == null)
-            instance = new TransPrimitiveClass(context);
+            instance = new TransValues(context);
         return instance;
     }
 
-    protected TransPrimitiveClass(Context context) {
-        context.put(transPrimitiveClass, this);
+    protected TransValues(Context context) {
+        context.put(transValueClass, this);
         syms = Symtab.instance(context);
         make = TreeMaker.instance(context);
         types = Types.instance(context);
@@ -177,16 +176,16 @@ public class TransPrimitiveClass extends TreeTranslator {
         JCMethodDecl previousMethod = currentMethod;
         currentMethod = tree;
         try {
-            if (constructingPrimitiveObject()) {
+            if (constructingValueObject()) {
 
-                // Mutate this primitive class constructor into an equivalent static factory
+                // Mutate this value class constructor into an equivalent static factory
                 make.at(tree.pos());
                 JCExpressionStatement exec = chainedConstructorCall(tree);
                 Assert.check(exec != null && TreeInfo.isSelfCall(exec));
                 JCMethodInvocation call = (JCMethodInvocation) exec.expr;
 
                 /* Unlike the reference construction sequence where `this' is allocated ahead of time and
-                   is passed as an argument into the <init> method, the primitive static factory must allocate the
+                   is passed as an argument into the <init> method, the value static factory must allocate the
                    instance that forms the `product' by itself. We do that by injecting a prologue here.
                 */
                 VarSymbol product = currentMethod.factoryProduct = new VarSymbol(0, names.dollarValue, currentClass.sym.type, currentMethod.sym); // TODO: owner needs rewiring
@@ -203,7 +202,7 @@ public class TransPrimitiveClass extends TreeTranslator {
                 } else {
                     // This must be a chained call of form `this(args)'; Mutate it into a factory invocation i.e V $this = V.init(args);
                     Assert.check(TreeInfo.name(TreeInfo.firstConstructorCall(tree).meth) == names._this);
-                    MethodSymbol factory = getPrimitiveObjectFactory(symbol);
+                    MethodSymbol factory = getValueObjectFactory(symbol);
                     final JCIdent ident = make.Ident(factory);
                     rhs = make.App(ident, call.args);
                     ((JCMethodInvocation)rhs).varargsElement = call.varargsElement;
@@ -211,13 +210,13 @@ public class TransPrimitiveClass extends TreeTranslator {
 
                 /* The static factory product allocation prologue must precede any synthetic inits !!!
                    as these may reference `this' which gets pre-allocated for references but
-                   not for primitive objects.
+                   not for value objects.
                 */
                 JCStatement prologue = make.VarDef(product, rhs);
                 tree.body.stats = tree.body.stats.prepend(prologue).diff(List.of(exec));
                 tree.body = translate(tree.body);
 
-                MethodSymbol factorySym = getPrimitiveObjectFactory(tree.sym);
+                MethodSymbol factorySym = getValueObjectFactory(tree.sym);
                 currentMethod.setType(factorySym.type);
                 currentMethod.factoryProduct = product;
                 currentClass.sym.members().remove(tree.sym);
@@ -242,19 +241,19 @@ public class TransPrimitiveClass extends TreeTranslator {
 
     @Override
     public void visitReturn(JCReturn tree) {
-        if (constructingPrimitiveObject()) {
+        if (constructingValueObject()) {
             result = make.Return(make.Ident(currentMethod.factoryProduct));
         } else {
             super.visitReturn(tree);
         }
     }
 
-    /* Note: 1. Assignop does not call for any translation, since primitive class instance fields are final and
+    /* Note: 1. Assignop does not call for any translation, since value class instance fields are final and
        so cannot be AssignedOped. 2. Any redundantly qualified this would have been lowered already.
     */
     @Override
     public void visitAssign(JCAssign tree) {
-        if (constructingPrimitiveObject()) {
+        if (constructingValueObject()) {
             Symbol symbol = null;
             switch(tree.lhs.getTag()) {
                 case IDENT:
@@ -283,7 +282,7 @@ public class TransPrimitiveClass extends TreeTranslator {
 
     @Override
     public void visitExec(JCExpressionStatement tree) {
-        if (constructingPrimitiveObject()) {
+        if (constructingValueObject()) {
             tree.expr = translate(tree.expr, false);
             result = tree;
         } else {
@@ -293,7 +292,7 @@ public class TransPrimitiveClass extends TreeTranslator {
 
     @Override
     public void visitIdent(JCIdent ident) {
-        if (constructingPrimitiveObject()) {
+        if (constructingValueObject()) {
             Symbol symbol = ident.sym;
             if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
@@ -309,7 +308,7 @@ public class TransPrimitiveClass extends TreeTranslator {
 
     @Override
     public void visitSelect(JCFieldAccess fieldAccess) {
-        if (constructingPrimitiveObject()) { // Qualified this would have been lowered already.
+        if (constructingValueObject()) { // Qualified this would have been lowered already.
             if (fieldAccess.selected.hasTag(IDENT) && ((JCIdent)fieldAccess.selected).name == names._this) {
                 Symbol symbol = fieldAccess.sym;
                 if (isInstanceMemberAccess(symbol)) {
@@ -344,15 +343,15 @@ public class TransPrimitiveClass extends TreeTranslator {
         result = fieldAccess;
     }
 
-    // Translate a reference style instance creation attempt on a primitive class to a static factory call.
+    // Translate a reference style instance creation attempt on a value class to a static factory call.
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (types.isPrimitiveClass(tree.clazz.type)) {
+        if (types.isValueClass(tree.clazz.type)) {
             // Enclosing instances or anonymous classes should have been eliminated by now.
             Assert.check(tree.encl == null && tree.def == null);
             tree.args = translate(tree.args);
             Assert.check(tree.def == null);
-            MethodSymbol sFactory = getPrimitiveObjectFactory((MethodSymbol) tree.constructor);
+            MethodSymbol sFactory = getValueObjectFactory((MethodSymbol) tree.constructor);
             make.at(tree.pos());
             JCExpression declClass = make.Type(tree.constructor.owner.type);
             JCExpression meth = make.Select(declClass, sFactory);
@@ -367,8 +366,8 @@ public class TransPrimitiveClass extends TreeTranslator {
     }
 
     // Utility methods ...
-    private boolean constructingPrimitiveObject() {
-        return currentClass != null && (currentClass.sym.flags() & Flags.PRIMITIVE_CLASS) != 0 && currentMethod != null && currentMethod.sym.isConstructor();
+    private boolean constructingValueObject() {
+        return currentClass != null && (currentClass.sym.flags() & Flags.VALUE_CLASS) != 0 && currentMethod != null && currentMethod.sym.isConstructor();
     }
 
     private boolean isInstanceMemberAccess(Symbol symbol) {
@@ -378,9 +377,9 @@ public class TransPrimitiveClass extends TreeTranslator {
                 && symbol.owner == currentClass.sym && !symbol.isStatic();
     }
 
-    private MethodSymbol getPrimitiveObjectFactory(MethodSymbol init) {
+    private MethodSymbol getValueObjectFactory(MethodSymbol init) {
         Assert.check(init.name.equals(names.init));
-        Assert.check(types.isPrimitiveClass(init.owner.type));
+        Assert.check(types.isValueClass(init.owner.type));
         MethodSymbol factory = init2factory.get(init);
         if (factory != null)
             return factory;

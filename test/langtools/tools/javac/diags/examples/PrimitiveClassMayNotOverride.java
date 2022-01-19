@@ -25,7 +25,5 @@
 
 primitive class InlineBogusOverride {
     int x = 42;
-    public Object clone() {
-        return this;
-    }
+    public void finalize() {}
 }
