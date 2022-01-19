@@ -49,7 +49,7 @@ public class PreloadAttributeTest {
         void goo() {
             V5 [] v5 = null;
             if (v5 == null) {
-               V6 [] v61 = null;  // stack map table.
+                // ...
             } else {
                V5 [] v52 = null;
             }

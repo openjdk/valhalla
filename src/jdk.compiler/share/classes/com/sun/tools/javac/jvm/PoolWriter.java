@@ -55,6 +55,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.TypeTag.ARRAY;
@@ -95,7 +96,7 @@ public class PoolWriter {
     /** The inner classes to be written, as an ordered set (enclosing first). */
     LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>();
 
-    HashSet<ClassSymbol> valueClasses = new HashSet<>();
+    Set<ClassSymbol> valueClasses = new HashSet<>();
 
     /** The list of entries in the BootstrapMethods attribute. */
     Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();
@@ -256,7 +257,7 @@ public class PoolWriter {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
         c.complete();
-        if (c.isValueClass()) {
+        if (c.isValueClass() && !c.isPrimitiveClass()) {
             valueClasses.add(c);
         }
         if (c.owner.enclClass() != null) {
