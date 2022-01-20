@@ -85,4 +85,9 @@ public class SemanticsViolationsTest {
         void foo(BrokenValue7 bv) {
         }
     }
+
+    value record BrokenValue8(int x, int y) {
+        synchronized void foo() { } // Error;
+        synchronized static void soo() {} // OK.
+    }
 }
