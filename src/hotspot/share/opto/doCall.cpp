@@ -750,12 +750,6 @@ void Parse::do_call() {
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
     }
 
-    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType() && !gvn().type(peek())->maybe_null()) {
-      Node* retnode = pop();
-      retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
-      push_node(T_INLINE_TYPE, retnode);
-    }
-
     // If the return type of the method is not loaded, assert that the
     // value we got is a null.  Otherwise, we need to recompile.
     if (!rtype->is_loaded()) {
@@ -775,6 +769,11 @@ void Parse::do_call() {
     BasicType ct = ctype->basic_type();
     if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
+    }
+    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineTypeBase()) {
+      Node* retnode = pop();
+      retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
+      push_node(T_INLINE_TYPE, retnode);
     }
   }
 

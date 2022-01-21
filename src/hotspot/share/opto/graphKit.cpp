@@ -1259,6 +1259,11 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     if (stopped()) {
       return top();
     }
+    if (assert_null) {
+      vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
+      replace_in_map(value, vtptr);
+      return vtptr;
+    }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
   }
@@ -1920,18 +1925,12 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   Node* ret;
   if (call->method() == NULL || call->method()->return_type()->basic_type() == T_VOID) {
     ret = top();
-  } else if (call->method()->return_type()->is_inlinetype()) {
-    const Type* ret_type = call->tf()->range_sig()->field_at(TypeFunc::Parms);
-    if (call->tf()->returns_inline_type_as_fields()) {
-      // Return of multiple values (inline type fields): we create a
-      // InlineType node, each field is a projection from the call.
-      ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-      uint base_input = TypeFunc::Parms;
-      ret = InlineTypeNode::make_from_multi(this, call, ret_type->inline_klass(), base_input, false);
-    } else {
-      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-      ret = _gvn.transform(InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass(), !ret_type->maybe_null()));
-    }
+  } else if (call->tf()->returns_inline_type_as_fields()) {
+    // Return of multiple values (inline type fields): we create a
+    // InlineType node, each field is a projection from the call.
+    ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
+    uint base_input = TypeFunc::Parms;
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
