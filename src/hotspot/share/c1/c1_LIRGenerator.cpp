@@ -2134,23 +2134,29 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     if (field->is_static() && holder->is_loaded()) {
       ciObject* val = holder->java_mirror()->field_value(field).as_object();
       if (!val->is_null_object()) {
-        // Static field is initialized, we don need to perform a null check.
+        // Static field is initialized, we don't need to perform a null check.
         return;
       }
     }
-    LabelObj* L_end = new LabelObj();
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
-    __ branch(lir_cond_notEqual, L_end->label());
-    set_in_conditional_code(true);
     ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
+    if (inline_klass->is_initialized()) {
+      LabelObj* L_end = new LabelObj();
+      __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
+      __ branch(lir_cond_notEqual, L_end->label());
+      set_in_conditional_code(true);
+      Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
+      if (default_value->is_pinned()) {
+        __ move(LIR_OprFact::value_type(default_value->type()), result);
+      } else {
+        __ move(load_constant(default_value), result);
+      }
+      __ branch_destination(L_end->label());
+      set_in_conditional_code(false);
     } else {
-      __ move(load_constant(default_value), result);
+      __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
+      __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
+                                                         Deoptimization::Action_make_not_entrant));
     }
-    __ branch_destination(L_end->label());
-    set_in_conditional_code(false);
   }
 }
 
