@@ -3267,7 +3267,7 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
       case Bytecodes::_ifnonnull      : if_null(objectType, If::neq); break;
       case Bytecodes::_goto_w         : _goto(s.cur_bci(), s.get_far_dest()); break;
       case Bytecodes::_jsr_w          : jsr(s.get_far_dest()); break;
-      case Bytecodes::_defaultvalue   : default_value(s.get_index_u2()); break;
+      case Bytecodes::_aconst_init   : default_value(s.get_index_u2()); break;
       case Bytecodes::_withfield      : withfield(s.get_index_u2()); break;
       case Bytecodes::_breakpoint     : BAILOUT_("concurrent setting of breakpoint", NULL);
       default                         : ShouldNotReachHere(); break;

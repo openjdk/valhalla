@@ -46,6 +46,6 @@ public class BadACCValue {
 
         // Test ACC_PRIMITIVE causes a CFE unless -XX:+EnableValhalla is specified.
         runTest("ValueFieldNotFinal",
-                "Class modifier ACC_INLINE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
+                "Class modifier ACC_PRIMITIVE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
     }
 }

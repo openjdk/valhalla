@@ -236,7 +236,7 @@ class ValueEnum {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x04830; // access [  ACC_PRIMITIVE ACC_ENUM(bad) ACC_SUPER ACC_FINAL ]
+  0x04930; // access [  ACC_VALUE ACC_PRIMITIVE ACC_ENUM(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -392,7 +392,7 @@ class ValueFieldNotFinal {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -673,7 +673,7 @@ class ValueMethodSynch {
     Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02B6
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #6;// super_cpx
 
@@ -943,7 +943,7 @@ class Circ {
     Utf8 "java/lang/invoke/MethodHandles"; // #60     at 0x02D1
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 
@@ -1221,7 +1221,7 @@ class Circ2 {
     Utf8 "java/lang/invoke/MethodHandles"; // #59     at 0x02D4
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #10;// super_cpx
 
@@ -1536,7 +1536,7 @@ class CircStaticA {
     Utf8 "java/lang/invoke/MethodHandles"; // #60     at 0x031C
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 
@@ -1814,7 +1814,7 @@ class CircStaticB {
     Utf8 "java/lang/invoke/MethodHandles"; // #60     at 0x031C
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 
@@ -2086,7 +2086,7 @@ class ValueCloneable {
     Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02B3
   } // Constant Pool
 
-  0x0830; // access [ ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #6;// super_cpx
 

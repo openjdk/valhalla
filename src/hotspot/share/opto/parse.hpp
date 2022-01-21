@@ -519,7 +519,7 @@ class Parse : public GraphKit {
 
   // implementation of object creation bytecodes
   void do_new();
-  void do_defaultvalue();
+  void do_aconst_init();
   void do_withfield();
   void do_newarray(BasicType elemtype);
   void do_newarray();

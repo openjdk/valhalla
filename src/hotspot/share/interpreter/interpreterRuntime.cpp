@@ -253,15 +253,15 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPool* pool, int index))
+JRT_ENTRY(void, InterpreterRuntime::aconst_init(JavaThread* current, ConstantPool* pool, int index))
   // Getting the InlineKlass
   Klass* k = pool->klass_at(index, CHECK);
   if (!k->is_inline_klass()) {
     // inconsistency with 'new' which throws an InstantiationError
-    // in the future, defaultvalue will just return null instead of throwing an exception
+    // in the future, aconst_init will just return null instead of throwing an exception
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
-  assert(k->is_inline_klass(), "defaultvalue argument must be the inline type class");
+  assert(k->is_inline_klass(), "aconst_init argument must be the inline type class");
   InlineKlass* vklass = InlineKlass::cast(k);
 
   vklass->initialize(CHECK);

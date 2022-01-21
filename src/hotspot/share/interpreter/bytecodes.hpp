@@ -244,7 +244,7 @@ class Bytecodes: AllStatic {
     _breakpoint           = 202, // 0xca
 
     // value-type bytecodes
-    _defaultvalue         = 203, // 0xcb
+    _aconst_init          = 203, // 0xcb
     _withfield            = 204, // 0xcc
 
     number_of_java_codes,
