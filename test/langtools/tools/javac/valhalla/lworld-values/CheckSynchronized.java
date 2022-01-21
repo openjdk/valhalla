@@ -34,4 +34,11 @@ primitive final class CheckSynchronized implements java.io.Serializable {
         }
     }
     static int x = 10;
+
+    primitive record CheckSynchronizedRecord(int x, int y) {
+        synchronized void foo() { // <<-- ERROR, no monitor associated with `this'
+        }
+        synchronized static void zoo() { // OK, static method.
+        }
+    }
 }

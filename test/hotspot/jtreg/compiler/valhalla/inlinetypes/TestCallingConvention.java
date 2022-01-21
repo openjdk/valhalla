@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,6 +59,9 @@ public class TestCallingConvention {
 
             mt = MethodType.methodType(int.class);
             test37_mh = lookup.findVirtual(Test37Value.class.asValueType(), "test", mt);
+
+            mt = MethodType.methodType(MyValue2.class);
+            test54_mh = lookup.findVirtual(clazz, "test54_callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -1190,5 +1193,38 @@ public class TestCallingConvention {
     public void test53_verifier() {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         test53(vt);
+    }
+
+    static MethodHandle test54_mh;
+
+    @DontInline
+    public MyValue2.ref test54_callee() {
+        return MyValue2.createWithFieldsInline(rI, rD);
+    }
+
+    // Test that method handle invocation does not block scalarization of return value
+    @Test
+    @IR(failOn = {ALLOC_G, STORE})
+    public long test54(Method m, boolean b1, boolean b2) throws Throwable {
+        MyInterface obj = MyValue2.createWithFieldsInline(rI, rD);
+        if (b1) {
+            obj = (MyValue2.ref)test54_mh.invokeExact(this);
+        }
+        if (b2) {
+            // Uncommon trap
+            TestFramework.deoptimize(m);
+            return obj.hash();
+        }
+        return -1;
+    }
+
+    @Run(test = "test54")
+    public void test54_verifier(RunInfo info) throws Throwable {
+        Asserts.assertEQ(test54(info.getTest(), true, false), -1L);
+        Asserts.assertEQ(test54(info.getTest(), false, false), -1L);
+        if (!info.isWarmUp()) {
+            MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
+            Asserts.assertEQ(test54(info.getTest(), true, true), v.hash());
+        }
     }
 }

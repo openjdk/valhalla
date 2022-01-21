@@ -182,7 +182,7 @@ public class TestNullableInlineTypes {
     @Run(test = "test5")
     public void test5_verifier() {
         MyValue1.ref vt = test5(nullField);
-        Asserts.assertEquals((Object)vt, null);
+        Asserts.assertEquals(vt, null);
     }
 
     @DontInline
@@ -477,7 +477,7 @@ public class TestNullableInlineTypes {
 
     @DontInline
     public boolean test16_dontinline(MyValue1.ref vt) {
-        return (Object)vt == null;
+        return vt == null;
     }
 
     // Test c2c call passing null for an inline type
@@ -2468,5 +2468,51 @@ public class TestNullableInlineTypes {
         } catch (ClassCastException e) {
             // Expected
         }
+    }
+
+    @ForceInline
+    public boolean test90_inline(MyValue1.ref vt) {
+        return vt == null;
+    }
+
+    // Test scalarization with speculative NULL type
+    @Test
+    @IR(failOn = {ALLOC})
+    public boolean test90(Method m) throws Exception {
+        Object arg = null;
+        return (boolean)m.invoke(this, arg);
+    }
+
+    @Run(test = "test90")
+    @Warmup(10000)
+    public void test90_verifier() throws Exception {
+        Method m = getClass().getMethod("test90_inline", MyValue1.ref.class);
+        Asserts.assertTrue(test90(m));
+    }
+
+    // Test that scalarization does not introduce redundant/unused checks
+    @Test
+    @IR(failOn = {ALLOC, CMPP})
+    public Object test91(MyValue1.ref vt) {
+        return vt;
+    }
+
+    @Run(test = "test91")
+    public void test91_verifier() {
+        Asserts.assertEQ(test91(testValue1), testValue1);
+    }
+
+    MyValue1.ref test92Field = testValue1;
+
+    // Same as test91 but with field access
+    @Test
+    @IR(failOn = {ALLOC, CMPP})
+    public Object test92() {
+        return test92Field;
+    }
+
+    @Run(test = "test92")
+    public void test92_verifier() {
+        Asserts.assertEQ(test92(), testValue1);
     }
 }

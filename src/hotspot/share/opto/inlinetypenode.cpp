@@ -739,6 +739,9 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
 
       vt = vt->clone_with_phis(&gvn, region);
       vt->merge_with(&gvn, null_vt, 2, true);
+      if (!null_free) {
+        vt->set_oop(oop);
+      }
       kit->set_control(gvn.transform(region));
     }
   } else {

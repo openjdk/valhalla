@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,18 +21,19 @@
  * questions.
  */
 
-package java.lang;
+class MyClass {
 
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
+}
 
-/**
- * A class annotated {@code @__value__} is a value class.
- * This is a temporary workaround to enable use of value classes
- * in editors and IDEs that do not yet understand the 'value' modifier.
- * @since 18
- */
-@Retention(RetentionPolicy.SOURCE)
-@Target(value={ElementType.TYPE, ElementType.TYPE_USE})
-public @interface __value__ {
+// Loaded by boot classloader
+public primitive class ValueOnBootclasspath {
+    private MyClass field = new MyClass();
+
+    private MyClass getField() {
+        return field;
+    }
+
+    public Object get() {
+        return getField();
+    }
 }

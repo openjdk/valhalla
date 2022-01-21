@@ -66,4 +66,5 @@ class AttributeVisitor<R, P> implements Attribute.Visitor<R, P> {
     public R visitSynthetic(Synthetic_attribute attr, P p) { return null; }
     public R visitPermittedSubclasses(PermittedSubclasses_attribute attr, P p) { return null; }
     public R visitRecord(Record_attribute attr, P p) { return null; }
+    public R visitPreload(Preload_attribute attr, P p) { return null; }
 }
