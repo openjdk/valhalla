@@ -616,7 +616,7 @@ public class Types {
             warn.warn(LintCategory.UNIVERSAL);
             return true;
         }
-        if (allowUniversalTVars && (s.isPrimitiveClass() && !t.isPrimitiveClass())) {
+        if (allowUniversalTVars && !t.hasTag(BOT) && s.isPrimitiveClass() && !t.isPrimitiveClass()) {
             chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
             return true;
         }
