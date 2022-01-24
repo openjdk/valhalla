@@ -834,7 +834,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   if (vk == NULL) {
     vk = inline_klass();
   }
-  if (field_count() == 0) {
+  if (field_count() == 0 && vk->is_initialized()) {
     assert(is_allocated(phase), "must be allocated");
     return get_oop();
   }

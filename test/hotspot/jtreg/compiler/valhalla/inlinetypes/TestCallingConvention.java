@@ -1219,6 +1219,7 @@ public class TestCallingConvention {
     }
 
     @Run(test = "test54")
+    @Warmup(10000)
     public void test54_verifier(RunInfo info) throws Throwable {
         Asserts.assertEQ(test54(info.getTest(), true, false), -1L);
         Asserts.assertEQ(test54(info.getTest(), false, false), -1L);
