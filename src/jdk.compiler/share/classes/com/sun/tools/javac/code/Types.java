@@ -1729,7 +1729,7 @@ public class Types {
     }
     // where
         private boolean areDisjoint(ClassSymbol ts, ClassSymbol ss) {
-            if (isSubtype(erasure(ts.type), erasure(ss.type))) {
+            if (isSubtype(erasure(ts.type.referenceProjectionOrSelf()), erasure(ss.type))) {
                 return false;
             }
             // if both are classes or both are interfaces, shortcut
