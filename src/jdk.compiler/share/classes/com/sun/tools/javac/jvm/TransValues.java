@@ -346,7 +346,7 @@ public class TransValues extends TreeTranslator {
     // Translate a reference style instance creation attempt on a value class to a static factory call.
     @Override
     public void visitNewClass(JCNewClass tree) {
-        if (types.isValueClass(tree.clazz.type)) {
+        if (tree.clazz.type.isValueClass()) {
             // Enclosing instances or anonymous classes should have been eliminated by now.
             Assert.check(tree.encl == null && tree.def == null);
             tree.args = translate(tree.args);
@@ -379,7 +379,7 @@ public class TransValues extends TreeTranslator {
 
     private MethodSymbol getValueObjectFactory(MethodSymbol init) {
         Assert.check(init.name.equals(names.init));
-        Assert.check(types.isValueClass(init.owner.type));
+        Assert.check(init.owner.type.isValueClass());
         MethodSymbol factory = init2factory.get(init);
         if (factory != null)
             return factory;

@@ -1017,14 +1017,6 @@ public class Types {
        }
     }
 
-    public boolean isPrimitiveClass(Type t) {
-        return t != null && t.isPrimitiveClass();
-    }
-
-    public boolean isValueClass(Type t) {
-        return t != null && t.isValueClass();
-    }
-
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -1051,9 +1043,9 @@ public class Types {
                     // if T.ref <: S, then T[] <: S[]
                     Type es = elemtype(s);
                     Type et = elemtype(t);
-                    if (isPrimitiveClass(et)) {
+                    if (et.isPrimitiveClass()) {
                         et = et.referenceProjection();
-                        if (isPrimitiveClass(es))
+                        if (es.isPrimitiveClass())
                             es = es.referenceProjection();  // V <: V, surely
                     }
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
@@ -1155,7 +1147,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isPrimitiveClass(s)) ||
+                         s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1238,9 +1230,9 @@ public class Types {
                         // if T.ref <: S, then T[] <: S[]
                         Type es = elemtype(s);
                         Type et = elemtype(t);
-                        if (isPrimitiveClass(et)) {
+                        if (et.isPrimitiveClass()) {
                             et = et.referenceProjection();
-                            if (isPrimitiveClass(es))
+                            if (es.isPrimitiveClass())
                                 es = es.referenceProjection();  // V <: V, surely
                         }
                         return isSubtypeNoCapture(et, es);
@@ -1792,7 +1784,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !isPrimitiveClass(t)))
+                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !t.isPrimitiveClass()))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -1811,11 +1803,11 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
-                    if (isPrimitiveClass(t)) {
+                    if (t.isPrimitiveClass()) {
                         // (s) Value ? == (s) Value.ref
                         t = t.referenceProjection();
                     }
-                    if (isPrimitiveClass(s)) {
+                    if (s.isPrimitiveClass()) {
                         // (Value) t ? == (Value.ref) t
                         s = s.referenceProjection();
                     }
@@ -2258,7 +2250,7 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
 
-        if (isPrimitiveClass(t)) {
+        if (t.isPrimitiveClass()) {
             // No man may be an island, but the bell tolls for a value.
             return t.tsym == sym ? t : null;
         }
@@ -5327,7 +5319,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.isPrimitiveClass(type))
+                    if (type.isPrimitiveClass())
                         append('Q');
                     else
                         append('L');

@@ -2057,7 +2057,7 @@ public class Gen extends JCTree.Visitor {
             }
             int elemcode = Code.arraycode(elemtype);
             if (elemcode == 0 || (elemcode == 1 && ndims == 1)) {
-                code.emitAnewarray(makeRef(pos, elemtype, types.isPrimitiveClass(elemtype)), type);
+                code.emitAnewarray(makeRef(pos, elemtype, elemtype.isPrimitiveClass()), type);
             } else if (elemcode == 1) {
                 code.emitMultianewarray(ndims, makeRef(pos, type), type);
             } else {
@@ -2289,7 +2289,7 @@ public class Gen extends JCTree.Visitor {
             (!tree.clazz.type.isReferenceProjection() || !types.isSameType(tree.clazz.type.valueProjection(), tree.expr.type) || true) &&
            !types.isSubtype(tree.expr.type, tree.clazz.type)) {
             checkDimension(tree.pos(), tree.clazz.type);
-            if (types.isPrimitiveClass(tree.clazz.type)) {
+            if (tree.clazz.type.isPrimitiveClass()) {
                 code.emitop2(checkcast, new ConstantPoolQType(tree.clazz.type, types), PoolWriter::putClass);
             } else {
                 code.emitop2(checkcast, tree.clazz.type, PoolWriter::putClass);
