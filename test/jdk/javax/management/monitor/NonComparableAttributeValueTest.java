@@ -45,10 +45,10 @@ public class NonComparableAttributeValueTest implements NotificationListener {
     // MBean class
     public class ObservedObject implements ObservedObjectMBean {
         public Object getIntegerAttribute() {
-            return java.util.Objects.newIdentity();
+            return new Object();
         }
         public Object getStringAttribute() {
-            return java.util.Objects.newIdentity();
+            return new Object();
         }
     }
 

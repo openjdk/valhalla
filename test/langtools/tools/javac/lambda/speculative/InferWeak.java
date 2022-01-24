@@ -40,26 +40,26 @@ class InferWeak {
             l.createParallelGroup().addGroup(l.createParallelGroup().addGroup(
             l.createParallelGroup().addGroup(l.createParallelGroup().addGroup(
             l.createParallelGroup().addGroup(l.createParallelGroup().addGroup(
-            l.createParallelGroup().addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity())).addGap(1).addComponent(java.util.Objects.newIdentity()).addGap(1)
-            .addComponent(java.util.Objects.newIdentity()));
+            l.createParallelGroup().addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object())).addGap(1).addComponent(new Object()).addGap(1)
+            .addComponent(new Object()));
     }
 
     static class GroupLayout {

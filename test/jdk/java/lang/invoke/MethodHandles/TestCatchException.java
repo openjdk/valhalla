@@ -57,7 +57,7 @@ public class TestCatchException {
 
         MethodHandle h = MethodHandles.catchException(target, Exception.class, handler);
 
-        int x = (int)h.invokeExact(java.util.Objects.newIdentity(), java.util.Objects.newIdentity(), 1, 2, 3, 4, 5, 6, 7);
+        int x = (int)h.invokeExact(new Object(), new Object(), 1, 2, 3, 4, 5, 6, 7);
         assertEquals(x, 42);
     }
 
@@ -68,11 +68,11 @@ public class TestCatchException {
 
         MethodHandle h = MethodHandles.catchException(target, Exception.class, handler);
 
-        int x = (int)h.invokeExact(java.util.Objects.newIdentity(), java.util.Objects.newIdentity(), 1, 2, 3, 4, 5, 6, 7);
+        int x = (int)h.invokeExact(new Object(), new Object(), 1, 2, 3, 4, 5, 6, 7);
         assertEquals(x, 17);
     }
 
-    static final Object masterParam = java.util.Objects.newIdentity();
+    static final Object masterParam = new Object();
     static final Object[] masterTail = new Object[] { "str" };
     static Exception masterEx = new Exception();
 

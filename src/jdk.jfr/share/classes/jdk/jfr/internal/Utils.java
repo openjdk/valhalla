@@ -69,7 +69,7 @@ import jdk.jfr.internal.settings.ThresholdSetting;
 
 public final class Utils {
 
-    private static final Object flushObject = java.util.Objects.newIdentity();
+    private static final Object flushObject = new Object();
     private static final String INFINITY = "infinity";
     private static final String OFF = "off";
     public static final String EVENTS_PACKAGE_NAME = "jdk.jfr.events";

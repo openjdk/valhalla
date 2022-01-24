@@ -112,8 +112,8 @@ public class curthrcputime001 extends DebugeeClass {
 class curthrcputime001Thread extends Thread {
     public int iterations;
 
-    public Object startingMonitor = java.util.Objects.newIdentity();
-    public Object endingMonitor = java.util.Objects.newIdentity();
+    public Object startingMonitor = new Object();
+    public Object endingMonitor = new Object();
 
     /** Make thread with specific name. */
     public curthrcputime001Thread(String name, int iterations) {

@@ -52,7 +52,7 @@ class WindowsDirectoryStream
     // buffer for WIN32_FIND_DATA structure that receives information about file
     private final NativeBuffer findDataBuffer;
 
-    private final Object closeLock = java.util.Objects.newIdentity();
+    private final Object closeLock = new Object();
 
     // need closeLock to access these
     private boolean isOpen = true;

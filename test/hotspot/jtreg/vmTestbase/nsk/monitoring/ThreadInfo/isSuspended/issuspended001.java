@@ -82,7 +82,7 @@ public class issuspended001 {
 
     private static class MyThread extends Thread {
         final static long WAIT_TIME = 500; // Milliseconds
-        Object object = java.util.Objects.newIdentity();
+        Object object = new Object();
         boolean die = false;
         PrintStream out;
 

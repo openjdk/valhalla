@@ -30,7 +30,7 @@
 public class StackMapFrameTest {
 
   public static void foo() {
-    Object o = java.util.Objects.newIdentity();
+    Object o = new Object();
   }
 
   public static void main(String args[]) {

@@ -41,7 +41,7 @@ public class trace001a {
     static final String MYTHREAD  = "MyThread";
     static final int numThreads   = 2;   // number of threads.
 
-    static Object waitnotify = java.util.Objects.newIdentity();
+    static Object waitnotify = new Object();
 
     public int runIt(String args[], PrintStream out) {
 
@@ -53,7 +53,7 @@ public class trace001a {
         Object[] locks = new Object[numThreads];
 
         for (i = 0; i < numThreads ; i++) {
-            locks[i]  = java.util.Objects.newIdentity();
+            locks[i]  = new Object();
             holder[i] = new MyThread(locks[i],MYTHREAD + "-" + i);
         }
 

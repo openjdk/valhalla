@@ -1610,7 +1610,7 @@ public class TreeMap<K,V>
      * Dummy value serving as unmatchable fence key for unbounded
      * SubMapIterators
      */
-    private static final Object UNBOUNDED = java.util.Objects.newIdentity();
+    private static final Object UNBOUNDED = new Object();
 
     /**
      * @serial include

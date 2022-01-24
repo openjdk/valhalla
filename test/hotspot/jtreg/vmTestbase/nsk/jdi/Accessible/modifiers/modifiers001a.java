@@ -46,7 +46,7 @@ public class modifiers001a {
     Integer   I0 = Integer.valueOf(1);
     Long      L0 = Long.valueOf(1);
     String    S0 = new String("s");
-    Object    O0 = java.util.Objects.newIdentity();
+    Object    O0 = new Object();
 
     modifiers001 m001_0=new modifiers001();
     modifiers001a m001a_0, m001a_1[] = {m001a_0};

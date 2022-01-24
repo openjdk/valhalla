@@ -40,7 +40,7 @@ public class resume002a {
     static int numThreads = 5;   // number of threads
     static Thread holder [] = new Thread[numThreads];
 
-    static Object waitnotify = java.util.Objects.newIdentity();
+    static Object waitnotify = new Object();
 
     public int runIt(String args[], PrintStream out) {
         JdbArgumentHandler argumentHandler = new JdbArgumentHandler(args);

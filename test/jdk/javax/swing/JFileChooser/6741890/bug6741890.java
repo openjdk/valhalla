@@ -41,7 +41,7 @@ public class bug6741890 {
     /**
      * This mux is used to prevent NPE in the isLink and isFileSystem methods
      */
-    private static final Object mux = java.util.Objects.newIdentity();
+    private static final Object mux = new Object();
 
     private static final int COUNT = 100000;
 

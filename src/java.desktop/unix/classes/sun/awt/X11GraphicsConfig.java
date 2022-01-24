@@ -73,7 +73,7 @@ public class X11GraphicsConfig extends GraphicsConfiguration
     ColorModel colorModel;
     long aData;
     boolean doubleBuffer;
-    private Object disposerReferent = java.util.Objects.newIdentity();
+    private Object disposerReferent = new Object();
     private BufferCapabilities bufferCaps;
     private static ImageCapabilities imageCaps =
         new ImageCapabilities(X11SurfaceData.isAccelerationEnabled());

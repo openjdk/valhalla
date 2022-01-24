@@ -88,7 +88,7 @@ public class strace006 {
     static PrintStream out;
     static long waitTime = 2;
 
-    static Object waitStart = java.util.Objects.newIdentity();
+    static Object waitStart = new Object();
 
     static strace006Thread[] threads;
     static StackTraceElement[][] snapshots = new StackTraceElement[THRD_COUNT][];

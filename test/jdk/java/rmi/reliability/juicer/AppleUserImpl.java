@@ -95,7 +95,7 @@ public class AppleUserImpl extends UnicastRemoteObject implements AppleUser {
     private static boolean finished = false;
     private static boolean startTestNotified = false;
     private static final Random random = new Random();
-    private static final Object lock = java.util.Objects.newIdentity();
+    private static final Object lock = new Object();
 
     public AppleUserImpl() throws RemoteException {
     }

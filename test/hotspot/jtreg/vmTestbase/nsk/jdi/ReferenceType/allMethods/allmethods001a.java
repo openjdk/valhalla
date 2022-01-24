@@ -106,13 +106,13 @@ abstract class allmethods001aClassForCheck extends allmethods001aSuperClassForCh
     static int     s_int_method() {return 100;}
     static long    s_long_method() {return 100;}
     static String  s_string_method() {return "return";}
-    static Object  s_object_method() {return java.util.Objects.newIdentity();}
+    static Object  s_object_method() {return new Object();}
     static long[]  s_prim_array_method() {return new long[100];}
     static Object[]  s_ref_array_method() {return new Object[100];}
 
     static void   s_super_hidden_void_method() {}
     static int    s_super_hidden_prim_method() {return 100;}
-    static Object s_super_hidden_ref_method() {return java.util.Objects.newIdentity();}
+    static Object s_super_hidden_ref_method() {return new Object();}
 
     // static methods with params
     static void s_void_par_method(boolean z) {}
@@ -124,21 +124,21 @@ abstract class allmethods001aClassForCheck extends allmethods001aSuperClassForCh
     static int     s_int_par_method(int i) {return 100;}
     static long    s_long_par_method(long l) {return 100;}
     static String  s_string_par_method(String s) {return "return";}
-    static Object  s_object_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    static Object  s_object_par_method(Object obj) {return new Object();}
     static long[]  s_prim_array_par_method(long[] la) {return new long[100];}
     static Object[]  s_ref_array_par_method(Object[] obja) {return new Object[100];}
 
     static void   s_super_hidden_void_par_method(int i) {}
     static int    s_super_hidden_prim_par_method(int i) {return 100;}
-    static Object s_super_hidden_ref_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    static Object s_super_hidden_ref_par_method(Object obj) {return new Object();}
 
     // other static methods
     native static Object  s_native_method(Object obj);
-    static synchronized Object s_synchr_method(Object obj) {return java.util.Objects.newIdentity();}
-    final static Object  s_final_method(Object obj) {return java.util.Objects.newIdentity();}
-    private static Object  s_private_method(Object obj) {return java.util.Objects.newIdentity();}
-    protected static Object  s_protected_method(Object obj) {return java.util.Objects.newIdentity();}
-    public static Object  s_public_method(Object obj) {return java.util.Objects.newIdentity();}
+    static synchronized Object s_synchr_method(Object obj) {return new Object();}
+    final static Object  s_final_method(Object obj) {return new Object();}
+    private static Object  s_private_method(Object obj) {return new Object();}
+    protected static Object  s_protected_method(Object obj) {return new Object();}
+    public static Object  s_public_method(Object obj) {return new Object();}
 
     // instance methods without params
     void i_void_method() {}
@@ -150,17 +150,17 @@ abstract class allmethods001aClassForCheck extends allmethods001aSuperClassForCh
     int     i_int_method() {return 100;}
     long    i_long_method() {return 100;}
     String  i_string_method() {return "return";}
-    Object  i_object_method() {return java.util.Objects.newIdentity();}
+    Object  i_object_method() {return new Object();}
     long[]  i_prim_array_method() {return new long[100];}
     Object[]  i_ref_array_method() {return new Object[100];}
 
     void   i_super_overridden_void_method() {}
     int    i_super_overridden_prim_method() {return 100;}
-    Object i_super_overridden_ref_method() {return java.util.Objects.newIdentity();}
+    Object i_super_overridden_ref_method() {return new Object();}
 
     public void   i_interf_overridden_void_method() {}
     public int    i_interf_overridden_prim_method() {return 100;}
-    public Object i_interf_overridden_ref_method() {return java.util.Objects.newIdentity();}
+    public Object i_interf_overridden_ref_method() {return new Object();}
 
     // instance methods with params
     void i_void_par_method(boolean z) {}
@@ -172,26 +172,26 @@ abstract class allmethods001aClassForCheck extends allmethods001aSuperClassForCh
     int     i_int_par_method(int i) {return 100;}
     long    i_long_par_method(long l) {return 100;}
     String  i_string_par_method(String s) {return "return";}
-    Object  i_object_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    Object  i_object_par_method(Object obj) {return new Object();}
     long[]  i_prim_array_par_method(long[] la) {return new long[100];}
     Object[]  i_ref_array_par_method(Object[] obja) {return new Object[100];}
 
     void   i_super_overridden_void_par_method(int i) {}
     int    i_super_overridden_prim_par_method(int i) {return 100;}
-    Object i_super_overridden_ref_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    Object i_super_overridden_ref_par_method(Object obj) {return new Object();}
 
     public void   i_interf_overridden_void_par_method(int i) {}
     public int    i_interf_overridden_prim_par_method(int i) {return 100;}
-    public Object i_interf_overridden_ref_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    public Object i_interf_overridden_ref_par_method(Object obj) {return new Object();}
 
     // other instance methods
     abstract Object  i_abstract_method(Object obj);
     native Object  i_native_method(Object obj);
-    synchronized Object  i_synchr_method(Object obj) {return java.util.Objects.newIdentity();}
-    final Object  i_final_method(Object obj) {return java.util.Objects.newIdentity();}
-    private Object  i_private_method(Object obj) {return java.util.Objects.newIdentity();}
-    protected Object  i_protected_method(Object obj) {return java.util.Objects.newIdentity();}
-    public Object  i_public_method(Object obj) {return java.util.Objects.newIdentity();}
+    synchronized Object  i_synchr_method(Object obj) {return new Object();}
+    final Object  i_final_method(Object obj) {return new Object();}
+    private Object  i_private_method(Object obj) {return new Object();}
+    protected Object  i_protected_method(Object obj) {return new Object();}
+    public Object  i_public_method(Object obj) {return new Object();}
 
     // static initializer
     static {}
@@ -203,29 +203,29 @@ abstract class allmethods001aSuperClassForCheck  {
 
     static void    s_super_void_method(long l) {}
     static long    s_super_prim_method(long l) {return 100;}
-    static Object  s_super_ref_method(Object obj) {return java.util.Objects.newIdentity();}
+    static Object  s_super_ref_method(Object obj) {return new Object();}
 
     void    i_super_void_method(long l) {}
     long    i_super_prim_method(long l) {return 100;}
-    Object  i_super_ref_method(Object obj) {return java.util.Objects.newIdentity();}
+    Object  i_super_ref_method(Object obj) {return new Object();}
 
     static void   s_super_hidden_void_method() {}
     static int    s_super_hidden_prim_method() {return 100;}
-    static Object s_super_hidden_ref_method() {return java.util.Objects.newIdentity();}
+    static Object s_super_hidden_ref_method() {return new Object();}
 
     static void   s_super_hidden_void_par_method(int i) {}
     static int    s_super_hidden_prim_par_method(int i) {return 100;}
-    static Object s_super_hidden_ref_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    static Object s_super_hidden_ref_par_method(Object obj) {return new Object();}
 
     void   i_super_overridden_void_method() {}
     int    i_super_overridden_prim_method() {return 100;}
-    Object i_super_overridden_ref_method() {return java.util.Objects.newIdentity();}
+    Object i_super_overridden_ref_method() {return new Object();}
 
     void   i_super_overridden_void_par_method(int i) {}
     int    i_super_overridden_prim_par_method(int i) {return 100;}
-    Object i_super_overridden_ref_par_method(Object obj) {return java.util.Objects.newIdentity();}
+    Object i_super_overridden_ref_par_method(Object obj) {return new Object();}
 
-    public Object i_multiple_inherited_method(Object obj) {return java.util.Objects.newIdentity();}
+    public Object i_multiple_inherited_method(Object obj) {return new Object();}
 
 }
 

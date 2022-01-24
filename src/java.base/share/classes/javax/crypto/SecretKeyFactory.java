@@ -88,7 +88,7 @@ public class SecretKeyFactory {
     private volatile SecretKeyFactorySpi spi;
 
     // lock for mutex during provider selection
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
 
     // remaining services to try in provider selection
     // null once provider is selected

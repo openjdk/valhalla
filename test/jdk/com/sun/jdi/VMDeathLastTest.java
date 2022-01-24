@@ -41,7 +41,7 @@ import java.util.*;
     /********** test program **********/
 
 public class VMDeathLastTest extends TestScaffold {
-    Object syncer = java.util.Objects.newIdentity();
+    Object syncer = new Object();
     boolean vmDead = false;
     boolean disconnected = false;
 

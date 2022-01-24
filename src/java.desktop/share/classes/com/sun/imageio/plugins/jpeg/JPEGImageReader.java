@@ -223,7 +223,7 @@ public class JPEGImageReader extends ImageReader {
     private boolean tablesOnlyChecked = false;
 
     /** The referent to be registered with the Disposer. */
-    private Object disposerReferent = java.util.Objects.newIdentity();
+    private Object disposerReferent = new Object();
 
     /** The DisposerRecord that handles the actual disposal of this reader. */
     private DisposerRecord disposerRecord;

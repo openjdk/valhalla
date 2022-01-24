@@ -298,11 +298,11 @@ public class NullPointerExceptionTest {
         }
         // aastore
         try {
-            oa1[0] = java.util.Objects.newIdentity();
+            oa1[0] = new Object();
             System.out.println(oa1[0]);
             Asserts.fail();
         } catch (NullPointerException e) {
-            checkMessage(e, "oa1[0] = java.util.Objects.newIdentity();", e.getMessage(),
+            checkMessage(e, "oa1[0] = new Object();", e.getMessage(),
                          "Cannot store to object array because " +
                          (hasDebugInfo ? "\"oa1\"" : "\"<local3>\"") + " is null or is a null-free array and there's an attempt to store null in it");
         }

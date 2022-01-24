@@ -49,7 +49,7 @@ public class bug4523758 {
 
     private boolean passed = true;
     private boolean itemStateChanged = false;
-    private Object itemLock = java.util.Objects.newIdentity();
+    private Object itemLock = new Object();
 
     private static int delay = 500;
     private static final int WAIT_EVENT_DELAY = 60000;

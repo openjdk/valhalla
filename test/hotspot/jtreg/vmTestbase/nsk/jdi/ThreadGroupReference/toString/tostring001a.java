@@ -107,8 +107,8 @@ public class tostring001a {
 
 class tostring001aThread extends Thread {
 
-    public static Object waitnotifyObj = java.util.Objects.newIdentity();
-    public static Object lockingObject = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj = new Object();
+    public static Object lockingObject = new Object();
 
     private static ThreadGroup thread2Group = null;
 

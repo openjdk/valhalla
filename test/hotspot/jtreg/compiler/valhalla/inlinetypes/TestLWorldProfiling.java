@@ -1116,7 +1116,7 @@ public class TestLWorldProfiling {
         Test40Class tmp2 = new Test40Class();
         if (info.isWarmUp()) {
             // Pollute profile with exact Object[]
-            test41_access(new Object[1], java.util.Objects.newIdentity());
+            test41_access(new Object[1], new Object());
         } else {
             // When inlining test41_access, profiling contradicts actual type of array
             test41(new Test40Inline[1], new Test40Inline());

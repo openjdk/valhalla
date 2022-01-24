@@ -41,8 +41,8 @@ public class CompatibilityTest {
         return new Object[][]{
             {8, 238923},
             {1.1, 1.1},
-            {java.util.Objects.newIdentity(), "Value"},
-            {"Key", java.util.Objects.newIdentity()},
+            {new Object(), "Value"},
+            {"Key", new Object()},
         };
     }
 

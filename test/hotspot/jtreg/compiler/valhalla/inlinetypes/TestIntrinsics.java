@@ -1143,8 +1143,8 @@ public class TestIntrinsics {
     // Test mark word load optimization on unsafe inline type allocation
     @Test
     public boolean test60(Class<?> c1, Class<?> c2, boolean b1, boolean b2) throws Exception {
-        Object obj1 = b1 ? java.util.Objects.newIdentity() : U.allocateInstance(c1);
-        Object obj2 = b2 ? java.util.Objects.newIdentity() : U.allocateInstance(c2);
+        Object obj1 = b1 ? new Object() : U.allocateInstance(c1);
+        Object obj2 = b2 ? new Object() : U.allocateInstance(c2);
         return obj1 == obj2;
     }
 

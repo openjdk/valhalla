@@ -230,7 +230,7 @@ class valuetobe001aCheckedClass {
         W0  = new String();
         W1  = new String[]    {W0};
         W2  = new String[][]  {W1};
-        O0  = java.util.Objects.newIdentity();
+        O0  = new Object();
         O1  = new Object[]    {O0};
         O2  = new Object[][]  {O1};
 

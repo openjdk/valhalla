@@ -175,8 +175,8 @@ public class PathGroupTest {
         var src = pg.resolveAt(srcDir);
         if (withExcludes) {
             // Exclude from transformation.
-            src.setPath(java.util.Objects.newIdentity(), srcDir.resolve(PATH_FOO).resolve("a/b/c"));
-            src.setPath(java.util.Objects.newIdentity(), srcDir.resolve(PATH_EMPTY).resolve("file4"));
+            src.setPath(new Object(), srcDir.resolve(PATH_FOO).resolve("a/b/c"));
+            src.setPath(new Object(), srcDir.resolve(PATH_EMPTY).resolve("file4"));
         }
 
         var srcFilesBeforeTransform = walkFiles(srcDir);

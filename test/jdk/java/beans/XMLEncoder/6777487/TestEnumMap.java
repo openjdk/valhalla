@@ -33,7 +33,7 @@ import java.util.EnumMap;
 import java.util.HashMap;
 
 public final class TestEnumMap {
-    private static final Object OBJECT = java.util.Objects.newIdentity();
+    private static final Object OBJECT = new Object();
 
     public static void main(String[] args) {
         TestEncoder.test(

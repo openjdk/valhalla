@@ -42,7 +42,7 @@ public class Test6397609 {
         PropertyEditorManager.registerEditor(targetClass, editorClass);
 
         // trigger a gc
-        Object object = java.util.Objects.newIdentity();
+        Object object = new Object();
         var r = new WeakReference<Object>(object);
         object = null;
         while (r.get() != null) {

@@ -59,7 +59,7 @@ public class TestSynchronization {
     private static final double DOUBLE_VAL = 1.0d;
     private static final float FLOAT_VAL = 1.0f;
     private static final long LONG_VAL = 1L;
-    private static final Object OBJECT_VAL = java.util.Objects.newIdentity();
+    private static final Object OBJECT_VAL = new Object();
     private static final String STRING_VAL = "String value";
     private static final StringBuilder STRING_BUILDER_VAL =
             new StringBuilder("StringBuilder value");

@@ -59,7 +59,7 @@ public class ResetPeakThreadCount {
     private static volatile boolean testFailed = false;
 
     private static final List<MyThread> threads = new LinkedList<>();
-    private static final Object liveSync = java.util.Objects.newIdentity();
+    private static final Object liveSync = new Object();
 
     public static void main(String[] argv) throws Exception {
         // System threads can be started/terminated during the test execution,

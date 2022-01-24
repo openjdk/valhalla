@@ -167,7 +167,7 @@ public class ThreadOnSpinWaitProducerConsumer {
     public void setup01() {
         Random rnd = new Random(111);
         a = BigInteger.probablePrime(dataBitLength, rnd);
-        monitor = java.util.Objects.newIdentity();
+        monitor = new Object();
     }
 
     @Setup(Level.Invocation)

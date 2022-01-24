@@ -121,9 +121,9 @@ public class newinstance007a {
 }
 
 class im007aThread01 extends NamedTask {
-    public static Object waitInvoking = java.util.Objects.newIdentity();
-    public static Object waitStarting = java.util.Objects.newIdentity();
-    public static Object waitFinishing = java.util.Objects.newIdentity();
+    public static Object waitInvoking = new Object();
+    public static Object waitStarting = new Object();
+    public static Object waitFinishing = new Object();
 
     im007aThread01(String threadName) {
         super(threadName);

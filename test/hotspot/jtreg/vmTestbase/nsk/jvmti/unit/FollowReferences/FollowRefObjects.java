@@ -142,7 +142,7 @@ public class FollowRefObjects {
 
         // Multiple references to the same object
         _objArr = new Object[ARRAY_SIZE];      tag(_objArr, "_objArr");
-        _objArr[0] = java.util.Objects.newIdentity();             tag(_objArr[0], "_objArr[0]");
+        _objArr[0] = new Object();             tag(_objArr[0], "_objArr[0]");
         _objArr[1] = _objArr[2] = _objArr[0];
 
         // Multiple references to myself
@@ -174,13 +174,13 @@ public class FollowRefObjects {
         tag(_cartierInAMirror, "_cartierInAMirror");
 
         // Soft, Weak, Phantom References
-        _softRef = new SoftReference<Object>(_softReferree = java.util.Objects.newIdentity());
+        _softRef = new SoftReference<Object>(_softReferree = new Object());
          tag(_softRef, "_softRef");          tag(_softReferree, "_softReferree");
 
-        _weakRef = new WeakReference<Object>(_weakReferree = java.util.Objects.newIdentity());
+        _weakRef = new WeakReference<Object>(_weakReferree = new Object());
         tag(_weakRef, "_weakRef");          tag(_weakReferree, "_weakReferree");
 
-        _phantomRef = new PhantomReference<Object>(_phantomReferree = java.util.Objects.newIdentity(), null);
+        _phantomRef = new PhantomReference<Object>(_phantomReferree = new Object(), null);
         tag(_phantomRef, "_phantomRef");    tag(_phantomReferree, "_phantomReferree");
 
         _thread = new Thread(); tag(_thread, "_thread");

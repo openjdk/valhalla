@@ -318,9 +318,9 @@ class CreateVM002_Connection extends Connection {
     private boolean closed = false;
     private OutputStream socketOutput;
     private InputStream socketInput;
-    private Object receiveLock = java.util.Objects.newIdentity();
-    private Object sendLock = java.util.Objects.newIdentity();
-    private Object closeLock = java.util.Objects.newIdentity();
+    private Object receiveLock = new Object();
+    private Object sendLock = new Object();
+    private Object closeLock = new Object();
     private boolean toPrintPacket = false;
     private int readPacketRequestNumber = 0;
     private int writePacketRequestNumber = 0;

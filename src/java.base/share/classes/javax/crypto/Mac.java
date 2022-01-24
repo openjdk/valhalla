@@ -122,7 +122,7 @@ public class Mac implements Cloneable {
         firstService = s;
         serviceIterator = t;
         this.algorithm = algorithm;
-        lock = java.util.Objects.newIdentity();
+        lock = new Object();
     }
 
     /**

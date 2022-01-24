@@ -48,10 +48,10 @@ public class Explosion {
 
     @Benchmark
     public void testHashtableExplosion(Blackhole bh) throws Exception {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         Object[] oa = new Object[len];
         for (int i = 0; i < len; i++) {
-            oa[i] = java.util.Objects.newIdentity();
+            oa[i] = new Object();
         }
 
         Hashtable<Object, Object> h = new Hashtable<>();

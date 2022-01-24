@@ -38,7 +38,7 @@ public class MultiCatch {
     @TADescription(annotation = "TB", type = EXCEPTION_PARAMETER, exceptionIndex = 1)
     public String multiCatch1() {
         return "void multiCatch1() { " +
-            "try { java.util.Objects.newIdentity(); } catch (@TA NullPointerException | @TB IndexOutOfBoundsException e) { e.toString(); } }";
+            "try { new Object(); } catch (@TA NullPointerException | @TB IndexOutOfBoundsException e) { e.toString(); } }";
     }
 
     @TADescription(annotation = "TA", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
@@ -46,7 +46,7 @@ public class MultiCatch {
     @TADescription(annotation = "TC", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multiCatch2() {
         return "void multiCatch2() { " +
-            "try { java.util.Objects.newIdentity(); } catch (@TA NullPointerException | @TB IndexOutOfBoundsException | @TC IllegalArgumentException e) { e.toString(); } }";
+            "try { new Object(); } catch (@TA NullPointerException | @TB IndexOutOfBoundsException | @TC IllegalArgumentException e) { e.toString(); } }";
     }
 
     @TADescription(annotation = "TA", type = EXCEPTION_PARAMETER, exceptionIndex = 1)
@@ -56,15 +56,15 @@ public class MultiCatch {
     @TADescription(annotation = "TE", type = EXCEPTION_PARAMETER, exceptionIndex = 3)
     public String multiCatch3() {
         return "void multiCatch3() { " +
-            "try { java.util.Objects.newIdentity(); } catch (NullPointerException e1) {}" +
-            "try { java.util.Objects.newIdentity(); } catch (@TA @TB NullPointerException | @TC @TD IndexOutOfBoundsException | @TE IllegalArgumentException e2) { e2.toString(); } }";
+            "try { new Object(); } catch (NullPointerException e1) {}" +
+            "try { new Object(); } catch (@TA @TB NullPointerException | @TC @TD IndexOutOfBoundsException | @TE IllegalArgumentException e2) { e2.toString(); } }";
     }
 
     @TADescription(annotation = "RTAs", type = EXCEPTION_PARAMETER, exceptionIndex = 0)
     @TADescription(annotation = "RTBs", type = EXCEPTION_PARAMETER, exceptionIndex = 1)
     public String multiCatchRepeatableAnnotation1() {
         return "void multiCatch1() { " +
-                "try { java.util.Objects.newIdentity(); } catch (@RTA @RTA NullPointerException |" +
+                "try { new Object(); } catch (@RTA @RTA NullPointerException |" +
                 " @RTB @RTB IndexOutOfBoundsException e) { e.toString(); } }";
     }
 
@@ -73,7 +73,7 @@ public class MultiCatch {
     @TADescription(annotation = "RTCs", type = EXCEPTION_PARAMETER, exceptionIndex = 2)
     public String multiCatchRepeatableAnnotation2() {
         return "void multiCatch2() { " +
-                "try { java.util.Objects.newIdentity(); } catch (@RTA @RTA NullPointerException |" +
+                "try { new Object(); } catch (@RTA @RTA NullPointerException |" +
                 " @RTB @RTB IndexOutOfBoundsException | @RTC @RTC IllegalArgumentException e) { e.toString(); } }";
     }
 
@@ -84,8 +84,8 @@ public class MultiCatch {
     @TADescription(annotation = "RTEs", type = EXCEPTION_PARAMETER, exceptionIndex = 3)
     public String multiCatchRepeatableAnnotation3() {
         return "void multiCatch3() { " +
-                "try { java.util.Objects.newIdentity(); } catch (NullPointerException e1) {}" +
-                "try { java.util.Objects.newIdentity(); } catch (@RTA @RTA @RTB @RTB NullPointerException |" +
+                "try { new Object(); } catch (NullPointerException e1) {}" +
+                "try { new Object(); } catch (@RTA @RTA @RTB @RTB NullPointerException |" +
                 " @RTC @RTC @RTD @RTD IndexOutOfBoundsException |" +
                 " @RTE @RTE IllegalArgumentException e2) { e2.toString(); } }";
     }

@@ -50,8 +50,8 @@ public class ap09t001 extends DebugeeClass implements Cloneable {
     static long timeout = 0;
     int status = Consts.TEST_PASSED;
 
-    static Object[] staticField = {java.util.Objects.newIdentity()};
-    Object instanceField = java.util.Objects.newIdentity();
+    static Object[] staticField = {new Object()};
+    Object instanceField = new Object();
 
     public static final long OBJECT_TAG         = 1l;
     public static final long CLASS_TAG          = 2l;

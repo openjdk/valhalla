@@ -62,7 +62,7 @@ public class PinLastArguments {
         Reference<?> ref = new WeakReference<Ping>(impl);
         try {
             Ping stub = (Ping) UnicastRemoteObject.exportObject(impl, 0);
-            Object notSerializable = java.util.Objects.newIdentity();
+            Object notSerializable = new Object();
             stub.ping(impl, null);
             try {
                 stub.ping(impl, notSerializable);

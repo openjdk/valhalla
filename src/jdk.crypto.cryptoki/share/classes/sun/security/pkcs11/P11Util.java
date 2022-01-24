@@ -36,7 +36,7 @@ import java.security.*;
  */
 public final class P11Util {
 
-    private static Object LOCK = java.util.Objects.newIdentity();
+    private static Object LOCK = new Object();
 
     private static volatile Provider sun, sunRsaSign, sunJce;
 

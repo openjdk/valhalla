@@ -234,7 +234,7 @@ public class PriorityQueueTest extends JSR166TestCase {
     public void testOfferNonComparable() {
         PriorityQueue<Object> q = new PriorityQueue<>(1);
         try {
-            q.offer(java.util.Objects.newIdentity());
+            q.offer(new Object());
             shouldThrow();
         } catch (ClassCastException success) {
             assertTrue(q.isEmpty());

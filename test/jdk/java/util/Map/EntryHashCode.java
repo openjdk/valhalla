@@ -63,7 +63,7 @@ public class EntryHashCode {
                     return (hashCode() - o.hashCode());
                 }
             };
-            entryData[1][i] = java.util.Objects.newIdentity();
+            entryData[1][i] = new Object();
         }
     }
 

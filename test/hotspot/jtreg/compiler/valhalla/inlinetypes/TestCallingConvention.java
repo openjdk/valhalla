@@ -1134,9 +1134,9 @@ public class TestCallingConvention {
     }
 
     // Test stack repair with stack slots reserved for monitors
-    private static final Object lock1 = java.util.Objects.newIdentity();
-    private static final Object lock2 = java.util.Objects.newIdentity();
-    private static final Object lock3 = java.util.Objects.newIdentity();
+    private static final Object lock1 = new Object();
+    private static final Object lock2 = new Object();
+    private static final Object lock3 = new Object();
 
     @DontInline
     static void test51_callee() { }

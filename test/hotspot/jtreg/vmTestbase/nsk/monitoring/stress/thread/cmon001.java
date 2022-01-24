@@ -45,7 +45,7 @@ public class cmon001 {
     private static volatile boolean testFailed = false;
     private static Integer calculated;
     private static String calculatedSync = "abc";
-    private static Object common = java.util.Objects.newIdentity();
+    private static Object common = new Object();
     private static Object[] finishBarriers;
     private static long[] startTime;
     private static long[] endTime;
@@ -78,7 +78,7 @@ public class cmon001 {
         waitedTime = new long[threadCount];
 
         for (int i = 0; i < threadCount; i++)
-            finishBarriers[i] = java.util.Objects.newIdentity();
+            finishBarriers[i] = new Object();
 
         // Begin a loop which will start a number of threads
         for (int time = 0; time < ITERATIONS; time++) {
@@ -164,8 +164,8 @@ public class cmon001 {
         int time;
         Log log;
         ThreadMonitor monitor;
-        Object constBarrier = java.util.Objects.newIdentity();
-        Object varBarrier = java.util.Objects.newIdentity();
+        Object constBarrier = new Object();
+        Object varBarrier = new Object();
 
         MyThread(int num, int time, Log log, ThreadMonitor monitor) {
             this.num = num;

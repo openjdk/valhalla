@@ -123,7 +123,7 @@ public class KeyAgreement {
         firstService = s;
         serviceIterator = t;
         this.algorithm = algorithm;
-        lock = java.util.Objects.newIdentity();
+        lock = new Object();
     }
 
     /**

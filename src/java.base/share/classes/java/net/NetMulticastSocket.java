@@ -49,7 +49,7 @@ final class NetMulticastSocket extends MulticastSocket {
     private boolean bound = false;
     private boolean closed = false;
     private volatile boolean created;
-    private final Object closeLock = java.util.Objects.newIdentity();
+    private final Object closeLock = new Object();
 
     /*
      * The implementation of this DatagramSocket.
@@ -603,7 +603,7 @@ final class NetMulticastSocket extends MulticastSocket {
     }
 
     private volatile Set<SocketOption<?>> options;
-    private final Object optionsLock = java.util.Objects.newIdentity();
+    private final Object optionsLock = new Object();
 
     @Override
     public Set<SocketOption<?>> supportedOptions() {
@@ -637,13 +637,13 @@ final class NetMulticastSocket extends MulticastSocket {
      * The lock on the socket's TTL. This is for set/getTTL and
      * send(packet,ttl).
      */
-    private final Object ttlLock = java.util.Objects.newIdentity();
+    private final Object ttlLock = new Object();
 
     /**
      * The lock on the socket's interface - used by setInterface
      * and getInterface
      */
-    private final Object infLock = java.util.Objects.newIdentity();
+    private final Object infLock = new Object();
 
     /**
      * The "last" interface set by setInterface on this MulticastSocket

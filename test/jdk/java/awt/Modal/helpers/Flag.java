@@ -29,7 +29,7 @@ public class Flag {
     public static final int ATTEMPTS = 50;
 
     private volatile boolean flag;
-    private final Object monitor = java.util.Objects.newIdentity();
+    private final Object monitor = new Object();
     private final long delay;
 
     public Flag() {

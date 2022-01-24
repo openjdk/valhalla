@@ -48,7 +48,7 @@ public class ConcurrentWritingTest extends Thread {
 
     private static int MAX_THREADS = 50;
     private static int completeCount = 0;
-    private static Object lock = java.util.Objects.newIdentity();
+    private static Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
         img = createTestImage();

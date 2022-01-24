@@ -50,8 +50,8 @@ public class popframe002 {
     static volatile int totRes = PASSED;
     private PrintStream out;
     private popFrameCls popFrameClsThr;
-    static Object readi = java.util.Objects.newIdentity(); // for notification about readiness
-    static Object barrier = java.util.Objects.newIdentity(); // for suspending a child thread
+    static Object readi = new Object(); // for notification about readiness
+    static Object barrier = new Object(); // for suspending a child thread
 
     static {
         try {

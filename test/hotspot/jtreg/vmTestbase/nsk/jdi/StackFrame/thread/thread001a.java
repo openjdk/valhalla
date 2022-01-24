@@ -152,8 +152,8 @@ class Threadthread001a extends NamedTask {
         super(threadName);
     }
 
-    public static Object waitnotifyObj = java.util.Objects.newIdentity();
-    public static Object lockingObject = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj = new Object();
+    public static Object lockingObject = new Object();
 
     public void run() {
         log("method 'run' enter");

@@ -44,8 +44,8 @@ public class ThreadMXBeanProxy {
         ManagementFactory.getPlatformMBeanServer();
     private static ThreadMXBean mbean;
     static Mutex mutex = new Mutex();
-    static Object lock = java.util.Objects.newIdentity();
-    static Object waiter = java.util.Objects.newIdentity();
+    static Object lock = new Object();
+    static Object waiter = new Object();
     static MyThread thread = new MyThread();
     public static void main(String[] argv) throws Exception {
         mbean = newPlatformMXBeanProxy(server,

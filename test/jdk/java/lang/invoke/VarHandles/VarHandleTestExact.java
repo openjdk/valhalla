@@ -79,12 +79,12 @@ public class VarHandleTestExact {
         double doubleField_RW;
         Long aLongField_RW;
 
-        final static Object objectField_SRO = java.util.Objects.newIdentity();
+        final static Object objectField_SRO = new Object();
         final static long longField_SRO = 1234L;
         final static double doubleField_SRO = 1234D;
         final static Long aLongField_SRO = 1234L;
 
-        final Object objectField_RO = java.util.Objects.newIdentity();
+        final Object objectField_RO = new Object();
         final long longField_RO = 1234L;
         final double doubleField_RO = 1234D;
         final Long aLongField_RO = 1234L;

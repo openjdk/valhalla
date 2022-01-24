@@ -40,7 +40,7 @@ public class HiddenCantReflect implements HiddenTest {
 
         local = getThis();
 
-        set_other_maybe(java.util.Objects.newIdentity());
+        set_other_maybe(new Object());
         set_other_maybe(this);
         return "HiddenCantReflect";
     }

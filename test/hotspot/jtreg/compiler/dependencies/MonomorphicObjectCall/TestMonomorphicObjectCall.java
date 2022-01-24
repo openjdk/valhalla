@@ -47,6 +47,6 @@ public class TestMonomorphicObjectCall {
 
     public static void main(String[] args) throws Throwable {
         // Trigger compilation of 'callFinalize'
-        callFinalize(java.util.Objects.newIdentity());
+        callFinalize(new Object());
     }
 }

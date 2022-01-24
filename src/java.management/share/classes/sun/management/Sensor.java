@@ -48,7 +48,7 @@ import java.util.HashMap;
  */
 
 public abstract class Sensor {
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
     private final String name;
     private long count;                 // VM-initialized to 0
     private boolean on;                 // VM-initialized to false

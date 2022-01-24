@@ -61,7 +61,7 @@ public class TestDropReturn {
             { long.class,    10L          },
             { float.class,   10F          },
             { double.class,  10D          },
-            { Object.class,  java.util.Objects.newIdentity() },
+            { Object.class,  new Object() },
             { String.class,  "ABCD"       },
         };
     }

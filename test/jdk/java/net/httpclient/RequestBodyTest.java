@@ -263,7 +263,7 @@ public class RequestBodyTest {
                 assertEquals(ba, fileAsBytes);
                 break;
             case DISCARD:
-                Object o = java.util.Objects.newIdentity();
+                Object o = new Object();
                 BodyHandler<Object> bh2 = BodyHandlers.replacing(o);
                 if (bufferResponseBody) bh2 = BodyHandlers.buffering(bh2, 51);
                 HttpResponse<Object> or = getResponse(client, request, bh2, async);

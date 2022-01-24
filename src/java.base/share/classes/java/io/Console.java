@@ -611,8 +611,8 @@ public final class Console implements Flushable
     private static Console cons;
     private static native boolean istty();
     private Console() {
-        readLock = java.util.Objects.newIdentity();
-        writeLock = java.util.Objects.newIdentity();
+        readLock = new Object();
+        writeLock = new Object();
         out = StreamEncoder.forOutputStreamWriter(
                   new FileOutputStream(FileDescriptor.out),
                   writeLock,

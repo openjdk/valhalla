@@ -35,7 +35,7 @@ class tc02t001Thread extends Thread {
     public Wicket waitingBarrier1 = new Wicket();
     public Wicket waitingBarrier2 = new Wicket();
     public Wicket waitingBarrier3 = new Wicket();
-    public Object M = java.util.Objects.newIdentity();
+    public Object M = new Object();
 
     public tc02t001Thread(String name) {
         super(name);

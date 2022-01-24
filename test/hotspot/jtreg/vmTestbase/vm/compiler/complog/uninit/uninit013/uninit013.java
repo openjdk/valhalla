@@ -56,8 +56,8 @@ public class uninit013 {
         uninit013 u = new uninit013();
 
         for(int i = 0; i<Constants.LOOP_ITERATIONS; i++) {
-            u.field = java.util.Objects.newIdentity();
-            uninit013.staticField = java.util.Objects.newIdentity();
+            u.field = new Object();
+            uninit013.staticField = new Object();
         }
     }
 

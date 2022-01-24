@@ -40,7 +40,7 @@ import lib.jdb.JdbTest;
 import java.util.regex.*;
 
 class JdbStopThreadidTestTarg {
-    static Object lockObj = java.util.Objects.newIdentity();
+    static Object lockObj = new Object();
 
     public static void main(String[] args) {
         test();

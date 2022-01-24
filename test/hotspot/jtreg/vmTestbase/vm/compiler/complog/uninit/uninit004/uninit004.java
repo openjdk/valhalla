@@ -59,7 +59,7 @@ public class uninit004 {
     }
 
     public Object copy() {
-        return java.util.Objects.newIdentity();
+        return new Object();
     }
 
     public static void main(String args[]) {

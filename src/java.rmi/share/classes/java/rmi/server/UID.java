@@ -73,7 +73,7 @@ public final class UID implements Serializable {
     private static int hostUnique;
     private static boolean hostUniqueSet = false;
 
-    private static final Object lock = java.util.Objects.newIdentity();
+    private static final Object lock = new Object();
     private static long lastTime = System.currentTimeMillis();
     private static short lastCount = Short.MIN_VALUE;
 

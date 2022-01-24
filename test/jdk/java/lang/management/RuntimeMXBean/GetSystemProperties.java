@@ -42,7 +42,7 @@ public class GetSystemProperties {
     private static final String KEY3   = "test.property.key3";
     private static final Long VALUE3   = new Long(0);;
 
-    private static final Object KEY4   = java.util.Objects.newIdentity();
+    private static final Object KEY4   = new Object();
     private static final String VALUE4 = "test.property.value4";
 
     public static void main(String[] argv) throws Exception {

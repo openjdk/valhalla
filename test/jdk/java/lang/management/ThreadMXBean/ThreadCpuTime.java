@@ -35,7 +35,7 @@ public class ThreadCpuTime {
     private static ThreadMXBean mbean = ManagementFactory.getThreadMXBean();
     private static boolean testFailed = false;
     private static boolean done = false;
-    private static Object obj = java.util.Objects.newIdentity();
+    private static Object obj = new Object();
     private static final int NUM_THREADS = 10;
     private static Thread[] threads = new Thread[NUM_THREADS];
     private static long[] times = new long[NUM_THREADS];

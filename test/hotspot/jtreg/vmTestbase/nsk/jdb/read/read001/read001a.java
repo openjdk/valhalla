@@ -89,8 +89,8 @@ class read001aTestedClass {
 
 class read001aTestedThread extends Thread {
 
-    Object startingMonitor = java.util.Objects.newIdentity();
-    Object finishingMonitor = java.util.Objects.newIdentity();
+    Object startingMonitor = new Object();
+    Object finishingMonitor = new Object();
 
     public read001aTestedThread(String name) {
         super(name);

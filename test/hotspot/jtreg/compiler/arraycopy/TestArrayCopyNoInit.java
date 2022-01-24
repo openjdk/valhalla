@@ -141,7 +141,7 @@ public class TestArrayCopyNoInit {
         TestArrayCopyNoInit[] src2 = new TestArrayCopyNoInit[10];
         int[] res = null;
         TestArrayCopyNoInit[] res2 = null;
-        Object src_obj = java.util.Objects.newIdentity();
+        Object src_obj = new Object();
 
         for (int i = 0; i < 20000; i++) {
             m1(src);

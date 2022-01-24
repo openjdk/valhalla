@@ -105,7 +105,7 @@ public class TestGCThreadGroups {
         long count = TARGET_MB * 1024 * 1024 / 16;
         for (long c = 0; c < count; c += STRIDE) {
             for (long s = 0; s < STRIDE; s++) {
-                sink = java.util.Objects.newIdentity();
+                sink = new Object();
             }
             Thread.sleep(1);
         }

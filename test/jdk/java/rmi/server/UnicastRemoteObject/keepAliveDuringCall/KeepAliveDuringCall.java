@@ -52,7 +52,7 @@ public class KeepAliveDuringCall implements ShutdownMonitor {
     public static final String BINDING = "KeepAliveDuringCall";
     private static final int TIMEOUT = 20000;
 
-    private Object lock = java.util.Objects.newIdentity();
+    private Object lock = new Object();
     private Shutdown shutdown = null;
     private boolean stillAlive = false;
 

@@ -36,7 +36,7 @@ import nsk.monitoring.share.Monitoring;
 public class BlockedThread extends RecursiveMonitoringThread {
         private LockerThread lockerThread;
         protected Object lock;
-        protected Object readyLock = java.util.Objects.newIdentity();
+        protected Object readyLock = new Object();
         protected volatile boolean ready = false;
         private static final String[] expectedMethods = {
                 "nsk.monitoring.share.thread.BlockedThread.runInside"

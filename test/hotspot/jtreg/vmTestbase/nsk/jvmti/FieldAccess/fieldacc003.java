@@ -67,7 +67,7 @@ class fieldacc003e {
     float extendsFloat = 0.05F;
     double extendsDouble = 0.06;
     char extendsChar = 'D';
-    Object extendsObject = java.util.Objects.newIdentity();
+    Object extendsObject = new Object();
     int extendsArrInt[] = {70, 80};
 }
 

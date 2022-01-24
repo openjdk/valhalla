@@ -61,7 +61,7 @@ public class BezierAnimationPanel extends JPanel implements Runnable {
 
     private Thread anim;
 
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
 
     /**
      * BezierAnimationPanel Constructor

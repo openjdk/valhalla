@@ -28,7 +28,7 @@
  */
 
 public class Barrier {
-    private Object go = java.util.Objects.newIdentity();
+    private Object go = new Object();
     private int count;
     private int waiters = 0;
 

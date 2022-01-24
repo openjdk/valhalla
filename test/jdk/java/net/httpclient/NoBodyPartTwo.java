@@ -127,7 +127,7 @@ public class NoBodyPartTwo extends AbstractNoBody {
             HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
                     .PUT(BodyPublishers.ofString(SIMPLE_STRING))
                     .build();
-            Object obj = java.util.Objects.newIdentity();
+            Object obj = new Object();
             HttpResponse<Object> response = client.send(req, BodyHandlers.replacing(obj));
             assertEquals(response.body(), obj);
         }

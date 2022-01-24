@@ -64,11 +64,11 @@ public class SctpServerChannelImpl extends SctpServerChannel
     private volatile long thread = 0;
 
     /* Lock held by thread currently blocked in this channel */
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
 
     /* Lock held by any thread that modifies the state fields declared below
      * DO NOT invoke a blocking I/O operation while holding this lock! */
-    private final Object stateLock = java.util.Objects.newIdentity();
+    private final Object stateLock = new Object();
 
     private enum ChannelState {
         UNINITIALIZED,

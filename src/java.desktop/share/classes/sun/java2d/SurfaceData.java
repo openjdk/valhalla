@@ -109,7 +109,7 @@ public abstract class SurfaceData
     private SurfaceType surfaceType;
     private ColorModel colorModel;
 
-    private Object disposerReferent = java.util.Objects.newIdentity();
+    private Object disposerReferent = new Object();
 
     private static native void initIDs();
 

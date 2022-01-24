@@ -44,7 +44,7 @@ import test.java.awt.regtesthelpers.Util;
 public class LoopRobustness {
 
     final static long TIMEOUT = 5000;
-    final static Object LOCK = java.util.Objects.newIdentity();
+    final static Object LOCK = new Object();
 
     public static int clicks = 0;
     public static volatile boolean notifyOccured = false;

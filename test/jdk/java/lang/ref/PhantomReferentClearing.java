@@ -63,7 +63,7 @@ public class PhantomReferentClearing {
     private static final ReferenceQueue<Object> Q1 = new ReferenceQueue<>();
     private static final ReferenceQueue<Object> Q2 = new ReferenceQueue<>();
 
-    private static volatile Object O2 = java.util.Objects.newIdentity();
+    private static volatile Object O2 = new Object();
     private static volatile List<Object> O1 = new ArrayList<>();
     static {
         O1.add(O2);

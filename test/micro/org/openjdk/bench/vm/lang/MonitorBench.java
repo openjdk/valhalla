@@ -61,7 +61,7 @@ public class MonitorBench {
     public void setup() {
         sharedLocks = new Object[locksSize];
         for (int i = 0; i < locksSize; i++) {
-            sharedLocks[i] = java.util.Objects.newIdentity();
+            sharedLocks[i] = new Object();
         }
     }
 

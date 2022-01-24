@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  */
 
 public class InvokeVirtual extends CallsBase {
-    private static final Object LOCK = java.util.Objects.newIdentity();
+    private static final Object LOCK = new Object();
 
     public static void main(String args[]) {
         new InvokeVirtual().runTest(args);

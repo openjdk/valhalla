@@ -586,7 +586,7 @@ public class LingeredApp {
         Path path = Paths.get(theLockFileName);
 
         try {
-            Object steadyStateObj = java.util.Objects.newIdentity();
+            Object steadyStateObj = new Object();
             synchronized(steadyStateObj) {
                 startSteadyStateThread(steadyStateObj);
                 if (forceCrash) {

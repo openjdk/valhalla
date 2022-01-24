@@ -32,9 +32,9 @@ import java.beans.Expression;
 
 public class Test6707226 {
     public static void main(String[] args) throws Exception {
-        Object value = java.util.Objects.newIdentity();
+        Object value = new Object();
 
-        Expression expression = new Expression(value, java.lang.Identity.class, "new", null);
+        Expression expression = new Expression(value, Object.class, "new", null);
         if (!value.equals(expression.getValue()))
             throw new Error("the value is updated unexpectedly");
 

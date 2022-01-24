@@ -37,9 +37,9 @@ public class MonitorDeadlock {
     private Barrier go = new Barrier(1);
     private Barrier barr = new Barrier(EXPECTED_THREADS);
 
-    private Object a = java.util.Objects.newIdentity();
-    private Object b = java.util.Objects.newIdentity();
-    private Object c = java.util.Objects.newIdentity();
+    private Object a = new Object();
+    private Object b = new Object();
+    private Object c = new Object();
     private Thread[] dThreads = new Thread[EXPECTED_THREADS];
 
     public MonitorDeadlock() {

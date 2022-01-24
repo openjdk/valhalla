@@ -46,7 +46,7 @@ public class popframe004 {
     static volatile int totRes = PASSED;
     private PrintStream out;
     private popFrameCls popFrameClsThr;
-    static Object barrier = java.util.Objects.newIdentity(); // for suspending a child thread
+    static Object barrier = new Object(); // for suspending a child thread
 
     static {
         try {

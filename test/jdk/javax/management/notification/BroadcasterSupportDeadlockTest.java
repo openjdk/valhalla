@@ -153,7 +153,7 @@ public class BroadcasterSupportDeadlockTest {
             extends NotificationBroadcasterSupport
             implements BroadcasterMBean {
         public synchronized void block(Semaphore semaphore) {
-            Object lock = java.util.Objects.newIdentity();
+            Object lock = new Object();
             synchronized (lock) {
                 try {
                     // Let the caller know that it can now wait for us to

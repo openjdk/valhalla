@@ -58,7 +58,7 @@ public class sp02t003 extends DebugeeClass {
     int status = Consts.TEST_PASSED;
 
     // monitors for threads synchronization
-    static Object endingMonitor = java.util.Objects.newIdentity();
+    static Object endingMonitor = new Object();
 
     // tested threads list
     sp02t003Thread threads[] = null;
@@ -125,7 +125,7 @@ public class sp02t003 extends DebugeeClass {
 
 // basic class for tested threads
 abstract class sp02t003Thread extends Thread {
-    public Object startingMonitor = java.util.Objects.newIdentity();
+    public Object startingMonitor = new Object();
 
     // make thread with specific name
     public sp02t003Thread(String name) {
@@ -213,7 +213,7 @@ class sp02t003ThreadEntering extends sp02t003Thread {
 }
 
 class sp02t003ThreadWaiting extends sp02t003Thread {
-    private Object waitingMonitor = java.util.Objects.newIdentity();
+    private Object waitingMonitor = new Object();
 
     public sp02t003ThreadWaiting(String name) {
         super(name);
@@ -281,7 +281,7 @@ class sp02t003ThreadSleeping extends sp02t003Thread {
 }
 
 class sp02t003ThreadRunningInterrupted extends sp02t003Thread {
-    private Object waitingMonitor = java.util.Objects.newIdentity();
+    private Object waitingMonitor = new Object();
     private volatile boolean shouldFinish = false;
 
     public sp02t003ThreadRunningInterrupted(String name) {

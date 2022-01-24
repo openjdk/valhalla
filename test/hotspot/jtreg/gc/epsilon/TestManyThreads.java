@@ -79,7 +79,7 @@ public class TestManyThreads {
 
   public static void workload() {
     try {
-      sink = java.util.Objects.newIdentity();
+      sink = new Object();
       allocated.incrementAndGet();
       Thread.sleep(3600 * 1000);
     } catch (Throwable e) {

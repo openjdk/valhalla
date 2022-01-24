@@ -39,7 +39,7 @@ import sun.awt.AppContext;
  */
 public class MotifLabelUI extends BasicLabelUI
 {
-    private static final Object MOTIF_LABEL_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object MOTIF_LABEL_UI_KEY = new Object();
 
     public static ComponentUI createUI(JComponent c) {
         AppContext appContext = AppContext.getAppContext();

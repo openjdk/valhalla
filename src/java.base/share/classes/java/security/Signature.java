@@ -1131,7 +1131,7 @@ public abstract class Signature extends SignatureSpi {
             super(algorithm);
             this.firstService = service;
             this.serviceIterator = iterator;
-            this.lock = java.util.Objects.newIdentity();
+            this.lock = new Object();
         }
 
         /**

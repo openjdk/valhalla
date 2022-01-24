@@ -38,7 +38,7 @@ public class ImplicitToString {
     public static void main(String[] args) {
         String s = "";
         ArrayList al = new ArrayList();
-        al.add(java.util.Objects.newIdentity());
+        al.add(new Object());
 
         // In the following line, toString() should be implicitly called.
         s += al.get(0);

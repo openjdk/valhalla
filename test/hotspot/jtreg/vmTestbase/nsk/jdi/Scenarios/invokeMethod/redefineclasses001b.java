@@ -44,8 +44,8 @@ public class redefineclasses001b extends Thread{
     public final static String methodName = "runIt";
     public final static String flagName = "flag";
 
-    public static Object waitStarting = java.util.Objects.newIdentity();
-    public static Object waitFinishing = java.util.Objects.newIdentity();
+    public static Object waitStarting = new Object();
+    public static Object waitFinishing = new Object();
     public volatile static boolean notified = false;
 
     public void run() {

@@ -42,8 +42,8 @@ public class stepreq001t {
         argHandler = new ArgumentHandler(args);
         IOPipe pipe = argHandler.createDebugeeIOPipe();
         Thread  thrs[] = new Thread[stepreq001.THRDS_NUM];
-        Object lockObj = java.util.Objects.newIdentity();
-        Object readyObj = java.util.Objects.newIdentity();
+        Object lockObj = new Object();
+        Object readyObj = new Object();
         String cmd;
 
 // Create several dummy threads and give them new names

@@ -41,9 +41,9 @@ public class ownmonitors001a {
     public static final String NOT_OWNED_MONITOR_FIELD_NAME = "notOwnedMonitor";
 
     // notification object to notify debuggee that thread is ready
-    private static Object threadReady = java.util.Objects.newIdentity();
+    private static Object threadReady = new Object();
     // lock object to prevent thread from exit
-    private static Object threadLock = java.util.Objects.newIdentity();
+    private static Object threadLock = new Object();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;
@@ -112,10 +112,10 @@ public class ownmonitors001a {
         public static volatile TestedClass thread = null;
 
         // field with object whose monitor the tested thread owns
-        public static Object ownedMonitor = java.util.Objects.newIdentity();
+        public static Object ownedMonitor = new Object();
 
         // field with object whose monitor the tested thread does not own
-        public static Object notOwnedMonitor = java.util.Objects.newIdentity();
+        public static Object notOwnedMonitor = new Object();
 
         TestedClass(String name) {
             super(name);

@@ -28,6 +28,6 @@ class StaticInit {
     }
 
     static Object get() {
-        return java.util.Objects.newIdentity();
+        return new Object();
     }
 }

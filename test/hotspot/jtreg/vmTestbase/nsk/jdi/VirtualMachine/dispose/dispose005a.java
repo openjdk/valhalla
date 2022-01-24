@@ -188,10 +188,10 @@ class Threaddispose005a extends Thread {
         super(threadName);
     }
 
-    public static Object waitnotifyObj  = java.util.Objects.newIdentity();
-    public static Object lockingObject  = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj  = new Object();
+    public static Object lockingObject  = new Object();
 
-    public static Object waitnotifyObj3  = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj3  = new Object();
 
     public boolean done = false;
 
@@ -233,8 +233,8 @@ class Threaddispose005a extends Thread {
     public static final int breakpointLineNumber1 = 3;
 
 
-    public static Object waitnotifyObj2  = java.util.Objects.newIdentity();
-    public static Object lockingObject2  = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj2  = new Object();
+    public static Object lockingObject2  = new Object();
 
     public static void runt2() {
 

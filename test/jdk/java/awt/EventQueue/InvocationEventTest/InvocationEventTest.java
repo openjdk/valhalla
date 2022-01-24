@@ -51,12 +51,12 @@ import java.awt.event.*;
 public class InvocationEventTest {
     EventQueue eventQ1 = new EventQueue();
 
-    Object lock = java.util.Objects.newIdentity();
+    Object lock = new Object();
 
     static final int delay = 5000;
 
     public volatile boolean notifierStatus = false;
-    public Object notifierLock = java.util.Objects.newIdentity();
+    public Object notifierLock = new Object();
 
     public volatile boolean threadStatus = false;
     public volatile boolean childInvoked = false;

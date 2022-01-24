@@ -112,7 +112,7 @@ import sun.nio.ch.FileChannelImpl;
 
 public abstract class FileSystemProvider {
     // lock using when loading providers
-    private static final Object lock = java.util.Objects.newIdentity();
+    private static final Object lock = new Object();
 
     // installed providers
     private static volatile List<FileSystemProvider> installedProviders;

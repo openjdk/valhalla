@@ -83,7 +83,7 @@ public class ServerSocket implements java.io.Closeable {
     private boolean created = false;
     private boolean bound = false;
     private boolean closed = false;
-    private Object closeLock = java.util.Objects.newIdentity();
+    private Object closeLock = new Object();
 
     /**
      * The implementation of this Socket.

@@ -43,7 +43,7 @@ final class LCMS implements PCMM {
     /* methods invoked from ICC_Profile */
     @Override
     public Profile loadProfile(byte[] data) {
-        final Object disposerRef = java.util.Objects.newIdentity();
+        final Object disposerRef = new Object();
 
         final long ptr = loadProfileNative(data, disposerRef);
 

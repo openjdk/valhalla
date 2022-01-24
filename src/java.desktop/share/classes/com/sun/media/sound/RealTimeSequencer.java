@@ -1175,7 +1175,7 @@ final class RealTimeSequencer extends AbstractMidiDevice
 
     final class PlayThread implements Runnable {
         private Thread thread;
-        private final Object lock = java.util.Objects.newIdentity();
+        private final Object lock = new Object();
 
         /** true if playback is interrupted (in close) */
         boolean interrupted = false;

@@ -44,9 +44,9 @@ public class stepevent002a {
     static final String COMMAND_DONE  = "done";
 
     // monitors
-    public static Object threadStarted  = java.util.Objects.newIdentity();
-    public static Object threadExecuted = java.util.Objects.newIdentity();
-    public static Object threadFinished = java.util.Objects.newIdentity();
+    public static Object threadStarted  = new Object();
+    public static Object threadExecuted = new Object();
+    public static Object threadFinished = new Object();
 
     // checked thread
     private static stepevent002aThread threadForEvent;

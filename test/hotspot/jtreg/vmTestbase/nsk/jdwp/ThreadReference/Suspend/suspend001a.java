@@ -39,9 +39,9 @@ public class suspend001a {
     public static final String FIELD_NAME = "thread";
 
     // notification object to notify debuggee that thread started
-    private static Object threadStarted = java.util.Objects.newIdentity();
+    private static Object threadStarted = new Object();
     // lock object to prevent thread from exit
-    private static Object threadLock = java.util.Objects.newIdentity();
+    private static Object threadLock = new Object();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;

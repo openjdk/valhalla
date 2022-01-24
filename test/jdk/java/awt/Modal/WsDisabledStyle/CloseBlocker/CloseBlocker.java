@@ -73,7 +73,7 @@ public class CloseBlocker
 
     }//End  init()
 
-    private static final Object obj = java.util.Objects.newIdentity();
+    private static final Object obj = new Object();
     private static int counter = 0;
 
     /*

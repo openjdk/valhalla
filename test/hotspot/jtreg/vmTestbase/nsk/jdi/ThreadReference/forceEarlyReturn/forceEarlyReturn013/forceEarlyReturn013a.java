@@ -29,15 +29,15 @@ import nsk.share.jdi.*;
 //    THIS TEST IS LINE NUMBER SENSITIVE
 class TestThread implements Runnable {
     // locks acquired through synchronized block
-    public static Object javaLock1 = java.util.Objects.newIdentity();
+    public static Object javaLock1 = new Object();
 
-    public static Object javaLock2 = java.util.Objects.newIdentity();
+    public static Object javaLock2 = new Object();
 
-    public static Object javaLock3 = java.util.Objects.newIdentity();
+    public static Object javaLock3 = new Object();
 
-    public static Object javaLock4 = java.util.Objects.newIdentity();
+    public static Object javaLock4 = new Object();
 
-    public static Object javaLock5 = java.util.Objects.newIdentity();
+    public static Object javaLock5 = new Object();
 
     private forceEarlyReturn013a testObject;
 

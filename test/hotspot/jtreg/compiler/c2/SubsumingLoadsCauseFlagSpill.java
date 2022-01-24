@@ -41,7 +41,7 @@ public class SubsumingLoadsCauseFlagSpill {
             field = null;
             test(0);
             do_throw = false;
-            field = java.util.Objects.newIdentity();
+            field = new Object();
             test(0);
         }
     }

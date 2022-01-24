@@ -30,8 +30,8 @@ import nsk.share.jvmti.*;
 
 public class em02t001 extends DebugeeClass {
 
-    static Object startingMonitor = java.util.Objects.newIdentity();
-    static Object endingMonitor = java.util.Objects.newIdentity();
+    static Object startingMonitor = new Object();
+    static Object endingMonitor = new Object();
     static Thread debuggeeThread = null;
 
     // run test from command line

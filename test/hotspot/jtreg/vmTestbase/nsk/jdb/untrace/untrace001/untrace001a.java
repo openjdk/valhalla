@@ -45,8 +45,8 @@ public class untrace001a {
     static JdbArgumentHandler argumentHandler;
     static Log log;
 
-    static Object mainThreadLock0 = java.util.Objects.newIdentity();
-    static Object mainThreadLock1 = java.util.Objects.newIdentity();
+    static Object mainThreadLock0 = new Object();
+    static Object mainThreadLock1 = new Object();
     static volatile boolean mainThreadRunning;
     static volatile boolean[] flags = new boolean[numThreads];
 
@@ -60,7 +60,7 @@ public class untrace001a {
         Object[] locks = new Object[numThreads];
 
         for (i = 0; i < numThreads ; i++) {
-            locks[i]  = java.util.Objects.newIdentity();
+            locks[i]  = new Object();
             holder[i] = new MyThread(locks[i], i, MYTHREAD + "-" + i);
         }
 

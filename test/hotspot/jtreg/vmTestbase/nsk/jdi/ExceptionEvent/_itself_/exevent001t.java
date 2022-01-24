@@ -49,7 +49,7 @@ public class exevent001t {
                 } catch (exevent001tException e) {}
                 break;
             case 2: // raise IllegalMonitorStateException then catch it
-                Object obj = java.util.Objects.newIdentity();
+                Object obj = new Object();
                 try {
                     obj.notify();
                 } catch (IllegalMonitorStateException e) {}

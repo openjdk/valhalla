@@ -44,7 +44,7 @@ import javax.swing.plaf.*;
  */
 public class DefaultSynthStyle extends SynthStyle implements Cloneable {
 
-    private static final Object PENDING = java.util.Objects.newIdentity();
+    private static final Object PENDING = new Object();
 
     /**
      * Should the component be opaque?

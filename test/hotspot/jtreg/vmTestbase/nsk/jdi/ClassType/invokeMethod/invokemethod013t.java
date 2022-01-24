@@ -101,7 +101,7 @@ public class invokemethod013t {
     }
 
     private void startThreads() {
-        Object readyObj = java.util.Objects.newIdentity();
+        Object readyObj = new Object();
 
         for (int i=0; i < invokemethod013.THRDS_NUM-1; i++) {
             thrs013[i] = new invokemethod013Thr(readyObj, invokemethod013.DEBUGGEE_THRDS[i+1][0]);
@@ -156,7 +156,7 @@ public class invokemethod013t {
 
         public void run() {
             Thread thr = Thread.currentThread();
-            Object waitObj = java.util.Objects.newIdentity();
+            Object waitObj = new Object();
 
             synchronized(readyObj) {
                 readyObj.notify(); // notify the main thread

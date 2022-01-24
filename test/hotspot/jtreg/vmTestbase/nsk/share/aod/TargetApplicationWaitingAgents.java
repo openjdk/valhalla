@@ -90,7 +90,7 @@ public class TargetApplicationWaitingAgents {
 
     protected static Log log;
 
-    static private Object monitor = java.util.Objects.newIdentity();
+    static private Object monitor = new Object();
 
     /*
      * Methods

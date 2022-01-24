@@ -154,7 +154,7 @@ public class EmptyClipRenderingTest {
      */
     private BufferedImage testOnscreen() throws HeadlessException {
         final Canvas destComponent;
-        final Object lock = java.util.Objects.newIdentity();
+        final Object lock = new Object();
         Frame f = new Frame("Test Frame");
         f.setUndecorated(true);
         f.add(destComponent = new Canvas() {

@@ -52,7 +52,7 @@ public class VMOperationTest {
         public static volatile WeakReference<Object> weakref;
 
         public static void createweakref() {
-            Object o = java.util.Objects.newIdentity();
+            Object o = new Object();
             weakref = new WeakReference<>(o);
         }
 

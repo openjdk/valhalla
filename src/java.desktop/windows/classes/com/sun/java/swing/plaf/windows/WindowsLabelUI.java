@@ -42,7 +42,7 @@ import sun.swing.SwingUtilities2;
  */
 public class WindowsLabelUI extends BasicLabelUI {
 
-    private static final Object WINDOWS_LABEL_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object WINDOWS_LABEL_UI_KEY = new Object();
 
     // ********************************
     //          Create PLAF

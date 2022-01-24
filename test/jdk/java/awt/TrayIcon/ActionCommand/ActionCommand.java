@@ -45,7 +45,7 @@ public class ActionCommand {
     ExtendedRobot robot;
 
     boolean actionPerformed = false;
-    Object actionLock = java.util.Objects.newIdentity();
+    Object actionLock = new Object();
     String actionCommand = null;
     static boolean isMacOS = false;
 

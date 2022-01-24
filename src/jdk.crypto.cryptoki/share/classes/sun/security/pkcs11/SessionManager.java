@@ -113,7 +113,7 @@ final class SessionManager {
         this.objSessions = new Pool(this, true);
         this.opSessions = new Pool(this, false);
         if (debug != null) {
-            maxActiveSessionsLock = java.util.Objects.newIdentity();
+            maxActiveSessionsLock = new Object();
         }
     }
 

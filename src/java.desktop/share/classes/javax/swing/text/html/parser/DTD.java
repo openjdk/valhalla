@@ -406,7 +406,7 @@ class DTD implements DTDConstants {
     /**
      * The hashtable key of DTDs in AppContext.
      */
-    private static final Object DTD_HASH_KEY = java.util.Objects.newIdentity();
+    private static final Object DTD_HASH_KEY = new Object();
 
     /**
      * Put a name and appropriate DTD to hashtable.

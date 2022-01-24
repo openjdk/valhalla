@@ -131,7 +131,7 @@ public class GCHelper {
     private static void makeGarbage() {
         Object[] garbage = new Object[1024];
         for (int i = 0; i < 1024; i++) {
-            garbage[i] = java.util.Objects.newIdentity();
+            garbage[i] = new Object();
         }
     }
 

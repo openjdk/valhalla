@@ -29,8 +29,8 @@ package nsk.monitoring.share.thread;
  */
 public class LockerThread extends Thread {
         private String lock = new String("a lock");
-        private Object ready = java.util.Objects.newIdentity();
-        private Object lockit = java.util.Objects.newIdentity();
+        private Object ready = new Object();
+        private Object lockit = new Object();
         private volatile boolean locked = false;
 
         public Object getLock() {

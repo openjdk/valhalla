@@ -189,7 +189,7 @@ public class IdentityHashMap<K,V>
     /**
      * Value representing null keys inside tables.
      */
-    static final Object NULL_KEY = java.util.Objects.newIdentity();
+    static final Object NULL_KEY = new Object();
 
     /**
      * Use NULL_KEY for key if it is null.

@@ -39,7 +39,7 @@ import sun.awt.AppContext;
  */
 public class MotifCheckBoxUI extends MotifRadioButtonUI {
 
-    private static final Object MOTIF_CHECK_BOX_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object MOTIF_CHECK_BOX_UI_KEY = new Object();
 
     private static final String propertyPrefix = "CheckBox" + ".";
 

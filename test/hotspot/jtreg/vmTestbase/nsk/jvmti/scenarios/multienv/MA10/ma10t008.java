@@ -105,9 +105,9 @@ public class ma10t008 extends DebugeeClass {
 /* =================================================================== */
 
 class ma10t008Thread extends Thread {
-    public Object startingMonitor = java.util.Objects.newIdentity();
-    public Object endingMonitor = java.util.Objects.newIdentity();
-    private Object waitingMonitor = java.util.Objects.newIdentity();
+    public Object startingMonitor = new Object();
+    public Object endingMonitor = new Object();
+    private Object waitingMonitor = new Object();
     private long timeout = 0;
 
     public ma10t008Thread(String name, long timeout) {

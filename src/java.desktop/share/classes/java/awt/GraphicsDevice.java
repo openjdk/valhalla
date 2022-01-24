@@ -80,7 +80,7 @@ public abstract class GraphicsDevice {
                                              // created the FS window
     // this lock is used for making synchronous changes to the AppContext's
     // current full screen window
-    private final Object fsAppContextLock = java.util.Objects.newIdentity();
+    private final Object fsAppContextLock = new Object();
 
     private Rectangle windowedModeBounds;
 

@@ -568,7 +568,7 @@ public abstract class KeyPairGenerator extends KeyPairGeneratorSpi {
         // The provider implementation (delegate)
         private volatile KeyPairGeneratorSpi spi;
 
-        private final Object lock = java.util.Objects.newIdentity();
+        private final Object lock = new Object();
 
         private Iterator<Service> serviceIterator;
 

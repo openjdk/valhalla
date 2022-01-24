@@ -214,8 +214,8 @@ public class BeansLinkerTest {
 
     @Test
     public static void testMissingMembersAtLinkTime() {
-        testPermutations(GETTER_PERMUTATIONS, (op) -> expectNoSuchDynamicMethodException(()-> call(op.named("foo"), java.util.Objects.newIdentity())));
-        testPermutations(SETTER_PERMUTATIONS, (op) -> expectNoSuchDynamicMethodException(()-> call(op.named("foo"), java.util.Objects.newIdentity(), "newValue")));
+        testPermutations(GETTER_PERMUTATIONS, (op) -> expectNoSuchDynamicMethodException(()-> call(op.named("foo"), new Object())));
+        testPermutations(SETTER_PERMUTATIONS, (op) -> expectNoSuchDynamicMethodException(()-> call(op.named("foo"), new Object(), "newValue")));
     }
 
     @Test

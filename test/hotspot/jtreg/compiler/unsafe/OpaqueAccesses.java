@@ -74,7 +74,7 @@ public class OpaqueAccesses {
         }
     }
 
-    private Object f = java.util.Objects.newIdentity();
+    private Object f = new Object();
     private long l1, l2;
 
     static Object testFixedOffsetField(Object o) {

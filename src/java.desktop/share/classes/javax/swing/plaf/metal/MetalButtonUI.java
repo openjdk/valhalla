@@ -70,7 +70,7 @@ public class MetalButtonUI extends BasicButtonUI {
      */
     protected Color disabledTextColor;
 
-    private static final Object METAL_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object METAL_BUTTON_UI_KEY = new Object();
 
     // ********************************
     //          Create PLAF

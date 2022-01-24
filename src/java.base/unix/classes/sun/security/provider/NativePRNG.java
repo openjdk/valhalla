@@ -375,13 +375,13 @@ public final class NativePRNG extends SecureRandomSpi {
         private static final int REQ_LIMIT_DEC = -100;
 
         // mutex lock for nextBytes()
-        private final Object LOCK_GET_BYTES = java.util.Objects.newIdentity();
+        private final Object LOCK_GET_BYTES = new Object();
 
         // mutex lock for generateSeed()
-        private final Object LOCK_GET_SEED = java.util.Objects.newIdentity();
+        private final Object LOCK_GET_SEED = new Object();
 
         // mutex lock for setSeed()
-        private final Object LOCK_SET_SEED = java.util.Objects.newIdentity();
+        private final Object LOCK_SET_SEED = new Object();
 
         // constructor, called only once from initIO()
         private RandomIO(File seedFile, File nextFile) throws IOException {

@@ -44,7 +44,7 @@ public class HiddenClassAgent extends Thread {
     private static volatile boolean hiddenClassLoaded = false;
 
     private static Instrumentation instr = null;
-    private static Object monitor = java.util.Objects.newIdentity();
+    private static Object monitor = new Object();
 
     static void log(String str) { System.err.println(str); }
     public static boolean failed() { return failed; }

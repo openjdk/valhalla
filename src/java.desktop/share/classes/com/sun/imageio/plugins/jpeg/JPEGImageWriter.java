@@ -138,7 +138,7 @@ public class JPEGImageWriter extends ImageWriter {
     private int numScans = 0;
 
     /** The referent to be registered with the Disposer. */
-    private Object disposerReferent = java.util.Objects.newIdentity();
+    private Object disposerReferent = new Object();
 
     /** The DisposerRecord that handles the actual disposal of this writer. */
     private DisposerRecord disposerRecord;

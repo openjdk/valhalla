@@ -50,7 +50,7 @@ public class RightMouseButtonDragTest implements AWTEventListener {
             }
         };
 
-    static final Object SYNC_LOCK = java.util.Objects.newIdentity();
+    static final Object SYNC_LOCK = new Object();
     static final int FRAME_ACTIVATION_TIMEOUT = 2000;
     static final int DROP_COMPLETION_TIMEOUT = 5000;
     static final int MOUSE_RELEASE_TIMEOUT = 1000;

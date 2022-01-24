@@ -1246,7 +1246,7 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
     static void testArrayStoreException(VarHandle vh) throws Throwable {
         Object[] array = new Point[10];
         Arrays.fill(array, Point.getInstance(1,1));
-        Object value = java.util.Objects.newIdentity();
+        Object value = new Object();
 
         // Set
         checkASE(() -> {

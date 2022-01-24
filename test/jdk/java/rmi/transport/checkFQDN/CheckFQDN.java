@@ -73,7 +73,7 @@ public class CheckFQDN extends UnicastRemoteObject
 
     public static void main(String args[]) {
 
-        Object dummy = java.util.Objects.newIdentity();
+        Object dummy = new Object();
         CheckFQDN checkFQDN = null;
         try {
             checkFQDN = new CheckFQDN();

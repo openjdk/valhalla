@@ -57,7 +57,7 @@ public class StackOverflow {
         }
     }
     public static void main(String args[]) {
-        LargeFrame.method_with_many_locals(java.util.Objects.newIdentity(), 2,3,4,5,6,7,java.util.Objects.newIdentity());
+        LargeFrame.method_with_many_locals(new Object(), 2,3,4,5,6,7,new Object());
 
         stackOverflow_largeFrame(0, "this is a live oop to test GC");
         System.out.println("finished ok!");

@@ -70,7 +70,7 @@ class Http1Exchange<T> extends ExchangeImpl<T> {
     private final List<CompletableFuture<?>> operations; // used for cancel
 
     /** Must be held when operating on any internal state or data. */
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
 
     /** Holds the outgoing data, either the headers or a request body part. Or
      * an error from the request body publisher. At most there can be ~2 pieces

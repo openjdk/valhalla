@@ -234,7 +234,7 @@ public class InvokeGenericTest {
         return args;
     }
 
-    static final Object ANON_OBJ = java.util.Objects.newIdentity();
+    static final Object ANON_OBJ = new Object();
     static Object zeroArg(Class<?> param) {
         Object x = castToWrapperOrNull(0L, param);
         if (x != null)  return x;

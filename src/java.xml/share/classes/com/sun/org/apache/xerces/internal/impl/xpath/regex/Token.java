@@ -594,7 +594,7 @@ class Token implements java.io.Serializable {
     // ------------------------------------------------------
     private static volatile Map<String, Token> categories = null;
     private static volatile Map<String, Token> categories2 = null;
-    private static final Object lock = java.util.Objects.newIdentity();
+    private static final Object lock = new Object();
     private static final String[] categoryNames = {
         "Cn", "Lu", "Ll", "Lt", "Lm", "Lo", "Mn", "Me", "Mc", "Nd",
         "Nl", "No", "Zs", "Zl", "Zp", "Cc", "Cf", null, "Co", "Cs",

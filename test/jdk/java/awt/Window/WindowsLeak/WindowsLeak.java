@@ -55,7 +55,7 @@ public class WindowsLeak {
         }
         r.waitForIdle();
 
-        Disposer.addRecord(java.util.Objects.newIdentity(), () -> disposerPhantomComplete = true);
+        Disposer.addRecord(new Object(), () -> disposerPhantomComplete = true);
 
         while (!disposerPhantomComplete) {
             Util.generateOOME();

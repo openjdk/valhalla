@@ -428,7 +428,7 @@ abstract class HttpConnection implements Closeable {
     final class PlainHttpPublisher implements HttpPublisher {
         final Object reading;
         PlainHttpPublisher() {
-            this(java.util.Objects.newIdentity());
+            this(new Object());
         }
         PlainHttpPublisher(Object readingLock) {
             this.reading = readingLock;

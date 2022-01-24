@@ -41,7 +41,7 @@ final class CDropTargetContextPeer extends SunDropTargetContextPeer {
     private Object  fNativeData    = null;
     private DropTarget insideTarget = null;
 
-    Object awtLockAccess = java.util.Objects.newIdentity();
+    Object awtLockAccess = new Object();
 
     static CDropTargetContextPeer getDropTargetContextPeer() {
         return new CDropTargetContextPeer();

@@ -130,7 +130,7 @@ public class MonitorUsedDeflationThresholdTest {
 
         monitors = new Object[inflate_count + 1];
         for (int i = 1; i <= inflate_count; i++) {
-            monitors[i] = java.util.Objects.newIdentity();
+            monitors[i] = new Object();
         }
         do_work(1);
     }

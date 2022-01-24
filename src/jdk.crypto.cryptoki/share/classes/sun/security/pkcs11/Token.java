@@ -128,7 +128,7 @@ class Token implements Serializable {
     private long lastLoginCheck;
 
     // mutex for token-present-check
-    private static final Object CHECK_LOCK = java.util.Objects.newIdentity();
+    private static final Object CHECK_LOCK = new Object();
 
     // object for indicating unsupported mechanism in 'mechInfoMap'
     private static final CK_MECHANISM_INFO INVALID_MECH =

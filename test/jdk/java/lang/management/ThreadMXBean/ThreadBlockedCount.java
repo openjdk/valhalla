@@ -40,13 +40,13 @@ public class ThreadBlockedCount {
     private static final ThreadMXBean mbean
         = ManagementFactory.getThreadMXBean();
 
-    private static final Object a = java.util.Objects.newIdentity();
-    private static final Object b = java.util.Objects.newIdentity();
-    private static final Object c = java.util.Objects.newIdentity();
+    private static final Object a = new Object();
+    private static final Object b = new Object();
+    private static final Object c = new Object();
 
-    private static final Object blockedObj1 = java.util.Objects.newIdentity();
-    private static final Object blockedObj2 = java.util.Objects.newIdentity();
-    private static final Object blockedObj3 = java.util.Objects.newIdentity();
+    private static final Object blockedObj1 = new Object();
+    private static final Object blockedObj2 = new Object();
+    private static final Object blockedObj3 = new Object();
     private static volatile boolean testOk = true;
     private static BlockingThread blocking;
     private static BlockedThread blocked;

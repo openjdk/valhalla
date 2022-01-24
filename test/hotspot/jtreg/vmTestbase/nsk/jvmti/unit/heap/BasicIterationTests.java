@@ -85,8 +85,8 @@ public class BasicIterationTests {
 
         Heap.setTaggedObjectCountCallback();
 
-        Object o1 = java.util.Objects.newIdentity();
-        Object o2 = java.util.Objects.newIdentity();
+        Object o1 = new Object();
+        Object o2 = new Object();
         Heap.setTag(o1, 1);
         Heap.setTag(o2, 2);
 
@@ -173,7 +173,7 @@ public class BasicIterationTests {
             Heap.setTag(foo3[i], 99);
         }
 
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         Heap.setTag(o, 99);
 
         Object arr[] = new Object[2];

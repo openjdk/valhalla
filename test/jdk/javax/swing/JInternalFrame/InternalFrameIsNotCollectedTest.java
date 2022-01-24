@@ -121,7 +121,7 @@ public class InternalFrameIsNotCollectedTest {
 
     public static class CustomInternalFrame extends JInternalFrame {
         public static volatile boolean finalized = false;
-        public static Object waiter = java.util.Objects.newIdentity();
+        public static Object waiter = new Object();
 
         public CustomInternalFrame(String title) {
             super(title, true, true, true, true);

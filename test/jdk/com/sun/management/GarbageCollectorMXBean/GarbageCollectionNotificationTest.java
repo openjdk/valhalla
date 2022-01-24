@@ -47,7 +47,7 @@ public class GarbageCollectionNotificationTest {
     private static HashMap<String,Boolean> listenerInvoked = new HashMap<String,Boolean>();
     static volatile long count = 0;
     static volatile long number = 0;
-    static Object synchronizer = java.util.Objects.newIdentity();
+    static Object synchronizer = new Object();
 
     static class GcListener implements NotificationListener {
         public void handleNotification(Notification notif, Object handback) {

@@ -43,7 +43,7 @@ public class thrstat003 {
     }
 
     static int contendCount = 0;
-    public static Object lock = java.util.Objects.newIdentity();
+    public static Object lock = new Object();
     public static int waitTime = 2;
 
     public static int run(String args[], PrintStream out) {

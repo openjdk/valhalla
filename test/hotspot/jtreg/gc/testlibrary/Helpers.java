@@ -255,7 +255,7 @@ public class Helpers {
         }
 
         int instanceSizeWithoutObjectHeaderInWords =
-                (int) (instanceSize - WhiteBox.getWhiteBox().getObjectSize(java.util.Objects.newIdentity())) / SIZE_OF_LONG;
+                (int) (instanceSize - WhiteBox.getWhiteBox().getObjectSize(new Object())) / SIZE_OF_LONG;
 
         if (instanceSizeWithoutObjectHeaderInWords <= 0) {
             throw new Error(String.format("Test bug: specified instance size is too small - %d."

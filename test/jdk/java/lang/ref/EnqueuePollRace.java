@@ -48,7 +48,7 @@ public class EnqueuePollRace {
                 queue = new ReferenceQueue<Object>();
 
                 for (int j = 0; j < refs.length; j++) {
-                    refs[j] = new WeakReference(java.util.Objects.newIdentity(), queue);
+                    refs[j] = new WeakReference(new Object(), queue);
                 }
 
                 System.gc(); // enqueues references into the list of discovered references

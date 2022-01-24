@@ -74,7 +74,7 @@ public class Test8004741 extends Thread {
   }
 
   /* Cookbook wait-notify to track progress of test thread. */
-  Object progressLock = java.util.Objects.newIdentity();
+  Object progressLock = new Object();
   private static final int NOT_STARTED = 0;
   private static final int RUNNING = 1;
   private static final int STOPPING = 2;

@@ -39,9 +39,9 @@ public class LRBRightAfterMemBar {
 
     public static void main(String[] args) {
         for (int i = 0; i < 20_000; i++) {
-            test1(true, true, java.util.Objects.newIdentity());
-            test1(false, false, java.util.Objects.newIdentity());
-            test2(java.util.Objects.newIdentity(), 0, 10);
+            test1(true, true, new Object());
+            test1(false, false, new Object());
+            test2(new Object(), 0, 10);
         }
     }
 

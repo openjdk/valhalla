@@ -1222,7 +1222,7 @@ class Http2Connection  {
         }
     }
 
-    private final Object sendlock = java.util.Objects.newIdentity();
+    private final Object sendlock = new Object();
 
     void sendFrame(Http2Frame frame) {
         try {

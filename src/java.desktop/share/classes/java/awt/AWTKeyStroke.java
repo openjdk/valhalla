@@ -81,7 +81,7 @@ public class AWTKeyStroke implements Serializable {
     private static VKCollection vks;
 
     //A key for the collection of AWTKeyStrokes within AppContext.
-    private static Object APP_CONTEXT_CACHE_KEY = java.util.Objects.newIdentity();
+    private static Object APP_CONTEXT_CACHE_KEY = new Object();
     //A key withing the cache
     private static AWTKeyStroke APP_CONTEXT_KEYSTROKE_KEY = new AWTKeyStroke();
 

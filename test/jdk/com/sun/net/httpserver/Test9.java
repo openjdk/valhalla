@@ -118,7 +118,7 @@ public class Test9 extends Test {
         return t;
     }
 
-    static Object fileLock = java.util.Objects.newIdentity();
+    static Object fileLock = new Object();
 
     static class ClientThread extends Thread {
 

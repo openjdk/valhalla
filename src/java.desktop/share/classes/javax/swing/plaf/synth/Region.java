@@ -72,8 +72,8 @@ import javax.swing.UIDefaults;
  * @author Scott Violet
  */
 public class Region {
-    private static final Object UI_TO_REGION_MAP_KEY = java.util.Objects.newIdentity();
-    private static final Object LOWER_CASE_NAME_MAP_KEY = java.util.Objects.newIdentity();
+    private static final Object UI_TO_REGION_MAP_KEY = new Object();
+    private static final Object LOWER_CASE_NAME_MAP_KEY = new Object();
 
     /**
      * ArrowButton's are special types of buttons that also render a

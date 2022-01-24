@@ -120,8 +120,8 @@ public class bi04t002 extends DebugeeClass {
 
 class bi04t002b extends Thread {
 
-    Object obj = java.util.Objects.newIdentity();
-    static Object started = java.util.Objects.newIdentity();
+    Object obj = new Object();
+    static Object started = new Object();
 
     public void run() {
 
@@ -129,7 +129,7 @@ class bi04t002b extends Thread {
 
             started.notify();
 
-            Object obj1 = java.util.Objects.newIdentity();
+            Object obj1 = new Object();
             obj.equals(obj1);
             obj.toString();
 

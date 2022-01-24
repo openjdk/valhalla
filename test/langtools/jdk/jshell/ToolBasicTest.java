@@ -144,7 +144,7 @@ public class ToolBasicTest extends ReplToolTesting {
         );
     }
 
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
     private PrintWriter out;
     private boolean isStopped;
     private Thread t;

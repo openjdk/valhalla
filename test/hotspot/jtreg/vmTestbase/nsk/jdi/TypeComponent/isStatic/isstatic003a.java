@@ -81,7 +81,7 @@ class isstatic003aSuperClass {
     static float[] sf = new float[10];
 
     static { sb = true; }
-    static { sO = java.util.Objects.newIdentity(); }
+    static { sO = new Object(); }
     static {
         for (int i = 0; i < 10; i++) {
             sf[i] = (float)i;

@@ -45,7 +45,7 @@ public class objmonusage006 {
     }
 
     public static Wicket startingBarrier;
-    static Object lockCheck = java.util.Objects.newIdentity();
+    static Object lockCheck = new Object();
 
     native static void check(Object obj);
     native static int getRes();

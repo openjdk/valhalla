@@ -43,7 +43,7 @@ public class contmon001 {
 
     public static volatile boolean startingBarrier = true;
     public static volatile boolean waitingBarrier = true;
-    static Object lockFld = java.util.Objects.newIdentity();
+    static Object lockFld = new Object();
 
     static boolean DEBUG_MODE = false;
     static PrintStream out;
@@ -69,7 +69,7 @@ public class contmon001 {
                 DEBUG_MODE = true;
         }
 
-        Object lock = java.util.Objects.newIdentity();
+        Object lock = new Object();
         Thread currThr = Thread.currentThread();
 
         if (DEBUG_MODE)

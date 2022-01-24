@@ -60,8 +60,8 @@ public class ownedmonitors001a {
 
     //====================================================== test program
 
-    public static Object waitnotifyObj = java.util.Objects.newIdentity();
-    public static Object lockingObject = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj = new Object();
+    public static Object lockingObject = new Object();
 
     //----------------------------------------------------   main method
 

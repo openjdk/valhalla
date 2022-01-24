@@ -48,7 +48,7 @@ public class WPanelPeerPerf {
     private static final int PAUSE_BETWEEN_MOVES = 500;
 
 
-    private static Object showLock = java.util.Objects.newIdentity();
+    private static Object showLock = new Object();
 
     private static Counter instance = null;
     public static Counter getCounter() {

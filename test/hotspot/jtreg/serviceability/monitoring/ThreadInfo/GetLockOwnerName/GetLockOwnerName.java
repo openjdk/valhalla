@@ -82,10 +82,10 @@ public class GetLockOwnerName {
     public static final int TS_DONE_BLOCKING     = 7;  // done blocking threadLock
     public static final int TS_CONTENDER_DONE    = 8;  // contender has run; done
 
-    public static Object barrierLaunch = java.util.Objects.newIdentity();   // controls thread launch
-    public static Object barrierBlocker = java.util.Objects.newIdentity();  // controls blocker
-    public static Object barrierReleaser = java.util.Objects.newIdentity();  // controls releaser
-    public static Object threadLock = java.util.Objects.newIdentity();      // testing object
+    public static Object barrierLaunch = new Object();   // controls thread launch
+    public static Object barrierBlocker = new Object();  // controls blocker
+    public static Object barrierReleaser = new Object();  // controls releaser
+    public static Object threadLock = new Object();      // testing object
 
     public static long count = 0;
     public static boolean printDebug = false;

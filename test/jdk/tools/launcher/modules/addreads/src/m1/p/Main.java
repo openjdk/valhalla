@@ -27,7 +27,7 @@ import static org.junit.Assert.assertEquals;
 
 public class Main {
     public static void main(String[] args) {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         assertEquals(o, o);
     }
 }

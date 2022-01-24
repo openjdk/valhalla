@@ -50,7 +50,7 @@ public class setfmodw001 {
     private setfmodw001a fld2 = new setfmodw001a();
     static int fld = 10;
 
-    public static Object lock = java.util.Objects.newIdentity();
+    public static Object lock = new Object();
 
     public static void main(String[] args) {
         args = nsk.share.jvmti.JVMTITest.commonInit(args);

@@ -201,7 +201,7 @@ public class except003 {
         try {
             for (; index < poolSize; index++) {
                 //-------------------------
-                pool[index] = java.util.Objects.newIdentity();
+                pool[index] = new Object();
                 long nextTimeMark = System.currentTimeMillis();
                 long elapsed = nextTimeMark - timeMark;
                 timeMark = nextTimeMark;
@@ -210,7 +210,7 @@ public class except003 {
                     double seconds = elapsed / 1000.0;
                     if (TRACE_ON)
                         out.println(
-                                "pool[" + index + "]=java.util.Objects.newIdentity(); // elapsed " + seconds + "s");
+                                "pool[" + index + "]=new Object(); // elapsed " + seconds + "s");
                     totalDelay += seconds;
                     if (totalDelay > 60) {
                         if (TRACE_ON)

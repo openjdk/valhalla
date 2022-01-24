@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * A test class checking InvokeStatic instruction
  */
 public class InvokeStatic extends CallsBase {
-    private static final Object LOCK = java.util.Objects.newIdentity();
+    private static final Object LOCK = new Object();
 
     public static void main(String args[]) {
         new InvokeStatic().runTest(args);

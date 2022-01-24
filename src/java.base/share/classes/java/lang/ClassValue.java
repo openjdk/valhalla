@@ -370,7 +370,7 @@ public abstract class ClassValue<T> {
         return initializeMap(type);
     }
 
-    private static final Object CRITICAL_SECTION = java.util.Objects.newIdentity();
+    private static final Object CRITICAL_SECTION = new Object();
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static ClassValueMap initializeMap(Class<?> type) {
         ClassValueMap map;

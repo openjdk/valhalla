@@ -183,7 +183,7 @@ public class GetResolvedJavaMethodTest {
     private static void testObjectBase() {
         try {
             HotSpotResolvedJavaMethod method
-                    = CompilerToVMHelper.getResolvedJavaMethod(java.util.Objects.newIdentity(), 0L);
+                    = CompilerToVMHelper.getResolvedJavaMethod(new Object(), 0L);
             throw new AssertionError("Test OBJECT_BASE."
                 + " Expected IllegalArgumentException has not been caught");
         } catch (IllegalArgumentException e) {

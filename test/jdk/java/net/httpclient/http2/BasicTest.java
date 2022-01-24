@@ -95,7 +95,7 @@ public class BasicTest {
     static CompletableFuture<Long> currentCF;
 
     static class EchoWithPingHandler extends Http2EchoHandler {
-        private final Object lock = java.util.Objects.newIdentity();
+        private final Object lock = new Object();
 
         @Override
         public void handle(Http2TestExchange exchange) throws IOException {

@@ -105,7 +105,7 @@ public abstract class SunDropTargetContextPeer implements DropTargetContextPeer,
      * global lock
      */
 
-    protected static final Object _globalLock = java.util.Objects.newIdentity();
+    protected static final Object _globalLock = new Object();
 
     private static final PlatformLogger dndLog = PlatformLogger.getLogger("sun.awt.dnd.SunDropTargetContextPeer");
 

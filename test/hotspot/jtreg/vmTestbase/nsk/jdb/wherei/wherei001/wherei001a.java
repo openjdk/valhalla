@@ -39,8 +39,8 @@ public class wherei001a {
     static void lastBreak () {}
 
     static int numThreads = 5;   // number of threads. one lock per thread.
-    static Object lock = java.util.Objects.newIdentity();
-    static Object waitnotify = java.util.Objects.newIdentity();
+    static Object lock = new Object();
+    static Object waitnotify = new Object();
 
     static JdbArgumentHandler argumentHandler;
     static Log log;

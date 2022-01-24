@@ -148,7 +148,7 @@ public class Terminator {
                         // specification doesn't guarantee the method
                         // sleep() to yield to other threads.
                         //
-                        Object someDummyObject = java.util.Objects.newIdentity();
+                        Object someDummyObject = new Object();
                         synchronized (someDummyObject) {
                             someDummyObject.wait(timeToSleep);
                         }

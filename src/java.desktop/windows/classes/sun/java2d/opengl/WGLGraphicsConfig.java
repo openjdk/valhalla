@@ -72,7 +72,7 @@ public final class WGLGraphicsConfig
     private long pConfigInfo;
     private ContextCapabilities oglCaps;
     private final OGLContext context;
-    private Object disposerReferent = java.util.Objects.newIdentity();
+    private Object disposerReferent = new Object();
 
     public static native int getDefaultPixFmt(int screennum);
     private static native boolean initWGL();

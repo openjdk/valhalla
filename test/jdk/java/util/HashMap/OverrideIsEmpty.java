@@ -62,8 +62,8 @@ public class OverrideIsEmpty {
 
     public static void main(String[] args) {
         NotEmptyHashMap<Object, Object> map = new NotEmptyHashMap<>();
-        Object key = java.util.Objects.newIdentity();
-        Object value = java.util.Objects.newIdentity();
+        Object key = new Object();
+        Object value = new Object();
         map.get(key);
         map.remove(key);
         map.replace(key, value, null);

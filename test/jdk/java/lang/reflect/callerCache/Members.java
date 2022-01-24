@@ -30,9 +30,9 @@ public class Members {
     protected void protectedMethod() {}
     private void privateMethod() {}
 
-    public Object publicField = java.util.Objects.newIdentity();
-    protected Object protectedField = java.util.Objects.newIdentity();
-    private Object privateField = java.util.Objects.newIdentity();
+    public Object publicField = new Object();
+    protected Object protectedField = new Object();
+    private Object privateField = new Object();
 
     public final int publicFinalField = 10;
     private final int privateFinalField = 10;

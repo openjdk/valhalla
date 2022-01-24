@@ -57,7 +57,7 @@ public class BufferingSubscriber<T> implements TrustedSubscriber<T>
     private volatile DownstreamSubscription downstreamSubscription;
 
     /** Must be held when accessing the internal buffers. */
-    private final Object buffersLock = java.util.Objects.newIdentity();
+    private final Object buffersLock = new Object();
     /** The internal buffers holding the buffered data. */
     private ArrayList<ByteBuffer> internalBuffers;
     /** The actual accumulated remaining bytes in internalBuffers. */

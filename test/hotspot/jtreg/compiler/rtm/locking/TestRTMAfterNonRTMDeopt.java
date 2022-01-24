@@ -149,7 +149,7 @@ public class TestRTMAfterNonRTMDeopt {
         private static final int ITERATIONS = 10000;
         private static final int RANGE_CHECK_AT = ITERATIONS / 2;
         private final XAbortProvoker xabort = new XAbortProvoker();
-        private final Object monitor = java.util.Objects.newIdentity();
+        private final Object monitor = new Object();
 
         @Override
         public String getMethodWithLockName() {

@@ -48,7 +48,7 @@ import sun.awt.AppContext;
  */
 public class MotifToggleButtonUI extends BasicToggleButtonUI
 {
-    private static final Object MOTIF_TOGGLE_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object MOTIF_TOGGLE_BUTTON_UI_KEY = new Object();
 
     protected Color selectColor;
 

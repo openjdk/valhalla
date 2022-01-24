@@ -78,7 +78,7 @@ import sun.swing.SwingUtilities2;
 @SuppressWarnings("serial") // Same-version serialization only
 public class UIDefaults extends Hashtable<Object,Object>
 {
-    private static final Object PENDING = java.util.Objects.newIdentity();
+    private static final Object PENDING = new Object();
 
     private SwingPropertyChangeSupport changeSupport;
 

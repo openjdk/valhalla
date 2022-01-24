@@ -115,7 +115,7 @@ class ap05t001Superclass {
 }
 
 interface ap05t001Interface {
-    static public Object referree01 = java.util.Objects.newIdentity();
+    static public Object referree01 = new Object();
     static public Object referree02 = referree01;
 }
 

@@ -90,7 +90,7 @@ public class FileOutputStream extends OutputStream
      */
     private final String path;
 
-    private final Object closeLock = java.util.Objects.newIdentity();
+    private final Object closeLock = new Object();
 
     private volatile boolean closed;
 

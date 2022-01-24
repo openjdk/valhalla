@@ -62,8 +62,8 @@ public class waitingthreads004a {
 
     //------------------------------------------------------ test specific fields
 
-    static Object waitnotifyObj = java.util.Objects.newIdentity();
-    static Object lockingObject = java.util.Objects.newIdentity();
+    static Object waitnotifyObj = new Object();
+    static Object lockingObject = new Object();
     static final int threadCount = 5;
     static final String threadNamePrefix = "MyThread-";
     static waitingthreads004aThread[] threads = new waitingthreads004aThread[threadCount];

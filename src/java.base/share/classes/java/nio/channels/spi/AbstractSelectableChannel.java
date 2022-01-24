@@ -71,10 +71,10 @@ public abstract class AbstractSelectableChannel
     private int keyCount = 0;
 
     // Lock for key set and count
-    private final Object keyLock = java.util.Objects.newIdentity();
+    private final Object keyLock = new Object();
 
     // Lock for registration and configureBlocking operations
-    private final Object regLock = java.util.Objects.newIdentity();
+    private final Object regLock = new Object();
 
     // True when non-blocking, need regLock to change;
     private volatile boolean nonBlocking;

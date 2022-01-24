@@ -197,7 +197,7 @@ public class SwingUtilities2 {
 
     //all access to  charsBuffer is to be synchronized on charsBufferLock
     private static final int CHAR_BUFFER_SIZE = 100;
-    private static final Object charsBufferLock = java.util.Objects.newIdentity();
+    private static final Object charsBufferLock = new Object();
     private static char[] charsBuffer = new char[CHAR_BUFFER_SIZE];
 
     static {
@@ -1257,7 +1257,7 @@ public class SwingUtilities2 {
         return null;
     }
 
-    private static final Object APP_CONTEXT_FRC_CACHE_KEY = java.util.Objects.newIdentity();
+    private static final Object APP_CONTEXT_FRC_CACHE_KEY = new Object();
 
     private static FontRenderContext getFRCFromCache(AffineTransform tx,
                                                      Object aaHint) {

@@ -42,8 +42,8 @@ public class allthr001 {
     native static void checkInfo(int thr_ind);
     native static int getRes();
 
-    public static Object lock1 = java.util.Objects.newIdentity();
-    public static Object lock2 = java.util.Objects.newIdentity();
+    public static Object lock1 = new Object();
+    public static Object lock2 = new Object();
     public static int waitTime = 2;
 
     public static void main(String[] args) {

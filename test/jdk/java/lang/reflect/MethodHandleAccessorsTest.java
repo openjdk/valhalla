@@ -450,7 +450,7 @@ public class MethodHandleAccessorsTest {
     @DataProvider(name = "testOneArgMethods")
     private Object[][] testOneArgMethods() {
         MethodHandleAccessorsTest inst = new MethodHandleAccessorsTest();
-        Object wrongInst = java.util.Objects.newIdentity();
+        Object wrongInst = new Object();
         boolean newImpl = Boolean.getBoolean("jdk.reflect.useDirectMethodHandle");
         return new Object[][]{
             new Object[] {"public_static_I_V",  int.class, null, new Object[]{12}, null, noException},
@@ -595,7 +595,7 @@ public class MethodHandleAccessorsTest {
         return new Object[][]{
                 new Object[]{"i", new Public(100), 100, noException},
                 new Object[]{"s", new Public("test"), "test", noException},
-                new Object[]{"s", java.util.Objects.newIdentity(), "test",
+                new Object[]{"s", new Object(), "test",
                              newImpl ? cannot_get_final_field : cannot_set_final_field},
                 new Object[]{"s", null, "test", null_target},
         };
@@ -606,8 +606,8 @@ public class MethodHandleAccessorsTest {
                 new Object[]{"i", new Public(100), 100, 200, noException},
                 new Object[]{"s", new Public("test"), "test", "newValue", noException},
                 // ## no exception thrown
-                // new Object[]{"i", new Public(100), 100, java.util.Objects.newIdentity(), cannot_set_final_field},
-                new Object[]{"s", java.util.Objects.newIdentity(), "test", "dummy", cannot_set_final_field},
+                // new Object[]{"i", new Public(100), 100, new Object(), cannot_set_final_field},
+                new Object[]{"s", new Object(), "test", "dummy", cannot_set_final_field},
                 new Object[]{"s", null, "test", "dummy", null_target},
         };
     }

@@ -1876,7 +1876,7 @@ public class TestNullableArrays {
     @Run(test = "test72")
     public void test72_verifier() {
         Object[] arr = new Object[1];
-        Object elem = java.util.Objects.newIdentity();
+        Object elem = new Object();
         test72(arr, true, elem);
         test72(arr, false, elem);
     }
@@ -2571,7 +2571,7 @@ public class TestNullableArrays {
 
     @Run(test = "test97")
     public static void test97_verifier() {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         Object result = test97(obj);
         Asserts.assertEquals(result, obj);
         Integer[] myInt = new Integer[1];
@@ -2587,7 +2587,7 @@ public class TestNullableArrays {
 
     @Run(test = "test98")
     public static void test98_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         Object result = test98(obj);
         Asserts.assertEquals(result, obj);
         Integer[] myInt = new Integer[1];
@@ -2611,7 +2611,7 @@ public class TestNullableArrays {
 
     @Run(test = "test99")
     public static void test99_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         Object result = test99(obj);
         Asserts.assertEquals(result, obj);
         Integer[] myInt = new Integer[1];
@@ -2635,7 +2635,7 @@ public class TestNullableArrays {
 
     @Run(test = "test100")
     public static void test100_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         Object result = test100(obj);
         Asserts.assertEquals(result, obj);
         Integer[] myInt = new Integer[1];
@@ -2661,7 +2661,7 @@ public class TestNullableArrays {
 
     @Run(test = "test101")
     public static void test101_verifier() {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         test101(obj, obj);
         Integer[] myInt = new Integer[1];
         test101(rI, (Object[])myInt);
@@ -2677,7 +2677,7 @@ public class TestNullableArrays {
 
     @Run(test = "test102")
     public static void test102_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         test102(obj, obj);
         Integer[] myInt = new Integer[1];
         test102(rI, (Object[])myInt);
@@ -2703,7 +2703,7 @@ public class TestNullableArrays {
 
     @Run(test = "test103")
     public static void test103_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         test103(obj, obj);
         Integer[] myInt = new Integer[1];
         test103(rI, (Object[])myInt);
@@ -2728,7 +2728,7 @@ public class TestNullableArrays {
 
     @Run(test = "test104")
     public static void test104_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         test104(obj, obj);
         Integer[] myInt = new Integer[1];
         test104(rI, (Object[])myInt);
@@ -2752,7 +2752,7 @@ public class TestNullableArrays {
 
     @Run(test = "test105")
     public static void test105_verifier(RunInfo info) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         test105(obj, obj);
         Integer[] myInt = new Integer[1];
         test105(rI, (Object[])myInt);
@@ -2787,7 +2787,7 @@ public class TestNullableArrays {
     @Run(test = "test106")
     public static void test106_verifier(RunInfo info) {
         Object[] dst = new Object[1];
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         Object[] result = test106(dst, obj);
         Asserts.assertEquals(result[0], obj);
         Integer[] myInt = new Integer[1];

@@ -63,7 +63,7 @@ final class SocketTube implements FlowTube {
     private final HttpClientImpl client;
     private final SocketChannel channel;
     private final SliceBufferSource sliceBuffersSource;
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
     private final AtomicReference<Throwable> errorRef = new AtomicReference<>();
     private final InternalReadPublisher readPublisher;
     private final InternalWriteSubscriber writeSubscriber;

@@ -257,9 +257,9 @@ class interrupt001aThread extends Thread {
 
     public boolean ready;
 
-    public Object waitnotifyObj = java.util.Objects.newIdentity();
+    public Object waitnotifyObj = new Object();
 
-    public static Object lockingObject = java.util.Objects.newIdentity();
+    public static Object lockingObject = new Object();
 
     public void run() {
         log("started");

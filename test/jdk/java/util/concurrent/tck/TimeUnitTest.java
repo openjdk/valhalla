@@ -331,7 +331,7 @@ public class TimeUnitTest extends JSR166TestCase {
     public void testTimedWait_IllegalMonitorException() {
         Thread t = newStartedThread(new CheckedRunnable() {
             public void realRun() throws InterruptedException {
-                Object o = java.util.Objects.newIdentity();
+                Object o = new Object();
                 try {
                     MILLISECONDS.timedWait(o, LONGER_DELAY_MS);
                     threadShouldThrow();
@@ -348,7 +348,7 @@ public class TimeUnitTest extends JSR166TestCase {
         final CountDownLatch pleaseInterrupt = new CountDownLatch(1);
         Thread t = newStartedThread(new CheckedRunnable() {
             public void realRun() throws InterruptedException {
-                Object o = java.util.Objects.newIdentity();
+                Object o = new Object();
 
                 Thread.currentThread().interrupt();
                 try {

@@ -38,7 +38,7 @@ public class GetPutObject {
     public static void main(String args[]) throws Exception {
         Unsafe unsafe = Unsafe.getUnsafe();
         Test t = new Test();
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         Field field = Test.class.getField("o");
 
         long offset = unsafe.objectFieldOffset(field);
@@ -47,7 +47,7 @@ public class GetPutObject {
         unsafe.putReference(t, offset, o);
         assertEquals(o, unsafe.getReference(t, offset));
 
-        Object arrayObject[] = { unsafe, null, java.util.Objects.newIdentity() };
+        Object arrayObject[] = { unsafe, null, new Object() };
         int scale = unsafe.arrayIndexScale(arrayObject.getClass());
         offset = unsafe.arrayBaseOffset(arrayObject.getClass());
         for (int i = 0; i < arrayObject.length; i++) {
@@ -57,6 +57,6 @@ public class GetPutObject {
     }
 
     static class Test {
-        public Object o = java.util.Objects.newIdentity();
+        public Object o = new Object();
     }
 }

@@ -84,7 +84,7 @@ public class ToArrayTest {
         }
     }
 
-    static final Object[] OBJECTS = { java.util.Objects.newIdentity(), java.util.Objects.newIdentity(), java.util.Objects.newIdentity() };
+    static final Object[] OBJECTS = { new Object(), new Object(), new Object() };
     static final TestCollection<?> CANDIDATE = new TestCollection<Object>(OBJECTS);
     static final int CAP = OBJECTS.length; // capacity of the CANDIDATE
     static final int LAST = CAP - 1; // last possible array index

@@ -56,8 +56,8 @@ public class JvmtiTest {
     }
 
     static volatile boolean lock1held = false;
-    static Object lock1 = java.util.Objects.newIdentity();
-    static Object lock2 = java.util.Objects.newIdentity();
+    static Object lock1 = new Object();
+    static Object lock2 = new Object();
 
     native static int GetResult();
     native static void CheckMonitorInfo(Thread thr, Object obj2, int expected);

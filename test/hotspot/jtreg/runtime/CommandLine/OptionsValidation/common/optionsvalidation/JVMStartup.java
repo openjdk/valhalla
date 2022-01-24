@@ -29,7 +29,7 @@ class JVMStartup {
     private static volatile WeakReference<Object> weakRef;
 
     private static synchronized void createWeakRef() {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         weakRef = new WeakReference<>(o);
     }
 

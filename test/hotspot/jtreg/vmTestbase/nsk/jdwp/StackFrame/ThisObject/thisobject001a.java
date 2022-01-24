@@ -44,9 +44,9 @@ public class thisobject001a {
     public static final String OBJECT_FIELD_NAME = "object";
 
     // notification object to notify debuggee that thread is ready
-    private static Object threadReady = java.util.Objects.newIdentity();
+    private static Object threadReady = new Object();
     // lock object to prevent thread from exit
-    private static Object threadLock = java.util.Objects.newIdentity();
+    private static Object threadLock = new Object();
 
     // scaffold objects
     private static volatile ArgumentHandler argumentHandler = null;

@@ -109,7 +109,7 @@ public class Ifacmp {
     }
 
     public void testUntilGc() {
-        Reference ref = new WeakReference<Object>(java.util.Objects.newIdentity(), new ReferenceQueue<>());
+        Reference ref = new WeakReference<Object>(new Object(), new ReferenceQueue<>());
         do {
             test();
         } while (ref.get() != null);
@@ -161,7 +161,7 @@ public class Ifacmp {
 
     public void testAlot() {
         MyValue a = new MyValue(4711);
-        Reference ref = new WeakReference<Object>(java.util.Objects.newIdentity(), new ReferenceQueue<>());
+        Reference ref = new WeakReference<Object>(new Object(), new ReferenceQueue<>());
         do {
             for (int i = 0; i < 1000; i++) {
                 MyValue b = new MyValue(4711);

@@ -57,7 +57,7 @@ class Filler {
 
     public Filler() {
         for (int i = 0; i < 10000; i++) {
-            map.put(java.util.Objects.newIdentity(), java.util.Objects.newIdentity());
+            map.put(new Object(), new Object());
         }
     }
 }

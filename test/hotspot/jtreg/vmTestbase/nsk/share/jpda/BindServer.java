@@ -336,7 +336,7 @@ public class BindServer implements Finalizable {
      * @param millisecs - amount of time in milliseconds
      */
     private static void sleeping(int millisecs) {
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
 
         synchronized(obj) {
             try {
@@ -874,7 +874,7 @@ public class BindServer implements Finalizable {
         private StreamRedirectingThread stderrRedirectingThread = null;
 
         /** Notification about request occurence. */
-        private volatile Object notification = java.util.Objects.newIdentity();
+        private volatile Object notification = new Object();
         /** Request to execute. */
         private volatile Object request = null;
         /** Socket stream to send replies to. */

@@ -145,7 +145,7 @@ class Stream<T> extends ExchangeImpl<T> {
     private boolean requestSent, responseReceived;
 
     // send lock: prevent sending DataFrames after reset occurred.
-    private final Object sendLock = java.util.Objects.newIdentity();
+    private final Object sendLock = new Object();
 
     /**
      * A reference to this Stream's connection Send Window controller. The

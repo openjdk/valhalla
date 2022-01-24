@@ -49,7 +49,7 @@ class AdaptiveBlocking001
 {
         public static int numRounds = 10;
 
-        private static Object sharedLock = java.util.Objects.newIdentity();
+        private static Object sharedLock = new Object();
         private static boolean lockEntered1;
         private static boolean lockEntered2;
 

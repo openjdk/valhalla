@@ -69,7 +69,7 @@ public class JdiDefaultExecutionControl extends JdiExecutionControl {
     private Process process;
     private final String remoteAgent;
 
-    private final Object STOP_LOCK = java.util.Objects.newIdentity();
+    private final Object STOP_LOCK = new Object();
     private boolean userCodeRunning = false;
 
     /**

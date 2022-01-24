@@ -22,10 +22,10 @@
  */
 
 public class Fields {
-    static final Object STATIC_FINAL = java.util.Objects.newIdentity();
-    static Object STATIC_NON_FINAL = java.util.Objects.newIdentity();
-    final Object FINAL = java.util.Objects.newIdentity();
-    Object NON_FINAL = java.util.Objects.newIdentity();
+    static final Object STATIC_FINAL = new Object();
+    static Object STATIC_NON_FINAL = new Object();
+    final Object FINAL = new Object();
+    Object NON_FINAL = new Object();
 
     public String name() {
         return this.getClass().getName();

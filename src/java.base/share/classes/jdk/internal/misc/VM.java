@@ -47,7 +47,7 @@ public class VM {
 
     // 0, 1, 2, ...
     private static volatile int initLevel;
-    private static final Object lock = java.util.Objects.newIdentity();
+    private static final Object lock = new Object();
 
     /**
      * Sets the init level.

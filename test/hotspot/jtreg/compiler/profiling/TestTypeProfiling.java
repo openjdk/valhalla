@@ -110,7 +110,7 @@ public class TestTypeProfiling {
         }
 
         int[] src = new int[10];
-        Object src_obj = java.util.Objects.newIdentity();
+        Object src_obj = new Object();
 
         // Warm up & make sure we collect type profiling
         for (int i = 0; i < 20000; i++) {

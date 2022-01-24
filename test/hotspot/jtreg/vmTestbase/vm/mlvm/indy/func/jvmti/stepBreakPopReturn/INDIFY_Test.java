@@ -127,7 +127,7 @@ public class INDIFY_Test extends MlvmTest {
         setDebuggeeClassName("L" + INDIFY_Test.class.getName().replace('.', '/') + ";");
         setDebuggeeMethodName("target");
 
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         String s = "heaven";
         int i = 789;
 
@@ -141,7 +141,7 @@ public class INDIFY_Test extends MlvmTest {
             sum += (int) INDY_call2().invokeExact(o, s, i + 789);
         }
         getLog().trace(0, "Direct call, sum=" + sum);
-        sum += target(java.util.Objects.newIdentity(), "hell", 123);
+        sum += target(new Object(), "hell", 123);
 
         getLog().trace(0, "Done, sum=" + sum + " (should be 0)");
 

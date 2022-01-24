@@ -43,7 +43,7 @@ public class TerminalFactorySpiTest {
         Security.addProvider(myProvider);
         System.out.println(Arrays.asList(Security.getProviders()));
 
-        TerminalFactory.getInstance("MyType", java.util.Objects.newIdentity()).terminals();
+        TerminalFactory.getInstance("MyType", new Object()).terminals();
         if (!callMethod) {
             throw new RuntimeException("Expected engineTerminals() not called");
         }

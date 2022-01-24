@@ -58,7 +58,7 @@ public class em02t006 extends DebugeeClass {
         for (int i = 0; i < STEP_NUMBER; i++) {
             for (int j = 0; j < OBJECT_NUMBER; j++) {
                 k = j + 1;
-                setTag(java.util.Objects.newIdentity(), k);
+                setTag(new Object(), k);
             }
 
             logger.display("ObjectFree:: Provoke JVMTI_EVENT_OBJECT_FREE");

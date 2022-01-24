@@ -2015,7 +2015,7 @@ public class TCKInstant extends AbstractDateTimeTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void compareToNonInstant() {
         Comparable c = Instant.ofEpochSecond(0L);
-        c.compareTo(java.util.Objects.newIdentity());
+        c.compareTo(new Object());
     }
 
     //-----------------------------------------------------------------------

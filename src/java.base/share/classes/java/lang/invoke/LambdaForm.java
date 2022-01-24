@@ -1705,7 +1705,7 @@ class LambdaForm {
     private static final @Stable NamedFunction[] NF_identity = new NamedFunction[TYPE_LIMIT];
     private static final @Stable NamedFunction[] NF_zero = new NamedFunction[TYPE_LIMIT];
 
-    private static final Object createFormsLock = java.util.Objects.newIdentity();
+    private static final Object createFormsLock = new Object();
     private static void createFormsFor(BasicType type) {
         // Avoid racy initialization during bootstrap
         UNSAFE.ensureClassInitialized(BoundMethodHandle.class);

@@ -35,7 +35,7 @@ public class attach021Target extends TargetApplicationWaitingAgents {
     private static native void shutdownAgent();
 
     private boolean createTaggedObject() {
-        Object object = java.util.Objects.newIdentity();
+        Object object = new Object();
 
         log.display("Setting tag for " + object);
 

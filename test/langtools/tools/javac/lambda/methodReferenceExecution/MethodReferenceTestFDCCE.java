@@ -106,7 +106,7 @@ public class MethodReferenceTestFDCCE {
         Pred<Byte> p = MethodReferenceTestFDCCE::isMinor;
         Pred p2 = p;
         try {
-            p2.accept(java.util.Objects.newIdentity()); // should throw CCE
+            p2.accept(new Object()); // should throw CCE
             fail("Exception should have been thrown");
         } catch (Throwable t) {
             assertCCE(t);

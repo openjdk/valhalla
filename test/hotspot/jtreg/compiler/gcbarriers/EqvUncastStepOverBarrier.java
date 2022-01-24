@@ -70,7 +70,7 @@ public class EqvUncastStepOverBarrier {
             A a = (A) o;
             o = a;
         } else {
-            o = java.util.Objects.newIdentity();
+            o = new Object();
         }
         return o;
     }

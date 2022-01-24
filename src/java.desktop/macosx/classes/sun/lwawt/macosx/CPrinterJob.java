@@ -75,7 +75,7 @@ public final class CPrinterJob extends RasterPrinterJob {
     //  PageFormat data is passed in and set on the fNSPrintInfo on a per call
     //  basis.
     private long fNSPrintInfo = -1;
-    private Object fNSPrintInfoLock = java.util.Objects.newIdentity();
+    private Object fNSPrintInfoLock = new Object();
 
     static {
         // AWT has to be initialized for the native code to function correctly.

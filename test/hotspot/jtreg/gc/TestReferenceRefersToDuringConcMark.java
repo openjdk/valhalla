@@ -46,7 +46,7 @@ public class TestReferenceRefersToDuringConcMark {
     private static WeakReference<Object> testWeak = null;
 
     private static void setup() {
-        testObject = java.util.Objects.newIdentity();
+        testObject = new Object();
         testWeak = new WeakReference<Object>(testObject);
     }
 

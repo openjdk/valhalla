@@ -58,7 +58,7 @@ import java.io.Serializable;
 @SuppressWarnings("serial") // Same-version serialization only
 public class MetalToggleButtonUI extends BasicToggleButtonUI {
 
-    private static final Object METAL_TOGGLE_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object METAL_TOGGLE_BUTTON_UI_KEY = new Object();
 
     /**
      * The color of a focused toggle button.

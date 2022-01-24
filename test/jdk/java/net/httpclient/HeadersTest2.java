@@ -72,7 +72,7 @@ public class HeadersTest2 {
             }
 
             // Ensures that headers never equal a non-HttpHeaders type
-            if (h1.equals(java.util.Objects.newIdentity()))
+            if (h1.equals(new Object()))
                 throw new RuntimeException("Unexpected h1 equals Object");
 
             if (h2.equals(r1))

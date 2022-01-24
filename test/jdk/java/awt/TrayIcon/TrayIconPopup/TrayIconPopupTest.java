@@ -44,7 +44,7 @@ public class TrayIconPopupTest {
     ExtendedRobot robot;
 
     boolean actionPerformed = false;
-    Object actionLock = java.util.Objects.newIdentity();
+    Object actionLock = new Object();
     static final int ATTEMPTS = 50;
 
     PopupMenu popup;

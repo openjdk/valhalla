@@ -61,7 +61,7 @@ class AquaFileSystemModel extends AbstractTableModel implements PropertyChangeLi
     public static final String SORT_ASCENDING_CHANGED = "sortAscendingChanged";
 
     public AquaFileSystemModel(final JFileChooser filechooser, final JTable filelist, final String[] colNames) {
-        fileCacheLock = java.util.Objects.newIdentity();
+        fileCacheLock = new Object();
         this.filechooser = filechooser;
         fFileList = filelist;
         fColumnNames = colNames;
@@ -452,7 +452,7 @@ class AquaFileSystemModel extends AbstractTableModel implements PropertyChangeLi
     class DoChangeContents implements Runnable {
         private Vector<SortableFile> contentFiles;
         private boolean doFire = true;
-        private final Object lock = java.util.Objects.newIdentity();
+        private final Object lock = new Object();
         private final int fid;
 
         public DoChangeContents(final Vector<SortableFile> files, final int fid) {

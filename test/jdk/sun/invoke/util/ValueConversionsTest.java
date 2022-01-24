@@ -137,7 +137,7 @@ public class ValueConversionsTest {
     @Test
     public void testCast() throws Throwable {
         Class<?>[] types = { Object.class, Serializable.class, String.class, Number.class, Integer.class };
-        Object[] objects = { java.util.Objects.newIdentity(), Boolean.FALSE,      "hello",      (Long)12L,    (Integer)6    };
+        Object[] objects = { new Object(), Boolean.FALSE,      "hello",      (Long)12L,    (Integer)6    };
         for (Class<?> dst : types) {
             MethodHandle caster = ValueConversions.cast().bindTo(dst);
             assertEquals(caster.type(), MethodHandles.identity(Object.class).type());

@@ -151,8 +151,8 @@ class Threadframes_ii001a extends NamedTask {
         super(threadName);
     }
 
-    public static Object waitnotifyObj = java.util.Objects.newIdentity();
-    public static Object lockingObject = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj = new Object();
+    public static Object lockingObject = new Object();
 
     private int i1 = 0, i2 = 10;
 

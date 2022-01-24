@@ -33,7 +33,7 @@ import nsk.share.gc.lock.Locker;
 public abstract class CriticalSectionLocker<T> implements Locker<T> {
         private transient boolean enabled = false;
         private transient boolean locked = false;
-        private Object sync = java.util.Objects.newIdentity();
+        private Object sync = new Object();
         private Thread thread;
         private Throwable exception;
 

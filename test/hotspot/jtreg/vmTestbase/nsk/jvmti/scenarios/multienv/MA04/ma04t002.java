@@ -52,8 +52,8 @@ public class ma04t002 extends DebugeeClass {
     int status = Consts.TEST_PASSED;
 
     // tested objects
-    static Object testedObject1 = java.util.Objects.newIdentity();
-    static Object testedObject2 = java.util.Objects.newIdentity();
+    static Object testedObject1 = new Object();
+    static Object testedObject2 = new Object();
     static ma04t002 testedInstance1 = new ma04t002();
     static ma04t002 testedInstance2 = new ma04t002();
 

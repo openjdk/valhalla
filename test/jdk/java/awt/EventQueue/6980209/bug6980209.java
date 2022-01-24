@@ -224,7 +224,7 @@ public class bug6980209 implements ActionListener {
                 Toolkit.getDefaultToolkit().getSystemEventQueue()
                         .createSecondaryLoop();
 
-        final Object LOCK = java.util.Objects.newIdentity(); //lock to start simultaneously
+        final Object LOCK = new Object(); //lock to start simultaneously
         Thread exitThread = new Thread("Exit thread") {
             @Override
             public void run() {

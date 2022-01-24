@@ -79,7 +79,7 @@ public class strace013 {
     static PrintStream out;
     static long waitTime = 2;
 
-    static Object lockedObject = java.util.Objects.newIdentity();
+    static Object lockedObject = new Object();
 
     volatile int achivedCount = 0;
     strace013Thread[] threads;

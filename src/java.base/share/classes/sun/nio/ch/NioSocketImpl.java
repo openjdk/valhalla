@@ -91,7 +91,7 @@ public final class NioSocketImpl extends SocketImpl implements PlatformSocketImp
     private final ReentrantLock writeLock = new ReentrantLock();
 
     // The stateLock for read/changing state
-    private final Object stateLock = java.util.Objects.newIdentity();
+    private final Object stateLock = new Object();
     private static final int ST_NEW = 0;
     private static final int ST_UNCONNECTED = 1;
     private static final int ST_CONNECTING = 2;

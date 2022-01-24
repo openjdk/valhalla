@@ -420,7 +420,7 @@ public final class AppContext {
         // First, we post an InvocationEvent to be run on the
         // EventDispatchThread which disposes of all top-level Frames and TrayIcons
 
-        final Object notificationLock = java.util.Objects.newIdentity();
+        final Object notificationLock = new Object();
 
         Runnable runnable = new Runnable() {
             public void run() {

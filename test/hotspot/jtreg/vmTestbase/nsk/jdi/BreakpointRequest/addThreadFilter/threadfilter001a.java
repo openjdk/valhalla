@@ -129,7 +129,7 @@ public class threadfilter001a {
     }
 
 
-    static Object waitnotifyObj = java.util.Objects.newIdentity();
+    static Object waitnotifyObj = new Object();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {

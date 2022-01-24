@@ -908,7 +908,7 @@ public class LinkedTransferQueueTest extends JSR166TestCase {
      */
     public void testTryTransfer2() throws InterruptedException {
         final LinkedTransferQueue<Object> q = new LinkedTransferQueue<>();
-        assertFalse(q.tryTransfer(java.util.Objects.newIdentity()));
+        assertFalse(q.tryTransfer(new Object()));
         assertFalse(q.hasWaitingConsumer());
         checkEmpty(q);
     }
@@ -918,7 +918,7 @@ public class LinkedTransferQueueTest extends JSR166TestCase {
      * returns true while successfully transfering object.
      */
     public void testTryTransfer3() throws InterruptedException {
-        final Object hotPotato = java.util.Objects.newIdentity();
+        final Object hotPotato = new Object();
         final LinkedTransferQueue<Object> q = new LinkedTransferQueue<>();
 
         Thread t = newStartedThread(new CheckedRunnable() {
@@ -942,7 +942,7 @@ public class LinkedTransferQueueTest extends JSR166TestCase {
      * true while successfully transfering object.
      */
     public void testTryTransfer4() throws InterruptedException {
-        final Object hotPotato = java.util.Objects.newIdentity();
+        final Object hotPotato = new Object();
         final LinkedTransferQueue<Object> q = new LinkedTransferQueue<>();
 
         Thread t = newStartedThread(new CheckedRunnable() {
@@ -971,14 +971,14 @@ public class LinkedTransferQueueTest extends JSR166TestCase {
             public void realRun() throws InterruptedException {
                 Thread.currentThread().interrupt();
                 try {
-                    q.tryTransfer(java.util.Objects.newIdentity(), randomTimeout(), randomTimeUnit());
+                    q.tryTransfer(new Object(), randomTimeout(), randomTimeUnit());
                     shouldThrow();
                 } catch (InterruptedException success) {}
                 assertFalse(Thread.interrupted());
 
                 pleaseInterrupt.countDown();
                 try {
-                    q.tryTransfer(java.util.Objects.newIdentity(), LONGER_DELAY_MS, MILLISECONDS);
+                    q.tryTransfer(new Object(), LONGER_DELAY_MS, MILLISECONDS);
                     shouldThrow();
                 } catch (InterruptedException success) {}
                 assertFalse(Thread.interrupted());
@@ -1000,7 +1000,7 @@ public class LinkedTransferQueueTest extends JSR166TestCase {
         Thread t = newStartedThread(new CheckedRunnable() {
             public void realRun() throws InterruptedException {
                 long startTime = System.nanoTime();
-                assertFalse(q.tryTransfer(java.util.Objects.newIdentity(),
+                assertFalse(q.tryTransfer(new Object(),
                                           timeoutMillis(), MILLISECONDS));
                 assertTrue(millisElapsedSince(startTime) >= timeoutMillis());
                 checkEmpty(q);

@@ -44,7 +44,7 @@ public abstract class NotificationEmitterSupport implements NotificationEmitter 
     protected NotificationEmitterSupport() {
     }
 
-    private Object listenerLock = java.util.Objects.newIdentity();
+    private Object listenerLock = new Object();
 
     // Implementation of NotificationEmitter interface
     // Cloned from JMX NotificationBroadcasterSupport class.

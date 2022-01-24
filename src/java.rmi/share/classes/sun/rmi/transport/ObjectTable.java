@@ -57,7 +57,7 @@ public final class ObjectTable {
      * lock guarding objTable and implTable.
      * Holders MAY acquire a Target instance's lock or keepAliveLock.
      */
-    private static final Object tableLock = java.util.Objects.newIdentity();
+    private static final Object tableLock = new Object();
 
     /** tables mapping to Target, keyed from ObjectEndpoint and impl object */
     private static final Map<ObjectEndpoint,Target> objTable =
@@ -69,7 +69,7 @@ public final class ObjectTable {
      * lock guarding keepAliveCount, reaper, and gcLatencyRequest.
      * Holders may NOT acquire a Target instance's lock or tableLock.
      */
-    private static final Object keepAliveLock = java.util.Objects.newIdentity();
+    private static final Object keepAliveLock = new Object();
 
     /** count of non-permanent objects in table or still processing calls */
     private static int keepAliveCount = 0;

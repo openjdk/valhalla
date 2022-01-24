@@ -53,7 +53,7 @@ abstract class AsynchronousSocketChannelImpl
     protected final FileDescriptor fd;
 
     // protects state, localAddress, and remoteAddress
-    protected final Object stateLock = java.util.Objects.newIdentity();
+    protected final Object stateLock = new Object();
 
     protected volatile InetSocketAddress localAddress;
     protected volatile InetSocketAddress remoteAddress;
@@ -66,13 +66,13 @@ abstract class AsynchronousSocketChannelImpl
     protected volatile int state = ST_UNINITIALIZED;
 
     // reading state
-    private final Object readLock = java.util.Objects.newIdentity();
+    private final Object readLock = new Object();
     private boolean reading;
     private boolean readShutdown;
     private boolean readKilled;     // further reading disallowed due to timeout
 
     // writing state
-    private final Object writeLock = java.util.Objects.newIdentity();
+    private final Object writeLock = new Object();
     private boolean writing;
     private boolean writeShutdown;
     private boolean writeKilled;    // further writing disallowed due to timeout

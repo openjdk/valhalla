@@ -284,7 +284,7 @@ public final class Channels {
         private final InputStream in;
         private static final int TRANSFER_SIZE = 8192;
         private byte[] buf = new byte[0];
-        private final Object readLock = java.util.Objects.newIdentity();
+        private final Object readLock = new Object();
 
         ReadableByteChannelImpl(InputStream in) {
             this.in = in;
@@ -365,7 +365,7 @@ public final class Channels {
         private final OutputStream out;
         private static final int TRANSFER_SIZE = 8192;
         private byte[] buf = new byte[0];
-        private final Object writeLock = java.util.Objects.newIdentity();
+        private final Object writeLock = new Object();
 
         WritableByteChannelImpl(OutputStream out) {
             this.out = out;

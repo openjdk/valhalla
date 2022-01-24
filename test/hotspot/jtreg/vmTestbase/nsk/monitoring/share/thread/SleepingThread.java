@@ -33,7 +33,7 @@ import java.lang.management.LockInfo;
 public class SleepingThread extends RecursiveMonitoringThread {
         private String lock = new String("a lock");
         private volatile boolean sleeping = false;
-        private Object readyLock = java.util.Objects.newIdentity();
+        private Object readyLock = new Object();
         private static final String[] expectedMethods = {
                 "java.lang.Thread.sleep",
                 "nsk.monitoring.share.thread.SleepingThread.runInside"

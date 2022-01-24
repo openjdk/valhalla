@@ -60,11 +60,11 @@ class PollSelectorImpl extends SelectorImpl {
     private final List<SelectionKeyImpl> pollKeys = new ArrayList<>();
 
     // pending updates, queued by putEventOps
-    private final Object updateLock = java.util.Objects.newIdentity();
+    private final Object updateLock = new Object();
     private final Deque<SelectionKeyImpl> updateKeys = new ArrayDeque<>();
 
     // interrupt triggering and clearing
-    private final Object interruptLock = java.util.Objects.newIdentity();
+    private final Object interruptLock = new Object();
     private boolean interruptTriggered;
 
     PollSelectorImpl(SelectorProvider sp) throws IOException {

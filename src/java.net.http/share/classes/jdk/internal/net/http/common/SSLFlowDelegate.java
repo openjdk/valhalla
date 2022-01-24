@@ -259,7 +259,7 @@ public class SSLFlowDelegate {
         final SequentialScheduler scheduler;
         volatile ByteBuffer readBuf;
         volatile boolean completing;
-        final Object readBufferLock = java.util.Objects.newIdentity();
+        final Object readBufferLock = new Object();
         final Logger debugr = Utils.getDebugLogger(this::dbgString, Utils.DEBUG);
 
         private final class ReaderDownstreamPusher implements Runnable {

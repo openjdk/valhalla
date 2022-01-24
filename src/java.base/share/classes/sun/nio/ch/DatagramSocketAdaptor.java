@@ -437,7 +437,7 @@ public class DatagramSocketAdaptor
     private final ReentrantLock sendLock = new ReentrantLock();
 
     // cached outgoing interface (for use by setInterface/getInterface)
-    private final Object outgoingInterfaceLock = java.util.Objects.newIdentity();
+    private final Object outgoingInterfaceLock = new Object();
     private NetworkInterface outgoingNetworkInterface;
     private InetAddress outgoingInetAddress;
 

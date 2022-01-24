@@ -176,7 +176,7 @@ public class thread008 extends Thread {
         return 0;
     }
 
-    static Object stopLine = java.util.Objects.newIdentity();
+    static Object stopLine = new Object();
     static int oopsCounter = 0;
 
     /**
@@ -216,7 +216,7 @@ public class thread008 extends Thread {
         // Since Java 2, the method Thread.sleep() doesn't guarantee
         // to yield to other threads. So, call Object.wait() to yield:
         //
-        Object lock = java.util.Objects.newIdentity(); // local scope, nobody can notify it
+        Object lock = new Object(); // local scope, nobody can notify it
         synchronized (lock) {
             lock.wait(time);
         }

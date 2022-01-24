@@ -48,7 +48,7 @@ import jdk.jfr.internal.Repository;
 import jdk.jfr.internal.SecuritySupport.SafePath;
 
 public final class RepositoryFiles {
-    private static final Object WAIT_OBJECT = java.util.Objects.newIdentity();
+    private static final Object WAIT_OBJECT = new Object();
     private static final String DIRECTORY_PATTERN = "DDDD_DD_DD_DD_DD_DD_";
     public static void notifyNewFile() {
         synchronized (WAIT_OBJECT) {
@@ -67,7 +67,7 @@ public final class RepositoryFiles {
     public RepositoryFiles(FileAccess fileAccess, Path repository, boolean allowSubDirectory) {
         this.repository = repository;
         this.fileAccess = fileAccess;
-        this.waitObject = repository == null ? WAIT_OBJECT : java.util.Objects.newIdentity();
+        this.waitObject = repository == null ? WAIT_OBJECT : new Object();
         this.allowSubDirectory = allowSubDirectory;
     }
 

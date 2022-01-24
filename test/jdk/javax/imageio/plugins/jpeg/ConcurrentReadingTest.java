@@ -49,7 +49,7 @@ public class ConcurrentReadingTest extends Thread {
     private static final int MAX_THREADS = 50;
 
     static int completeCount = 0;;
-    static Object lock = java.util.Objects.newIdentity();
+    static Object lock = new Object();
 
     public static void main(String[] args) throws Exception {
         createTestFile();

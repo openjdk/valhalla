@@ -53,7 +53,7 @@ public class EchoImpl
          * object on the native stack and not clear the weak reference to
          * it in the RMI runtime's object table.
          */
-        Object dummy = java.util.Objects.newIdentity();
+        Object dummy = new Object();
 
         TestLibrary.suggestSecurityManager("java.rmi.RMISecurityManager");
 

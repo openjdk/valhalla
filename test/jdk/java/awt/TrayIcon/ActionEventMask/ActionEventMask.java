@@ -51,15 +51,15 @@ public class ActionEventMask {
 
     boolean actionPerformed = false;
     boolean listenersInvoked = false;
-    Object actionLock = java.util.Objects.newIdentity();
-    Object listenersLock = java.util.Objects.newIdentity();
+    Object actionLock = new Object();
+    Object listenersLock = new Object();
     static boolean isMacOS = false;
     static final int clickDelay = 50;
 
     ActionListener[] listeners;
     boolean[] listenerStatus;
 
-    Object lLock = java.util.Objects.newIdentity();
+    Object lLock = new Object();
     boolean doTest, listenerAdded;
     Button b1;
 

@@ -279,7 +279,7 @@ public class TestTypes {
             return Character.valueOf((char) (32 + Env.getRNG().nextInt(96)));
 
         if (type.equals(Object.class))
-            return java.util.Objects.newIdentity();
+            return new Object();
 
         if (type.equals(String.class)) {
             StringBuilder sb = new StringBuilder();

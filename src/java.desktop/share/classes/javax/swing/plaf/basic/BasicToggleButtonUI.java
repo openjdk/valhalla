@@ -44,7 +44,7 @@ import javax.swing.text.View;
  */
 public class BasicToggleButtonUI extends BasicButtonUI {
 
-    private static final Object BASIC_TOGGLE_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object BASIC_TOGGLE_BUTTON_UI_KEY = new Object();
 
     private static final String propertyPrefix = "ToggleButton" + ".";
 

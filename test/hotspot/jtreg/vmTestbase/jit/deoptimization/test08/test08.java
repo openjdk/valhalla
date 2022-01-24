@@ -105,7 +105,7 @@ class A {
 
         protected Object b = null;
         protected static final int sIteration = 1000;
-        protected static final Object a_ext = java.util.Objects.newIdentity();
+        protected static final Object a_ext = new Object();
 }
 
 class B extends A {
@@ -140,7 +140,7 @@ class B extends A {
                 }
         return result;
   }
-        protected static final Object b_ext = java.util.Objects.newIdentity();
+        protected static final Object b_ext = new Object();
 }
 
 class C extends B {
@@ -163,7 +163,7 @@ class C extends B {
                 }
                 return result;
         }
-        protected static final Object c_ext = java.util.Objects.newIdentity();
+        protected static final Object c_ext = new Object();
 }
 
 class D extends C {

@@ -59,7 +59,7 @@ public class uninit003 {
     public Object osr() {
         Object o = null;
         for(int i = 0; i<Constants.LOOP_ITERATIONS; i++) {
-            o = java.util.Objects.newIdentity();
+            o = new Object();
         }
         return o;
     }

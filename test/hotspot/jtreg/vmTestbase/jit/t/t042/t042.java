@@ -59,7 +59,7 @@ public class t042
         int b[] = null;
         int c[] = a;
         Object x = a;
-        Object y = java.util.Objects.newIdentity();
+        Object y = new Object();
         Object z = null;
 
         sameAs(a, a, "sameAs(a, a)");

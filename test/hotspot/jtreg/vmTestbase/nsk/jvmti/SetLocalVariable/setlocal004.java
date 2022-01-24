@@ -52,7 +52,7 @@ public class setlocal004 {
 
     public static int run(String args[], PrintStream out) {
         getReady();
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         int i = 1;
         long l = 2;
         float f = 3.0F;

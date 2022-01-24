@@ -52,8 +52,8 @@ public class em01t001 extends DebugeeClass {
     Log.Logger logger;
     long timeout = 0;
 
-    static public Object threadStarting = java.util.Objects.newIdentity();
-    static public Object threadWaiting = java.util.Objects.newIdentity();
+    static public Object threadStarting = new Object();
+    static public Object threadWaiting = new Object();
 
     /* =================================================================== */
 

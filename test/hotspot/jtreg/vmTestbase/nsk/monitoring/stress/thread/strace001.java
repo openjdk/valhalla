@@ -36,7 +36,7 @@ public class strace001 {
 
     public static volatile boolean finish;
     public static volatile boolean testFailed = false;
-    public static Object common = java.util.Objects.newIdentity();
+    public static Object common = new Object();
     public static Integer activeThreads;
     public static String activeThreadsSync = "abc";
     private static Log log;

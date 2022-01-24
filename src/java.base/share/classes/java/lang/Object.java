@@ -44,7 +44,7 @@ public abstract class Object {
      * Constructs a new object.
      *
      * @apiNote {@link Objects#newIdentity java.util.Objects.newIdentity()}
-     * should be used instead of {@code java.util.Objects.newIdentity()}.
+     * should be used instead of {@code new Object()}.
      */
     @IntrinsicCandidate
     public Object() {}

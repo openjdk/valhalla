@@ -322,7 +322,7 @@ public class Window extends Container implements Accessible {
     transient WindowFocusListener windowFocusListener;
 
     transient InputContext inputContext;
-    private transient Object inputContextLock = java.util.Objects.newIdentity();
+    private transient Object inputContextLock = new Object();
 
     /**
      * Unused. Maintained for serialization backward-compatibility.
@@ -453,7 +453,7 @@ public class Window extends Container implements Accessible {
         init(gc);
     }
 
-    transient Object anchor = java.util.Objects.newIdentity();
+    transient Object anchor = new Object();
     static class WindowDisposerRecord implements sun.java2d.DisposerRecord {
         WeakReference<Window> owner;
         final WeakReference<Window> weakThis;
@@ -3015,14 +3015,14 @@ public class Window extends Container implements Accessible {
     //
     private void initDeserializedWindow() {
         setWarningString();
-        inputContextLock = java.util.Objects.newIdentity();
+        inputContextLock = new Object();
 
         // Deserialized Windows are not yet visible.
         visible = false;
 
         weakThis = new WeakReference<>(this);
 
-        anchor = java.util.Objects.newIdentity();
+        anchor = new Object();
         disposerRecord = new WindowDisposerRecord(appContext, this);
         sun.java2d.Disposer.addRecord(anchor, disposerRecord);
 

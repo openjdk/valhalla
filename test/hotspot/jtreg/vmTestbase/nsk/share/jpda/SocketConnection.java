@@ -458,10 +458,10 @@ public class SocketConnection extends BasicSocketConnection {
 
     private static byte DISCONNECT_BYTE = (byte) 0x04;
 
-    private final Object inLock = java.util.Objects.newIdentity();
+    private final Object inLock = new Object();
     private ObjectInputStream in = null;
 
-    private final Object outLock = java.util.Objects.newIdentity();
+    private final Object outLock = new Object();
     private ObjectOutputStream out = null;
 
     private volatile long pingTimeout = 0; // don't use ping

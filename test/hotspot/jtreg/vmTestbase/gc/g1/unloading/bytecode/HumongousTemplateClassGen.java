@@ -63,11 +63,11 @@ public static void addFileTop(List<String> records) {
 public static void addIteration(int itNum, List<String> records) {
     Random rng = Utils.getRandomInstance();
     records.add("    public static Object public_static_object_" + itNum
-            + " = java.util.Objects.newIdentity();\n");
+            + " = new Object();\n");
     records.add("    protected static Object protected_static_object_" + itNum
-            + " = java.util.Objects.newIdentity();\n");
+            + " = new Object();\n");
     records.add("    private static Object private_static_Object_" + itNum
-            + " = java.util.Objects.newIdentity();\n");
+            + " = new Object();\n");
     records.add("\n");
     records.add("    public static long public_static_long_" + itNum + ";\n");
     records.add("    protected static long protected_static_long_" + itNum
@@ -76,11 +76,11 @@ public static void addIteration(int itNum, List<String> records) {
             + " = 42;\n");
     records.add("\n");
     records.add("    public Object public_object_" + itNum
-            + " = java.util.Objects.newIdentity();\n");
+            + " = new Object();\n");
     records.add("    protected Object protected_object_" + itNum
-            + " = java.util.Objects.newIdentity();\n");
+            + " = new Object();\n");
     records.add("    private Object private_Object_" + itNum
-            + " = java.util.Objects.newIdentity();\n");
+            + " = new Object();\n");
     records.add("\n");
     records.add("    public long public_long_" + itNum + " = 43;\n");
     records.add("    protected long protected_long_" + itNum + " = 44;\n");

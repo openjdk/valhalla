@@ -127,11 +127,11 @@ class WindowsSelectorImpl extends SelectorImpl {
     private long timeout; //timeout for poll
 
     // Lock for interrupt triggering and clearing
-    private final Object interruptLock = java.util.Objects.newIdentity();
+    private final Object interruptLock = new Object();
     private volatile boolean interruptTriggered;
 
     // pending new registrations/updates, queued by implRegister and setEventOps
-    private final Object updateLock = java.util.Objects.newIdentity();
+    private final Object updateLock = new Object();
     private final Deque<SelectionKeyImpl> newKeys = new ArrayDeque<>();
     private final Deque<SelectionKeyImpl> updateKeys = new ArrayDeque<>();
 

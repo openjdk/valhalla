@@ -79,7 +79,7 @@ public class UnsafeGetStableArrayElement {
         private static void setJ(boolean defaultVal) { STABLE_LONG_ARRAY[0]    = defaultVal ?     0 :      Long.MAX_VALUE; }
         private static void setF(boolean defaultVal) { STABLE_FLOAT_ARRAY[0]   = defaultVal ?     0 :     Float.MAX_VALUE; }
         private static void setD(boolean defaultVal) { STABLE_DOUBLE_ARRAY[0]  = defaultVal ?     0 :    Double.MAX_VALUE; }
-        private static void setL(boolean defaultVal) { STABLE_OBJECT_ARRAY[0]  = defaultVal ?  null :        java.util.Objects.newIdentity(); }
+        private static void setL(boolean defaultVal) { STABLE_OBJECT_ARRAY[0]  = defaultVal ?  null :        new Object(); }
 
         static void reset() {
             setZ(false);

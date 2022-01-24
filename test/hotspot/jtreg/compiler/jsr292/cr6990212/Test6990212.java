@@ -50,7 +50,7 @@ public class Test6990212 implements intf {
         // raiseException path.
         MethodHandle target = MethodHandles.lookup().findVirtual(intf.class, "target",  MethodType.methodType(Object.class));
         try {
-            target.invoke(java.util.Objects.newIdentity());
+            target.invoke(new Object());
         } catch (ClassCastException cce) {
             // everything is ok
             System.out.println("got expected ClassCastException");

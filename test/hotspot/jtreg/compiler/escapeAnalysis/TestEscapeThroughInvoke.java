@@ -47,7 +47,7 @@ public class TestEscapeThroughInvoke {
 
     private void run() {
         // Allocate something to trigger EA
-        java.util.Objects.newIdentity();
+        new Object();
         // Create a new escaping instance of A and
         // verify that it is always equal to 'a.saved'.
         A escapingA = create(42);

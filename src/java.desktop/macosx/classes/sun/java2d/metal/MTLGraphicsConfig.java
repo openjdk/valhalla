@@ -86,7 +86,7 @@ public final class MTLGraphicsConfig extends CGraphicsConfig
     private long pConfigInfo;
     private ContextCapabilities mtlCaps;
     private final MTLContext context;
-    private final Object disposerReferent = java.util.Objects.newIdentity();
+    private final Object disposerReferent = new Object();
     private final int maxTextureSize;
 
     private static native boolean isMetalFrameworkAvailable();

@@ -34,7 +34,7 @@ public class ExternalTerminal extends LineDisciplineTerminal {
 
     protected final AtomicBoolean closed = new AtomicBoolean();
     protected final InputStream masterInput;
-    protected final Object lock = java.util.Objects.newIdentity();
+    protected final Object lock = new Object();
     protected boolean paused = true;
     protected Thread pumpThread;
 

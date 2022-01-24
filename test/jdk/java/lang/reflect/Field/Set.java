@@ -89,13 +89,13 @@ class Test {
     public volatile Object vo;
 
     private static final int si = 408-343-1407;;
-    private static final Object so = java.util.Objects.newIdentity();
+    private static final Object so = new Object();
 
     Test() {
         i = 911;
         ni = i;
         vi = i;
-        o = java.util.Objects.newIdentity();
+        o = new Object();
         no = o;
         vo = o;
     }
@@ -136,7 +136,7 @@ class Test {
         Object saved = no;
         try {
             Field f = this.getClass().getDeclaredField("no");
-            f.set(this, java.util.Objects.newIdentity());
+            f.set(this, new Object());
             if (no == saved) {
                 System.out.println("set() did not work");
             }
@@ -152,7 +152,7 @@ class Test {
         Object saved = so;
         try {
             Field f = this.getClass().getDeclaredField("so");
-            f.set(this, java.util.Objects.newIdentity());
+            f.set(this, new Object());
             if (so == saved) {
                 System.out.println("set() did not work for static");
             }
@@ -201,7 +201,7 @@ class Test {
         try {
             Field f = this.getClass().getDeclaredField("o");
             f.setAccessible(true);
-            f.set(this, java.util.Objects.newIdentity());
+            f.set(this, new Object());
             if (o == saved) {
                 System.out.println("set() did not work");
             }
@@ -218,7 +218,7 @@ class Test {
         try {
             Field f = this.getClass().getDeclaredField("so");
             f.setAccessible(true);
-            f.set(this, java.util.Objects.newIdentity());
+            f.set(this, new Object());
             if (so == saved) {
                 System.out.println("set() did not work for static");
             }
@@ -252,7 +252,7 @@ class Test {
         try {
             Field f = this.getClass().getDeclaredField("vo");
             f.setAccessible(true);
-            f.set(this, java.util.Objects.newIdentity());
+            f.set(this, new Object());
             if (vo == saved) {
                 System.out.println("set() did not work");
             }

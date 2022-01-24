@@ -51,7 +51,7 @@ public class StressGetObjectSizeApp
 
     public void stressGetObjectSize() {
         System.out.println("main: an object size=" +
-            fInst.getObjectSize(java.util.Objects.newIdentity()));
+            fInst.getObjectSize(new Object()));
 
         RoundAndRound[] threads = new RoundAndRound[10];
         for (int i = 0; i < threads.length; ++i) {
@@ -72,7 +72,7 @@ public class StressGetObjectSizeApp
 
         public RoundAndRound(Instrumentation inst) {
             this.inst = inst;
-            this.anObject = java.util.Objects.newIdentity();
+            this.anObject = new Object();
             setDaemon(true);
         }
 

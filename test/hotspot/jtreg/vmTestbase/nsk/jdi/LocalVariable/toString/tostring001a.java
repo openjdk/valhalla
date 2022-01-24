@@ -90,7 +90,7 @@ public class tostring001a {
         Short R0 = Short.valueOf((short)1),     R1[] = {R0}, R2[][] = {R1};
 
         String    s0 = "string", s1[] = {s0}, s2[][] = {s1};
-        Object    o0 = java.util.Objects.newIdentity(), o1[] = {o0}, o2[][] = {o1};
+        Object    o0 = new Object(), o1[] = {o0}, o2[][] = {o1};
         tostring001aP p0 = new tostring001aP(), p1[] = {p0}, p2[][] = {p1};
         tostring001aM m0 = new tostring001aP(), m1[] = {m0}, m2[][] = {m1};
         //--------------------------------------------

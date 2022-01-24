@@ -67,7 +67,7 @@ public class owningthread002a {
     //------------------------------------------------------ test specific fields
 
     static owningthread002aLock lockObj = new owningthread002aLock();
-//    static Object waitnotifyObj = java.util.Objects.newIdentity();
+//    static Object waitnotifyObj = new Object();
     static final int threadCount = 5;
     static final String threadNamePrefix = "MyThread-";
     static Thread[] threads = new Thread[threadCount];

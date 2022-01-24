@@ -102,7 +102,7 @@ public class ConcurrentClassDescLookup {
     public static void main(String[] args) throws Exception {
         ClassLoader loader = ConcurrentClassDescLookup.class.getClassLoader();
         Class<?> cl = Class.forName("Good", false, loader);
-        Object barrier = java.util.Objects.newIdentity();
+        Object barrier = new Object();
         SuccessfulLookup[] slookups = new SuccessfulLookup[50];
         for (int i = 0; i < slookups.length; i++) {
             slookups[i] =

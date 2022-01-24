@@ -25,7 +25,7 @@ package jdk.jfr.api.consumer.recordingstream;
 import jdk.jfr.api.consumer.recordingstream.TestStart.StartEvent;
 
 class EventProducer extends Thread {
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
     private boolean killed = false;
     public void run() {
         while (true) {

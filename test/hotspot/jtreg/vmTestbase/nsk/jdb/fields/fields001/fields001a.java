@@ -68,7 +68,7 @@ public class fields001a {
     private    Object o_pv;
     protected  Object o_pt;
     public     Object o_pb;
-    final      Object o_fn = java.util.Objects.newIdentity();
+    final      Object o_fn = new Object();
     transient  Object o_tr;
     volatile   Object o_vl;
     Object []     o_a;
@@ -89,7 +89,7 @@ public class fields001a {
         private    Object oi_pv;
         protected  Object oi_pt;
         public     Object oi_pb;
-        final      Object oi_fn = java.util.Objects.newIdentity();
+        final      Object oi_fn = new Object();
         transient  Object oi_tr;
         volatile   Object oi_vl;
         Object []     oi_a;

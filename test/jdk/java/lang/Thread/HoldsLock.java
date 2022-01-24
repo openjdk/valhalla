@@ -55,7 +55,7 @@ public class HoldsLock {
         };
 
         // Test uncontested case
-        target = java.util.Objects.newIdentity();
+        target = new Object();
         checkLock(false);
         synchronized(target) {
             checkLock(true);

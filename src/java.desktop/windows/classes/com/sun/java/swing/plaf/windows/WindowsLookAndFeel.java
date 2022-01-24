@@ -2312,7 +2312,7 @@ public class WindowsLookAndFeel extends BasicLookAndFeel
         protected Object classicValue, xpValue;
 
         // A constant that lets you specify null when using XP styles.
-        private static final Object NULL_VALUE = java.util.Objects.newIdentity();
+        private static final Object NULL_VALUE = new Object();
 
         XPValue(Object xpValue, Object classicValue) {
             this.xpValue = xpValue;

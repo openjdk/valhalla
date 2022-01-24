@@ -134,7 +134,7 @@ public class TestRTMLockingThreshold {
         private static int field = 0;
         private static final int TOTAL_ITERATIONS = 10000;
         private final XAbortProvoker xabort = new XAbortProvoker();
-        private final Object monitor = java.util.Objects.newIdentity();
+        private final Object monitor = new Object();
 
         @Override
         public String getMethodWithLockName() {

@@ -2398,7 +2398,7 @@ public final class Unsafe {
      * a primitive type.  This is a temporary workaround until better localized
      * atomic access mechanisms are supported for primitive types.
      */
-    private static final Object valueLock = java.util.Objects.newIdentity();
+    private static final Object valueLock = new Object();
 
     public final <V> Object getValueVolatile(Object base, long offset, Class<?> valueType) {
         synchronized (valueLock) {

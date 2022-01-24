@@ -72,7 +72,7 @@ public final class CGLGraphicsConfig extends CGraphicsConfig
     private long pConfigInfo;
     private ContextCapabilities oglCaps;
     private final OGLContext context;
-    private final Object disposerReferent = java.util.Objects.newIdentity();
+    private final Object disposerReferent = new Object();
     private final int maxTextureSize;
 
     private static native boolean initCGL();

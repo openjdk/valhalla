@@ -39,8 +39,8 @@ public class ThreadStackTrace {
     private static final ThreadMXBean mbean
         = ManagementFactory.getThreadMXBean();
     private static boolean notified = false;
-    private static final Object lockA = java.util.Objects.newIdentity();
-    private static final Object lockB = java.util.Objects.newIdentity();
+    private static final Object lockA = new Object();
+    private static final Object lockB = new Object();
     private static volatile boolean testFailed = false;
     private static final String[] blockedStack = {"run", "test", "A", "B", "C", "D"};
     private static final int bsDepth = 6;

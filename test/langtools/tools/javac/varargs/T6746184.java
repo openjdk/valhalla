@@ -29,7 +29,7 @@
 
 public class T6746184 {
     public static void main(String[] args) {
-        A.m(java.util.Objects.newIdentity());
+        A.m(new Object());
     }
 }
 

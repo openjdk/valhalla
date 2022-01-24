@@ -104,7 +104,7 @@ public class TestRTMTotalCountIncrRate {
     public static class Test implements CompilableTest {
         private static final long TOTAL_ITERATIONS = 10000L;
         private final XAbortProvoker xabort = new XAbortProvoker();
-        private final Object monitor = java.util.Objects.newIdentity();
+        private final Object monitor = new Object();
         // Following field have to be static in order to avoid escape analysis.
         @SuppressWarnings("UnsuedDeclaration")
         private static int field = 0;

@@ -199,7 +199,7 @@ public final class CFontManager extends SunFontManager {
         }
     }
 
-    Object waitForFontsToBeLoaded  = java.util.Objects.newIdentity();
+    Object waitForFontsToBeLoaded  = new Object();
     private boolean loadedAllFonts = false;
 
     @SuppressWarnings("removal")

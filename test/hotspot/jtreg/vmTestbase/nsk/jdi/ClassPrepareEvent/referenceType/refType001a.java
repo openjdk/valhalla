@@ -32,8 +32,8 @@ import java.io.*;
 // This class is the debugged application in the test
 
 class refType001a {
-    public static Object threadStartNotification = java.util.Objects.newIdentity();
-    public static Object threadExitLock = java.util.Objects.newIdentity();
+    public static Object threadStartNotification = new Object();
+    public static Object threadExitLock = new Object();
 
     public static void main(String args[]) {
         refType001a _refType001a = new refType001a();

@@ -18327,7 +18327,7 @@ public class INDIFY_Test extends MlvmTest {
         public void run() {
             try {
                 Method m = INDIFY_Test.class.getDeclaredMethod("indyWrapper" + _n, Object.class, Object.class, Object.class);
-                m.invoke(null, java.util.Objects.newIdentity(), java.util.Objects.newIdentity(), _n);
+                m.invoke(null, new Object(), new Object(), _n);
             } catch ( Throwable t ) {
                 Env.getLog().complain("Exception in thread " + getName());
                 t.printStackTrace(Env.getLog().getOutStream());

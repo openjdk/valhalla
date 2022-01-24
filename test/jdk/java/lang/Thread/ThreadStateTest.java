@@ -40,7 +40,7 @@ public class ThreadStateTest {
     private static boolean testFailed = false;
 
     // used to achieve waiting states
-    private static final Object globalLock = java.util.Objects.newIdentity();
+    private static final Object globalLock = new Object();
 
     public static void main(String[] argv) throws Exception {
         // Call Thread.getState to force all initialization done

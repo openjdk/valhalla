@@ -56,7 +56,7 @@ public class setvalue005a {
 
     //====================================================== test program
 
-        Object testObj = java.util.Objects.newIdentity();
+        Object testObj = new Object();
         boolean bl1 = true,  bl2 = false;
         byte    bt1 = 0,     bt2 = 1;
         char    ch1 = 0,     ch2 = 1;

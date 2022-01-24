@@ -83,7 +83,7 @@ public class LockingThreads implements ThreadMonitoringScenario, LogAware {
 
         private class Thread1 extends RecursiveMonitoringThread {
                 private volatile boolean ready = false;
-                private Object readyLock = java.util.Objects.newIdentity();
+                private Object readyLock = new Object();
                 private CustomLock lock4;
                 private CustomLock lock5;
                 private Map<String, Object[]> lockedMonitors = new HashMap<String, Object[]>();
@@ -176,7 +176,7 @@ public class LockingThreads implements ThreadMonitoringScenario, LogAware {
 
         private class Thread2 extends RecursiveMonitoringThread {
                 private boolean ready = false;
-                private Object readyLock = java.util.Objects.newIdentity();
+                private Object readyLock = new Object();
                 private Map<String, Object[]> lockedMonitors = new HashMap<String, Object[]>();
 
                 public Thread2(Log log, RunType recursionType, int maxDepth) {

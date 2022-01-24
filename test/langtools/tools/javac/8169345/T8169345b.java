@@ -29,7 +29,7 @@
 
 public class T8169345b {
     void test() {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         class Local1 {
             Object test1() {
                 return o;
@@ -37,7 +37,7 @@ public class T8169345b {
         }
         class Local2 {
             void test2() {
-                Object o = java.util.Objects.newIdentity();
+                Object o = new Object();
                 class Local3 {
                     Object test3() {
                         return o;

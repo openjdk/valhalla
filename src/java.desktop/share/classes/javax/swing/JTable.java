@@ -6410,7 +6410,7 @@ public class JTable extends JComponent implements TableModelListener, Scrollable
         printError = null;
 
         // to synchronize on
-        final Object lock = java.util.Objects.newIdentity();
+        final Object lock = new Object();
 
         // copied so we can access from the inner class
         final PrintRequestAttributeSet copyAttr = attr;

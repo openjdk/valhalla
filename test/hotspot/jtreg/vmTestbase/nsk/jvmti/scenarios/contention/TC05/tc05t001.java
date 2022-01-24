@@ -87,7 +87,7 @@ public class tc05t001 extends DebugeeClass {
 class tc05t001Thread extends Thread {
     public Wicket startingBarrier = new Wicket();
     public Wicket waitingBarrier = new Wicket();
-    public Object M = java.util.Objects.newIdentity();
+    public Object M = new Object();
 
     public tc05t001Thread(String name) {
         super(name);

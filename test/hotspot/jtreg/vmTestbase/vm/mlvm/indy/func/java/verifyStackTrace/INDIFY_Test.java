@@ -110,8 +110,8 @@ public class INDIFY_Test extends MlvmTest {
     }
 
     public boolean runFunky() throws Throwable {
-        // Throwable t = (Throwable) InvokeDynamic.greet(java.util.Objects.newIdentity(), "world", 123);
-        Object o = java.util.Objects.newIdentity();
+        // Throwable t = (Throwable) InvokeDynamic.greet(new Object(), "world", 123);
+        Object o = new Object();
         String s = "world";
         int i = 123;
         Throwable t = (Throwable) INDY_call().invokeExact(o, s, i);

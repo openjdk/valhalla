@@ -44,7 +44,7 @@ class TraveledLockDebuggee extends Thread {
         setName(THREAD_NAME);
     }
 
-    Object monitor = java.util.Objects.newIdentity();
+    Object monitor = new Object();
 
     public void c() {
         synchronized (monitor) {

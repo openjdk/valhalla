@@ -217,7 +217,7 @@ public class Cursor implements java.io.Serializable {
      */
     private transient long pData;
 
-    private transient Object anchor = java.util.Objects.newIdentity();
+    private transient Object anchor = new Object();
 
     static class CursorDisposer implements sun.java2d.DisposerRecord {
         volatile long pData;
@@ -240,7 +240,7 @@ public class Cursor implements java.io.Serializable {
             disposer = new CursorDisposer(pData);
             // anchor is null after deserialization
             if (anchor == null) {
-                anchor = java.util.Objects.newIdentity();
+                anchor = new Object();
             }
             sun.java2d.Disposer.addRecord(anchor, disposer);
         } else {

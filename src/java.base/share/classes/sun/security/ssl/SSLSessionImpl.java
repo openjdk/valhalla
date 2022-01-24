@@ -1527,7 +1527,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
  * application-specific key and a security context.
  */
 class SecureKey {
-    private static final Object     nullObject = java.util.Objects.newIdentity();
+    private static final Object     nullObject = new Object();
     private final Object            appKey;
     private final Object            securityCtx;
 

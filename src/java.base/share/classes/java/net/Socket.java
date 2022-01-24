@@ -103,7 +103,7 @@ public class Socket implements java.io.Closeable {
     private boolean bound = false;
     private boolean connected = false;
     private boolean closed = false;
-    private Object closeLock = java.util.Objects.newIdentity();
+    private Object closeLock = new Object();
     private boolean shutIn = false;
     private boolean shutOut = false;
 

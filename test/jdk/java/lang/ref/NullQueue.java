@@ -68,7 +68,7 @@ public class NullQueue {
         /* Invoke a Reference constructor, passing null for the queue */
         fork(new Runnable() {
             public void run() {
-                r = new WeakReference(java.util.Objects.newIdentity(), null);
+                r = new WeakReference(new Object(), null);
             }});
 
         /* Force the reference to be cleared and enqueued by the GC */

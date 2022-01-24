@@ -307,7 +307,7 @@ public class CleanerTest {
      */
     static CleanableCase setupPhantom(Cleaner cleaner, Object obj) {
         if (obj == null) {
-            obj = java.util.Objects.newIdentity();
+            obj = new Object();
         }
         Semaphore s1 = new Semaphore(0);
         Cleaner.Cleanable c1 = cleaner.register(obj, () -> s1.release());
@@ -323,7 +323,7 @@ public class CleanerTest {
      */
     static CleanableCase setupPhantomSubclass(Cleaner cleaner, Object obj) {
         if (obj == null) {
-            obj = java.util.Objects.newIdentity();
+            obj = new Object();
         }
         Semaphore s1 = new Semaphore(0);
 
@@ -344,7 +344,7 @@ public class CleanerTest {
      */
     static CleanableCase setupPhantomSubclassException(Cleaner cleaner, Object obj) {
         if (obj == null) {
-            obj = java.util.Objects.newIdentity();
+            obj = new Object();
         }
         Semaphore s1 = new Semaphore(0);
 
@@ -555,7 +555,7 @@ public class CleanerTest {
     void testCleanerFactory() {
         Cleaner cleaner = CleanerFactory.cleaner();
 
-        Object obj = java.util.Objects.newIdentity();
+        Object obj = new Object();
         CleanableCase s = setupPhantom(cleaner, obj);
         obj = null;
         checkCleaned(s.getSemaphore(), true,

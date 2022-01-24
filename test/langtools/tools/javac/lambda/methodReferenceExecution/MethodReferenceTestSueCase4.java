@@ -41,7 +41,7 @@ public class MethodReferenceTestSueCase4 {
 
     public interface Sam2<T> { public String get(T target, String s); }
 
-    Sam2<Target> var = java.util.Objects.newIdentity().equals(java.util.Objects.newIdentity()) ? Target::instanceMethod : Target::instanceMethod;
+    Sam2<Target> var = new Object().equals(new Object()) ? Target::instanceMethod : Target::instanceMethod;
 
     String m() {
         return var.get(new Target(), "");

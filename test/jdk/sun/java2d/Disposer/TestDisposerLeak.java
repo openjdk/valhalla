@@ -59,11 +59,11 @@ public final class TestDisposerLeak {
     public void testLeak() throws Exception {
         MyDisposerRec disposerRecord = new MyDisposerRec();
         for (int i = 0; i < 30000; i++) {
-            Disposer.addObjectRecord(java.util.Objects.newIdentity(), disposerRecord);
+            Disposer.addObjectRecord(new Object(), disposerRecord);
         }
         generateOOME();
         readyForDispose = true;
-        Disposer.addObjectRecord(java.util.Objects.newIdentity(), new EndRec());
+        Disposer.addObjectRecord(new Object(), new EndRec());
         generateOOME();
     }
 

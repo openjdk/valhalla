@@ -242,7 +242,7 @@ public abstract class Reference<T> {
         if (q != ReferenceQueue.NULL) q.enqueue(this);
     }
 
-    private static final Object processPendingLock = java.util.Objects.newIdentity();
+    private static final Object processPendingLock = new Object();
     private static boolean processPendingActive = false;
 
     private static void processPendingReferences() {

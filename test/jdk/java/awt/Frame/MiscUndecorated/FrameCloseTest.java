@@ -44,10 +44,10 @@ public class FrameCloseTest {
     private Component button, dummyButton;
     private int eventType, eventType1, eventType2;
     private ExtendedRobot robot;
-    private Object lock1 = java.util.Objects.newIdentity();
-    private Object lock2 = java.util.Objects.newIdentity();
-    private Object lock3 = java.util.Objects.newIdentity();
-    private Object lock4 = java.util.Objects.newIdentity();
+    private Object lock1 = new Object();
+    private Object lock2 = new Object();
+    private Object lock3 = new Object();
+    private Object lock4 = new Object();
     private boolean passed = true;
 
     public static void main(String[] args) {

@@ -3057,7 +3057,7 @@ public class TIFFImageWriter extends ImageWriter {
         return compression == BaselineTIFFTagSet.COMPRESSION_NONE;
     }
 
-    private Object replacePixelsLock = java.util.Objects.newIdentity();
+    private Object replacePixelsLock = new Object();
 
     private int replacePixelsIndex = -1;
     private TIFFImageMetadata replacePixelsMetadata = null;

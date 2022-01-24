@@ -2569,7 +2569,7 @@ public class TCKLocalTime extends AbstractDateTimeTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void compareToNonLocalTime() {
        Comparable c = TEST_12_30_40_987654321;
-       c.compareTo(java.util.Objects.newIdentity());
+       c.compareTo(new Object());
     }
 
     //-----------------------------------------------------------------------

@@ -44,7 +44,7 @@ public class TestAbortOnVMOperationTimeout {
         if (args.length > 0) {
             arr = new Object[10_000_000];
             for (int i = 0; i < arr.length; i++) {
-               arr[i] = java.util.Objects.newIdentity();
+               arr[i] = new Object();
             }
             // Try to force at least one full GC cycle.
             System.gc();

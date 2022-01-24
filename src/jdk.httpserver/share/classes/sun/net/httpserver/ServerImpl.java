@@ -65,7 +65,7 @@ class ServerImpl implements TimeSource {
     private Set<HttpConnection> reqConnections;
     private Set<HttpConnection> rspConnections;
     private List<Event> events;
-    private Object lolock = java.util.Objects.newIdentity();
+    private Object lolock = new Object();
     private volatile boolean finished = false;
     private volatile boolean terminating = false;
     private boolean bound = false;

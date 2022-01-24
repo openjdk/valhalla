@@ -65,7 +65,7 @@ public class PropertiesTest {
         myProps.put("good.property.3", "good.value.3");
         myProps.put("good.property.4", new Integer(4));
         myProps.put(new Integer(5), "good.value.5");
-        myProps.put(java.util.Objects.newIdentity(), java.util.Objects.newIdentity());
+        myProps.put(new Object(), new Object());
 
         System.setProperties(myProps);
 

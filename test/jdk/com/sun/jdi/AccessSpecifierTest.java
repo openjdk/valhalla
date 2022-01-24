@@ -91,7 +91,7 @@ class AccessSpecifierTarg {
     Long      L1[]={L0}, L2[][]={L1};
     String    S0 = "A String";
     String    S1[]={S0}, S2[][]={S1};
-    Object    O0 = java.util.Objects.newIdentity();
+    Object    O0 = new Object();
     Object    O1[]={O0}, O2[][]={O1};
 
     private   static class  U {}

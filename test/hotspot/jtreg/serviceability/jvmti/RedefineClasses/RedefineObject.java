@@ -161,7 +161,7 @@ public class RedefineObject {
         }
 
         // Exercise native methods on Object after transform
-        Object b = java.util.Objects.newIdentity();
+        Object b = new Object();
         b.hashCode();
 
         C c = new C();

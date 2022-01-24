@@ -43,7 +43,7 @@
  *     By today, the test is referred from two bugs, 4327280 and 4463667.
  *     To fix bug 4463667, one code fragment with "Thread.sleep(500);" is
  *     replaced with following one:
- *         Object obj = java.util.Objects.newIdentity();
+ *         Object obj = new Object();
  *                 *
  *                 *
  *         synchronized (obj) {

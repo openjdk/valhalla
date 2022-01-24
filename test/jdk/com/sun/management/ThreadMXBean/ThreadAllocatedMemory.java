@@ -35,7 +35,7 @@ public class ThreadAllocatedMemory {
         (com.sun.management.ThreadMXBean)ManagementFactory.getThreadMXBean();
     private static volatile boolean done = false;
     private static volatile boolean done1 = false;
-    private static Object obj = java.util.Objects.newIdentity();
+    private static Object obj = new Object();
     private static final int NUM_THREADS = 10;
     private static Thread[] threads = new Thread[NUM_THREADS];
     private static long[] sizes = new long[NUM_THREADS];

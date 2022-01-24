@@ -58,7 +58,7 @@ abstract class AbstractMidiDevice implements MidiDevice, ReferenceCountingDevice
     // from simultaneous creation and destruction
     // reduces possibility of deadlock, compared to
     // synchronizing to the class instance
-    private final Object traRecLock = java.util.Objects.newIdentity();
+    private final Object traRecLock = new Object();
 
     // DEVICE ATTRIBUTES
 

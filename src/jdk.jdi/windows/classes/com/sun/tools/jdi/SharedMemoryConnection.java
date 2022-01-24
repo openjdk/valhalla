@@ -35,9 +35,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 class SharedMemoryConnection extends Connection {
     private long id;
-    private Object receiveLock = java.util.Objects.newIdentity();
-    private Object sendLock = java.util.Objects.newIdentity();
-    private Object closeLock = java.util.Objects.newIdentity();
+    private Object receiveLock = new Object();
+    private Object sendLock = new Object();
+    private Object closeLock = new Object();
     private boolean closed = false;
 
     private native byte receiveByte0(long id) throws IOException;

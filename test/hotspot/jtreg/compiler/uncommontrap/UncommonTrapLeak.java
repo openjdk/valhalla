@@ -51,7 +51,7 @@ public class UncommonTrapLeak {
     }
 
     static void foo(int i) {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         ref = new WeakReference<Object>(o);
         if (val == 200) {
             // trigger Deoptimization::uncommon_trap

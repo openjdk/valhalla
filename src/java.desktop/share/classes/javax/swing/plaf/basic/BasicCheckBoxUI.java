@@ -52,7 +52,7 @@ import java.io.Serializable;
 @SuppressWarnings("serial") // Same-version serialization only
 public class BasicCheckBoxUI extends BasicRadioButtonUI {
 
-    private static final Object BASIC_CHECK_BOX_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object BASIC_CHECK_BOX_UI_KEY = new Object();
 
     private static final String propertyPrefix = "CheckBox" + ".";
 

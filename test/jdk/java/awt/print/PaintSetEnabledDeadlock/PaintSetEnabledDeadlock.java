@@ -108,7 +108,7 @@ class TestPanel extends Panel implements Runnable {
     Image image = null;
     Thread thread = null;
     volatile boolean active = true;
-    final Object sync = java.util.Objects.newIdentity();
+    final Object sync = new Object();
     Panel panel = this;
 
     public TestPanel() {

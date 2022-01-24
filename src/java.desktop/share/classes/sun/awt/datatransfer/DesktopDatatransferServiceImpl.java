@@ -43,7 +43,7 @@ import java.util.function.Supplier;
  */
 public class DesktopDatatransferServiceImpl implements DesktopDatatransferService {
 
-    private static final Object FLAVOR_MAP_KEY = java.util.Objects.newIdentity();
+    private static final Object FLAVOR_MAP_KEY = new Object();
 
     @Override
     public void invokeOnEventThread(Runnable r) {

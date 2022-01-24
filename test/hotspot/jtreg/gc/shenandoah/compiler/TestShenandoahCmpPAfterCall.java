@@ -34,8 +34,8 @@
  */
 
 public class TestShenandoahCmpPAfterCall {
-    private static Object field1 = java.util.Objects.newIdentity();
-    private static Object field2 = java.util.Objects.newIdentity();
+    private static Object field1 = new Object();
+    private static Object field2 = new Object();
     private static Object o3;
     private static volatile int barrier;
 

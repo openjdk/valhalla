@@ -258,7 +258,7 @@ abstract class UnixFileStore
 
     // -- fstypes.properties --
 
-    private static final Object loadLock = java.util.Objects.newIdentity();
+    private static final Object loadLock = new Object();
     private static volatile Properties props;
 
     enum FeatureStatus {

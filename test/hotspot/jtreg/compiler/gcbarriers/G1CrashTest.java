@@ -39,7 +39,7 @@ public class G1CrashTest {
 
     public static void main(String[] args) throws InterruptedException {
         for (int j = 0; j < Integer.getInteger("count"); j++) {
-            Object key = java.util.Objects.newIdentity();
+            Object key = new Object();
             insertKey(key);
             if (j > set.length / 2) {
                 Object[] oldKeys = set;

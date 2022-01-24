@@ -86,7 +86,7 @@ public final class ReferenceToNonStaticField
     }
 
     protected TestValue getObject() {
-        return new TestValue(java.util.Objects.newIdentity());
+        return new TestValue(new Object());
     }
 
     @Override

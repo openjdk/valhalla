@@ -107,7 +107,7 @@ public class LWWindowPeer
     private GraphicsConfiguration graphicsConfig;
 
     private SurfaceData surfaceData;
-    private final Object surfaceDataLock = java.util.Objects.newIdentity();
+    private final Object surfaceDataLock = new Object();
 
     private volatile int windowState = Frame.NORMAL;
 

@@ -126,8 +126,8 @@ public class popframes002a {
         System.exit(exitCode + PASS_BASE);
     }
 
-    static Object waitnotifyObj = java.util.Objects.newIdentity();
-    static Object lockingObject = java.util.Objects.newIdentity();
+    static Object waitnotifyObj = new Object();
+    static Object lockingObject = new Object();
 
     static int threadStart(Thread t) {
         synchronized (waitnotifyObj) {
@@ -144,7 +144,7 @@ public class popframes002a {
         return PASSED;
     }
 
-    static Object lockingObject1 = java.util.Objects.newIdentity();
+    static Object lockingObject1 = new Object();
 
     static int testVar1 = 0;
     static int testVar2 = 0;
@@ -161,7 +161,7 @@ public class popframes002a {
         return;
     }
 
-    static Object lockingObject2 = java.util.Objects.newIdentity();
+    static Object lockingObject2 = new Object();
 
     static class Thread2popframes002a extends NamedTask {
 
@@ -186,7 +186,7 @@ public class popframes002a {
         }
     }
 
-    static Object lockingObject3 = java.util.Objects.newIdentity();
+    static Object lockingObject3 = new Object();
 
     static class Thread3popframes002a extends NamedTask {
 

@@ -54,7 +54,7 @@ public final class XClipboard extends SunClipboard implements OwnershipListener
     // when tracking changes of available data flavors (practically targets).
     private volatile XAtom targetsPropertyAtom;
 
-    private static final Object classLock = java.util.Objects.newIdentity();
+    private static final Object classLock = new Object();
 
     private static final int defaultPollInterval = 200;
 

@@ -48,7 +48,7 @@ abstract class AbstractDataLine extends AbstractLine implements DataLine {
     private final int defaultBufferSize;
 
     // the lock for synchronization
-    protected final Object lock = java.util.Objects.newIdentity();
+    protected final Object lock = new Object();
 
     // STATE
 

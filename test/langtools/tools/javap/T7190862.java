@@ -118,7 +118,7 @@ public class T7190862 {
     }
 
     private String createWideLocalSourceForObject(int numberOfVars) {
-        String result = "    Object x0 = java.util.Objects.newIdentity();\n";
+        String result = "    Object x0 = new Object();\n";
         for (int i = 1; i < numberOfVars; i++) {
             result += "        Object x" + i + " = x0;\n";
         }

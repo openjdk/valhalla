@@ -817,7 +817,7 @@ class ThreadsGroupLocks {
 
     public class Blocker {
 
-        private Object monitor = java.util.Objects.newIdentity();
+        private Object monitor = new Object();
         private PlainCountDownLatch blockerCanExit = new PlainCountDownLatch(1);
         private PlainCountDownLatch blockerStart = new PlainCountDownLatch(1);
 
@@ -856,7 +856,7 @@ class ThreadsGroupLocks {
 
      public static class PlainCountDownLatch {
         private volatile int counter;
-        private Object counterMonitor = java.util.Objects.newIdentity();
+        private Object counterMonitor = new Object();
 
         public PlainCountDownLatch(int counter){
             this.counter = counter;

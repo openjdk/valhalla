@@ -35,7 +35,7 @@ public class DummyClass {
     public long longField = 5L;
     public float floatField = 4.5f;
     public double doubleField = 53.2;
-    public Object objectField = java.util.Objects.newIdentity();
+    public Object objectField = new Object();
 
     public final boolean finalBooleanField = true;
     public final byte finalByteField = -2;
@@ -45,7 +45,7 @@ public class DummyClass {
     public final long finalLongField = 888L;
     public final float finalFloatField = 77.8f;
     public final double finalDoubleField = -234.2;
-    public final Object finalObjectField = java.util.Objects.newIdentity();
+    public final Object finalObjectField = new Object();
 
     @Stable public boolean stableBooleanField = true;
     @Stable public byte stableByteField = -2;
@@ -55,7 +55,7 @@ public class DummyClass {
     @Stable public long stableLongField = 888L;
     @Stable public float stableFloatField = 77.8f;
     @Stable public double stableDoubleField = -234.2;
-    @Stable public Object stableObjectField = java.util.Objects.newIdentity();
+    @Stable public Object stableObjectField = new Object();
 
     @Stable public boolean stableDefaultBooleanField;
     @Stable public byte stableDefaultByteField;
@@ -85,7 +85,7 @@ public class DummyClass {
     public static long staticLongField = 34231212L;
     public static float staticFloatField = -4.5f;
     public static double staticDoubleField = 453.2;
-    public static Object staticObjectField = java.util.Objects.newIdentity();
+    public static Object staticObjectField = new Object();
 
     public static final boolean staticFinalBooleanField = true;
     public static final byte staticFinalByteField = -51;
@@ -95,7 +95,7 @@ public class DummyClass {
     public static final long staticFinalLongField = 54231212L;
     public static final float staticFinalFloatField = -42.5f;
     public static final double staticFinalDoubleField = 5453.2;
-    public static final Object staticFinalObjectField = java.util.Objects.newIdentity();
+    public static final Object staticFinalObjectField = new Object();
 
     @Stable public static boolean staticStableBooleanField = true;
     @Stable public static byte staticStableByteField = -61;
@@ -105,7 +105,7 @@ public class DummyClass {
     @Stable public static long staticStableLongField = -2342L;
     @Stable public static float staticStableFloatField = -466.5f;
     @Stable public static double staticStableDoubleField = 4563.2;
-    @Stable public static Object staticStableObjectField = java.util.Objects.newIdentity();
+    @Stable public static Object staticStableObjectField = new Object();
 
     @Stable public static boolean staticStableDefaultBooleanField;
     @Stable public static byte staticStableDefaultByteField;
@@ -125,7 +125,7 @@ public class DummyClass {
     public long[] longArrayWithValues = new long[]{868L, 0L};
     public float[] floatArrayWithValues = new float[]{75.8f, 0f};
     public double[] doubleArrayWithValues = new double[]{-294.66, 0.0};
-    public Object[] objectArrayWithValues = new Object[]{java.util.Objects.newIdentity(), null};
+    public Object[] objectArrayWithValues = new Object[]{new Object(), null};
 
     @Stable public boolean[] stableBooleanArrayWithValues = new boolean[]{true, false};
     @Stable public byte[] stableByteArrayWithValues = new byte[]{-2, 0};
@@ -135,7 +135,7 @@ public class DummyClass {
     @Stable public long[] stableLongArrayWithValues = new long[]{888L, 0L};
     @Stable public float[] stableFloatArrayWithValues = new float[]{77.8f, 0f};
     @Stable public double[] stableDoubleArrayWithValues = new double[]{-234.2, 0.0};
-    @Stable public Object[] stableObjectArrayWithValues = new Object[]{java.util.Objects.newIdentity(), null};
+    @Stable public Object[] stableObjectArrayWithValues = new Object[]{new Object(), null};
 
     public boolean[][] booleanArrayArrayWithValues = new boolean[][]{{true}, null};
     public byte[][] byteArrayArrayWithValues = new byte[][]{{43, 0}, null};
@@ -145,7 +145,7 @@ public class DummyClass {
     public long[][] longArrayArrayWithValues = new long[][]{{868L, 0L}, null};
     public float[][] floatArrayArrayWithValues = new float[][]{{75.8f, 0f}, null};
     public double[][] doubleArrayArrayWithValues = new double[][]{{-294.66, 0.0}, null};
-    public Object[][] objectArrayArrayWithValues = new Object[][]{{java.util.Objects.newIdentity(), null}, null};
+    public Object[][] objectArrayArrayWithValues = new Object[][]{{new Object(), null}, null};
 
     @Stable public boolean[][] stableBooleanArrayArrayWithValues = new boolean[][]{{true, false}, null};
     @Stable public byte[][] stableByteArrayArrayWithValues = new byte[][]{{-2, 0}, null};
@@ -155,7 +155,7 @@ public class DummyClass {
     @Stable public long[][] stableLongArrayArrayWithValues = new long[][]{{888L, 0L}, null};
     @Stable public float[][] stableFloatArrayArrayWithValues = new float[][]{{77.8f, 0f}, null};
     @Stable public double[][] stableDoubleArrayArrayWithValues = new double[][]{{-234.2, 0.0}, null};
-    @Stable public Object[][] stableObjectArrayArrayWithValues = new Object[][]{{java.util.Objects.newIdentity(), null}, null};
+    @Stable public Object[][] stableObjectArrayArrayWithValues = new Object[][]{{new Object(), null}, null};
 
     // Strings for testing "forString" method
     public final String stringField = "abc";

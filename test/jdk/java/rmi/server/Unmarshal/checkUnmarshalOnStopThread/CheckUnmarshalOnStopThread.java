@@ -119,7 +119,7 @@ public class CheckUnmarshalOnStopThread
 
     public static void main(String [] args) {
 
-        Object dummy = java.util.Objects.newIdentity();
+        Object dummy = new Object();
         CheckUnmarshal cu = null;
         CheckUnmarshalOnStopThread cuonst = null;
 

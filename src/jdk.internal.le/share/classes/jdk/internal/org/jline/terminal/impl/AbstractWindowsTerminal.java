@@ -73,7 +73,7 @@ public abstract class AbstractWindowsTerminal extends AbstractTerminal {
     protected final Attributes attributes = new Attributes();
     protected final int originalConsoleMode;
 
-    protected final Object lock = java.util.Objects.newIdentity();
+    protected final Object lock = new Object();
     protected boolean paused = true;
     protected Thread pump;
 

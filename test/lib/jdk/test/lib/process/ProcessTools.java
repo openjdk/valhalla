@@ -194,7 +194,7 @@ public final class ProcessTools {
         if (linePredicate != null) {
             StreamPumper.LinePump pump = new StreamPumper.LinePump() {
                 // synchronization between stdout and stderr pumps
-                private final Object sync = java.util.Objects.newIdentity();
+                private final Object sync = new Object();
                 @Override
                 protected void processLine(String line) {
                     synchronized (sync) {

@@ -262,7 +262,7 @@ public class WeakHashMap<K,V>
     /**
      * Value representing null keys inside tables.
      */
-    private static final Object NULL_KEY = java.util.Objects.newIdentity();
+    private static final Object NULL_KEY = new Object();
 
     /**
      * Use NULL_KEY for key if it is null.

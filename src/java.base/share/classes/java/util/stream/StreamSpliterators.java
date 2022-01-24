@@ -1241,7 +1241,7 @@ class StreamSpliterators {
     static final class DistinctSpliterator<T> implements Spliterator<T>, Consumer<T> {
 
         // The value to represent null in the ConcurrentHashMap
-        private static final Object NULL_VALUE = java.util.Objects.newIdentity();
+        private static final Object NULL_VALUE = new Object();
 
         // The underlying spliterator
         private final Spliterator<T> s;

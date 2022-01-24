@@ -55,7 +55,7 @@ public class MotifButtonUI extends BasicButtonUI {
 
     private boolean defaults_initialized = false;
 
-    private static final Object MOTIF_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object MOTIF_BUTTON_UI_KEY = new Object();
 
     // ********************************
     //          Create PLAF

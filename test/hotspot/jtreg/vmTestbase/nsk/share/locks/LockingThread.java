@@ -252,7 +252,7 @@ public class LockingThread extends Thread {
             if (frameDescription.equals(JNI_MONITOR_ENTER)) {
                 // for JNI monitors -1 is returned as stack depth
                 int currentStackDepth = -1;
-                Object object = java.util.Objects.newIdentity();
+                Object object = new Object();
                 DebugMonitorInfo monitorInfo = new DebugMonitorInfo(object, currentStackDepth, this, true);
                 addMonitorInfo(monitorInfo);
                 log("Enter JNI monitor");
@@ -535,7 +535,7 @@ public class LockingThread extends Thread {
         // initializing of 'staticObject' and entering to the synchronized(staticObject) block should be thread safe
         staticObjectInitializingLock.lock();
 
-        staticObject = java.util.Objects.newIdentity();
+        staticObject = new Object();
 
         log("Enter synchronized(static object) block");
 
@@ -580,7 +580,7 @@ public class LockingThread extends Thread {
     void synchronizedObjectBlock() {
         int currentStackDepth = expectedDepth();
 
-        Object object = java.util.Objects.newIdentity();
+        Object object = new Object();
 
         log("Enter synchronized(object) block");
 

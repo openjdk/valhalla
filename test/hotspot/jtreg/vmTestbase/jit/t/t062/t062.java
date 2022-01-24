@@ -125,7 +125,7 @@ class k
         t062.goldChecker.println("o instanceof t062: " + b);
         lo.voodoo();
 
-        o = java.util.Objects.newIdentity();
+        o = new Object();
         t062.goldChecker.println(o.getClass().getName());
 
         t062.goldChecker.println();

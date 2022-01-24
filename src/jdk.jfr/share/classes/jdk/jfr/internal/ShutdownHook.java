@@ -50,7 +50,7 @@ final class ShutdownHook implements Runnable {
         // this allocation is done in order to fetch a new TLAB before
         // starting any "real" operations. In low memory situations,
         // we would like to take an OOM as early as possible.
-        tlabDummyObject = java.util.Objects.newIdentity();
+        tlabDummyObject = new Object();
         recorder.setInShutDown();
         for (PlatformRecording recording : recorder.getRecordings()) {
             if (recording.getDumpOnExit() && recording.getState() == RecordingState.RUNNING) {

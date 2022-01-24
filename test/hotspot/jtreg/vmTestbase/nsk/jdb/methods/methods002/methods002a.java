@@ -77,15 +77,15 @@ public class methods002a {
     native       long  m17 (long l);
     public static synchronized strictfp long m18 (long l) { return lo + l; };
 
-                 Object  m19 () { return java.util.Objects.newIdentity(); };
-    private      Object  m20 () { return java.util.Objects.newIdentity(); };
-    protected    Object  m21 () { return java.util.Objects.newIdentity(); };
-    public       Object  m22 () { return java.util.Objects.newIdentity(); };
-    static       Object  m23 () { return java.util.Objects.newIdentity(); };
-    synchronized Object  m24 () { return java.util.Objects.newIdentity(); };
-    strictfp     Object  m25 () { return java.util.Objects.newIdentity(); };
+                 Object  m19 () { return new Object(); };
+    private      Object  m20 () { return new Object(); };
+    protected    Object  m21 () { return new Object(); };
+    public       Object  m22 () { return new Object(); };
+    static       Object  m23 () { return new Object(); };
+    synchronized Object  m24 () { return new Object(); };
+    strictfp     Object  m25 () { return new Object(); };
     native       Object  m26 ();
-    public static synchronized strictfp Object m27 () { return java.util.Objects.newIdentity(); };
+    public static synchronized strictfp Object m27 () { return new Object(); };
 
 
     // array methods
@@ -100,7 +100,7 @@ public class methods002a {
     // final methods
     final        void    f01 (long l) { lo = l; };
     final        long    f02 (long l) { return lo + l; };
-    final        Object  f03 () { return java.util.Objects.newIdentity(); };
+    final        Object  f03 () { return new Object(); };
 }
 
 // Class with many constructors
@@ -161,15 +161,15 @@ class methods002g extends methods002f {
     native       long  m17 (long l);
     public static synchronized strictfp long m18 (long l) { return lo + l; };
 
-                 Object  m19 () { return java.util.Objects.newIdentity(); };
-    private      Object  m20 () { return java.util.Objects.newIdentity(); };
-    protected    Object  m21 () { return java.util.Objects.newIdentity(); };
-    public       Object  m22 () { return java.util.Objects.newIdentity(); };
-    static       Object  m23 () { return java.util.Objects.newIdentity(); };
-    synchronized Object  m24 () { return java.util.Objects.newIdentity(); };
-    strictfp     Object  m25 () { return java.util.Objects.newIdentity(); };
+                 Object  m19 () { return new Object(); };
+    private      Object  m20 () { return new Object(); };
+    protected    Object  m21 () { return new Object(); };
+    public       Object  m22 () { return new Object(); };
+    static       Object  m23 () { return new Object(); };
+    synchronized Object  m24 () { return new Object(); };
+    strictfp     Object  m25 () { return new Object(); };
     native       Object  m26 ();
-    public static synchronized strictfp Object m27 () { return java.util.Objects.newIdentity(); };
+    public static synchronized strictfp Object m27 () { return new Object(); };
 
     double[]   m28 () { return new double[1]; };
     double     m29 (double[] arr) {return arr[0];};

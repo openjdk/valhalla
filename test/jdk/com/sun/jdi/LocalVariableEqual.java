@@ -97,7 +97,7 @@ class LocalVariableEqualTarg {
              { String string_1 = "1";
                intArg++;
              }
-             Object obj_2 = java.util.Objects.newIdentity();
+             Object obj_2 = new Object();
              intArg++;
         }
         result = 10;

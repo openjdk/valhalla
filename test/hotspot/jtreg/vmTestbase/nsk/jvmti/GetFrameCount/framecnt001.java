@@ -43,9 +43,9 @@ public class framecnt001 {
         }
     }
 
-    static Object flag1 = java.util.Objects.newIdentity();
-    static Object flag2 = java.util.Objects.newIdentity();
-    static Object check_flag = java.util.Objects.newIdentity();
+    static Object flag1 = new Object();
+    static Object flag2 = new Object();
+    static Object check_flag = new Object();
 
     public static void main(String args[]) {
         args = nsk.share.jvmti.JVMTITest.commonInit(args);

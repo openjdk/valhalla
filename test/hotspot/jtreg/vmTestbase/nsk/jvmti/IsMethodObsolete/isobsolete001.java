@@ -63,7 +63,7 @@ public class isobsolete001 extends DebugeeClass {
     public static isobsolete001r testedObject = null;
     public static byte classfileBytes[] = null;
 
-    private static Object startingMonitor = java.util.Objects.newIdentity();
+    private static Object startingMonitor = new Object();
     private static volatile boolean shouldFinish = false;
 
     // run debuggee

@@ -219,8 +219,8 @@ public class TreeSetTest extends JSR166TestCase {
     public void testAddNonComparable() {
         TreeSet<Object> q = new TreeSet<>();
         try {
-            q.add(java.util.Objects.newIdentity());
-            q.add(java.util.Objects.newIdentity());
+            q.add(new Object());
+            q.add(new Object());
             shouldThrow();
         } catch (ClassCastException success) {}
     }

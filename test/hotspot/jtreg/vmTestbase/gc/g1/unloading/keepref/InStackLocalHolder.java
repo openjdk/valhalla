@@ -78,7 +78,7 @@ public class InStackLocalHolder implements RefHolder {
 
         public Object obtainAndClear() {
             Object returnValue = reference;
-            reference = java.util.Objects.newIdentity();
+            reference = new Object();
             return returnValue;
         }
 

@@ -74,7 +74,7 @@ public class AutoTestOnTop {
     static Window f;
     static Frame  parentf = new Frame();
 
-    static final Object  uncheckedSrc = java.util.Objects.newIdentity(); // used when no need to check event source
+    static final Object  uncheckedSrc = new Object(); // used when no need to check event source
     static volatile Object  eventSrc = uncheckedSrc;
     static boolean dispatchedCond;
 

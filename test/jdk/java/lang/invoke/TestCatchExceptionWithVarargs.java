@@ -104,7 +104,7 @@ public class TestCatchExceptionWithVarargs {
                     gwc1, MyException.class, handlerWithArgs);
 
             // This is only to verify that the method handles can actually be invoked and do the right thing.
-            firstArg = java.util.Objects.newIdentity();
+            firstArg = new Object();
             Object o = gwc2.asSpreader(Object[].class, ptypes.size() - 1)
                            .invoke(firstArg, new Object[i]);
             if (o != firstArg) {

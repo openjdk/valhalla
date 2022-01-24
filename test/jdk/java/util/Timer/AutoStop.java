@@ -33,7 +33,7 @@ import java.util.TimerTask;
 import java.lang.ref.Reference;
 
 public class AutoStop {
-    static final Object wakeup = java.util.Objects.newIdentity();
+    static final Object wakeup = new Object();
     static Thread tdThread = null;
     static volatile int counter = 0;
     static final int COUNTER_LIMIT = 10;

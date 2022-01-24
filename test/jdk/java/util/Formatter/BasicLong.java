@@ -452,7 +452,7 @@ public class BasicLong extends Basic {
         tryCatch("%c", IllegalFormatConversionException.class,
                  (float) 0.1);
         tryCatch("%c", IllegalFormatConversionException.class,
-                 java.util.Objects.newIdentity());
+                 new Object());
         tryCatch("%c", IllegalFormatCodePointException.class,
                  Byte.MIN_VALUE);
         tryCatch("%c", IllegalFormatCodePointException.class,

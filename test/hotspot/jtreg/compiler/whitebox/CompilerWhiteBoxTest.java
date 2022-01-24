@@ -310,7 +310,7 @@ public abstract class CompilerWhiteBoxTest {
         if (!BACKGROUND_COMPILATION) {
             return;
         }
-        final Object obj = java.util.Objects.newIdentity();
+        final Object obj = new Object();
         for (int i = 0; i < 100
                 && WHITE_BOX.isMethodQueuedForCompilation(executable); ++i) {
             synchronized (obj) {

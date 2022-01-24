@@ -235,7 +235,7 @@ class BeanLinker extends AbstractJavaLinker implements TypeBasedGuardingDynamicL
         return null;
     }
 
-    private static final Object INVALID_NAME = java.util.Objects.newIdentity();
+    private static final Object INVALID_NAME = new Object();
 
     private static Object getTypedName(final Object name, final boolean isMap, final LinkerServices linkerServices) throws Exception {
         // Convert the key to a number if we're working with a list or array

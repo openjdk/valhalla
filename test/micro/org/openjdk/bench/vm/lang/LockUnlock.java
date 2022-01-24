@@ -54,8 +54,8 @@ public class LockUnlock {
 
     @Setup
     public void setup() {
-        lockObject1 = java.util.Objects.newIdentity();
-        lockObject2 = java.util.Objects.newIdentity();
+        lockObject1 = new Object();
+        lockObject2 = new Object();
         dummyInt1 = 47;
         dummyInt2 = 11; // anything
     }

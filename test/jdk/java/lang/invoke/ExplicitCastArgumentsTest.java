@@ -63,7 +63,7 @@ public class ExplicitCastArgumentsTest {
         RANDOM_VALUES.put(Wrapper.LONG, RNG.nextLong());
         RANDOM_VALUES.put(Wrapper.FLOAT, RNG.nextFloat());
         RANDOM_VALUES.put(Wrapper.DOUBLE, RNG.nextDouble());
-        RANDOM_VALUES.put(Wrapper.OBJECT, java.util.Objects.newIdentity());
+        RANDOM_VALUES.put(Wrapper.OBJECT, new Object());
     }
 
     public static void main(String[] args) throws Throwable {

@@ -46,8 +46,8 @@ public class nframepop001 {
     native static int getRes();
 
     static int fld = 0;
-    static Object start_lock = java.util.Objects.newIdentity();
-    static Object wait_lock = java.util.Objects.newIdentity();
+    static Object start_lock = new Object();
+    static Object wait_lock = new Object();
 
     public static void main(String args[]) {
         args = nsk.share.jvmti.JVMTITest.commonInit(args);

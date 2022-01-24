@@ -408,7 +408,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     MyPrimitive o1 = new MyPrimitive(2, 5);
                     CountDownLatch ready = new CountDownLatch(1);
-                    wait = java.util.Objects.newIdentity();
+                    wait = new Object();
 
                     Thread t = new Thread(
                             () -> {

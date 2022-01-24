@@ -91,7 +91,7 @@ class JarVerifier {
     boolean eagerValidation;
 
     /** makes code source singleton instances unique to us */
-    private Object csdomain = java.util.Objects.newIdentity();
+    private Object csdomain = new Object();
 
     /** collect -DIGEST-MANIFEST values for deny list */
     private List<Object> manifestDigests;

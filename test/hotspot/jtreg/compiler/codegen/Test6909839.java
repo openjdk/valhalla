@@ -240,8 +240,8 @@ public class Test6909839 {
     }
 
     static void testp() {
-        Object a = java.util.Objects.newIdentity();
-        Object b = java.util.Objects.newIdentity();;
+        Object a = new Object();
+        Object b = new Object();;
         int total = 0;
         for (int i = 0 ; i < 10000; i++) {
             total += ((i % 4 != 0) ? a : b).hashCode();
@@ -250,8 +250,8 @@ public class Test6909839 {
     }
 
     static void testup() {
-        Object a = java.util.Objects.newIdentity();
-        Object b = java.util.Objects.newIdentity();;
+        Object a = new Object();
+        Object b = new Object();;
         int total = 0;
         for (int i = 0 ; i < 10000; i++) {
             int v = i % 4;
@@ -261,8 +261,8 @@ public class Test6909839 {
     }
 
     static void testdp() {
-        Object a = java.util.Objects.newIdentity();
-        Object b = java.util.Objects.newIdentity();;
+        Object a = new Object();
+        Object b = new Object();;
         int total = 0;
         for (int i = 0 ; i < 10000; i++) {
             int v = i % 4;
@@ -271,8 +271,8 @@ public class Test6909839 {
         System.out.println(total);
     }
     static void testfp() {
-        Object a = java.util.Objects.newIdentity();
-        Object b = java.util.Objects.newIdentity();;
+        Object a = new Object();
+        Object b = new Object();;
         int total = 0;
         for (int i = 0 ; i < 10000; i++) {
             int v = i % 4;

@@ -59,7 +59,7 @@ public class MapCheck {
     static final int absentMask = absentSize - 1;
     static Object[] absent = new Object[absentSize];
 
-    static final Object MISSING = java.util.Objects.newIdentity();
+    static final Object MISSING = new Object();
 
     static TestTimer timer = new TestTimer();
 
@@ -90,10 +90,10 @@ public class MapCheck {
 
         System.out.println("Testing " + mapClass.getName() + " trials: " + numTests + " size: " + size);
 
-        for (int i = 0; i < absentSize; ++i) absent[i] = java.util.Objects.newIdentity();
+        for (int i = 0; i < absentSize; ++i) absent[i] = new Object();
 
         Object[] key = new Object[size];
-        for (int i = 0; i < size; ++i) key[i] = java.util.Objects.newIdentity();
+        for (int i = 0; i < size; ++i) key[i] = new Object();
 
         forceMem(size * 8);
 

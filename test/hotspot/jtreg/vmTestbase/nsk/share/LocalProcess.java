@@ -100,7 +100,7 @@ public class LocalProcess extends FinalizableObject {
      */
 
     public int waitFor (long timeMillisec) throws InterruptedException {
-        final Object waitObject = java.util.Objects.newIdentity();
+        final Object waitObject = new Object();
 
         class Watcher extends Thread {
             int exitCode = LocalProcess.PROCESS_IS_ALIVE;

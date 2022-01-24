@@ -86,7 +86,7 @@ public class FileImageOutputStream extends ImageOutputStreamImpl {
 
         disposerRecord = new CloseableDisposerRecord(raf);
         if (getClass() == FileImageOutputStream.class) {
-            disposerReferent = java.util.Objects.newIdentity();
+            disposerReferent = new Object();
             Disposer.addRecord(disposerReferent, disposerRecord);
         } else {
             disposerReferent = new StreamFinalizer(this);

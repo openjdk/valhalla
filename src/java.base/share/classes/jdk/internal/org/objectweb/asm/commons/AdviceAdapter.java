@@ -82,10 +82,10 @@ import jdk.internal.org.objectweb.asm.Type;
 public abstract class AdviceAdapter extends GeneratorAdapter implements Opcodes {
 
     /** The "uninitialized this" value. */
-    private static final Object UNINITIALIZED_THIS = java.util.Objects.newIdentity();
+    private static final Object UNINITIALIZED_THIS = new Object();
 
     /** Any value other than "uninitialized this". */
-    private static final Object OTHER = java.util.Objects.newIdentity();
+    private static final Object OTHER = new Object();
 
     /** Prefix of the error message when invalid opcodes are found. */
     private static final String INVALID_OPCODE = "Invalid opcode ";

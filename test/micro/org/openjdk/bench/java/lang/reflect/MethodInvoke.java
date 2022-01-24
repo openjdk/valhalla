@@ -56,8 +56,8 @@ public class MethodInvoke {
     @Setup
     public void setup() {
         args_0 = new Object[]{};
-        args_6ref = new Object[]{ java.util.Objects.newIdentity(), java.util.Objects.newIdentity(),
-                java.util.Objects.newIdentity(), java.util.Objects.newIdentity(), java.util.Objects.newIdentity(), java.util.Objects.newIdentity()};
+        args_6ref = new Object[]{ new Object(), new Object(),
+                new Object(), new Object(), new Object(), new Object()};
         args_6prim = new Object[]{
                 1, 5L,
                 5.6d, 23.11f,

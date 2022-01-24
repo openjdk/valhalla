@@ -113,7 +113,7 @@ public class ArrayNotificationBuffer implements NotificationBuffer {
 
     // FACTORY STUFF, INCLUDING SHARING
 
-    private static final Object globalLock = java.util.Objects.newIdentity();
+    private static final Object globalLock = new Object();
     private static final
         HashMap<MBeanServer,ArrayNotificationBuffer> mbsToBuffer =
         new HashMap<MBeanServer,ArrayNotificationBuffer>(1);

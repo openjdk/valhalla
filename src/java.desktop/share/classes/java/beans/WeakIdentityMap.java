@@ -44,7 +44,7 @@ import java.lang.ref.WeakReference;
 abstract class WeakIdentityMap<T> {
 
     private static final int MAXIMUM_CAPACITY = 1 << 30; // it MUST be a power of two
-    private static final Object NULL = java.util.Objects.newIdentity(); // special object for null key
+    private static final Object NULL = new Object(); // special object for null key
 
     private final ReferenceQueue<Object> queue = new ReferenceQueue<Object>();
 

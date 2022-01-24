@@ -259,7 +259,7 @@ public class SSLEchoTubeTest extends AbstractSSLTubeTest {
      */
     private static final class EchoTube implements FlowTube {
 
-        private final static Object EOF = java.util.Objects.newIdentity();
+        private final static Object EOF = new Object();
         private final Executor executor = Executors.newSingleThreadExecutor();
 
         private final Queue<Object> queue = new ConcurrentLinkedQueue<>();

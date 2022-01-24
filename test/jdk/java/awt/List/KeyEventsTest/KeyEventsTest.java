@@ -41,7 +41,7 @@ import jdk.test.lib.Platform;
 public class KeyEventsTest extends Frame implements ItemListener, FocusListener, KeyListener
 {
     TestState currentState;
-    final Object LOCK = java.util.Objects.newIdentity();
+    final Object LOCK = new Object();
     final int ACTION_TIMEOUT = 500;
 
     List single = new List(3, false);

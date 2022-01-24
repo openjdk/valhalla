@@ -31,7 +31,7 @@
 public class TestArrayCopyToFromObject {
 
     public void test(Object aArray[]) {
-        Object a = java.util.Objects.newIdentity();
+        Object a = new Object();
 
         try {
             System.arraycopy(aArray, 0, a, 0, 1);
@@ -57,7 +57,7 @@ public class TestArrayCopyToFromObject {
         System.out.println("TestArrayCopyToFromObject");
         Object aArray[] = new Object[10];
         for (int i = 0; i < 10; i++) {
-            aArray[i] = java.util.Objects.newIdentity();
+            aArray[i] = new Object();
         }
         new TestArrayCopyToFromObject().test(aArray);
     }

@@ -219,7 +219,7 @@ class valuetobe002aCheckedClass {
         W0  = flag ? W0  : new String();
         W1  = flag ? W1  : new String[]    {W0};
         W2  = flag ? W2  : new String[][]  {W1};
-        O0  = flag ? O0  : java.util.Objects.newIdentity();
+        O0  = flag ? O0  : new Object();
         O1  = flag ? O1  : new Object[]    {O0};
         O2  = flag ? O2  : new Object[][]  {O1};
 

@@ -85,7 +85,7 @@ public class SynchronizationStatistics {
      */
     private static void testBlockingOnSimpleMonitor() throws Exception {
         System.out.println("testBlockingOnSimpleMonitor");
-        final Object lock1 = java.util.Objects.newIdentity();
+        final Object lock1 = new Object();
         System.out.println("Lock1 = " + lock1);
 
         final Phaser p = new Phaser(2);
@@ -129,8 +129,8 @@ public class SynchronizationStatistics {
      */
     private static void testBlockingOnNestedMonitor() throws Exception {
         System.out.println("testBlockingOnNestedMonitor");
-        final Object lock1 = java.util.Objects.newIdentity();
-        final Object lock2 = java.util.Objects.newIdentity();
+        final Object lock1 = new Object();
+        final Object lock2 = new Object();
 
         System.out.println("Lock1 = " + lock1);
         System.out.println("Lock2 = " + lock2);
@@ -190,7 +190,7 @@ public class SynchronizationStatistics {
      */
     private static void testWaitingOnSimpleMonitor() throws Exception {
         System.out.println("testWaitingOnSimpleMonitor");
-        final Object lock1 = java.util.Objects.newIdentity();
+        final Object lock1 = new Object();
         final Phaser p = new Phaser(2);
         LockerThread lt = newLockerThread(new Runnable() {
             @Override
@@ -232,7 +232,7 @@ public class SynchronizationStatistics {
      */
     private static void testMultiWaitingOnSimpleMonitor() throws Exception {
         System.out.println("testWaitingOnMultipleMonitors");
-        final Object lock1 = java.util.Objects.newIdentity();
+        final Object lock1 = new Object();
 
         final Phaser p = new Phaser(2);
         LockerThread lt = newLockerThread(new Runnable() {
@@ -278,9 +278,9 @@ public class SynchronizationStatistics {
      */
     private static void testWaitingOnNestedMonitor() throws Exception {
         System.out.println("testWaitingOnNestedMonitor");
-        final Object lock1 = java.util.Objects.newIdentity();
-        final Object lock2 = java.util.Objects.newIdentity();
-        final Object lock3 = java.util.Objects.newIdentity();
+        final Object lock1 = new Object();
+        final Object lock2 = new Object();
+        final Object lock3 = new Object();
 
         final Phaser p = new Phaser(2);
         LockerThread lt = newLockerThread(new Runnable() {

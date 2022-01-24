@@ -34,7 +34,7 @@ public class PosixPtyTerminal extends AbstractPosixTerminal {
     private final NonBlockingReader reader;
     private final PrintWriter writer;
 
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
     private Thread inputPumpThread;
     private Thread outputPumpThread;
     private boolean paused = true;

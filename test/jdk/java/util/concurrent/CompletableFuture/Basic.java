@@ -107,7 +107,7 @@ public class Basic {
         check(cf.isCancelled() == cancelled, "Expected isCancelled: " + cancelled + ", got:"  + cf.isCancelled());
         check(cf.cancel(true) == cancelled, "Expected cancel: " + cancelled + ", got:"  + cf.cancel(true));
         check(cf.toString().matches(".*\\[.*Completed exceptionally.*\\]"));  // ## TODO: 'E'xceptionally
-        check(cf.complete((T)java.util.Objects.newIdentity()) == false, "Expected complete() to fail");
+        check(cf.complete((T)new Object()) == false, "Expected complete() to fail");
         check(cf.completeExceptionally(new Throwable()) == false,
               "Expected completeExceptionally() to fail, already completed");
     }

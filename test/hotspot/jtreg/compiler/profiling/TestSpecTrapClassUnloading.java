@@ -69,7 +69,7 @@ public class TestSpecTrapClassUnloading {
 
     public static void main(String[] args) throws Exception {
         Method m = B.class.getMethod("m", Object.class);
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         B b = new B();
 
         // add speculative trap in B.m() for m1

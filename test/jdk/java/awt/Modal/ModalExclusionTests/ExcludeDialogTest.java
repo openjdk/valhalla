@@ -124,7 +124,7 @@ public class ExcludeDialogTest implements AWTEventListener {
         }
 
         robot = new ExtendedRobot();
-        windowLock = java.util.Objects.newIdentity();
+        windowLock = new Object();
         EventQueue.invokeAndWait( this::createGUI );
     }
 

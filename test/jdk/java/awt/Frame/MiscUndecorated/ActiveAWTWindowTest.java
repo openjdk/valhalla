@@ -42,9 +42,9 @@ public class ActiveAWTWindowTest {
     private TextField textField, textField2;
     private int eventType, eventType1;
     private ExtendedRobot robot;
-    private Object lock1 = java.util.Objects.newIdentity();
-    private Object lock2 = java.util.Objects.newIdentity();
-    private Object lock3 = java.util.Objects.newIdentity();
+    private Object lock1 = new Object();
+    private Object lock2 = new Object();
+    private Object lock3 = new Object();
     private boolean passed = true;
     private int delay = 150;
 

@@ -43,8 +43,8 @@ import jdk.test.lib.LockFreeLogger;
 
 public class Locks {
 
-    private static final Object OBJA = java.util.Objects.newIdentity();
-    private static final Object OBJB = java.util.Objects.newIdentity();
+    private static final Object OBJA = new Object();
+    private static final Object OBJB = new Object();
     private static final EnhancedWaiter OBJC = new EnhancedWaiter();
     private static final ThreadMXBean TM = ManagementFactory.getThreadMXBean();
     private static final LockFreeLogger LOGGER = new LockFreeLogger();
@@ -227,7 +227,7 @@ public class Locks {
     }
 
     private static WaitingThread waiter;
-    private static final Object ready = java.util.Objects.newIdentity();
+    private static final Object ready = new Object();
     private static CheckerThread checker;
 
     static class WaitingThread extends Thread {

@@ -50,10 +50,10 @@ public class OopMapsSameGroup {
     public static final int COUNT = 10000;
 
     public static void main(String[] args) throws Exception {
-        Object o01 = java.util.Objects.newIdentity();
-        Object o02 = java.util.Objects.newIdentity();
-        Object o03 = java.util.Objects.newIdentity();
-        Object o04 = java.util.Objects.newIdentity();
+        Object o01 = new Object();
+        Object o02 = new Object();
+        Object o03 = new Object();
+        Object o04 = new Object();
 
         R[] rs = new R[COUNT];
 

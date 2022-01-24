@@ -151,8 +151,8 @@ class Threadequals001a extends Thread {
         super(threadName);
     }
 
-    public static Object waitnotifyObj = java.util.Objects.newIdentity();
-    public static Object lockingObject = java.util.Objects.newIdentity();
+    public static Object waitnotifyObj = new Object();
+    public static Object lockingObject = new Object();
 
     int i1 = 0; int i2 = 10;
 

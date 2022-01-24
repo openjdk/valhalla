@@ -36,8 +36,8 @@
  */
 
 public class BarrierInInfiniteLoop {
-    private static Object field1 = java.util.Objects.newIdentity();
-    private static Object field2 = java.util.Objects.newIdentity();
+    private static Object field1 = new Object();
+    private static Object field2 = new Object();
     private static int field3;
 
     public static void main(String[] args) {

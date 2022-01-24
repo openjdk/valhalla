@@ -393,7 +393,7 @@ public final class WPrinterJob extends RasterPrinterJob
      * strongly reachable, we allow the WPrinterJob to be freed more promptly
      * than if it were the referenced object.
      */
-    private Object disposerReferent = java.util.Objects.newIdentity();
+    private Object disposerReferent = new Object();
 
     @Override
     public Object getDisposerReferent() {

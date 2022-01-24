@@ -39,7 +39,7 @@ import javax.swing.JFrame;
 */
 
 public class ModalDialogActivationTest {
-    static final Object lock = java.util.Objects.newIdentity();
+    static final Object lock = new Object();
     static volatile boolean activated;
     static volatile boolean focused;
 

@@ -187,7 +187,7 @@ public abstract class AbstractPreferences extends Preferences {
      * To avoid deadlock, a node is <i>never</i> locked by a thread that
      * holds a lock on a descendant of that node.
      */
-    protected final Object lock = java.util.Objects.newIdentity();
+    protected final Object lock = new Object();
 
     /**
      * Creates a preference node with the specified parent and the specified

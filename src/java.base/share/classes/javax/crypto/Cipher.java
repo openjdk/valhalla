@@ -304,7 +304,7 @@ public class Cipher {
         this.serviceIterator = serviceIterator;
         this.transforms = transforms;
         this.transformation = transformation;
-        this.lock = java.util.Objects.newIdentity();
+        this.lock = new Object();
     }
 
     private static String[] tokenizeTransformation(String transformation)

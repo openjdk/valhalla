@@ -58,7 +58,7 @@ public class BaseLdapServer implements Closeable {
     private final List<Socket> socketList = new ArrayList<>();
     private final ExecutorService connectionsPool;
 
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
     /*
      * 3-valued state to detect restarts and other programming errors.
      */

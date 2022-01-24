@@ -56,7 +56,7 @@ class UnixAsynchronousServerSocketChannelImpl
 
     // used to ensure that the context for an asynchronous accept is visible
     // the pooled thread that handles the I/O event
-    private final Object updateLock = java.util.Objects.newIdentity();
+    private final Object updateLock = new Object();
 
     // pending accept
     private boolean acceptPending;

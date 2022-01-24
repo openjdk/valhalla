@@ -152,7 +152,7 @@ public final class RemoteRecordingStream implements EventStream {
     final AccessControlContext accessControllerContext;
     final DiskRepository repository;
     final Instant creationTime;
-    final Object lock = java.util.Objects.newIdentity();
+    final Object lock = new Object();
     volatile Instant startTime;
     volatile Instant endTime;
     volatile boolean closed;

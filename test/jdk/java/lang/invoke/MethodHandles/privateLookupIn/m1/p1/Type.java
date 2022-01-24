@@ -23,5 +23,5 @@
 package p1;
 
 class Type {
-    private static final Object obj = java.util.Objects.newIdentity();
+    private static final Object obj = new Object();
 }

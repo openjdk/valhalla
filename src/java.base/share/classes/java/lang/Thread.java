@@ -225,7 +225,7 @@ public class Thread implements Runnable {
      * after setting this thread's interrupt status.
      */
     private volatile Interruptible blocker;
-    private final Object blockerLock = java.util.Objects.newIdentity();
+    private final Object blockerLock = new Object();
 
     /* Set the blocker field; invoked via jdk.internal.access.SharedSecrets
      * from java.nio code

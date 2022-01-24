@@ -59,8 +59,8 @@ public class MouseEventMaskTest {
 
     boolean mouseEventTriggered = false;
     boolean mouseMotionEventTriggered = false;
-    Object mouseEventLock = java.util.Objects.newIdentity();
-    Object mouseMotionEventLock = java.util.Objects.newIdentity();
+    Object mouseEventLock = new Object();
+    Object mouseMotionEventLock = new Object();
     boolean mouseMotionTest, mouseTest;
 
     public static void main(String[] args) throws Exception {

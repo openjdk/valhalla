@@ -44,7 +44,7 @@ public class step_up001a {
     static JdbArgumentHandler argumentHandler;
     static Log log;
 
-    static Object waitnotify = java.util.Objects.newIdentity();
+    static Object waitnotify = new Object();
 
     public int runIt(String args[], PrintStream out) {
 

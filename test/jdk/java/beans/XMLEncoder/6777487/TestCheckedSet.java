@@ -34,7 +34,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public final class TestCheckedSet {
-    private static final Object OBJECT = java.util.Objects.newIdentity();
+    private static final Object OBJECT = new Object();
 
     public static void main(String[] args) {
         Set<String> set = Collections.emptySet();

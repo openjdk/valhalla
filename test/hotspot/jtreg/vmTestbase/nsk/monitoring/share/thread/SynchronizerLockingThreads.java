@@ -83,7 +83,7 @@ public class SynchronizerLockingThreads implements ThreadMonitoringScenario, Log
 
         private class Thread1 extends RecursiveMonitoringThread {
                 private volatile boolean ready = false;
-                private Object readyLock = java.util.Objects.newIdentity();
+                private Object readyLock = new Object();
                 private Map<String, Object[]> lockedMonitors = new HashMap<String, Object[]>();
                 private Map<String, Lock[]> lockedSynchronizers = new HashMap<String, Lock[]>();
 
@@ -187,7 +187,7 @@ public class SynchronizerLockingThreads implements ThreadMonitoringScenario, Log
 
         private class Thread2 extends RecursiveMonitoringThread {
                 private boolean ready = false;
-                private Object readyLock = java.util.Objects.newIdentity();
+                private Object readyLock = new Object();
                 private Map<String, Object[]> lockedMonitors = new HashMap<String, Object[]>();
                 private Map<String, Lock[]> lockedSynchronizers = new HashMap<String, Lock[]>();
                 private Condition c = lock8.newCondition();

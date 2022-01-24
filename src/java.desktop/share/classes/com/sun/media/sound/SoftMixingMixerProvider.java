@@ -40,7 +40,7 @@ public final class SoftMixingMixerProvider extends MixerProvider {
 
     static Thread lockthread = null;
 
-    static final Object mutex = java.util.Objects.newIdentity();
+    static final Object mutex = new Object();
 
     @Override
     public Mixer getMixer(Info info) {

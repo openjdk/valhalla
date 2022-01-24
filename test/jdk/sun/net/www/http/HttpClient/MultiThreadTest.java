@@ -51,7 +51,7 @@ public class MultiThreadTest extends Thread {
      */
     static boolean debug = true; // disable debug once stability proven
 
-    static Object threadlock = java.util.Objects.newIdentity();
+    static Object threadlock = new Object ();
     static int threadCounter = 0;
 
     static Object getLock() { return threadlock; }
@@ -291,7 +291,7 @@ public class MultiThreadTest extends Thread {
         }
 
         static int requests = 0;
-        static final Object rlock = java.util.Objects.newIdentity();
+        static final Object rlock = new Object();
 
         public static int getRequests () {
             synchronized (rlock) {

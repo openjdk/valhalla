@@ -211,7 +211,7 @@ public class ConcurrentHashMapTest extends JSR166TestCase {
             Object x;
             switch (rng.nextInt(4)) {
             case 0:
-                x = java.util.Objects.newIdentity();
+                x = new Object();
                 break;
             case 1:
                 x = new CollidingObject(Integer.toString(i));

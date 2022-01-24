@@ -114,7 +114,7 @@ public class NativeMethodsTestThread extends Thread {
 
     public static String expectedStringValue = "EXPECTED STRING";
 
-    public static Object expectedObjectValue = java.util.Objects.newIdentity();
+    public static Object expectedObjectValue = new Object();
 
     public static Boolean expectedBooleanWrapperValue = Boolean.valueOf(Boolean.TRUE);
 

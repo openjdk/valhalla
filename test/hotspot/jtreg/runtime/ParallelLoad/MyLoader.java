@@ -60,7 +60,7 @@ class MyLoader extends ClassLoader {
     }
 
     private static boolean parallel = false;
-    private Object sync = java.util.Objects.newIdentity();
+    private Object sync = new Object();
     private static volatile boolean waiting = false;
     private static Semaphore mainSem = new Semaphore(0);
 

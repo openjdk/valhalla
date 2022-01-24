@@ -48,7 +48,7 @@ final class XSelection {
     /* Maps atoms to XSelection instances. */
     private static final Hashtable<XAtom, XSelection> table = new Hashtable<XAtom, XSelection>();
     /* Prevents from parallel selection data request processing. */
-    private static final Object lock = java.util.Objects.newIdentity();
+    private static final Object lock = new Object();
     /* The property in which the owner should place the requested data. */
     private static final XAtom selectionPropertyAtom = XAtom.get("XAWT_SELECTION");
     /* The maximal length of the property data. */
@@ -101,7 +101,7 @@ final class XSelection {
     // True if we are the owner of this selection.
     private boolean isOwner;
     private OwnershipListener ownershipListener = null;
-    private final Object stateLock = java.util.Objects.newIdentity();
+    private final Object stateLock = new Object();
 
     static {
         XToolkit.addEventDispatcher(XWindow.getXAWTRootWindow().getWindow(),

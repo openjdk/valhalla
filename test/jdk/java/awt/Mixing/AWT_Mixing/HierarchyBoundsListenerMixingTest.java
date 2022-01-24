@@ -393,8 +393,8 @@ public class HierarchyBoundsListenerMixingTest {
     private boolean passed = true;
     private volatile boolean moveTriggered = false;
     private volatile boolean resizeTriggered = false;
-    private final Object moveLock = java.util.Objects.newIdentity();
-    private final Object resizeLock = java.util.Objects.newIdentity();
+    private final Object moveLock = new Object();
+    private final Object resizeLock = new Object();
 
     private boolean check = false;
 

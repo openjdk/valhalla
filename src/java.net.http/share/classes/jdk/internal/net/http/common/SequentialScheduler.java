@@ -165,7 +165,7 @@ public final class SequentialScheduler {
             extends CompleteRestartableTask {
 
         private final Runnable mainLoop;
-        private final Object lock = java.util.Objects.newIdentity();
+        private final Object lock = new Object();
 
         public SynchronizedRestartableTask(Runnable mainLoop) {
             this.mainLoop = mainLoop;

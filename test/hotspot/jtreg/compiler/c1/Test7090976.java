@@ -55,7 +55,7 @@ public class Test7090976 {
     }
 
     static class B implements I2 {
-        Object v = java.util.Objects.newIdentity();
+        Object v = new Object();
         Object v2;
 
         public void m2() {

@@ -35,7 +35,7 @@ import nsk.share.TestBug;
 public class TimedWaitingThread extends RecursiveMonitoringThread {
         private String lock = new String("a lock");
         private volatile boolean ready = false;
-        private Object readyLock = java.util.Objects.newIdentity();
+        private Object readyLock = new Object();
         private int count = LocalRandom.nextInt(100) + 1;
         private volatile int n = 0;
         private static final String[] expectedMethods = {

@@ -57,7 +57,7 @@ public class Wakeup {
         volatile boolean started = false;
         volatile boolean wantInterrupt = false;
         volatile boolean closed = false;
-        Object gate = java.util.Objects.newIdentity();
+        Object gate = new Object();
 
         Selector sel;
 

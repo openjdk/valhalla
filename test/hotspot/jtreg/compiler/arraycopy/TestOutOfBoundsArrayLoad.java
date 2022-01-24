@@ -88,7 +88,7 @@ public class TestOutOfBoundsArrayLoad {
         // Load L below is executed speculatively at this point from src without range check.
         // The result is put into the OopMap of the allocation in the next line.
         // If src.length is 0 then the loaded value is no heap reference and GC crashes.
-        escape1 = java.util.Objects.newIdentity();
+        escape1 = new Object();
         if (src.length > 4) {
             escape2 = clone[4]; // Load L
         }

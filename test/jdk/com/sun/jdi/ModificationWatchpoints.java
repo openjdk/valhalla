@@ -50,7 +50,7 @@ class ModificationWatchpointsTarg {
     public static final float FloatVal = 7.986f;
     public static final double DoubleVal = 3.14159265358979d;
     public static final String StringVal = "OnceMore";
-    public static final Object ObjectVal = java.util.Objects.newIdentity();
+    public static final Object ObjectVal = new Object();
 
     static byte sByte;
     static char sChar;

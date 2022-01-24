@@ -30,7 +30,7 @@ public class A {
     static {
         try {
             MethodHandles.lookup().ensureInitialized(A.class);
-            lock = java.util.Objects.newIdentity();
+            lock = new Object();
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }

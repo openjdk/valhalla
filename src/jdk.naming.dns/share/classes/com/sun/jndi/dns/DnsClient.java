@@ -87,7 +87,7 @@ public class DnsClient {
     private int timeout;                // initial timeout on UDP and TCP queries in ms
     private int retries;                // number of UDP retries
 
-    private final Object udpSocketLock = java.util.Objects.newIdentity();
+    private final Object udpSocketLock = new Object();
     private static final DNSDatagramSocketFactory factory =
             new DNSDatagramSocketFactory(random);
 
@@ -154,7 +154,7 @@ public class DnsClient {
     }
 
     // A lock to access the request and response queues in tandem.
-    private Object queuesLock = java.util.Objects.newIdentity();
+    private Object queuesLock = new Object();
 
     public void close() {
         synchronized (queuesLock) {

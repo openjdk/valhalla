@@ -520,7 +520,7 @@ public class InlineTypeArray {
         catch (NullPointerException npe) {}
 
         oarr = new Object[3];
-        oarr[0] = java.util.Objects.newIdentity();
+        oarr[0] = new Object();
         try {
             System.arraycopy(oarr, 0, pts, 0, 3);
             throw new RuntimeException("Expected ASE");

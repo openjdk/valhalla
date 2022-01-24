@@ -37,7 +37,7 @@ public class resexhausted001 {
 
     static final long MAX_ITERATIONS = 2000000L; // Resasonable limit on number of threads
 
-    static Object hanger = java.util.Objects.newIdentity();
+    static Object hanger = new Object();
     static boolean threadsDone;
     static AtomicInteger threadCount = new AtomicInteger();
 

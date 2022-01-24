@@ -67,7 +67,7 @@ public class Misc {
         assertTrue(!thisFile.equals(thatFile));
 
         assertTrue(!thisFile.equals(null));
-        assertTrue(!thisFile.equals(java.util.Objects.newIdentity()));
+        assertTrue(!thisFile.equals(new Object()));
 
         Path likeThis = Paths.get("This");
         if (isWindows) {

@@ -103,8 +103,8 @@ public class monitorwait001 extends DebugeeClass {
 /* =================================================================== */
 
 class monitorwait001Thread extends Thread {
-    public Object startingMonitor = java.util.Objects.newIdentity();
-    public Object waitingMonitor = java.util.Objects.newIdentity();
+    public Object startingMonitor = new Object();
+    public Object waitingMonitor = new Object();
 
     public monitorwait001Thread(String name) {
         super(name);

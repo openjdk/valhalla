@@ -39,9 +39,9 @@ public class XMBean {
     private Icon icon;
     private String text;
     private Boolean broadcaster;
-    private final Object broadcasterLock = java.util.Objects.newIdentity();
+    private final Object broadcasterLock = new Object();
     private MBeanInfo mbeanInfo;
-    private final Object mbeanInfoLock = java.util.Objects.newIdentity();
+    private final Object mbeanInfoLock = new Object();
 
     public XMBean(ObjectName objectName, MBeansTab mbeansTab) {
         this.mbeansTab = mbeansTab;

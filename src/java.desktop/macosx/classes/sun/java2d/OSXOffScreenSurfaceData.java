@@ -468,7 +468,7 @@ public class OSXOffScreenSurfaceData extends OSXSurfaceData // implements Raster
         this.fImageInfoInt.put(kNativePixelsChangedIndex, 0);
         this.fImageInfoInt.put(kImageStolenIndex, 0);
 
-        this.lock = java.util.Objects.newIdentity();
+        this.lock = new Object();
     }
 
     /**

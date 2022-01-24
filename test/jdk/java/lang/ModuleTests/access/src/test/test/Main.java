@@ -333,7 +333,7 @@ public class Main {
             assertFalse(shouldSucceed);
         }
         try {
-            f.set(null, java.util.Objects.newIdentity());
+            f.set(null, new Object());
             assertTrue(shouldSucceed);
         } catch (Exception e) {
             assertFalse(shouldSucceed);

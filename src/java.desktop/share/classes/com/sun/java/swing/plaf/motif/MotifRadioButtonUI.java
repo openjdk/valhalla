@@ -45,7 +45,7 @@ import sun.awt.AppContext;
  */
 public class MotifRadioButtonUI extends BasicRadioButtonUI {
 
-    private static final Object MOTIF_RADIO_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object MOTIF_RADIO_BUTTON_UI_KEY = new Object();
 
     protected Color focusColor;
 

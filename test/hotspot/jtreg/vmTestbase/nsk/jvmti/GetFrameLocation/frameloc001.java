@@ -45,8 +45,8 @@ public class frameloc001 {
     native static int getRes();
 
     static int fld = 0;
-    static Object lock1 = java.util.Objects.newIdentity();
-    static Object lock2 = java.util.Objects.newIdentity();
+    static Object lock1 = new Object();
+    static Object lock2 = new Object();
 
     public static void main(String args[]) {
         args = nsk.share.jvmti.JVMTITest.commonInit(args);

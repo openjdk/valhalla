@@ -308,7 +308,7 @@ public class Deadlock extends ThreadMonitoringScenarioBase {
 
         private class DeadlockThread extends RecursiveMonitoringThread {
                 private boolean ready = false;
-                private Object readyLock = java.util.Objects.newIdentity();
+                private Object readyLock = new Object();
                 private Locker locker;
 
                 public DeadlockThread(Locker locker) {

@@ -43,8 +43,8 @@ public class getstacktr003 {
     native static void chain();
     native static int check(Thread thread);
 
-    public static Object lockIn = java.util.Objects.newIdentity();
-    public static Object lockOut = java.util.Objects.newIdentity();
+    public static Object lockIn = new Object();
+    public static Object lockOut = new Object();
 
     public static void main(String args[]) {
         args = nsk.share.jvmti.JVMTITest.commonInit(args);

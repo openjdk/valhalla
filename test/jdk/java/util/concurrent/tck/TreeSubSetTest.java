@@ -190,8 +190,8 @@ public class TreeSubSetTest extends JSR166TestCase {
     public void testAddNonComparable() {
         NavigableSet<Object> q = new TreeSet<>();
         try {
-            q.add(java.util.Objects.newIdentity());
-            q.add(java.util.Objects.newIdentity());
+            q.add(new Object());
+            q.add(new Object());
             shouldThrow();
         } catch (ClassCastException success) {}
     }
@@ -671,8 +671,8 @@ public class TreeSubSetTest extends JSR166TestCase {
     public void testDescendingAddNonComparable() {
         NavigableSet<Object> q = new TreeSet<>();
         try {
-            q.add(java.util.Objects.newIdentity());
-            q.add(java.util.Objects.newIdentity());
+            q.add(new Object());
+            q.add(new Object());
             shouldThrow();
         } catch (ClassCastException success) {}
     }

@@ -71,7 +71,7 @@ public class forcegc001 extends DebugeeClass {
         log.display("Creating tested objects: " + count + " objects");
         Object objects[] = new Object[count];
         for (int i = 0; i < count; i++) {
-            objects[i] = java.util.Objects.newIdentity();
+            objects[i] = new Object();
         }
 
         log.display("Creating soft references for: " + count + " objects");

@@ -253,8 +253,8 @@ class SSLStreams {
         EngineWrapper (SocketChannel chan, SSLEngine engine) throws IOException {
             this.chan = chan;
             this.engine = engine;
-            wrapLock = java.util.Objects.newIdentity();
-            unwrapLock = java.util.Objects.newIdentity();
+            wrapLock = new Object();
+            unwrapLock = new Object();
             unwrap_src = allocate(BufType.PACKET);
             wrap_dst = allocate(BufType.PACKET);
         }

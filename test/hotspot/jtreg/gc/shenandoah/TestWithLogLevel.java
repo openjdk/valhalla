@@ -41,7 +41,7 @@ public class TestWithLogLevel {
         ArrayList<Object> list = new ArrayList<>();
         long count = 300 * 1024 * 1024 / 16; // 300MB allocation
         for (long index = 0; index < count; index++) {
-            Object sink = java.util.Objects.newIdentity();
+            Object sink = new Object();
             list.add(sink);
         }
     }

@@ -74,8 +74,8 @@ public class ModifierRobotEnhancedKeyTest extends KeyAdapter {
     private boolean[] modifierStatus, textStatus;
 
     private final static int waitDelay = 5000;
-    private Object tempLock = java.util.Objects.newIdentity();
-    private Object keyLock = java.util.Objects.newIdentity();
+    private Object tempLock = new Object();
+    private Object keyLock = new Object();
 
     public static void main(String[] args) throws Exception {
         String os = System.getProperty("os.name").toLowerCase();

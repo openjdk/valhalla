@@ -82,7 +82,7 @@ public class CallSiteTest {
 
         Assert.assertFalse(relinkCalled[0]);
         try {
-            cs.getTarget().invoke(java.util.Objects.newIdentity());
+            cs.getTarget().invoke(new Object());
         } catch (final Throwable th) {}
 
         Assert.assertTrue(relinkCalled[0]);

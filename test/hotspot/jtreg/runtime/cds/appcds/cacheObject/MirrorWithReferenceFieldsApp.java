@@ -44,7 +44,7 @@ public class MirrorWithReferenceFieldsApp {
     Integer non_archived_field_2;
 
     public MirrorWithReferenceFieldsApp() {
-        non_archived_field_1 = java.util.Objects.newIdentity();
+        non_archived_field_1 = new Object();
         non_archived_field_2 = Integer.valueOf(1);
     }
 

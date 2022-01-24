@@ -112,7 +112,7 @@ class Element implements DTDConstants, Serializable {
         }
     }
 
-    private static final Object MAX_INDEX_KEY = java.util.Objects.newIdentity();
+    private static final Object MAX_INDEX_KEY = new Object();
 
     static int getMaxIndex() {
         Integer value = (Integer) AppContext.getAppContext().get(MAX_INDEX_KEY);

@@ -305,10 +305,10 @@ abstract class AbstractConstantGroup implements ConstantGroup {
         }
 
         // secret sentinel for an actual null resolved value, in the cache
-        static final Object RESOLVED_TO_NULL = java.util.Objects.newIdentity();
+        static final Object RESOLVED_TO_NULL = new Object();
 
         // secret sentinel for a "hole" in the cache:
-        static final Object NOT_PRESENT = java.util.Objects.newIdentity();
+        static final Object NOT_PRESENT = new Object();
 
     }
 

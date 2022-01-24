@@ -55,7 +55,7 @@ public class FilterOutputStream extends OutputStream {
     /**
      * Object used to prevent a race on the 'closed' instance variable.
      */
-    private final Object closeLock = java.util.Objects.newIdentity();
+    private final Object closeLock = new Object();
 
     /**
      * Creates an output stream filter built on top of the specified

@@ -367,7 +367,7 @@ public class Basic {
         // ClassCastException
         try {
             Set perms = new HashSet();  // raw type
-            perms.add(java.util.Objects.newIdentity());
+            perms.add(new Object());
             view.setPermissions(perms);
             throw new RuntimeException("ClassCastException not thrown");
         }  catch (ClassCastException x) {

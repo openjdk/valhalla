@@ -80,14 +80,14 @@ public class SctpMultiChannelImpl extends SctpMultiChannel
     private volatile long senderThread = 0;
 
     /* Lock held by current receiving thread */
-    private final Object receiveLock = java.util.Objects.newIdentity();
+    private final Object receiveLock = new Object();
 
     /* Lock held by current sending thread */
-    private final Object sendLock = java.util.Objects.newIdentity();
+    private final Object sendLock = new Object();
 
     /* Lock held by any thread that modifies the state fields declared below
      * DO NOT invoke a blocking I/O operation while holding this lock! */
-    private final Object stateLock = java.util.Objects.newIdentity();
+    private final Object stateLock = new Object();
 
     private enum ChannelState {
         UNINITIALIZED,

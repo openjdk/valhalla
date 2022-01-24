@@ -112,8 +112,8 @@ public class thrcputime001 extends DebugeeClass {
 class thrcputime001Thread extends Thread {
     public int iterations;
 
-    public Object startingMonitor = java.util.Objects.newIdentity();
-    public Object endingMonitor = java.util.Objects.newIdentity();
+    public Object startingMonitor = new Object();
+    public Object endingMonitor = new Object();
 
     /** Make thread with specific name. */
     public thrcputime001Thread(String name, int iterations) {

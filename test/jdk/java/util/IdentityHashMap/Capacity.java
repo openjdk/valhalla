@@ -91,7 +91,7 @@ public class Capacity {
     static void growUsingPut(IdentityHashMap<Object,Object> map,
                              int elementsToAdd) {
         for (int i = 0; i < elementsToAdd; i++)
-            map.put(java.util.Objects.newIdentity(), java.util.Objects.newIdentity());
+            map.put(new Object(), new Object());
     }
 
     static void growUsingPutAll(IdentityHashMap<Object,Object> map,
@@ -104,8 +104,8 @@ public class Capacity {
     static void growUsingRepeatedPutAll(IdentityHashMap<Object,Object> map,
                                         int elementsToAdd) {
         for (int i = 0; i < elementsToAdd; i++)
-            map.putAll(Collections.singletonMap(java.util.Objects.newIdentity(),
-                                                java.util.Objects.newIdentity()));
+            map.putAll(Collections.singletonMap(new Object(),
+                                                new Object()));
     }
 
     /**

@@ -1552,7 +1552,7 @@ public abstract class SunToolkit extends Toolkit
      */
     protected abstract boolean syncNativeQueue(long timeout);
 
-    private final Object waitLock = java.util.Objects.newIdentity();
+    private final Object waitLock = new Object();
 
     private boolean isEQEmpty() {
         EventQueue queue = getSystemEventQueueImpl();
@@ -1880,7 +1880,7 @@ public abstract class SunToolkit extends Toolkit
         return false;
     }
 
-    private static final Object DEACTIVATION_TIMES_MAP_KEY = java.util.Objects.newIdentity();
+    private static final Object DEACTIVATION_TIMES_MAP_KEY = new Object();
 
     public synchronized void setWindowDeactivationTime(Window w, long time) {
         AppContext ctx = getAppContext(w);

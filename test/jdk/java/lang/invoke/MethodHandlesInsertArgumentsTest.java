@@ -124,7 +124,7 @@ public class MethodHandlesInsertArgumentsTest extends MethodHandlesTest {
     @Test(expected = ClassCastException.class)
     public void testInsertArgumentsIncorrectParam() {
         countTest();
-        MethodHandles.insertArguments(methodHandle, 1, "First", java.util.Objects.newIdentity());
+        MethodHandles.insertArguments(methodHandle, 1, "First", new Object());
     }
 
     void testMethod(String a, String b) {

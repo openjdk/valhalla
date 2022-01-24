@@ -58,7 +58,7 @@ public class LeaseCheckInterval implements Remote, Unreferenced {
     private static final long LEASE_VALUE = 10000;
     private static final long TIMEOUT = 20000;
 
-    private Object lock = java.util.Objects.newIdentity();
+    private Object lock = new Object();
     private boolean unreferencedInvoked = false;
 
     public void unreferenced() {

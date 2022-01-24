@@ -49,7 +49,7 @@ class MonitorFrameInfoTarg {
 
     }
     static void foo2() {
-        Object l1 = java.util.Objects.newIdentity();
+        Object l1 = new Object();
         synchronized(l1) {
             System.out.println("executing foo2 " + l1);
             foo3();
@@ -60,7 +60,7 @@ class MonitorFrameInfoTarg {
     }
     public static void main(String[] args){
         System.out.println("Howdy!");
-        Object l1 = java.util.Objects.newIdentity();
+        Object l1 = new Object();
         synchronized(l1) {
             System.out.println("executing main" + l1);
             foo1();

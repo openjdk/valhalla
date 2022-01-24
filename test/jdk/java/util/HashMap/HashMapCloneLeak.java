@@ -40,7 +40,7 @@ public class HashMapCloneLeak {
     // helper method to keep testObject and map out of main method's scope
     private static HashMap<Integer, Object> makeMap() {
         HashMap<Integer, Object> map = new HashMap<Integer, Object>();
-        Object testObject = java.util.Objects.newIdentity();
+        Object testObject = new Object();
         wr = new WeakReference<Object>(testObject);
         map.put(42, testObject);
         return map;

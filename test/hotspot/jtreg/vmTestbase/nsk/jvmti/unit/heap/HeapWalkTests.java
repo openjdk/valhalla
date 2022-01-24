@@ -61,7 +61,7 @@ public class HeapWalkTests {
         // are tagged.
 
         // create a global reference
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         Heap.newGlobalRef(o);
 
         // make sure current thread isn't tagged
@@ -94,7 +94,7 @@ public class HeapWalkTests {
         // from the thread stacks. The callback tags all objects with the tag
         // of the thread.
 
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
 
         Heap.setTag(Thread.currentThread(), 888);
 
@@ -113,14 +113,14 @@ public class HeapWalkTests {
         private Object fld;
 
         Foo() {
-            fld = java.util.Objects.newIdentity();
+            fld = new Object();
         }
 
         Object field() {
             return fld;
         }
 
-        public static Object static_field = java.util.Objects.newIdentity();
+        public static Object static_field = new Object();
     }
 
     private static int failures = 0;

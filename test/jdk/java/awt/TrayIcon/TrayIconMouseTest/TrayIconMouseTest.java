@@ -49,7 +49,7 @@ public class TrayIconMouseTest {
     TrayIcon icon;
     ExtendedRobot robot;
     boolean actionPerformed = false;
-    Object actionLock = java.util.Objects.newIdentity();
+    Object actionLock = new Object();
     static boolean isMacOS = false;
     static boolean isWinOS = false;
     static boolean isOelOS = false;

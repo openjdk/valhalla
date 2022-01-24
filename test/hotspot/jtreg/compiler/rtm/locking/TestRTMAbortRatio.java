@@ -117,7 +117,7 @@ public class TestRTMAbortRatio {
         private static final int TOTAL_ITERATIONS = 10000;
         private static final int WARMUP_ITERATIONS = 1000;
         private final XAbortProvoker xabort = new XAbortProvoker();
-        private final Object monitor = java.util.Objects.newIdentity();
+        private final Object monitor = new Object();
         // Following field have to be static in order to avoid escape analysis.
         @SuppressWarnings("UnsuedDeclaration")
         private static int field = 0;

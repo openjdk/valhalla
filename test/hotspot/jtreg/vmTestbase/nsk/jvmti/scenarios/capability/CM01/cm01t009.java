@@ -104,8 +104,8 @@ public class cm01t009 extends DebugeeClass {
 /* =================================================================== */
 
 class cm01t009Thread extends Thread {
-    public Object startingMonitor = java.util.Objects.newIdentity();
-    private Object waitingMonitor = java.util.Objects.newIdentity();
+    public Object startingMonitor = new Object();
+    private Object waitingMonitor = new Object();
 
     public cm01t009Thread(String name) {
         super(name);
@@ -114,7 +114,7 @@ class cm01t009Thread extends Thread {
     public void run() {
         synchronized (waitingMonitor) {
 
-            Object o = java.util.Objects.newIdentity();
+            Object o = new Object();
             int i = 1;
             long l = 2;
             float f = 3.0F;

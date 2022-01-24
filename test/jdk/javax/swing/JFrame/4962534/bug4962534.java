@@ -44,7 +44,7 @@ public class bug4962534 {
     Component titleComponent;
     JLayeredPane lPane;
     volatile boolean titleFound = false;
-    public static Object LOCK = java.util.Objects.newIdentity();
+    public static Object LOCK = new Object();
 
     public static void main(final String[] args) throws Exception {
         try {

@@ -1633,7 +1633,7 @@ public class TestNewAcmp {
     }
 
     public Object getNotNull(Object u) {
-        return (u != null) ? u : java.util.Objects.newIdentity();
+        return (u != null) ? u : new Object();
     }
 
     public Object get(MyValue1 v) {
@@ -1781,7 +1781,7 @@ public class TestNewAcmp {
     public void run(int nullMode) throws Exception {
         // Prepare test arguments
         Object[] args =  { null,
-                           java.util.Objects.newIdentity(),
+                           new Object(),
                            new MyObject(),
                            MyValue1.setX(MyValue1.createDefault(), 42),
                            new Object[10],

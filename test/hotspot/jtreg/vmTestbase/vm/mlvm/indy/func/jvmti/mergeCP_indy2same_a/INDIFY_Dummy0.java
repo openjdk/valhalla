@@ -76,7 +76,7 @@ public class INDIFY_Dummy0 {
     }
 
     private static boolean invokeTarget0() throws Throwable {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         String s = "";
         int i = 456;
         boolean b = (Boolean) INDY_call().invokeExact(o, s, i);

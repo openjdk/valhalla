@@ -70,7 +70,7 @@ public class ValueArray {
     static Object[][] arrayTypes() {
         return new Object[][] {
             new Object[] { Object[].class,
-                           new Object[] { java.util.Objects.newIdentity(), java.util.Objects.newIdentity()}},
+                           new Object[] { new Object(), new Object()}},
             new Object[] { Point[].class,
                            new Point[] { Point.makePoint(1, 2),
                                          Point.makePoint(10, 20),
@@ -208,7 +208,7 @@ public class ValueArray {
 
     @Test
     public static void testNonArrayObject() {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         try {
             Array.get(o, 0);
             fail("IAE not thrown");

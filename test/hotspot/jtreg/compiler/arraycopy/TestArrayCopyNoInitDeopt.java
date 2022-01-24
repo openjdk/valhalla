@@ -92,7 +92,7 @@ public class TestArrayCopyNoInitDeopt {
         // Only execute if C2 is available
         if (TIERED_STOP_AT_LEVEL == CompilerWhiteBoxTest.COMP_LEVEL_FULL_OPTIMIZATION) {
             int[] src = new int[10];
-            Object src_obj = java.util.Objects.newIdentity();
+            Object src_obj = new Object();
             Method method_m1 = TestArrayCopyNoInitDeopt.class.getMethod("m1", Object.class);
             Method method_m2 = TestArrayCopyNoInitDeopt.class.getMethod("m2", Object.class);
 

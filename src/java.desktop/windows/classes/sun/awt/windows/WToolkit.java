@@ -270,7 +270,7 @@ public final class WToolkit extends SunToolkit implements Runnable {
         }
     }
 
-    private final Object anchor = java.util.Objects.newIdentity();
+    private final Object anchor = new Object();
 
     private static native void postDispose();
 

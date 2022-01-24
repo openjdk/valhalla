@@ -44,7 +44,7 @@ import java.util.Set;
  */
 public class BasicRadioButtonUI extends BasicToggleButtonUI
 {
-    private static final Object BASIC_RADIO_BUTTON_UI_KEY = java.util.Objects.newIdentity();
+    private static final Object BASIC_RADIO_BUTTON_UI_KEY = new Object();
 
     /**
      * The icon.

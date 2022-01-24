@@ -44,7 +44,7 @@ public class XAbortProvoker extends AbortProvoker {
     private static int field = 0;
 
     public XAbortProvoker() {
-        this(java.util.Objects.newIdentity());
+        this(new Object());
     }
 
     public XAbortProvoker(Object monitor) {

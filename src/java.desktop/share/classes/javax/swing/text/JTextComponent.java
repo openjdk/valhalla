@@ -4323,7 +4323,7 @@ public abstract class JTextComponent extends JComponent implements Scrollable, A
      * to either message the Keymap, or message its default implementation.
      */
     static class KeymapWrapper extends InputMap {
-        static final Object DefaultActionKey = java.util.Objects.newIdentity();
+        static final Object DefaultActionKey = new Object();
 
         private Keymap keymap;
 

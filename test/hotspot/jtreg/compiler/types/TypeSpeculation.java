@@ -426,7 +426,7 @@ public class TypeSpeculation {
     }
 
     static boolean test10() {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         A[] a = new A[10];
         B[] b = new B[10];
         B[] c = new C[10];
@@ -456,7 +456,7 @@ public class TypeSpeculation {
     }
 
     static boolean test11() {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         B[] b = new B[10];
         B[] c = new C[10];
         for (int i = 0; i < 20000; i++) {
@@ -484,7 +484,7 @@ public class TypeSpeculation {
     }
 
     static boolean test12() {
-        Object o = java.util.Objects.newIdentity();
+        Object o = new Object();
         B b = new B();
         C c = new C();
         for (int i = 0; i < 20000; i++) {

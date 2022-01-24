@@ -137,7 +137,7 @@ public class KeyGenerator {
     // The algorithm
     private final String algorithm;
 
-    private final Object lock = java.util.Objects.newIdentity();
+    private final Object lock = new Object();
 
     private Iterator<Service> serviceIterator;
 

@@ -80,7 +80,7 @@ public final class SunPKCS11 extends AuthProvider {
     @SuppressWarnings("serial") // Type of field is not Serializable
     private CallbackHandler pHandler;
     @SuppressWarnings("serial") // Type of field is not Serializable
-    private final Object LOCK_HANDLER = java.util.Objects.newIdentity();
+    private final Object LOCK_HANDLER = new Object();
 
     final boolean removable;
 
