@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,6 +53,8 @@ public class TestIntrinsics {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
         for (Scenario scenario: scenarios) {
             scenario.addFlags("--add-exports", "java.base/jdk.internal.misc=ALL-UNNAMED");
+            // Don't run with DeoptimizeALot until JDK-8239003 is fixed
+            scenario.addFlags("-XX:-DeoptimizeALot");
         }
         scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
         scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:+UnlockExperimentalVMOptions", "-XX:PerMethodSpecTrapLimit=0", "-XX:PerMethodTrapLimit=0");
