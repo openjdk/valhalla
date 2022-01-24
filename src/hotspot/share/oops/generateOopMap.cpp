@@ -1379,7 +1379,7 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_new:               ppush1(CellTypeState::make_line_ref(itr->bci()));
                                         break;
 
-    case Bytecodes::_defaultvalue:      ppush1(CellTypeState::make_line_ref(itr->bci())); break;
+    case Bytecodes::_aconst_init:      ppush1(CellTypeState::make_line_ref(itr->bci())); break;
     case Bytecodes::_withfield:         do_withfield(itr->get_index_u2_cpcache(), itr->bci()); break;
 
     case Bytecodes::_iconst_m1:

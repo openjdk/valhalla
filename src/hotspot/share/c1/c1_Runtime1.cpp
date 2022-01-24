@@ -1119,9 +1119,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
           k = caller_method->constants()->klass_at(bnew.index(), CHECK);
         }
         break;
-      case Bytecodes::_defaultvalue:
-        { Bytecode_defaultvalue bdefaultvalue(caller_method(), caller_method->bcp_from(bci));
-          k = caller_method->constants()->klass_at(bdefaultvalue.index(), CHECK);
+      case Bytecodes::_aconst_init:
+        { Bytecode_aconst_init baconst_init(caller_method(), caller_method->bcp_from(bci));
+          k = caller_method->constants()->klass_at(baconst_init.index(), CHECK);
         }
         break;
       case Bytecodes::_multianewarray:

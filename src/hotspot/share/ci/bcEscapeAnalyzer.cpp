@@ -942,7 +942,7 @@ void BCEscapeAnalyzer::iterate_one_block(ciBlock *blk, StateInfo &state, Growabl
         }
         break;
       case Bytecodes::_new:
-      case Bytecodes::_defaultvalue:
+      case Bytecodes::_aconst_init:
         state.apush(allocated_obj);
         break;
       case Bytecodes::_withfield: {

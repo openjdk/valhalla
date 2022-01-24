@@ -294,13 +294,13 @@ class Bytecode_new: public Bytecode {
   long index() const   { return get_index_u2(Bytecodes::_new); };
 };
 
-class Bytecode_defaultvalue: public Bytecode {
+class Bytecode_aconst_init: public Bytecode {
  public:
-  Bytecode_defaultvalue(Method* method, address bcp): Bytecode(method, bcp) { verify(); }
-  void verify() const { assert(java_code() == Bytecodes::_defaultvalue, "check defaultvalue"); }
+  Bytecode_aconst_init(Method* method, address bcp): Bytecode(method, bcp) { verify(); }
+  void verify() const { assert(java_code() == Bytecodes::_aconst_init, "check aconst_init"); }
 
   // Returns index
-  long index() const   { return get_index_u2(Bytecodes::_defaultvalue); };
+  long index() const   { return get_index_u2(Bytecodes::_aconst_init); };
 };
 
 class Bytecode_multianewarray: public Bytecode {

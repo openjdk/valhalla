@@ -883,7 +883,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   copy_cpool_bytes(writeable_address(cpool_size()));
 
   // JVMSpec|           u2 access_flags;
-  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_INLINE | JVM_ACC_VALUE));
+  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRIMITIVE | JVM_ACC_VALUE));
 
   // JVMSpec|           u2 this_class;
   // JVMSpec|           u2 super_class;

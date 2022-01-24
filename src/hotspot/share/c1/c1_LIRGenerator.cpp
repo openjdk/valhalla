@@ -2377,7 +2377,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
 }
 
 void LIRGenerator::do_Deoptimize(Deoptimize* x) {
-  // This happens only when a class X uses the withfield/defaultvalue bytecode
+  // This happens only when a class X uses the withfield/aconst_init bytecode
   // to refer to an inline class V, where V has not yet been loaded/resolved.
   // This is not a common case. Let's just deoptimize.
   CodeEmitInfo* info = state_for(x, x->state_before());

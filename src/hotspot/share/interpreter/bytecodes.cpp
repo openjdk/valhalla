@@ -484,7 +484,7 @@ void Bytecodes::initialize() {
   def(_goto_w              , "goto_w"              , "boooo", NULL    , T_VOID   ,  0, false);
   def(_jsr_w               , "jsr_w"               , "boooo", NULL    , T_INT    ,  0, false);
   def(_breakpoint          , "breakpoint"          , ""     , NULL    , T_VOID   ,  0, true);
-  def(_defaultvalue        , "defaultvalue"        , "bkk"  , NULL    , T_OBJECT ,  1, true);
+  def(_aconst_init        , "aconst_init"        , "bkk"  , NULL    , T_OBJECT ,  1, true);
   def(_withfield           , "withfield"           , "bJJ"  , NULL    , T_OBJECT , -1, true );
 
   //  JVM bytecodes
