@@ -851,8 +851,8 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 }
 
 // ------------------------------------------------------------------
-// ciTypeFlow::StateVector::do_defaultvalue
-void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
+// ciTypeFlow::StateVector::do_aconst_init
+void ciTypeFlow::StateVector::do_aconst_init(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
   if (!will_link || str->is_unresolved_klass() || !klass->is_inlinetype()) {
@@ -1549,7 +1549,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
 
   case Bytecodes::_new:      do_new(str);                           break;
 
-  case Bytecodes::_defaultvalue: do_defaultvalue(str);              break;
+  case Bytecodes::_aconst_init: do_aconst_init(str);              break;
   case Bytecodes::_withfield: do_withfield(str);                    break;
 
   case Bytecodes::_newarray: do_newarray(str);                      break;

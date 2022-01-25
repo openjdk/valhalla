@@ -4,9 +4,7 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,18 +21,26 @@
  * questions.
  */
 
-package java.lang;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
+import jdk.test.lib.Utils;
 
-/**
- * A class annotated {@code @__value__} is a value class.
- * This is a temporary workaround to enable use of value classes
- * in editors and IDEs that do not yet understand the 'value' modifier.
- * @since 18
- */
-@Retention(RetentionPolicy.SOURCE)
-@Target(value={ElementType.TYPE, ElementType.TYPE_USE})
-public @interface __value__ {
+// Copy classes into a separate folder to put them on the bootclasspath
+public class InstallBootstrapClasses {
+
+    private static void copyClass(String name) throws IOException {
+        Path source = Path.of(Utils.TEST_CLASSES).resolve(name);
+        Path dest = Path.of("boot");
+        Path target = dest.resolve(name);
+        Files.createDirectories(dest);
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public static void main(String[] args) throws IOException {
+        copyClass(ValueOnBootclasspath.class.getSimpleName() + ".class");
+        copyClass(MyClass.class.getSimpleName() + ".class");
+    }
 }

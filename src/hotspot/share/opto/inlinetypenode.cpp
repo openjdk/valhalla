@@ -610,7 +610,7 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with uninitialized values and NULL oop
-  Node* oop = vk->is_empty() ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
+  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
   vt->set_is_init(gvn);
   return vt;
@@ -623,7 +623,8 @@ Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with default values
-  InlineTypeNode* vt = new InlineTypeNode(vk, default_oop(gvn, vk));
+  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop);
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
@@ -738,6 +739,9 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
 
       vt = vt->clone_with_phis(&gvn, region);
       vt->merge_with(&gvn, null_vt, 2, true);
+      if (!null_free) {
+        vt->set_oop(oop);
+      }
       kit->set_control(gvn.transform(region));
     }
   } else {
@@ -830,7 +834,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   if (vk == NULL) {
     vk = inline_klass();
   }
-  if (field_count() == 0) {
+  if (field_count() == 0 && vk->is_initialized()) {
     assert(is_allocated(phase), "must be allocated");
     return get_oop();
   }
@@ -978,7 +982,8 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  if (is_default(phase) && (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
+  if (is_default(phase) && inline_klass()->is_initialized() &&
+      (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for default inline types
     set_oop(default_oop(*phase, inline_klass()));
     assert(is_allocated(phase), "should now be allocated");

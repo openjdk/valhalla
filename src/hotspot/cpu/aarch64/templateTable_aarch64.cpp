@@ -3808,11 +3808,11 @@ void TemplateTable::_new() {
   __ membar(Assembler::StoreStore);
 }
 
-void TemplateTable::defaultvalue() {
+void TemplateTable::aconst_init() {
   transition(vtos, atos);
   __ get_unsigned_2_byte_index_at_bcp(c_rarg2, 1);
   __ get_constant_pool(c_rarg1);
-  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::defaultvalue),
+  call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::aconst_init),
           c_rarg1, c_rarg2);
   __ verify_oop(r0);
   // Must prevent reordering of stores for object initialization with stores that publish the new object.

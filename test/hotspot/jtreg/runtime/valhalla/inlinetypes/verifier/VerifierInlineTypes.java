@@ -68,7 +68,7 @@ public class VerifierInlineTypes {
 
         // Test that ClassFormatError is thrown for a class file, with major version 54, that
         // contains a defaultvalue opcode.
-        runTestFormatError("defValBadMajorVersion", "defaultvalue not supported by this class file version");
+        runTestFormatError("defValBadMajorVersion", "aconst_init not supported by this class file version");
 
         // Test VerifyError is thrown if a defaultvalue's cp entry is not a class.
         runTestVerifyError("defValWrongCPType", "Illegal type at constant pool entry");

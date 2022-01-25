@@ -2,6 +2,7 @@ SemanticsViolationsTest.java:16:20: compiler.err.illegal.combination.of.modifier
 SemanticsViolationsTest.java:17:11: compiler.err.illegal.combination.of.modifiers: interface, value
 SemanticsViolationsTest.java:12:28: compiler.err.cant.inherit.from.final: SemanticsViolationsTest.Base
 SemanticsViolationsTest.java:65:27: compiler.err.mod.not.allowed.here: synchronized
+SemanticsViolationsTest.java:90:27: compiler.err.mod.not.allowed.here: synchronized
 SemanticsViolationsTest.java:12:5: compiler.err.identity.class.must.not.implement.value.object: SemanticsViolationsTest.Subclass
 SemanticsViolationsTest.java:29:17: compiler.err.cant.assign.val.to.final.var: x
 SemanticsViolationsTest.java:34:17: compiler.err.cant.assign.val.to.final.var: y
@@ -14,4 +15,4 @@ SemanticsViolationsTest.java:72:21: compiler.err.value.class.may.not.override: f
 SemanticsViolationsTest.java:32:9: compiler.err.var.might.not.have.been.initialized: z
 SemanticsViolationsTest.java:81:17: compiler.err.this.exposed.prematurely
 SemanticsViolationsTest.java:81:16: compiler.err.this.exposed.prematurely
-16 errors
+17 errors

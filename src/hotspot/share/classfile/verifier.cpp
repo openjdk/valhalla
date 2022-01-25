@@ -1752,11 +1752,11 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           current_frame.push_stack(type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
-        case Bytecodes::_defaultvalue :
+        case Bytecodes::_aconst_init :
         {
           if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
             class_format_error(
-              "defaultvalue not supported by this class file version (%d.%d), class %s",
+              "aconst_init not supported by this class file version (%d.%d), class %s",
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
             return;
           }
@@ -1766,7 +1766,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           if (!ref_type.is_object()) {
             verify_error(ErrorContext::bad_type(bci,
                 TypeOrigin::cp(index, ref_type)),
-                "Illegal defaultvalue instruction");
+                "Illegal aconst_init instruction");
             return;
           }
           VerificationType inline_type =

@@ -1950,12 +1950,12 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, is_init));
     }
     while (casts.size() != 0) {
-      // Update the cast input and let ConstraintCastNode::Ideal push it through the InlineTypePtrNode
-      Node* cast = casts.pop();
-      phase->hash_delete(cast);
-      cast->set_req(1, n);
-      n = phase->transform(cast);
-      assert(n->is_InlineTypePtr(), "Failed to push cast through InlineTypePtr");
+      // Push the cast(s) through the InlineTypePtrNode
+      Node* cast = casts.pop()->clone();
+      cast->set_req(1, n->as_InlineTypePtr()->get_oop());
+      n = n->clone();
+      n->as_InlineTypePtr()->set_oop(phase->transform(cast));
+      n = phase->transform(n);
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
     vt->merge_with(phase, n->as_InlineTypeBase(), i, transform);

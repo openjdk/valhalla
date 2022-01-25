@@ -3319,9 +3319,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_INLINE is defined for class file version 55 and later
+    // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_INLINE | JVM_ACC_VALUE;
+      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
     }
 
     // Access flags
@@ -4703,9 +4703,11 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_inline_type = (flags & JVM_ACC_INLINE) != 0;
+  const bool is_value_class = (flags & JVM_ACC_VALUE) != 0;
+  const bool is_primitive_class = (flags & JVM_ACC_PRIMITIVE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_INLINE should not be set");
+  assert(supports_inline_types() || !is_value_class, "JVM_ACC_VALUE should not be set");
+  assert(supports_inline_types() || !is_primitive_class, "JVM_ACC_PRIMITIVE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4716,14 +4718,17 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     return;
   }
 
-  if (is_inline_type && !EnableValhalla) {
-    ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_ClassFormatError(),
-      "Class modifier ACC_INLINE in class %s requires option -XX:+EnableValhalla",
-      _class_name->as_C_string()
-    );
+  if (!EnableValhalla) {
+    if (is_value_class || is_primitive_class) {
+      const char* bad_flag = is_primitive_class ? "ACC_PRIMITIVE" : "ACC_VALUE";
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Class modifier %s in class %s requires option -XX:+EnableValhalla",
+        bad_flag, _class_name->as_C_string()
+      );
+    }
     return;
   }
 
@@ -4742,10 +4747,12 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_super || is_enum)) ||
       (!is_interface && major_gte_1_5 && is_annotation) ||
-      (is_inline_type && (is_interface || is_abstract || is_enum || !is_final))) {
+      (is_value_class && (is_interface || is_abstract || is_enum || !is_final)) ||
+      (is_primitive_class && !is_value_class)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
-    if (is_inline_type)  class_note = " (an inline class)";
+    if (is_value_class)  class_note = " (a value class)";
+    if (is_primitive_class)  class_note = " (a primitive class)";
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -6111,9 +6118,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_INLINE is defined for class file version 55 and later
+  // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_INLINE | JVM_ACC_VALUE;
+    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
   }
 
   // Access flags
@@ -6476,7 +6483,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
             Handle(THREAD, _loader_data->class_loader()),
             _protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
-        if (!klass->access_flags().is_inline_type()) {
+        if (!klass->access_flags().is_value_class()) {
           assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
             THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),

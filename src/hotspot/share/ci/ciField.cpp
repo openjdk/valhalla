@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@
 // ------------------------------------------------------------------
 // ciField::ciField
 ciField::ciField(ciInstanceKlass* klass, int index) :
-  _is_flattened(false), _known_to_link_with_put(NULL), _known_to_link_with_get(NULL) {
+  _original_holder(NULL), _is_flattened(false), _known_to_link_with_put(NULL), _known_to_link_with_get(NULL) {
   ASSERT_IN_VM;
   CompilerThread *THREAD = CompilerThread::current();
 
@@ -240,7 +240,8 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
   _is_flattened = false;
-  _is_null_free = field->is_null_free();
+  _is_null_free = field->_is_null_free;
+  _original_holder = (field->_original_holder != NULL) ? field->_original_holder : field->_holder;
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -292,6 +293,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flattened = fd->is_inlined();
   _is_null_free = fd->signature()->is_Q_signature();
+  _original_holder = NULL;
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
@@ -375,7 +377,9 @@ ciType* ciField::compute_type() {
 }
 
 ciType* ciField::compute_type_impl() {
-  ciKlass* type = CURRENT_ENV->get_klass_by_name_impl(_holder, constantPoolHandle(), _signature, false);
+  // Use original holder for fields that came in through flattening
+  ciKlass* accessing_klass = (_original_holder != NULL) ? _original_holder : _holder;
+  ciKlass* type = CURRENT_ENV->get_klass_by_name_impl(accessing_klass, constantPoolHandle(), _signature, false);
   if (!type->is_primitive_type() && is_shared()) {
     // We must not cache a pointer to an unshared type, in a shared field.
     bool type_is_also_shared = false;

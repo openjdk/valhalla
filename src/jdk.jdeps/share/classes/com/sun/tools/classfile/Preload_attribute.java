@@ -23,18 +23,29 @@
  * questions.
  */
 
-package java.lang;
+package com.sun.tools.classfile;
 
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
+import java.io.IOException;
 
 /**
- * A class annotated {@code @__value__} is a value class.
- * This is a temporary workaround to enable use of value classes
- * in editors and IDEs that do not yet understand the 'value' modifier.
- * @since 18
+ *  <p><b>This is NOT part of any supported API.
+ *  If you write code that depends on this, you do so at your own risk.
+ *  This code and its internal interfaces are subject to change or
+ *  deletion without notice.</b>
  */
-@Retention(RetentionPolicy.SOURCE)
-@Target(value={ElementType.TYPE, ElementType.TYPE_USE})
-public @interface __value__ {
+public class Preload_attribute extends Attribute {
+    Preload_attribute(ClassReader cr, int name_index, int length) throws IOException {
+        super(name_index, length);
+        number_of_classes = cr.readUnsignedShort();
+        value_class_info_index = new int[number_of_classes];
+        for (int i = 0; i < number_of_classes; i++)
+            value_class_info_index[i] = cr.readUnsignedShort();
+    }
+
+    public <R, D> R accept(Visitor<R, D> visitor, D data) {
+        return visitor.visitPreload(this, data);
+    }
+
+    public final int number_of_classes;
+    public final int value_class_info_index[];
 }

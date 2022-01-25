@@ -3008,9 +3008,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
             __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
   #ifdef _LP64
             Label slow_case, finish;
-            __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+            __ movptr(rbx, Address(obj, java_lang_Class::klass_offset()));
+            __ cmpb(Address(rbx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
             __ jcc(Assembler::notEqual, slow_case);
-          __ get_default_value_oop(rcx, off, rax);
+          __ get_default_value_oop(rbx, rscratch1, rax);
           __ jmp(finish);
           __ bind(slow_case);
   #endif // LP64
@@ -4330,7 +4331,7 @@ void TemplateTable::_new() {
   __ bind(done);
 }
 
-void TemplateTable::defaultvalue() {
+void TemplateTable::aconst_init() {
   transition(vtos, atos);
 
   Label slow_case;
@@ -4353,7 +4354,7 @@ void TemplateTable::defaultvalue() {
   __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
   __ jcc(Assembler::equal, is_value);
 
-  // in the future, defaultvalue will just return null instead of throwing an exception
+  // in the future, aconst_init will just return null instead of throwing an exception
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
 
   __ bind(is_value);
@@ -4374,7 +4375,7 @@ void TemplateTable::defaultvalue() {
   __ get_unsigned_2_byte_index_at_bcp(rarg2, 1);
   __ get_constant_pool(rarg1);
 
-  call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::defaultvalue),
+  call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::aconst_init),
       rarg1, rarg2);
 
   __ bind(done);
