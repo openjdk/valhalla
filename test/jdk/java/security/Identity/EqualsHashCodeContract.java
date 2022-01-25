@@ -34,11 +34,11 @@ public class EqualsHashCodeContract
 {
     public static void main(String args[]) throws Exception {
 
-        Identity i1=new MyIdentity("identity",
+        java.security.Identity i1=new MyIdentity("identity",
                                    new MyIdentityScope("IdentityScope"));
-        Identity i2=new MyIdentity("identity",
+        java.security.Identity i2=new MyIdentity("identity",
                                    new MyIdentityScope("IdentityScope"));
-        Identity i3=new MyIdentity("identity",
+        java.security.Identity i3=new MyIdentity("identity",
                                    new MyIdentityScope(""));
 
         PublicKey pk1=new MyPublicKey();
@@ -66,7 +66,7 @@ public class EqualsHashCodeContract
     }
 }
 
-class MyIdentity extends Identity {
+class MyIdentity extends java.security.Identity {
     public MyIdentity(String name, IdentityScope is) throws KeyManagementException {
         super(name, is);
     }
@@ -124,18 +124,18 @@ class MyIdentityScope extends IdentityScope {
         return 0;
     }
 
-    public Identity getIdentity(String name) {
+    public java.security.Identity getIdentity(String name) {
         return null;
     }
 
-    public Identity getIdentity(PublicKey key) {
+    public java.security.Identity getIdentity(PublicKey key) {
         return null;
     }
 
-    public void addIdentity(Identity identity)  {
+    public void addIdentity(java.security.Identity identity)  {
     }
 
-    public void removeIdentity(Identity identity)  {
+    public void removeIdentity(java.security.Identity identity)  {
     }
 
     public java.util.Enumeration identities() {
