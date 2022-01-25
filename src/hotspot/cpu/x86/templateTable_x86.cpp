@@ -3008,9 +3008,10 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
             __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
   #ifdef _LP64
             Label slow_case, finish;
-            __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+            __ movptr(rbx, Address(obj, java_lang_Class::klass_offset()));
+            __ cmpb(Address(rbx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
             __ jcc(Assembler::notEqual, slow_case);
-          __ get_default_value_oop(rcx, off, rax);
+          __ get_default_value_oop(rbx, rscratch1, rax);
           __ jmp(finish);
           __ bind(slow_case);
   #endif // LP64

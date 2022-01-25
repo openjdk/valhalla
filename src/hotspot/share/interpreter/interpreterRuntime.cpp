@@ -392,7 +392,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   //       another class which accesses this field in its static initializer, in this case the
   //       access must succeed to allow circularity
   // The code below tries to load and initialize the field's class again before returning the default value.
-  // If the field was not initialized because of an error, a exception should be thrown.
+  // If the field was not initialized because of an error, an exception should be thrown.
   // If the class is being initialized, the default value is returned.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
@@ -410,10 +410,10 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
-    // It is safe to initialized the static field because 1) the current thread is the initializing thread
+    // It is safe to initialize the static field because 1) the current thread is the initializing thread
     // and is the only one that can access it, and 2) the field is actually not initialized (i.e. null)
     // otherwise the JVM should not be executing this code.
-    mirror->obj_field_put(offset, defaultvalue);
+    mirror_h()->obj_field_put(offset, defaultvalue);
     current->set_vm_result(defaultvalue);
   } else {
     assert(klass->is_in_error_state(), "If not initializing, initialization must have failed to get there");
