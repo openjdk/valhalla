@@ -1,0 +1,2 @@
+ObjectInstantiationTest.java:41:21: compiler.note.cant.instantiate.object.directly
+ObjectInstantiationTest.java:42:25: compiler.note.cant.instantiate.object.directly

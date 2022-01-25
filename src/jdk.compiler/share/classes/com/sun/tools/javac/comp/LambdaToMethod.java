@@ -516,6 +516,11 @@ public class LambdaToMethod extends TreeTranslator {
         List<JCExpression> indy_args = init==null? List.nil() : translate(List.of(init), localContext.prev);
 
 
+        if (refSym.isConstructor() && tree.expr.type.tsym == syms.objectType.tsym) {
+            if (tree.mode == ReferenceMode.NEW && tree.kind == ReferenceKind.TOPLEVEL) {
+                refSym = rs.resolveInternalMethod(tree, attrEnv, syms.objectsType, names.newIdentity, List.nil(), List.nil());
+            }
+        }
         //build a sam instance using an indy call to the meta-factory
         result = makeMetafactoryIndyCall(localContext, refSym.asHandle(), indy_args);
     }
