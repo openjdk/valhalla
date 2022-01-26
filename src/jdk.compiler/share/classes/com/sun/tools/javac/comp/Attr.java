@@ -2887,7 +2887,7 @@ public class Attr extends JCTree.Visitor {
             }
             // Check that class is not abstract
             if (cdef == null && !isSpeculativeDiamondInferenceRound && // class body may be nulled out in speculative tree copy
-                (clazztype.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
+                (clazztype.tsym.flags() & (ABSTRACT | INTERFACE)) != 0 && clazztype.tsym != syms.objectType.tsym) { // tolerate abstract Object
                 log.error(tree.pos(),
                           Errors.AbstractCantBeInstantiated(clazztype.tsym));
                 skipNonDiamondPath = true;

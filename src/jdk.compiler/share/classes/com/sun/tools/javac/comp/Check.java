@@ -44,6 +44,7 @@ import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
@@ -797,7 +798,12 @@ public class Check {
     Type checkConstructorRefType(JCExpression expr, Type t) {
         t = checkClassOrArrayType(expr, t);
         if (t.hasTag(CLASS)) {
-            if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
+            /* Tolerate an encounter with abstract Object, we will mutate the constructor reference
+               to an invocation of java.util.Objects.newIdentity downstream.
+            */
+            if (t.tsym == syms.objectType.tsym)
+                log.note(expr.pos(), Notes.CantInstantiateObjectDirectly);
+            if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0 && t.tsym != syms.objectType.tsym) {
                 log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));
                 t = types.createErrorType(t);
             } else if ((t.tsym.flags() & ENUM) != 0) {
