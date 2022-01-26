@@ -115,7 +115,7 @@ public class ValueArray {
             sb.append("[");
             c = c.getComponentType();
         }
-        sb.append(c.isValueType() ? "Q" : "L").append(c.getName()).append(";");
+        sb.append(c.isPrimitiveValueType() ? "Q" : "L").append(c.getName()).append(";");
         assertEquals(sb.toString(), arrayClassName);
     }
 
@@ -142,7 +142,7 @@ public class ValueArray {
         Arrays.setAll(newArray, i -> array[i]);
 
         // test nullable
-        if (!componentType.isValueType()) {
+        if (!componentType.isPrimitiveValueType()) {
             for (int i = 0; i < newArray.length; i++) {
                 Array.set(newArray, i, null);
             }
