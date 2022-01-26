@@ -31,7 +31,7 @@ package java.lang.ref;
  * made finalizable, finalized, and then reclaimed.  Weak references are most
  * often used to implement canonicalizing mappings.
  * <p>
- * The referent must not be an instance of a {@linkplain Class#isValueClass()
+ * The referent must not be an instance of a {@linkplain Class#isValue()
  * value class}; such a value can never have another reference to it
  * and cannot be held in a reference type.
  *
@@ -57,7 +57,7 @@ public class WeakReference<T> extends Reference<T> {
      *
      * @param referent object the new weak reference will refer to
      * @throws IllegalArgumentException if the referent is an instance of a
-     *         {@link Class#isValueClass() value class}
+     *         {@link Class#isValue() value class}
      */
     public WeakReference(T referent) {
         super(referent);
@@ -71,7 +71,7 @@ public class WeakReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      * @throws IllegalArgumentException if the referent is an instance of a
-     *         {@link Class#isValueClass() value class}
+     *         {@link Class#isValue() value class}
      */
     public WeakReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

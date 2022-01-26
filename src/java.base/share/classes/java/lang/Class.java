@@ -240,7 +240,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isInterface()) {
             s = "interface ";
         }
-        if (isValueClass()) {
+        if (isValue()) {
             s = "value ";
         }
         if (isPrimitiveClass()) {
@@ -312,7 +312,7 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isValueClass()) {
+                if (isValue()) {
                     sb.append(isPrimitiveClass() ? "primitive" : "value");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
@@ -616,10 +616,10 @@ public final class Class<T> implements java.io.Serializable,
      * {@link #asPrimaryType()} and {@link #asValueType} method
      * of a primitive class respectively.
      * <p>
-     * A primitive class is a {@linkplain #isValueClass() value class}.
+     * A primitive class is a {@linkplain #isValue() value class}.
      *
      * @return {@code true} if this class is a primitive class, otherwise {@code false}
-     * @see #isValueClass()
+     * @see #isValue()
      * @see #asPrimaryType()
      * @see #asValueType()
      * @since Valhalla
@@ -635,7 +635,7 @@ public final class Class<T> implements java.io.Serializable,
      * otherwise {@code false}
      * @since Valhalla
      */
-    public boolean isValueClass() {
+    public boolean isValue() {
         return (this.getModifiers() & VALUE_CLASS) != 0;
     }
 

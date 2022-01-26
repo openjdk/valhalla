@@ -497,7 +497,7 @@ public abstract class Reference<T> {
     }
 
     Reference(T referent, ReferenceQueue<? super T> queue) {
-        if (referent != null && referent.getClass().isValueClass()) {
+        if (referent != null && referent.getClass().isValue()) {
             Class<?> c = referent.getClass();
             throw new IllegalArgumentException("cannot reference a " +
                     (c.isPrimitiveClass() ? "primitive class " : "value class ") +

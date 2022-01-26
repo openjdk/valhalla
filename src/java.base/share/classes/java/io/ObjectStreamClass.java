@@ -575,7 +575,7 @@ public class ObjectStreamClass implements Serializable {
         if (deserializeEx == null) {
             if (isEnum) {
                 deserializeEx = new ExceptionInfo(name, "enum type");
-            } else if (cl.isValueClass() && writeReplaceMethod == null) {
+            } else if (cl.isValue() && writeReplaceMethod == null) {
                 deserializeEx = new ExceptionInfo(name, cl.isPrimitiveClass() ? "primitive class" : "value class");
             } else if (cons == null && !isRecord) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");

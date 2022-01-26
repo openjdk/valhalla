@@ -401,7 +401,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             return true;
         }
 
-        if (fromType.isValueClass() && toType.isValueClass()) {
+        if (fromType.isValue() && toType.isValue()) {
             // val projection can be converted to ref projection; or vice verse
             return fromType.asPrimaryType() == toType.asPrimaryType();
         }

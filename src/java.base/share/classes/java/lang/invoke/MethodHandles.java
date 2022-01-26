@@ -5093,7 +5093,7 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (type.isValueClass()) {
+        } else if (type.isValue()) {
             // TBD
             throw new UnsupportedOperationException();
         } else {
