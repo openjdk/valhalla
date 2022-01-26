@@ -279,7 +279,7 @@ public class InlineOops {
     }
 
     /**
-     * Just some check sanity checks with defaultvalue, withfield, astore and aload
+     * Just some check sanity checks with aconst_init, withfield, astore and aload
      *
      * Changes to javac slot usage may well break this test
      */
@@ -585,7 +585,7 @@ public class InlineOops {
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .defaultvalue(FooValue.class.asValueType())
+                            .aconst_init(FooValue.class.asValueType())
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -595,7 +595,7 @@ public class InlineOops {
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                             .aastore()
-                            .defaultvalue(FooValue.class.asValueType())
+                            .aconst_init(FooValue.class.asValueType())
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV

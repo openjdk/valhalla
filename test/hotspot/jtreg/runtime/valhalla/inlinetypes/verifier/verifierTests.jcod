@@ -43,7 +43,7 @@
 //  static Value makeValue(int); descriptor: (I)LValue; flags: (0x0008) ACC_STATIC
 //    Code:
 //      stack=2, locals=2, args_size=1
-//         0: defaultvalue  #3                  // class Value
+//         0: aconst_init   #3                  // class Value
 //         3: astore_1
 //         4: aload_1
 //         5: iload_0
@@ -53,7 +53,7 @@
 //        11: areturn
 
 
-// The constant pool index of the defaultvalue opcode (0xCB) in the Code
+// The constant pool index of the aconst_init opcode (0xCB) in the Code
 // attribute was changed to 0x93.  Since this index is outside the range of
 // the constant pool, a VerifyError exception should get thrown.
 //
@@ -126,7 +126,7 @@ class defValBadCP {
           2; // max_stack
           2; // max_locals
           Bytes[12]{
-            0xCB00934C2B1ACC00; // Changed CP index from 3 to 0x93 for opcode 0xCB (defaultvalue)
+            0xCB00934C2B1ACC00; // Changed CP index from 3 to 0x93 for opcode 0xCB (aconst_init)
             0x024C2BB0;         // so that the index is outside of the range of the constant pool.
           };
           [0] { // Traps
@@ -155,7 +155,7 @@ class defValBadCP {
 ///////////////////////////////////////////////////////////
 
 // The class's major version was changed to 54.  Since this class has a
-// defaultvalue opcode (0xCB), this should cause a ClassFormatError
+// aconst_init opcode (0xCB), this should cause a ClassFormatError
 // exception to get thrown.
 //
 class defValBadMajorVersion {
@@ -328,7 +328,7 @@ class defValWrongCPType {
           2; // max_stack
           2; // max_locals
           Bytes[12]{
-            0xCB00024C2B1ACC00; // Changed CP index from 3 to 2 for opcode 0xCB (defaultvalue)
+            0xCB00024C2B1ACC00; // Changed CP index from 3 to 2 for opcode 0xCB (aconst_init)
             0x024C2BB0;         // so that the cp index no longer points to a cp Class entry.
           };
           [0] { // Traps
@@ -819,9 +819,9 @@ class wthFldWrongCPType {
 
 ///////////////////////////////////////////////////////////
 
-// The cp entry for the defaultvalue opcode was changed to a reference that
+// The cp entry for the aconst_init opcode was changed to a reference that
 // is not an inline type.
-// This should cause a VerifyError because the cp entry for opcode defaultvalue
+// This should cause a VerifyError because the cp entry for opcode aconst_init
 // must be an inline type.
 //
 class defValueObj {
@@ -904,7 +904,7 @@ class defValueObj {
           2; // max_stack
           2; // max_locals
           Bytes[13]{
-            0xCB00044C1A2B5FCC; // Changed defaultvalue's cp index at byte 3 from 3 to 4.
+            0xCB00044C1A2B5FCC; // Changed aconst_init's cp index at byte 3 from 3 to 4.
             0x00024C2BB0;
           };
           [0] { // Traps
