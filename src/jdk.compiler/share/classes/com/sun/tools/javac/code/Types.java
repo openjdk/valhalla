@@ -1031,6 +1031,11 @@ public class Types {
         boolean subtypeTest(Type t, Type s, Warner warn);
     }
 
+    // this relation is now named `extends` in the latest Valhalla docs
+    public boolean isBoundedBy(Type t, Type s) {
+        return isBoundedBy(t, s, noWarnings, (t1, s1, w1) -> isSubtype(t1, s1));
+    }
+
     public boolean isBoundedBy(Type t, Type s, SubtypeTestFlavor subtypeTestFlavor) {
         return isBoundedBy(t, s, noWarnings, subtypeTestFlavor);
     }
@@ -4226,6 +4231,10 @@ public class Types {
         final int UNKNOWN_BOUND = 0;
         final int ARRAY_BOUND = 1;
         final int CLASS_BOUND = 2;
+        // lub is critical code better to go this way rather than using streams
+        for (int i = 0; i < ts.length; i++) {
+            ts[i] = ts[i].referenceProjectionOrSelf();
+        }
 
         int[] kinds = new int[ts.length];
         int boundkind = UNKNOWN_BOUND;
