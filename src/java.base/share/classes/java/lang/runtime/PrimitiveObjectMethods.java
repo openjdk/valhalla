@@ -120,7 +120,7 @@ final class PrimitiveObjectMethods {
          * of the given primitive class are substitutable.
          */
         static MethodHandle primitiveTypeEquals(Class<?> type) {
-            assert type.isValueType();
+            assert type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass());
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle[] getters = getters(type, TYPE_SORTER);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -136,13 +136,13 @@ final class PrimitiveObjectMethods {
             // otherwise return accumulator;
             return guardWithTest(IS_NULL.asType(mt),
                                  instanceTrue,
-                                 guardWithTest(IS_SAME_PRIMITIVE_CLASS.asType(mt),
+                                 guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
                                                accumulator,
                                                instanceFalse));
         }
 
         static MethodHandle primitiveTypeHashCode(Class<?> type) {
-            assert type.isValueType();
+            assert type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass());
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
             MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
@@ -177,16 +177,19 @@ final class PrimitiveObjectMethods {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;
             if (a.getClass() != b.getClass()) return false;
-            return a.getClass().isPrimitiveClass() ? valueEq(a, b) : (a == b);
+            return a.getClass().isValue() ? valueEq(a, b) : (a == b);
         }
 
         /*
          * Returns true if two values are substitutable.
          */
         private static boolean valueEq(Object a, Object b) {
-            assert a != null && b != null && isSamePrimitiveClass(a, b);
+            assert a != null && b != null && isSameValueClass(a, b);
             try {
-                Class<?> type = a.getClass().asValueType();
+                Class<?> type = a.getClass();
+                if (type.isPrimitiveClass()) {
+                    type = type.asValueType();
+                }
                 return (boolean) substitutableInvoker(type).invoke(type.cast(a), type.cast(b));
             } catch (Error|RuntimeException e) {
                 throw e;
@@ -209,10 +212,10 @@ final class PrimitiveObjectMethods {
          * 1. a != null and b != null
          * 2. the declaring class of a and b is the same primitive class
          */
-        private static boolean isSamePrimitiveClass(Object a, Object b) {
+        private static boolean isSameValueClass(Object a, Object b) {
             if (a == null || b == null) return false;
 
-            return a.getClass().isPrimitiveClass() && a.getClass() == b.getClass();
+            return a.getClass().isValue() && a.getClass() == b.getClass();
         }
 
         private static int hashCombiner(int accumulator, int value) {
@@ -233,8 +236,8 @@ final class PrimitiveObjectMethods {
         private static final MethodHandle FALSE = constant(boolean.class, false);
         private static final MethodHandle TRUE = constant(boolean.class, true);
         private static final MethodHandle OBJECT_EQUALS = findStatic("eq", methodType(boolean.class, Object.class, Object.class));
-        private static final MethodHandle IS_SAME_PRIMITIVE_CLASS =
-            findStatic("isSamePrimitiveClass", methodType(boolean.class, Object.class, Object.class));
+        private static final MethodHandle IS_SAME_VALUE_CLASS =
+            findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_NULL =
             findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle HASH_COMBINER =
@@ -413,16 +416,16 @@ final class PrimitiveObjectMethods {
         if (type.isPrimitive())
             return MethodHandleBuilder.primitiveEquals(type);
 
-        if (type.isValueType())
+        if (type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass())) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
-
+        }
         return MethodHandleBuilder.referenceTypeEquals(type);
     }
 
     // store the method handle for value types in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.primitiveTypeEquals(type.asValueType());
+            return MethodHandleBuilder.primitiveTypeEquals(type);
         }
     };
 
@@ -432,12 +435,13 @@ final class PrimitiveObjectMethods {
      * @return the hash code of the given primitive class object.
      */
     private static int primitiveObjectHashCode(Object o) {
+        Class<?> c = o.getClass();
         try {
             // Note: javac disallows user to call super.hashCode if user implemented
             // risk for recursion for experts crafting byte-code
-            if (!o.getClass().isPrimitiveClass())
-                throw new InternalError("must be primitive type: " + o.getClass().getName());
-            Class<?> type = o.getClass().asValueType();
+            if (!c.isValue())
+                throw new InternalError("must be value or primitive class: " + c.getName());
+            Class<?> type = c.isPrimitiveClass() ? c.asValueType() : c;
             return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;
@@ -449,7 +453,7 @@ final class PrimitiveObjectMethods {
 
     private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.primitiveTypeHashCode(type.asValueType());
+            return MethodHandleBuilder.primitiveTypeHashCode(type);
         }
     };
 

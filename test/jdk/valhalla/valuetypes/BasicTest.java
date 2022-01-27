@@ -71,12 +71,20 @@ public class BasicTest {
         }
     }
 
+    static value class Value {
+        int v;
+        Value(int v) {
+            this.v = v;
+        }
+    }
+
     @DataProvider(name="constants")
     static Object[][] constants() {
         return new Object[][]{
             new Object[] { Point.class, Point.class.asPrimaryType()},
             new Object[] { Point.val.class, Point.class.asValueType()},
             new Object[] { Point.ref.class, Point.class.asPrimaryType()},
+            new Object[] { Value.class, Value.class.asPrimaryType()},
         };
     }
 
@@ -95,6 +103,7 @@ public class BasicTest {
                 new Object[] { Point.val.class, false},
                 new Object[] { Point.class.asPrimaryType(), true},
                 new Object[] { Point.class.asValueType(), false},
+                new Object[] { Value.class, true},
         };
     }
     @Test(dataProvider="refTypes")
@@ -118,9 +127,9 @@ public class BasicTest {
         assertTrue(valType.isPrimitiveClass());
 
         assertTrue(refType.isPrimaryType());
-        assertFalse(refType.isValueType());
+        assertFalse(refType.isPrimitiveValueType());
 
-        assertTrue(valType.isValueType());
+        assertTrue(valType.isPrimitiveValueType());
         assertFalse(valType.isPrimaryType());
 
         assertEquals(refType.getName(), valType.getName());
@@ -169,6 +178,8 @@ public class BasicTest {
                 new Object[] { "BasicTest$Point", Point.class.asPrimaryType()},
                 new Object[] { "[QBasicTest$Point;", Point[].class},
                 new Object[] { "[[LBasicTest$Point;", Point.ref[][].class},
+                new Object[] { "BasicTest$Value", Value.class},
+                new Object[] { "[LBasicTest$Value;", Value[].class},
         };
     }
     @Test(dataProvider="names")
@@ -234,10 +245,19 @@ public class BasicTest {
         assertEquals(m.getParameterTypes(), paramTypes);
     }
 
-    @Test
-    public void testConstructor() throws ReflectiveOperationException {
-        Constructor<?> ctor = Point.class.getDeclaredConstructor(int.class, int.class);
-        assertTrue(ctor.getDeclaringClass() == Point.class.asPrimaryType());
+    @DataProvider(name="ctors")
+    static Object[][] ctors() {
+        return new Object[][]{
+                new Object[] { Point.class, new Class<?>[] { int.class, int.class}, new Object[] { 10, 10 }},
+                new Object[] { Value.class, new Class<?>[] { int.class }, new Object[] { 20 }},
+        };
+    }
+
+    @Test(dataProvider = "ctors")
+    public void testConstructor(Class<?> c, Class<?>[] paramTypes, Object[] params) throws ReflectiveOperationException {
+        Constructor<?> ctor = c.getDeclaredConstructor(paramTypes);
+        assertTrue(ctor.getDeclaringClass() == c.asPrimaryType());
+        Object o = ctor.newInstance(params);
     }
 
     class C implements IdentityObject { }
@@ -247,6 +267,7 @@ public class BasicTest {
     Object[][] intfs() {
         Point point = new Point(10, 20);
         Point[] array = new Point[] { point };
+        Value value = new Value(10);
         return new Object[][]{
                 new Object[]{ new BasicTest(), new Class<?>[] { IdentityObject.class }},
                 new Object[]{ point, new Class<?>[] { ValueObject.class }},
@@ -254,6 +275,7 @@ public class BasicTest {
                 new Object[]{ new C(), new Class<?>[] { IdentityObject.class }},
                 new Object[]{ Objects.newIdentity(), new Class<?>[] { IdentityObject.class }},
                 new Object[]{ array, new Class<?>[] { Cloneable.class, Serializable.class, IdentityObject.class }},
+                new Object[]{ value, new Class<?>[] { ValueObject.class }},
         };
     }
 
@@ -261,7 +283,7 @@ public class BasicTest {
     public void testGetInterfaces(Object o, Class<?>[] expectedInterfaces) {
         Class<?> type = o.getClass();
         assertEquals(type.getInterfaces(), expectedInterfaces);
-        if (type.isPrimitiveClass()) {
+        if (type.isValue()) {
             assertTrue(ValueObject.class.isAssignableFrom(type));
             assertTrue(o instanceof ValueObject);
         } else {
@@ -282,6 +304,7 @@ public class BasicTest {
         assertEquals(C.class.getNestMembers(), members);
         assertEquals(Arrays.stream(members).collect(Collectors.toSet()),
                      Set.of(BasicTest.class,
+                            Value.class,
                             Point.class.asPrimaryType(),
                             C.class.asPrimaryType(),
                             T.class.asPrimaryType()));

@@ -504,7 +504,6 @@ public class ObjectStreamClass implements Serializable {
         name = cl.getName();
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
-        boolean isPrimitiveClass = cl.isPrimitiveClass();
         isRecord = cl.isRecord();
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
@@ -576,8 +575,8 @@ public class ObjectStreamClass implements Serializable {
         if (deserializeEx == null) {
             if (isEnum) {
                 deserializeEx = new ExceptionInfo(name, "enum type");
-            } else if (isPrimitiveClass && writeReplaceMethod == null) {
-                deserializeEx = new ExceptionInfo(name, "primitive class");
+            } else if (cl.isValue() && writeReplaceMethod == null) {
+                deserializeEx = new ExceptionInfo(name, cl.isPrimitiveClass() ? "primitive class" : "value class");
             } else if (cons == null && !isRecord) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");
             }

@@ -48,7 +48,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.ReflectPermission;
 import java.nio.ByteOrder;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
@@ -4318,7 +4317,7 @@ return mh1;
      * <p> When the returned method handle is invoked,
      * the array reference and array index are checked.
      * A {@code NullPointerException} will be thrown if the array reference
-     * is {@code null} or if the array's element type is a {@link Class#isValueType()
+     * is {@code null} or if the array's element type is a {@link Class#isPrimitiveValueType()
      * a primitive value type} and attempts to set {@code null} in the
      * array element.  An {@code ArrayIndexOutOfBoundsException} will be
      * thrown if the index is negative or if it is greater than or equal to
@@ -5094,7 +5093,8 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (type.isPrimitiveClass()) {
+        } else if (type.isValue()) {
+            // TBD
             throw new UnsupportedOperationException();
         } else {
             return zero(Wrapper.OBJECT, type);

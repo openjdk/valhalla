@@ -202,6 +202,8 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
+    private static final int VALUE_CLASS     = 0x00000100;
+    private static final int PERMITS_VALUE   = 0x00000040;
     private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
@@ -237,6 +239,9 @@ public final class Class<T> implements java.io.Serializable,
         String s = isPrimitive() ? "" : "class ";
         if (isInterface()) {
             s = "interface ";
+        }
+        if (isValue()) {
+            s = "value ";
         }
         if (isPrimitiveClass()) {
             s = "primitive ";
@@ -307,8 +312,8 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isPrimitiveClass()) {
-                    sb.append("primitive ");
+                if (isValue()) {
+                    sb.append(isPrimitiveClass() ? "primitive" : "value");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
@@ -605,19 +610,33 @@ public final class Class<T> implements java.io.Serializable,
      * <p>
      * Each primitive class has a {@linkplain #isPrimaryType() primary type}
      * representing the <em>primitive reference type</em> and a
-     * {@linkplain #isValueType() secondary type} representing
+     * {@linkplain #isPrimitiveValueType() secondary type} representing
      * the <em>primitive value type</em>.  The primitive reference type
      * and primitive value type can be obtained by calling the
      * {@link #asPrimaryType()} and {@link #asValueType} method
      * of a primitive class respectively.
+     * <p>
+     * A primitive class is a {@linkplain #isValue() value class}.
      *
      * @return {@code true} if this class is a primitive class, otherwise {@code false}
+     * @see #isValue()
      * @see #asPrimaryType()
      * @see #asValueType()
      * @since Valhalla
      */
     public boolean isPrimitiveClass() {
         return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
+    }
+
+    /**
+     * Returns {@code true} if this class is a value class.
+     *
+     * @return {@code true} if this class is a value class;
+     * otherwise {@code false}
+     * @since Valhalla
+     */
+    public boolean isValue() {
+        return (this.getModifiers() & VALUE_CLASS) != 0;
     }
 
     /**
@@ -650,7 +669,7 @@ public final class Class<T> implements java.io.Serializable,
      * @apiNote Alternatively, this method returns null if this class is not
      *          a primitive class rather than throwing UOE.
      *
-     * @return the {@code Class} representing the {@linkplain #isValueType()
+     * @return the {@code Class} representing the {@linkplain #isPrimitiveValueType()
      * primitive value type} of this class if this class is a primitive class
      * @throws UnsupportedOperationException if this class or interface
      *         is not a primitive class
@@ -694,11 +713,11 @@ public final class Class<T> implements java.io.Serializable,
      * Returns {@code true} if this {@code Class} object represents
      * a {@linkplain #isPrimitiveClass() primitive} value type.
      *
-     * @return {@code true} if this {@code Class} object represents the
-     * value type of a primitive class
+     * @return {@code true} if this {@code Class} object represents
+     * the value type of a primitive class
      * @since Valhalla
      */
-    public boolean isValueType() {
+    public boolean isPrimitiveValueType() {
         return isPrimitiveClass() && this == secondaryType;
     }
 
@@ -4048,7 +4067,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this class is an {@linkplain #isValueType()
+     * @throws NullPointerException if this class is an {@linkplain #isPrimitiveValueType()
      * primitive value type} and the object is {@code null}
      *
      * @since 1.5
@@ -4056,7 +4075,7 @@ public final class Class<T> implements java.io.Serializable,
     @SuppressWarnings("unchecked")
     @IntrinsicCandidate
     public T cast(Object obj) {
-        if (isValueType() && obj == null)
+        if (isPrimitiveValueType() && obj == null)
             throw new NullPointerException(getName() + " is a primitive value type");
 
         if (obj != null && !isInstance(obj))
@@ -4570,7 +4589,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        char typeDesc = isValueType() ? 'Q' : 'L';
+        char typeDesc = isPrimitiveValueType() ? 'Q' : 'L';
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');

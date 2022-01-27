@@ -289,7 +289,7 @@ public class InstructionHelper {
             @Override
             public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isValueType();
+                return aClass != null && aClass.isPrimitiveValueType();
             }
 
             @Override
