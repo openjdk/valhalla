@@ -283,7 +283,7 @@ public class BasicTest {
     public void testGetInterfaces(Object o, Class<?>[] expectedInterfaces) {
         Class<?> type = o.getClass();
         assertEquals(type.getInterfaces(), expectedInterfaces);
-        if (type.isValueClass()) {
+        if (type.isValue()) {
             assertTrue(ValueObject.class.isAssignableFrom(type));
             assertTrue(o instanceof ValueObject);
         } else {
