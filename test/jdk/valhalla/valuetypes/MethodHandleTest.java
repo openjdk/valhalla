@@ -145,10 +145,10 @@ public class MethodHandleTest {
         // set an array element to null
         try {
             Object v = (Object)setter.invoke(array, 1, null);
-            assertFalse(elementType.isValueType(), "should fail to set a primitive class array element to null");
+            assertFalse(elementType.isPrimitiveValueType(), "should fail to set a primitive class array element to null");
             assertNull((Object)getter.invoke(array, 1));
         } catch (NullPointerException e) {
-            assertTrue(elementType.isValueType(), "should only fail to set a primitive class array element to null");
+            assertTrue(elementType.isPrimitiveValueType(), "should only fail to set a primitive class array element to null");
         }
     }
 
@@ -230,7 +230,7 @@ public class MethodHandleTest {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
         assertTrue(f.getType().isPrimitiveClass());
-        assertTrue(f.getType().isValueType() == isValue);
+        assertTrue(f.getType().isPrimitiveValueType() == isValue);
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 

@@ -1069,7 +1069,6 @@ const Type *Type::filter_helper(const Type *kills, bool include_speculative) con
 }
 
 //------------------------------xdual------------------------------------------
-
 const Type *Type::xdual() const {
   // Note: the base() accessor asserts the sanity of _base.
   assert(_type_info[base()].dual_type != Bad, "implement with v-call");
@@ -2623,7 +2622,10 @@ const TypeVect *TypeVect::VECTZ = NULL; // 512-bit vectors
 const TypeVect *TypeVect::VECTMASK = NULL; // predicate/mask vector
 
 //------------------------------make-------------------------------------------
-const TypeVect* TypeVect::make(const Type *elem, uint length) {
+const TypeVect* TypeVect::make(const Type *elem, uint length, bool is_mask) {
+  if (is_mask) {
+    return makemask(elem, length);
+  }
   BasicType elem_bt = elem->array_element_basic_type();
   assert(is_java_primitive(elem_bt), "only primitive types in vector");
   assert(Matcher::vector_size_supported(elem_bt, length), "length in range");
@@ -2649,7 +2651,9 @@ const TypeVect* TypeVect::make(const Type *elem, uint length) {
 }
 
 const TypeVect *TypeVect::makemask(const Type* elem, uint length) {
-  if (Matcher::has_predicated_vectors()) {
+  BasicType elem_bt = elem->array_element_basic_type();
+  if (Matcher::has_predicated_vectors() &&
+      Matcher::match_rule_supported_vector_masked(Op_VectorLoadMask, length, elem_bt)) {
     const TypeVect* mtype = Matcher::predicate_reg_type(elem, length);
     return (TypeVect*)(const_cast<TypeVect*>(mtype))->hashcons();
   } else {
@@ -5186,10 +5190,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
         int mask = (1 << shift) - 1;
         intptr_t field_offset = ((offset - header) & mask);
         ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
-        if (field == NULL) {
-          // This may happen with nested AddP(base, AddP(base, base, offset), longcon(16))
-          return add_offset(offset);
-        } else {
+        if (field != NULL) {
           return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
         }
       }

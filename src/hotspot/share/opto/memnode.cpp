@@ -1088,7 +1088,8 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
           opc == Op_MemBarRelease ||
           opc == Op_StoreFence ||
           opc == Op_MemBarReleaseLock ||
-          opc == Op_MemBarStoreStore) {
+          opc == Op_MemBarStoreStore ||
+          opc == Op_StoreStoreFence) {
         Node* mem = current->in(0)->in(TypeFunc::Memory);
         if (mem->is_MergeMem()) {
           MergeMemNode* merge = mem->as_MergeMem();
@@ -1143,7 +1144,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseTransform* phase) const {
         return NULL;
       }
       // LoadVector/StoreVector needs additional check to ensure the types match.
-      if (store_Opcode() == Op_StoreVector) {
+      if (st->is_StoreVector()) {
         const TypeVect*  in_vt = st->as_StoreVector()->vect_type();
         const TypeVect* out_vt = is_Load() ? as_LoadVector()->vect_type() : as_StoreVector()->vect_type();
         if (in_vt != out_vt) {
@@ -3424,13 +3425,14 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
   case Op_LoadFence:         return new LoadFenceNode(C, atp, pn);
   case Op_MemBarRelease:     return new MemBarReleaseNode(C, atp, pn);
   case Op_StoreFence:        return new StoreFenceNode(C, atp, pn);
+  case Op_MemBarStoreStore:  return new MemBarStoreStoreNode(C, atp, pn);
+  case Op_StoreStoreFence:   return new StoreStoreFenceNode(C, atp, pn);
   case Op_MemBarAcquireLock: return new MemBarAcquireLockNode(C, atp, pn);
   case Op_MemBarReleaseLock: return new MemBarReleaseLockNode(C, atp, pn);
   case Op_MemBarVolatile:    return new MemBarVolatileNode(C, atp, pn);
   case Op_MemBarCPUOrder:    return new MemBarCPUOrderNode(C, atp, pn);
   case Op_OnSpinWait:        return new OnSpinWaitNode(C, atp, pn);
   case Op_Initialize:        return new InitializeNode(C, atp, pn);
-  case Op_MemBarStoreStore:  return new MemBarStoreStoreNode(C, atp, pn);
   case Op_Blackhole:         return new BlackholeNode(C, atp, pn);
   default: ShouldNotReachHere(); return NULL;
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -167,7 +167,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
   const ClassFileStream cfs1 = *stream;
   const ClassFileStream* const cfs = &cfs1;
 
-  assert(cfs->allocated_on_stack(), "should be local");
+  assert(cfs->allocated_on_stack_or_embedded(), "should be local");
   debug_only(const u1* const old_current = stream->current();)
 
   // Used for batching symbol allocations.
@@ -922,10 +922,10 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
         _implements_identityObject = true;
       }
-      if (ik->name() == vmSymbols::java_lang_PrimitiveObject()) {
+      if (ik->name() == vmSymbols::java_lang_ValueObject()) {
         // further checks for "is_invalid_super_for_inline_type()" needed later
         // needs field parsing, delay unitl post_process_parse_stream()
-        _implements_primitiveObject = true;
+        _implements_valueObject = true;
       }
       _temp_local_interfaces->append(ik);
     }
@@ -3296,6 +3296,13 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
         valid_klass_reference_at(outer_class_info_index),
       "outer_class_info_index %u has bad constant type in class file %s",
       outer_class_info_index, CHECK_0);
+
+    if (outer_class_info_index != 0) {
+      const Symbol* const outer_class_name = cp->klass_name_at(outer_class_info_index);
+      char* bytes = (char*)outer_class_name->bytes();
+      guarantee_property(bytes[0] != JVM_SIGNATURE_ARRAY,
+                         "Outer class is an array class in class file %s", CHECK_0);
+    }
     // Inner class name
     const u2 inner_name_index = cfs->get_u2_fast();
     check_property(
@@ -3312,9 +3319,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_INLINE is defined for class file version 55 and later
+    // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_INLINE;
+      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
     }
 
     // Access flags
@@ -4479,8 +4486,8 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
     if (length == 1 && result->at(0) == vmClasses::IdentityObject_klass()) {
       return Universe::the_single_IdentityObject_klass_array();
     }
-    if (length == 1 && result->at(0) == vmClasses::PrimitiveObject_klass()) {
-      return Universe::the_single_PrimitiveObject_klass_array();
+    if (length == 1 && result->at(0) == vmClasses::ValueObject_klass()) {
+      return Universe::the_single_ValueObject_klass_array();
     }
 
     Array<InstanceKlass*>* const new_result =
@@ -4696,9 +4703,11 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_inline_type = (flags & JVM_ACC_INLINE) != 0;
+  const bool is_value_class = (flags & JVM_ACC_VALUE) != 0;
+  const bool is_primitive_class = (flags & JVM_ACC_PRIMITIVE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_INLINE should not be set");
+  assert(supports_inline_types() || !is_value_class, "JVM_ACC_VALUE should not be set");
+  assert(supports_inline_types() || !is_primitive_class, "JVM_ACC_PRIMITIVE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4709,14 +4718,17 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     return;
   }
 
-  if (is_inline_type && !EnableValhalla) {
-    ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_ClassFormatError(),
-      "Class modifier ACC_INLINE in class %s requires option -XX:+EnableValhalla",
-      _class_name->as_C_string()
-    );
+  if (!EnableValhalla) {
+    if (is_value_class || is_primitive_class) {
+      const char* bad_flag = is_primitive_class ? "ACC_PRIMITIVE" : "ACC_VALUE";
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Class modifier %s in class %s requires option -XX:+EnableValhalla",
+        bad_flag, _class_name->as_C_string()
+      );
+    }
     return;
   }
 
@@ -4735,10 +4747,12 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_super || is_enum)) ||
       (!is_interface && major_gte_1_5 && is_annotation) ||
-      (is_inline_type && (is_interface || is_abstract || is_enum || !is_final))) {
+      (is_value_class && (is_interface || is_abstract || is_enum || !is_final)) ||
+      (is_primitive_class && !is_value_class)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
-    if (is_inline_type)  class_note = " (an inline class)";
+    if (is_value_class)  class_note = " (a value class)";
+    if (is_primitive_class)  class_note = " (a primitive class)";
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -5498,13 +5512,6 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   fill_instance_klass(ik, changed_by_loadhook, cl_inst_info, CHECK_NULL);
 
   assert(_klass == ik, "invariant");
-
-  if (ik->is_inline_klass()) {
-    InlineKlass* vk = InlineKlass::cast(ik);
-    oop val = ik->allocate_instance(CHECK_NULL);
-    vk->set_default_value(val);
-  }
-
   return ik;
 }
 
@@ -5585,7 +5592,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (_has_injected_identityObject) {
     ik->set_has_injected_identityObject();
   }
-  if (_has_injected_primitiveObject) {
+  if (_has_injected_valueObject) {
     ik->set_has_injected_primitiveObject();
   }
 
@@ -5828,8 +5835,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
     Universe::initialize_the_single_IdentityObject_klass_array(ik, CHECK);
   }
-  if (ik->name() == vmSymbols::java_lang_PrimitiveObject()) {
-    Universe::initialize_the_single_PrimitiveObject_klass_array(ik, CHECK);
+  if (ik->name() == vmSymbols::java_lang_ValueObject()) {
+    Universe::initialize_the_single_ValueObject_klass_array(ik, CHECK);
   }
 
   debug_only(ik->verify();)
@@ -5928,8 +5935,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _invalid_identity_super(false),
   _implements_identityObject(false),
   _has_injected_identityObject(false),
-  _implements_primitiveObject(false),
-  _has_injected_primitiveObject(false),
+  _implements_valueObject(false),
+  _has_injected_valueObject(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6111,9 +6118,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_INLINE is defined for class file version 55 and later
+  // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_INLINE;
+    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
   }
 
   // Access flags
@@ -6403,15 +6410,15 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     _has_injected_identityObject = true;
   }
   // Check if declared as PrimitiveObject...else add if needed
-  if (_implements_primitiveObject) {
+  if (_implements_valueObject) {
     if (!is_inline_type() && invalid_inline_super()) {
       classfile_icce_error("class %s can not implement %s, neither valid inline classes or valid supertype",
-                            vmClasses::PrimitiveObject_klass(), THREAD);
+                            vmClasses::ValueObject_klass(), THREAD);
       return;
     }
   } else if (is_inline_type()) {
-    _temp_local_interfaces->append(vmClasses::PrimitiveObject_klass());
-    _has_injected_primitiveObject = true;
+    _temp_local_interfaces->append(vmClasses::ValueObject_klass());
+    _has_injected_valueObject = true;
   }
 
   int itfs_len = _temp_local_interfaces->length();
@@ -6419,8 +6426,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     _local_interfaces = Universe::the_empty_instance_klass_array();
   } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::IdentityObject_klass()) {
     _local_interfaces = Universe::the_single_IdentityObject_klass_array();
-  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::PrimitiveObject_klass()) {
-    _local_interfaces = Universe::the_single_PrimitiveObject_klass_array();
+  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::ValueObject_klass()) {
+    _local_interfaces = Universe::the_single_ValueObject_klass_array();
   } else {
     _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
     for (int i = 0; i < itfs_len; i++) {
@@ -6476,7 +6483,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
             Handle(THREAD, _loader_data->class_loader()),
             _protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
-        if (!klass->access_flags().is_inline_type()) {
+        if (!klass->access_flags().is_value_class()) {
           assert(klass->is_instance_klass(), "Sanity check");
           ResourceMark rm(THREAD);
             THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),

@@ -49,7 +49,7 @@ public primitive class UnifiedPrimitiveClassNestHostTest implements java.io.Seri
 
         if (!superInterfaces[0].equals(java.io.Serializable.class))
             throw new AssertionError("Wrong super interfaces for UnifiedPrimitiveClassNestHostTest");
-        if (!superInterfaces[1].equals(PrimitiveObject.class))
+        if (!superInterfaces[1].equals(ValueObject.class))
             throw new AssertionError("Wrong super interfaces for UnifiedPrimitiveClassNestHostTest");
 
         Class<?> nestHost = UnifiedPrimitiveClassNestHostTest.class.getNestHost();

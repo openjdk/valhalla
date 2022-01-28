@@ -700,7 +700,8 @@ void CallGenerator::do_late_inline_helper() {
   bool result_not_used = false;
 
   if (is_pure_call()) {
-    if (is_boxing_late_inline() && callprojs->resproj[0] != nullptr) {
+    // Disabled due to JDK-8276112
+    if (false && is_boxing_late_inline() && callprojs->resproj[0] != nullptr) {
         // replace box node to scalar node only in case it is directly referenced by debug info
         assert(call->as_CallStaticJava()->is_boxing_method(), "sanity");
         if (!has_non_debug_usages(callprojs->resproj[0]) && is_box_cache_valid(call)) {
@@ -789,8 +790,10 @@ void CallGenerator::do_late_inline_helper() {
 
     // Check if we are late inlining a method handle call that returns an inline type as fields.
     Node* buffer_oop = NULL;
-    ciType* mh_rt = inline_cg()->method()->return_type();
-    if (is_mh_late_inline() && mh_rt->is_inlinetype() && mh_rt->as_inline_klass()->can_be_returned_as_fields()) {
+    ciMethod* inline_method = inline_cg()->method();
+    ciType* return_type = inline_method->return_type();
+    if (is_mh_late_inline() && inline_method->signature()->returns_null_free_inline_type() &&
+        return_type->as_inline_klass()->can_be_returned_as_fields()) {
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
       // we need to "re-execute" the call in the interpreter (to make sure the call is only executed once).
@@ -799,7 +802,7 @@ void CallGenerator::do_late_inline_helper() {
         PreserveReexecuteState preexecs(&arg_kit);
         arg_kit.jvms()->set_should_reexecute(true);
         arg_kit.inc_sp(nargs);
-        Node* klass_node = arg_kit.makecon(TypeKlassPtr::make(mh_rt->as_inline_klass()));
+        Node* klass_node = arg_kit.makecon(TypeKlassPtr::make(return_type->as_inline_klass()));
         buffer_oop = arg_kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
       }
       jvms = arg_kit.transfer_exceptions_into_jvms();
@@ -829,8 +832,8 @@ void CallGenerator::do_late_inline_helper() {
     }
 
     if (inline_cg()->is_inline()) {
-      C->set_has_loops(C->has_loops() || inline_cg()->method()->has_loops());
-      C->env()->notice_inlined_method(inline_cg()->method());
+      C->set_has_loops(C->has_loops() || inline_method->has_loops());
+      C->env()->notice_inlined_method(inline_method);
     }
     C->set_inlining_progress(true);
     C->set_do_cleanup(kit.stopped()); // path is dead; needs cleanup
@@ -1247,7 +1250,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
         CallGenerator* cg = C->call_generator(target, vtable_index,
                                               false /* call_does_dispatch */,
                                               jvms,
-                                              true /* allow_inline */,
+                                              allow_inline,
                                               PROB_ALWAYS,
                                               NULL,
                                               true);

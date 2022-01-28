@@ -321,11 +321,11 @@ void Parse::do_new() {
   }
 }
 
-//------------------------------do_defaultvalue---------------------------------
-void Parse::do_defaultvalue() {
+//------------------------------do_aconst_init---------------------------------
+void Parse::do_aconst_init() {
   bool will_link;
   ciInlineKlass* vk = iter().get_klass(will_link)->as_inline_klass();
-  assert(will_link && !iter().is_unresolved_klass(), "defaultvalue: typeflow responsibility");
+  assert(will_link && !iter().is_unresolved_klass(), "aconst_init: typeflow responsibility");
 
   if (C->needs_clinit_barrier(vk, method())) {
     clinit_barrier(vk, method());

@@ -1039,12 +1039,12 @@ LIR_Opr LIRGenerator::new_register(BasicType type) {
   int vreg_num = _virtual_register_number;
   // Add a little fudge factor for the bailout since the bailout is only checked periodically. This allows us to hand out
   // a few extra registers before we really run out which helps to avoid to trip over assertions.
-  if (vreg_num + 20 >= LIR_OprDesc::vreg_max) {
+  if (vreg_num + 20 >= LIR_Opr::vreg_max) {
     bailout("out of virtual registers in LIR generator");
-    if (vreg_num + 2 >= LIR_OprDesc::vreg_max) {
+    if (vreg_num + 2 >= LIR_Opr::vreg_max) {
       // Wrap it around and continue until bailout really happens to avoid hitting assertions.
-      _virtual_register_number = LIR_OprDesc::vreg_base;
-      vreg_num = LIR_OprDesc::vreg_base;
+      _virtual_register_number = LIR_Opr::vreg_base;
+      vreg_num = LIR_Opr::vreg_base;
     }
   }
   _virtual_register_number += 1;
@@ -1739,7 +1739,9 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
                      NULL, NULL);
 
   if (field->is_null_free()) {
-    assert(field->type()->as_inline_klass()->is_loaded(), "Must be");
+    assert(field->type()->is_loaded(), "Must be");
+    assert(field->type()->is_inlinetype(), "Must be if loaded");
+    assert(field->type()->as_inline_klass()->is_initialized(), "Must be");
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, L_end->label());
@@ -2132,23 +2134,29 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     if (field->is_static() && holder->is_loaded()) {
       ciObject* val = holder->java_mirror()->field_value(field).as_object();
       if (!val->is_null_object()) {
-        // Static field is initialized, we don need to perform a null check.
+        // Static field is initialized, we don't need to perform a null check.
         return;
       }
     }
-    LabelObj* L_end = new LabelObj();
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
-    __ branch(lir_cond_notEqual, L_end->label());
-    set_in_conditional_code(true);
     ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-    if (default_value->is_pinned()) {
-      __ move(LIR_OprFact::value_type(default_value->type()), result);
+    if (inline_klass->is_initialized()) {
+      LabelObj* L_end = new LabelObj();
+      __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
+      __ branch(lir_cond_notEqual, L_end->label());
+      set_in_conditional_code(true);
+      Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
+      if (default_value->is_pinned()) {
+        __ move(LIR_OprFact::value_type(default_value->type()), result);
+      } else {
+        __ move(load_constant(default_value), result);
+      }
+      __ branch_destination(L_end->label());
+      set_in_conditional_code(false);
     } else {
-      __ move(load_constant(default_value), result);
+      __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
+      __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
+                                                         Deoptimization::Action_make_not_entrant));
     }
-    __ branch_destination(L_end->label());
-    set_in_conditional_code(false);
   }
 }
 
@@ -2174,7 +2182,7 @@ void LIRGenerator::do_PreconditionsCheckIndex(Intrinsic* x, BasicType type) {
   CodeEmitInfo* info = state_for(x, state);
 
   LIR_Opr len = length.result();
-  LIR_Opr zero = NULL;
+  LIR_Opr zero;
   if (type == T_INT) {
     zero = LIR_OprFact::intConst(0);
     if (length.result()->is_constant()){
@@ -2321,10 +2329,12 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result, x->delayed()->field(), x->delayed()->offset());
   } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
+             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_initialized() &&
              x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
     // Load the default instance instead of reading the element
     ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
     LIR_Opr result = rlock_result(x, x->elt_type());
+    assert(elem_klass->is_initialized(), "Must be");
     Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
     if (default_value->is_pinned()) {
       __ move(LIR_OprFact::value_type(default_value->type()), result);
@@ -2367,7 +2377,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
 }
 
 void LIRGenerator::do_Deoptimize(Deoptimize* x) {
-  // This happens only when a class X uses the withfield/defaultvalue bytecode
+  // This happens only when a class X uses the withfield/aconst_init bytecode
   // to refer to an inline class V, where V has not yet been loaded/resolved.
   // This is not a common case. Let's just deoptimize.
   CodeEmitInfo* info = state_for(x, x->state_before());
@@ -3453,6 +3463,7 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
   case vmIntrinsics::_dlog10:         // fall through
   case vmIntrinsics::_dabs:           // fall through
   case vmIntrinsics::_dsqrt:          // fall through
+  case vmIntrinsics::_dsqrt_strict:   // fall through
   case vmIntrinsics::_dtan:           // fall through
   case vmIntrinsics::_dsin :          // fall through
   case vmIntrinsics::_dcos :          // fall through
@@ -3485,6 +3496,9 @@ void LIRGenerator::do_Intrinsic(Intrinsic* x) {
     break;
   case vmIntrinsics::_storeFence:
     __ membar_release();
+    break;
+  case vmIntrinsics::_storeStoreFence:
+    __ membar_storestore();
     break;
   case vmIntrinsics::_fullFence :
     __ membar();
@@ -3816,7 +3830,7 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
   assert(level > CompLevel_simple, "Shouldn't be here");
 
   int offset = -1;
-  LIR_Opr counter_holder = NULL;
+  LIR_Opr counter_holder;
   if (level == CompLevel_limited_profile) {
     MethodCounters* counters_adr = method->ensure_method_counters();
     if (counters_adr == NULL) {

@@ -295,7 +295,7 @@ class TemplateTable: AllStatic {
   static void withfield();
 
   static void _new();
-  static void defaultvalue();
+  static void aconst_init();
   static void newarray();
   static void anewarray();
   static void arraylength();

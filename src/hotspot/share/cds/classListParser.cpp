@@ -446,9 +446,9 @@ void ClassListParser::error(const char* msg, ...) {
 // This function is used for loading classes for customized class loaders
 // during archive dumping.
 InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS) {
-#if !(defined(_LP64) && (defined(LINUX) || defined(__APPLE__)))
+#if !(defined(_LP64) && (defined(LINUX) || defined(__APPLE__) || defined(_WINDOWS)))
   // The only supported platforms are: (1) Linux/64-bit and (2) Solaris/64-bit and
-  // (3) MacOSX/64-bit
+  // (3) MacOSX/64-bit and (4) Windowss/64-bit
   // This #if condition should be in sync with the areCustomLoadersSupportedForCDS
   // method in test/lib/jdk/test/lib/Platform.java.
   error("AppCDS custom class loaders not supported on this platform");
@@ -474,15 +474,15 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   {
     bool identity_object_implemented = false;
     bool identity_object_specified = false;
-    bool primitive_object_implemented = false;
-    bool primitive_object_specified = false;
+    bool value_object_implemented = false;
+    bool value_object_specified = false;
     for (i = 0; i < actual_num_interfaces; i++) {
       if (k->local_interfaces()->at(i) == vmClasses::IdentityObject_klass()) {
         identity_object_implemented = true;
         break;
       }
-      if (k->local_interfaces()->at(i) == vmClasses::PrimitiveObject_klass()) {
-        primitive_object_implemented = true;
+      if (k->local_interfaces()->at(i) == vmClasses::ValueObject_klass()) {
+        value_object_implemented = true;
         break;
       }
     }
@@ -491,16 +491,16 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
         identity_object_specified = true;
         break;
       }
-      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::PrimitiveObject_klass()) {
-        primitive_object_specified = true;
+      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::ValueObject_klass()) {
+        value_object_specified = true;
         break;
       }
     }
 
     if ( (identity_object_implemented  && !identity_object_specified) ||
-         (primitive_object_implemented && !primitive_object_specified) ){
+         (value_object_implemented && !value_object_specified) ){
       // Backwards compatibility -- older classlists do not know about
-      // java.lang.IdentityObject or java.lang.PrimitiveObject
+      // java.lang.IdentityObject or java.lang.ValueObject
       expected_num_interfaces--;
     }
   }
@@ -738,10 +738,10 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
     // java.lang.IdentityObject.
     return vmClasses::IdentityObject_klass();
   }
-  if (interface_name == vmSymbols::java_lang_PrimitiveObject()) {
+  if (interface_name == vmSymbols::java_lang_ValueObject()) {
     // Backwards compatibility -- older classlists do not know about
-    // java.lang.PrimitiveObject.
-    return vmClasses::PrimitiveObject_klass();
+    // java.lang.ValueObject.
+    return vmClasses::ValueObject_klass();
   }
 
   const int n = _interfaces->length();

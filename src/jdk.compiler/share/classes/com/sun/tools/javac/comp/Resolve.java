@@ -427,7 +427,7 @@ public class Resolve {
             // A type is accessible in a reference projection if it was
             // accessible in the value projection.
             if (site.isReferenceProjection())
-                site = site.asValueType();
+                site = site.valueProjection();
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {
@@ -3950,6 +3950,17 @@ public class Resolve {
             }
             return diagArgs;
         }
+    }
+
+    /** check if a type is a subtype of Serializable, if that is available.*/
+    boolean isSerializable(Type t) {
+        try {
+            syms.serializableType.complete();
+        }
+        catch (CompletionFailure e) {
+            return false;
+        }
+        return types.isSubtype(t, syms.serializableType);
     }
 
     /**

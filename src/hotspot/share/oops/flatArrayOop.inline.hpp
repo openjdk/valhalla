@@ -48,6 +48,7 @@ inline int flatArrayOopDesc::object_size() const {
 inline oop flatArrayOopDesc::value_alloc_copy_from_index(flatArrayHandle vah, int index, TRAPS) {
   FlatArrayKlass* vaklass = FlatArrayKlass::cast(vah->klass());
   InlineKlass* vklass = vaklass->element_klass();
+  assert(vklass->is_initialized(), "Should be");
   if (vklass->is_empty_inline_type()) {
     return vklass->default_value();
   } else {

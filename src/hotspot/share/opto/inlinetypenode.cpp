@@ -192,14 +192,14 @@ Node* InlineTypeBaseNode::field_value_by_offset(int offset, bool recursive) cons
   Node* value = field_value(index);
   assert(value != NULL, "field value not found");
   if (recursive && value->is_InlineTypeBase()) {
-    InlineTypeBaseNode* vt = value->as_InlineTypeBase();
     if (field_is_flattened(index)) {
       // Flattened inline type field
+      InlineTypeBaseNode* vt = value->as_InlineTypeBase();
       sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
       return vt->field_value_by_offset(sub_offset, recursive);
     } else {
       assert(sub_offset == 0, "should not have a sub offset");
-      return vt;
+      return value;
     }
   }
   assert(!(recursive && value->is_InlineTypeBase()), "should not be an inline type");
@@ -599,13 +599,13 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile
 Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
   for (uint i = 0; i < field_count(); i++) {
-     InlineTypeNode* value = field_value(i)->isa_InlineType();
+     Node* value = field_value(i);
      if (field_is_flattened(i)) {
        // Flattened inline type field
-       vt->set_field_value(i, value->allocate_fields(kit));
-     } else if (value != NULL) {
+       vt->set_field_value(i, value->as_InlineTypeBase()->allocate_fields(kit));
+     } else if (value->is_InlineType()) {
        // Non-flattened inline type field
-       vt->set_field_value(i, value->buffer(kit));
+       vt->set_field_value(i, value->as_InlineType()->buffer(kit));
      }
   }
   vt = kit->gvn().transform(vt)->as_InlineTypeBase();
@@ -634,7 +634,7 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with uninitialized values and NULL oop
-  Node* oop = vk->is_empty() ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
+  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
   vt->set_is_init(gvn);
   return vt;
@@ -647,7 +647,8 @@ Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with default values
-  InlineTypeNode* vt = new InlineTypeNode(vk, default_oop(gvn, vk));
+  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop);
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
@@ -767,6 +768,9 @@ Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk,
 
       vt = vt->clone_with_phis(&gvn, region);
       vt->merge_with(&gvn, null_vt, 2, true);
+      if (!null_free) {
+        vt->set_oop(oop);
+      }
       kit->set_control(gvn.transform(region));
     }
   } else {
@@ -855,7 +859,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   if (vk == NULL) {
     vk = inline_klass();
   }
-  if (field_count() == 0) {
+  if (field_count() == 0 && vk->is_initialized()) {
     const Type* tinit = phase->type(in(IsInit));
     if (tinit->isa_int() && tinit->is_int()->is_con(1)) {
       assert(is_allocated(phase), "must be allocated");
@@ -927,8 +931,7 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
     Node* arg = field_value(i);
     if (field_is_flattened(i)) {
       // Flattened inline type field
-      InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(kit, n, base_input);
+      arg->as_InlineTypeBase()->pass_fields(kit, n, base_input);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field
@@ -1024,7 +1027,8 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  if (is_default(phase) && (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
+  if (is_default(phase) && inline_klass()->is_initialized() &&
+      (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for default inline types
     set_oop(default_oop(*phase, inline_klass()));
     assert(is_allocated(phase), "should now be allocated");

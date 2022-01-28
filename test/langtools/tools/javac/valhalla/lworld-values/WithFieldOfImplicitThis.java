@@ -62,7 +62,7 @@ public class WithFieldOfImplicitThis {
                                                 "WithFieldOfImplicitThis$X.class").toString() };
         runCheck(params, new String [] {
 
-         "0: defaultvalue  #1                  // class WithFieldOfImplicitThis$X",
+         "0: aconst_init   #1                  // class WithFieldOfImplicitThis$X",
          "3: astore_3",
          "4: aload_0",
          "5: iload_2",

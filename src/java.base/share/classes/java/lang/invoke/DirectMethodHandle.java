@@ -134,7 +134,7 @@ class DirectMethodHandle extends MethodHandle {
         return make(member.getDeclaringClass(), member);
     }
     private static DirectMethodHandle makeAllocator(MemberName ctor) {
-        assert(ctor.isObjectConstructor() && !ctor.getDeclaringClass().isPrimitiveClass()) : ctor;
+        assert(ctor.isObjectConstructor() && !ctor.getDeclaringClass().isValue()) : ctor;
 
         Class<?> instanceClass = ctor.getDeclaringClass();
         ctor = ctor.asObjectConstructor();

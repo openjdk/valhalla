@@ -48,7 +48,6 @@ import com.sun.tools.classfile.EnclosingMethod_attribute;
 import com.sun.tools.classfile.Exceptions_attribute;
 import com.sun.tools.classfile.InnerClasses_attribute;
 import com.sun.tools.classfile.InnerClasses_attribute.Info;
-import com.sun.tools.classfile.JavaFlags_attribute;
 import com.sun.tools.classfile.LineNumberTable_attribute;
 import com.sun.tools.classfile.LocalVariableTable_attribute;
 import com.sun.tools.classfile.LocalVariableTypeTable_attribute;
@@ -81,6 +80,7 @@ import com.sun.tools.classfile.Type;
 
 import static com.sun.tools.classfile.AccessFlags.*;
 
+import com.sun.tools.classfile.Preload_attribute;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.StringUtils;
 
@@ -352,16 +352,6 @@ public class AttributeWriter extends BasicWriter
         }
         if (!first)
             indent(-1);
-        return null;
-    }
-
-    @Override
-    public Void visitJavaFlags(JavaFlags_attribute attr, Void unused) {
-        println("Extended Flags:");
-        indent(+1);
-        if ((attr.extendedFlags & ACC_REF_DEFAULT) != 0)
-            println("ACC_REF_DEFAULT");
-        indent(-1);
         return null;
     }
 
@@ -1120,6 +1110,27 @@ public class AttributeWriter extends BasicWriter
     @Override
     public Void visitSynthetic(Synthetic_attribute attr, Void ignore) {
         println("Synthetic: true");
+        return null;
+    }
+
+    @Override
+    public Void visitPreload(Preload_attribute attr, Void ignore) {
+        boolean first = true;
+        for (int index : attr.value_class_info_index) {
+            if (first) {
+                println("Classes to be preloaded:");
+                indent(+1);
+                first = false;
+            }
+            print("#" + index);
+            print(";");
+            tab();
+            print("// value ");
+            constantWriter.write(index);
+            println();
+        }
+        if (!first)
+            indent(-1);
         return null;
     }
 

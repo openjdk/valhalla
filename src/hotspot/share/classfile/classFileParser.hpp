@@ -209,8 +209,8 @@ class ClassFileParser {
   bool _invalid_identity_super; // if true, invalid super type for an identity type.
   bool _implements_identityObject;
   bool _has_injected_identityObject;
-  bool _implements_primitiveObject;
-  bool _has_injected_primitiveObject;
+  bool _implements_valueObject;
+  bool _has_injected_valueObject;
 
   // precomputed flags
   bool _has_finalizer;
@@ -592,7 +592,7 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_inline_type() const { return _access_flags.is_inline_type(); }
+  bool is_inline_type() const { return _access_flags.is_value_class(); }
   bool is_value_capable_class() const;
   bool has_inline_fields() const { return _has_inline_type_fields; }
   bool invalid_inline_super() const { return _invalid_inline_super; }

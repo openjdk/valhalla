@@ -194,7 +194,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
   return lh;
 }
 
-int FlatArrayKlass::oop_size(oop obj) const {
+size_t FlatArrayKlass::oop_size(oop obj) const {
   assert(obj->klass()->is_flatArray_klass(),"must be an flat array");
   flatArrayOop array = flatArrayOop(obj);
   return array->object_size();

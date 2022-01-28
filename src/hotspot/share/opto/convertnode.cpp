@@ -119,8 +119,10 @@ const Type* ConvD2INode::Value(PhaseGVN* phase) const {
 //------------------------------Ideal------------------------------------------
 // If converting to an int type, skip any rounding nodes
 Node *ConvD2INode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if( in(1)->Opcode() == Op_RoundDouble )
-  set_req(1,in(1)->in(1));
+  if (in(1)->Opcode() == Op_RoundDouble) {
+    set_req(1, in(1)->in(1));
+    return this;
+  }
   return NULL;
 }
 
@@ -153,8 +155,10 @@ Node* ConvD2LNode::Identity(PhaseGVN* phase) {
 //------------------------------Ideal------------------------------------------
 // If converting to an int type, skip any rounding nodes
 Node *ConvD2LNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if( in(1)->Opcode() == Op_RoundDouble )
-  set_req(1,in(1)->in(1));
+  if (in(1)->Opcode() == Op_RoundDouble) {
+    set_req(1, in(1)->in(1));
+    return this;
+  }
   return NULL;
 }
 
@@ -190,8 +194,10 @@ Node* ConvF2INode::Identity(PhaseGVN* phase) {
 //------------------------------Ideal------------------------------------------
 // If converting to an int type, skip any rounding nodes
 Node *ConvF2INode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if( in(1)->Opcode() == Op_RoundFloat )
-  set_req(1,in(1)->in(1));
+  if (in(1)->Opcode() == Op_RoundFloat) {
+    set_req(1, in(1)->in(1));
+    return this;
+  }
   return NULL;
 }
 
@@ -217,8 +223,10 @@ Node* ConvF2LNode::Identity(PhaseGVN* phase) {
 //------------------------------Ideal------------------------------------------
 // If converting to an int type, skip any rounding nodes
 Node *ConvF2LNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if( in(1)->Opcode() == Op_RoundFloat )
-  set_req(1,in(1)->in(1));
+  if (in(1)->Opcode() == Op_RoundFloat) {
+    set_req(1, in(1)->in(1));
+    return this;
+  }
   return NULL;
 }
 

@@ -26,6 +26,8 @@ package java.lang.invoke;
 
 import sun.invoke.util.Wrapper;
 
+import java.lang.reflect.Modifier;
+
 import static java.lang.invoke.MethodHandleInfo.*;
 import static sun.invoke.util.Wrapper.forPrimitiveType;
 import static sun.invoke.util.Wrapper.forWrapperType;
@@ -157,7 +159,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                 // Classes compiled prior to dynamic nestmate support invoke a private instance
                 // method with REF_invokeSpecial. Newer classes use REF_invokeVirtual or
                 // REF_invokeInterface, and we can use that instruction in the lambda class.
-                if (targetClass == implClass) {
+                if (targetClass == implClass && Modifier.isPrivate(implInfo.getModifiers())) {
                     this.implKind = implClass.isInterface() ? REF_invokeInterface : REF_invokeVirtual;
                 } else {
                     this.implKind = REF_invokeSpecial;
@@ -399,7 +401,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             return true;
         }
 
-        if (fromType.isPrimitiveClass() && toType.isPrimitiveClass()) {
+        if (fromType.isValue() && toType.isValue()) {
             // val projection can be converted to ref projection; or vice verse
             return fromType.asPrimaryType() == toType.asPrimaryType();
         }

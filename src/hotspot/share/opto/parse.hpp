@@ -78,7 +78,8 @@ protected:
                             ciCallProfile& profile);
   bool        should_not_inline(ciMethod* callee_method,
                                 ciMethod* caller_method,
-                                JVMState* jvms);
+                                int caller_bci,
+                                ciCallProfile& profile);
   bool        is_not_reached(ciMethod* callee_method,
                              ciMethod* caller_method,
                              int caller_bci,
@@ -518,7 +519,7 @@ class Parse : public GraphKit {
 
   // implementation of object creation bytecodes
   void do_new();
-  void do_defaultvalue();
+  void do_aconst_init();
   void do_withfield();
   void do_newarray(BasicType elemtype);
   void do_newarray();

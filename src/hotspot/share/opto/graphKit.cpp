@@ -1269,10 +1269,9 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      // TODO do we even need this?
-      return value;
-      //replace_in_map(value, zerocon(type));
-      //return zerocon(type);
+      vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
+      replace_in_map(value, vtptr);
+      return vtptr;
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
@@ -1951,18 +1950,12 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
   Node* ret;
   if (call->method() == NULL || call->method()->return_type()->basic_type() == T_VOID) {
     ret = top();
-  } else if (call->method()->return_type()->is_inlinetype()) {
-    const Type* ret_type = call->tf()->range_sig()->field_at(TypeFunc::Parms);
-    if (call->tf()->returns_inline_type_as_fields()) {
-      // Return of multiple values (inline type fields): we create a
-      // InlineType node, each field is a projection from the call.
-      ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-      uint base_input = TypeFunc::Parms;
-      ret = InlineTypeNode::make_from_multi(this, call, ret_type->inline_klass(), base_input, false);
-    } else {
-      ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
-      ret = _gvn.transform(InlineTypeNode::make_from_oop(this, ret, ret_type->inline_klass(), !ret_type->maybe_null()));
-    }
+  } else if (call->tf()->returns_inline_type_as_fields()) {
+    // Return of multiple values (inline type fields): we create a
+    // InlineType node, each field is a projection from the call.
+    ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
+    uint base_input = TypeFunc::Parms;
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
@@ -3475,9 +3468,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
           set_control(null_ctl);    // Null is the only remaining possibility.
           return intcon(0);
         }
-        if (cast_obj != NULL &&
-            // A value that's sometimes null is not something we can optimize well
-            !(cast_obj->is_InlineType() && null_ctl != top())) {
+        if (cast_obj != NULL) {
           not_null_obj = cast_obj;
           is_value = not_null_obj->is_InlineType();
         }
@@ -3649,13 +3640,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     ciKlass* spec_obj_type = obj_type->speculative_type();
     if (spec_obj_type != NULL || data != NULL) {
       cast_obj = maybe_cast_profiled_receiver(not_null_obj, tk->klass(), spec_obj_type, safe_for_replace);
-      if (cast_obj != NULL && cast_obj->is_InlineType()) {
-        if (null_ctl != top()) {
-          cast_obj = NULL; // A value that's sometimes null is not something we can optimize well
-        } else {
-          return cast_obj;
-        }
-      }
       if (cast_obj != NULL) {
         if (failure_control != NULL) // failure is now impossible
           (*failure_control) = top();
@@ -3752,7 +3736,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
       res = vt;
       if (safe_for_replace) {
-        if (vt->isa_InlineType() && C->inlining_incrementally()) {
+        if (vt->is_InlineType() && C->inlining_incrementally()) {
           vt = vt->as_InlineType()->as_ptr(&_gvn);
         }
         replace_in_map(obj, vt);

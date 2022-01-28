@@ -343,7 +343,7 @@ public class Flow {
      * Base visitor class for all visitors implementing dataflow analysis logic.
      * This class define the shared logic for handling jumps (break/continue statements).
      */
-    static abstract class BaseAnalyzer extends TreeScanner {
+    abstract static class BaseAnalyzer extends TreeScanner {
 
         enum JumpKind {
             BREAK(JCTree.Tag.BREAK) {
@@ -1739,7 +1739,7 @@ public class Flow {
      */
     enum ThisExposability {
         ALLOWED,     // identity Object classes - NOP
-        BANNED,      // primitive classes - Error
+        BANNED,      // primitive/value classes - Error
     }
 
     /**
@@ -2202,7 +2202,7 @@ public class Flow {
                         firstadr = nextadr;
                         this.thisExposability = ALLOWED;
                     } else {
-                        if (tree.sym.owner.isPrimitiveClass())
+                        if (tree.sym.owner.type.isValueClass())
                             this.thisExposability = BANNED;
                         else
                             this.thisExposability = ALLOWED;

@@ -72,8 +72,7 @@ define_pd_global(bool, PreserveFramePointer, false);
 define_pd_global(bool, InlineTypePassFieldsAsArgs, false);
 define_pd_global(bool, InlineTypeReturnedAsFields, false);
 
-// No performance work done here yet.
-define_pd_global(bool, CompactStrings, false);
+define_pd_global(bool, CompactStrings, true);
 
 #define ARCH_FLAGS(develop,                                                 \
                    product,                                                 \

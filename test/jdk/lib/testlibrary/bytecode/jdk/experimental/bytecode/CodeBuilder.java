@@ -155,8 +155,8 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    public C defaultvalue(S clazz) {
-        emitOp(Opcode.DEFAULTVALUE, clazz);
+    public C aconst_init(S clazz) {
+        emitOp(Opcode.ACONST_INIT, clazz);
         code.writeChar(poolHelper.putClass(clazz));
         return thisBuilder();
     }

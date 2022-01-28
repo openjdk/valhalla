@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "cds/dynamicArchive.hpp"
 #include "cds/heapShared.hpp"
 #include "cds/metaspaceShared.hpp"
 #include "classfile/classLoader.hpp"
@@ -131,7 +132,7 @@ Array<u2>* Universe::_the_empty_short_array           = NULL;
 Array<Klass*>* Universe::_the_empty_klass_array     = NULL;
 Array<InstanceKlass*>* Universe::_the_empty_instance_klass_array  = NULL;
 Array<InstanceKlass*>* Universe::_the_single_IdentityObject_klass_array = NULL;
-Array<InstanceKlass*>* Universe::_the_single_PrimitiveObject_klass_array = NULL;
+Array<InstanceKlass*>* Universe::_the_single_ValueObject_klass_array = NULL;
 Array<Method*>* Universe::_the_empty_method_array   = NULL;
 
 // These variables are guarded by FullGCALot_lock.
@@ -223,7 +224,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_the_empty_method_array);
   it->push(&_the_array_interfaces_array);
   it->push(&_the_single_IdentityObject_klass_array);
-  it->push(&_the_single_PrimitiveObject_klass_array);
+  it->push(&_the_single_ValueObject_klass_array);
 
   _finalizer_register_cache->metaspace_pointers_do(it);
   _loader_addClass_cache->metaspace_pointers_do(it);
@@ -275,7 +276,7 @@ void Universe::serialize(SerializeClosure* f) {
   f->do_ptr((void**)&_the_empty_klass_array);
   f->do_ptr((void**)&_the_empty_instance_klass_array);
   f->do_ptr((void**)&_the_single_IdentityObject_klass_array);
-  f->do_ptr((void**)&_the_single_PrimitiveObject_klass_array);
+  f->do_ptr((void**)&_the_single_ValueObject_klass_array);
   _finalizer_register_cache->serialize(f);
   _loader_addClass_cache->serialize(f);
   _throw_illegal_access_error_cache->serialize(f);
@@ -364,8 +365,8 @@ void Universe::genesis(TRAPS) {
 
       assert(_the_single_IdentityObject_klass_array->at(0) ==
           vmClasses::IdentityObject_klass(), "u3");
-      assert(_the_single_PrimitiveObject_klass_array->at(0) ==
-          vmClasses::PrimitiveObject_klass(), "u3");
+      assert(_the_single_ValueObject_klass_array->at(0) ==
+          vmClasses::ValueObject_klass(), "u3");
     } else
 #endif
     {
@@ -485,12 +486,12 @@ void Universe::initialize_the_single_IdentityObject_klass_array(InstanceKlass* i
     _the_single_IdentityObject_klass_array = array;
 }
 
-void Universe::initialize_the_single_PrimitiveObject_klass_array(InstanceKlass* ik, TRAPS) {
-    assert(_the_single_PrimitiveObject_klass_array == NULL, "Must not be initialized twice");
-    assert(ik->name() == vmSymbols::java_lang_PrimitiveObject(), "Must be");
+void Universe::initialize_the_single_ValueObject_klass_array(InstanceKlass* ik, TRAPS) {
+    assert(_the_single_ValueObject_klass_array == NULL, "Must not be initialized twice");
+    assert(ik->name() == vmSymbols::java_lang_ValueObject(), "Must be");
     Array<InstanceKlass*>* array = MetadataFactory::new_array<InstanceKlass*>(ik->class_loader_data(), 1, NULL, CHECK);
     array->at_put(0, ik);
-    _the_single_PrimitiveObject_klass_array = array;
+    _the_single_ValueObject_klass_array = array;
 }
 
 
@@ -560,15 +561,20 @@ static void reinitialize_vtables() {
   }
 }
 
-
-static void initialize_itable_for_klass(InstanceKlass* k) {
-  k->itable().initialize_itable();
-}
-
-
 static void reinitialize_itables() {
+
+  class ReinitTableClosure : public KlassClosure {
+   public:
+    void do_klass(Klass* k) {
+      if (k->is_instance_klass()) {
+         InstanceKlass::cast(k)->itable().initialize_itable();
+      }
+    }
+  };
+
   MutexLocker mcld(ClassLoaderDataGraph_lock);
-  ClassLoaderDataGraph::dictionary_classes_do(initialize_itable_for_klass);
+  ReinitTableClosure cl;
+  ClassLoaderDataGraph::classes_do(&cl);
 }
 
 
@@ -798,6 +804,7 @@ jint universe_init() {
   Universe::_primitive_type_hash_code_cache = new LatestMethodCache();
 
 #if INCLUDE_CDS
+  DynamicArchive::check_for_dynamic_dump();
   if (UseSharedSpaces) {
     // Read the data structures supporting the shared spaces (shared
     // system dictionary, symbol table, etc.).  After that, access to

@@ -93,7 +93,7 @@ public class TestBytecodeLib {
         byte[] codeBytes = InstructionHelper.buildCode(LOOKUP, methodName, methodType,
             CODE -> {
                 CODE
-                .defaultvalue(Point.class)
+                .aconst_init(Point.class)
                 .checkcast(lClass) // expect no descriptor here
                 .checkcast(qClass) // expect Q-type descriptor here
                 .pop()

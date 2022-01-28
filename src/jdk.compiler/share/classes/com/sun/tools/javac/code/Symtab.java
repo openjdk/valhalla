@@ -223,10 +223,18 @@ public class Symtab {
     public final Type typeDescriptorType;
     public final Type recordType;
     public final Type identityObjectType;
-    public final Type primitiveObjectType;
+    public final Type valueObjectType;
     public final Type switchBootstrapsType;
     public final Type valueBasedType;
     public final Type valueBasedInternalType;
+
+    // For serialization lint checking
+    public final Type objectStreamFieldType;
+    public final Type objectInputStreamType;
+    public final Type objectOutputStreamType;
+    public final Type ioExceptionType;
+    public final Type objectStreamExceptionType;
+    public final Type externalizableType;
 
     /** The symbol representing the length field of an array.
      */
@@ -601,10 +609,17 @@ public class Symtab {
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
         recordType = enterClass("java.lang.Record");
         identityObjectType = enterClass("java.lang.IdentityObject");
-        primitiveObjectType = enterClass("java.lang.PrimitiveObject");
+        valueObjectType = enterClass("java.lang.ValueObject");
         switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
+        // For serialization lint checking
+        objectStreamFieldType = enterClass("java.io.ObjectStreamField");
+        objectInputStreamType = enterClass("java.io.ObjectInputStream");
+        objectOutputStreamType = enterClass("java.io.ObjectOutputStream");
+        ioExceptionType = enterClass("java.io.IOException");
+        objectStreamExceptionType = enterClass("java.io.ObjectStreamException");
+        externalizableType = enterClass("java.io.Externalizable");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);
@@ -613,7 +628,7 @@ public class Symtab {
         synthesizeEmptyInterfaceIfMissing(serializedLambdaType);
         synthesizeEmptyInterfaceIfMissing(stringConcatFactory);
         synthesizeEmptyInterfaceIfMissing(identityObjectType);
-        synthesizeEmptyInterfaceIfMissing(primitiveObjectType);
+        synthesizeEmptyInterfaceIfMissing(valueObjectType);
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);

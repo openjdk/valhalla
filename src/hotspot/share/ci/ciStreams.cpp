@@ -172,7 +172,7 @@ int ciBytecodeStream::get_klass_index() const {
   case Bytecodes::_anewarray:
   case Bytecodes::_multianewarray:
   case Bytecodes::_new:
-  case Bytecodes::_defaultvalue:
+  case Bytecodes::_aconst_init:
   case Bytecodes::_newarray:
     return get_index_u2();
   default:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -883,7 +883,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   copy_cpool_bytes(writeable_address(cpool_size()));
 
   // JVMSpec|           u2 access_flags;
-  write_u2(ik()->access_flags().get_flags() & JVM_RECOGNIZED_CLASS_MODIFIERS);
+  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRIMITIVE | JVM_ACC_VALUE));
 
   // JVMSpec|           u2 this_class;
   // JVMSpec|           u2 super_class;
@@ -897,13 +897,13 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   Array<InstanceKlass*>* interfaces =  ik()->local_interfaces();
   int num_interfaces = interfaces->length();
   write_u2(num_interfaces -
-           (ik()->has_injected_identityObject() || ik()->has_injected_primitiveObject() ? 1 : 0));
+           (ik()->has_injected_identityObject() || ik()->has_injected_valueObject() ? 1 : 0));
 
   for (int index = 0; index < num_interfaces; index++) {
     HandleMark hm(thread());
     InstanceKlass* iik = interfaces->at(index);
     if ( (!ik()->has_injected_identityObject() || iik != vmClasses::IdentityObject_klass()) &&
-         (!ik()->has_injected_primitiveObject() || iik != vmClasses::PrimitiveObject_klass())) {
+         (!ik()->has_injected_valueObject() || iik != vmClasses::ValueObject_klass())) {
       write_u2(class_symbol_to_cpool_index(iik->name()));
     }
   }
@@ -1000,6 +1000,7 @@ void JvmtiClassFileReconstituter::copy_bytecodes(const methodHandle& mh,
       case Bytecodes::_putstatic       :  // fall through
       case Bytecodes::_getfield        :  // fall through
       case Bytecodes::_putfield        :  // fall through
+      case Bytecodes::_withfield       :  // fall through
       case Bytecodes::_invokevirtual   :  // fall through
       case Bytecodes::_invokespecial   :  // fall through
       case Bytecodes::_invokestatic    :  // fall through

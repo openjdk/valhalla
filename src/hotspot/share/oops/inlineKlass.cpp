@@ -67,7 +67,9 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
 }
 
 oop InlineKlass::default_value() {
+  assert(is_initialized() || is_being_initialized() || is_in_error_state(), "default value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(default_value_offset());
+  assert(val != NULL, "Sanity check");
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
@@ -208,20 +210,6 @@ Klass* InlineKlass::value_array_klass(TRAPS) {
 
 Klass* InlineKlass::value_array_klass_or_null() {
   return value_array_klass_or_null(1);
-}
-
-void InlineKlass::array_klasses_do(void f(Klass* k)) {
-  InstanceKlass::array_klasses_do(f);
-  if (value_array_klasses() != NULL) {
-    value_array_klasses()->array_klasses_do(f);
-  }
-}
-
-void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
-  InstanceKlass::array_klasses_do(f, THREAD);
-  if (value_array_klasses() != NULL) {
-    value_array_klasses()->array_klasses_do(f, THREAD);
-  }
 }
 
 // Inline type arguments are not passed by reference, instead each

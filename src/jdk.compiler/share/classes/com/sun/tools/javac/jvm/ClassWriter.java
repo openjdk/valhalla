@@ -352,12 +352,6 @@ public class ClassWriter extends ClassFile {
             endAttr(alenIdx);
             acount++;
         }
-        if ((flags & REFERENCE_FAVORING) != 0) {
-            int alenIdx = writeAttr(names.JavaFlags);
-            databuf.appendChar(ACC_REF_DEFAULT);
-            endAttr(alenIdx);
-            acount++;
-        }
         return acount;
     }
 
@@ -835,9 +829,8 @@ public class ClassWriter extends ClassFile {
         databuf.appendChar(poolWriter.innerClasses.size());
         for (ClassSymbol inner : poolWriter.innerClasses) {
             inner.markAbstractIfNeeded(types);
-            char flags = (char) adjustFlags(inner.flags_field);
+            char flags = (char) adjustFlags(inner.flags_field & ~STRICTFP); // inner classes should not have the strictfp flag set.
             if ((flags & INTERFACE) != 0) flags |= ABSTRACT; // Interfaces are always ABSTRACT
-            flags &= ~STRICTFP; //inner classes should not have the strictfp flag set.
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
@@ -852,6 +845,17 @@ public class ClassWriter extends ClassFile {
         }
         endAttr(alenIdx);
     }
+
+     /** Write out "Preload" attribute by enumerating the value classes encountered during this compilation.
+      */
+     void writeValueClasses() {
+        int alenIdx = writeAttr(names.Preload);
+        databuf.appendChar(poolWriter.valueClasses.size());
+        for (ClassSymbol c : poolWriter.valueClasses) {
+            databuf.appendChar(poolWriter.putClass(c));
+        }
+        endAttr(alenIdx);
+     }
 
     int writeRecordAttribute(ClassSymbol csym) {
         int alenIdx = writeAttr(names.Record);
@@ -1017,7 +1021,7 @@ public class ClassWriter extends ClassFile {
         }
         if (target.hasMethodParameters() && (
                 options.isSet(PARAMETERS)
-                || ((m.flags_field & RECORD) != 0 && (m.isConstructor() || m.isPrimitiveObjectFactory())))) {
+                || ((m.flags_field & RECORD) != 0 && (m.isConstructor() || m.isValueObjectFactory())))) {
             if (!m.isLambdaMethod()) // Per JDK-8138729, do not emit parameters table for lambda bodies.
                 acount += writeMethodParametersAttr(m);
         }
@@ -1239,7 +1243,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(types.isPrimitiveClass(t) ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
+                databuf.appendChar(t.isPrimitiveClass() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
@@ -1552,9 +1556,9 @@ public class ClassWriter extends ClassFile {
         if (c.owner.kind == MDL) {
             flags = ACC_MODULE;
         } else {
-            flags = adjustFlags(c.flags() & ~DEFAULT);
+            flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & (ClassFlags | ACC_PRIMITIVE) & ~STRICTFP;
+            flags = flags & ClassFlags;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1583,14 +1587,14 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: poolWriter.enterInner((ClassSymbol)sym); break;
+            case TYP: poolWriter.enterInnerAndValueClass((ClassSymbol)sym); break;
             default : Assert.error();
             }
         }
 
         if (c.trans_local != null) {
             for (ClassSymbol local : c.trans_local) {
-                poolWriter.enterInner(local);
+                poolWriter.enterInnerAndValueClass(local);
             }
         }
 
@@ -1681,6 +1685,11 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
 
+        if (!poolWriter.valueClasses.isEmpty()) {
+            writeValueClasses();
+            acount++;
+        }
+
         endAttrs(acountIdx, acount);
 
         out.write(poolbuf.elems, 0, poolbuf.length);
@@ -1726,6 +1735,8 @@ public class ClassWriter extends ClassFile {
             result &= ~ABSTRACT;
         if ((flags & PRIMITIVE_CLASS) != 0)
             result |= ACC_PRIMITIVE;
+        if ((flags & VALUE_CLASS) != 0)
+            result |= ACC_VALUE;
         return result;
     }
 

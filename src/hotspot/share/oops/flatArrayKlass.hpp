@@ -101,7 +101,7 @@ class FlatArrayKlass : public ArrayKlass {
 
   jint max_elements() const;
 
-  int oop_size(oop obj) const;
+  size_t oop_size(oop obj) const;
 
   // Oop Allocation
   flatArrayOop allocate(int length, TRAPS);

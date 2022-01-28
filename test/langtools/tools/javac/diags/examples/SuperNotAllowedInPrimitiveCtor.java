@@ -21,7 +21,7 @@
  * questions.
  */
 
-// key: compiler.err.call.to.super.not.allowed.in.primitive.ctor
+// key: compiler.err.call.to.super.not.allowed.in.value.ctor
 
 primitive class SuperNotAllowedInPrimitiveCtor {
 

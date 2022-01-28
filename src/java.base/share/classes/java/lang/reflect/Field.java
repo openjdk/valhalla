@@ -767,8 +767,8 @@ class Field extends AccessibleObject implements Member {
      * <li>the field is non-static; and</li>
      * <li>the field's declaring class is not a {@linkplain Class#isHidden()
      *     hidden class};</li>
-     * <li>the field's declaring class is not a {@linkplain Class#isPrimitiveClass()
-     *     primitive class}; and</li>
+     * <li>the field's declaring class is not a {@linkplain Class#isValue()
+     *     value class}; and</li>
      * <li>the field's declaring class is not a {@linkplain Class#isRecord()
      *     record class}.</li>
      * </ul>

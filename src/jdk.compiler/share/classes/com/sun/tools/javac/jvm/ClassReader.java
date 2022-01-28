@@ -110,6 +110,10 @@ public class ClassReader {
      */
     boolean allowPrimitiveClasses;
 
+    /** Switch: allow value classes.
+     */
+    boolean allowValueClasses;
+
     /** Switch: allow sealed
      */
     boolean allowSealedTypes;
@@ -282,7 +286,10 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
+                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
 
@@ -1000,7 +1007,7 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isPrimitiveClass()) {
+                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValueClass()) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -1276,19 +1283,6 @@ public class ClassReader {
                     }
                 }
             },
-            new AttributeReader(names.JavaFlags, V61, CLASS_ATTRIBUTE) {
-                @Override
-                protected boolean accepts(AttributeKind kind) {
-                    return super.accepts(kind) && allowPrimitiveClasses;
-                }
-                protected void read(Symbol sym, int attrLen) {
-                    if (sym.kind == TYP) {
-                        int extendedFlags = nextChar();
-                        if ((extendedFlags & ACC_REF_DEFAULT) != 0)
-                        ((ClassSymbol)sym).flags_field |= REFERENCE_FAVORING;
-                    }
-                }
-            }
         };
 
         for (AttributeReader r: readers)
@@ -2800,6 +2794,12 @@ public class ClassReader {
             flags &= ~ACC_PRIMITIVE;
             if (allowPrimitiveClasses) {
                 flags |= PRIMITIVE_CLASS;
+            }
+        }
+        if ((flags & ACC_VALUE) != 0) {
+            flags &= ~ACC_VALUE;
+            if (allowValueClasses) {
+                flags |= VALUE_CLASS;
             }
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded

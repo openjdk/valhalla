@@ -416,16 +416,12 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags_field & Flags.AccessFlags) == PRIVATE;
     }
 
-    public boolean isSynthetic() {
-        return (flags_field & SYNTHETIC) != 0;
-    }
-
-    public boolean isReferenceFavoringPrimitiveClass() {
-        return (flags() & REFERENCE_FAVORING) != 0;  // bit set only for primitive classes
-    }
-
     public boolean isPrimitiveClass() {
         return (flags() & PRIMITIVE_CLASS) != 0;
+    }
+
+    public boolean isValueClass() {
+        return (flags() & VALUE_CLASS) != 0;
     }
 
     public boolean isPublic() {
@@ -472,9 +468,9 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
-    /** Is this symbol a primitive object factory?
+    /** Is this symbol a value object factory?
      */
-    public boolean isPrimitiveObjectFactory() {
+    public boolean isValueObjectFactory() {
         return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 
@@ -813,7 +809,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
     /** A base class for Symbols representing types.
      */
-    public static abstract class TypeSymbol extends Symbol {
+    public abstract static class TypeSymbol extends Symbol {
         public TypeSymbol(Kind kind, long flags, Name name, Type type, Symbol owner) {
             super(kind, flags, name, type, owner);
         }
@@ -1437,7 +1433,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             } finally {
                 if (this.type != null && this.type.hasTag(CLASS)) {
                     ClassType ct = (ClassType) this.type;
-                    ct.flavor = ct.flavor.metamorphose(this.flags_field);
+                    ct.flavor = ct.flavor.metamorphose((this.flags_field & PRIMITIVE_CLASS) != 0);
                     if (!this.type.isIntersection() && this.erasure_field != null && this.erasure_field.hasTag(CLASS)) {
                         ((ClassType) this.erasure_field).flavor = ct.flavor;
                     }

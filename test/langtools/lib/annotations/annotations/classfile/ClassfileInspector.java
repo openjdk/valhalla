@@ -1373,7 +1373,7 @@ public class ClassfileInspector {
         }
 
         @Override
-        public Void visitJavaFlags(JavaFlags_attribute attr, T p) {
+        public Void visitPreload(Preload_attribute attr, T p) {
             return null;
         }
     }
