@@ -605,12 +605,12 @@ public class Types {
             return true;
         }
 
-        boolean tValue = t.isPrimitiveClass() || t.isValueClass();
-        boolean sValue = s.isPrimitiveClass() || s.isValueClass();
+        boolean tValue = t.isPrimitiveClass();
+        boolean sValue = s.isPrimitiveClass();
         if (tValue != sValue) {
             return tValue ?
-                    isSubtype(t.referenceProjectionOrSelf(), s) :
-                    !t.hasTag(BOT) && isSubtype(t, s.referenceProjectionOrSelf());
+                    isSubtype(t.referenceProjection(), s) :
+                    !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
         }
 
         boolean tPrimitive = t.isPrimitive();
