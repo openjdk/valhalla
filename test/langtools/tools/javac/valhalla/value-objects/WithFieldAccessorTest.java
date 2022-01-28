@@ -21,14 +21,32 @@
  * questions.
  */
 
-// options: -XDallowWithFieldOperator
-// key: compiler.err.value.class.instance.field.expected.here
+/**
+ * @test
+ * @bug 8206147
+ * @summary WithField operation on a private inner field should be enclosed in a suitable accessor method.
+ * @compile -XDallowWithFieldOperator WithFieldAccessorTest.java
+ * @run main/othervm WithFieldAccessorTest
+ */
 
-final primitive class Blah {
-    final int x;
-    static int si;
-    Blah() {
-        x = 10;
-        Blah b = __WithField(this.si, 10);
+public class WithFieldAccessorTest {
+
+    public static final value class V {
+        private final int i;
+        V() {
+            this.i = 0;
+        }
+
+        public static V make(int i) {
+            V v = V.default;
+            v = __WithField(v.i, i);
+            return v;
+        }
+    }
+
+    public static void main(String... args) throws Throwable {
+        V v = __WithField(V.make(10).i, 20);
+        if (v.i != 20)
+            throw new AssertionError("Withfield didn't work!");
     }
 }

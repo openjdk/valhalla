@@ -8,9 +8,9 @@ public class WithFieldOperatorTest {
     static int xs;
     int ifld;
     class Y {}
-    public final primitive class V { int x = 10; }
+    public final value class V { int x = 10; }
 
-    public final primitive class X {
+    public final value class X {
 
         final int x;
         final V v;
@@ -29,7 +29,7 @@ public class WithFieldOperatorTest {
             x = __WithField(this, this); // not a field
             x = __WithField(X.this, this); // not a field
             x = __WithField(x.x, 12.0); // float cannot be assigned to int
-            x = __WithField(x.v, null); // null cannot be assigned to primitive class instance
+            x = __WithField(x.v, null);
             return x;
         }
     }

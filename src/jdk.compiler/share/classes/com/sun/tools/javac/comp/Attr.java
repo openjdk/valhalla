@@ -329,7 +329,7 @@ public class Attr extends JCTree.Visitor {
                    withfield operator -This does not result in mutation of final fields; the code generator
                    would implement `copy on write' semantics via the opcode `withfield'.
                 */
-                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && v.owner.type.isPrimitiveClass()) {
+                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && v.owner.type.isValueClass()) {
                     if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
                         complain = false;
                 }
@@ -1331,7 +1331,7 @@ public class Attr extends JCTree.Visitor {
                as these can undergo updates via copy on write.
             */
             if (tree.init != null) {
-                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && v.owner.isPrimitiveClass()) ||
+                if ((v.flags_field & FINAL) == 0 || ((v.flags_field & STATIC) == 0 && v.owner.isValueClass()) ||
                     !memberEnter.needsLazyConstValue(tree.init)) {
                     // Not a compile-time constant
                     // Attribute initializer in a new environment
@@ -1534,8 +1534,8 @@ public class Attr extends JCTree.Visitor {
             if (tree.field.type != null && !tree.field.type.isErroneous()) {
                 final Symbol sym = TreeInfo.symbol(tree.field);
                 if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
-                        (sym.flags() & STATIC) != 0 || !sym.owner.type.isPrimitiveClass()) {
-                    log.error(tree.field.pos(), Errors.PrimitiveClassInstanceFieldExpectedHere);
+                        (sym.flags() & STATIC) != 0 || !sym.owner.type.isValueClass()) {
+                    log.error(tree.field.pos(), Errors.ValueClassInstanceFieldExpectedHere);
                 } else {
                     Type ownType = sym.owner.type;
                     switch(tree.field.getTag()) {

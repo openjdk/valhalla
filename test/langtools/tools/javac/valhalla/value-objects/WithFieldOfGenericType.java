@@ -21,14 +21,31 @@
  * questions.
  */
 
-// options: -XDallowWithFieldOperator
-// key: compiler.err.value.class.instance.field.expected.here
+/*
+ * @test
+ * @bug 8205686 8215109
+ * @summary __WithField seems to have trouble if the value type is a generic type.
+ * @compile -XDrawDiagnostics -XDdev -XDallowWithFieldOperator WithFieldOfGenericType.java
+ * @run main/othervm WithFieldOfGenericType
+ */
 
-final primitive class Blah {
-    final int x;
-    static int si;
-    Blah() {
-        x = 10;
-        Blah b = __WithField(this.si, 10);
-    }
+public final value class WithFieldOfGenericType<E> {
+  private final boolean value;
+
+  public static <E> WithFieldOfGenericType<E> create() {
+    WithFieldOfGenericType<E> bug = WithFieldOfGenericType.default;
+    bug = __WithField(bug.value, true);
+    return bug;
+  }
+
+  private WithFieldOfGenericType() {
+    value = false;
+    throw new AssertionError();
+  }
+
+  public static void main(String[] args) {
+     WithFieldOfGenericType<String> w = create();
+     if (w.value != true)
+        throw new AssertionError("Withfield didn't work!");
+  }
 }

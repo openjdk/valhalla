@@ -5,6 +5,5 @@ WithFieldOperatorTest.java:28:29: compiler.err.value.class.instance.field.expect
 WithFieldOperatorTest.java:29:29: compiler.err.cant.assign.val.to.this
 WithFieldOperatorTest.java:30:30: compiler.err.cant.assign.val.to.this
 WithFieldOperatorTest.java:31:34: compiler.err.prob.found.req: (compiler.misc.possible.loss.of.precision: double, int)
-WithFieldOperatorTest.java:32:34: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, WithFieldOperatorTest.V)
 WithFieldOperatorTest.java:40:26: compiler.err.cant.assign.val.to.final.var: x
-9 errors
+8 errors

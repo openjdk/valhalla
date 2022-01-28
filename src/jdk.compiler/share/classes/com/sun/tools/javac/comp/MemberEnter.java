@@ -292,7 +292,7 @@ public class MemberEnter extends JCTree.Visitor {
         */
         if (tree.init != null) {
             v.flags_field |= HASINIT;
-            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !v.owner.isPrimitiveClass()) &&
+            if ((v.flags_field & FINAL) != 0 && ((v.flags_field & STATIC) != 0 || !v.owner.isValueClass()) &&
                 needsLazyConstValue(tree.init)) {
                 Env<AttrContext> initEnv = getInitEnv(tree, env);
                 initEnv.info.enclVar = v;
