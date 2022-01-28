@@ -5188,10 +5188,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
         int mask = (1 << shift) - 1;
         intptr_t field_offset = ((offset - header) & mask);
         ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
-        if (field == NULL) {
-          // This may happen with nested AddP(base, AddP(base, base, offset), longcon(16))
-          return add_offset(offset);
-        } else {
+        if (field != NULL) {
           return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
         }
       }

@@ -878,10 +878,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // other threads.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarStoreStore);
   } else {
-    // Do not let reads from the destination float above the arraycopy.
-    // Since we cannot type the arrays, we don't know which slices
-    // might be affected.  We could restrict this barrier only to those
-    // memory slices which pertain to array elements--but don't bother.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarCPUOrder);
   }
 
@@ -1372,10 +1368,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       top_dest = top_src;
     }
 
-    Node* mem = ac->in(TypeFunc::Memory);
-    merge_mem = MergeMemNode::make(mem);
-    transform_later(merge_mem);
-
     AllocateArrayNode* alloc = NULL;
     Node* dest_length = NULL;
     if (ac->is_alloc_tightly_coupled()) {
@@ -1384,6 +1376,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       dest_length = alloc->in(AllocateNode::ALength);
     }
 
+    Node* mem = ac->in(TypeFunc::Memory);
     const TypePtr* adr_type = NULL;
     if (dest_elem == T_INLINE_TYPE) {
       assert(dest_length != NULL || StressReflectiveCode, "must be tightly coupled");
@@ -1400,6 +1393,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
         adr_type = TypeRawPtr::BOTTOM;
       }
     }
+    merge_mem = MergeMemNode::make(mem);
+    transform_later(merge_mem);
+
     generate_arraycopy(ac, alloc, &ctrl, merge_mem, &io,
                        adr_type, dest_elem,
                        src, src_offset, dest, dest_offset, length,
@@ -1510,6 +1506,11 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (9) each element of an oop array must be assignable
 
   Node* mem = ac->in(TypeFunc::Memory);
+  if (dest_elem == T_INLINE_TYPE) {
+    // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
+    // on all slices to prevent writes into the source from floating below the arraycopy.
+    insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
+  }
   merge_mem = MergeMemNode::make(mem);
   transform_later(merge_mem);
 
@@ -1574,9 +1575,6 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   Node* dest_length = (alloc != NULL) ? alloc->in(AllocateNode::ALength) : NULL;
 
   if (dest_elem == T_INLINE_TYPE) {
-    // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
-    // on all slices to prevent writes into the source from floating below the arraycopy.
-    insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
