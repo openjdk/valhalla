@@ -41,17 +41,24 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.code.Type.UndetVar;
 import com.sun.tools.javac.code.Type.UndetVar.InferenceBound;
 import com.sun.tools.javac.code.Types;
+
+import com.sun.tools.javac.comp.Infer;
+import com.sun.tools.javac.comp.InferenceContext;
+
 import com.sun.tools.javac.util.Assert;
 
 public class UniversalTvarsTypeSystemTest extends TypeHarness {
     StrToTypeFactory strToTypeFactory;
     Types types;
+    Infer infer;
 
     UniversalTvarsTypeSystemTest() {
         types = Types.instance(context);
+        infer = Infer.instance(context);
     }
 
     public static void main(String... args) throws Exception {
@@ -66,6 +73,7 @@ public class UniversalTvarsTypeSystemTest extends TypeHarness {
 
     void testLUB_and_GLB() {
         java.util.Map<String, Type> typeMap = strToTypeFactory.getTypes(
+                List.of(),
                 """
                 interface I {}
                 static abstract class A {}
@@ -81,7 +89,8 @@ public class UniversalTvarsTypeSystemTest extends TypeHarness {
     }
 
     void test_isBoundedBy() {
-        java.util.Map<String, Type> typeMap = strToTypeFactory.getTypes(
+        java.util.Map<String, Type> typeMap =  strToTypeFactory.getTypes(
+                List.of(),
                 """
                 class MyList<__universal T> {}
                 interface Shape {}

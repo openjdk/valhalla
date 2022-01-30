@@ -55,6 +55,7 @@ import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 
 import static com.sun.tools.javac.util.List.*;
+import static com.sun.tools.javac.code.Kinds.Kind.*;
 
 /**
  * Test harness whose goal is to simplify the task of writing type-system
@@ -427,59 +428,26 @@ public class TypeHarness {
             this.imports = imports != null ? imports : java.util.List.of();
             this.typeVarDecls = typeVarDecls != null ? typeVarDecls : java.util.List.of();
             this.declarations = declarations != null ? declarations : "";
-            /*this.typeVariables = from(this.typeVarDecls.stream()
-                    .map(this::typeVarName)
-                    .map(this::getType)
-                    .collect(Collectors.toList())
-            );*/
         }
-
-        /*
-        TypeVar getTypeVarFromStr(String name) {
-            if (typeVarDecls.isEmpty()) {
-                return null;
-            }
-            int index = typeVarDecls.indexOf(name);
-            if (index != -1) {
-                return (TypeVar)typeVariables.get(index);
-            }
-            return null;
-        }*/
-
-        /*
-        List<Type> getTypeVars() {
-            return typeVariables;
-        }*/
 
         String typeVarName(String typeVarDecl) {
             String[] ss = typeVarDecl.split(" ");
             return ss[0];
         }
 
-        /*
-        public final Type getType(String type) {
-            JavaSource source = new JavaSource(type);
-            MyAttr.types.clear();
-            MyAttr.typeParameters = List.nil();
-            tool.clear();
-            List<JavaFileObject> inputs = of(source);
-            try {
-                tool.compile(inputs);
-            } catch (Throwable ex) {
-                throw new Abort(ex);
-            }
-            //if (typeVariables != null) {
-            //    return types.subst(MyAttr.theType, MyAttr.typeParameters, typeVariables);
-            //}
-            return MyAttr.types.get(0);
-        }*/
+        public final Type getType(String typeDecl) {
+            java.util.Map<String, Type> typeMap = getTypes(java.util.List.of(), "", typeDecl);
+            return typeMap.get(typeDecl);
+        }
 
-        public final java.util.Map<String, Type> getTypes(String declarations, String... types) {
+        public final java.util.Map<String, Type> getTypes(java.util.List<String> typeVarDecls, String declarations, String... types) {
             this.declarations = declarations != null ? declarations : "";
+            this.typeVarDecls = typeVarDecls != null ? typeVarDecls : java.util.List.of();
             JavaSource source = new JavaSource(types);
             MyAttr.types.clear();
             MyAttr.typeParameters = List.nil();
             tool.clear();
+            MyAttr.wrapperClassName = source.wrapperClassName;
             MyAttr.typeNames = new ArrayList<>(Arrays.asList(types));
             List<JavaFileObject> inputs = of(source);
             tool.shouldStopPolicyIfNoError = com.sun.tools.javac.comp.CompileStates.CompileState.ATTR;
@@ -488,9 +456,6 @@ public class TypeHarness {
             } catch (Throwable ex) {
                 throw new Abort(ex);
             }
-            //if (typeVariables != null) {
-                //return types.subst(MyAttr.theType, MyAttr.typeParameters, typeVariables);
-            //}
             return MyAttr.types;
         }
 
@@ -498,11 +463,12 @@ public class TypeHarness {
 
             String id;
             String[] types;
+            String wrapperClassName;
             String template =
                     """
                     #Package;
                     #Imports
-                    class G#Id#TypeVars {
+                    class __G#Id#TypeVars {
                         #declarations
                         // field declarations below
                         #FieldDecls
@@ -512,6 +478,7 @@ public class TypeHarness {
             JavaSource(String... types) {
                 super(URI.create("myfo:/Test.java"), JavaFileObject.Kind.SOURCE);
                 this.id = String.valueOf(StrToTypeFactory.this.id++);
+                this.wrapperClassName = "__G" + id;
                 this.types = types;
             }
 
@@ -545,6 +512,7 @@ public class TypeHarness {
         static java.util.List<String> typeNames = new ArrayList<>();
         private static java.util.Map<String, Type> types = new java.util.LinkedHashMap<>();
         private static List<Type> typeParameters = List.nil();
+        static String wrapperClassName;
 
         static void preRegister(Context context) {
             context.put(attrKey, (com.sun.tools.javac.util.Context.Factory<Attr>) c -> new MyAttr(c));
@@ -557,7 +525,9 @@ public class TypeHarness {
         @Override
         public void visitVarDef(JCVariableDecl tree) {
             super.visitVarDef(tree);
-            types.put(typeNames.remove(0), tree.type);
+            if (tree.sym.owner.kind == TYP && tree.sym.owner.name.toString().equals(wrapperClassName)) {
+                types.put(typeNames.remove(0), tree.type);
+            }
         }
 
         @Override

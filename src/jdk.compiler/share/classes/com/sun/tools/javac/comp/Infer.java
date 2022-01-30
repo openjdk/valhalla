@@ -173,9 +173,9 @@ public class Infer {
                             Resolve.MethodResolutionContext resolveContext,
                             Warner warn) throws InferenceException {
         //-System.err.println("instantiateMethod(" + tvars + ", " + mt + ", " + argtypes + ")"); //DEBUG
-        final InferenceContext inferenceContext = new InferenceContext(this, tvars);  //B0
+        final InferenceContext inferenceContext = new InferenceContext(this, tvars, allowBoxing);  //B0
         try {
-            DeferredAttr.DeferredAttrContext deferredAttrContext =
+                DeferredAttr.DeferredAttrContext deferredAttrContext =
                         resolveContext.deferredAttrContext(msym, inferenceContext, resultInfo, warn);
 
             resolveContext.methodCheck.argumentsAcceptable(env, deferredAttrContext,   //B2
@@ -704,15 +704,15 @@ public class Infer {
         /**
          * Helper function: perform subtyping through incorporation cache.
          */
-        boolean isSubtype(Type s, Type t, Warner warn) {
-            return doIncorporationOp(IncorporationBinaryOpKind.IS_SUBTYPE, s, t, warn);
+        boolean isSubtype(InferenceContext inferenceContext, Type s, Type t, Warner warn) {
+            return doIncorporationOp(inferenceContext, IncorporationBinaryOpKind.IS_SUBTYPE, s, t, warn);
         }
 
         /**
          * Helper function: perform type-equivalence through incorporation cache.
          */
         boolean isSameType(Type s, Type t) {
-            return doIncorporationOp(IncorporationBinaryOpKind.IS_SAME_TYPE, s, t, null);
+            return doIncorporationOp(null, IncorporationBinaryOpKind.IS_SAME_TYPE, s, t, null);
         }
 
         @Override
@@ -756,7 +756,7 @@ public class Infer {
                 for (Type b : uv.getBounds(to)) {
                     b = typeFunc.apply(inferenceContext, b);
                     if (optFilter != null && optFilter.test(inferenceContext, b)) continue;
-                    boolean success = checkBound(t, b, from, to, warn);
+                    boolean success = checkBound(inferenceContext, t, b, from, to, warn);
                     if (!success) {
                         report(from, to);
                     }
@@ -776,11 +776,11 @@ public class Infer {
         /**
          * Is source type 's' compatible with target type 't' given source and target bound kinds?
          */
-        boolean checkBound(Type s, Type t, InferenceBound ib_s, InferenceBound ib_t, Warner warn) {
+        boolean checkBound(InferenceContext inferenceContext, Type s, Type t, InferenceBound ib_s, InferenceBound ib_t, Warner warn) {
             if (ib_s.lessThan(ib_t)) {
-                return isSubtype(s, t, warn);
+                return isSubtype(inferenceContext, s, t, warn);
             } else if (ib_t.lessThan(ib_s)) {
-                return isSubtype(t, s, warn);
+                return isSubtype(inferenceContext, t, s, warn);
             } else {
                 return isSameType(s, t);
             }
@@ -1149,8 +1149,8 @@ public class Infer {
                     types.asSuper(t, sup.tsym);
         }
 
-    boolean doIncorporationOp(IncorporationBinaryOpKind opKind, Type op1, Type op2, Warner warn) {
-            IncorporationBinaryOp newOp = new IncorporationBinaryOp(opKind, op1, op2);
+    boolean doIncorporationOp(InferenceContext inferenceContext, IncorporationBinaryOpKind opKind, Type op1, Type op2, Warner warn) {
+            IncorporationBinaryOp newOp = new IncorporationBinaryOp(inferenceContext, opKind, op1, op2);
             Boolean res = incorporationCache.get(newOp);
             if (res == null) {
                 incorporationCache.put(newOp, res = newOp.apply(warn));
@@ -1166,18 +1166,20 @@ public class Infer {
     enum IncorporationBinaryOpKind {
         IS_SUBTYPE() {
             @Override
-            boolean apply(Type op1, Type op2, Warner warn, Types types) {
-                return types.isBoundedBy(op1, op2, warn, (t, s, w) -> types.isSubtypeUnchecked(t, s, w));
+            boolean apply(InferenceContext inferenceContext, Type op1, Type op2, Warner warn, Types types) {
+                return inferenceContext.allowBoxing ?
+                    types.isBoundedBy(op1, op2, warn, (t, s, w) -> types.isSubtypeUnchecked(t, s, w)) :
+                    types.isSubtypeUnchecked(op1, op2, warn);
             }
         },
         IS_SAME_TYPE() {
             @Override
-            boolean apply(Type op1, Type op2, Warner warn, Types types) {
+            boolean apply(InferenceContext inferenceContext, Type op1, Type op2, Warner warn, Types types) {
                 return types.isSameType(op1, op2);
             }
         };
 
-        abstract boolean apply(Type op1, Type op2, Warner warn, Types types);
+        abstract boolean apply(InferenceContext inferenceContext, Type op1, Type op2, Warner warn, Types types);
     }
 
     /**
@@ -1192,8 +1194,10 @@ public class Infer {
         IncorporationBinaryOpKind opKind;
         Type op1;
         Type op2;
+        InferenceContext inferenceContext;
 
-        IncorporationBinaryOp(IncorporationBinaryOpKind opKind, Type op1, Type op2) {
+        IncorporationBinaryOp(InferenceContext inferenceContext, IncorporationBinaryOpKind opKind, Type op1, Type op2) {
+            this.inferenceContext = inferenceContext;
             this.opKind = opKind;
             this.op1 = op1;
             this.op2 = op2;
@@ -1218,7 +1222,7 @@ public class Infer {
         }
 
         boolean apply(Warner warn) {
-            return opKind.apply(op1, op2, warn, types);
+            return opKind.apply(inferenceContext, op1, op2, warn, types);
         }
     }
 

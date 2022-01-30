@@ -620,10 +620,14 @@ public class Types {
             chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
             return true;
         }
+
+        boolean tUndet = t.hasTag(UNDETVAR);
+        boolean sUndet = s.hasTag(UNDETVAR);
+
         if (tValue != sValue) {
             return tValue ?
-                    isSubtype(t.referenceProjection(), s) :
-                    !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
+                    isSubtype(allowUniversalTVars && (tUndet || sUndet) ? t : t.referenceProjection(), s) :
+                    !t.hasTag(BOT) && isSubtype(t, allowUniversalTVars && (tUndet || sUndet) ? s : s.referenceProjection());
         }
 
         boolean tPrimitive = t.isPrimitive();
@@ -631,8 +635,6 @@ public class Types {
         if (tPrimitive == sPrimitive) {
             return isSubtypeUnchecked(t, s, warn);
         }
-        boolean tUndet = t.hasTag(UNDETVAR);
-        boolean sUndet = s.hasTag(UNDETVAR);
 
         if (tUndet || sUndet) {
             return tUndet ?
