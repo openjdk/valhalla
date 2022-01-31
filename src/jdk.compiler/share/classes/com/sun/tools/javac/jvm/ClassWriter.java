@@ -221,6 +221,12 @@ public class ClassWriter extends ClassFile {
 
     /** Return flags as a string, separated by " ".
      */
+    public static String classFlagNames(long flags) {
+        return flagNames(flags).replace("VOLATILE", "PERMITS_VALUE");
+    }
+
+    /** Return flags as a string, separated by " ".
+     */
     public static String flagNames(long flags) {
         StringBuilder sbuf = new StringBuilder();
         int i = 0;
@@ -834,7 +840,7 @@ public class ClassWriter extends ClassFile {
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
-                pw.println("---" + flagNames(flags));
+                pw.println("---" + classFlagNames(flags));
             }
             databuf.appendChar(poolWriter.putClass(inner));
             databuf.appendChar(
@@ -1566,7 +1572,7 @@ public class ClassWriter extends ClassFile {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
             pw.println();
             pw.println("CLASSFILE  " + c.getQualifiedName());
-            pw.println("---" + flagNames(flags));
+            pw.println("---" + classFlagNames(flags));
         }
         databuf.appendChar(flags);
 
@@ -1737,6 +1743,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_PRIMITIVE;
         if ((flags & VALUE_CLASS) != 0)
             result |= ACC_VALUE;
+        if ((flags & PERMITS_VALUE) != 0)
+            result |= ACC_PERMITS_VALUE;
         return result;
     }
 

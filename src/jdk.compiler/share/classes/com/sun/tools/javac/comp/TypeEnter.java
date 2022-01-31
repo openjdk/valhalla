@@ -1093,6 +1093,14 @@ public class TypeEnter implements Completer {
                 Assert.check(tree.sym.isCompleted());
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
             }
+
+            if (tree.sym != syms.objectType.tsym) {
+                if ((tree.sym.flags() & (ABSTRACT | INTERFACE)) == ABSTRACT) {
+                    if (types.asSuper(tree.sym.type, syms.identityObjectType.tsym) == null) {
+                        tree.sym.flags_field |= PERMITS_VALUE;
+                    }
+                }
+            }
         }
 
         private void addAccessor(JCVariableDecl tree, Env<AttrContext> env) {

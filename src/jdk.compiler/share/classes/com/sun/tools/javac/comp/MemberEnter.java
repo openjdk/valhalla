@@ -229,6 +229,13 @@ public class MemberEnter extends JCTree.Visitor {
             m.defaultValue = annotate.unfinishedDefaultValue(); // set it to temporary sentinel for now
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
+
+        if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
+            if (tree.body.stats.size() == 0 || (m.flags() & GENERATEDCONSTR) != 0) {
+                // generated constructors do have a super() call, but these are ignored for value classes.
+                m.flags_field |= EMPTYNOARGCONSTR;
+            }
+        }
     }
 
     /** Create a fresh environment for method bodies.
@@ -247,6 +254,12 @@ public class MemberEnter extends JCTree.Visitor {
         if ((tree.mods.flags & STATIC) != 0) localEnv.info.staticLevel++;
         localEnv.info.yieldResult = null;
         return localEnv;
+    }
+
+    @Override
+    public void visitBlock(JCBlock tree) {
+        if ((tree.flags & STATIC) == 0 && tree.stats.size() > 0)
+            env.info.scope.owner.flags_field |= HASINITBLOCK;
     }
 
     public void visitVarDef(JCVariableDecl tree) {

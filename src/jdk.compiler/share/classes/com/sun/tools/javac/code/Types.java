@@ -2376,7 +2376,7 @@ public class Types {
                             }
                             break;
                         case MTH:
-                            if ((s.flags() & SYNCHRONIZED) != 0) {
+                            if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
                             } else if (s.isConstructor()) {
                                 MethodSymbol m = (MethodSymbol)s;
