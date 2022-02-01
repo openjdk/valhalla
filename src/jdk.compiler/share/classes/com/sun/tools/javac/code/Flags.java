@@ -117,6 +117,7 @@ public class Flags {
     public static final int ACC_VALUE    = 0x0100;
     public static final int ACC_PRIMITIVE = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
+    public static final int ACC_PERMITS_VALUE = 0x0040;
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
@@ -143,6 +144,11 @@ public class Flags {
      *  EMPTYNOARGCONSTR
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
+
+    /** Flag is set for an abstract class that meets the various needs
+     *  that qualify it to be the super class of a value/primitive class
+     */
+    public static final int PERMITS_VALUE            = 1<<19;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -416,7 +422,7 @@ public class Flags {
      */
     public static final int
         AccessFlags                       = PUBLIC | PROTECTED | PRIVATE,
-        LocalClassFlags                   = FINAL | ABSTRACT | ENUM | SYNTHETIC  | ACC_PRIMITIVE | ACC_VALUE,
+        LocalClassFlags                   = FINAL | ABSTRACT | ENUM | SYNTHETIC  | ACC_PRIMITIVE | ACC_VALUE | ACC_PERMITS_VALUE,
         StaticLocalClassFlags             = LocalClassFlags | STATIC | INTERFACE,
         MemberClassFlags                  = LocalClassFlags | INTERFACE | AccessFlags,
         MemberStaticClassFlags            = MemberClassFlags | STATIC,
@@ -508,6 +514,7 @@ public class Flags {
         HASINIT(Flags.HASINIT),
         HASINITBLOCK(Flags.HASINITBLOCK),
         EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
+        PERMITS_VALUE(Flags.PERMITS_VALUE),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

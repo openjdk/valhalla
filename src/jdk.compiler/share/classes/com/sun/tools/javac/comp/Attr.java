@@ -1252,12 +1252,6 @@ public class Attr extends JCTree.Visitor {
                         }
                     }
                 }
-                if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
-                    if ((owner.type == syms.objectType) ||
-                            (tree.body.stats.size() == 1 && TreeInfo.getConstructorInvocationName(tree.body.stats, names, false) == names._super)) {
-                        m.flags_field |= EMPTYNOARGCONSTR;
-                    }
-                }
 
                 // Attribute all type annotations in the body
                 annotate.queueScanTreeAndTypeAnnotate(tree.body, localEnv, m, null);
@@ -1455,11 +1449,7 @@ public class Attr extends JCTree.Visitor {
             final Env<AttrContext> localEnv =
                 env.dup(tree, env.info.dup(env.info.scope.dupUnshared(fakeOwner)));
 
-            if ((tree.flags & STATIC) != 0)
-                localEnv.info.staticLevel++;
-            else if (tree.stats.size() > 0)
-                env.info.scope.owner.flags_field |= HASINITBLOCK;
-
+            if ((tree.flags & STATIC) != 0) localEnv.info.staticLevel++;
             // Attribute all type annotations in the block
             annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner, null);
             annotate.flush();
