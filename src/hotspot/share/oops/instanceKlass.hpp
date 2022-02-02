@@ -285,7 +285,8 @@ class InstanceKlass: public Klass {
     _misc_invalid_inline_super                = 1 << 19, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 20, // invalid super type for an identity type
     _misc_has_injected_identityObject         = 1 << 21, // IdentityObject has been injected by the JVM
-    _misc_has_injected_primitiveObject        = 1 << 22  // PrimitiveObject has been injected by the JVM
+    _misc_has_injected_primitiveObject        = 1 << 22, // PrimitiveObject has been injected by the JVM
+    _misc_has_preload_attribute               = 1 << 23  // class has a Preload attribute
   };
 
   // (*) An inline type is considered empty if it contains no non-static fields or
@@ -349,7 +350,7 @@ class InstanceKlass: public Klass {
   //     ...
   Array<u2>*      _fields;
   const Klass**   _inline_type_field_klasses; // For "inline class" fields, NULL if none present
-
+  const Array<u2>* _preload_classes;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
@@ -473,7 +474,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_injected_identityObject() const {
-    return (_misc_flags & _misc_has_injected_identityObject);
+    return (_misc_flags & _misc_has_injected_identityObject) != 0;
   }
 
   void set_has_injected_identityObject() {
@@ -481,11 +482,19 @@ class InstanceKlass: public Klass {
   }
 
   bool has_injected_valueObject() const {
-    return (_misc_flags & _misc_has_injected_primitiveObject);
+    return (_misc_flags & _misc_has_injected_primitiveObject) != 0;
   }
 
   void set_has_injected_primitiveObject() {
     _misc_flags |= _misc_has_injected_primitiveObject;
+  }
+
+  bool has_preload_attribute() const {
+    return (_misc_flags & _misc_has_preload_attribute) != 0;
+  }
+
+  void set_has_preload_attribute() {
+    _misc_flags |= _misc_has_preload_attribute;
   }
 
   // field sizes
@@ -561,6 +570,9 @@ class InstanceKlass: public Klass {
     _fields = f;
     _java_fields_count = java_fields_count;
   }
+
+  const Array<u2>* preload_classes() const { return _preload_classes; }
+  void set_preload_classes(Array<u2>* c) { _preload_classes = c; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }

@@ -535,6 +535,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _reference_type(parser.reference_type()),
   _init_thread(NULL),
   _inline_type_field_klasses(NULL),
+  _preload_classes(NULL),
   _adr_inlineklass_fixed_block(NULL)
 {
   set_vtable_length(parser.vtable_size());
@@ -978,6 +979,24 @@ bool InstanceKlass::link_class_impl(TRAPS) {
                 klass->external_name());
             }
           }
+        }
+      }
+    }
+    // Aggressively preloading all classes from the Preload attribute
+    if (preload_classes() != NULL) {
+      for (int i = 0; i < preload_classes()->length(); i++) {
+        Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
+        oop loader = class_loader();
+        oop protection_domain = this->protection_domain();
+        Klass* klass = SystemDictionary::resolve_or_null(class_name,
+                                                          Handle(THREAD, loader), Handle(THREAD, protection_domain), THREAD);
+        if (HAS_PENDING_EXCEPTION) {
+          CLEAR_PENDING_EXCEPTION;
+        }
+        if (klass != NULL) {
+          log_info(class, preload)("Preloading class %s during linking of class %s because of its Preload attribute", class_name->as_C_string(), name()->as_C_string());
+        } else {
+          log_warning(class, preload)("Preloading of class %s during linking of class %s (Preload attribute) failed", class_name->as_C_string(), name()->as_C_string());
         }
       }
     }

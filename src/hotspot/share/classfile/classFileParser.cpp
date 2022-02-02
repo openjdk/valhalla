@@ -3436,6 +3436,39 @@ u2 ClassFileParser::parse_classfile_permitted_subclasses_attribute(const ClassFi
   return length;
 }
 
+u2 ClassFileParser::parse_classfile_preload_attribute(const ClassFileStream* const cfs,
+                                                                   const u1* const preload_attribute_start,
+                                                                   TRAPS) {
+  const u1* const current_mark = cfs->current();
+  u2 length = 0;
+  if (preload_attribute_start != NULL) {
+    cfs->set_current(preload_attribute_start);
+    cfs->guarantee_more(2, CHECK_0);  // length
+    length = cfs->get_u2_fast();
+  }
+  const int size = length;
+  Array<u2>* const preload_classes = MetadataFactory::new_array<u2>(_loader_data, size, CHECK_0);
+  _preload_classes = preload_classes;
+  if (length > 0) {
+    int index = 0;
+    cfs->guarantee_more(2 * length, CHECK_0);
+    for (int n = 0; n < length; n++) {
+      const u2 class_info_index = cfs->get_u2_fast();
+      check_property(
+        valid_klass_reference_at(class_info_index),
+        "Preload class_info_index %u has bad constant type in class file %s",
+        class_info_index, CHECK_0);
+      preload_classes->at_put(index++, class_info_index);
+    }
+    assert(index == size, "wrong size");
+  }
+
+  // Restore buffer's current position.
+  cfs->set_current(current_mark);
+
+  return length;
+}
+
 //  Record {
 //    u2 attribute_name_index;
 //    u4 attribute_length;
@@ -3726,6 +3759,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   bool parsed_innerclasses_attribute = false;
   bool parsed_nest_members_attribute = false;
   bool parsed_permitted_subclasses_attribute = false;
+  bool parsed_preload_attribute = false;
   bool parsed_nest_host_attribute = false;
   bool parsed_record_attribute = false;
   bool parsed_enclosingmethod_attribute = false;
@@ -3751,6 +3785,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   u4  record_attribute_length = 0;
   const u1* permitted_subclasses_attribute_start = NULL;
   u4  permitted_subclasses_attribute_length = 0;
+  const u1* preload_attribute_start = NULL;
+  u4  preload_attribute_length = 0;
 
   // Iterate over attributes
   while (attributes_count--) {
@@ -3977,6 +4013,15 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
               permitted_subclasses_attribute_start = cfs->current();
               permitted_subclasses_attribute_length = attribute_length;
             }
+            if (EnableValhalla && tag == vmSymbols::tag_preload()) {
+              if (parsed_preload_attribute) {
+                classfile_parse_error("Multiple Preload attributes in class file %s", CHECK);
+                return;
+              }
+              parsed_preload_attribute = true;
+              preload_attribute_start = cfs->current();
+              preload_attribute_length = attribute_length;
+            }
           }
           // Skip attribute_length for any attribute where major_verson >= JAVA_17_VERSION
           cfs->skip_u1(attribute_length, CHECK);
@@ -4057,6 +4102,18 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
     }
   }
 
+  if (parsed_preload_attribute) {
+    const u2 num_classes = parse_classfile_preload_attribute(
+                            cfs,
+                            preload_attribute_start,
+                            CHECK);
+    if (_need_verify) {
+      guarantee_property(
+        preload_attribute_length == sizeof(num_classes) + sizeof(u2) * num_classes,
+        "Wrong Preload attribute length in class file %s", CHECK);
+    }
+  }
+
   if (_max_bootstrap_specifier_index >= 0) {
     guarantee_property(parsed_bootstrap_methods_attribute,
                        "Missing BootstrapMethods attribute in class file %s", CHECK);
@@ -4076,6 +4133,10 @@ void ClassFileParser::apply_parsed_class_attributes(InstanceKlass* k) {
   }
   if (_sde_buffer != NULL) {
     k->set_source_debug_extension(_sde_buffer, _sde_length);
+  }
+  if (_preload_classes != NULL) {
+    k->set_has_preload_attribute();
+    k->set_preload_classes(_preload_classes);
   }
 }
 
@@ -5884,6 +5945,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _nest_members(NULL),
   _nest_host(0),
   _permitted_subclasses(NULL),
+  _preload_classes(NULL),
   _record_components(NULL),
   _temp_local_interfaces(NULL),
   _local_interfaces(NULL),
