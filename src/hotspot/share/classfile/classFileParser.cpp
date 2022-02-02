@@ -4134,10 +4134,6 @@ void ClassFileParser::apply_parsed_class_attributes(InstanceKlass* k) {
   if (_sde_buffer != NULL) {
     k->set_source_debug_extension(_sde_buffer, _sde_length);
   }
-  if (_preload_classes != NULL) {
-    k->set_has_preload_attribute();
-    k->set_preload_classes(_preload_classes);
-  }
 }
 
 // Create the Annotations object that will
@@ -4182,6 +4178,7 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_inner_classes(_inner_classes);
   this_klass->set_nest_members(_nest_members);
   this_klass->set_nest_host_index(_nest_host);
+  this_klass->set_preload_classes(_preload_classes);
   this_klass->set_annotations(_combined_annotations);
   this_klass->set_permitted_subclasses(_permitted_subclasses);
   this_klass->set_record_components(_record_components);
@@ -5675,6 +5672,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   assert(NULL == _methods, "invariant");
   assert(NULL == _inner_classes, "invariant");
   assert(NULL == _nest_members, "invariant");
+  assert(NULL == _preload_classes, "invariant");
   assert(NULL == _combined_annotations, "invariant");
   assert(NULL == _record_components, "invariant");
   assert(NULL == _permitted_subclasses, "invariant");
@@ -6048,6 +6046,7 @@ void ClassFileParser::clear_class_metadata() {
   _inner_classes = NULL;
   _nest_members = NULL;
   _permitted_subclasses = NULL;
+  _preload_classes = NULL;
   _combined_annotations = NULL;
   _class_annotations = _class_type_annotations = NULL;
   _fields_annotations = _fields_type_annotations = NULL;
@@ -6089,6 +6088,10 @@ ClassFileParser::~ClassFileParser() {
 
   if (_permitted_subclasses != NULL && _permitted_subclasses != Universe::the_empty_short_array()) {
     MetadataFactory::free_array<u2>(_loader_data, _permitted_subclasses);
+  }
+
+  if (_preload_classes != NULL) {
+    MetadataFactory::free_array<u2>(_loader_data, _preload_classes);
   }
 
   // Free interfaces

@@ -285,8 +285,7 @@ class InstanceKlass: public Klass {
     _misc_invalid_inline_super                = 1 << 19, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 20, // invalid super type for an identity type
     _misc_has_injected_identityObject         = 1 << 21, // IdentityObject has been injected by the JVM
-    _misc_has_injected_primitiveObject        = 1 << 22, // PrimitiveObject has been injected by the JVM
-    _misc_has_preload_attribute               = 1 << 23  // class has a Preload attribute
+    _misc_has_injected_primitiveObject        = 1 << 22  // PrimitiveObject has been injected by the JVM
   };
 
   // (*) An inline type is considered empty if it contains no non-static fields or
@@ -490,11 +489,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_preload_attribute() const {
-    return (_misc_flags & _misc_has_preload_attribute) != 0;
-  }
-
-  void set_has_preload_attribute() {
-    _misc_flags |= _misc_has_preload_attribute;
+    return _preload_classes != NULL;
   }
 
   // field sizes
