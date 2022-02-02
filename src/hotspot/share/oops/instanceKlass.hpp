@@ -349,7 +349,7 @@ class InstanceKlass: public Klass {
   //     ...
   Array<u2>*      _fields;
   const Klass**   _inline_type_field_klasses; // For "inline class" fields, NULL if none present
-
+  const Array<u2>* _preload_classes;
   const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
@@ -473,7 +473,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_injected_identityObject() const {
-    return (_misc_flags & _misc_has_injected_identityObject);
+    return (_misc_flags & _misc_has_injected_identityObject) != 0;
   }
 
   void set_has_injected_identityObject() {
@@ -481,11 +481,15 @@ class InstanceKlass: public Klass {
   }
 
   bool has_injected_valueObject() const {
-    return (_misc_flags & _misc_has_injected_primitiveObject);
+    return (_misc_flags & _misc_has_injected_primitiveObject) != 0;
   }
 
   void set_has_injected_primitiveObject() {
     _misc_flags |= _misc_has_injected_primitiveObject;
+  }
+
+  bool has_preload_attribute() const {
+    return _preload_classes != NULL;
   }
 
   // field sizes
@@ -561,6 +565,9 @@ class InstanceKlass: public Klass {
     _fields = f;
     _java_fields_count = java_fields_count;
   }
+
+  const Array<u2>* preload_classes() const { return _preload_classes; }
+  void set_preload_classes(Array<u2>* c) { _preload_classes = c; }
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }
