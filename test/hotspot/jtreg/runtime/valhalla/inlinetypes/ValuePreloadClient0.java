@@ -25,6 +25,6 @@ public class ValuePreloadClient0 {
     PreloadValue0 value;
 
     public static void main(String[] args) {
-	System.out.print("Success");
+        System.out.print("Success");
     }
 }
