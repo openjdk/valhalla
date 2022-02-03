@@ -276,16 +276,15 @@ class InstanceKlass: public Klass {
     _misc_is_shared_boot_class                = 1 << 10, // defining class loader is boot class loader
     _misc_is_shared_platform_class            = 1 << 11, // defining class loader is platform class loader
     _misc_is_shared_app_class                 = 1 << 12, // defining class loader is app class loader
-    _misc_has_resolved_methods                = 1 << 13, // resolved methods table entries added for this class
-    _misc_has_contended_annotations           = 1 << 14,  // has @Contended annotation
-    _misc_has_inline_type_fields              = 1 << 15, // has inline fields and related embedded section is not empty
-    _misc_is_empty_inline_type                = 1 << 16, // empty inline type (*)
-    _misc_is_naturally_atomic                 = 1 << 17, // loaded/stored in one instruction
-    _misc_is_declared_atomic                  = 1 << 18, // implements jl.NonTearable
-    _misc_invalid_inline_super                = 1 << 19, // invalid super type for an inline type
-    _misc_invalid_identity_super              = 1 << 20, // invalid super type for an identity type
-    _misc_has_injected_identityObject         = 1 << 21, // IdentityObject has been injected by the JVM
-    _misc_has_injected_primitiveObject        = 1 << 22  // PrimitiveObject has been injected by the JVM
+    _misc_has_contended_annotations           = 1 << 13, // has @Contended annotation
+    _misc_has_inline_type_fields              = 1 << 14, // has inline fields and related embedded section is not empty
+    _misc_is_empty_inline_type                = 1 << 15, // empty inline type (*)
+    _misc_is_naturally_atomic                 = 1 << 16, // loaded/stored in one instruction
+    _misc_is_declared_atomic                  = 1 << 17, // implements jl.NonTearable
+    _misc_invalid_inline_super                = 1 << 18, // invalid super type for an inline type
+    _misc_invalid_identity_super              = 1 << 19, // invalid super type for an identity type
+    _misc_has_injected_identityObject         = 1 << 20, // IdentityObject has been injected by the JVM
+    _misc_has_injected_primitiveObject        = 1 << 21  // PrimitiveObject has been injected by the JVM
   };
 
   // (*) An inline type is considered empty if it contains no non-static fields or
@@ -369,7 +368,17 @@ class InstanceKlass: public Klass {
 
   static bool _disable_method_binary_search;
 
+  // Controls finalizer registration
+  static bool _finalization_enabled;
+
  public:
+
+  // Queries finalization state
+  static bool is_finalization_enabled() { return _finalization_enabled; }
+
+  // Sets finalization state
+  static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
+
   // The three BUILTIN class loader types
   bool is_shared_boot_class() const {
     return (_misc_flags & _misc_is_shared_boot_class) != 0;
@@ -396,10 +405,6 @@ class InstanceKlass: public Klass {
     _misc_flags |= _misc_shared_loading_failed;
   }
 
-  void clear_shared_loading_failed() {
-    _misc_flags &= ~_misc_shared_loading_failed;
-  }
-
   void set_shared_class_loader_type(s2 loader_type);
 
   void assign_class_loader_type();
@@ -408,10 +413,9 @@ class InstanceKlass: public Klass {
     return (_misc_flags & _misc_has_nonstatic_fields) != 0;
   }
   void set_has_nonstatic_fields(bool b)    {
+    assert(!has_nonstatic_fields(), "set once");
     if (b) {
       _misc_flags |= _misc_has_nonstatic_fields;
-    } else {
-      _misc_flags &= ~_misc_has_nonstatic_fields;
     }
   }
 
@@ -675,10 +679,9 @@ public:
     return (_misc_flags & _misc_should_verify_class) != 0;
   }
   void set_should_verify_class(bool value) {
+    assert(!should_verify_class(), "set once");
     if (value) {
       _misc_flags |= _misc_should_verify_class;
-    } else {
-      _misc_flags &= ~_misc_should_verify_class;
     }
   }
 
@@ -811,10 +814,9 @@ public:
     return (_misc_flags & _misc_is_contended) != 0;
   }
   void set_is_contended(bool value)        {
+    assert(!is_contended(), "set once");
     if (value) {
       _misc_flags |= _misc_is_contended;
-    } else {
-      _misc_flags &= ~_misc_is_contended;
     }
   }
 
@@ -849,10 +851,9 @@ public:
     return ((_misc_flags & _misc_has_contended_annotations) != 0);
   }
   void set_has_contended_annotations(bool value)  {
+    assert(!has_contended_annotations(), "set once");
     if (value) {
       _misc_flags |= _misc_has_contended_annotations;
-    } else {
-      _misc_flags &= ~_misc_has_contended_annotations;
     }
   }
 
@@ -905,11 +906,11 @@ public:
   }
 
   bool has_resolved_methods() const {
-    return (_misc_flags & _misc_has_resolved_methods) != 0;
+    return _access_flags.has_resolved_methods();
   }
 
   void set_has_resolved_methods() {
-    _misc_flags |= _misc_has_resolved_methods;
+    _access_flags.set_has_resolved_methods();
   }
 private:
 
@@ -979,10 +980,9 @@ public:
     return (_misc_flags & _misc_has_nonstatic_concrete_methods) != 0;
   }
   void set_has_nonstatic_concrete_methods(bool b) {
+    assert(!has_nonstatic_concrete_methods(), "set once");
     if (b) {
       _misc_flags |= _misc_has_nonstatic_concrete_methods;
-    } else {
-      _misc_flags &= ~_misc_has_nonstatic_concrete_methods;
     }
   }
 
@@ -990,10 +990,9 @@ public:
     return (_misc_flags & _misc_declares_nonstatic_concrete_methods) != 0;
   }
   void set_declares_nonstatic_concrete_methods(bool b) {
+    assert(!declares_nonstatic_concrete_methods(), "set once");
     if (b) {
       _misc_flags |= _misc_declares_nonstatic_concrete_methods;
-    } else {
-      _misc_flags &= ~_misc_declares_nonstatic_concrete_methods;
     }
   }
 

@@ -45,6 +45,7 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
   while ((intx) _masm->pc() - (intx) patch->pc_start() < NativeGeneralJump::instruction_size) {
     _masm->nop();
   }
+  info->set_force_reexecute();
   patch->install(_masm, patch_code, obj, info);
   append_code_stub(patch);
 
@@ -701,7 +702,7 @@ void LIR_Assembler::emit_std_entries() {
 
 void LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces) {
   offsets()->set_value(entry, _masm->offset());
-  _masm->verified_entry();
+  _masm->verified_entry(compilation()->directive()->BreakAtExecuteOption);
   switch (entry) {
   case CodeOffsets::Verified_Entry: {
     if (needs_clinit_barrier_on_entry(method())) {
