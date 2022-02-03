@@ -27,7 +27,6 @@
  * @bug 8273360
  * @summary Test reflection of constructors for value classes
  * @run testng/othervm StaticFactoryTest
- * @run testng/othervm -Dsun.reflect.noInflation=true -Djdk.reflection.useDirectMethodHandle=false StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;
