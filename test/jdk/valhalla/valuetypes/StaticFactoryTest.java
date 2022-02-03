@@ -25,9 +25,8 @@
 /*
  * @test
  * @bug 8273360
- * @summary Test reflection of constructors for primitive classes
+ * @summary Test reflection of constructors for value classes
  * @run testng/othervm StaticFactoryTest
- * @run testng/othervm -Dsun.reflect.noInflation=true StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;
@@ -38,6 +37,7 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
@@ -55,77 +55,95 @@ public class StaticFactoryTest {
         }
     }
 
-    static final Class<?> PRIMITIVE_TYPE = SimplePrimitive.class.asValueType();
+    static value class SimpleValue {
+        private final SimplePrimitive v;
 
-    @Test
-    public static void testPrimitiveClassConstructor() throws Exception {
-        String cn = PRIMITIVE_TYPE.getName();
-        Class<?> c = Class.forName(cn).asValueType();
+        SimpleValue() {
+            this.v = SimplePrimitive.default;
+        }
 
-        assertTrue(c.isPrimitiveClass());
-        assertTrue(c == PRIMITIVE_TYPE);
+        public SimpleValue(SimplePrimitive v) {
+            this.v = v;
+        }
     }
 
-    @Test
-    public static void constructor() throws Exception {
-        Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
+    @DataProvider
+    static Object[][] classes() {
+        return new Object[][]{
+                new Object[] { SimplePrimitive.class, true },
+                new Object[] { SimpleValue.class, false },
+        };
+    }
+
+    @Test(dataProvider = "classes")
+    public void testConstructor(Class<?> c, boolean isPrimitiveClass) throws ReflectiveOperationException {
+        String cn = c.getName();
+        Class<?> clz = Class.forName(cn);
+
+        assertTrue(clz.isValue());
+        assertTrue(clz.isPrimitiveClass() == isPrimitiveClass);
+
+        Constructor<?> ctor = clz.getDeclaredConstructor();
         Object o = ctor.newInstance();
-        assertTrue(o.getClass() == PRIMITIVE_TYPE.asPrimaryType());
+        assertTrue(o.getClass() == c);
+
+        // Verify that the constructor and field can be set accessible
+        ctor.setAccessible(true);
+        assertTrue(ctor.trySetAccessible());
+
+        // Check that getDeclaredMethods does not include the static factory method
+        Method[] methods = clz.getDeclaredMethods();
+        for (Method m : methods) {
+            if (Modifier.isStatic(m.getModifiers())) {
+                assertFalse(m.getName().equals("<init>"));
+            }
+        }
+    }
+
+    @DataProvider
+    static Object[][] ctors() {
+        return new Object[][]{
+                new Object[] { SimplePrimitive.class, Set.of("public StaticFactoryTest$SimplePrimitive(int)",
+                                                             "StaticFactoryTest$SimplePrimitive()")},
+                new Object[] { SimpleValue.class, Set.of("public StaticFactoryTest$SimpleValue(StaticFactoryTest$SimplePrimitive)",
+                                                         "StaticFactoryTest$SimpleValue()") },
+        };
     }
 
     // Check that the class has the expected Constructors
-    @Test
-    public static void constructors() throws Exception {
-        Set<String> expectedSig = Set.of("public StaticFactoryTest$SimplePrimitive(int)",
-                                         "StaticFactoryTest$SimplePrimitive()");
-        Constructor<? extends Object>[] cons = PRIMITIVE_TYPE.getDeclaredConstructors();
+    @Test(dataProvider = "ctors")
+    public static void constructors(Class<?> c, Set<String> signatures) throws ReflectiveOperationException {
+        Constructor<?>[] cons = c.getDeclaredConstructors();
         Set<String> actualSig = Arrays.stream(cons).map(Constructor::toString)
                                       .collect(Collectors.toSet());
-        boolean ok = expectedSig.equals(actualSig);
+        boolean ok = signatures.equals(actualSig);
         if (!ok) {
-            System.out.printf("expected: %s%n", expectedSig);
+            System.out.printf("expected: %s%n", signatures);
             System.out.printf("declared: %s%n", actualSig);
             assertTrue(ok);
         }
     }
 
-    // Check that the constructor and field can be set accessible
-    @Test
-    public static void setAccessible() throws Exception {
-        Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
-        ctor.setAccessible(true);
-
-        Field field = PRIMITIVE_TYPE.getField("x");
-        field.setAccessible(true);
-    }
-
-    // Check that the constructor and field can be set accessible
-    @Test
-    public static void trySetAccessible() throws Exception {
-        Constructor<?> ctor = PRIMITIVE_TYPE.getDeclaredConstructor();
-        assertTrue(ctor.trySetAccessible());
-
-        Field field = PRIMITIVE_TYPE.getField("x");
-        assertTrue(field.trySetAccessible());
+    @DataProvider
+    static Object[][] fields() throws ReflectiveOperationException {
+        return new Object[][]{
+                new Object[] { SimplePrimitive.class.getDeclaredField("x"), new SimplePrimitive(), 200},
+                new Object[] { SimpleValue.class.getDeclaredField("v"), new SimpleValue(), new SimplePrimitive(10) },
+        };
     }
 
     // Check that the final field cannot be modified
-    @Test(expectedExceptions = IllegalAccessException.class)
-    public static void setFinalField() throws Exception {
-        Field field = PRIMITIVE_TYPE.getField("x");
+    @Test(dataProvider = "fields", expectedExceptions = IllegalAccessException.class)
+    public static void readOnlyFields(Field field, Object obj, Object newValue) throws ReflectiveOperationException {
+        // succeeds to set accessible flag
         field.setAccessible(true);
-        field.setInt(new SimplePrimitive(100), 200);
-    }
+        assertTrue(field.trySetAccessible());
 
-
-    // Check that the class does not have a static method with the name <init>
-    @Test
-    public static void initFactoryNotMethods() {
-        Method[] methods = PRIMITIVE_TYPE.getDeclaredMethods();
-        for (Method m : methods) {
-            if (Modifier.isStatic(m.getModifiers())) {
-                assertFalse(m.getName().equals("<init>"));
-            }
+        // value class' final fields cannot be modified
+        if (field.getType() == int.class) {
+            field.setInt(obj, ((Integer) newValue).intValue());
+        } else {
+            field.set(obj, newValue);
         }
     }
 }
