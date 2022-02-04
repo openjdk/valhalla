@@ -8,6 +8,6 @@
 public native class NativeModifierTest {
 
     public native class NativeClassIsNotAThing {
-    } 
+    }
 
 }
