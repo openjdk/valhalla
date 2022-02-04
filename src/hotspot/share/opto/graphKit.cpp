@@ -3525,7 +3525,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
-          builtin_throw(reason, makecon(TypeKlassPtr::make(objtp->klass())));
+          builtin_throw(reason, makecon(TypeKlassPtr::make(klass)));
           return top();
         } else {
           // It needs a null check because a null will *pass* the cast check.
@@ -4358,7 +4358,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   }
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
-  const TypeOopPtr* ary_type = ary_klass()->as_instance_type();
+  const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   Node* valid_length_test = _gvn.intcon(1);
   if (ary_type->klass()->is_array_klass()) {
     BasicType bt = ary_type->klass()->as_array_klass()->element_type()->basic_type();
