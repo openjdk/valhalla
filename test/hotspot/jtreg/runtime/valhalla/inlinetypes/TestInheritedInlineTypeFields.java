@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test TestInheritedInlineTypeFields
  * @summary Test if inline field klasses are correctly retrieved for inherited fields
  * @library /test/lib
- * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java TestInheritedInlineTypeFields.java
+ * @compile -XDallowFlattenabilityModifiers Point.java TestInheritedInlineTypeFields.java
  * @run main/othervm runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
  */
 
@@ -73,7 +73,7 @@ public class TestInheritedInlineTypeFields {
         B b = new B();
         Asserts.assertEquals(b.p.x, 0);
         Asserts.assertEquals(b.p.y, 0);
-        b.p = Point.createPoint(1,2);
+        b.p = new Point(1,2);
         Asserts.assertEquals(b.p.x, 1);
         Asserts.assertEquals(b.p.y, 2);
 
@@ -82,8 +82,8 @@ public class TestInheritedInlineTypeFields {
         Asserts.assertEquals(g.p1.y, 0);
         Asserts.assertEquals(g.p2.x, 0);
         Asserts.assertEquals(g.p2.y, 0);
-        g.p1 = Point.createPoint(1,2);
-        g.p2 = Point.createPoint(3,4);
+        g.p1 = new Point(1,2);
+        g.p2 = new Point(3,4);
         Asserts.assertEquals(g.p1.x, 1);
         Asserts.assertEquals(g.p1.y, 2);
         Asserts.assertEquals(g.p2.x, 3);

@@ -151,13 +151,13 @@ public class InlineTypeArray {
         Point[] ps = new Point[4];
         assertEquals(ps.length, 4, "Length");
         ps.toString();
-        ps[0] = Point.createPoint(1, 2);
-        ps[1] = Point.createPoint(3, 4);
-        ps[2] = Point.createPoint(5, 6);
-        ps[3] = Point.createPoint(7, 8);
+        ps[0] = new Point(1, 2);
+        ps[1] = new Point(3, 4);
+        ps[2] = new Point(5, 6);
+        ps[3] = new Point(7, 8);
         boolean sawOob = false;
         try {
-            ps[ps.length] = Point.createPoint(0, 0);
+            ps[ps.length] = new Point(0, 0);
         } catch (ArrayIndexOutOfBoundsException aioobe) { sawOob = true; }
         assertTrue(sawOob, "Didn't see AIOOBE");
         return ps;
@@ -181,7 +181,7 @@ public class InlineTypeArray {
         Long8Inline value = values[1];
         long zl = 0;
         Long8Inline.check(value, zl, zl, zl, zl, zl, zl, zl, zl);
-        values[1] = Long8Inline.create(1, 2, 3, 4, 5, 6, 7, 8);
+        values[1] = new Long8Inline(1, 2, 3, 4, 5, 6, 7, 8);
         value = values[1];
         Long8Inline.check(value, 1, 2, 3, 4, 5, 6, 7, 8);
 
@@ -194,13 +194,13 @@ public class InlineTypeArray {
     void testMixedPersonArray() {
         Person[] people = new Person[3];
 
-        people[0] = Person.create(1, "First", "Last");
+        people[0] = new Person(1, "First", "Last");
         assertEquals(people[0].getId(), 1, "Invalid Id person");
         assertEquals(people[0].getFirstName(), "First", "Invalid First Name");
         assertEquals(people[0].getLastName(), "Last", "Invalid Last Name");
 
-        people[1] = Person.create(2, "Jane", "Wayne");
-        people[2] = Person.create(3, "Bob", "Dobalina");
+        people[1] = new Person(2, "Jane", "Wayne");
+        people[2] = new Person(3, "Bob", "Dobalina");
 
         Person[] peopleCopy = new Person[people.length];
         System.arraycopy(people, 0, peopleCopy, 0, people.length);
@@ -236,7 +236,7 @@ public class InlineTypeArray {
         Point.ref[][] barray = (Point.ref[][]) Array.newInstance(Point.ref.class, 1, 2);
         assertEquals(barray.length, 1, "Incorrect length");
         assertEquals(barray[0].length, 2, "Incorrect length");
-        barray[0][1] = Point.createPoint(1, 2);
+        barray[0][1] = new Point(1, 2);
         Point.ref pb = barray[0][1];
         int x = pb.getX();
         assertEquals(x, 1, "Bad Point Value");

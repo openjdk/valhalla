@@ -39,7 +39,7 @@ public primitive class ClassPrintLayoutDcmd {
     static primitive class Line {
         Point p1, p2;
         Line() {
-            this.p1 = this.p2 = Point.createPoint(0, 1);
+            this.p1 = this.p2 = new Point(0, 1);
         }
     }
     static {

@@ -49,7 +49,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test data movement with inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
+ * @compile TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
  * @run main/othervm -Xmx128m -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false

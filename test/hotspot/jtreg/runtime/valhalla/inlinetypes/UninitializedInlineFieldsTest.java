@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Uninitialized inline fields test
  * @library /test/lib
- * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboInline.java UninitializedInlineFieldsTest.java
+ * @compile -XDallowFlattenabilityModifiers Point.java JumboInline.java UninitializedInlineFieldsTest.java
  * @run main/othervm -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
  */
 public class UninitializedInlineFieldsTest {
@@ -52,11 +52,11 @@ public class UninitializedInlineFieldsTest {
     public static void main(String[] args) {
         checkUninitializedPoint(UninitializedInlineFieldsTest.staticPoint, 0, 0);
         Asserts.assertEquals(nonFlattenableStaticPoint, null, "invalid non flattenable static inline field");
-        UninitializedInlineFieldsTest.staticPoint = Point.createPoint(456, 678);
+        UninitializedInlineFieldsTest.staticPoint = new Point(456, 678);
         checkUninitializedPoint(UninitializedInlineFieldsTest.staticPoint, 456, 678);
         UninitializedInlineFieldsTest test = new UninitializedInlineFieldsTest();
         checkUninitializedPoint(test.instancePoint, 0, 0);
-        test.instancePoint = Point.createPoint(123, 345);
+        test.instancePoint = new Point(123, 345);
         checkUninitializedPoint(test.instancePoint, 123, 345);
 
         Asserts.assertEquals(test.j1, null, "invalid non flattenable instance inline field");
