@@ -80,20 +80,31 @@ public class InferenceContext {
     /** list of inference vars in this context */
     List<Type> inferencevars;
 
+    boolean allowBoxing;
+
     Map<FreeTypeListener, List<Type>> freeTypeListeners = new LinkedHashMap<>();
 
     Types types;
     Infer infer;
 
     public InferenceContext(Infer infer, List<Type> inferencevars) {
-        this(infer, inferencevars, inferencevars.map(infer.fromTypeVarFun));
+        this(infer, inferencevars, inferencevars.map(infer.fromTypeVarFun), false);
+    }
+
+    public InferenceContext(Infer infer, List<Type> inferencevars, boolean allowBoxing) {
+        this(infer, inferencevars, inferencevars.map(infer.fromTypeVarFun), allowBoxing);
     }
 
     public InferenceContext(Infer infer, List<Type> inferencevars, List<Type> undetvars) {
+        this(infer, inferencevars, undetvars, false);
+    }
+
+    public InferenceContext(Infer infer, List<Type> inferencevars, List<Type> undetvars, boolean allowBoxing) {
         this.inferencevars = inferencevars;
         this.undetvars = undetvars;
         this.infer = infer;
         this.types = infer.types;
+        this.allowBoxing = allowBoxing;
     }
 
     /**

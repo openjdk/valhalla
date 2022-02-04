@@ -55,9 +55,7 @@ public class TypeEqualityInInferenceTest extends TypeHarness {
     void runAll() {
         List<String> imports = new ArrayList<>();
         imports.add("java.util.*");
-        List<String> typeVars = new ArrayList<>();
-        typeVars.add("T");
-        strToTypeFactory = new StrToTypeFactory(null, imports, typeVars);
+        strToTypeFactory = new StrToTypeFactory(null, imports, null);
 
         runTest("List<? extends T>", "List<? extends String>", predef.stringType);
         runTest("List<? extends T>", "List<?>", predef.objectType);
@@ -65,16 +63,23 @@ public class TypeEqualityInInferenceTest extends TypeHarness {
     }
 
     void runTest(String freeTypeStr, String typeStr, Type equalityBoundType) {
-        Type freeType = strToTypeFactory.getType(freeTypeStr);
-        Type aType = strToTypeFactory.getType(typeStr);
+        java.util.Map<String, Type> typeMap = strToTypeFactory.getTypes(
+                List.of("T"),
+                "",
+                freeTypeStr, typeStr, "T"
+        );
 
-        withInferenceContext(strToTypeFactory.getTypeVars(), inferenceContext -> {
+        Type freeType = typeMap.get(freeTypeStr);
+        Type aType = typeMap.get(typeStr);
+        Type tVar = typeMap.get("T");
+
+        withInferenceContext(com.sun.tools.javac.util.List.of(tVar), inferenceContext -> {
             assertSameType(inferenceContext.asUndetVar(freeType), aType);
             UndetVar undetVarForT = (UndetVar)inferenceContext.undetVars().head;
             checkEqualityBound(undetVarForT, equalityBoundType);
         });
 
-        withInferenceContext(strToTypeFactory.getTypeVars(), inferenceContext -> {
+        withInferenceContext(com.sun.tools.javac.util.List.of(tVar), inferenceContext -> {
             assertSameType(aType, inferenceContext.asUndetVar(freeType));
             UndetVar undetVarForT = (UndetVar)inferenceContext.undetVars().head;
             checkEqualityBound(undetVarForT, equalityBoundType);

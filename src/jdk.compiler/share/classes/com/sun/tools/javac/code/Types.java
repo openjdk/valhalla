@@ -620,10 +620,14 @@ public class Types {
             chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
             return true;
         }
+
+        boolean tUndet = t.hasTag(UNDETVAR);
+        boolean sUndet = s.hasTag(UNDETVAR);
+
         if (tValue != sValue) {
             return tValue ?
-                    isSubtype(t.referenceProjection(), s) :
-                    !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
+                    isSubtype(allowUniversalTVars && (tUndet || sUndet) ? t : t.referenceProjection(), s) :
+                    !t.hasTag(BOT) && isSubtype(t, allowUniversalTVars && (tUndet || sUndet) ? s : s.referenceProjection());
         }
 
         boolean tPrimitive = t.isPrimitive();
@@ -631,8 +635,6 @@ public class Types {
         if (tPrimitive == sPrimitive) {
             return isSubtypeUnchecked(t, s, warn);
         }
-        boolean tUndet = t.hasTag(UNDETVAR);
-        boolean sUndet = s.hasTag(UNDETVAR);
 
         if (tUndet || sUndet) {
             return tUndet ?
@@ -1029,6 +1031,11 @@ public class Types {
     @FunctionalInterface
     public interface SubtypeTestFlavor {
         boolean subtypeTest(Type t, Type s, Warner warn);
+    }
+
+    // this relation is now named `extends` in the latest Valhalla docs
+    public boolean isBoundedBy(Type t, Type s) {
+        return isBoundedBy(t, s, noWarnings, (t1, s1, w1) -> isSubtype(t1, s1));
     }
 
     public boolean isBoundedBy(Type t, Type s, SubtypeTestFlavor subtypeTestFlavor) {
@@ -4226,6 +4233,10 @@ public class Types {
         final int UNKNOWN_BOUND = 0;
         final int ARRAY_BOUND = 1;
         final int CLASS_BOUND = 2;
+        // lub is critical code better to go this way rather than using streams
+        for (int i = 0; i < ts.length; i++) {
+            ts[i] = ts[i].referenceProjectionOrSelf();
+        }
 
         int[] kinds = new int[ts.length];
         int boundkind = UNKNOWN_BOUND;
