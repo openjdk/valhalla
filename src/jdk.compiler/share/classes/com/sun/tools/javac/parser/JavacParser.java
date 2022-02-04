@@ -4531,8 +4531,9 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isPrimitiveModifier = true;
                     break;
-                case IDENTIFIER: // primitive record R || new primitive Comparable() {}
-                    if (next.name() == names.record || (mode & EXPR) != 0)
+                case IDENTIFIER: // primitive record R || primitive primitive || primitive value || new primitive Comparable() {}
+                    if (next.name() == names.record || next.name() == names.primitive
+                            || next.name() == names.value || (mode & EXPR) != 0)
                         isPrimitiveModifier = true;
                     break;
             }
@@ -4556,8 +4557,9 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isValueModifier = true;
                     break;
-                case IDENTIFIER: // value record R || new value Comparable() {} ??
-                    if (next.name() == names.record || (mode & EXPR) != 0)
+                case IDENTIFIER: // value record R || value value || value primitive || new value Comparable() {} ??
+                    if (next.name() == names.record || next.name() == names.value
+                            || next.name() == names.primitive || (mode & EXPR) != 0)
                         isValueModifier = true;
                     break;
             }
