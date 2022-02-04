@@ -3753,6 +3753,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   _nest_members = Universe::the_empty_short_array();
   // Set _permitted_subclasses attribute to default sentinel
   _permitted_subclasses = Universe::the_empty_short_array();
+  // Set _preload_classes attribute to default sentinel
+  _preload_classes = Universe::the_empty_short_array();
   cfs->guarantee_more(2, CHECK);  // attributes_count
   u2 attributes_count = cfs->get_u2_fast();
   bool parsed_sourcefile_attribute = false;
@@ -6090,7 +6092,7 @@ ClassFileParser::~ClassFileParser() {
     MetadataFactory::free_array<u2>(_loader_data, _permitted_subclasses);
   }
 
-  if (_preload_classes != NULL) {
+  if (_preload_classes != NULL && _preload_classes != Universe::the_empty_short_array()) {
     MetadataFactory::free_array<u2>(_loader_data, _preload_classes);
   }
 
