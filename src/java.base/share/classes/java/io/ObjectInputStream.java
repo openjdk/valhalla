@@ -216,6 +216,8 @@ import sun.security.action.GetIntegerAction;
  * implemented by a class they can write and read their own state using all of
  * the methods of ObjectOutput and ObjectInput.  It is the responsibility of
  * the objects to handle any versioning that occurs.
+ * Value objects can not be `java.io.Externalizable` because Value objects are
+ * immutable and `Externalizable.readExternal` is unable to modify the fields of the value.
  *
  * <p>Enum constants are deserialized differently than ordinary serializable or
  * externalizable objects.  The serialized form of an enum constant consists
@@ -240,6 +242,11 @@ import sun.security.action.GetIntegerAction;
  * <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-records">
  * <cite>Java Object Serialization Specification,</cite> Section 1.13,
  * "Serialization of Records"</a> for additional information.
+ *
+ * <p>Value objects are deserialized differently than ordinary serializable objects or records.
+ * See <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-value-objects">
+ *  * <cite>Java Object Serialization Specification,</cite> Section 1.1xx,
+ *  * "Serialization of Value Objects"</a> for additional information.
  *
  * @author      Mike Warres
  * @author      Roger Riggs
@@ -2262,7 +2269,8 @@ public class ObjectInputStream
                                             "unable to create instance", ex);
         }
 
-        passHandle = handles.assign(unshared ? unsharedMarker : obj);
+        // Assign the handle and initially set to null or the unsharedMarker
+        passHandle = handles.assign(unshared ? unsharedMarker : null);
         ClassNotFoundException resolveEx = desc.getResolveException();
         if (resolveEx != null) {
             handles.markException(passHandle, resolveEx);
@@ -2275,8 +2283,26 @@ public class ObjectInputStream
             if (!unshared)
                 handles.setObject(passHandle, obj);
         } else if (desc.isExternalizable()) {
+            assert obj != null;
+            if (desc.isValue()) {
+                throw new NotSerializableException("Externalizable not valid for value class "
+                        + cl.getName());
+            }
+            if (!unshared)
+                handles.setObject(passHandle, obj);
             readExternalData((Externalizable) obj, desc);
+        } else if (desc.isValue()) {
+            // For value objects, read the fields and finish the buffer before publishing the ref
+            assert obj != null;
+            readSerialData(obj, desc);
+            obj = desc.finishValue(obj);
+            if (!unshared)
+                handles.setObject(passHandle, obj);
         } else {
+            // For all other objects, publish the ref and then read the data
+            assert obj != null;
+            if (!unshared)
+                handles.setObject(passHandle, obj);
             readSerialData(obj, desc);
         }
 

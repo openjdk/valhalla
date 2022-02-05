@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -332,6 +332,9 @@ public class ReflectionFactory {
             constructorToCall.setAccessible(true);
             return constructorToCall;
         }
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
+        }
         return generateConstructor(cl, constructorToCall);
     }
 
@@ -391,6 +394,10 @@ public class ReflectionFactory {
      * @return the generated constructor, or null if none is available
      */
     public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
+        }
+
         Class<?> initCl = cl;
         while (Serializable.class.isAssignableFrom(initCl)) {
             Class<?> prev = initCl;

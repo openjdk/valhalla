@@ -135,6 +135,8 @@ public final class ObjectStreamClass implements Serializable {
     private boolean isEnum;
     /** true if represents record type */
     private boolean isRecord;
+    /** true if represents a value class */
+    private boolean isValue;
     /** true if represented class implements Serializable */
     private boolean serializable;
     /** true if represented class implements Externalizable */
@@ -374,6 +376,7 @@ public final class ObjectStreamClass implements Serializable {
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
         isRecord = cl.isRecord();
+        isValue = cl.isValue();
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
 
@@ -407,6 +410,9 @@ public final class ObjectStreamClass implements Serializable {
                     if (isRecord) {
                         canonicalCtr = canonicalRecordCtr(cl);
                         deserializationCtrs = new DeserializationConstructorsCache();
+                    } else if (isValue) {
+                        // Value objects are created using Unsafe.
+                        cons = null;
                     } else if (externalizable) {
                         cons = getExternalizableConstructor(cl);
                     } else {
@@ -444,9 +450,7 @@ public final class ObjectStreamClass implements Serializable {
         if (deserializeEx == null) {
             if (isEnum) {
                 deserializeEx = new ExceptionInfo(name, "enum type");
-            } else if (cl.isValue() && writeReplaceMethod == null) {
-                deserializeEx = new ExceptionInfo(name, cl.isPrimitiveClass() ? "primitive class" : "value class");
-            } else if (cons == null && !isRecord) {
+            } else if (cons == null && !(isRecord | isValue)) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");
             }
         }
@@ -640,6 +644,7 @@ public final class ObjectStreamClass implements Serializable {
         if (osc != null) {
             localDesc = osc;
             isRecord = localDesc.isRecord;
+            isValue = localDesc.isValue;
             // canonical record constructor is shared
             canonicalCtr = localDesc.canonicalCtr;
             // cache of deserialization constructors is shared
@@ -921,6 +926,11 @@ public final class ObjectStreamClass implements Serializable {
         return serializable;
     }
 
+    boolean isValue() {
+        requireInitialized();
+        return isValue;
+    }
+
     /**
      * Returns true if class descriptor represents externalizable class that
      * has written its data in 1.2 (block data) format, false otherwise.
@@ -943,13 +953,14 @@ public final class ObjectStreamClass implements Serializable {
     /**
      * Returns true if represented class is serializable/externalizable and can
      * be instantiated by the serialization runtime--i.e., if it is
-     * externalizable and defines a public no-arg constructor, or if it is
+     * externalizable and defines a public no-arg constructor, if it is
      * non-externalizable and its first non-serializable superclass defines an
-     * accessible no-arg constructor.  Otherwise, returns false.
+     * accessible no-arg constructor, or if the class is a value class.
+     * Otherwise, returns false.
      */
     boolean isInstantiable() {
         requireInitialized();
-        return (cons != null);
+        return (cons != null | isValue);
     }
 
     /**
@@ -1054,9 +1065,21 @@ public final class ObjectStreamClass implements Serializable {
                 ex.initCause(err);
                 throw ex;
             }
-        } else {
+        } else if (isValue) {
+            // Start with an buffered default value.
+            return FieldReflector.newValueInstance(cl);
+        }  else {
             throw new UnsupportedOperationException();
         }
+    }
+
+    /**
+     * Finish the initialization of a Value object.
+     * @param obj an object (larval if a value object)
+     * @return the finished object
+     */
+    Object finishValue(Object obj) {
+        return (isValue) ? FieldReflector.finishValueInstance(obj) : obj;
     }
 
     /**
@@ -1927,6 +1950,28 @@ public final class ObjectStreamClass implements Serializable {
         private final Class<?>[] types;
 
         /**
+         * Return a new instance of the class using Unsafe.uninitializedDefaultValue
+         * and buffer it.
+         * @param clazz The value class
+         * @return a buffered default value
+         */
+        static Object newValueInstance(Class<?> clazz) throws InstantiationException{
+            assert clazz.isValue() : "Should be a value class";
+            Object obj = unsafe.uninitializedDefaultValue(clazz);
+            return unsafe.makePrivateBuffer(obj);
+        }
+
+        /**
+         * Finish a Value object, clear the larval state and returning the Value object.
+         * @param obj a buffered value object in a larval state
+         * @return the finished value object
+         */
+        static Object finishValueInstance(Object obj) {
+            assert (obj.getClass().isValue()) : "Should be a value class";
+            return unsafe.finishPrivateBuffer(obj);
+        }
+
+        /**
          * Constructs FieldReflector capable of setting/getting values from the
          * subset of fields whose ObjectStreamFields contain non-null
          * reflective Field objects.  ObjectStreamFields with null Fields are
@@ -2046,8 +2091,12 @@ public final class ObjectStreamClass implements Serializable {
              * in array should be equal to Unsafe.INVALID_FIELD_OFFSET.
              */
             for (int i = numPrimFields; i < fields.length; i++) {
+                Field f = fields[i].getField();
                 vals[offsets[i]] = switch (typeCodes[i]) {
-                    case 'L', '[' -> unsafe.getReference(obj, readKeys[i]);
+                    case 'L', '[' ->
+                            unsafe.isFlattened(f)
+                                    ? unsafe.getValue(obj, readKeys[i], f.getType())
+                                    : unsafe.getReference(obj, readKeys[i]);
                     default       -> throw new InternalError();
                 };
             }
@@ -2084,11 +2133,11 @@ public final class ObjectStreamClass implements Serializable {
                 }
                 switch (typeCodes[i]) {
                     case 'L', '[' -> {
+                        Field f = fields[i].getField();
                         Object val = vals[offsets[i]];
                         if (val != null &&
                             !types[i - numPrimFields].isInstance(val))
                         {
-                            Field f = fields[i].getField();
                             throw new ClassCastException(
                                 "cannot assign instance of " +
                                 val.getClass().getName() + " to field " +
@@ -2097,8 +2146,13 @@ public final class ObjectStreamClass implements Serializable {
                                 f.getType().getName() + " in instance of " +
                                 obj.getClass().getName());
                         }
-                        if (!dryRun)
-                            unsafe.putReference(obj, key, val);
+                        if (!dryRun) {
+                            if (unsafe.isFlattened(f)) {
+                                unsafe.putValue(obj, key, f.getType(), val);
+                            } else {
+                                unsafe.putReference(obj, key, val);
+                            }
+                        }
                     }
                     default -> throw new InternalError();
                 }
