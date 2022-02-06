@@ -5101,18 +5101,26 @@ public class Attr extends JCTree.Visitor {
         Type clazztype = chk.checkClassType(tree.clazz.pos(), attribType(tree.clazz, env));
         List<Type> actuals;
         List<JCExpression> args = tree.arguments;
-        if (!allowUniversalTVars || args == null || args.isEmpty()) {
+        if (!allowUniversalTVars || args == null || args.isEmpty() || ((ClassType) clazztype.tsym.type).typarams_field.isEmpty()) {
             actuals = attribTypes(tree.arguments, env);
         } else {
-            // we use argTypes2 to keep a pointer to the original list as we will use argTypes to iterate over it
-            List<Type> argTypes, argTypes2;
-            argTypes2 = argTypes = attribAnyTypes(args, env);
-            for (Type t : ((ClassType) clazztype.tsym.type).typarams_field) {
-                argTypes.head = chk.checkRefType(args.head.pos(), argTypes.head, ((TypeVar) t).isUniversal());
-                args = args.tail;
-                argTypes = argTypes.tail;
+            /* the code below has been obtained by unfolding an invocation to `attribTypes`
+             * with arguments `tree.arguments` and `env`. We need to do this unfolding to
+             * take into account the "universality" of the declared type variables
+             */
+            List<Type> typarams_field = ((ClassType) clazztype.tsym.type).typarams_field != null ? ((ClassType) clazztype.tsym.type).typarams_field : List.nil();
+            ListBuffer<Type> argtypes = new ListBuffer<>();
+            for (List<JCExpression> l = args; l.nonEmpty(); l = l.tail) {
+                env.info.primitiveClassAllowedAsTypeParam = typarams_field.head != null ? ((TypeVar)typarams_field.head).isUniversal() : false;
+                /* we need the new field `primitiveClassAllowedAsTypeParam` because the type attribution below:
+                 * `attribType(l.head, env)`
+                 * could be dealing with a wildcard for example and at some point we will need to check
+                 * if primitives are allowed as bounds
+                 */
+                argtypes.append(chk.checkRefType(l.head.pos(), attribType(l.head, env), env.info.primitiveClassAllowedAsTypeParam));
+                typarams_field = typarams_field.tail != null ? typarams_field.tail : typarams_field;
             }
-            actuals = argTypes2;
+            actuals = argtypes.toList();
         }
 
         if (clazztype.hasTag(CLASS)) {
@@ -5297,7 +5305,7 @@ public class Attr extends JCTree.Visitor {
         Type type = (tree.kind.kind == BoundKind.UNBOUND)
             ? syms.objectType
             : attribType(tree.inner, env);
-        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, allowUniversalTVars),
+        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, env.info.primitiveClassAllowedAsTypeParam),
                                               tree.kind.kind,
                                               syms.boundClass),
                 KindSelector.TYP, resultInfo);

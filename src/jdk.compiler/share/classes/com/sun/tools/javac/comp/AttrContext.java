@@ -131,6 +131,10 @@ public class AttrContext {
      */
     JCTree preferredTreeForDiagnostics;
 
+    /** indicates if the type parameter being analyzed allows primitive classes
+     */
+    boolean primitiveClassAllowedAsTypeParam;
+
     /** Duplicate this context, replacing scope field and copying all others.
      */
     AttrContext dup(WriteableScope scope) {
@@ -155,6 +159,7 @@ public class AttrContext {
         info.inWithField = inWithField;
         info.preferredTreeForDiagnostics = preferredTreeForDiagnostics;
         info.visitingServiceImplementation = visitingServiceImplementation;
+        info.primitiveClassAllowedAsTypeParam = primitiveClassAllowedAsTypeParam;
         return info;
     }
 
