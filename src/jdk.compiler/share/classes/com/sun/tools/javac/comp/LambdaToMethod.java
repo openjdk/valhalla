@@ -2283,14 +2283,6 @@ public class LambdaToMethod extends TreeTranslator {
                 return tree.ownerAccessible;
             }
 
-            /* Workaround to BootstrapMethodError. This workaround should not be required in the unified
-               class generation model, but seems to be required ...
-               Todo: Investigate to see if a defect should be reported against runtime lambda machinery
-            */
-            boolean receiverIsReferenceProjection() {
-                return tree.getQualifierExpression().type.isReferenceProjection();
-            }
-
             /**
              * This method should be called only when target release <= 14
              * where LambdaMetaFactory does not spin nestmate classes.
@@ -2343,7 +2335,6 @@ public class LambdaToMethod extends TreeTranslator {
                         (!nestmateLambdas && isPrivateInOtherClass()) ||
                         isProtectedInSuperClassOfEnclosingClassInOtherPackage(tree.sym, owner) ||
                         !receiverAccessible() ||
-                        receiverIsReferenceProjection() ||
                         (tree.getMode() == ReferenceMode.NEW &&
                           tree.kind != ReferenceKind.ARRAY_CTOR &&
                           (tree.sym.owner.isDirectlyOrIndirectlyLocal() || tree.sym.owner.isInner() || tree.sym.owner.isValueClass()));
