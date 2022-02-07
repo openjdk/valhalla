@@ -56,7 +56,7 @@ public class ConstructorRefTest {
         }
     }
 
-    public static void main(String [] args) {   
+    public static void main(String [] args) {
 
         Supplier<P.ref> sxp = P::new;
         P p = (P) sxp.get();
