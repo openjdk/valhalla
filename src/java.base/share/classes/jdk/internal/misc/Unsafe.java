@@ -316,7 +316,7 @@ public final class Unsafe {
      * Returns the header size of the given primitive class.
      *
      * @param pc primitive class
-     * @param <V> value clas
+     * @param <V> value class
      * @return the header size of the primitive class
      */
     public native <V> long valueHeaderSize(Class<V> pc);
