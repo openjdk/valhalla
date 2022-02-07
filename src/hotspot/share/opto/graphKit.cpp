@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -572,8 +572,7 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
   // let us handle the throw inline, with a preconstructed instance.
   // Note:   If the deopt count has blown up, the uncommon trap
   // runtime is going to flush this nmethod, not matter what.
-  if (treat_throw_as_hot
-      && (!StackTraceInThrowable || OmitStackTraceInFastThrow)) {
+  if (treat_throw_as_hot && method()->can_omit_stack_trace()) {
     // If the throw is local, we use a pre-existing instance and
     // punt on the backtrace.  This would lead to a missing backtrace
     // (a repeat of 4292742) if the backtrace object is ever asked
@@ -592,11 +591,10 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
       ex_obj = env()->ArrayIndexOutOfBoundsException_instance();
       break;
     case Deoptimization::Reason_class_check:
-      if (java_bc() == Bytecodes::_aastore) {
-        ex_obj = env()->ArrayStoreException_instance();
-      } else {
-        ex_obj = env()->ClassCastException_instance();
-      }
+      ex_obj = env()->ClassCastException_instance();
+      break;
+    case Deoptimization::Reason_array_check:
+      ex_obj = env()->ArrayStoreException_instance();
       break;
     default:
       break;
@@ -626,6 +624,13 @@ void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
       Node *adr = basic_plus_adr(ex_node, ex_node, offset);
       const TypeOopPtr* val_type = TypeOopPtr::make_from_klass(env()->String_klass());
       Node *store = access_store_at(ex_node, adr, adr_typ, null(), val_type, T_OBJECT, IN_HEAP);
+
+      if (!method()->has_exception_handlers()) {
+        // We don't need to preserve the stack if there's no handler as the entire frame is going to be popped anyway.
+        // This prevents issues with exception handling and late inlining.
+        set_sp(0);
+        clean_stack(0);
+      }
 
       add_exception_state(make_exception_state(ex_node));
       return;
@@ -2470,9 +2475,9 @@ void GraphKit::round_double_arguments(ciMethod* dest_method) {
       const Type *targ = tf->domain_sig()->field_at(j + TypeFunc::Parms);
       if (targ->basic_type() == T_DOUBLE) {
         // If any parameters are doubles, they must be rounded before
-        // the call, dstore_rounding does gvn.transform
+        // the call, dprecision_rounding does gvn.transform
         Node *arg = argument(j);
-        arg = dstore_rounding(arg);
+        arg = dprecision_rounding(arg);
         set_argument(j, arg);
       }
     }
@@ -2495,20 +2500,6 @@ Node* GraphKit::precision_rounding(Node* n) {
 
 // rounding for strict double precision conformance
 Node* GraphKit::dprecision_rounding(Node *n) {
-  if (Matcher::strict_fp_requires_explicit_rounding) {
-#ifdef IA32
-    if (UseSSE < 2) {
-      return _gvn.transform(new RoundDoubleNode(0, n));
-    }
-#else
-    Unimplemented();
-#endif // IA32
-  }
-  return n;
-}
-
-// rounding for non-strict double stores
-Node* GraphKit::dstore_rounding(Node* n) {
   if (Matcher::strict_fp_requires_explicit_rounding) {
 #ifdef IA32
     if (UseSSE < 2) {
@@ -2614,8 +2605,7 @@ Node* GraphKit::make_runtime_call(int flags,
                                   Node* parm0, Node* parm1,
                                   Node* parm2, Node* parm3,
                                   Node* parm4, Node* parm5,
-                                  Node* parm6, Node* parm7,
-                                  Node* parm8) {
+                                  Node* parm6, Node* parm7) {
   assert(call_addr != NULL, "must not call NULL targets");
 
   // Slow-path call
@@ -2662,8 +2652,7 @@ Node* GraphKit::make_runtime_call(int flags,
   if (parm5 != NULL) { call->init_req(TypeFunc::Parms+5, parm5);
   if (parm6 != NULL) { call->init_req(TypeFunc::Parms+6, parm6);
   if (parm7 != NULL) { call->init_req(TypeFunc::Parms+7, parm7);
-  if (parm8 != NULL) { call->init_req(TypeFunc::Parms+8, parm8);
-  /* close each nested if ===> */  } } } } } } } } }
+  /* close each nested if ===> */  } } } } } } } }
   assert(call->in(call->req()-1) != NULL, "must initialize all parms");
 
   if (!is_leaf) {
@@ -2864,7 +2853,9 @@ void GraphKit::make_slow_call_ex(Node* call, ciInstanceKlass* ex_klass, bool sep
   // Make a catch node with just two handlers:  fall-through and catch-all
   Node* i_o  = _gvn.transform( new ProjNode(call, TypeFunc::I_O, separate_io_proj) );
   Node* catc = _gvn.transform( new CatchNode(control(), i_o, 2) );
-  Node* norm = _gvn.transform( new CatchProjNode(catc, CatchProjNode::fall_through_index, CatchProjNode::no_handler_bci) );
+  Node* norm = new CatchProjNode(catc, CatchProjNode::fall_through_index, CatchProjNode::no_handler_bci);
+  _gvn.set_type_bottom(norm);
+  C->record_for_igvn(norm);
   Node* excp = _gvn.transform( new CatchProjNode(catc, CatchProjNode::catch_all_index,    CatchProjNode::no_handler_bci) );
 
   { PreserveJVMState pjvms(this);
@@ -3531,13 +3522,19 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
             null_check(obj);
           }
           // Inline type is null-free. Always throw an exception.
-          builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(klass)));
+          bool is_aastore = (java_bc() == Bytecodes::_aastore);
+          Deoptimization::DeoptReason reason = is_aastore ?
+            Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
+          builtin_throw(reason, makecon(TypeKlassPtr::make(klass)));
           return top();
         } else {
           // It needs a null check because a null will *pass* the cast check.
           const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
           if (!objtp->maybe_null()) {
-            builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(objtp->klass())));
+            bool is_aastore = (java_bc() == Bytecodes::_aastore);
+            Deoptimization::DeoptReason reason = is_aastore ?
+              Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
+            builtin_throw(reason, makecon(TypeKlassPtr::make(objtp->klass())));
             return top();
           } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
             return null_assert(obj);
@@ -3637,7 +3634,10 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         } else {
           obj_klass = load_object_klass(not_null_obj);
         }
-        builtin_throw(Deoptimization::Reason_class_check, obj_klass);
+        bool is_aastore = (java_bc() == Bytecodes::_aastore);
+        Deoptimization::DeoptReason reason = is_aastore ?
+          Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
+        builtin_throw(reason, obj_klass);
       }
     } else {
       (*failure_control) = not_subtype_ctrl;
@@ -4359,6 +4359,14 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
+  Node* valid_length_test = _gvn.intcon(1);
+  if (ary_type->klass()->is_array_klass()) {
+    BasicType bt = ary_type->klass()->as_array_klass()->element_type()->basic_type();
+    jint max = TypeAryPtr::max_array_length(bt);
+    Node* valid_length_cmp  = _gvn.transform(new CmpUNode(length, intcon(max)));
+    valid_length_test = _gvn.transform(new BoolNode(valid_length_cmp, BoolTest::le));
+  }
+
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
   // Inline type array variants:
@@ -4424,8 +4432,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                                                    control(), mem, i_o(),
                                                    size, klass_node,
                                                    initial_slow_test,
-                                                   length, default_value,
-                                                   raw_default_value);
+                                                   length, valid_length_test,
+                                                   default_value, raw_default_value);
 
   // Cast to correct type.  Note that the klass_node may be constant or not,
   // and in the latter case the actual array type will be inexact also.

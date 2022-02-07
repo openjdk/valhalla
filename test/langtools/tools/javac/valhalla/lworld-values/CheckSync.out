@@ -3,6 +3,7 @@ CheckSync.java:19:17: compiler.err.primitive.class.does.not.support: wait
 CheckSync.java:20:17: compiler.err.primitive.class.does.not.support: wait
 CheckSync.java:21:19: compiler.err.primitive.class.does.not.support: notify
 CheckSync.java:22:22: compiler.err.primitive.class.does.not.support: notifyAll
+CheckSync.java:23:13: compiler.warn.has.been.deprecated.for.removal: finalize(), java.lang.Object
 CheckSync.java:23:21: compiler.err.primitive.class.does.not.support: finalize
 CheckSync.java:31:17: compiler.err.primitive.class.does.not.support: wait
 CheckSync.java:32:17: compiler.err.primitive.class.does.not.support: wait
@@ -14,7 +15,5 @@ CheckSync.java:35:17: compiler.err.primitive.class.does.not.support: wait
 CheckSync.java:36:17: compiler.err.primitive.class.does.not.support: wait
 CheckSync.java:37:19: compiler.err.primitive.class.does.not.support: notify
 CheckSync.java:38:22: compiler.err.primitive.class.does.not.support: notifyAll
-- compiler.note.deprecated.filename: CheckSync.java
-- compiler.note.deprecated.recompile
 14 errors
-2 warnings
+3 warnings
