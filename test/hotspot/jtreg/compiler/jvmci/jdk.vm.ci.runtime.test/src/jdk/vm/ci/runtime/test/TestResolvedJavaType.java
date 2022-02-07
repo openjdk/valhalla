@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -179,7 +179,7 @@ public class TestResolvedJavaType extends TypeUniverse {
     public void getModifiersTest() {
         for (Class<?> c : classes) {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
-            int mask = Modifier.classModifiers() & ~Modifier.STATIC;
+            int mask = Modifier.classModifiers() & ~Modifier.STATIC & ~Modifier.PERMITS_VALUE;
             int expected = c.getModifiers() & mask;
             int actual = type.getModifiers() & mask;
             Class<?> elementalType = c;
@@ -189,8 +189,8 @@ public class TestResolvedJavaType extends TypeUniverse {
             if (elementalType.isMemberClass()) {
                 // member class get their modifiers from the inner-class attribute in the JVM and
                 // from the classfile header in jvmci
-                expected &= ~(Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED);
-                actual &= ~(Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED);
+                expected &= ~(Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.PERMITS_VALUE);
+                actual &= ~(Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED | Modifier.PERMITS_VALUE);
             }
             assertEquals(String.format("%s: 0x%x != 0x%x", type, expected, actual), expected, actual);
         }
