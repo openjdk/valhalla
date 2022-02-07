@@ -1321,7 +1321,7 @@ public class Resolve {
 
                 @Override
                 void skip(JCTree tree) {
-                    result &= false;
+                    result = false;
                 }
 
                 @Override
@@ -1333,9 +1333,9 @@ public class Resolve {
                 @Override
                 public void visitReference(JCMemberReference tree) {
                     if (sRet.hasTag(VOID)) {
-                        result &= true;
+                        // do nothing
                     } else if (tRet.hasTag(VOID)) {
-                        result &= false;
+                        result = false;
                     } else if (tRet.isPrimitive() != sRet.isPrimitive()) {
                         boolean retValIsPrimitive =
                                 tree.refPolyKind == PolyKind.STANDALONE &&
@@ -1355,9 +1355,9 @@ public class Resolve {
                 @Override
                 public void visitLambda(JCLambda tree) {
                     if (sRet.hasTag(VOID)) {
-                        result &= true;
+                        // do nothing
                     } else if (tRet.hasTag(VOID)) {
-                        result &= false;
+                        result = false;
                     } else {
                         List<JCExpression> lambdaResults = lambdaResults(tree);
                         if (!lambdaResults.isEmpty() && unrelatedFunctionalInterfaces(tRet, sRet)) {
@@ -2986,9 +2986,6 @@ public class Resolve {
                                 sym.kind != WRONG_MTHS) {
                                 sym = super.access(env, pos, location, sym);
                             } else {
-                                final JCDiagnostic details = sym.kind == WRONG_MTH ?
-                                                ((InapplicableSymbolError)sym.baseSymbol()).errCandidate().snd :
-                                                null;
                                 sym = new DiamondError(sym, currentResolutionContext);
                                 sym = accessMethod(sym, pos, site, names.init, true, argtypes, typeargtypes);
                                 env.info.pendingResolutionPhase = currentResolutionContext.step;

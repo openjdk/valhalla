@@ -26,11 +26,13 @@ import java.util.List;
 public class MixedValues {
     static Point staticPoint = Point.makePoint(10, 10);
     static Line.ref staticLine;   // null static field of non-flattened type
+    static ValueOptional staticValue;
     Point p;
     Line l;
     MutablePath mutablePath;
     List<String> list;
     Point.ref nfp;
+    ValueOptional voptional;
 
     public MixedValues(Point p, Line l, MutablePath path, String... names) {
         this.p = p;
@@ -38,5 +40,6 @@ public class MixedValues {
         this.mutablePath = path;
         this.list = List.of(names);
         this.nfp = p;
+        this.voptional = new ValueOptional(p);
     }
 }
