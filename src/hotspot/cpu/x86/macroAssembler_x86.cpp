@@ -5663,15 +5663,12 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
                                           RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
   assert(from->is_valid(), "source must be valid");
-  Register fromReg;
-  if (from->is_reg()) {
-    fromReg = from->as_Register();
-  } else {
-    int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-    movq(r10, Address(rsp, st_off));
-    fromReg = r10;
-  }
+#ifdef ASSERT
+  bool progress = false;
+  const int start_offset = offset();
+#endif
 
+  Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
   bool mark_done = true;
@@ -5681,22 +5678,31 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     assert(toReg->is_valid(), "destination must be valid");
     int off = sig->at(stream.sig_index())._offset;
     assert(off > 0, "offset in object should be positive");
-    Address fromAddr = Address(fromReg, off);
 
     int idx = (int)toReg->value();
     if (reg_state[idx] == reg_readonly) {
-     if (idx != from->value()) {
-       mark_done = false;
-     }
-     done = false;
-     continue;
+      if (idx != from->value()) {
+        mark_done = false;
+      }
+      done = false;
+      continue;
     } else if (reg_state[idx] == reg_written) {
       continue;
-    } else {
-      assert(reg_state[idx] == reg_writable, "must be writable");
-      reg_state[idx] = reg_written;
     }
+    assert(reg_state[idx] == reg_writable, "must be writable");
+    reg_state[idx] = reg_written;
+    DEBUG_ONLY(progress = true);
 
+    if (fromReg = noreg) {
+      if (from->is_reg()) {
+        fromReg = from->as_Register();
+      } else {
+        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(r10, Address(rsp, st_off));
+        fromReg = r10;
+      }
+    }
+    Address fromAddr = Address(fromReg, off);
     if (!toReg->is_XMMRegister()) {
       Register dst = toReg->is_stack() ? r13 : toReg->as_Register();
       if (is_reference_type(bt)) {
@@ -5724,6 +5730,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     reg_state[from->value()] = reg_writable;
   }
   from_index--;
+  assert(progress || (start_offset == offset()), "should not emit code");
   return done;
 }
 
