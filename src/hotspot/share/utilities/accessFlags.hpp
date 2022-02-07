@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,6 +126,7 @@ class AccessFlags {
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
   bool is_value_class () const         { return (_flags & JVM_ACC_VALUE       ) != 0; }
   bool is_primitive_class () const     { return (_flags & JVM_ACC_PRIMITIVE   ) != 0; }
+  bool is_permits_value_class () const { return (_flags & JVM_ACC_PERMITS_VALUE   ) != 0; }
 
   // Attribute flags
   bool is_synthetic   () const         { return (_flags & JVM_ACC_SYNTHETIC   ) != 0; }
