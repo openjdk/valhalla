@@ -154,7 +154,7 @@ class JavaArgumentUnboxer : public SignatureIterator {
   friend class SignatureIterator;  // so do_parameters_on can call do_type
   void do_type(BasicType type) {
     if (is_reference_type(type)) {
-      (type == T_INLINE_TYPE) ? _jca->push_oop(next_arg(T_INLINE_TYPE)) : _jca->push_oop(next_arg(T_OBJECT));
+      (type == T_PRIMITIVE_OBJECT) ? _jca->push_oop(next_arg(T_PRIMITIVE_OBJECT)) : _jca->push_oop(next_arg(T_OBJECT));
       return;
     }
     Handle arg = next_arg(type);

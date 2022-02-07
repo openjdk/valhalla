@@ -157,7 +157,7 @@ void fieldDescriptor::print() const { print_on(tty); }
 
 void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
   BasicType ft = field_type();
-  if (ft != T_INLINE_TYPE) {
+  if (ft != T_PRIMITIVE_OBJECT) {
     print_on(st);
   }
   jint as_int = 0;
@@ -197,7 +197,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       as_int = obj->bool_field(offset());
       st->print(" %s", obj->bool_field(offset()) ? "true" : "false");
       break;
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
       if (is_inlined()) {
         // Print fields of inlined fields (recursively)
         InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));

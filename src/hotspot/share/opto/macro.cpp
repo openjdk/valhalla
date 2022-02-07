@@ -778,7 +778,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
       if (elem_type->is_inlinetype() && !klass->is_flat_array_klass()) {
-        assert(basic_elem_type == T_INLINE_TYPE, "unexpected element basic type");
+        assert(basic_elem_type == T_PRIMITIVE_OBJECT, "unexpected element basic type");
         basic_elem_type = T_OBJECT;
       }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
@@ -1034,11 +1034,11 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
       } else if (use->is_InlineType()) {
         assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
         _igvn.rehash_node_delayed(use);
-        use->isa_InlineType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+        use->isa_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
       } else if (use->is_InlineTypePtr()) {
         assert(use->isa_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
         _igvn.rehash_node_delayed(use);
-        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
         // Process users
         worklist.push(use);
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {

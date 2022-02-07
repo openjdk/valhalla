@@ -155,7 +155,7 @@ static BasicType runtime_type_from(JavaValue* result) {
 #ifndef _LP64
     case T_OBJECT   : // fall through
     case T_ARRAY    : // fall through
-    case T_INLINE_TYPE: // fall through
+    case T_PRIMITIVE_OBJECT: // fall through
 #endif
     case T_BYTE     : // fall through
     case T_VOID     : return T_INT;
@@ -165,7 +165,7 @@ static BasicType runtime_type_from(JavaValue* result) {
 #ifdef _LP64
     case T_ARRAY    : // fall through
     case T_OBJECT   : return T_OBJECT;
-    case T_INLINE_TYPE: return T_INLINE_TYPE;
+    case T_PRIMITIVE_OBJECT: return T_PRIMITIVE_OBJECT;
 #endif
     default:
       ShouldNotReachHere();
@@ -408,7 +408,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   }
 
   jobject value_buffer = NULL;
-  if (InlineTypeReturnedAsFields && result->get_type() == T_INLINE_TYPE) {
+  if (InlineTypeReturnedAsFields && result->get_type() == T_PRIMITIVE_OBJECT) {
     // Pre allocate a buffered inline type in case the result is returned
     // flattened by compiled code
     InlineKlass* vk = method->returned_inline_type(thread);
@@ -606,7 +606,7 @@ class SignatureChekker : public SignatureIterator {
       check_double_word(); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
       check_reference(); break;
     default:
       ShouldNotReachHere();

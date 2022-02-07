@@ -935,7 +935,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
 
     GrowableArray<Handle> return_values;
     InlineKlass* vk = NULL;
-    if (return_oop && InlineTypeReturnedAsFields && method->result_type() == T_INLINE_TYPE) {
+    if (return_oop && InlineTypeReturnedAsFields && method->result_type() == T_PRIMITIVE_OBJECT) {
       // Check if inline type is returned as fields
       vk = InlineKlass::returned_inline_klass(map);
       if (vk != NULL) {

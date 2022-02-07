@@ -533,7 +533,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   if (Signature::is_array(sym) &&
       (sym->char_at(1) == JVM_SIGNATURE_ARRAY ||
        sym->char_at(1) == JVM_SIGNATURE_CLASS ||
-       sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE )) {
+       sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT )) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     SignatureStream ss(sym, false);
@@ -546,7 +546,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE;
+      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
       return ciArrayKlass::make(elem_klass, null_free_array);
     }
   }
@@ -577,7 +577,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   while (sym->char_at(i) == JVM_SIGNATURE_ARRAY) {
     i++;
   }
-  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_INLINE_TYPE) {
+  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
     // An unloaded array class of inline types is an ObjArrayKlass, an
     // unloaded inline type class is an InstanceKlass. For consistency,
     // make the signature of the unloaded array of inline type use L

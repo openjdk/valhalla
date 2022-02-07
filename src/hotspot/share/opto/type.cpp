@@ -136,7 +136,7 @@ const Type::TypeInfo Type::_type_info[Type::lastype] = {
   { Bad,             T_ILLEGAL,    "vectory:",      false, Op_VecY,              relocInfo::none          },  // VectorY
   { Bad,             T_ILLEGAL,    "vectorz:",      false, Op_VecZ,              relocInfo::none          },  // VectorZ
 #endif
-  { Bad,             T_INLINE_TYPE, "inline:",      false, Node::NotAMachineReg, relocInfo::none          },  // InlineType
+  { Bad,             T_PRIMITIVE_OBJECT, "inline:",      false, Node::NotAMachineReg, relocInfo::none          },  // InlineType
   { Bad,             T_ADDRESS,    "anyptr:",       false, Op_RegP,              relocInfo::none          },  // AnyPtr
   { Bad,             T_ADDRESS,    "rawptr:",       false, Op_RegP,              relocInfo::none          },  // RawPtr
   { Bad,             T_OBJECT,     "oop:",          true,  Op_RegP,              relocInfo::oop_type      },  // OopPtr
@@ -269,7 +269,7 @@ const Type* Type::get_typeflow_type(ciType* type) {
     assert(type->is_return_address(), "");
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
-  case T_INLINE_TYPE: {
+  case T_PRIMITIVE_OBJECT: {
     bool is_null_free = type->is_null_free();
     ciInlineKlass* vk = type->unwrap()->as_inline_klass();
     if (is_null_free) {
@@ -307,7 +307,7 @@ const Type* Type::make_from_constant(ciConstant constant, bool require_constant,
     case T_FLOAT:    return TypeF::make(constant.as_float());
     case T_DOUBLE:   return TypeD::make(constant.as_double());
     case T_ARRAY:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
     case T_OBJECT: {
         const Type* con_type = NULL;
         ciObject* oop_constant = constant.as_object();
@@ -345,14 +345,14 @@ static ciConstant check_mismatched_access(ciConstant con, BasicType loadbt, bool
   switch (conbt) {
     case T_BOOLEAN: conbt = T_BYTE;   break;
     case T_ARRAY:   conbt = T_OBJECT; break;
-    case T_INLINE_TYPE: conbt = T_OBJECT; break;
+    case T_PRIMITIVE_OBJECT: conbt = T_OBJECT; break;
     default:                          break;
   }
   switch (loadbt) {
     case T_BOOLEAN:   loadbt = T_BYTE;   break;
     case T_NARROWOOP: loadbt = T_OBJECT; break;
     case T_ARRAY:     loadbt = T_OBJECT; break;
-    case T_INLINE_TYPE: loadbt = T_OBJECT; break;
+    case T_PRIMITIVE_OBJECT: loadbt = T_OBJECT; break;
     case T_ADDRESS:   loadbt = T_OBJECT; break;
     default:                             break;
   }
@@ -657,7 +657,7 @@ void Type::Initialize_shared(Compile* current) {
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use NULL as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = NULL;
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
-  TypeAryPtr::_array_body_type[T_INLINE_TYPE] = TypeAryPtr::OOPS;
+  TypeAryPtr::_array_body_type[T_PRIMITIVE_OBJECT] = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
@@ -708,7 +708,7 @@ void Type::Initialize_shared(Compile* current) {
   _const_basic_type[T_DOUBLE]      = Type::DOUBLE;
   _const_basic_type[T_OBJECT]      = TypeInstPtr::BOTTOM;
   _const_basic_type[T_ARRAY]       = TypeInstPtr::BOTTOM; // there is no separate bottom for arrays
-  _const_basic_type[T_INLINE_TYPE] = TypeInstPtr::BOTTOM;
+  _const_basic_type[T_PRIMITIVE_OBJECT] = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VOID]        = TypePtr::NULL_PTR;   // reflection represents void this way
   _const_basic_type[T_ADDRESS]     = TypeRawPtr::BOTTOM;  // both interpreter return addresses & random raw ptrs
   _const_basic_type[T_CONFLICT]    = Type::BOTTOM;        // why not?
@@ -725,7 +725,7 @@ void Type::Initialize_shared(Compile* current) {
   _zero_type[T_DOUBLE]      = TypeD::ZERO;
   _zero_type[T_OBJECT]      = TypePtr::NULL_PTR;
   _zero_type[T_ARRAY]       = TypePtr::NULL_PTR; // null array is null oop
-  _zero_type[T_INLINE_TYPE] = TypePtr::NULL_PTR;
+  _zero_type[T_PRIMITIVE_OBJECT] = TypePtr::NULL_PTR;
   _zero_type[T_ADDRESS]     = TypePtr::NULL_PTR; // raw pointers use the same null
   _zero_type[T_VOID]        = Type::TOP;         // the only void value is no value at all
 
@@ -2118,7 +2118,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   case T_INT:
     field_array[TypeFunc::Parms] = get_const_type(return_type);
     break;
-  case T_INLINE_TYPE:
+  case T_PRIMITIVE_OBJECT:
     if (ret_vt_fields) {
       uint pos = TypeFunc::Parms;
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
@@ -2183,7 +2183,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     case T_SHORT:
       field_array[pos++] = TypeInt::INT;
       break;
-    case T_INLINE_TYPE: {
+    case T_PRIMITIVE_OBJECT: {
       bool is_null_free = sig->is_null_free_at(i);
       if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields() && is_null_free) {
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
@@ -3440,7 +3440,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
             ciInstanceKlass* k = const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
             if (k->is_inlinetype() && this->offset() == k->as_inline_klass()->default_value_offset()) {
               // Special hidden field that contains the oop of the default inline type
-              // basic_elem_type = T_INLINE_TYPE;
+              // basic_elem_type = T_PRIMITIVE_OBJECT;
              _is_ptr_to_narrowoop = UseCompressedOops;
             } else {
               field = k->get_field_by_offset(this->offset(), true);
