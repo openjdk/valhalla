@@ -5693,7 +5693,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     reg_state[idx] = reg_written;
     DEBUG_ONLY(progress = true);
 
-    if (fromReg = noreg) {
+    if (fromReg == noreg) {
       if (from->is_reg()) {
         fromReg = from->as_Register();
       } else {
