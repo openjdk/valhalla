@@ -62,7 +62,7 @@ public class ValueCreationTest {
                                                 "ValueCreationTest$Point.class").toString() };
         runCheck(params, new String [] {
 
-         "0: defaultvalue  #1                  // class ValueCreationTest$Point",
+         "0: aconst_init   #1                  // class ValueCreationTest$Point",
          "3: astore_2",
          "4: iload_0",
          "5: aload_2",

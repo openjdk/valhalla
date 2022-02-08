@@ -125,7 +125,7 @@ class Universe: AllStatic {
   static Array<Klass*>*         _the_empty_klass_array;          // Canonicalized klass array
   static Array<InstanceKlass*>* _the_empty_instance_klass_array; // Canonicalized instance klass array
   static Array<InstanceKlass*>* _the_single_IdentityObject_klass_array;  // Common single interface array for IdentityObjects
-  static Array<InstanceKlass*>* _the_single_PrimitiveObject_klass_array; // Common single interface array for PrimitiveObjects
+  static Array<InstanceKlass*>* _the_single_ValueObject_klass_array; // Common single interface array for PrimitiveObjects
   static Array<Method*>*        _the_empty_method_array;         // Canonicalized method array
 
   static Array<Klass*>*  _the_array_interfaces_array;
@@ -135,6 +135,10 @@ class Universe: AllStatic {
 
   // number of preallocated error objects available for use
   static volatile jint _preallocated_out_of_memory_error_avail_count;
+
+  // preallocated message detail strings for error objects
+  static OopHandle _msg_metaspace;
+  static OopHandle _msg_class_metaspace;
 
   static OopHandle    _null_ptr_exception_instance;   // preallocated exception object
   static OopHandle    _arithmetic_exception_instance; // preallocated exception object
@@ -292,12 +296,12 @@ class Universe: AllStatic {
     return _the_single_IdentityObject_klass_array;
   }
   static void initialize_the_single_IdentityObject_klass_array(InstanceKlass* ik, TRAPS);
-  static Array<InstanceKlass*>*  the_single_PrimitiveObject_klass_array() {
-    assert(_the_single_PrimitiveObject_klass_array != NULL, "Must be initialized before use");
-    assert(_the_single_PrimitiveObject_klass_array->length() == 1, "Sanity check");
-    return _the_single_PrimitiveObject_klass_array;
+  static Array<InstanceKlass*>*  the_single_ValueObject_klass_array() {
+    assert(_the_single_ValueObject_klass_array != NULL, "Must be initialized before use");
+    assert(_the_single_ValueObject_klass_array->length() == 1, "Sanity check");
+    return _the_single_ValueObject_klass_array;
   }
-  static void initialize_the_single_PrimitiveObject_klass_array(InstanceKlass* ik, TRAPS);
+  static void initialize_the_single_ValueObject_klass_array(InstanceKlass* ik, TRAPS);
 
   // OutOfMemoryError support. Returns an error with the required message. The returned error
   // may or may not have a backtrace. If error has a backtrace then the stack trace is already
@@ -313,6 +317,10 @@ class Universe: AllStatic {
   // Throw default _out_of_memory_error_retry object as it will never propagate out of the VM
   static oop out_of_memory_error_retry();
   static oop delayed_stack_overflow_error_message();
+
+  // If it's a certain type of OOME object
+  static bool is_out_of_memory_error_metaspace(oop ex_obj);
+  static bool is_out_of_memory_error_class_metaspace(oop ex_obj);
 
   // The particular choice of collected heap.
   static CollectedHeap* heap() { return _collectedHeap; }

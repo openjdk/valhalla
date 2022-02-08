@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class SubstitutabilityTest {
+
     @DataProvider(name="substitutable")
     Object[][] substitutableCases() {
         Point p1 = Point.makePoint(10, 10);
@@ -70,6 +71,10 @@ public class SubstitutabilityTest {
                            valueBuilder().setNumber(Value.Number.intValue(100)).build() },
             new Object[] { valueBuilder().setReference(list).build(),
                            valueBuilder().setReference(list).build() },
+            new Object[] { new ValueOptional(p1), new ValueOptional(p1)},
+            new Object[] { new ValueOptional(p1), new ValueOptional(Point.makePoint(10, 10))},
+            new Object[] { new ValueOptional(list), new ValueOptional(list)},
+            new Object[] { new ValueOptional(null), new ValueOptional(null)},
         };
     }
 
@@ -103,6 +108,8 @@ public class SubstitutabilityTest {
                            valueBuilder().setNumber(new Value.IntNumber(99)).build() },
             new Object[] { valueBuilder().setReference(List.of("list")).build(),
                            valueBuilder().setReference(List.of("list")).build() },
+            new Object[] { new ValueOptional(point), new ValueOptional(mpath)},
+            new Object[] { new ValueOptional(Value.Number.intValue(1)), new ValueOptional(Value.Number.shortValue((short)1))},
         };
     }
     @Test(dataProvider="notSubstitutable")

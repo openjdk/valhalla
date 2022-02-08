@@ -9,5 +9,6 @@ public class PrimitiveAsTypeName {
     public class primitive {
         primitive x;
         primitive foo(int l) {}
+        Object o = new primitive primitive() {};
     }
 }

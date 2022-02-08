@@ -281,10 +281,10 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (src_elem == T_ARRAY || (src_elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
+    if (src_elem == T_ARRAY || (src_elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass())) {
       src_elem  = T_OBJECT;
     }
-    if (dest_elem == T_ARRAY || (dest_elem == T_INLINE_TYPE && ary_dest->klass()->is_obj_array_klass())) {
+    if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && ary_dest->klass()->is_obj_array_klass())) {
       dest_elem = T_OBJECT;
     }
 
@@ -295,7 +295,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization) ||
-        (src_elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
+        (src_elem == T_PRIMITIVE_OBJECT && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, false, BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -304,7 +304,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     value_type = ary_src->elem();
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
-    if (dest_elem == T_INLINE_TYPE) {
+    if (dest_elem == T_PRIMITIVE_OBJECT) {
       ciFlatArrayKlass* vak = ary_src->klass()->as_flat_array_klass();
       shift = vak->log2_element_size();
     }
@@ -339,13 +339,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    if (elem == T_ARRAY || (elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
+    if (elem == T_ARRAY || (elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass())) {
       elem = T_OBJECT;
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     if (bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-        (elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
+        (elem == T_PRIMITIVE_OBJECT && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -409,7 +409,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          const Type* value_type) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
-  if (copy_type == T_INLINE_TYPE) {
+  if (copy_type == T_PRIMITIVE_OBJECT) {
     ciFlatArrayKlass* vak = atp_src->klass()->as_flat_array_klass();
     ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
@@ -419,7 +419,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
       assert(!field->is_flattened(), "flattened field encountered");
-      if (bt == T_INLINE_TYPE) {
+      if (bt == T_PRIMITIVE_OBJECT) {
         bt = T_OBJECT;
       }
       const Type* rt = Type::get_const_type(ft);
@@ -548,7 +548,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-             (ary_src != NULL && elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
 #endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@ extern "C" {
 #define ACC_STATIC      0x0008
 #define ACC_FINAL       0x0010
 #define ACC_SUPER       0x0020
+#define ACC_PERMITS_VALUE    0x0040
 #define ACC_INTERFACE   0x0200
 #define ACC_ABSTRACT    0x0400
 
@@ -82,6 +83,7 @@ void printModifiers(jint mod) {
     if (mod & ACC_SUPER) printf(" SUPER");
     if (mod & ACC_INTERFACE) printf(" INTERFACE");
     if (mod & ACC_ABSTRACT) printf(" ABSTRACT");
+    if (mod & ACC_PERMITS_VALUE) printf(" PERMITS_VALUE");
     printf(" (0x%0x)\n", mod);
 }
 

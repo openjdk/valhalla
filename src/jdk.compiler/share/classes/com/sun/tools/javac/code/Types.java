@@ -786,10 +786,12 @@ public class Types {
                 //t must define a suitable non-generic method
                 throw failure("not.a.functional.intf.1", origin,
                             diags.fragment(Fragments.NoAbstracts(Kinds.kindName(origin), origin)));
-            } else if (abstracts.size() == 1) {
-                return new FunctionDescriptor(abstracts.first());
+            }
+            FunctionDescriptor descRes;
+            if (abstracts.size() == 1) {
+                descRes = new FunctionDescriptor(abstracts.first());
             } else { // size > 1
-                FunctionDescriptor descRes = mergeDescriptors(origin, abstracts.toList());
+                descRes = mergeDescriptors(origin, abstracts.toList());
                 if (descRes == null) {
                     //we can get here if the functional interface is ill-formed
                     ListBuffer<JCDiagnostic> descriptors = new ListBuffer<>();
@@ -808,8 +810,14 @@ public class Types {
                             new JCDiagnostic.MultilineDiagnostic(msg, descriptors.toList());
                     throw failure(incompatibleDescriptors);
                 }
-                return descRes;
             }
+            // Not functional if extending either of the top interface types.
+            Type topInterface;
+            if ((topInterface = asSuper(origin.type, syms.identityObjectType.tsym)) != null ||
+                    (topInterface = asSuper(origin.type, syms.valueObjectType.tsym)) != null) {
+                throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.MayNotExtendTopInterfaceType(topInterface)));
+            }
+            return descRes;
         }
 
         /**
@@ -1087,9 +1095,9 @@ public class Types {
                     // if T.ref <: S, then T[] <: S[]
                     Type es = elemtype(s);
                     Type et = elemtype(t);
-                    if (isPrimitiveClass(et)) {
+                    if (et.isPrimitiveClass()) {
                         et = et.referenceProjection();
-                        if (isPrimitiveClass(es))
+                        if (es.isPrimitiveClass())
                             es = es.referenceProjection();  // V <: V, surely
                     }
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
@@ -1200,7 +1208,7 @@ public class Types {
                          warnStack.head.warn(LintCategory.UNIVERSAL);
                      }
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isPrimitiveClass(s)) ||
+                         s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1283,9 +1291,9 @@ public class Types {
                         // if T.ref <: S, then T[] <: S[]
                         Type es = elemtype(s);
                         Type et = elemtype(t);
-                        if (isPrimitiveClass(et)) {
+                        if (et.isPrimitiveClass()) {
                             et = et.referenceProjection();
-                            if (isPrimitiveClass(es))
+                            if (es.isPrimitiveClass())
                                 es = es.referenceProjection();  // V <: V, surely
                         }
                         return isSubtypeNoCapture(et, es);
@@ -1794,7 +1802,7 @@ public class Types {
     }
     // where
         private boolean areDisjoint(ClassSymbol ts, ClassSymbol ss) {
-            if (isSubtype(erasure(ts.type), erasure(ss.type))) {
+            if (isSubtype(erasure(ts.type.referenceProjectionOrSelf()), erasure(ss.type))) {
                 return false;
             }
             // if both are classes or both are interfaces, shortcut
@@ -1849,7 +1857,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !isPrimitiveClass(t)))
+                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !t.isPrimitiveClass()))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -1868,11 +1876,11 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
-                    if (isPrimitiveClass(t)) {
+                    if (t.isPrimitiveClass()) {
                         // (s) Value ? == (s) Value.ref
                         t = t.referenceProjection();
                     }
-                    if (isPrimitiveClass(s)) {
+                    if (s.isPrimitiveClass()) {
                         // (Value) t ? == (Value.ref) t
                         s = s.referenceProjection();
                     }
@@ -2315,7 +2323,7 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
 
-        if (isPrimitiveClass(t)) {
+        if (t.isPrimitiveClass()) {
             // No man may be an island, but the bell tolls for a value.
             return t.tsym == sym ? t : null;
         }
@@ -2329,15 +2337,15 @@ public class Types {
                 return null;
             if (t.hasTag(ARRAY))
                 return syms.identityObjectType;
-            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+            if (t.hasTag(CLASS) && !t.isValueClass() && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
                 return syms.identityObjectType;
             }
             if (implicitIdentityType(t)) {
                 return syms.identityObjectType;
             } // else fall through and look for explicit coded super interface
-        } else if (sym == syms.primitiveObjectType.tsym) {
-            if (t.isReferenceProjection())
-                return syms.primitiveObjectType;
+        } else if (sym == syms.valueObjectType.tsym) {
+            if (t.isValueClass() || t.isReferenceProjection())
+                return syms.valueObjectType;
             if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
                 return null;
             // else fall through and look for explicit coded super interface
@@ -2405,9 +2413,9 @@ public class Types {
 
         // where
         private boolean implicitIdentityType(Type t) {
-            /* An abstract class can be declared to implement either IdentityObject or PrimitiveObject;
+            /* An abstract class can be declared to implement either IdentityObject or ValueObject;
              * or, if it declares a field, an instance initializer, a non-empty constructor, or
-             * a synchronized method, it implicitly implements IdentityObject.
+             * a synchronized instance method, it implicitly implements IdentityObject.
              */
             if (!t.tsym.isAbstract())
                 return false;
@@ -2441,7 +2449,7 @@ public class Types {
                             }
                             break;
                         case MTH:
-                            if ((s.flags() & SYNCHRONIZED) != 0) {
+                            if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
                             } else if (s.isConstructor()) {
                                 MethodSymbol m = (MethodSymbol)s;
@@ -5396,7 +5404,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (types.isPrimitiveClass(type))
+                    if (type.isPrimitiveClass())
                         append('Q');
                     else
                         append('L');

@@ -38,26 +38,26 @@ public class InstanceOfTopTypeTest {
         Object o = new InstanceOfTopTypeTest();
         if (o instanceof IdentityObject)
             points++;     // 1
-        if (o instanceof PrimitiveObject)
+        if (o instanceof ValueObject)
             throw new AssertionError("Broken");
         o = new V();
         if (o instanceof IdentityObject)
             throw new AssertionError("Broken");
-        if (o instanceof PrimitiveObject)
+        if (o instanceof ValueObject)
             points++; // 2
         Object [] oa = new InstanceOfTopTypeTest[] { new InstanceOfTopTypeTest() };
         if (oa instanceof IdentityObject)
             points++; // 3
         if (oa[0] instanceof IdentityObject)
             points++; // 4
-        if (oa[0] instanceof PrimitiveObject)
+        if (oa[0] instanceof ValueObject)
             throw new AssertionError("Broken");
         oa = new V[] { new V() };
         if (oa instanceof IdentityObject)
             points++; // 5
         if (oa[0] instanceof IdentityObject)
             throw new AssertionError("Broken");
-        if (oa[0] instanceof PrimitiveObject)
+        if (oa[0] instanceof ValueObject)
             points++; // 6
         if (points != 6)
             throw new AssertionError("Broken top type set up " + points);

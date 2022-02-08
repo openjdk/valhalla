@@ -251,13 +251,13 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   for (uint i = 0; i < unswitch_iffs.size(); i++) {
     IfNode* iff = unswitch_iffs.at(i)->as_If();
     _igvn.rehash_node_delayed(iff);
-    dominated_by(proj_true, iff);
+    dominated_by(proj_true->as_IfProj(), iff);
   }
   IfNode* unswitch_iff_clone = old_new[unswitch_iff->_idx]->as_If();
   if (!flat_array_checks) {
     ProjNode* proj_false = invar_iff->proj_out(0)->as_Proj();
     _igvn.rehash_node_delayed(unswitch_iff_clone);
-    dominated_by(proj_false, unswitch_iff_clone);
+    dominated_by(proj_false->as_IfProj(), unswitch_iff_clone);
   } else {
     // Leave the flattened array checks in the slow loop and
     // prevent it from being unswitched again based on these checks.

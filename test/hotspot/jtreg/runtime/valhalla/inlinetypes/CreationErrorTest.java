@@ -91,20 +91,20 @@ public class CreationErrorTest {
 
     }
 
-    // Note: this test might become obsolete if defaultvalue is extended to accept identity classes
+    // Note: this test might become obsolete if aconst_init is extended to accept identity classes
     static void testErroneousValueCreation() {
-        MethodHandle testDefaultvalueOnIdentityClass = InstructionHelper.loadCode(
+        MethodHandle testAconstInitOnIdentityClass = InstructionHelper.loadCode(
                 LOOKUP,
-                "testDefaultValueOnIdentityClass",
+                "testAconstInitOnIdentityClass",
                 MethodType.methodType(boolean.class),
                 CODE -> {
-                    CODE.defaultvalue(IdentityClass.class)
+                    CODE.aconst_init(IdentityClass.class)
                         .iconst_1()
                         .return_(TypeTag.Z);
                 });
         Throwable error = null;
         try {
-            boolean result = (boolean) testDefaultvalueOnIdentityClass.invokeExact();
+            boolean result = (boolean) testAconstInitOnIdentityClass.invokeExact();
         } catch (Throwable t) {
             error = t;
         }

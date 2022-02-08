@@ -39,13 +39,18 @@ public class ValueArray {
     @DataProvider(name="elementTypes")
     static Object[][] elementTypes() {
         return new Object[][]{
-            new Object[] { Point.class.asValueType(), new Point(0,0) },
+            new Object[] { Point.class.asValueType(), Point.default },
             new Object[] { Point.ref.class, null },
+            new Object[] { ValueOptional.class, null },
         };
     }
+
+    /*
+     * Test an array created from the given element type via Array::newInstance
+     */
     @Test(dataProvider="elementTypes")
-    public void testPrimitiveElementType(Class<?> elementType, Object defaultValue) {
-        assertTrue(elementType.isPrimitiveClass());
+    public void testElementType(Class<?> elementType, Object defaultValue) {
+        assertTrue(elementType.isValue());
         assertTrue(elementType.isPrimaryType() || defaultValue != null);
 
         Object[] array = (Object[])Array.newInstance(elementType, 1);
@@ -88,9 +93,16 @@ public class ValueArray {
                                                    NonFlattenValue.make(100, 200)}},
             new Object[] { Point[].class,  new Point[0] },
             new Object[] { Point.ref[].class,  new Point.ref[0] },
+            new Object[] { ValueOptional[].class,  new ValueOptional[0] },
         };
     }
 
+    /*
+     * Test the following properties of an array of value class:
+     * - class name
+     * - array element can be null or not
+     * - array covariance if the element type is a primitive value type
+     */
     @Test(dataProvider="arrayTypes")
     public void testArrays(Class<?> arrayClass, Object[] array) {
         testClassName(arrayClass);
@@ -115,13 +127,13 @@ public class ValueArray {
             sb.append("[");
             c = c.getComponentType();
         }
-        sb.append(c.isValueType() ? "Q" : "L").append(c.getName()).append(";");
+        sb.append(c.isPrimitiveValueType() ? "Q" : "L").append(c.getName()).append(";");
         assertEquals(sb.toString(), arrayClassName);
     }
 
     /**
      * Setting the elements of an array.
-     * NPE will be thrown if null is set on an element in an array of value type
+     * NPE will be thrown if null is set on an element in an array of primitive value type
      */
     static void testArrayElements(Class<?> arrayClass, Object[] array) {
         Class<?> componentType = arrayClass.getComponentType();
@@ -142,7 +154,7 @@ public class ValueArray {
         Arrays.setAll(newArray, i -> array[i]);
 
         // test nullable
-        if (!componentType.isValueType()) {
+        if (!componentType.isPrimitiveValueType()) {
             for (int i = 0; i < newArray.length; i++) {
                 Array.set(newArray, i, null);
             }
@@ -222,12 +234,14 @@ public class ValueArray {
     }
 
     @Test
-    static void testPointArray() {
+    static void testInstanceOf() {
         Point[] qArray = new Point[0];
         Point.ref[] lArray = new Point.ref[0];
+        ValueOptional[] vArray = new ValueOptional[0];
 
         // language instanceof
         assertTrue(qArray instanceof Point[]);
         assertTrue(lArray instanceof Point.ref[]);
+        assertTrue(vArray instanceof ValueOptional[]);
     }
 }

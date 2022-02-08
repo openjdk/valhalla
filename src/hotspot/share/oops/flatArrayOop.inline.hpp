@@ -31,7 +31,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
-inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_INLINE_TYPE); }
+inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_PRIMITIVE_OBJECT); }
 
 inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");

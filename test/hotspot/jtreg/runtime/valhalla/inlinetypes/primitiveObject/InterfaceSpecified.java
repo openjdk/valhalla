@@ -21,6 +21,6 @@
  * questions.
  *
  */
-public interface InterfaceSpecified extends PrimitiveObject {
+public interface InterfaceSpecified extends ValueObject {
 
 }

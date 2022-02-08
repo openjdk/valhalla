@@ -194,6 +194,8 @@ public class JavacParser implements Parser {
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         this.allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
                 Feature.PRIMITIVE_CLASSES.allowedInSource(source);
+        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         this.allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
 
@@ -239,6 +241,10 @@ public class JavacParser implements Parser {
     /** Switch: are primitive classes allowed in this source level?
      */
     boolean allowPrimitiveClasses;
+
+    /** Switch: are value classes allowed in this source level?
+     */
+    boolean allowValueClasses;
 
     /** Switch: are sealed types allowed in this source level?
      */
@@ -2099,7 +2105,7 @@ public class JavacParser implements Parser {
                     args.append(parseExpression());
                 }
             }
-            accept(RPAREN);
+            accept(RPAREN, tk -> Errors.Expected2(RPAREN, COMMA));
         } else {
             syntaxError(token.pos, Errors.Expected(LPAREN));
         }
@@ -2187,7 +2193,7 @@ public class JavacParser implements Parser {
                     nextToken();
                     break;
                 default:
-                    args.append(syntaxError(token.pos, Errors.Expected(GT)));
+                    args.append(syntaxError(token.pos, Errors.Expected2(GT, COMMA)));
                     break;
                 }
                 return args.toList();
@@ -2376,8 +2382,7 @@ public class JavacParser implements Parser {
         case BYTE: case SHORT: case CHAR: case INT: case LONG: case FLOAT:
         case DOUBLE: case BOOLEAN:
             if (mods.flags != 0) {
-                long badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
-                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
+                log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(mods.flags)));
             }
             if (typeArgs == null) {
                 if (newAnnotations.isEmpty()) {
@@ -2447,7 +2452,7 @@ public class JavacParser implements Parser {
             }
             return e;
         } else if (token.kind == LPAREN) {
-            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.FINAL);
+            long badModifiers = mods.flags & ~(Flags.PRIMITIVE_CLASS | Flags.VALUE_CLASS | Flags.FINAL);
             if (badModifiers != 0)
                 log.error(token.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
             // handle type annotations for instantiations and anonymous classes
@@ -2456,8 +2461,7 @@ public class JavacParser implements Parser {
             }
             JCNewClass newClass = classCreatorRest(newpos, null, typeArgs, t, mods.flags);
             if ((newClass.def == null) && (mods.flags != 0)) {
-                badModifiers = (mods.flags & Flags.PRIMITIVE_CLASS) != 0 ? mods.flags & ~Flags.FINAL : mods.flags;
-                log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(badModifiers)));
+                log.error(newClass.pos, Errors.ModNotAllowedHere(asFlagSet(mods.flags)));
             }
             return newClass;
         } else {
@@ -2807,7 +2811,7 @@ public class JavacParser implements Parser {
                 }
             }
         }
-        if (isPrimitiveModifier()) {
+        if ((isPrimitiveModifier() && allowPrimitiveClasses) || isValueModifier() && allowValueClasses) {
             dc = token.comment(CommentStyle.JAVADOC);
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
@@ -3351,6 +3355,10 @@ public class JavacParser implements Parser {
                     flag = Flags.PRIMITIVE_CLASS;
                     break;
                 }
+                if (isValueModifier()) {
+                    flag = Flags.VALUE_CLASS;
+                    break;
+                }
                 break loop;
             }
             default: break loop;
@@ -3367,6 +3375,8 @@ public class JavacParser implements Parser {
                     final Name name = TreeInfo.name(ann.annotationType);
                     if (name == names.__primitive__ || name == names.java_lang___primitive__) {
                         flag = Flags.PRIMITIVE_CLASS;
+                    } else if (name == names.__value__ || name == names.java_lang___value__) {
+                        flag = Flags.VALUE_CLASS;
                     } else {
                         annotations.append(ann);
                         flag = 0;
@@ -3385,11 +3395,6 @@ public class JavacParser implements Parser {
          * has no text position. */
         if ((flags & (Flags.ModifierFlags | Flags.ANNOTATION)) == 0 && annotations.isEmpty())
             pos = Position.NOPOS;
-
-        // Force primitive classes to be automatically final.
-        if ((flags & (Flags.PRIMITIVE_CLASS | Flags.ABSTRACT | Flags.INTERFACE | Flags.ENUM)) == Flags.PRIMITIVE_CLASS) {
-            flags |= Flags.FINAL;
-        }
 
         JCModifiers mods = F.at(pos).Modifiers(flags, annotations.toList());
         if (pos != Position.NOPOS)
@@ -3485,7 +3490,7 @@ public class JavacParser implements Parser {
                     buf.append(annotationValue());
                 }
             }
-            accept(RBRACE);
+            accept(RBRACE, tk -> Errors.AnnotationMissingElementValue);
             return toP(F.at(pos).NewArray(null, List.nil(), buf.toList()));
         default:
             selectExprMode();
@@ -3617,9 +3622,16 @@ public class JavacParser implements Parser {
         }
         if (name == names.primitive) {
             if (allowPrimitiveClasses) {
-                return Source.JDK17;
+                return Source.JDK18;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK17));
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
+            }
+        }
+        if (name == names.value) {
+            if (allowValueClasses) {
+                return Source.JDK18;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
             }
         }
         if (name == names.sealed) {
@@ -4513,16 +4525,52 @@ public class JavacParser implements Parser {
     }
 
     protected boolean isPrimitiveModifier() {
-        if (allowPrimitiveClasses && token.kind == IDENTIFIER && token.name() == names.primitive) {
+        if (token.kind == IDENTIFIER && token.name() == names.primitive) {
+            boolean isPrimitiveModifier = false;
             Token next = S.token(1);
             switch (next.kind) {
                 case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
                 case FINAL: case ABSTRACT: case NATIVE: case VOLATILE: case SYNCHRONIZED:
                 case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
                 case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
-                case CLASS: case INTERFACE: case ENUM: case IDENTIFIER: // new primitive Comparable() {}
-                    checkSourceLevel(Feature.PRIMITIVE_CLASSES);
-                    return true;
+                case CLASS: case INTERFACE: case ENUM:
+                    isPrimitiveModifier = true;
+                    break;
+                case IDENTIFIER: // primitive record R || primitive primitive || primitive value || new primitive Comparable() {}
+                    if (next.name() == names.record || next.name() == names.primitive
+                            || next.name() == names.value || (mode & EXPR) != 0)
+                        isPrimitiveModifier = true;
+                    break;
+            }
+            if (isPrimitiveModifier) {
+                checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isValueModifier() {
+        if (token.kind == IDENTIFIER && token.name() == names.value) {
+            boolean isValueModifier = false;
+            Token next = S.token(1);
+            switch (next.kind) {
+                case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
+                case FINAL: case ABSTRACT: case NATIVE: case VOLATILE: case SYNCHRONIZED:
+                case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
+                case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
+                case CLASS: case INTERFACE: case ENUM:
+                    isValueModifier = true;
+                    break;
+                case IDENTIFIER: // value record R || value value || value primitive || new value Comparable() {} ??
+                    if (next.name() == names.record || next.name() == names.value
+                            || next.name() == names.primitive || (mode & EXPR) != 0)
+                        isValueModifier = true;
+                    break;
+            }
+            if (isValueModifier) {
+                checkSourceLevel(Feature.VALUE_CLASSES);
+                return true;
             }
         }
         return false;

@@ -42,7 +42,7 @@
 #include "opto/rootnode.hpp"
 #include "utilities/macros.hpp"
 
-ConnectionGraph::ConnectionGraph(Compile * C, PhaseIterGVN *igvn) :
+ConnectionGraph::ConnectionGraph(Compile * C, PhaseIterGVN *igvn, int invocation) :
   _nodes(C->comp_arena(), C->unique(), C->unique(), NULL),
   _in_worklist(C->comp_arena()),
   _next_pidx(0),
@@ -50,6 +50,9 @@ ConnectionGraph::ConnectionGraph(Compile * C, PhaseIterGVN *igvn) :
   _verify(false),
   _compile(C),
   _igvn(igvn),
+  _invocation(invocation),
+  _build_iterations(0),
+  _build_time(0.),
   _node_map(C->comp_arena()) {
   // Add unknown java object.
   add_java_object(C->top(), PointsToNode::GlobalEscape);
@@ -97,7 +100,11 @@ void ConnectionGraph::do_analysis(Compile *C, PhaseIterGVN *igvn) {
   // to create space for them in ConnectionGraph::_nodes[].
   Node* oop_null = igvn->zerocon(T_OBJECT);
   Node* noop_null = igvn->zerocon(T_NARROWOOP);
-  ConnectionGraph* congraph = new(C->comp_arena()) ConnectionGraph(C, igvn);
+  int invocation = 0;
+  if (C->congraph() != NULL) {
+    invocation = C->congraph()->_invocation + 1;
+  }
+  ConnectionGraph* congraph = new(C->comp_arena()) ConnectionGraph(C, igvn, invocation);
   // Perform escape analysis
   if (congraph->compute_escape()) {
     // There are non escaping objects.
@@ -1359,18 +1366,12 @@ bool ConnectionGraph::complete_connection_graph(
       C->log()->text("%s", timeout ? "time" : "iterations");
       C->log()->end_elem(" limit'");
     }
-    assert(ExitEscapeAnalysisOnTimeout, "infinite EA connection graph build (%f sec, %d iterations) with %d nodes and worklist size %d",
-           _build_time, _build_iterations, nodes_size(), ptnodes_worklist.length());
+    assert(ExitEscapeAnalysisOnTimeout, "infinite EA connection graph build during invocation %d (%f sec, %d iterations) with %d nodes and worklist size %d",
+           _invocation, _build_time, _build_iterations, nodes_size(), ptnodes_worklist.length());
     // Possible infinite build_connection_graph loop,
     // bailout (no changes to ideal graph were made).
     return false;
   }
-#ifdef ASSERT
-  if (Verbose && PrintEscapeAnalysis) {
-    tty->print_cr("EA: %d iterations and %f sec to build connection graph with %d nodes and worklist size %d",
-                  _build_iterations, _build_time, nodes_size(), ptnodes_worklist.length());
-  }
-#endif
 
 #undef GRAPH_BUILD_ITER_LIMIT
 
@@ -2718,7 +2719,7 @@ PhiNode *ConnectionGraph::create_split_phi(PhiNode *orig_phi, int alias_idx, Gro
       // Retry compilation without escape analysis.
       // If this is the first failure, the sentinel string will "stick"
       // to the Compile object, and the C2Compiler will see it and retry.
-      C->record_failure(C2Compiler::retry_no_escape_analysis());
+      C->record_failure(_invocation > 0 ? C2Compiler::retry_no_iterative_escape_analysis() : C2Compiler::retry_no_escape_analysis());
     }
     return NULL;
   }
@@ -3289,7 +3290,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         ptnode_adr(n->_idx)->dump();
         assert(jobj != NULL && jobj != phantom_obj, "escaped allocation");
 #endif
-        _compile->record_failure(C2Compiler::retry_no_escape_analysis());
+        _compile->record_failure(_invocation > 0 ? C2Compiler::retry_no_iterative_escape_analysis() : C2Compiler::retry_no_escape_analysis());
         return;
       }
       Node *base = get_map(jobj->idx());  // CheckCastPP node
@@ -3309,7 +3310,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         ptnode_adr(n->_idx)->dump();
         assert(jobj != NULL && jobj != phantom_obj, "escaped allocation");
 #endif
-        _compile->record_failure(C2Compiler::retry_no_escape_analysis());
+        _compile->record_failure(_invocation > 0 ? C2Compiler::retry_no_iterative_escape_analysis() : C2Compiler::retry_no_escape_analysis());
         return;
       } else {
         Node *val = get_map(jobj->idx());   // CheckCastPP node
@@ -3781,6 +3782,9 @@ void ConnectionGraph::dump(GrowableArray<PointsToNode*>& ptnodes_worklist) {
         tty->cr();
         tty->print("======== Connection graph for ");
         _compile->method()->print_short_name();
+        tty->cr();
+        tty->print_cr("invocation #%d: %d iterations and %f sec to build connection graph with %d nodes and worklist size %d",
+                      _invocation, _build_iterations, _build_time, nodes_size(), ptnodes_worklist.length());
         tty->cr();
         first = false;
       }

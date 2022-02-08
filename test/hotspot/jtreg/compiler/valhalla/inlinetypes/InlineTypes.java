@@ -148,5 +148,6 @@ public class InlineTypes {
         protected static final String JLONG_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*jlong_disjoint_arraycopy.*" + END;
         protected static final String FIELD_ACCESS = "(.*Field: *" + END;
         protected static final String SUBSTITUTABILITY_TEST = START + "CallStaticJava" + MID + "java.lang.runtime.PrimitiveObjectMethods::isSubstitutable" + END;
+        protected static final String CMPP = START + "(CmpP|CmpN)" + MID + "" + END;
     }
 }

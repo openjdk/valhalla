@@ -242,7 +242,7 @@ void PhaseMacroExpand::generate_partial_inlining_block(Node** ctrl, MergeMemNode
   inline_block  = generate_guard(ctrl, bol_le, NULL, PROB_FAIR);
   stub_block = *ctrl;
 
-  Node* mask_gen =  new VectorMaskGenNode(casted_length, TypeVect::VECTMASK, type);
+  Node* mask_gen = VectorMaskGenNode::make(casted_length, type);
   transform_later(mask_gen);
 
   unsigned vec_size = lane_count *  type2aelembytes(type);
@@ -878,10 +878,6 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // other threads.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarStoreStore);
   } else {
-    // Do not let reads from the destination float above the arraycopy.
-    // Since we cannot type the arrays, we don't know which slices
-    // might be affected.  We could restrict this barrier only to those
-    // memory slices which pertain to array elements--but don't bother.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarCPUOrder);
   }
 
@@ -952,7 +948,7 @@ void PhaseMacroExpand::generate_clear_array(Node* ctrl, MergeMemNode* merge_mem,
   Node* mem = merge_mem->memory_at(alias_idx); // memory slice to operate on
 
   // scaling and rounding of indexes:
-  assert(basic_elem_type != T_INLINE_TYPE, "should have been converted to a basic type copy");
+  assert(basic_elem_type != T_PRIMITIVE_OBJECT, "should have been converted to a basic type copy");
   int scale = exact_log2(type2aelembytes(basic_elem_type));
   int abase = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
   int clear_low = (-1 << scale) & (BytesPerInt  - 1);
@@ -1363,18 +1359,14 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (top_dest != NULL && top_dest->klass() != NULL) {
       dest_elem = top_dest->klass()->as_array_klass()->element_type()->basic_type();
     }
-    if (dest_elem == T_ARRAY || (dest_elem == T_INLINE_TYPE && top_dest->klass()->is_obj_array_klass())) {
+    if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && top_dest->klass()->is_obj_array_klass())) {
       dest_elem = T_OBJECT;
     }
     if (top_src != NULL && top_src->is_flat()) {
       // If src is flat, dest is guaranteed to be flat as well
-      dest_elem = T_INLINE_TYPE;
+      dest_elem = T_PRIMITIVE_OBJECT;
       top_dest = top_src;
     }
-
-    Node* mem = ac->in(TypeFunc::Memory);
-    merge_mem = MergeMemNode::make(mem);
-    transform_later(merge_mem);
 
     AllocateArrayNode* alloc = NULL;
     Node* dest_length = NULL;
@@ -1384,8 +1376,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       dest_length = alloc->in(AllocateNode::ALength);
     }
 
+    Node* mem = ac->in(TypeFunc::Memory);
     const TypePtr* adr_type = NULL;
-    if (dest_elem == T_INLINE_TYPE) {
+    if (dest_elem == T_PRIMITIVE_OBJECT) {
       assert(dest_length != NULL || StressReflectiveCode, "must be tightly coupled");
       // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
       // on all slices to prevent writes into the source from floating below the arraycopy.
@@ -1400,6 +1393,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
         adr_type = TypeRawPtr::BOTTOM;
       }
     }
+    merge_mem = MergeMemNode::make(mem);
+    transform_later(merge_mem);
+
     generate_arraycopy(ac, alloc, &ctrl, merge_mem, &io,
                        adr_type, dest_elem,
                        src, src_offset, dest, dest_offset, length,
@@ -1435,10 +1431,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   if (top_src != NULL && top_src->klass() != NULL) {
     src_elem = top_src->klass()->as_array_klass()->element_type()->basic_type();
   }
-  if (src_elem == T_ARRAY || (src_elem == T_INLINE_TYPE && top_src->klass()->is_obj_array_klass())) {
+  if (src_elem == T_ARRAY || (src_elem == T_PRIMITIVE_OBJECT && top_src->klass()->is_obj_array_klass())) {
     src_elem = T_OBJECT;
   }
-  if (dest_elem == T_ARRAY || (dest_elem == T_INLINE_TYPE && top_dest->klass()->is_obj_array_klass())) {
+  if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && top_dest->klass()->is_obj_array_klass())) {
     dest_elem = T_OBJECT;
   }
 
@@ -1469,7 +1465,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   }
 
   assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID) ||
-         (src_elem == T_INLINE_TYPE && StressReflectiveCode), "validated but different basic types");
+         (src_elem == T_PRIMITIVE_OBJECT && StressReflectiveCode), "validated but different basic types");
 
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
@@ -1479,7 +1475,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   //
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   if (src_elem != dest_elem || dest_elem == T_VOID ||
-      (dest_elem == T_INLINE_TYPE && top_dest->elem()->inline_klass()->contains_oops() &&
+      (dest_elem == T_PRIMITIVE_OBJECT && top_dest->elem()->inline_klass()->contains_oops() &&
        bs->array_copy_requires_gc_barriers(alloc != NULL, T_OBJECT, false, false, BarrierSetC2::Optimization))) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
@@ -1510,6 +1506,11 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (9) each element of an oop array must be assignable
 
   Node* mem = ac->in(TypeFunc::Memory);
+  if (dest_elem == T_PRIMITIVE_OBJECT) {
+    // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
+    // on all slices to prevent writes into the source from floating below the arraycopy.
+    insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
+  }
   merge_mem = MergeMemNode::make(mem);
   transform_later(merge_mem);
 
@@ -1573,10 +1574,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   const TypePtr* adr_type = NULL;
   Node* dest_length = (alloc != NULL) ? alloc->in(AllocateNode::ALength) : NULL;
 
-  if (dest_elem == T_INLINE_TYPE) {
-    // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
-    // on all slices to prevent writes into the source from floating below the arraycopy.
-    insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
+  if (dest_elem == T_PRIMITIVE_OBJECT) {
     adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();

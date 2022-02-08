@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,7 +50,8 @@ class C1_MacroAssembler: public MacroAssembler {
   int verified_inline_ro_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label) {
     return scalarized_entry(ces, frame_size_in_bytes, bang_size_in_bytes, sp_offset_for_orig_pc, verified_inline_entry_label, true);
   }
-  void verified_entry();
+  void verified_entry(bool breakAtEntry);
+
   void verify_stack_oop(int offset) PRODUCT_RETURN;
   void verify_not_null_oop(Register r)  PRODUCT_RETURN;
 

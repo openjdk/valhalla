@@ -337,8 +337,8 @@ bool VM_RedefineClasses::is_modifiable_class(oop klass_mirror) {
   if (k->name() == vmSymbols::java_lang_IdentityObject()) {
     return false;
   }
-  // Cannot redefine or retransform interface java.lang.PrimitiveObject.
-  if (k->name() == vmSymbols::java_lang_PrimitiveObject()) {
+  // Cannot redefine or retransform interface java.lang.ValueObject.
+  if (k->name() == vmSymbols::java_lang_ValueObject()) {
     return false;
   }
 
@@ -917,6 +917,18 @@ static jvmtiError check_permitted_subclasses_attribute(InstanceKlass* the_class,
                                 scratch_class->permitted_subclasses());
 }
 
+static jvmtiError check_preload_attribute(InstanceKlass* the_class,
+                                          InstanceKlass* scratch_class) {
+  Thread* thread = Thread::current();
+  ResourceMark rm(thread);
+
+  // Check whether the class Preload attribute has been changed.
+  return check_attribute_arrays("Preload",
+                                the_class, scratch_class,
+                                the_class->preload_classes(),
+                                scratch_class->preload_classes());
+}
+
 static bool can_add_or_delete(Method* m) {
       // Compatibility mode
   return (AllowRedefinitionToAddDeleteMethods &&
@@ -992,6 +1004,12 @@ jvmtiError VM_RedefineClasses::compare_and_normalize_class_versions(
 
   // Check whether the PermittedSubclasses attribute has been changed.
   err = check_permitted_subclasses_attribute(the_class, scratch_class);
+  if (err != JVMTI_ERROR_NONE) {
+    return err;
+  }
+
+  // Check whether the Preload attribute has been changed.
+  err = check_preload_attribute(the_class, scratch_class);
   if (err != JVMTI_ERROR_NONE) {
     return err;
   }
@@ -1961,6 +1979,12 @@ bool VM_RedefineClasses::rewrite_cp_refs(InstanceKlass* scratch_class) {
     return false;
   }
 
+  // rewrite constant pool references in the Preload attribute:
+  if (!rewrite_cp_refs_in_preload_attribute(scratch_class)) {
+    // propagate failure back to caller
+    return false;
+  }
+
   // rewrite constant pool references in the methods:
   if (!rewrite_cp_refs_in_methods(scratch_class)) {
     // propagate failure back to caller
@@ -2109,6 +2133,19 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_permitted_subclasses_attribute(
   return true;
 }
 
+// Rewrite constant pool references in the Preload attribute.
+bool VM_RedefineClasses::rewrite_cp_refs_in_preload_attribute(
+       InstanceKlass* scratch_class) {
+
+  Array<u2>* preload_classes = scratch_class->preload_classes();
+  assert(preload_classes != NULL, "unexpected null preload_classes");
+  for (int i = 0; i < preload_classes->length(); i++) {
+    u2 cp_index = preload_classes->at(i);
+    preload_classes->at_put(i, find_new_index(cp_index));
+  }
+  return true;
+}
+
 // Rewrite constant pool references in the methods.
 bool VM_RedefineClasses::rewrite_cp_refs_in_methods(InstanceKlass* scratch_class) {
 
@@ -2241,7 +2278,7 @@ void VM_RedefineClasses::rewrite_cp_refs_in_method(methodHandle method,
       case Bytecodes::_checkcast      : // fall through
       case Bytecodes::_getfield       : // fall through
       case Bytecodes::_getstatic      : // fall through
-      case Bytecodes::_defaultvalue   : // fall through
+      case Bytecodes::_aconst_init   : // fall through
       case Bytecodes::_withfield      : // fall through
       case Bytecodes::_instanceof     : // fall through
       case Bytecodes::_invokedynamic  : // fall through

@@ -470,12 +470,12 @@ Klass* SystemDictionary::resolve_inline_type_field_or_fail(AllFieldStream* fs,
     MutexLocker mu(THREAD, SystemDictionary_lock);
     oldprobe = placeholders()->get_entry(p_hash, class_name, loader_data);
     if (oldprobe != NULL &&
-      oldprobe->check_seen_thread(THREAD, PlaceholderTable::INLINE_TYPE_FIELD)) {
+      oldprobe->check_seen_thread(THREAD, PlaceholderTable::PRIMITIVE_OBJECT_FIELD)) {
       throw_circularity_error = true;
 
     } else {
       placeholders()->find_and_add(p_hash, class_name, loader_data,
-                                   PlaceholderTable::INLINE_TYPE_FIELD, NULL, THREAD);
+                                   PlaceholderTable::PRIMITIVE_OBJECT_FIELD, NULL, THREAD);
     }
   }
 
@@ -491,7 +491,7 @@ Klass* SystemDictionary::resolve_inline_type_field_or_fail(AllFieldStream* fs,
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
     placeholders()->find_and_remove(p_hash, class_name, loader_data,
-                                    PlaceholderTable::INLINE_TYPE_FIELD, THREAD);
+                                    PlaceholderTable::PRIMITIVE_OBJECT_FIELD, THREAD);
   }
 
   class_name->decrement_refcount();
@@ -855,7 +855,7 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
     SignatureStream ss(class_name, false);
     int ndims = ss.skip_array_prefix();  // skip all '['s
     BasicType t = ss.type();
-    if (t != T_OBJECT && t != T_INLINE_TYPE) {
+    if (t != T_OBJECT && t != T_PRIMITIVE_OBJECT) {
       k = Universe::typeArrayKlassObj(t);
     } else {
       k = SystemDictionary::find_instance_klass(ss.as_symbol(), class_loader, protection_domain);
@@ -1210,7 +1210,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
 
   if (ik->has_inline_type_fields()) {
     for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
+      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         if (!fs.access_flags().is_static()) {
           // Pre-load inline class
           Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
@@ -1848,7 +1848,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     SignatureStream ss(class_name, false);
     int ndims = ss.skip_array_prefix();  // skip all '['s
     BasicType t = ss.type();
-    if (t != T_OBJECT && t != T_INLINE_TYPE) {
+    if (t != T_OBJECT && t != T_PRIMITIVE_OBJECT) {
       klass = Universe::typeArrayKlassObj(t);
     } else {
       MutexLocker mu(current, SystemDictionary_lock);

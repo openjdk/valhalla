@@ -43,7 +43,7 @@
 //  static Value makeValue(int); descriptor: (I)LValue; flags: (0x0008) ACC_STATIC
 //    Code:
 //      stack=2, locals=2, args_size=1
-//         0: defaultvalue  #3                  // class Value
+//         0: aconst_init   #3                  // class Value
 //         3: astore_1
 //         4: aload_1
 //         5: iload_0
@@ -53,14 +53,14 @@
 //        11: areturn
 
 
-// The constant pool index of the defaultvalue opcode (0xCB) in the Code
+// The constant pool index of the aconst_init opcode (0xCB) in the Code
 // attribute was changed to 0x93.  Since this index is outside the range of
 // the constant pool, a VerifyError exception should get thrown.
 //
 class defValBadCP {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -91,7 +91,7 @@ class defValBadCP {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -126,7 +126,7 @@ class defValBadCP {
           2; // max_stack
           2; // max_locals
           Bytes[12]{
-            0xCB00934C2B1ACC00; // Changed CP index from 3 to 0x93 for opcode 0xCB (defaultvalue)
+            0xCB00934C2B1ACC00; // Changed CP index from 3 to 0x93 for opcode 0xCB (aconst_init)
             0x024C2BB0;         // so that the index is outside of the range of the constant pool.
           };
           [0] { // Traps
@@ -155,7 +155,7 @@ class defValBadCP {
 ///////////////////////////////////////////////////////////
 
 // The class's major version was changed to 54.  Since this class has a
-// defaultvalue opcode (0xCB), this should cause a ClassFormatError
+// aconst_init opcode (0xCB), this should cause a ClassFormatError
 // exception to get thrown.
 //
 class defValBadMajorVersion {
@@ -192,7 +192,7 @@ class defValBadMajorVersion {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -255,14 +255,14 @@ class defValBadMajorVersion {
 
 ///////////////////////////////////////////////////////////
 
-// The constant pool index of a defaultvalue opcode (0xCB) in the Code
+// The constant pool index of a aconst_init opcode (0xCB) in the Code
 // attribute was changed to 2.  Since this index now points to a Field
 // entry instead of a Class entry, a VerifyError exception should get thrown.
 //
 class defValWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -293,7 +293,7 @@ class defValWrongCPType {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -328,7 +328,7 @@ class defValWrongCPType {
           2; // max_stack
           2; // max_locals
           Bytes[12]{
-            0xCB00024C2B1ACC00; // Changed CP index from 3 to 2 for opcode 0xCB (defaultvalue)
+            0xCB00024C2B1ACC00; // Changed CP index from 3 to 2 for opcode 0xCB (aconst_init)
             0x024C2BB0;         // so that the cp index no longer points to a cp Class entry.
           };
           [0] { // Traps
@@ -363,7 +363,7 @@ class defValWrongCPType {
 class wthFldBadCP {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -387,7 +387,7 @@ class wthFldBadCP {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -454,7 +454,7 @@ class wthFldBadCP {
 class wthFldBadFldVal {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -478,7 +478,7 @@ class wthFldBadFldVal {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -544,7 +544,7 @@ class wthFldBadFldVal {
 class wthFldBadFldRef {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -568,7 +568,7 @@ class wthFldBadFldRef {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -666,7 +666,7 @@ class wthFldBadMajorVersion {
     Utf8 "java/lang/Object"; // #26     at 0xC6
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -736,7 +736,7 @@ class wthFldBadMajorVersion {
 class wthFldWrongCPType {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [20] { // Constant Pool
     ; // first element is empty
     Method #4 #17; // #1     at 0x0A
@@ -760,7 +760,7 @@ class wthFldWrongCPType {
     Utf8 "java/lang/Object"; // #19     at 0xB8
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #4;// super_cpx
 
@@ -819,15 +819,15 @@ class wthFldWrongCPType {
 
 ///////////////////////////////////////////////////////////
 
-// The cp entry for the defaultvalue opcode was changed to a reference that
+// The cp entry for the aconst_init opcode was changed to a reference that
 // is not an inline type.
-// This should cause a VerifyError because the cp entry for opcode defaultvalue
+// This should cause a VerifyError because the cp entry for opcode aconst_init
 // must be an inline type.
 //
 class defValueObj {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #23; // #1     at 0x0A
@@ -877,7 +877,7 @@ class defValueObj {
     Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02A5
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #6;// super_cpx
 
@@ -904,7 +904,7 @@ class defValueObj {
           2; // max_stack
           2; // max_locals
           Bytes[13]{
-            0xCB00044C1A2B5FCC; // Changed defaultvalue's cp index at byte 3 from 3 to 4.
+            0xCB00044C1A2B5FCC; // Changed aconst_init's cp index at byte 3 from 3 to 4.
             0x00024C2BB0;
           };
           [0] { // Traps
@@ -1051,7 +1051,7 @@ class defValueObj {
 class withfieldL {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [28] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1083,7 +1083,7 @@ class withfieldL {
     Utf8 "Point"; // #27     at 0xE2
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #13;// super_cpx
 
@@ -1233,7 +1233,7 @@ class withfieldL {
 class NoNullVT {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [63] { // Constant Pool
     ; // first element is empty
     class #36; // #1     at 0x0A
@@ -1300,7 +1300,7 @@ class NoNullVT {
     Utf8 "java/lang/invoke/MethodHandles"; // #62     at 0x030D
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 

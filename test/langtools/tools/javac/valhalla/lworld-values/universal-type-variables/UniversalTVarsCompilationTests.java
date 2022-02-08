@@ -266,7 +266,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
     public void testForbiddenMethods() {
         setCompileOptions(EMPTY_OPTIONS);
-        assertFail("compiler.err.primitive.class.does.not.support",
+        assertFail("compiler.err.value.class.does.not.support",
                 """
                 primitive class Point {}
 

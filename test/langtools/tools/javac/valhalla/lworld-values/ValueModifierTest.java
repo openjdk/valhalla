@@ -6,14 +6,14 @@
  */
 
 public class ValueModifierTest {
-    interface value {}
+    interface Value {}
     void foo() {
-        new primitive value() {};
+        new primitive Value() {};
     }
     void goo() {
-        primitive class value {}
-        new value() {};
-        new primitive value() {};
-        new value();
+        primitive class Value {}
+        new Value() {};
+        new primitive Value() {};
+        new Value();
     }
 }

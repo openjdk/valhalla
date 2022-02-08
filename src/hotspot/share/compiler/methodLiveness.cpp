@@ -97,8 +97,6 @@ void MethodLiveness::compute_liveness() {
 
 
 void MethodLiveness::init_basic_blocks() {
-  bool bailout = false;
-
   int method_len = method()->code_size();
   ciMethodBlocks *mblocks = method()->get_method_blocks();
 
@@ -254,10 +252,6 @@ void MethodLiveness::init_basic_blocks() {
       case Bytecodes::_ret:
         // We will patch up jsr/rets in a subsequent pass.
         ret_list->append(current_block);
-        break;
-      case Bytecodes::_breakpoint:
-        // Bail out of there are breakpoints in here.
-        bailout = true;
         break;
       default:
         // Do nothing.
@@ -477,7 +471,7 @@ void MethodLiveness::BasicBlock::compute_gen_kill_single(ciBytecodeStream *instr
     case Bytecodes::_goto_w:
     case Bytecodes::_aconst_null:
     case Bytecodes::_new:
-    case Bytecodes::_defaultvalue:
+    case Bytecodes::_aconst_init:
     case Bytecodes::_withfield:
     case Bytecodes::_iconst_m1:
     case Bytecodes::_iconst_0:

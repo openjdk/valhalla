@@ -223,7 +223,7 @@ public class Symtab {
     public final Type typeDescriptorType;
     public final Type recordType;
     public final Type identityObjectType;
-    public final Type primitiveObjectType;
+    public final Type valueObjectType;
     public final Type switchBootstrapsType;
     public final Type valueBasedType;
     public final Type valueBasedInternalType;
@@ -609,7 +609,7 @@ public class Symtab {
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
         recordType = enterClass("java.lang.Record");
         identityObjectType = enterClass("java.lang.IdentityObject");
-        primitiveObjectType = enterClass("java.lang.PrimitiveObject");
+        valueObjectType = enterClass("java.lang.ValueObject");
         switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
@@ -628,7 +628,7 @@ public class Symtab {
         synthesizeEmptyInterfaceIfMissing(serializedLambdaType);
         synthesizeEmptyInterfaceIfMissing(stringConcatFactory);
         synthesizeEmptyInterfaceIfMissing(identityObjectType);
-        synthesizeEmptyInterfaceIfMissing(primitiveObjectType);
+        synthesizeEmptyInterfaceIfMissing(valueObjectType);
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);

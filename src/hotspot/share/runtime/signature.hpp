@@ -125,7 +125,7 @@ class Signature : AllStatic {
   // Determine if this signature char introduces an
   // envelope, which is a class name plus ';'.
   static bool has_envelope(char signature_char) {
-    return (signature_char == JVM_SIGNATURE_CLASS) || (signature_char == JVM_SIGNATURE_INLINE_TYPE);
+    return (signature_char == JVM_SIGNATURE_CLASS) || (signature_char == JVM_SIGNATURE_PRIMITIVE_OBJECT);
   }
 
   // Assuming has_envelope is true, return the symbol
@@ -271,7 +271,7 @@ class SignatureTypeNames : public SignatureIterator {
     case T_VOID:    type_name("void"    ); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_INLINE_TYPE:  type_name("jobject" ); break;
+    case T_PRIMITIVE_OBJECT:  type_name("jobject" ); break;
     default: ShouldNotReachHere();
     }
   }
@@ -409,7 +409,7 @@ class NativeSignatureIterator: public SignatureIterator {
     }
     case T_ARRAY:
     case T_OBJECT:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
       pass_object(); _jni_offset++; _offset++;
       break;
     default:
@@ -524,7 +524,7 @@ class SignatureStream : public StackObj {
   }
 
   bool has_Q_descriptor() const {
-    return has_envelope() && (_signature->char_at(_begin) == JVM_SIGNATURE_INLINE_TYPE);
+    return has_envelope() && (_signature->char_at(_begin) == JVM_SIGNATURE_PRIMITIVE_OBJECT);
   }
 
   // return the symbol for chars in symbol_begin()..symbol_end()
@@ -599,16 +599,16 @@ class SigEntry {
     }
     assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
            (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
-           e1->_bt == T_INLINE_TYPE || e2->_bt == T_INLINE_TYPE || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
+           e1->_bt == T_PRIMITIVE_OBJECT || e2->_bt == T_PRIMITIVE_OBJECT || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
     if (e1->_bt == e2->_bt) {
-      assert(e1->_bt == T_INLINE_TYPE || e1->_bt == T_VOID, "only ones with duplicate offsets");
+      assert(e1->_bt == T_PRIMITIVE_OBJECT || e1->_bt == T_VOID, "only ones with duplicate offsets");
       return 0;
     }
     if (e1->_bt == T_VOID ||
-        e2->_bt == T_INLINE_TYPE) {
+        e2->_bt == T_PRIMITIVE_OBJECT) {
       return 1;
     }
-    if (e1->_bt == T_INLINE_TYPE ||
+    if (e1->_bt == T_PRIMITIVE_OBJECT ||
         e2->_bt == T_VOID) {
       return -1;
     }
@@ -623,7 +623,7 @@ class SigEntry {
 
 class SigEntryFilter {
 public:
-  bool operator()(const SigEntry& entry) { return entry._bt != T_INLINE_TYPE && entry._bt != T_VOID; }
+  bool operator()(const SigEntry& entry) { return entry._bt != T_PRIMITIVE_OBJECT && entry._bt != T_VOID; }
 };
 
 // Specialized SignatureStream: used for invoking SystemDictionary to either find

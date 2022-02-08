@@ -46,7 +46,7 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   bool atomic = (decorators & MO_RELAXED) != 0;
 
-  assert(type != T_INLINE_TYPE, "Not supported yet");
+  assert(type != T_PRIMITIVE_OBJECT, "Not supported yet");
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {
@@ -112,7 +112,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   bool is_not_null = (decorators & IS_NOT_NULL) != 0;
   bool atomic = (decorators & MO_RELAXED) != 0;
 
-  assert(type != T_INLINE_TYPE, "Not supported yet");
+  assert(type != T_PRIMITIVE_OBJECT, "Not supported yet");
   switch (type) {
   case T_OBJECT:
   case T_ARRAY: {

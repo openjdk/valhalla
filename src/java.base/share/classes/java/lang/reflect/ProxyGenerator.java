@@ -866,7 +866,7 @@ final class ProxyGenerator extends ClassWriter {
                 }
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isValueType()) {
+                if (type.isPrimitiveValueType()) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);
@@ -931,7 +931,7 @@ final class ProxyGenerator extends ClassWriter {
             mv.visitMethodInsn(INVOKESTATIC,
                     JL_CLASS,
                     "forName", "(Ljava/lang/String;)Ljava/lang/Class;", false);
-            if (cl.isValueType()) {
+            if (cl.isPrimitiveValueType()) {
               mv.visitMethodInsn(INVOKEVIRTUAL,
                                  JL_CLASS,
                                  "asValueType", "()Ljava/lang/Class;", false);

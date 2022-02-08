@@ -28,7 +28,6 @@ package com.sun.tools.javac.comp;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -404,7 +403,7 @@ public class InferenceContext {
         Map<Type, Set<Type>> minMap = new LinkedHashMap<>();
 
         void scan(List<Type> roots) {
-            roots.stream().forEach(this::visit);
+            roots.forEach(this::visit);
         }
 
         @Override

@@ -570,7 +570,7 @@ void BytecodePrinter::print_attributes(int bci, outputStream* st) {
     case Bytecodes::_new:
     case Bytecodes::_checkcast:
     case Bytecodes::_instanceof:
-    case Bytecodes::_defaultvalue:
+    case Bytecodes::_aconst_init:
       { int i = get_index_u2();
         ConstantPool* constants = method()->constants();
         Symbol* name = constants->klass_name_at(i);

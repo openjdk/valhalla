@@ -1153,7 +1153,7 @@ class ResetMirrorField: public FieldClosure {
       case T_BOOLEAN:
         _m()->bool_field_put(fd->offset(), false);
         break;
-      case T_INLINE_TYPE:
+      case T_PRIMITIVE_OBJECT:
       case T_ARRAY:
       case T_OBJECT: {
         // It might be useful to cache the String field, but

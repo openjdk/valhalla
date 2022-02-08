@@ -437,7 +437,7 @@ void TemplateTable::initialize() {
   def(Bytecodes::_goto_w              , ubcp|____|clvm|____, vtos, vtos, goto_w              ,  _           );
   def(Bytecodes::_jsr_w               , ubcp|____|____|____, vtos, vtos, jsr_w               ,  _           );
   def(Bytecodes::_breakpoint          , ubcp|disp|clvm|____, vtos, vtos, _breakpoint         ,  _           );
-  def(Bytecodes::_defaultvalue        , ubcp|____|clvm|____, vtos, atos, defaultvalue        , _            );
+  def(Bytecodes::_aconst_init         , ubcp|____|clvm|____, vtos, atos, aconst_init        , _            );
   def(Bytecodes::_withfield           , ubcp|____|clvm|____, vtos, atos, withfield           , _            );
 
   // wide Java spec bytecodes

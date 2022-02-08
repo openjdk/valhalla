@@ -260,12 +260,12 @@ public sealed interface ClassDesc
 
     /**
      * Returns whether this {@linkplain ClassDesc} describes a
-     * {@linkplain Class#isValueType() primitive value type}.
+     * {@linkplain Class#isPrimitiveValueType() primitive value type}.
      *
      * @return whether this {@linkplain ClassDesc} describes a primitive value type.
      * @since Valhalla
      */
-    default boolean isValueType() {
+    default boolean isPrimitiveValueType() {
         return descriptorString().startsWith("Q");
     }
 

@@ -1150,7 +1150,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror);
   } else if (java_lang_Class::as_Klass(return_type_mirror)->is_inline_klass()) {
-    rtype = java_lang_Class::is_primary_mirror(return_type_mirror) ? T_OBJECT : T_INLINE_TYPE;
+    rtype = java_lang_Class::is_primary_mirror(return_type_mirror) ? T_OBJECT : T_PRIMITIVE_OBJECT;
   } else {
     rtype = T_OBJECT;
   }
@@ -1194,7 +1194,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
     if (klass->is_hidden()) {
       rtype = T_OBJECT;
     } else {
-      rtype = T_INLINE_TYPE;
+      rtype = T_PRIMITIVE_OBJECT;
     }
     return invoke(klass, method, no_receiver, override, ptypes, rtype, args, false, CHECK_NULL);
   }

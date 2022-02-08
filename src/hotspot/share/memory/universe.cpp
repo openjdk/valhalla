@@ -110,6 +110,11 @@ OopHandle Universe::_delayed_stack_overflow_error_message;
 OopHandle Universe::_preallocated_out_of_memory_error_array;
 volatile jint Universe::_preallocated_out_of_memory_error_avail_count = 0;
 
+// Message details for OOME objects, preallocate these objects since they could be
+// used when throwing OOME, we should try to avoid further allocation in such case
+OopHandle Universe::_msg_metaspace;
+OopHandle Universe::_msg_class_metaspace;
+
 OopHandle Universe::_null_ptr_exception_instance;
 OopHandle Universe::_arithmetic_exception_instance;
 OopHandle Universe::_virtual_machine_error_instance;
@@ -132,7 +137,7 @@ Array<u2>* Universe::_the_empty_short_array           = NULL;
 Array<Klass*>* Universe::_the_empty_klass_array     = NULL;
 Array<InstanceKlass*>* Universe::_the_empty_instance_klass_array  = NULL;
 Array<InstanceKlass*>* Universe::_the_single_IdentityObject_klass_array = NULL;
-Array<InstanceKlass*>* Universe::_the_single_PrimitiveObject_klass_array = NULL;
+Array<InstanceKlass*>* Universe::_the_single_ValueObject_klass_array = NULL;
 Array<Method*>* Universe::_the_empty_method_array   = NULL;
 
 // These variables are guarded by FullGCALot_lock.
@@ -224,7 +229,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_the_empty_method_array);
   it->push(&_the_array_interfaces_array);
   it->push(&_the_single_IdentityObject_klass_array);
-  it->push(&_the_single_PrimitiveObject_klass_array);
+  it->push(&_the_single_ValueObject_klass_array);
 
   _finalizer_register_cache->metaspace_pointers_do(it);
   _loader_addClass_cache->metaspace_pointers_do(it);
@@ -276,7 +281,7 @@ void Universe::serialize(SerializeClosure* f) {
   f->do_ptr((void**)&_the_empty_klass_array);
   f->do_ptr((void**)&_the_empty_instance_klass_array);
   f->do_ptr((void**)&_the_single_IdentityObject_klass_array);
-  f->do_ptr((void**)&_the_single_PrimitiveObject_klass_array);
+  f->do_ptr((void**)&_the_single_ValueObject_klass_array);
   _finalizer_register_cache->serialize(f);
   _loader_addClass_cache->serialize(f);
   _throw_illegal_access_error_cache->serialize(f);
@@ -365,8 +370,8 @@ void Universe::genesis(TRAPS) {
 
       assert(_the_single_IdentityObject_klass_array->at(0) ==
           vmClasses::IdentityObject_klass(), "u3");
-      assert(_the_single_PrimitiveObject_klass_array->at(0) ==
-          vmClasses::PrimitiveObject_klass(), "u3");
+      assert(_the_single_ValueObject_klass_array->at(0) ==
+          vmClasses::ValueObject_klass(), "u3");
     } else
 #endif
     {
@@ -486,12 +491,12 @@ void Universe::initialize_the_single_IdentityObject_klass_array(InstanceKlass* i
     _the_single_IdentityObject_klass_array = array;
 }
 
-void Universe::initialize_the_single_PrimitiveObject_klass_array(InstanceKlass* ik, TRAPS) {
-    assert(_the_single_PrimitiveObject_klass_array == NULL, "Must not be initialized twice");
-    assert(ik->name() == vmSymbols::java_lang_PrimitiveObject(), "Must be");
+void Universe::initialize_the_single_ValueObject_klass_array(InstanceKlass* ik, TRAPS) {
+    assert(_the_single_ValueObject_klass_array == NULL, "Must not be initialized twice");
+    assert(ik->name() == vmSymbols::java_lang_ValueObject(), "Must be");
     Array<InstanceKlass*>* array = MetadataFactory::new_array<InstanceKlass*>(ik->class_loader_data(), 1, NULL, CHECK);
     array->at_put(0, ik);
-    _the_single_PrimitiveObject_klass_array = array;
+    _the_single_ValueObject_klass_array = array;
 }
 
 
@@ -576,7 +581,6 @@ static void reinitialize_itables() {
   ReinitTableClosure cl;
   ClassLoaderDataGraph::classes_do(&cl);
 }
-
 
 bool Universe::on_page_boundary(void* addr) {
   return is_aligned(addr, os::vm_page_size());
@@ -677,6 +681,14 @@ oop Universe::gen_out_of_memory_error(oop default_err) {
   }
 }
 
+bool Universe::is_out_of_memory_error_metaspace(oop ex_obj) {
+  return java_lang_Throwable::message(ex_obj) == _msg_metaspace.resolve();
+}
+
+bool Universe::is_out_of_memory_error_class_metaspace(oop ex_obj) {
+  return java_lang_Throwable::message(ex_obj) == _msg_class_metaspace.resolve();
+}
+
 // Setup preallocated OutOfMemoryError errors
 void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
   InstanceKlass* ik = vmClasses::OutOfMemoryError_klass();
@@ -696,9 +708,11 @@ void Universe::create_preallocated_out_of_memory_errors(TRAPS) {
   java_lang_Throwable::set_message(oom_array->obj_at(_oom_c_heap), msg());
 
   msg = java_lang_String::create_from_str("Metaspace", CHECK);
+  _msg_metaspace = OopHandle(vm_global(), msg());
   java_lang_Throwable::set_message(oom_array->obj_at(_oom_metaspace), msg());
 
   msg = java_lang_String::create_from_str("Compressed class space", CHECK);
+  _msg_class_metaspace = OopHandle(vm_global(), msg());
   java_lang_Throwable::set_message(oom_array->obj_at(_oom_class_metaspace), msg());
 
   msg = java_lang_String::create_from_str("Requested array size exceeds VM limit", CHECK);
@@ -770,6 +784,10 @@ jint universe_init() {
   initialize_global_behaviours();
 
   GCLogPrecious::initialize();
+
+#ifdef _LP64
+  MetaspaceShared::adjust_heap_sizes_for_dumping();
+#endif // _LP64
 
   GCConfig::arguments()->initialize_heap_sizes();
 

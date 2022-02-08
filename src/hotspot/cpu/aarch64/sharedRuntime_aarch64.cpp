@@ -358,7 +358,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -438,7 +438,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
     case T_ADDRESS:
       // Should T_METADATA be added to java_calling_convention as well ?
     case T_METADATA:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
       if (int_args < SharedRuntime::java_return_convention_max_int) {
         regs[i].set2(INT_ArgReg[int_args]->as_VMReg());
         int_args ++;
@@ -514,23 +514,23 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
   if (InlineTypePassFieldsAsArgs) {
      for (int i = 0; i < sig_extended->length(); i++) {
        BasicType bt = sig_extended->at(i)._bt;
-       if (bt == T_INLINE_TYPE) {
+       if (bt == T_PRIMITIVE_OBJECT) {
          // In sig_extended, an inline type argument starts with:
-         // T_INLINE_TYPE, followed by the types of the fields of the
+         // T_PRIMITIVE_OBJECT, followed by the types of the fields of the
          // inline type and T_VOID to mark the end of the value
          // type. Inline types are flattened so, for instance, in the
          // case of an inline type with an int field and an inline type
          // field that itself has 2 fields, an int and a long:
-         // T_INLINE_TYPE T_INT T_INLINE_TYPE T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner T_INLINE_TYPE) T_VOID
-         // (outer T_INLINE_TYPE)
+         // T_PRIMITIVE_OBJECT T_INT T_PRIMITIVE_OBJECT T_INT T_LONG T_VOID (second
+         // slot for the T_LONG) T_VOID (inner T_PRIMITIVE_OBJECT) T_VOID
+         // (outer T_PRIMITIVE_OBJECT)
          total_args_passed++;
          int vt = 1;
          do {
            i++;
            BasicType bt = sig_extended->at(i)._bt;
            BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_INLINE_TYPE) {
+           if (bt == T_PRIMITIVE_OBJECT) {
              vt++;
            } else if (bt == T_VOID &&
                       prev_bt != T_LONG &&
@@ -561,7 +561,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
                                    Register tmp3,
                                    int extraspace,
                                    bool is_oop) {
-  assert(bt != T_INLINE_TYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
+  assert(bt != T_PRIMITIVE_OBJECT || !InlineTypePassFieldsAsArgs, "no inline type here");
   if (bt == T_VOID) {
     assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
     return;
@@ -647,7 +647,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // Is there an inline type argument?
     bool has_inline_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
-      has_inline_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
+      has_inline_argument = (sig_extended->at(i)._bt == T_PRIMITIVE_OBJECT);
     }
     if (has_inline_argument) {
       // There is at least an inline type argument: we're coming from
@@ -709,10 +709,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // next_arg_comp is the next argument from the compiler point of
   // view (inline type fields are passed in registers/on the stack). In
-  // sig_extended, an inline type argument starts with: T_INLINE_TYPE,
+  // sig_extended, an inline type argument starts with: T_PRIMITIVE_OBJECT,
   // followed by the types of the fields of the inline type and T_VOID
   // to mark the end of the inline type. ignored counts the number of
-  // T_INLINE_TYPE/T_VOID. next_vt_arg is the next inline type argument:
+  // T_PRIMITIVE_OBJECT/T_VOID. next_vt_arg is the next inline type argument:
   // used to get the buffer for that argument from the pool of buffers
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
@@ -723,7 +723,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
-    if (!InlineTypePassFieldsAsArgs || bt != T_INLINE_TYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_PRIMITIVE_OBJECT) {
       int next_off = st_off - Interpreter::stackElementSize;
       const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];
@@ -741,7 +741,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     } else {
       ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_INLINE_TYPE);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_PRIMITIVE_OBJECT);
       __ load_heap_oop(buf_oop, Address(buf_array, index));
       next_vt_arg++; next_arg_int++;
       int vt = 1;
@@ -755,7 +755,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp - 1)._bt;
-        if (bt == T_INLINE_TYPE) {
+        if (bt == T_PRIMITIVE_OBJECT) {
           vt++;
           ignored++;
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
@@ -871,7 +871,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
 
-    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack inline typ args");
+    assert(bt != T_PRIMITIVE_OBJECT, "i2c adapter doesn't unpack inline typ args");
     if (bt == T_VOID) {
       assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
@@ -1126,7 +1126,7 @@ static int c_calling_convention_priv(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_INLINE_TYPE:
+      case T_PRIMITIVE_OBJECT:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -1801,7 +1801,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 #endif /* ASSERT */
     switch (in_sig_bt[i]) {
       case T_ARRAY:
-      case T_INLINE_TYPE:
+      case T_PRIMITIVE_OBJECT:
       case T_OBJECT:
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
                     ((i == 0) && (!is_static)),
@@ -1913,43 +1913,46 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Load the oop from the handle
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
-    // Load (object->mark() | 1) into swap_reg %r0
-    __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-    __ orr(swap_reg, rscratch1, 1);
-    if (EnableValhalla) {
-      // Mask inline_type bit such that we go to the slow path if object is an inline type
-      __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
+    if (!UseHeavyMonitors) {
+      // Load (object->mark() | 1) into swap_reg %r0
+      __ ldr(rscratch1, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
+      __ orr(swap_reg, rscratch1, 1);
+      if (EnableValhalla) {
+        // Mask inline_type bit such that we go to the slow path if object is an inline type
+        __ andr(swap_reg, swap_reg, ~((int) markWord::inline_type_bit_in_place));
+      }
+
+      // Save (object->mark() | 1) into BasicLock's displaced header
+      __ str(swap_reg, Address(lock_reg, mark_word_offset));
+
+      // src -> dest iff dest == r0 else r0 <- dest
+      { Label here;
+        __ cmpxchg_obj_header(r0, lock_reg, obj_reg, rscratch1, lock_done, /*fallthrough*/NULL);
+      }
+
+      // Hmm should this move to the slow path code area???
+
+      // Test if the oopMark is an obvious stack pointer, i.e.,
+      //  1) (mark & 3) == 0, and
+      //  2) sp <= mark < mark + os::pagesize()
+      // These 3 tests can be done by evaluating the following
+      // expression: ((mark - sp) & (3 - os::vm_page_size())),
+      // assuming both stack pointer and pagesize have their
+      // least significant 2 bits clear.
+      // NOTE: the oopMark is in swap_reg %r0 as the result of cmpxchg
+
+      __ sub(swap_reg, sp, swap_reg);
+      __ neg(swap_reg, swap_reg);
+      __ ands(swap_reg, swap_reg, 3 - os::vm_page_size());
+
+      // Save the test result, for recursive case, the result is zero
+      __ str(swap_reg, Address(lock_reg, mark_word_offset));
+      __ br(Assembler::NE, slow_path_lock);
+    } else {
+      __ b(slow_path_lock);
     }
-
-    // Save (object->mark() | 1) into BasicLock's displaced header
-    __ str(swap_reg, Address(lock_reg, mark_word_offset));
-
-    // src -> dest iff dest == r0 else r0 <- dest
-    { Label here;
-      __ cmpxchg_obj_header(r0, lock_reg, obj_reg, rscratch1, lock_done, /*fallthrough*/NULL);
-    }
-
-    // Hmm should this move to the slow path code area???
-
-    // Test if the oopMark is an obvious stack pointer, i.e.,
-    //  1) (mark & 3) == 0, and
-    //  2) sp <= mark < mark + os::pagesize()
-    // These 3 tests can be done by evaluating the following
-    // expression: ((mark - sp) & (3 - os::vm_page_size())),
-    // assuming both stack pointer and pagesize have their
-    // least significant 2 bits clear.
-    // NOTE: the oopMark is in swap_reg %r0 as the result of cmpxchg
-
-    __ sub(swap_reg, sp, swap_reg);
-    __ neg(swap_reg, swap_reg);
-    __ ands(swap_reg, swap_reg, 3 - os::vm_page_size());
-
-    // Save the test result, for recursive case, the result is zero
-    __ str(swap_reg, Address(lock_reg, mark_word_offset));
-    __ br(Assembler::NE, slow_path_lock);
 
     // Slow path will re-enter here
-
     __ bind(lock_done);
   }
 
@@ -1983,7 +1986,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in v0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_INLINE_TYPE:           // Really a handle
+  case T_PRIMITIVE_OBJECT:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -2051,26 +2054,31 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(obj_reg, Address(oop_handle_reg, 0));
 
     Label done;
-    // Simple recursive lock?
 
-    __ ldr(rscratch1, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
-    __ cbz(rscratch1, done);
+    if (!UseHeavyMonitors) {
+      // Simple recursive lock?
+      __ ldr(rscratch1, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
+      __ cbz(rscratch1, done);
+    }
 
     // Must save r0 if if it is live now because cmpxchg must use it
     if (ret_type != T_FLOAT && ret_type != T_DOUBLE && ret_type != T_VOID) {
       save_native_result(masm, ret_type, stack_slots);
     }
 
+    if (!UseHeavyMonitors) {
+      // get address of the stack lock
+      __ lea(r0, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
+      //  get old displaced header
+      __ ldr(old_hdr, Address(r0, 0));
 
-    // get address of the stack lock
-    __ lea(r0, Address(sp, lock_slot_offset * VMRegImpl::stack_slot_size));
-    //  get old displaced header
-    __ ldr(old_hdr, Address(r0, 0));
-
-    // Atomic swap old header if oop still contains the stack lock
-    Label succeed;
-    __ cmpxchg_obj_header(r0, old_hdr, obj_reg, rscratch1, succeed, &slow_path_unlock);
-    __ bind(succeed);
+      // Atomic swap old header if oop still contains the stack lock
+      Label succeed;
+      __ cmpxchg_obj_header(r0, old_hdr, obj_reg, rscratch1, succeed, &slow_path_unlock);
+      __ bind(succeed);
+    } else {
+      __ b(slow_path_unlock);
+    }
 
     // slow path re-enters here
     __ bind(unlock_done);
@@ -3238,7 +3246,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_INLINE_TYPE) {
+    if (bt == T_PRIMITIVE_OBJECT) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3285,7 +3293,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_INLINE_TYPE) {
+    if (bt == T_PRIMITIVE_OBJECT) {
       continue;
     }
     if (bt == T_VOID) {

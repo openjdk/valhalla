@@ -253,15 +253,15 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   current->set_vm_result(obj);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* current, ConstantPool* pool, int index))
+JRT_ENTRY(void, InterpreterRuntime::aconst_init(JavaThread* current, ConstantPool* pool, int index))
   // Getting the InlineKlass
   Klass* k = pool->klass_at(index, CHECK);
   if (!k->is_inline_klass()) {
     // inconsistency with 'new' which throws an InstantiationError
-    // in the future, defaultvalue will just return null instead of throwing an exception
+    // in the future, aconst_init will just return null instead of throwing an exception
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
-  assert(k->is_inline_klass(), "defaultvalue argument must be the inline type class");
+  assert(k->is_inline_klass(), "aconst_init argument must be the inline type class");
   InlineKlass* vklass = InlineKlass::cast(k);
 
   vklass->initialize(CHECK);
@@ -274,6 +274,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   int recv_offset = type2size[as_BasicType(cpe->flag_state())];
   assert(frame::interpreter_frame_expression_stack_direction() == -1, "currently is -1 on all platforms");
   int ret_adj = (recv_offset + type2size[T_OBJECT] )* AbstractInterpreter::stackElementSize;
+  int offset = cpe->f2_as_offset();
   obj = (oopDesc*)(((uintptr_t*)ptr)[recv_offset * Interpreter::stackElementWords]);
   if (obj == NULL) {
     THROW_(vmSymbols::java_lang_NullPointerException(), ret_adj);
@@ -290,10 +291,47 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* current, ConstantPoolCa
   // Ensure that the class is initialized or being initialized
   // If the class is in error state, the creation of a new value should not be allowed
   ik->initialize(CHECK_(ret_adj));
+
+  bool can_skip = false;
+  switch(cpe->flag_state()) {
+    case ztos:
+      if (old_value_h()->bool_field(offset) == (jboolean)(*(jint*)ptr)) can_skip = true;
+      break;
+    case btos:
+      if (old_value_h()->byte_field(offset) == (jbyte)(*(jint*)ptr)) can_skip = true;
+      break;
+    case ctos:
+      if (old_value_h()->char_field(offset) == (jchar)(*(jint*)ptr)) can_skip = true;
+      break;
+    case stos:
+      if (old_value_h()->short_field(offset) == (jshort)(*(jint*)ptr)) can_skip = true;
+      break;
+    case itos:
+      if (old_value_h()->int_field(offset) == *(jint*)ptr) can_skip = true;
+      break;
+    case ltos:
+      if (old_value_h()->long_field(offset) == *(jlong*)ptr) can_skip = true;
+      break;
+    case ftos:
+      if (memcmp(old_value_h()->field_addr<jfloat>(offset), (jfloat*)ptr, sizeof(jfloat)) == 0) can_skip = true;
+      break;
+    case dtos:
+      if (memcmp(old_value_h()->field_addr<jdouble>(offset), (jdouble*)ptr, sizeof(jdouble)) == 0) can_skip = true;
+      break;
+    case atos:
+      if (!cpe->is_inlined() && old_value_h()->obj_field(offset) == ref_h()) can_skip = true;
+      break;
+    default:
+      break;
+  }
+  if (can_skip) {
+    current->set_vm_result(old_value_h());
+    return ret_adj;
+  }
+
   instanceOop new_value = ik->allocate_instance_buffer(CHECK_(ret_adj));
   Handle new_value_h = Handle(THREAD, new_value);
   ik->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
-  int offset = cpe->f2_as_offset();
   switch(cpe->flag_state()) {
     case ztos:
       new_value_h()->bool_field_put(offset, (jboolean)(*(jint*)ptr));
@@ -354,7 +392,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   //       another class which accesses this field in its static initializer, in this case the
   //       access must succeed to allow circularity
   // The code below tries to load and initialize the field's class again before returning the default value.
-  // If the field was not initialized because of an error, a exception should be thrown.
+  // If the field was not initialized because of an error, an exception should be thrown.
   // If the class is being initialized, the default value is returned.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
@@ -372,10 +410,10 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
     }
     field_k->initialize(CHECK);
     oop defaultvalue = InlineKlass::cast(field_k)->default_value();
-    // It is safe to initialized the static field because 1) the current thread is the initializing thread
+    // It is safe to initialize the static field because 1) the current thread is the initializing thread
     // and is the only one that can access it, and 2) the field is actually not initialized (i.e. null)
     // otherwise the JVM should not be executing this code.
-    mirror->obj_field_put(offset, defaultvalue);
+    mirror_h()->obj_field_put(offset, defaultvalue);
     current->set_vm_result(defaultvalue);
   } else {
     assert(klass->is_in_error_state(), "If not initializing, initialization must have failed to get there");
@@ -619,7 +657,11 @@ JRT_ENTRY(void, InterpreterRuntime::create_klass_exception(JavaThread* current, 
   // lookup exception klass
   TempNewSymbol s = SymbolTable::new_symbol(name);
   if (ProfileTraps) {
-    note_trap(current, Deoptimization::Reason_class_check);
+    if (s == vmSymbols::java_lang_ArrayStoreException()) {
+      note_trap(current, Deoptimization::Reason_array_check);
+    } else {
+      note_trap(current, Deoptimization::Reason_class_check);
+    }
   }
   // create exception, with klass name as detail message
   Handle exception = Exceptions::new_exception(current, s, klass_name);
@@ -1050,7 +1092,18 @@ void InterpreterRuntime::resolve_invoke(JavaThread* current, Bytecodes::Code byt
     JavaThread* THREAD = current; // For exception macros.
     LinkResolver::resolve_invoke(info, receiver, pool,
                                  last_frame.get_index_u2_cpcache(bytecode), bytecode,
-                                 CHECK);
+                                 THREAD);
+
+    if (HAS_PENDING_EXCEPTION) {
+      if (ProfileTraps && PENDING_EXCEPTION->klass()->name() == vmSymbols::java_lang_NullPointerException()) {
+        // Preserve the original exception across the call to note_trap()
+        PreserveExceptionMark pm(current);
+        // Recording the trap will help the compiler to potentially recognize this exception as "hot"
+        note_trap(current, Deoptimization::Reason_null_check);
+      }
+      return;
+    }
+
     if (JvmtiExport::can_hotswap_or_post_breakpoint() && info.resolved_method()->is_old()) {
       resolved_method = methodHandle(current, info.resolved_method()->get_new_method());
     } else {
@@ -1406,7 +1459,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread* current,
 
   // Both Q-signatures and L-signatures are mapped to atos
   if (cp_entry->flag_state() == atos && ik->field_signature(index)->is_Q_signature()) {
-    sig_type = JVM_SIGNATURE_INLINE_TYPE;
+    sig_type = JVM_SIGNATURE_PRIMITIVE_OBJECT;
   }
 
   bool is_static = (obj == NULL);

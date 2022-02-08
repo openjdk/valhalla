@@ -1752,11 +1752,11 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           current_frame.push_stack(type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
-        case Bytecodes::_defaultvalue :
+        case Bytecodes::_aconst_init :
         {
           if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
             class_format_error(
-              "defaultvalue not supported by this class file version (%d.%d), class %s",
+              "aconst_init not supported by this class file version (%d.%d), class %s",
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
             return;
           }
@@ -1766,7 +1766,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
           if (!ref_type.is_object()) {
             verify_error(ErrorContext::bad_type(bci,
                 TypeOrigin::cp(index, ref_type)),
-                "Illegal defaultvalue instruction");
+                "Illegal aconst_init instruction");
             return;
           }
           VerificationType inline_type =
@@ -3107,7 +3107,7 @@ void ClassVerifier::verify_anewarray(
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    char Q_or_L = component_type.is_inline_type() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
+    char Q_or_L = component_type.is_inline_type() ? JVM_SIGNATURE_PRIMITIVE_OBJECT : JVM_SIGNATURE_CLASS;
     // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);
