@@ -616,18 +616,20 @@ public class Types {
             warn.warn(LintCategory.UNIVERSAL);
             return true;
         }
-        if (allowUniversalTVars && !t.hasTag(BOT) && s.isPrimitiveClass() && !t.isPrimitiveClass()) {
-            chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
-            return true;
-        }
 
         boolean tUndet = t.hasTag(UNDETVAR);
         boolean sUndet = s.hasTag(UNDETVAR);
 
         if (tValue != sValue) {
-            return tValue ?
+            boolean result = tValue ?
                     isSubtype(allowUniversalTVars && (tUndet || sUndet) ? t : t.referenceProjection(), s) :
                     !t.hasTag(BOT) && isSubtype(t, allowUniversalTVars && (tUndet || sUndet) ? s : s.referenceProjection());
+            if (result && (allowUniversalTVars && !t.hasTag(BOT) &&
+                    s.isPrimitiveClass() && !t.isPrimitiveClass() &&
+                    s.referenceProjectionOrSelf().tsym == t.tsym)) {
+                chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
+            }
+            return result;
         }
 
         boolean tPrimitive = t.isPrimitive();
