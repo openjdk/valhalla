@@ -152,7 +152,7 @@ class InlineKlass: public InstanceKlass {
     return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_CLASS);
   }
   const char* val_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_INLINE_TYPE);
+    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_PRIMITIVE_OBJECT);
   }
 
   // Casting from Klass*

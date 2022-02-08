@@ -1036,7 +1036,7 @@ class CompileReplay : public StackObj {
 
     void do_field(fieldDescriptor* fd) {
       BasicType bt = fd->field_type();
-      const char* string_value = bt != T_INLINE_TYPE ? _replay->parse_escaped_string() : NULL;
+      const char* string_value = bt != T_PRIMITIVE_OBJECT ? _replay->parse_escaped_string() : NULL;
       switch (bt) {
       case T_BYTE: {
         int value = atoi(string_value);
@@ -1089,7 +1089,7 @@ class CompileReplay : public StackObj {
         assert(res, "should succeed for arrays & objects");
         break;
       }
-      case T_INLINE_TYPE: {
+      case T_PRIMITIVE_OBJECT: {
         InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
         if (fd->is_inlined()) {
           int field_offset = fd->offset() - vk->first_field_offset();
@@ -1150,7 +1150,7 @@ class CompileReplay : public StackObj {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
-                   field_signature[1] == JVM_SIGNATURE_INLINE_TYPE) {
+                   field_signature[1] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
         } else {
@@ -1238,7 +1238,7 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (field_signature[0] == JVM_SIGNATURE_INLINE_TYPE) {
+    } else if (field_signature[0] == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
       InlineKlass* vk = InlineKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);

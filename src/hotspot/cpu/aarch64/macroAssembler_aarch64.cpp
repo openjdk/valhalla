@@ -4290,7 +4290,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   lslv(index, index, rscratch1);
 
   add(data, array, index);
-  add(data, data, arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE));
+  add(data, data, arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT));
 }
 
 void MacroAssembler::load_heap_oop(Register dst, Address src, Register tmp1,
@@ -5846,7 +5846,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                         VMRegPair* from, int from_count, int& from_index, VMReg to,
                                         RegState reg_state[], Register val_array) {
-  assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
+  assert(sig->at(sig_index)._bt == T_PRIMITIVE_OBJECT, "should be at end delimiter");
   assert(to->is_valid(), "destination must be valid");
 
   if (reg_state[to->value()] == reg_written) {
@@ -5875,7 +5875,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_INLINE_TYPE);
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_PRIMITIVE_OBJECT);
   load_heap_oop(val_obj, Address(val_array, index));
 
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);

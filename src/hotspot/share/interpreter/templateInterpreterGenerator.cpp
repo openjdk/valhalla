@@ -51,7 +51,7 @@ static const BasicType types[Interpreter::number_of_result_handlers] = {
   T_FLOAT  ,
   T_DOUBLE ,
   T_OBJECT ,
-  T_INLINE_TYPE
+  T_PRIMITIVE_OBJECT
 };
 
 void TemplateInterpreterGenerator::generate_all() {

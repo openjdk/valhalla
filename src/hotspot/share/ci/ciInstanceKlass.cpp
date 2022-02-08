@@ -813,7 +813,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       }
       break;
     }
-    case T_INLINE_TYPE: {
+    case T_PRIMITIVE_OBJECT: {
       ResetNoHandleMark rnhm;
       Thread* THREAD = Thread::current();
       SignatureStream ss(fd->signature(), false);

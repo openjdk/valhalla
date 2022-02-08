@@ -1380,7 +1380,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
     BasicType type = fields->at(i)._type;
     int offset = base_offset + fields->at(i)._offset;
     // Check for flattened inline type field before accessing the ScopeValue because it might not have any fields
-    if (type == T_INLINE_TYPE) {
+    if (type == T_PRIMITIVE_OBJECT) {
       // Recursively re-assign flattened inline type fields
       InstanceKlass* vk = fields->at(i)._klass;
       assert(vk != NULL, "must be resolved");
@@ -1478,7 +1478,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
   InlineKlass* vk = vak->element_klass();
   assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - InlineKlass::cast(vk)->first_field_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_PRIMITIVE_OBJECT) - InlineKlass::cast(vk)->first_field_offset();
   // Initialize all elements of the flattened inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);

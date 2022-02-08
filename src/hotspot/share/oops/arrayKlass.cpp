@@ -110,7 +110,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, bool q
   new_str[idx++] = JVM_SIGNATURE_ARRAY;
   if (element_klass->is_instance_klass()) { // it could be an array or simple type
     if (qdesc) {
-      new_str[idx++] = JVM_SIGNATURE_INLINE_TYPE;
+      new_str[idx++] = JVM_SIGNATURE_PRIMITIVE_OBJECT;
     } else {
       new_str[idx++] = JVM_SIGNATURE_CLASS;
     }

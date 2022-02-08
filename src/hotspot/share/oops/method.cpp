@@ -879,7 +879,7 @@ bool Method::is_getter() const {
     default:
       return false;
   }
-  if (InlineTypeReturnedAsFields && result_type() == T_INLINE_TYPE) {
+  if (InlineTypeReturnedAsFields && result_type() == T_PRIMITIVE_OBJECT) {
     // Don't treat this as (trivial) getter method because the
     // inline type should be returned in a scalarized form.
     return false;

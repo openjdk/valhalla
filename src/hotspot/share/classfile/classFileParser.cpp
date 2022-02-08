@@ -1457,7 +1457,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   NONSTATIC_DOUBLE,    // T_LONG        = 11,
   NONSTATIC_OOP,       // T_OBJECT      = 12,
   NONSTATIC_OOP,       // T_ARRAY       = 13,
-  NONSTATIC_OOP,       // T_INLINE_TYPE = 14,
+  NONSTATIC_OOP,       // T_PRIMITIVE_OBJECT = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1478,7 +1478,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   STATIC_DOUBLE,       // T_LONG        = 11,
   STATIC_OOP,          // T_OBJECT      = 12,
   STATIC_OOP,          // T_ARRAY       = 13,
-  STATIC_OOP,          // T_INLINE_TYPE = 14,
+  STATIC_OOP,          // T_PRIMITIVE_OBJECT = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1664,7 +1664,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Update FieldAllocationCount for this kind of field
-    fac->update(is_static, type, type == T_INLINE_TYPE);
+    fac->update(is_static, type, type == T_PRIMITIVE_OBJECT);
 
     // After field is initialized with type, we can augment it with aux info
     if (parsed_annotations.has_any_annotations()) {
@@ -5209,7 +5209,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_LONG:
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
-    case JVM_SIGNATURE_INLINE_TYPE:
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT:
       // Can't enable this check until JDK upgrades the bytecode generators
       // if (_major_version < CONSTANT_CLASS_DESCRIPTORS ) {
       //   classfile_parse_error("Class name contains illegal Q-signature "
@@ -6573,7 +6573,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                    NULL,
                                                    CHECK);
     for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE && !fs.access_flags().is_static()) {
+      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT && !fs.access_flags().is_static()) {
         // Pre-load inline class
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
             Handle(THREAD, _loader_data->class_loader()),
