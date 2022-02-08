@@ -30,7 +30,7 @@ import java.util.StringJoiner;
 /**
  * The Modifier class provides {@code static} methods and
  * constants to decode class and member access modifiers.  The sets of
- * modifiers are represented as integers with distinct bit positions
+ * modifiers are represented as integers with bit positions
  * representing different modifiers.  The values for the constants
  * representing the modifiers are taken from the tables in sections
  * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
@@ -161,6 +161,7 @@ public class Modifier {
     /**
      * Return {@code true} if the integer argument includes the
      * {@code native} modifier, {@code false} otherwise.
+     * The {@code native} modifier only applies to modifiers of methods.
      *
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
@@ -197,6 +198,7 @@ public class Modifier {
     /**
      * Return {@code true} if the integer argument includes the
      * {@code strictfp} modifier, {@code false} otherwise.
+     * The {@code strictfp} modifier only applies to modifiers of methods.
      *
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
@@ -251,8 +253,13 @@ public class Modifier {
         if ((mod & TRANSIENT) != 0)     sj.add("transient");
         if ((mod & VOLATILE) != 0)      sj.add("volatile");
         if ((mod & SYNCHRONIZED) != 0)  sj.add("synchronized");
-        if ((mod & NATIVE) != 0)        sj.add("native");
-        if ((mod & STRICT) != 0)        sj.add("strictfp");
+        if ((mod & NATIVE) != 0)        sj.add("native");   // ambiguous with value
+        if ((mod & VALUE) == 0) {
+            if ((mod & STRICT) != 0)    sj.add("strictfp");
+        } else {
+            if ((mod & PRIMITIVE) != 0) sj.add("primitive");
+            else sj.add("value");
+        }
         if ((mod & INTERFACE) != 0)     sj.add("interface");
 
         return sj.toString();
@@ -319,9 +326,15 @@ public class Modifier {
 
     /**
      * The {@code int} value representing the {@code native}
-     * modifier.
+     * modifier when applied to the modifiers of a method.
      */
     public static final int NATIVE           = 0x00000100;
+
+    /**
+     * The {@code int} value representing the {@code value}
+     * modifier when applied to the modifiers of a class.
+     */
+    public static final int VALUE            = 0x00000100;
 
     /**
      * The {@code int} value representing the {@code interface}
@@ -337,9 +350,15 @@ public class Modifier {
 
     /**
      * The {@code int} value representing the {@code strictfp}
-     * modifier.
+     * modifier when applied to the modifiers of a method.
      */
     public static final int STRICT           = 0x00000800;
+
+    /**
+     * The {@code int} value representing the {@code primitive}
+     * modifier when applied to the modifiers of a class.
+     */
+    public static final int PRIMITIVE        = 0x00000800;
 
     // Bits not (yet) exposed in the public API either because they
     // have different meanings for fields and methods and there is no
@@ -374,9 +393,10 @@ public class Modifier {
      * @jls 8.1.1 Class Modifiers
      */
     private static final int CLASS_MODIFIERS =
-        Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
-        Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.STRICT         | Modifier.PERMITS_VALUE;
+        Modifier.PUBLIC         | Modifier.PROTECTED     | Modifier.PRIVATE |
+        Modifier.ABSTRACT       | Modifier.STATIC        | Modifier.FINAL   |
+        // Modifier.STRICT is obsolete as a class modifier
+        Modifier.VALUE          | Modifier.PERMITS_VALUE | Modifier.PRIMITIVE;
 
     /**
      * The Java source modifiers that can be applied to an interface.
@@ -384,7 +404,8 @@ public class Modifier {
      */
     private static final int INTERFACE_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
-        Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.STRICT;
+        // Modifier.STRICT is obsolete as a class modifier
+        Modifier.ABSTRACT       | Modifier.STATIC;
 
 
     /**

@@ -23,36 +23,54 @@
 
 /**
  * @test
- * @bug 4394937 8051382
+ * @bug 4394937 8051382 8281463
  * @summary tests the toString method of reflect.Modifier
+ * @run testng toStringTest
  */
 
 import java.lang.reflect.Modifier;
 
+import org.testng.Assert;
+import org.testng.annotations.Test;
+import org.testng.annotations.DataProvider;
+
 public class toStringTest {
 
-    static void testString(int test, String expected) {
-        if(!Modifier.toString(test).equals(expected))
-            throw new RuntimeException(test +
-                                          " yields incorrect toString result");
-    }
-
-    public static void main(String [] argv) {
-        int allMods = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE |
+    static final int allMods = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE |
             Modifier.ABSTRACT | Modifier.STATIC | Modifier.FINAL |
             Modifier.TRANSIENT | Modifier.VOLATILE | Modifier.SYNCHRONIZED |
-            Modifier.NATIVE | Modifier.STRICT | Modifier.INTERFACE;
+            Modifier.NATIVE | Modifier.VALUE  | Modifier.PERMITS_VALUE | Modifier.PRIMITIVE | Modifier.INTERFACE;
+    String allModsString = "public protected private abstract static " +
+            "final transient volatile synchronized native primitive interface";
 
-        String allModsString = "public protected private abstract static " +
-            "final transient volatile synchronized native strictfp interface";
+    static final int  primitiveMods = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE |
+            Modifier.ABSTRACT | Modifier.STATIC | Modifier.FINAL |
+            Modifier.TRANSIENT | Modifier.VOLATILE | Modifier.SYNCHRONIZED |
+            Modifier.NATIVE | Modifier.VALUE  | Modifier.PERMITS_VALUE | Modifier.PRIMITIVE | Modifier.INTERFACE;
+    String primitiveModsString = "public protected private abstract static " +
+            "final transient volatile synchronized native primitive interface";
 
-        /* zero should have an empty string */
-        testString(0, "");
+    static final int  valueMods = Modifier.PUBLIC | Modifier.PROTECTED | Modifier.PRIVATE |
+            Modifier.ABSTRACT | Modifier.STATIC | Modifier.FINAL |
+            Modifier.TRANSIENT | Modifier.VOLATILE | Modifier.SYNCHRONIZED |
+            Modifier.NATIVE | Modifier.VALUE  | Modifier.PERMITS_VALUE | Modifier.INTERFACE;
+    String valueModsString = "public protected private abstract static " +
+            "final transient volatile synchronized native value interface";
 
-        /* test to make sure all modifiers print out in the proper order */
-        testString(allMods, allModsString);
+    @DataProvider(name="Modifiers")
+    Object[][] modifiers() {
+        return new Object[][] {
+                {0, ""},
+                {~0, allModsString},
+                {allMods, allModsString},
+                {primitiveMods, primitiveModsString},
+                {valueMods, valueModsString},
+        };
+    }
 
-        /* verify no extraneous modifiers are printed */
-        testString(~0, allModsString);
+    @Test(dataProvider = "Modifiers")
+    void testString(int test, String expected) {
+        String actual = Modifier.toString(test);
+        Assert.assertEquals(actual, expected, "incorrect toString");
     }
 }
