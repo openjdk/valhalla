@@ -452,9 +452,10 @@ bool LateInlineMHCallGenerator::do_late_inline_check(Compile* C, JVMState* jvms)
   if (cg != NULL) {
     // AlwaysIncrementalInline causes for_method_handle_inline() to
     // return a LateInlineCallGenerator. Extract the
-    // InlineCallGenerato from it.
-    if (AlwaysIncrementalInline && cg->is_late_inline()) {
+    // InlineCallGenerator from it.
+    if (AlwaysIncrementalInline && cg->is_late_inline() && !cg->is_virtual_late_inline()) {
       cg = cg->inline_cg();
+      assert(cg != NULL, "inline call generator expected");
     }
 
     assert(!cg->is_late_inline() || cg->is_mh_late_inline() || AlwaysIncrementalInline, "we're doing late inlining");
