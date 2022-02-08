@@ -2650,13 +2650,13 @@ public class Attr extends JCTree.Visitor {
 
             final Symbol symbol = TreeInfo.symbol(tree.meth);
             if (symbol != null) {
-                /* Is this an ill conceived attempt to invoke jlO methods not available on primitive class types ??
+                /* Is this an ill-conceived attempt to invoke jlO methods not available on value class types ??
                  */
-                boolean superCallOnPrimitiveReceiver = env.enclClass.sym.type.isPrimitiveClass()
+                boolean superCallOnValueReceiver = env.enclClass.sym.type.isValueClass()
                         && (tree.meth.hasTag(SELECT))
                         && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
                         && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                if (qualifier.isPrimitiveClass() || superCallOnPrimitiveReceiver) {
+                if (qualifier.isValueClass() || superCallOnValueReceiver) {
                     int argSize = argtypes.size();
                     Name name = symbol.name;
                     switch (name.toString()) {
@@ -2664,14 +2664,14 @@ public class Attr extends JCTree.Visitor {
                             if (argSize == 0
                                     || (types.isConvertible(argtypes.head, syms.longType) &&
                                     (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
-                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
+                                log.error(tree.pos(), Errors.ValueClassDoesNotSupport(name));
                             }
                             break;
                         case "notify":
                         case "notifyAll":
                         case "finalize":
                             if (argSize == 0)
-                                log.error(tree.pos(), Errors.PrimitiveClassDoesNotSupport(name));
+                                log.error(tree.pos(), Errors.ValueClassDoesNotSupport(name));
                             break;
                     }
                 }
