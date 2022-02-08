@@ -1522,6 +1522,7 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    bool is_interface,
                                    bool is_inline_type,
+                                   bool is_permits_value_class,
                                    FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
@@ -1586,7 +1587,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
-    verify_legal_field_modifiers(flags, is_interface, is_inline_type, CHECK);
+    verify_legal_field_modifiers(flags, is_interface, is_inline_type, is_permits_value_class, CHECK);
     AccessFlags access_flags;
     access_flags.set_flags(flags);
 
@@ -2355,6 +2356,7 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
                                       bool is_inline_type,
+                                      bool is_permits_value_class,
                                       const ConstantPool* cp,
                                       AccessFlags* const promoted_flags,
                                       TRAPS) {
@@ -2396,7 +2398,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       return NULL;
     }
   } else {
-    verify_legal_method_modifiers(flags, is_interface, is_inline_type, name, CHECK_NULL);
+    verify_legal_method_modifiers(flags, is_interface, is_inline_type, is_permits_value_class, name, CHECK_NULL);
   }
 
   if (name == vmSymbols::object_initializer_name()) {
@@ -3016,6 +3018,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
                                     bool is_inline_type,
+                                    bool is_permits_value_class,
                                     AccessFlags* promoted_flags,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -3041,6 +3044,7 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
       Method* method = parse_method(cfs,
                                     is_interface,
                                     is_inline_type,
+                                    is_permits_value_class,
                                     _cp,
                                     promoted_flags,
                                     CHECK);
@@ -3323,9 +3327,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
+    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_PERMITS_VALUE are defined for class file version 62 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
+      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
     }
 
     // Access flags
@@ -4582,6 +4586,18 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
       return;
     }
 
+    // The JVMS says that super classes for value types must have the ACC_PERMITS_VALUE
+    // flag set.  However, since java.lang.Object has not yet been changed into an abstract
+    // class, it cannot have its ACC_PERMITS_VALUE flag set.  But, java.lang.Object must
+    // still be allowed to be a direct super class for a value classes.  So, it is treated
+    // as a special case for now.
+    if (this_klass->access_flags().is_value_class() &&
+        super_ik->name() != vmSymbols::java_lang_Object() &&
+        !super_ik->is_permits_value_class()) {
+      classfile_icce_error("value class %s cannot inherit from class %s", super_ik, THREAD);
+      return;
+    }
+
     // If the loader is not the boot loader then throw an exception if its
     // superclass is in package jdk.internal.reflect and its loader is not a
     // special reflection class loader
@@ -4769,9 +4785,11 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
   const bool is_value_class = (flags & JVM_ACC_VALUE) != 0;
   const bool is_primitive_class = (flags & JVM_ACC_PRIMITIVE) != 0;
+  const bool is_permits_value_class = (flags & JVM_ACC_PERMITS_VALUE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   assert(supports_inline_types() || !is_value_class, "JVM_ACC_VALUE should not be set");
   assert(supports_inline_types() || !is_primitive_class, "JVM_ACC_PRIMITIVE should not be set");
+  assert(supports_inline_types() || !is_permits_value_class, "JVM_ACC_PERMITS_VALUE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4810,12 +4828,14 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_super || is_enum)) ||
       (!is_interface && major_gte_1_5 && is_annotation) ||
-      (is_value_class && (is_interface || is_abstract || is_enum || !is_final)) ||
+      (is_value_class && (is_interface || is_abstract || is_enum || !is_final || is_permits_value_class)) ||
+      (is_permits_value_class && (is_interface || is_final || !is_abstract)) ||
       (is_primitive_class && !is_value_class)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
     if (is_value_class)  class_note = " (a value class)";
     if (is_primitive_class)  class_note = " (a primitive class)";
+    if (is_permits_value_class)  class_note = " (a permits_value class)";
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -4891,6 +4911,7 @@ void ClassFileParser::verify_class_version(u2 major, u2 minor, Symbol* class_nam
 void ClassFileParser::verify_legal_field_modifiers(jint flags,
                                                    bool is_interface,
                                                    bool is_inline_type,
+                                                   bool is_permits_value_class,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
@@ -4918,6 +4939,8 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
     } else {
       if (is_inline_type && !is_static && !is_final) {
         is_illegal = true;
+      } else if (is_permits_value_class && !is_static) {
+        is_illegal = true;
       }
     }
   }
@@ -4936,6 +4959,7 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
 void ClassFileParser::verify_legal_method_modifiers(jint flags,
                                                     bool is_interface,
                                                     bool is_inline_type,
+                                                    bool is_permits_value_class,
                                                     const Symbol* name,
                                                     TRAPS) const {
   if (!_need_verify) { return; }
@@ -5006,7 +5030,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
           class_note = (is_inline_type ? " (an inline class)" : " (not an inline class)");
         }
       } else { // not initializer
-        if (is_inline_type && is_synchronized && !is_static) {
+        if ((is_inline_type || is_permits_value_class) && is_synchronized && !is_static) {
           is_illegal = true;
           class_note = " (an inline class)";
         } else {
@@ -6190,7 +6214,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
   // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
+    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
   }
 
   // Access flags
@@ -6311,6 +6335,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_fields(stream,
                is_interface(),
                is_inline_type(),
+               is_permits_value_class(),
                _fac,
                cp,
                cp_size,
@@ -6324,6 +6349,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_methods(stream,
                 is_interface(),
                 is_inline_type(),
+                is_permits_value_class(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,

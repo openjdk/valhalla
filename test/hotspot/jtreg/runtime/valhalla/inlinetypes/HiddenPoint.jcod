@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,45 +38,11 @@
 //      }
 //  }
 
-class HiddenPoint$ref {
-  0xCAFEBABE;
-  0; // minor version
-  63; // version
-  [7] { // Constant Pool
-    ; // first element is empty
-    class #2; // #1     at 0x0A
-    Utf8 "HiddenPoint$ref"; // #2     at 0x0D
-    class #4; // #3     at 0x1F
-    Utf8 "java/lang/Object"; // #4     at 0x22
-    Utf8 "SourceFile"; // #5     at 0x35
-    Utf8 "HiddenPoint.java"; // #6     at 0x42
-  } // Constant Pool
-
-  0x0420; // access [ ACC_SUPER ACC_ABSTRACT ]
-  #1;// this_cpx
-  #3;// super_cpx
-
-  [0] { // Interfaces
-  } // Interfaces
-
-  [0] { // fields
-  } // fields
-
-  [0] { // methods
-  } // methods
-
-  [1] { // Attributes
-    Attr(#5, 2) { // SourceFile at 0x63
-      #6;
-    } // end SourceFile
-  } // Attributes
-} // end class HiddenPoint$ref
-
 class HiddenPoint {
   0xCAFEBABE;
   0; // minor version
   63; // version
-  [60] { // Constant Pool
+  [40] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
     Utf8 "HiddenPoint"; // #2     at 0x0D
@@ -91,86 +57,66 @@ class HiddenPoint {
     NameAndType #12 #13; // #11     at 0x40
     Utf8 "makeConcatWithConstants"; // #12     at 0x45
     Utf8 "(II)Ljava/lang/String;"; // #13     at 0x5F
-    InvokeDynamic 1s #15; // #14     at 0x78
-    NameAndType #16 #17; // #15     at 0x7D
-    Utf8 "hashCode"; // #16     at 0x82
-    Utf8 "(QHiddenPoint;)I"; // #17     at 0x8D
-    InvokeDynamic 1s #19; // #18     at 0xA0
-    NameAndType #20 #21; // #19     at 0xA5
-    Utf8 "equals"; // #20     at 0xAA
-    Utf8 "(QHiddenPoint;Ljava/lang/Object;)Z"; // #21     at 0xB3
-    InvokeDynamic 1s #23; // #22     at 0xD8
-    NameAndType #24 #25; // #23     at 0xDD
-    Utf8 "toString"; // #24     at 0xE2
-    Utf8 "(QHiddenPoint;)Ljava/lang/String;"; // #25     at 0xED
-    class #27; // #26     at 0x0111
-    Utf8 "HiddenPoint$ref"; // #27     at 0x0114
-    Utf8 "getValue"; // #28     at 0x0126
-    Utf8 "()Ljava/lang/String;"; // #29     at 0x0131
-    Utf8 "Code"; // #30     at 0x0148
-    Utf8 "LineNumberTable"; // #31     at 0x014F
-    Utf8 "()I"; // #32     at 0x0161
-    Utf8 "(Ljava/lang/Object;)Z"; // #33     at 0x0167
-    Utf8 "<init>"; // #34     at 0x017F
-    Utf8 "()Ljava/lang/Object;"; // #35     at 0x0188
-    Utf8 "SourceFile"; // #36     at 0x019A
-    Utf8 "HiddenPoint.java"; // #37     at 0x01A7
-    Utf8 "BootstrapMethods"; // #38     at 0x01BA
-    MethodHandle 6b #40; // #39     at 0x01CD
-    Method #41 #42; // #40     at 0x01D1
-    class #43; // #41     at 0x01D6
-    NameAndType #12 #44; // #42     at 0x01D9
-    Utf8 "java/lang/invoke/StringConcatFactory"; // #43     at 0x01DE
-    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"; // #44     at 0x0205
-    String #46; // #45     at 0x02A0
-    Utf8 "x: , y: "; // #46     at 0x02A3
-    MethodHandle 6b #48; // #47     at 0x02B0
-    Method #49 #50; // #48     at 0x02B4
-    class #51; // #49     at 0x02B9
-    NameAndType #52 #53; // #50     at 0x02BC
-    Utf8 "java/lang/invoke/ValueBootstrapMethods"; // #51     at 0x02C1
-    Utf8 "makeBootstrapMethod"; // #52     at 0x02EA
-    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"; // #53     at 0x0300
-    Utf8 "InnerClasses"; // #54     at 0x0376
-    class #56; // #55     at 0x0385
-    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #56     at 0x0388
-    class #58; // #57     at 0x03B0
-    Utf8 "java/lang/invoke/MethodHandles"; // #58     at 0x03B3
-    Utf8 "Lookup"; // #59     at 0x03D4
+    class #15; // #14     at 0x78
+    Utf8 "java/lang/Object"; // #15     at 0x7B
+    Utf8 "getValue"; // #16     at 0x8E
+    Utf8 "()Ljava/lang/String;"; // #17     at 0x99
+    Utf8 "Code"; // #18     at 0xB0
+    Utf8 "LineNumberTable"; // #19     at 0xB7
+    Utf8 "<init>"; // #20     at 0xC9
+    Utf8 "()Ljava/lang/Object;"; // #21     at 0xD2
+    Utf8 "SourceFile"; // #22     at 0xE4
+    Utf8 "HiddenPoint.java"; // #23     at 0xF1
+    Utf8 "BootstrapMethods"; // #24     at 0x0104
+    MethodHandle 6b #26; // #25     at 0x0117
+    Method #27 #28; // #26     at 0x011B
+    class #29; // #27     at 0x0120
+    NameAndType #12 #30; // #28     at 0x0123
+    Utf8 "java/lang/invoke/StringConcatFactory"; // #29     at 0x0128
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/invoke/CallSite;"; // #30     at 0x014F
+    String #32; // #31     at 0x01EA
+    Utf8 "x: , y: "; // #32     at 0x01ED
+    Utf8 "InnerClasses"; // #33     at 0x01FA
+    class #35; // #34     at 0x0209
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #35     at 0x020C
+    class #37; // #36     at 0x0234
+    Utf8 "java/lang/invoke/MethodHandles"; // #37     at 0x0237
+    Utf8 "Lookup"; // #38     at 0x0258
+    Utf8 "Preload"; // #39     at 0x0261
   } // Constant Pool
 
-  0x0930; // access [ ACC_SUPER ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
+  0x0130; // access [ ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
-  #26;// super_cpx
+  #14;// super_cpx
 
   [0] { // Interfaces
   } // Interfaces
 
-  [2] { // fields
-    { // Member at 0x03E7
+  [2] { // Fields
+    {  // field at 0x0275
       0x0010; // access
-      #5; // name_cpx
-      #6; // sig_cpx
+      #5; // name_index       : x
+      #6; // descriptor_index : I
       [0] { // Attributes
       } // Attributes
-    } // Member
+    }
     ;
-    { // Member at 0x03EF
+    {  // field at 0x027D
       0x0010; // access
-      #9; // name_cpx
-      #6; // sig_cpx
+      #9; // name_index       : y
+      #6; // descriptor_index : I
       [0] { // Attributes
       } // Attributes
-    } // Member
-  } // fields
+    }
+  } // Fields
 
-  [2] { // methods
-    { // Member at 0x03F9
+  [2] { // Methods
+    {  // method at 0x0287
       0x0001; // access
-      #28; // name_cpx
-      #29; // sig_cpx
+      #16; // name_index       : getValue
+      #17; // descriptor_index : ()Ljava/lang/String;
       [1] { // Attributes
-        Attr(#30, 38) { // Code at 0x0401
+        Attr(#18, 38) { // Code at 0x028F
           2; // max_stack
           1; // max_locals
           Bytes[14]{
@@ -180,22 +126,22 @@ class HiddenPoint {
           [0] { // Traps
           } // end Traps
           [1] { // Attributes
-            Attr(#31, 6) { // LineNumberTable at 0x0421
-              [1] { // LineNumberTable
-                0  9; //  at 0x042D
+            Attr(#19, 6) { // LineNumberTable at 0x02AF
+              [1] { // line_number_table
+                0  10; //  at 0x02BB
               }
             } // end LineNumberTable
           } // Attributes
         } // end Code
       } // Attributes
-    } // Member
+    }
     ;
-    { // Member at 0x04B5
+    {  // method at 0x02BB
       0x0008; // access
-      #34; // name_cpx
-      #35; // sig_cpx
+      #20; // name_index       : <init>
+      #21; // descriptor_index : ()LHiddenPoint;
       [1] { // Attributes
-        Attr(#30, 56) { // Code at 0x04BD
+        Attr(#18, 56) { // Code at 0x02C3
           2; // max_stack
           1; // max_locals
           Bytes[20]{
@@ -206,46 +152,44 @@ class HiddenPoint {
           [0] { // Traps
           } // end Traps
           [1] { // Attributes
-            Attr(#31, 18) { // LineNumberTable at 0x04E3
-              [4] { // LineNumberTable
-                0  4; //  at 0x04EF
-                4  5; //  at 0x04F3
-                11  6; //  at 0x04F7
-                18  7; //  at 0x04FB
+            Attr(#19, 18) { // LineNumberTable at 0x02E9
+              [4] { // line_number_table
+                0  5; //  at 0x02F5
+                4  6; //  at 0x02F9
+                11  7; //  at 0x02FD
+                18  8; //  at 0x0301
               }
             } // end LineNumberTable
           } // Attributes
         } // end Code
       } // Attributes
-    } // Member
-  } // methods
+    }
+  } // Methods
 
-  [3] { // Attributes
-    Attr(#36, 2) { // SourceFile at 0x04FD
-      #37;
+  [4] { // Attributes
+    Attr(#22, 2) { // SourceFile at 0x0303
+      #23;
     } // end SourceFile
     ;
-    Attr(#38, 12) { // BootstrapMethods at 0x0505
-      [2] { // bootstrap_methods
+    Attr(#24, 8) { // BootstrapMethods at 0x030B
+      [1] { // bootstrap_methods
         {  //  bootstrap_method
-          #39; // bootstrap_method_ref
+          #25; // bootstrap_method_ref
           [1] { // bootstrap_arguments
-            #45; //  at 0x0513
-          }  //  bootstrap_arguments
-        }  //  bootstrap_method
-        ;
-        {  //  bootstrap_method
-          #47; // bootstrap_method_ref
-          [0] { // bootstrap_arguments
+            #31; //  at 0x0319
           }  //  bootstrap_arguments
         }  //  bootstrap_method
       }
     } // end BootstrapMethods
     ;
-    Attr(#54, 10) { // InnerClasses at 0x0517
-      [1] { // InnerClasses
-        #55 #57 #59 25; //  at 0x0527
+    Attr(#33, 10) { // InnerClasses at 0x0319
+      [1] { // classes
+        #34 #36 #38 25; //  at 0x0329
       }
     } // end InnerClasses
+    ;
+    Attr(#39, 4) { // Preload at 0x0329
+      0x00010001;
+    } // end Preload
   } // Attributes
 } // end class HiddenPoint

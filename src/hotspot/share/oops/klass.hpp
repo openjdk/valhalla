@@ -652,6 +652,7 @@ protected:
   bool is_abstract() const              { return _access_flags.is_abstract(); }
   bool is_super() const                 { return _access_flags.is_super(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
+  bool is_permits_value_class() const   { return _access_flags.is_permits_value_class(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
   bool has_finalizer() const            { return _access_flags.has_finalizer(); }
   bool has_final_method() const         { return _access_flags.has_final_method(); }
