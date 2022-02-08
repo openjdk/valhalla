@@ -21,6 +21,6 @@
  * questions.
  *
  */
-public primitive class PrimitiveTypeSpecified implements PrimitiveObject {
+public primitive class PrimitiveTypeSpecified implements ValueObject {
 
 }

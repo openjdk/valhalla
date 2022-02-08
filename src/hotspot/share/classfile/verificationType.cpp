@@ -64,7 +64,7 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     }
   }
 
-  if (this_class->access_flags().is_inline_type()) return false;
+  if (this_class->access_flags().is_value_class()) return false;
   if (this_class->is_interface() && (!from_field_is_protected ||
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in
@@ -218,13 +218,13 @@ VerificationType VerificationType::get_component(ClassVerifier *context) const {
     case T_DOUBLE:  return VerificationType(Double);
     case T_ARRAY:
     case T_OBJECT:
-    case T_INLINE_TYPE: {
+    case T_PRIMITIVE_OBJECT: {
       guarantee(ss.is_reference(), "unchecked verifier input?");
       Symbol* component = ss.as_symbol();
       // Create another symbol to save as signature stream unreferences this symbol.
       Symbol* component_copy = context->create_temporary_symbol(component);
       assert(component_copy == component, "symbols don't match");
-      return (ss.type() == T_INLINE_TYPE) ?
+      return (ss.type() == T_PRIMITIVE_OBJECT) ?
         VerificationType::inline_type(component_copy) :
         VerificationType::reference_type(component_copy);
    }

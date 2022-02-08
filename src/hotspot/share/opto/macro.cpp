@@ -778,7 +778,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
       if (elem_type->is_inlinetype() && !klass->is_flat_array_klass()) {
-        assert(basic_elem_type == T_INLINE_TYPE, "unexpected element basic type");
+        assert(basic_elem_type == T_PRIMITIVE_OBJECT, "unexpected element basic type");
         basic_elem_type = T_OBJECT;
       }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
@@ -1034,11 +1034,11 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
       } else if (use->is_InlineType()) {
         assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
         _igvn.rehash_node_delayed(use);
-        use->isa_InlineType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+        use->isa_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
       } else if (use->is_InlineTypePtr()) {
         assert(use->isa_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
         _igvn.rehash_node_delayed(use);
-        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
         // Process users
         worklist.push(use);
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
@@ -1335,7 +1335,8 @@ void PhaseMacroExpand::expand_allocate_common(
             AllocateNode* alloc, // allocation node to be expanded
             Node* length,  // array length for an array allocation
             const TypeFunc* slow_call_type, // Type of slow call
-            address slow_call_address  // Address of slow call
+            address slow_call_address,  // Address of slow call
+            Node* valid_length_test // whether length is valid or not
     )
 {
   Node* ctrl = alloc->in(TypeFunc::Control);
@@ -1369,8 +1370,7 @@ void PhaseMacroExpand::expand_allocate_common(
     initial_slow_test = BoolNode::make_predicate(initial_slow_test, &_igvn);
   }
 
-  if (C->env()->dtrace_alloc_probes() ||
-      (!UseTLAB && !Universe::heap()->supports_inline_contig_alloc())) {
+  if (!UseTLAB && !Universe::heap()->supports_inline_contig_alloc()) {
     // Force slow-path allocation
     expand_fast_path = false;
     initial_slow_test = NULL;
@@ -1525,6 +1525,12 @@ void PhaseMacroExpand::expand_allocate_common(
   // Copy debug information and adjust JVMState information, then replace
   // allocate node with the call
   call->copy_call_debug_info(&_igvn, alloc);
+  // For array allocations, copy the valid length check to the call node so Compile::final_graph_reshaping() can verify
+  // that the call has the expected number of CatchProj nodes (in case the allocation always fails and the fallthrough
+  // path dies).
+  if (valid_length_test != NULL) {
+    call->add_req(valid_length_test);
+  }
   if (expand_fast_path) {
     call->set_cnt(PROB_UNLIKELY_MAG(4));  // Same effect as RC_UNCOMMON.
   } else {
@@ -1762,7 +1768,7 @@ void PhaseMacroExpand::expand_initialize_membar(AllocateNode* alloc, InitializeN
 
 void PhaseMacroExpand::expand_dtrace_alloc_probe(AllocateNode* alloc, Node* oop,
                                                 Node*& ctrl, Node*& rawmem) {
-  if (C->env()->dtrace_extended_probes()) {
+  if (C->env()->dtrace_alloc_probes()) {
     // Slow-path call
     int size = TypeFunc::Parms + 2;
     CallLeafNode *call = new CallLeafNode(OptoRuntime::dtrace_object_alloc_Type(),
@@ -1779,7 +1785,7 @@ void PhaseMacroExpand::expand_dtrace_alloc_probe(AllocateNode* alloc, Node* oop,
     call->init_req(TypeFunc::Parms + 1, oop);
     call->init_req(TypeFunc::Control, ctrl);
     call->init_req(TypeFunc::I_O    , top()); // does no i/o
-    call->init_req(TypeFunc::Memory , ctrl);
+    call->init_req(TypeFunc::Memory , rawmem);
     call->init_req(TypeFunc::ReturnAdr, alloc->in(TypeFunc::ReturnAdr));
     call->init_req(TypeFunc::FramePtr, alloc->in(TypeFunc::FramePtr));
     transform_later(call);
@@ -2008,11 +2014,12 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
 void PhaseMacroExpand::expand_allocate(AllocateNode *alloc) {
   expand_allocate_common(alloc, NULL,
                          OptoRuntime::new_instance_Type(),
-                         OptoRuntime::new_instance_Java());
+                         OptoRuntime::new_instance_Java(), NULL);
 }
 
 void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* length = alloc->in(AllocateNode::ALength);
+  Node* valid_length_test = alloc->in(AllocateNode::ValidLengthTest);
   InitializeNode* init = alloc->initialization();
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
   ciKlass* k = _igvn.type(klass_node)->is_klassptr()->klass();
@@ -2027,7 +2034,7 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   }
   expand_allocate_common(alloc, length,
                          OptoRuntime::new_array_Type(),
-                         slow_call_address);
+                         slow_call_address, valid_length_test);
 }
 
 //-------------------mark_eliminated_box----------------------------------
@@ -2849,6 +2856,7 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         assert(n->Opcode() == Op_LoopLimit ||
                n->Opcode() == Op_Opaque2   ||
                n->Opcode() == Op_Opaque3   ||
+               n->Opcode() == Op_Opaque4   ||
                BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n),
                "unknown node type in macro list");
       }
@@ -2913,6 +2921,19 @@ bool PhaseMacroExpand::expand_macro_nodes() {
         _igvn.replace_node(n, repl);
         success = true;
 #endif
+      } else if (n->Opcode() == Op_Opaque4) {
+        // With Opaque4 nodes, the expectation is that the test of input 1
+        // is always equal to the constant value of input 2. So we can
+        // remove the Opaque4 and replace it by input 2. In debug builds,
+        // leave the non constant test in instead to sanity check that it
+        // never fails (if it does, that subgraph was constructed so, at
+        // runtime, a Halt node is executed).
+#ifdef ASSERT
+        _igvn.replace_node(n, n->in(1));
+#else
+        _igvn.replace_node(n, n->in(2));
+#endif
+        success = true;
       } else if (n->Opcode() == Op_OuterStripMinedLoop) {
         n->as_OuterStripMinedLoop()->adjust_strip_mined_loop(&_igvn);
         C->remove_macro_node(n);

@@ -509,6 +509,16 @@ const jfloat max_jfloat = jfloat_cast(max_jintFloat);
 const int max_method_code_size = 64*K - 1;  // JVM spec, 2nd ed. section 4.8.1 (p.134)
 
 //----------------------------------------------------------------------------------------------------
+// old CDS options
+extern bool DumpSharedSpaces;
+extern bool DynamicDumpSharedSpaces;
+extern bool RequireSharedSpaces;
+extern "C" {
+// Make sure UseSharedSpaces is accessible to the serviceability agent.
+extern JNIEXPORT jboolean UseSharedSpaces;
+}
+
+//----------------------------------------------------------------------------------------------------
 // Object alignment, in units of HeapWords.
 //
 // Minimum is max(BytesPerLong, BytesPerDouble, BytesPerOop) / HeapWordSize, so jlong, jdouble and
@@ -668,7 +678,7 @@ enum BasicType {
   // types in their own right.
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_INLINE_TYPE = 14,
+  T_PRIMITIVE_OBJECT = 14,
   T_VOID        = 15,
   T_ADDRESS     = 16,
   T_NARROWOOP   = 17,
@@ -689,7 +699,7 @@ enum BasicType {
     F(JVM_SIGNATURE_LONG,    T_LONG,    N)      \
     F(JVM_SIGNATURE_CLASS,   T_OBJECT,  N)      \
     F(JVM_SIGNATURE_ARRAY,   T_ARRAY,   N)      \
-    F(JVM_SIGNATURE_INLINE_TYPE, T_INLINE_TYPE, N) \
+    F(JVM_SIGNATURE_PRIMITIVE_OBJECT, T_PRIMITIVE_OBJECT, N) \
     F(JVM_SIGNATURE_VOID,    T_VOID,    N)      \
     /*end*/
 
@@ -715,7 +725,7 @@ inline bool is_double_word_type(BasicType t) {
 }
 
 inline bool is_reference_type(BasicType t) {
-  return (t == T_OBJECT || t == T_ARRAY || t == T_INLINE_TYPE);
+  return (t == T_OBJECT || t == T_ARRAY || t == T_PRIMITIVE_OBJECT);
 }
 
 inline bool is_integral_type(BasicType t) {
@@ -769,7 +779,7 @@ enum BasicTypeSize {
   T_NARROWOOP_size   = 1,
   T_NARROWKLASS_size = 1,
   T_VOID_size        = 0,
-  T_INLINE_TYPE_size = 1
+  T_PRIMITIVE_OBJECT_size = 1
 };
 
 // this works on valid parameter types but not T_VOID, T_CONFLICT, etc.
@@ -799,11 +809,11 @@ enum ArrayElementSize {
 #ifdef _LP64
   T_OBJECT_aelem_bytes      = 8,
   T_ARRAY_aelem_bytes       = 8,
-  T_INLINE_TYPE_aelem_bytes = 8,
+  T_PRIMITIVE_OBJECT_aelem_bytes = 8,
 #else
   T_OBJECT_aelem_bytes      = 4,
   T_ARRAY_aelem_bytes       = 4,
-  T_INLINE_TYPE_aelem_bytes = 4,
+  T_PRIMITIVE_OBJECT_aelem_bytes = 4,
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
@@ -910,7 +920,7 @@ inline TosState as_TosState(BasicType type) {
     case T_FLOAT  : return ftos;
     case T_DOUBLE : return dtos;
     case T_VOID   : return vtos;
-    case T_INLINE_TYPE: // fall through
+    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY  :   // fall through
     case T_OBJECT : return atos;
     default       : return ilgl;

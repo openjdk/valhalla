@@ -536,7 +536,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, val5.hash() + val5.v3.hash());
     }
 
-    // Test defaultvalue
+    // Test aconst_init
     @Test
     @IR(failOn = {ALLOC, LOAD, STORE, LOOP, TRAP})
     public long test23() {
@@ -550,7 +550,7 @@ public class TestBasicFunctionality {
         Asserts.assertEQ(result, MyValue2.createDefaultInline().hash());
     }
 
-    // Test defaultvalue
+    // Test aconst_init
     @Test
     @IR(failOn = {ALLOC, STORE, LOOP, TRAP})
     public long test24() {

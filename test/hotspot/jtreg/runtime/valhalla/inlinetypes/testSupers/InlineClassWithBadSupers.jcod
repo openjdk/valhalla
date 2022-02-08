@@ -39,7 +39,7 @@
 class SuperNotAbstract {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -94,7 +94,7 @@ class SuperNotAbstract {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -299,7 +299,7 @@ class SuperNotAbstract {
 class SuperHasNonStaticFields {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -354,7 +354,7 @@ class SuperHasNonStaticFields {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -559,7 +559,7 @@ class SuperHasNonStaticFields {
 class SuperHasSynchMethod {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -614,7 +614,7 @@ class SuperHasSynchMethod {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -818,7 +818,7 @@ class SuperHasSynchMethod {
 class SuperCtorHasArgs {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -873,7 +873,7 @@ class SuperCtorHasArgs {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -1079,7 +1079,7 @@ class SuperCtorHasArgs {
 class SuperCtorIsNotEmpty {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1134,7 +1134,7 @@ class SuperCtorIsNotEmpty {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -1339,7 +1339,7 @@ class SuperCtorIsNotEmpty {
 class InlineImplementsIdentityObject {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [53] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1396,7 +1396,7 @@ class InlineImplementsIdentityObject {
     Utf8 "Lookup"; // #52     at 0x032A
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -1603,7 +1603,7 @@ class InlineImplementsIdentityObject {
 class SuperImplementsIdentityObject {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1658,7 +1658,7 @@ class SuperImplementsIdentityObject {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 
@@ -1863,7 +1863,7 @@ class SuperImplementsIdentityObject {
 class SuperIntfImplementsIdentityObject {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [51] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1918,7 +1918,7 @@ class SuperIntfImplementsIdentityObject {
     Utf8 "Lookup"; // #50     at 0x02ED
   } // Constant Pool
 
-  0x0131; // access [ ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0931; // access [ ACC_VALUE ACC_PRIMITIVE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #22;// super_cpx
 

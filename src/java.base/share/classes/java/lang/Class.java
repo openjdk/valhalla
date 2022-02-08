@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -202,7 +202,9 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int PRIMITIVE_CLASS = 0x00000100;
+    private static final int VALUE_CLASS     = 0x00000100;
+    private static final int PERMITS_VALUE   = 0x00000040;
+    private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
     static {
@@ -237,6 +239,9 @@ public final class Class<T> implements java.io.Serializable,
         String s = isPrimitive() ? "" : "class ";
         if (isInterface()) {
             s = "interface ";
+        }
+        if (isValue()) {
+            s = "value ";
         }
         if (isPrimitiveClass()) {
             s = "primitive ";
@@ -307,8 +312,8 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isPrimitiveClass()) {
-                    sb.append("primitive ");
+                if (isValue()) {
+                    sb.append(isPrimitiveClass() ? "primitive" : "value");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
@@ -605,19 +610,33 @@ public final class Class<T> implements java.io.Serializable,
      * <p>
      * Each primitive class has a {@linkplain #isPrimaryType() primary type}
      * representing the <em>primitive reference type</em> and a
-     * {@linkplain #isValueType() secondary type} representing
+     * {@linkplain #isPrimitiveValueType() secondary type} representing
      * the <em>primitive value type</em>.  The primitive reference type
      * and primitive value type can be obtained by calling the
      * {@link #asPrimaryType()} and {@link #asValueType} method
      * of a primitive class respectively.
+     * <p>
+     * A primitive class is a {@linkplain #isValue() value class}.
      *
      * @return {@code true} if this class is a primitive class, otherwise {@code false}
+     * @see #isValue()
      * @see #asPrimaryType()
      * @see #asValueType()
      * @since Valhalla
      */
     public boolean isPrimitiveClass() {
         return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
+    }
+
+    /**
+     * Returns {@code true} if this class is a value class.
+     *
+     * @return {@code true} if this class is a value class;
+     * otherwise {@code false}
+     * @since Valhalla
+     */
+    public boolean isValue() {
+        return (this.getModifiers() & VALUE_CLASS) != 0;
     }
 
     /**
@@ -650,7 +669,7 @@ public final class Class<T> implements java.io.Serializable,
      * @apiNote Alternatively, this method returns null if this class is not
      *          a primitive class rather than throwing UOE.
      *
-     * @return the {@code Class} representing the {@linkplain #isValueType()
+     * @return the {@code Class} representing the {@linkplain #isPrimitiveValueType()
      * primitive value type} of this class if this class is a primitive class
      * @throws UnsupportedOperationException if this class or interface
      *         is not a primitive class
@@ -694,11 +713,11 @@ public final class Class<T> implements java.io.Serializable,
      * Returns {@code true} if this {@code Class} object represents
      * a {@linkplain #isPrimitiveClass() primitive} value type.
      *
-     * @return {@code true} if this {@code Class} object represents the
-     * value type of a primitive class
+     * @return {@code true} if this {@code Class} object represents
+     * the value type of a primitive class
      * @since Valhalla
      */
-    public boolean isValueType() {
+    public boolean isPrimitiveValueType() {
         return isPrimitiveClass() && this == secondaryType;
     }
 
@@ -1714,7 +1733,7 @@ public final class Class<T> implements java.io.Serializable,
      * representing the class in which it was declared.  This method returns
      * null if this class or interface is not a member of any other class.  If
      * this {@code Class} object represents an array class, a primitive
-     * type, or void,then this method returns null.
+     * type, or void, then this method returns null.
      *
      * @return the declaring class for this class
      * @throws SecurityException
@@ -2217,6 +2236,7 @@ public final class Class<T> implements java.io.Serializable,
      *         s.checkPackageAccess()} denies access to the package
      *         of this class.
      *
+     * @see #getDeclaredConstructors()
      * @since 1.1
      */
     @CallerSensitive
@@ -2416,7 +2436,9 @@ public final class Class<T> implements java.io.Serializable,
      * @param parameterTypes the parameter array
      * @return the {@code Constructor} object of the public constructor that
      *         matches the specified {@code parameterTypes}
-     * @throws NoSuchMethodException if a matching method is not found.
+     * @throws NoSuchMethodException if a matching constructor is not found,
+     *         including when this {@code Class} object represents
+     *         an interface, a primitive type, an array class, or void.
      * @throws SecurityException
      *         If a security manager, <i>s</i>, is present and
      *         the caller's class loader is not the same as or an
@@ -2425,6 +2447,7 @@ public final class Class<T> implements java.io.Serializable,
      *         s.checkPackageAccess()} denies access to the package
      *         of this class.
      *
+     * @see #getDeclaredConstructor(Class<?>[])
      * @since 1.1
      */
     @CallerSensitive
@@ -2673,20 +2696,19 @@ public final class Class<T> implements java.io.Serializable,
         return copyMethods(privateGetDeclaredMethods(false));
     }
 
-
     /**
      * Returns an array of {@code Constructor} objects reflecting all the
-     * constructors declared by the class represented by this
+     * constructors implicitly or explicitly declared by the class represented by this
      * {@code Class} object. These are public, protected, default
      * (package) access, and private constructors.  The elements in the array
      * returned are not sorted and are not in any particular order.  If the
-     * class has a default constructor, it is included in the returned array.
+     * class has a default constructor (JLS {@jls 8.8.9}), it is included in the returned array.
+     * If a record class has a canonical constructor (JLS {@jls
+     * 8.10.4.1}, {@jls 8.10.4.2}), it is included in the returned array.
+     *
      * This method returns an array of length 0 if this {@code Class}
      * object represents an interface, a primitive type, an array class, or
      * void.
-     *
-     * <p> See <cite>The Java Language Specification</cite>,
-     * section {@jls 8.2}.
      *
      * @return  the array of {@code Constructor} objects representing all the
      *          declared constructors of this class
@@ -2712,6 +2734,7 @@ public final class Class<T> implements java.io.Serializable,
      *          </ul>
      *
      * @since 1.1
+     * @see #getConstructors()
      * @jls 8.8 Constructor Declarations
      */
     @CallerSensitive
@@ -2873,7 +2896,7 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns a {@code Constructor} object that reflects the specified
-     * constructor of the class or interface represented by this
+     * constructor of the class represented by this
      * {@code Class} object.  The {@code parameterTypes} parameter is
      * an array of {@code Class} objects that identify the constructor's
      * formal parameter types, in declared order.
@@ -2885,7 +2908,9 @@ public final class Class<T> implements java.io.Serializable,
      * @param parameterTypes the parameter array
      * @return  The {@code Constructor} object for the constructor with the
      *          specified parameter list
-     * @throws  NoSuchMethodException if a matching method is not found.
+     * @throws  NoSuchMethodException if a matching constructor is not found,
+     *          including when this {@code Class} object represents
+     *          an interface, a primitive type, an array class, or void.
      * @throws  SecurityException
      *          If a security manager, <i>s</i>, is present and any of the
      *          following conditions is met:
@@ -2907,6 +2932,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      *          </ul>
      *
+     * @see #getConstructor(Class<?>[])
      * @since 1.1
      */
     @CallerSensitive
@@ -3957,12 +3983,13 @@ public final class Class<T> implements java.io.Serializable,
     // Fetches the factory for reflective objects
     @SuppressWarnings("removal")
     private static ReflectionFactory getReflectionFactory() {
-        if (reflectionFactory == null) {
-            reflectionFactory =
-                java.security.AccessController.doPrivileged
-                    (new ReflectionFactory.GetReflectionFactoryAction());
+        var factory = reflectionFactory;
+        if (factory != null) {
+            return factory;
         }
-        return reflectionFactory;
+        return reflectionFactory =
+                java.security.AccessController.doPrivileged
+                        (new ReflectionFactory.GetReflectionFactoryAction());
     }
     private static ReflectionFactory reflectionFactory;
 
@@ -4048,7 +4075,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this class is an {@linkplain #isValueType()
+     * @throws NullPointerException if this class is an {@linkplain #isPrimitiveValueType()
      * primitive value type} and the object is {@code null}
      *
      * @since 1.5
@@ -4056,7 +4083,7 @@ public final class Class<T> implements java.io.Serializable,
     @SuppressWarnings("unchecked")
     @IntrinsicCandidate
     public T cast(Object obj) {
-        if (isValueType() && obj == null)
+        if (isPrimitiveValueType() && obj == null)
             throw new NullPointerException(getName() + " is a primitive value type");
 
         if (obj != null && !isInstance(obj))
@@ -4570,7 +4597,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        char typeDesc = isValueType() ? 'Q' : 'L';
+        char typeDesc = isPrimitiveValueType() ? 'Q' : 'L';
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');

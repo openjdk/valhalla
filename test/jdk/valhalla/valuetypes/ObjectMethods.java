@@ -100,6 +100,9 @@ public class ObjectMethods {
             { new ReferenceType0(30), new ValueType1(30), true},
             { new ReferenceType0(30), new ValueType2(30), true},
             { new PrimitiveRecord(40, "forty"), new PrimitiveRecord(40, "forty"), true},
+            { new ValueRecord(50, "fifty"), new ValueRecord(50, "fifty"), true},
+            { new ValueOptional(LINE1), new ValueOptional(LINE1), true},
+            { new ValueOptional(List.of(P1)), new ValueOptional(List.of(P1)), false},
         };
     }
 
@@ -143,6 +146,8 @@ public class ObjectMethods {
             { MyValue1.default },
             { new MyValue1(0,0, null) },
             { new MyValue1(0,0, P1) },
+            { ValueOptional.default },
+            { new ValueOptional(P1) },
         };
     }
 
@@ -170,6 +175,7 @@ public class ObjectMethods {
             { Point.default,        hash(Point.class.asValueType(), 0, 0) },
             { MyValue1.default,     hash(MyValue1.class.asValueType(), Point.default, null) },
             { new MyValue1(0, 0, null), hash(MyValue1.class.asValueType(), Point.makePoint(0,0), null) },
+            { new ValueOptional(P1), hash(ValueOptional.class, P1) },
         };
     }
 
@@ -265,4 +271,6 @@ public class ObjectMethods {
     }
 
     static primitive record PrimitiveRecord(int i, String name) {}
+    static value record ValueRecord(int i, String name) {}
+
 }

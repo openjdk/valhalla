@@ -731,7 +731,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 break;
             case NEW:
-            case DEFAULTVALUE:
+            case ACONST_INIT:
                 state.push(typeHelper.type((S) optValue));
                 break;
             case NEWARRAY:

@@ -52,7 +52,7 @@ public class InnerClassesInLocalClassTest extends InnerClassesTestBase {
         for (Modifier outerModifier : LOCAL_CLASS_MODIFIERS) {
             StringBuilder sb = new StringBuilder();
             sb.append(outerModifier.getString()).append(' ');
-            sb.append("class Local {");
+            sb.append("class Local { int f; ");
             Map<String, Set<String>> class2Flags = new HashMap<>();
             for (int i = 0; i < LOCAL_CLASS_MODIFIERS.length; ++i) {
                 Modifier innerModifier = LOCAL_CLASS_MODIFIERS[i];

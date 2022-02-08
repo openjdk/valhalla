@@ -208,7 +208,7 @@ void G1BarrierSetC2::pre_barrier(GraphKit* kit,
     if (pre_val->bottom_type() == TypePtr::NULL_PTR) return;
     assert(pre_val->bottom_type()->basic_type() == T_OBJECT, "or we shouldn't be here");
   }
-  assert(bt == T_OBJECT || bt == T_INLINE_TYPE, "or we shouldn't be here");
+  assert(bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT, "or we shouldn't be here");
 
   IdealKit ideal(kit, true);
 
@@ -442,7 +442,7 @@ void G1BarrierSetC2::post_barrier(GraphKit* kit,
   Node* cast =  __ CastPX(__ ctrl(), adr);
 
   // Divide pointer by card size
-  Node* card_offset = __ URShiftX( cast, __ ConI(CardTable::card_shift) );
+  Node* card_offset = __ URShiftX( cast, __ ConI(CardTable::card_shift()) );
 
   // Combine card table base and card offset
   Node* card_adr = __ AddP(no_base, byte_map_base_node(kit), card_offset );

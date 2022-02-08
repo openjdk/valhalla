@@ -43,12 +43,12 @@
 // }
 
 
-// Test that class modifiers cannot have both ACC_INLINE and ACC_ABSTRACT set.
+// Test that class modifiers cannot have both ACC_PRIMITIVE and ACC_ABSTRACT set.
 //
 class ValueAbstract {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -80,7 +80,7 @@ class ValueAbstract {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x0530; // access [  ACC_INLINE ACC_ABSTRACT(bad) ACC_SUPER ACC_FINAL ]
+  0x0C30; // access [  ACC_PRIMITIVE ACC_ABSTRACT(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -199,12 +199,12 @@ class ValueAbstract {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that class modifiers cannot have both ACC_INLINE and ACC_ENUM set.
+// Test that class modifiers cannot have both ACC_PRIMITIVE and ACC_ENUM set.
 //
 class ValueEnum {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -236,7 +236,7 @@ class ValueEnum {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x04130; // access [  ACC_INLINE ACC_ENUM(bad) ACC_SUPER ACC_FINAL ]
+  0x04930; // access [  ACC_VALUE ACC_PRIMITIVE ACC_ENUM(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -360,7 +360,7 @@ class ValueEnum {
 class ValueFieldNotFinal {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [28] { // Constant Pool
     ; // first element is empty
     Method #7 #23; // #1     at 0x0A
@@ -392,7 +392,7 @@ class ValueFieldNotFinal {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -511,12 +511,12 @@ class ValueFieldNotFinal {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that class modifiers cannot have both ACC_INLINE and ACC_INTERFACE set.
+// Test that class modifiers cannot have both ACC_PRIMITIVE and ACC_INTERFACE set.
 //
 class ValueInterface {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [27] { // Constant Pool
     ; // first element is empty
     Method #7 #21; // #1     at 0x0A
@@ -547,7 +547,7 @@ class ValueInterface {
     Utf8 "java/lang/Object"; // #26     at 0xDA
   } // Constant Pool
 
-  0x0330; // access [ ACC_INLINE ACC_INTERFACE(bad) ACC_SUPER ACC_FINAL ]
+  0x0A30; // access [ ACC_PRIMITIVE ACC_INTERFACE(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -623,7 +623,7 @@ class ValueInterface {
 class ValueMethodSynch {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #23; // #1     at 0x0A
@@ -673,7 +673,7 @@ class ValueMethodSynch {
     Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02B6
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #6;// super_cpx
 
@@ -878,7 +878,7 @@ class ValueMethodSynch {
 class Circ {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [61] { // Constant Pool
     ; // first element is empty
     class #34; // #1     at 0x0A
@@ -943,7 +943,7 @@ class Circ {
     Utf8 "java/lang/invoke/MethodHandles"; // #60     at 0x02D1
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 
@@ -1157,7 +1157,7 @@ class Circ {
 class Circ2 {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [60] { // Constant Pool
     ; // first element is empty
     class #33; // #1     at 0x0A
@@ -1221,7 +1221,7 @@ class Circ2 {
     Utf8 "java/lang/invoke/MethodHandles"; // #59     at 0x02D4
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #10;// super_cpx
 
@@ -1471,7 +1471,7 @@ class Circ2 {
 class CircStaticA {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [61] { // Constant Pool
     ; // first element is empty
     class #34; // #1     at 0x0A
@@ -1536,7 +1536,7 @@ class CircStaticA {
     Utf8 "java/lang/invoke/MethodHandles"; // #60     at 0x031C
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 
@@ -1749,7 +1749,7 @@ class CircStaticA {
 class CircStaticB {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [61] { // Constant Pool
     ; // first element is empty
     class #34; // #1     at 0x0A
@@ -1814,7 +1814,7 @@ class CircStaticB {
     Utf8 "java/lang/invoke/MethodHandles"; // #60     at 0x031C
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #11;// super_cpx
 
@@ -2036,7 +2036,7 @@ class CircStaticB {
 class ValueCloneable {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [46] { // Constant Pool
     ; // first element is empty
     class #22; // #1     at 0x0A
@@ -2086,7 +2086,7 @@ class ValueCloneable {
     Utf8 "java/lang/invoke/MethodHandles"; // #45     at 0x02B3
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0930; // access [ ACC_VALUE ACC_PRIMITIVE ACC_SUPER ACC_FINAL ]
   #1;// this_cpx
   #6;// super_cpx
 
@@ -2497,7 +2497,7 @@ class OldClassWithQArraySig {
 class SuperIsZero {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [15] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A

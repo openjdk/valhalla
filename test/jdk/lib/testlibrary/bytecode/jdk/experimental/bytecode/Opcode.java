@@ -229,7 +229,7 @@ public enum Opcode {
     IF_NONNULL(199),
     GOTO_W(200),
     JSR_W(201),
-    DEFAULTVALUE(203),
+    ACONST_INIT(203),
     WITHFIELD(204);
 
 

@@ -124,7 +124,7 @@ Node* Parse::fetch_interpreter_state(int index,
   case T_INT:     l = new LoadINode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInt::INT,        MemNode::unordered); break;
   case T_FLOAT:   l = new LoadFNode(ctl, mem, adr, TypeRawPtr::BOTTOM, Type::FLOAT,         MemNode::unordered); break;
   case T_ADDRESS: l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeRawPtr::BOTTOM,  MemNode::unordered); break;
-  case T_INLINE_TYPE:
+  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:  l = new LoadPNode(ctl, mem, adr, TypeRawPtr::BOTTOM, TypeInstPtr::BOTTOM, MemNode::unordered); break;
   case T_LONG:
   case T_DOUBLE: {
@@ -602,15 +602,15 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   }
 
   // Handle inline type arguments
-  int arg_size_sig = tf()->domain_sig()->cnt();
-  for (uint i = 0; i < (uint)arg_size_sig; i++) {
-    Node* parm = map()->in(i);
+  int arg_size = method()->arg_size();
+  for (int i = 0; i < arg_size; i++) {
+    Node* parm = local(i);
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
-      map()->replace_edge(parm, vt);
-    } else if (UseTypeSpeculation && (i == (uint)(arg_size_sig - 1)) && !is_osr_parse() &&
+      set_local(i, vt);
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() &&
                method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flattened)
       const TypePtr* spec_type = t->speculative();
@@ -618,7 +618,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       spec_type = spec_type->remove_speculative()->is_aryptr()->cast_to_not_null_free();
       spec_type = TypeOopPtr::make(TypePtr::BotPTR, Type::Offset::bottom, TypeOopPtr::InstanceBot, spec_type);
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), parm, t->join_speculative(spec_type)));
-      replace_in_map(parm, cast);
+      set_local(i, cast);
     }
   }
 

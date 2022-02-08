@@ -420,6 +420,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags() & PRIMITIVE_CLASS) != 0;
     }
 
+    public boolean isValueClass() {
+        return (flags() & VALUE_CLASS) != 0;
+    }
+
     public boolean isPublic() {
         return (flags_field & Flags.AccessFlags) == PUBLIC;
     }
@@ -464,9 +468,9 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
-    /** Is this symbol a primitive object factory?
+    /** Is this symbol a value object factory?
      */
-    public boolean isPrimitiveObjectFactory() {
+    public boolean isValueObjectFactory() {
         return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
     }
 
@@ -2301,6 +2305,11 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         @Override
+        public Name name() {
+            return name;
+        }
+
+        @Override
         public boolean isDynamic() {
             return true;
         }
@@ -2336,6 +2345,11 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             super(0, name, type, owner);
             this.bsm = bsm;
             this.staticArgs = staticArgs;
+        }
+
+        @Override
+        public Name name() {
+            return name;
         }
 
         @Override

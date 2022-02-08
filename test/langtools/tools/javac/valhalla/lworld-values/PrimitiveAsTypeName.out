@@ -1,7 +1,7 @@
 - compiler.warn.source.no.system.modules.path: 16
-PrimitiveAsTypeName.java:9:18: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
-PrimitiveAsTypeName.java:10:9: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
-PrimitiveAsTypeName.java:11:9: compiler.warn.restricted.type.not.allowed.preview: primitive, 17
-PrimitiveAsTypeName.java:11:31: compiler.err.missing.ret.stmt
+PrimitiveAsTypeName.java:9:18: compiler.warn.restricted.type.not.allowed.preview: primitive, 18
+PrimitiveAsTypeName.java:10:9: compiler.warn.restricted.type.not.allowed.preview: primitive, 18
+PrimitiveAsTypeName.java:11:9: compiler.warn.restricted.type.not.allowed.preview: primitive, 18
+PrimitiveAsTypeName.java:12:24: compiler.err.feature.not.supported.in.source.plural: (compiler.misc.feature.primitive.classes), 16, 18
 1 error
 4 warnings

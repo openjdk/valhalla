@@ -2466,7 +2466,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         BasicType bt = T_ILLEGAL;
         if (sig_index < total_args_passed) {
           bt = sig->at(sig_index++)._bt;
-          if (bt == T_INLINE_TYPE) {
+          if (bt == T_PRIMITIVE_OBJECT) {
             // Found start of inline type in signature
             assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
             if (sig_index == 1 && has_ro_adapter) {
@@ -2903,7 +2903,7 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
     }
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_INLINE_TYPE) {
+    if (ss.type() == T_PRIMITIVE_OBJECT) {
       InlineKlass* vk = ss.as_inline_klass(holder);
       if (vk->can_be_passed_as_fields()) {
         sig_cc->appendAll(vk->extended_sig());
@@ -2969,7 +2969,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
-      if (bt == T_INLINE_TYPE) {
+      if (bt == T_PRIMITIVE_OBJECT) {
         if (ss.as_inline_klass(_method->method_holder())->can_be_passed_as_fields()) {
           _num_inline_args++;
         }
@@ -3633,7 +3633,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     nb_slots++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_INLINE_TYPE) {
+    if (ss.type() == T_PRIMITIVE_OBJECT) {
       nb_slots++;
     }
   }
@@ -3647,7 +3647,7 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     i++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_INLINE_TYPE) {
+    if (ss.type() == T_PRIMITIVE_OBJECT) {
       InlineKlass* vk = ss.as_inline_klass(holder);
       oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
@@ -3688,7 +3688,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_INLINE_TYPE) {
+    if (bt == T_PRIMITIVE_OBJECT) {
       continue;
     }
     if (bt == T_VOID) {

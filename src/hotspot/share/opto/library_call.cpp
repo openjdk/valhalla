@@ -331,7 +331,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getLong:                  return inline_unsafe_access(!is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_getFloat:                 return inline_unsafe_access(!is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_getDouble:                return inline_unsafe_access(!is_store, T_DOUBLE,   Relaxed, false);
-  case vmIntrinsics::_getValue:                 return inline_unsafe_access(!is_store, T_INLINE_TYPE,Relaxed, false);
+  case vmIntrinsics::_getValue:                 return inline_unsafe_access(!is_store, T_PRIMITIVE_OBJECT,Relaxed, false);
 
   case vmIntrinsics::_putReference:             return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_putBoolean:               return inline_unsafe_access( is_store, T_BOOLEAN,  Relaxed, false);
@@ -342,7 +342,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putLong:                  return inline_unsafe_access( is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_putFloat:                 return inline_unsafe_access( is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_putDouble:                return inline_unsafe_access( is_store, T_DOUBLE,   Relaxed, false);
-  case vmIntrinsics::_putValue:                 return inline_unsafe_access( is_store, T_INLINE_TYPE,Relaxed, false);
+  case vmIntrinsics::_putValue:                 return inline_unsafe_access( is_store, T_PRIMITIVE_OBJECT,Relaxed, false);
 
   case vmIntrinsics::_getReferenceVolatile:     return inline_unsafe_access(!is_store, T_OBJECT,   Volatile, false);
   case vmIntrinsics::_getBooleanVolatile:       return inline_unsafe_access(!is_store, T_BOOLEAN,  Volatile, false);
@@ -660,8 +660,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
     return inline_vector_nary_operation(2);
   case vmIntrinsics::_VectorTernaryOp:
     return inline_vector_nary_operation(3);
-  case vmIntrinsics::_VectorBroadcastCoerced:
-    return inline_vector_broadcast_coerced();
+  case vmIntrinsics::_VectorFromBitsCoerced:
+    return inline_vector_frombits_coerced();
   case vmIntrinsics::_VectorShuffleIota:
     return inline_vector_shuffle_iota();
   case vmIntrinsics::_VectorMaskOp:
@@ -2277,18 +2277,18 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (!is_store) {
       // Object getReference(Object base, int/long offset), etc.
       BasicType rtype = sig->return_type()->basic_type();
-      assert(rtype == type || (rtype == T_OBJECT && type == T_INLINE_TYPE), "getter must return the expected value");
-      assert(sig->count() == 2 || (type == T_INLINE_TYPE && sig->count() == 3), "oop getter has 2 or 3 arguments");
+      assert(rtype == type || (rtype == T_OBJECT && type == T_PRIMITIVE_OBJECT), "getter must return the expected value");
+      assert(sig->count() == 2 || (type == T_PRIMITIVE_OBJECT && sig->count() == 3), "oop getter has 2 or 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "getter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "getter offset is correct");
     } else {
       // void putReference(Object base, int/long offset, Object x), etc.
       assert(sig->return_type()->basic_type() == T_VOID, "putter must not return a value");
-      assert(sig->count() == 3 || (type == T_INLINE_TYPE && sig->count() == 4), "oop putter has 3 arguments");
+      assert(sig->count() == 3 || (type == T_PRIMITIVE_OBJECT && sig->count() == 4), "oop putter has 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "putter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "putter offset is correct");
       BasicType vtype = sig->type_at(sig->count()-1)->basic_type();
-      assert(vtype == type || (type == T_INLINE_TYPE && vtype == T_OBJECT), "putter must accept the expected value");
+      assert(vtype == type || (type == T_PRIMITIVE_OBJECT && vtype == T_OBJECT), "putter must accept the expected value");
     }
 #endif // ASSERT
  }
@@ -2312,7 +2312,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
          "fieldOffset must be byte-scaled");
 
   ciInlineKlass* inline_klass = NULL;
-  if (type == T_INLINE_TYPE) {
+  if (type == T_PRIMITIVE_OBJECT) {
     const TypeInstPtr* cls = _gvn.type(argument(4))->isa_instptr();
     if (cls == NULL || cls->const_oop() == NULL) {
       return false;
@@ -2342,10 +2342,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         ciField* field = vk->get_non_flattened_field_by_offset(off);
         if (field != NULL) {
           BasicType bt = field->layout_type();
-          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_INLINE_TYPE && !field->is_flattened())) {
+          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
             bt = T_OBJECT;
           }
-          if (bt == type && (bt != T_INLINE_TYPE || field->type() == inline_klass)) {
+          if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
             set_result(vt->field_value_by_offset(off, false));
             return true;
           }
@@ -2389,7 +2389,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     decorators |= IN_HEAP;
   }
 
-  Node* val = is_store ? argument(4 + (type == T_INLINE_TYPE ? 1 : 0)) : NULL;
+  Node* val = is_store ? argument(4 + (type == T_PRIMITIVE_OBJECT ? 1 : 0)) : NULL;
 
   const TypePtr* adr_type = _gvn.type(adr)->isa_ptr();
   if (adr_type == TypePtr::NULL_PTR) {
@@ -2427,8 +2427,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (field != NULL) {
       bt = field->layout_type();
     }
-    assert(bt == alias_type->basic_type() || bt == T_INLINE_TYPE, "should match");
-    if (field != NULL && bt == T_INLINE_TYPE && !field->is_flattened()) {
+    assert(bt == alias_type->basic_type() || bt == T_PRIMITIVE_OBJECT, "should match");
+    if (field != NULL && bt == T_PRIMITIVE_OBJECT && !field->is_flattened()) {
       bt = T_OBJECT;
     }
   } else {
@@ -2457,7 +2457,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     mismatched = true; // conservatively mark all "wide" on-heap accesses as mismatched
   }
 
-  if (type == T_INLINE_TYPE) {
+  if (type == T_PRIMITIVE_OBJECT) {
     if (adr_type->isa_instptr()) {
       if (field == NULL || field->type() != inline_klass) {
         mismatched = true;
@@ -2483,7 +2483,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   old_map->destruct(&_gvn);
-  assert(!mismatched || type == T_INLINE_TYPE || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
+  assert(!mismatched || type == T_PRIMITIVE_OBJECT || alias_type->adr_type()->is_oopptr(), "off-heap access can't be mismatched");
 
   if (mismatched) {
     decorators |= C2_MISMATCHED;
@@ -2501,7 +2501,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (tjp != NULL) {
         value_type = tjp;
       }
-    } else if (type == T_INLINE_TYPE) {
+    } else if (type == T_PRIMITIVE_OBJECT) {
       value_type = NULL;
     }
   }
@@ -2525,7 +2525,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
 
     if (p == NULL) { // Could not constant fold the load
-      if (type == T_INLINE_TYPE) {
+      if (type == T_PRIMITIVE_OBJECT) {
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
           int offset = adr_type->is_instptr()->offset();
@@ -2578,7 +2578,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = ConvL2X(val);
       val = gvn().transform(new CastX2PNode(val));
     }
-    if (type == T_INLINE_TYPE) {
+    if (type == T_PRIMITIVE_OBJECT) {
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
         int offset = adr_type->is_instptr()->offset();
@@ -5820,7 +5820,7 @@ bool LibraryCallKit::inline_vectorizedMismatch() {
         Node* obja_adr_mem = memory(C->get_alias_index(obja_adr_t));
         Node* objb_adr_mem = memory(C->get_alias_index(objb_adr_t));
 
-        Node* vmask      = _gvn.transform(new VectorMaskGenNode(ConvI2X(casted_length), TypeVect::VECTMASK, elem_bt));
+        Node* vmask      = _gvn.transform(VectorMaskGenNode::make(ConvI2X(casted_length), elem_bt));
         Node* vload_obja = _gvn.transform(new LoadVectorMaskedNode(control(), obja_adr_mem, obja_adr, obja_adr_t, vt, vmask));
         Node* vload_objb = _gvn.transform(new LoadVectorMaskedNode(control(), objb_adr_mem, objb_adr, objb_adr_t, vt, vmask));
         Node* result     = _gvn.transform(new VectorCmpMaskedNode(vload_obja, vload_objb, vmask, TypeInt::INT));
@@ -7188,7 +7188,7 @@ bool LibraryCallKit::inline_galoisCounterMode_AESCrypt() {
   Node* state = load_field_from_object(ghash_object, "state", "[J");
 
   if (embeddedCipherObj == NULL || counter == NULL || subkeyHtbl == NULL || state == NULL) {
-      return false;
+    return false;
   }
   // cast it to what we know it will be at runtime
   const TypeInstPtr* tinst = _gvn.type(gctr_object)->isa_instptr();
@@ -7204,38 +7204,22 @@ bool LibraryCallKit::inline_galoisCounterMode_AESCrypt() {
   // we need to get the start of the aescrypt_object's expanded key array
   Node* k_start = get_key_start_from_aescrypt_object(aescrypt_object);
   if (k_start == NULL) return false;
-
   // similarly, get the start address of the r vector
   Node* cnt_start = array_element_address(counter, intcon(0), T_BYTE);
   Node* state_start = array_element_address(state, intcon(0), T_LONG);
   Node* subkeyHtbl_start = array_element_address(subkeyHtbl, intcon(0), T_LONG);
 
-  ciKlass* klass = ciTypeArrayKlass::make(T_LONG);
-  Node* klass_node = makecon(TypeKlassPtr::make(klass));
-
-  // Does this target support this intrinsic?
-  if (Matcher::htbl_entries == -1) return false;
-
-  Node* subkeyHtbl_48_entries_start;
-  if (Matcher::htbl_entries != 0) {
-    // new array to hold 48 computed htbl entries
-    Node* subkeyHtbl_48_entries = new_array(klass_node, intcon(Matcher::htbl_entries), 0);
-    if (subkeyHtbl_48_entries == NULL) return false;
-    subkeyHtbl_48_entries_start = array_element_address(subkeyHtbl_48_entries, intcon(0), T_LONG);
-  } else {
-    // This target doesn't need the extra-large Htbl.
-    subkeyHtbl_48_entries_start = ConvL2X(intcon(0));
-  }
 
   // Call the stub, passing params
   Node* gcmCrypt = make_runtime_call(RC_LEAF|RC_NO_FP,
                                OptoRuntime::galoisCounterMode_aescrypt_Type(),
                                stubAddr, stubName, TypePtr::BOTTOM,
-                               in_start, len, ct_start, out_start, k_start, state_start, subkeyHtbl_start, subkeyHtbl_48_entries_start, cnt_start);
+                               in_start, len, ct_start, out_start, k_start, state_start, subkeyHtbl_start, cnt_start);
 
   // return cipher length (int)
   Node* retvalue = _gvn.transform(new ProjNode(gcmCrypt, TypeFunc::Parms));
   set_result(retvalue);
+
   return true;
 }
 

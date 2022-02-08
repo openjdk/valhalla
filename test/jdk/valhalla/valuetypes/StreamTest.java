@@ -31,6 +31,7 @@
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.testng.Assert.*;
@@ -40,7 +41,8 @@ public class StreamTest {
     private Value[] init() {
         Value[] values = new Value[10];
         for (int i = 0; i < 10; i++) {
-            values[i] = new Value(i, new Point(i,i*2), (i%2) == 0 ? null : new Point(i*10, i*20));
+            values[i] = new Value(i, new Point(i,i*2), (i%2) == 0 ? null : new Point(i*10, i*20),
+                                  List.of(new X(i), new X(i*10)));
         }
         return values;
     }
@@ -73,14 +75,27 @@ public class StreamTest {
         stream.forEach(p -> assertTrue((p.x % 2) == 0));
     }
 
+    @Test
+    public void testValue() {
+        long count = Arrays.stream(values)
+                           .map(Value.ref::list)
+                           .flatMap(List::stream)
+                           .map(X::x)
+                           .filter(x -> x >= 10)
+                           .count();
+        assertEquals(count, values.length-1);
+    }
+
     static primitive class Value {
         int i;
         Point p;
         Point.ref nullable;
-        Value(int i, Point p, Point.ref np) {
+        List<X> list;
+        Value(int i, Point p, Point.ref np, List<X> list) {
             this.i = i;
             this.p = p;
             this.nullable = np;
+            this.list = list;
         }
 
         Point point() {
@@ -92,5 +107,17 @@ public class StreamTest {
         }
 
         int getI() { return i; }
+
+        List<X> list() { return list; }
+    }
+
+    static value class X {
+        private int x;
+        X(int x) {
+            this.x = x;
+        }
+        int x() {
+            return x;
+        }
     }
 }

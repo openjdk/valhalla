@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,6 +130,7 @@ class ClassFileParser {
   Array<u2>* _nest_members;
   u2 _nest_host;
   Array<u2>* _permitted_subclasses;
+  Array<u2>* _preload_classes;
   Array<RecordComponent*>* _record_components;
   GrowableArray<InstanceKlass*>* _temp_local_interfaces;
   Array<InstanceKlass*>* _local_interfaces;
@@ -209,8 +210,8 @@ class ClassFileParser {
   bool _invalid_identity_super; // if true, invalid super type for an identity type.
   bool _implements_identityObject;
   bool _has_injected_identityObject;
-  bool _implements_primitiveObject;
-  bool _has_injected_primitiveObject;
+  bool _implements_valueObject;
+  bool _has_injected_valueObject;
 
   // precomputed flags
   bool _has_finalizer;
@@ -281,6 +282,7 @@ class ClassFileParser {
   void parse_fields(const ClassFileStream* const cfs,
                     bool is_interface,
                     bool is_inline_type,
+                    bool is_permits_value_class,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
@@ -291,6 +293,7 @@ class ClassFileParser {
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
                        bool is_inline_type,
+                       bool is_permits_value_class,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
@@ -298,6 +301,7 @@ class ClassFileParser {
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
                      bool is_inline_type,
+                     bool is_permits_value_class,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -350,6 +354,10 @@ class ClassFileParser {
 
   u2 parse_classfile_permitted_subclasses_attribute(const ClassFileStream* const cfs,
                                                     const u1* const permitted_subclasses_attribute_start,
+                                                    TRAPS);
+
+  u2 parse_classfile_preload_attribute(const ClassFileStream* const cfs,
+                                                    const u1* const preload_attribute_start,
                                                     TRAPS);
 
   u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
@@ -501,10 +509,12 @@ class ClassFileParser {
   void verify_legal_field_modifiers(jint flags,
                                     bool is_interface,
                                     bool is_inline_type,
+                                    bool is_permits_value_class,
                                     TRAPS) const;
   void verify_legal_method_modifiers(jint flags,
                                      bool is_interface,
                                      bool is_inline_type,
+                                     bool is_permits_value_class,
                                      const Symbol* name,
                                      TRAPS) const;
 
@@ -592,7 +602,8 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_inline_type() const { return _access_flags.is_inline_type(); }
+  bool is_inline_type() const { return _access_flags.is_value_class(); }
+  bool is_permits_value_class() const { return _access_flags.is_permits_value_class(); }
   bool is_value_capable_class() const;
   bool has_inline_fields() const { return _has_inline_type_fields; }
   bool invalid_inline_super() const { return _invalid_inline_super; }

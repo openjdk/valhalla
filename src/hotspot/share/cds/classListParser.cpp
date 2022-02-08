@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,7 @@ ClassListParser::ClassListParser(const char* file) : _id2klass_table(INITIAL_TAB
   if (fd != -1) {
     // Obtain a File* from the file descriptor so that fgets()
     // can be used in parse_one_line()
-    _file = os::open(fd, "r");
+    _file = os::fdopen(fd, "r");
   }
   if (_file == NULL) {
     char errmsg[JVM_MAXPATHLEN];
@@ -474,15 +474,15 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   {
     bool identity_object_implemented = false;
     bool identity_object_specified = false;
-    bool primitive_object_implemented = false;
-    bool primitive_object_specified = false;
+    bool value_object_implemented = false;
+    bool value_object_specified = false;
     for (i = 0; i < actual_num_interfaces; i++) {
       if (k->local_interfaces()->at(i) == vmClasses::IdentityObject_klass()) {
         identity_object_implemented = true;
         break;
       }
-      if (k->local_interfaces()->at(i) == vmClasses::PrimitiveObject_klass()) {
-        primitive_object_implemented = true;
+      if (k->local_interfaces()->at(i) == vmClasses::ValueObject_klass()) {
+        value_object_implemented = true;
         break;
       }
     }
@@ -491,16 +491,16 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
         identity_object_specified = true;
         break;
       }
-      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::PrimitiveObject_klass()) {
-        primitive_object_specified = true;
+      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::ValueObject_klass()) {
+        value_object_specified = true;
         break;
       }
     }
 
     if ( (identity_object_implemented  && !identity_object_specified) ||
-         (primitive_object_implemented && !primitive_object_specified) ){
+         (value_object_implemented && !value_object_specified) ){
       // Backwards compatibility -- older classlists do not know about
-      // java.lang.IdentityObject or java.lang.PrimitiveObject
+      // java.lang.IdentityObject or java.lang.ValueObject
       expected_num_interfaces--;
     }
   }
@@ -738,10 +738,10 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
     // java.lang.IdentityObject.
     return vmClasses::IdentityObject_klass();
   }
-  if (interface_name == vmSymbols::java_lang_PrimitiveObject()) {
+  if (interface_name == vmSymbols::java_lang_ValueObject()) {
     // Backwards compatibility -- older classlists do not know about
-    // java.lang.PrimitiveObject.
-    return vmClasses::PrimitiveObject_klass();
+    // java.lang.ValueObject.
+    return vmClasses::ValueObject_klass();
   }
 
   const int n = _interfaces->length();

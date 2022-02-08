@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,12 +46,14 @@ enum {
     JVM_ACC_SUPER         = 0x0020,
     JVM_ACC_VOLATILE      = 0x0040,
     JVM_ACC_BRIDGE        = 0x0040,
+    JVM_ACC_PERMITS_VALUE = 0x0040,
     JVM_ACC_TRANSIENT     = 0x0080,
     JVM_ACC_VARARGS       = 0x0080,
-    JVM_ACC_INLINE        = 0x0100,
     JVM_ACC_NATIVE        = 0x0100,
+    JVM_ACC_VALUE         = 0x0100,
     JVM_ACC_INTERFACE     = 0x0200,
     JVM_ACC_ABSTRACT      = 0x0400,
+    JVM_ACC_PRIMITIVE     = 0x0800,
     JVM_ACC_STRICT        = 0x0800,
     JVM_ACC_SYNTHETIC     = 0x1000,
     JVM_ACC_ANNOTATION    = 0x2000,
@@ -68,6 +70,7 @@ enum {
 #define JVM_ACC_SUPER_BIT         5
 #define JVM_ACC_VOLATILE_BIT      6
 #define JVM_ACC_BRIDGE_BIT        6
+#define JVM_ACC_PERMITS_VALUE_BIT 6
 #define JVM_ACC_TRANSIENT_BIT     7
 #define JVM_ACC_VARARGS_BIT       7
 #define JVM_ACC_NATIVE_BIT        8
@@ -153,7 +156,7 @@ enum {
     JVM_SIGNATURE_BYTE          = 'B',
     JVM_SIGNATURE_CHAR          = 'C',
     JVM_SIGNATURE_CLASS         = 'L',
-    JVM_SIGNATURE_INLINE_TYPE   = 'Q',
+    JVM_SIGNATURE_PRIMITIVE_OBJECT = 'Q',
     JVM_SIGNATURE_ENDCLASS      = ';',
     JVM_SIGNATURE_ENUM          = 'E',
     JVM_SIGNATURE_FLOAT         = 'F',

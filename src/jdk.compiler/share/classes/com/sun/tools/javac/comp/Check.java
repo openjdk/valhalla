@@ -45,6 +45,7 @@ import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
+import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
@@ -770,15 +771,19 @@ public class Check {
                                     : t;
         }
 
-    void checkSuperConstraintsOfPrimitiveClass(DiagnosticPosition pos, ClassSymbol c) {
+    void checkSuperConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
         for(Type st = types.supertype(c.type); st != Type.noType; st = types.supertype(st)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 return;
             if  (st.tsym == syms.objectType.tsym)
                 return;
             if (!st.tsym.isAbstract()) {
-                log.error(pos, Errors.ConcreteSupertypeForPrimitiveClass(c, st));
+                log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
             }
+            if ((st.tsym.flags() & PERMITS_VALUE) != 0) {
+                return;
+            }
+            // We have an unsuitable abstract super class, find out why exactly and complain
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
             }
@@ -819,7 +824,12 @@ public class Check {
     Type checkConstructorRefType(JCExpression expr, Type t) {
         t = checkClassOrArrayType(expr, t);
         if (t.hasTag(CLASS)) {
-            if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
+            /* Tolerate an encounter with abstract Object, we will mutate the constructor reference
+               to an invocation of java.util.Objects.newIdentity downstream.
+            */
+            if (t.tsym == syms.objectType.tsym)
+                log.note(expr.pos(), Notes.CantInstantiateObjectDirectly);
+            if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0 && t.tsym != syms.objectType.tsym) {
                 log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));
                 t = types.createErrorType(t);
             } else if ((t.tsym.flags() & ENUM) != 0) {
@@ -873,7 +883,7 @@ public class Check {
      *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
     Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
-        if (t.isReference() && (primitiveClassOK || !types.isPrimitiveClass(t)))
+        if (t.isReference() && (primitiveClassOK || !t.isPrimitiveClass()))
             return t;
         else
             return typeTagError(pos,
@@ -890,7 +900,7 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.isPrimitive() || t.isPrimitiveClass() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.isValueClass() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
@@ -977,7 +987,7 @@ public class Check {
         @Override
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
-                if (types.isPrimitiveClass(targ)) {
+                if (targ.isPrimitiveClass()) {
                     log.error(pos, Errors.GenericParameterizationWithPrimitiveClass(t));
                 }
                 visit(targ, pos);
@@ -1393,7 +1403,7 @@ public class Check {
                 mask = implicit = InterfaceVarFlags;
             else {
                 mask = VarFlags;
-                if (types.isPrimitiveClass(sym.owner.type) && (flags & STATIC) == 0) {
+                if (sym.owner.type.isValueClass() && (flags & STATIC) == 0) {
                     implicit |= FINAL;
                 }
             }
@@ -1422,10 +1432,11 @@ public class Check {
                     mask = implicit = InterfaceMethodFlags;
                 }
             } else if ((sym.owner.flags_field & RECORD) != 0) {
-                mask = RecordMethodFlags;
+                mask = ((sym.owner.flags_field & VALUE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
+                        RecordMethodFlags & ~SYNCHRONIZED : RecordMethodFlags;
             } else {
-                // instance methods of primitive classes do not have a monitor associated with their `this'
-                mask = ((sym.owner.flags_field & PRIMITIVE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
+                // value objects do not have an associated monitor/lock
+                mask = ((sym.owner.flags_field & VALUE_CLASS) != 0 && (flags & Flags.STATIC) == 0) ?
                         MethodFlags & ~SYNCHRONIZED : MethodFlags;
             }
             if ((flags & STRICTFP) != 0) {
@@ -1443,7 +1454,7 @@ public class Check {
                         ((flags & RECORD) != 0 || (flags & ENUM) != 0 || (flags & INTERFACE) != 0);
                 boolean staticOrImplicitlyStatic = (flags & STATIC) != 0 || implicitlyStatic;
                 // local statics are allowed only if records are allowed too
-                mask = staticOrImplicitlyStatic && allowRecords && (flags & ANNOTATION) == 0 ? StaticLocalFlags : LocalClassFlags;
+                mask = staticOrImplicitlyStatic && allowRecords && (flags & ANNOTATION) == 0 ? ExtendedStaticLocalClassFlags : ExtendedLocalClassFlags;
                 implicit = implicitlyStatic ? STATIC : implicit;
             } else if (sym.owner.kind == TYP) {
                 // statics in inner classes are allowed only if records are allowed too
@@ -1463,8 +1474,8 @@ public class Check {
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract, final, sealed or non-sealed or primitive
-                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS);
+                // enums can't be declared abstract, final, sealed or non-sealed or primitive/value
+                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
@@ -1477,6 +1488,17 @@ public class Check {
             }
             // Imply STRICTFP if owner has STRICTFP set.
             implicit |= sym.owner.flags_field & STRICTFP;
+
+            // primitive classes are implicitly final value classes.
+            if ((flags & PRIMITIVE_CLASS) != 0)
+                implicit |= VALUE_CLASS | FINAL;
+
+            // value classes are implicitly final
+            if ((flags & VALUE_CLASS) != 0)
+                implicit |= FINAL;
+
+            // ACC_PERMITS_VALUE a legal class flag, but not a legal class modifier
+            mask &= ~ACC_PERMITS_VALUE;
             break;
         default:
             throw new AssertionError();
@@ -1505,7 +1527,7 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                                ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS)
+                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS | VALUE_CLASS)
                  &&
                  checkDisjoint(pos, flags,
                                PUBLIC,
@@ -2037,10 +2059,10 @@ public class Check {
             return;
         }
 
-        if (origin.isPrimitiveClass() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
-            if (m.name == names.clone || m.name == names.finalize) {
+        if (origin.isValueClass() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
+            if (m.name == names.finalize) {
                 log.error(TreeInfo.diagnosticPositionFor(m, tree),
-                        Errors.PrimitiveClassMayNotOverride(m.name));
+                        Errors.ValueClassMayNotOverride(m.name));
                 m.flags_field |= BAD_OVERRIDE;
                 return;
             }
@@ -2358,8 +2380,7 @@ public class Check {
         // or by virtue of being a member of a diamond inferred anonymous class. Latter case is to
         // be treated "as if as they were annotated" with @Override.
         boolean mustOverride = explicitOverride ||
-                (env.info.isAnonymousDiamond && !m.isConstructor() && !m.isPrivate() &&
-                        (!m.owner.isPrimitiveClass() || (tree.body.flags & SYNTHETIC) == 0));
+                (env.info.isAnonymousDiamond && !m.isConstructor() && !m.isPrivate());
         if (mustOverride && !isOverrider(m)) {
             DiagnosticPosition pos = tree.pos();
             for (JCAnnotation a : tree.getModifiers().annotations) {
@@ -2520,7 +2541,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && types.isPrimitiveClass(symbol.type);
+            return (symbol.flags() & STATIC) == 0 && symbol.type.isPrimitiveClass();
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {
@@ -2773,12 +2794,12 @@ public class Check {
         checkCompatibleConcretes(pos, c);
 
         boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
-        boolean implementsPrimitiveObject = types.asSuper(c.referenceProjectionOrSelf(), syms.primitiveObjectType.tsym) != null;
-        if (c.isPrimitiveClass() && implementsIdentityObject) {
-            log.error(pos, Errors.PrimitiveClassMustNotImplementIdentityObject(c));
-        } else if (implementsPrimitiveObject && !c.isPrimitiveClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
-            log.error(pos, Errors.IdentityClassMustNotImplementPrimitiveObject(c));
-        } else if (implementsPrimitiveObject && implementsIdentityObject) {
+        boolean implementsValueObject = types.asSuper(c.referenceProjectionOrSelf(), syms.valueObjectType.tsym) != null;
+        if (c.isValueClass() && implementsIdentityObject) {
+            log.error(pos, Errors.ValueClassMustNotImplementIdentityObject(c));
+        } else if (implementsValueObject && !c.isValueClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
+            log.error(pos, Errors.IdentityClassMustNotImplementValueObject(c));
+        } else if (implementsValueObject && implementsIdentityObject) {
             log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
         }
     }

@@ -246,7 +246,7 @@ public class InlineTypesTest {
                     .iinc(3, 1)
                     .aload_2()
                     .iload_3()
-                    .defaultvalue(inlineClass)
+                    .aconst_init(inlineClass)
                     .aastore()
                     .iinc(3, 1)
                     .goto_("loop1")

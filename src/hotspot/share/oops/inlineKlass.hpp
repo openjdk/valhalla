@@ -141,6 +141,7 @@ class InlineKlass: public InstanceKlass {
  public:
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
+  bool is_null_free() const { return access_flags().is_primitive_class(); }
 
   // ref and val mirror
   oop ref_mirror() const { return java_mirror(); }
@@ -151,7 +152,7 @@ class InlineKlass: public InstanceKlass {
     return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_CLASS);
   }
   const char* val_signature_name() const {
-    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_INLINE_TYPE);
+    return InstanceKlass::signature_name_of_carrier(JVM_SIGNATURE_PRIMITIVE_OBJECT);
   }
 
   // Casting from Klass*

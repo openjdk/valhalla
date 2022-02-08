@@ -110,6 +110,10 @@ public class ClassReader {
      */
     boolean allowPrimitiveClasses;
 
+    /** Switch: allow value classes.
+     */
+    boolean allowValueClasses;
+
     /** Switch: allow sealed
      */
     boolean allowSealedTypes;
@@ -282,7 +286,10 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
+                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
 
@@ -1000,7 +1007,7 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isPrimitiveClass()) {
+                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValueClass()) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -2788,6 +2795,16 @@ public class ClassReader {
             if (allowPrimitiveClasses) {
                 flags |= PRIMITIVE_CLASS;
             }
+        }
+        if ((flags & ACC_VALUE) != 0) {
+            flags &= ~ACC_VALUE;
+            if (allowValueClasses) {
+                flags |= VALUE_CLASS;
+            }
+        }
+        if ((flags & ACC_PERMITS_VALUE) != 0) {
+            flags &= ~ACC_PERMITS_VALUE;
+            flags |= PERMITS_VALUE;
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }

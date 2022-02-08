@@ -116,7 +116,6 @@ class ValueMap: public CompilationResourceObj {
   void kill_memory();
   void kill_field(ciField* field, bool all_offsets);
   void kill_array(ValueType* type);
-  void kill_exception();
   void kill_map(ValueMap* map);
   void kill_all();
 
