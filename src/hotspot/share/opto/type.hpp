@@ -1085,9 +1085,11 @@ public:
   virtual bool maybe_null() const { return meet_ptr(Null) == ptr(); }
 
   virtual bool can_be_inline_type() const { return false; }
-  virtual bool flatten_array() const { return false; }
-  virtual bool is_not_flat() const { return false; }
-  virtual bool is_not_null_free() const { return false; }
+  virtual bool flatten_array()      const { return false; }
+  virtual bool is_flat()            const { return false; }
+  virtual bool is_not_flat()        const { return false; }
+  virtual bool is_null_free()       const { return false; }
+  virtual bool is_not_null_free()   const { return false; }
 
   // Tests for relation to centerline of type lattice:
   static bool above_centerline(PTR ptr) { return (ptr <= AnyNull); }
@@ -1389,10 +1391,10 @@ public:
   bool      is_stable() const { return _ary->_stable; }
 
   // Inline type array properties
-  bool is_flat()          const { return _ary->_elem->isa_inlinetype() != NULL; }
-  bool is_not_flat()      const { return _ary->_not_flat; }
-  bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != NULL && _ary->_elem->make_ptr()->is_inlinetypeptr() && !_ary->_elem->make_ptr()->maybe_null()); }
-  bool is_not_null_free() const { return _ary->_not_null_free; }
+  bool is_flat()          const override { return _ary->_elem->isa_inlinetype() != NULL; }
+  bool is_not_flat()      const override { return _ary->_not_flat; }
+  bool is_null_free()     const override { return is_flat() || (_ary->_elem->make_ptr() != NULL && _ary->_elem->make_ptr()->is_inlinetypeptr() && !_ary->_elem->make_ptr()->maybe_null()); }
+  bool is_not_null_free() const override { return _ary->_not_null_free; }
 
   bool is_autobox_cache() const { return _is_autobox_cache; }
 
@@ -1664,9 +1666,10 @@ public:
     return TypeKlassPtr::empty() || _elem->empty();
   }
 
-  virtual bool is_not_flat() const { return _not_flat; }
-  virtual bool is_not_null_free() const { return _not_null_free; }
-  bool null_free() const { return _null_free; }
+  bool is_flat()          const override { return klass()->is_flat_array_klass(); }
+  bool is_not_flat()      const override { return _not_flat; }
+  bool is_null_free()     const override { return _null_free; }
+  bool is_not_null_free() const override { return _not_null_free; }
 
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping

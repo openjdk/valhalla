@@ -2697,14 +2697,15 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
 //    ...
 // }
 void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
-  if (UseArrayMarkWordCheck) {
+  bool array_inputs = _igvn.type(check->in(FlatArrayCheckNode::ArrayOrKlass))->isa_oopptr() != NULL;
+  if (UseArrayMarkWordCheck && array_inputs) {
     Node* mark = MakeConX(0);
     Node* locked_bit = MakeConX(markWord::unlocked_value);
     Node* mem = check->in(FlatArrayCheckNode::Memory);
-    for (uint i = FlatArrayCheckNode::Array; i < check->req(); ++i) {
+    for (uint i = FlatArrayCheckNode::ArrayOrKlass; i < check->req(); ++i) {
       Node* ary = check->in(i);
-      if (ary->is_top()) continue;
-      const TypeAryPtr* t = _igvn.type(ary)->isa_aryptr();
+      const TypeOopPtr* t = _igvn.type(ary)->isa_oopptr();
+      assert(t != NULL, "Mixing array and klass inputs");
       assert(!t->is_flat() && !t->is_not_flat(), "Should have been optimized out");
       Node* mark_adr = basic_plus_adr(ary, oopDesc::mark_offset_in_bytes());
       Node* mark_load = _igvn.transform(LoadNode::make(_igvn, NULL, mem, mark_adr, mark_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
@@ -2734,9 +2735,8 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
       // Locked: Load prototype header from klass
       ctrl = _igvn.transform(new IfFalseNode(iff));
       Node* proto = MakeConX(0);
-      for (uint i = FlatArrayCheckNode::Array; i < check->req(); ++i) {
+      for (uint i = FlatArrayCheckNode::ArrayOrKlass; i < check->req(); ++i) {
         Node* ary = check->in(i);
-        if (ary->is_top()) continue;
         // Make loads control dependent to make sure they are only executed if array is locked
         Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
         Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
@@ -2761,13 +2761,18 @@ void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
   } else {
     // Fall back to layout helper check
     Node* lhs = intcon(0);
-    for (uint i = FlatArrayCheckNode::Array; i < check->req(); ++i) {
-      Node* ary = check->in(i);
-      if (ary->is_top()) continue;
-      const TypeAryPtr* t = _igvn.type(ary)->isa_aryptr();
+    for (uint i = FlatArrayCheckNode::ArrayOrKlass; i < check->req(); ++i) {
+      Node* array_or_klass = check->in(i);
+      Node* klass = NULL;
+      const TypePtr* t = _igvn.type(array_or_klass)->is_ptr();
       assert(!t->is_flat() && !t->is_not_flat(), "Should have been optimized out");
-      Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-      Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+      if (t->isa_oopptr() != NULL) {
+        Node* klass_adr = basic_plus_adr(array_or_klass, oopDesc::klass_offset_in_bytes());
+        klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeInstKlassPtr::OBJECT));
+      } else {
+        assert(t->isa_aryklassptr(), "Unexpected input type");
+        klass = array_or_klass;
+      }
       Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
       Node* lh_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
       lhs = _igvn.transform(new OrINode(lhs, lh_val));

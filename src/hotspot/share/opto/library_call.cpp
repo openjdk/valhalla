@@ -3680,8 +3680,6 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       case ObjectArray:    query = Klass::layout_helper_is_objArray(layout_con); break;
       case NonObjectArray: query = !Klass::layout_helper_is_objArray(layout_con); break;
       case TypeArray:      query = Klass::layout_helper_is_typeArray(layout_con); break;
-      case FlatArray:      query = Klass::layout_helper_is_flatArray(layout_con); break;
-      case NonFlatArray:   query = !Klass::layout_helper_is_flatArray(layout_con); break;
       case AnyArray:       query = Klass::layout_helper_is_array(layout_con); break;
       case NonArray:       query = !Klass::layout_helper_is_array(layout_con); break;
       default:
@@ -3711,13 +3709,6 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       value = Klass::_lh_array_tag_type_value;
       layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
       btest = BoolTest::eq;
-      break;
-    }
-    case FlatArray:
-    case NonFlatArray: {
-      value = 0;
-      layout_val = _gvn.transform(new AndINode(layout_val, intcon(Klass::_lh_array_tag_flat_value_bit_inplace)));
-      btest = (kind == FlatArray) ? BoolTest::ne : BoolTest::eq;
       break;
     }
     case AnyArray:    value = Klass::_lh_neutral_value; btest = BoolTest::lt; break;
@@ -3949,14 +3940,14 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
           bailout->add_req(control());
           set_control(top());
         } else {
-          generate_non_flatArray_guard(klass_node, bailout);
+          generate_fair_guard(flat_array_test(klass_node, /* flat = */ false), bailout);
         }
       } else if (UseFlatArray && (orig_t == NULL || !orig_t->is_not_flat()) &&
                  // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
                  ((!klass->is_flat_array_klass() && klass->can_be_inline_array_klass()) || !can_validate)) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
-        generate_flatArray_guard(original_kls, bailout);
+        generate_fair_guard(flat_array_test(original_kls), bailout);
         if (orig_t != NULL) {
           orig_t = orig_t->cast_to_not_flat();
           original = _gvn.transform(new CheckCastPPNode(control(), original, orig_t));
@@ -4665,7 +4656,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
           (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
-        generate_flatArray_guard(obj_klass, slow_region);
+        generate_fair_guard(flat_array_test(obj_klass), slow_region);
       }
 
       if (!stopped()) {
@@ -5177,7 +5168,7 @@ bool LibraryCallKit::inline_arraycopy() {
       if (top_src != NULL && top_src->is_flat()) {
         // Src is flat, check that dest is flat as well
         if (top_dest != NULL && !top_dest->is_flat()) {
-          generate_non_flatArray_guard(dest_klass, slow_region);
+          generate_fair_guard(flat_array_test(dest_klass, /* flat = */ false), slow_region);
           // Since dest is flat and src <: dest, dest must have the same type as src.
           top_dest = TypeOopPtr::make_from_klass(top_src->klass())->isa_aryptr();
           assert(top_dest->is_flat(), "dest must be flat");
@@ -5187,7 +5178,7 @@ bool LibraryCallKit::inline_arraycopy() {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
         assert(top_dest == NULL || !top_dest->is_flat(), "dest array must not be flat");
-        generate_flatArray_guard(load_object_klass(src), slow_region);
+        generate_fair_guard(flat_array_test(src), slow_region);
         if (top_src != NULL) {
           top_src = top_src->cast_to_not_flat();
           src = _gvn.transform(new CheckCastPPNode(control(), src, top_src));
