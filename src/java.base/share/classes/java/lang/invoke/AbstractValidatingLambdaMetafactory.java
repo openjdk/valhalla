@@ -268,10 +268,10 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             }
 
             // check receiver type
-            if (!implClass.isAssignableFrom(receiverClass)) {
+            if (!implClass.asPrimaryType().isAssignableFrom(receiverClass.asPrimaryType())) {
                 throw new LambdaConversionException(
                         String.format("Invalid receiver type %s; not a subtype of implementation type %s",
-                                      receiverClass, implClass));
+                                      receiverClass.descriptorString(), implClass.descriptorString()));
             }
         } else {
             // no receiver
@@ -321,7 +321,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
         for (int i = 0; i < dynamicMethodType.parameterCount(); i++) {
             Class<?> dynamicParamType = dynamicMethodType.parameterType(i);
             Class<?> descriptorParamType = descriptor.parameterType(i);
-            if (!descriptorParamType.isAssignableFrom(dynamicParamType)) {
+            if (!descriptorParamType.asPrimaryType().isAssignableFrom(dynamicParamType.asPrimaryType())) {
                 String msg = String.format("Type mismatch for dynamic parameter %d: %s is not a subtype of %s",
                                            i, dynamicParamType, descriptorParamType);
                 throw new LambdaConversionException(msg);

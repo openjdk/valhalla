@@ -378,7 +378,6 @@ void Parse::do_withfield() {
 
   // Clone the inline type node and set the new field value
   assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
-
   InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
   for (uint i = 2; i < holder->req(); ++i) {
     new_vt->set_req(i, holder->in(i));

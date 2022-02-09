@@ -22,7 +22,7 @@
  */
 
 // options: -XDallowWithFieldOperator
-// key: compiler.err.primitive.class.instance.field.expected.here
+// key: compiler.err.value.class.instance.field.expected.here
 
 final primitive class Blah {
     final int x;

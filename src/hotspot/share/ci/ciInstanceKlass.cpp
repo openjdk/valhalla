@@ -813,7 +813,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       }
       break;
     }
-    case T_INLINE_TYPE: {
+    case T_PRIMITIVE_OBJECT: {
       ResetNoHandleMark rnhm;
       Thread* THREAD = Thread::current();
       SignatureStream ss(fd->signature(), false);
@@ -845,6 +845,19 @@ const char *ciInstanceKlass::replay_name() const {
   return CURRENT_ENV->replay_name(get_instanceKlass());
 }
 
+void ciInstanceKlass::dump_replay_instanceKlass(outputStream* out, InstanceKlass* ik) {
+  if (ik->is_hidden()) {
+    const char *name = CURRENT_ENV->dyno_name(ik);
+    if (name != NULL) {
+      out->print_cr("instanceKlass %s # %s", name, ik->name()->as_quoted_ascii());
+    } else {
+      out->print_cr("# instanceKlass %s", ik->name()->as_quoted_ascii());
+    }
+  } else {
+    out->print_cr("instanceKlass %s", ik->name()->as_quoted_ascii());
+  }
+}
+
 void ciInstanceKlass::dump_replay_data(outputStream* out) {
   ResourceMark rm;
 
@@ -856,16 +869,7 @@ void ciInstanceKlass::dump_replay_data(outputStream* out) {
   while (sub != NULL) {
     if (sub->is_instance_klass()) {
       InstanceKlass *isub = InstanceKlass::cast(sub);
-      if (isub->is_hidden()) {
-        const char *name = CURRENT_ENV->dyno_name(isub);
-        if (name != NULL) {
-          out->print_cr("instanceKlass %s # %s", name, sub->name()->as_quoted_ascii());
-        } else {
-          out->print_cr("# instanceKlass %s", sub->name()->as_quoted_ascii());
-        }
-      } else {
-        out->print_cr("instanceKlass %s", sub->name()->as_quoted_ascii());
-      }
+      dump_replay_instanceKlass(out, isub);
     }
     sub = sub->next_sibling();
   }

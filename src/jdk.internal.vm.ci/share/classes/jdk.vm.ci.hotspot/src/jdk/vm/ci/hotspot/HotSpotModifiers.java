@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,7 @@ import static java.lang.reflect.Modifier.PUBLIC;
 import static java.lang.reflect.Modifier.STATIC;
 import static java.lang.reflect.Modifier.STRICT;
 import static java.lang.reflect.Modifier.SYNCHRONIZED;
+import static java.lang.reflect.Modifier.PERMITS_VALUE;
 import static java.lang.reflect.Modifier.TRANSIENT;
 import static java.lang.reflect.Modifier.VOLATILE;
 import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
@@ -53,7 +54,7 @@ public class HotSpotModifiers {
     // @formatter:on
 
     public static int jvmClassModifiers() {
-        return PUBLIC | FINAL | INTERFACE | ABSTRACT | ANNOTATION | ENUM | SYNTHETIC;
+        return PUBLIC | FINAL | INTERFACE | ABSTRACT | ANNOTATION | ENUM | SYNTHETIC | PERMITS_VALUE;
     }
 
     public static int jvmMethodModifiers() {

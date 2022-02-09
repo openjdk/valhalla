@@ -2802,6 +2802,10 @@ public class ClassReader {
                 flags |= VALUE_CLASS;
             }
         }
+        if ((flags & ACC_PERMITS_VALUE) != 0) {
+            flags &= ~ACC_PERMITS_VALUE;
+            flags |= PERMITS_VALUE;
+        }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }
 

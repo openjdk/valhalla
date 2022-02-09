@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -533,7 +533,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   if (Signature::is_array(sym) &&
       (sym->char_at(1) == JVM_SIGNATURE_ARRAY ||
        sym->char_at(1) == JVM_SIGNATURE_CLASS ||
-       sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE )) {
+       sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT )) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     SignatureStream ss(sym, false);
@@ -546,7 +546,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE;
+      bool null_free_array = sym->is_Q_array_signature() && sym->char_at(1) == JVM_SIGNATURE_PRIMITIVE_OBJECT;
       return ciArrayKlass::make(elem_klass, null_free_array);
     }
   }
@@ -577,7 +577,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   while (sym->char_at(i) == JVM_SIGNATURE_ARRAY) {
     i++;
   }
-  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_INLINE_TYPE) {
+  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
     // An unloaded array class of inline types is an ObjArrayKlass, an
     // unloaded inline type class is an InstanceKlass. For consistency,
     // make the signature of the unloaded array of inline type use L
@@ -1689,9 +1689,11 @@ void ciEnv::dump_replay_data_helper(outputStream* out) {
 
   GrowableArray<ciMetadata*>* objects = _factory->get_ci_metadata();
   out->print_cr("# %d ciObject found", objects->length());
+
   // The very first entry is the InstanceKlass of the root method of the current compilation in order to get the right
   // protection domain to load subsequent classes during replay compilation.
-  out->print_cr("instanceKlass %s", CURRENT_ENV->replay_name(task()->method()->method_holder()));
+  ciInstanceKlass::dump_replay_instanceKlass(out, task()->method()->method_holder());
+
   for (int i = 0; i < objects->length(); i++) {
     objects->at(i)->dump_replay_data(out);
   }
@@ -1721,7 +1723,7 @@ void ciEnv::dump_replay_data(int compile_id) {
   if (ret > 0) {
     int fd = os::open(buffer, O_RDWR | O_CREAT | O_TRUNC, 0666);
     if (fd != -1) {
-      FILE* replay_data_file = os::open(fd, "w");
+      FILE* replay_data_file = os::fdopen(fd, "w");
       if (replay_data_file != NULL) {
         fileStream replay_data_stream(replay_data_file, /*need_close=*/true);
         dump_replay_data(&replay_data_stream);
@@ -1739,7 +1741,7 @@ void ciEnv::dump_inline_data(int compile_id) {
   if (ret > 0) {
     int fd = os::open(buffer, O_RDWR | O_CREAT | O_TRUNC, 0666);
     if (fd != -1) {
-      FILE* inline_data_file = os::open(fd, "w");
+      FILE* inline_data_file = os::fdopen(fd, "w");
       if (inline_data_file != NULL) {
         fileStream replay_data_stream(inline_data_file, /*need_close=*/true);
         GUARDED_VM_ENTRY(

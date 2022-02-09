@@ -758,6 +758,10 @@ public class Check {
             if (!st.tsym.isAbstract()) {
                 log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
             }
+            if ((st.tsym.flags() & PERMITS_VALUE) != 0) {
+                return;
+            }
+            // We have an unsuitable abstract super class, find out why exactly and complain
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
             }
@@ -1469,6 +1473,8 @@ public class Check {
             if ((flags & VALUE_CLASS) != 0)
                 implicit |= FINAL;
 
+            // ACC_PERMITS_VALUE a legal class flag, but not a legal class modifier
+            mask &= ~ACC_PERMITS_VALUE;
             break;
         default:
             throw new AssertionError();

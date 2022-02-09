@@ -634,7 +634,7 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with uninitialized values and NULL oop
-  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
+  Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
   vt->set_is_init(gvn);
   return vt;
@@ -647,7 +647,7 @@ Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with default values
-  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_INLINE_TYPE);
+  Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
