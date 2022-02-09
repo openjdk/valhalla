@@ -1239,7 +1239,7 @@ bool IfNode::is_flat_array_check(PhaseTransform* phase, Node** array) {
   Node* cmp = bol->in(1);
   if (cmp->isa_FlatArrayCheck()) {
     if (array != NULL) {
-      *array = cmp->in(FlatArrayCheckNode::Array);
+      *array = cmp->in(FlatArrayCheckNode::ArrayOrKlass);
     }
     return true;
   }

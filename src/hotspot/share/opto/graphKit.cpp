@@ -3744,12 +3744,12 @@ Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
   return _gvn.transform(new BoolNode(cmp, eq ? BoolTest::eq : BoolTest::ne));
 }
 
-Node* GraphKit::flat_array_test(Node* ary, bool flat) {
+Node* GraphKit::flat_array_test(Node* array_or_klass, bool flat) {
   // We can't use immutable memory here because the mark word is mutable.
   // PhaseIdealLoop::move_flat_array_check_out_of_loop will make sure the
   // check is moved out of loops (mainly to enable loop unswitching).
   Node* mem = UseArrayMarkWordCheck ? memory(Compile::AliasIdxRaw) : immutable_memory();
-  Node* cmp = _gvn.transform(new FlatArrayCheckNode(C, mem, ary));
+  Node* cmp = _gvn.transform(new FlatArrayCheckNode(C, mem, array_or_klass));
   record_for_igvn(cmp); // Give it a chance to be optimized out by IGVN
   return _gvn.transform(new BoolNode(cmp, flat ? BoolTest::eq : BoolTest::ne));
 }

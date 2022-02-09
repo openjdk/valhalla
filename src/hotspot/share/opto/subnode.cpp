@@ -1396,19 +1396,17 @@ Node *CmpDNode::Ideal(PhaseGVN *phase, bool can_reshape){
 //------------------------------Value------------------------------------------
 const Type* FlatArrayCheckNode::Value(PhaseGVN* phase) const {
   bool all_not_flat = true;
-  for (uint i = Array; i < req(); ++i) {
-    Node* array = in(i);
-    if (!array->is_top()) {
-      const Type* t = phase->type(array);
-      if (t == Type::TOP) {
-        return Type::TOP;
-      } else if (t->is_aryptr()->is_flat()) {
-        // One of the input arrays is flat, check always passes
-        return TypeInt::CC_EQ;
-      } else if (!t->is_aryptr()->is_not_flat()) {
-        // One of the input arrays might be flat
-        all_not_flat = false;
-      }
+  for (uint i = ArrayOrKlass; i < req(); ++i) {
+    const Type* t = phase->type(in(i));
+    if (t == Type::TOP) {
+      return Type::TOP;
+    }
+    if (t->is_ptr()->is_flat()) {
+      // One of the input arrays is flat, check always passes
+      return TypeInt::CC_EQ;
+    } else if (!t->is_ptr()->is_not_flat()) {
+      // One of the input arrays might be flat
+      all_not_flat = false;
     }
   }
   if (all_not_flat) {
@@ -1421,11 +1419,11 @@ const Type* FlatArrayCheckNode::Value(PhaseGVN* phase) const {
 //------------------------------Ideal------------------------------------------
 Node* FlatArrayCheckNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   bool changed = false;
-  // Remove array inputs that are known to be non-flat
-  for (uint i = Array; i < req(); ++i) {
-    const TypeAryPtr* t = phase->type(in(i))->isa_aryptr();
-    if (t != NULL && t->is_not_flat()) {
-      set_req(i, phase->C->top());
+  // Remove inputs that are known to be non-flat
+  for (uint i = ArrayOrKlass; i < req(); ++i) {
+    const Type* t = phase->type(in(i));
+    if (t->isa_ptr() && t->is_ptr()->is_not_flat()) {
+      del_req(i--);
       changed = true;
     }
   }
