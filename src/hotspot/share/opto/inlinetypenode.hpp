@@ -114,6 +114,9 @@ public:
   // Pass inline type as fields at a call or return
   void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool null_free = true);
 
+  InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
+  InlineTypeNode* finish_larval(GraphKit* kit) const;
+
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
 };
 
@@ -147,9 +150,6 @@ public:
   static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
-
-  InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
-  InlineTypeNode* finish_larval(GraphKit* kit) const;
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
   void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true);

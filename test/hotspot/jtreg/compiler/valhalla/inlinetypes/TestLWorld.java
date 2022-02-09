@@ -43,6 +43,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile MyValue5.jcod
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
@@ -3684,7 +3685,11 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {LOAD},
+        // LockNode keeps MyValue1 allocation alive up until macro expansion which in turn keeps MyValue2
+        // alloc alive. Although the MyValue1 allocation is removed (unused), MyValue2 is expanded first
+        // and therefore stays.
+        counts = {ALLOC, "<= 1", STORE, "<= 1"})
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -4282,5 +4287,17 @@ public class TestLWorld {
         if (!info.isWarmUp()) {
             Asserts.assertEquals(test155(info.getTest(), val, false, true), rI);
         }
+    }
+
+    // Test withfield directly operating on inline type arg (instead of on defaultvalue)
+    @Test
+    public MyValue5 test156(MyValue5 vt) throws Throwable {
+        return vt.withField(rI);
+    }
+
+    @Run(test = "test156")
+    @Warmup(10000)
+    public void test156_verifier() throws Throwable {
+        Asserts.assertEquals(test156(new MyValue5()).x, rI);
     }
 }

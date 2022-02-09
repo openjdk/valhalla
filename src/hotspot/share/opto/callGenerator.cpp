@@ -839,11 +839,11 @@ void CallGenerator::do_late_inline_helper() {
     C->set_do_cleanup(kit.stopped()); // path is dead; needs cleanup
 
     // Handle inline type returns
-    InlineTypeNode* vt = result->isa_InlineType();
+    InlineTypeBaseNode* vt = result->isa_InlineTypeBase();
     if (vt != NULL) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C);
-      } else {
+      } else if (vt->is_InlineType()) {
         // Result might still be allocated (for example, if it has been stored to a non-flattened field)
         if (!vt->is_allocated(&kit.gvn())) {
           assert(buffer_oop != NULL, "should have allocated a buffer");
@@ -861,6 +861,8 @@ void CallGenerator::do_late_inline_helper() {
         // Convert to InlineTypePtrNode to keep track of field values
         result = vt->as_ptr(&kit.gvn());
       }
+    } else {
+      assert(!call->tf()->returns_inline_type_as_fields(), "FAIL");
     }
     assert(buffer_oop == NULL, "unused buffer allocation");
 

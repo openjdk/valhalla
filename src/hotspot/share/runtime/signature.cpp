@@ -395,7 +395,7 @@ InlineKlass* SignatureStream::is_inline_klass(InstanceKlass* holder) {
   // TODO we need to check parent method args, look at klassVtable::needs_new_vtable_entry
   // TODO Make sure no classes are loaded
   //Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);
-  // TODO For now, load all signature classe
+  // TODO For now, load all signature classes
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
   assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved inline klass");
   if (k != NULL && k->is_inline_klass()) {

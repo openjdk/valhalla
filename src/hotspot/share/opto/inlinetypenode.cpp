@@ -294,7 +294,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
   bool use_oop = allow_oop && (is_InlineTypePtr() || is_allocated(igvn)) &&
-                 (oop->is_Con() || oop->is_Load() || (oop->isa_DecodeN() && oop->in(1)->is_Load()));
+                 (oop->is_Con() || oop->is_Parm() || oop->is_Load() || (oop->isa_DecodeN() && oop->in(1)->is_Load()));
 
   ResourceMark rm;
   Unique_Node_List safepoints;
@@ -674,6 +674,7 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* field_type = vt->field_type(i);
     Node* value = gvn.zerocon(field_type->basic_type());
+    // TODO use top for field values and adjust merge code?
     if (field_type->is_inlinetype()) {
       if (vt->field_is_null_free(i)) {
         value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
@@ -706,6 +707,7 @@ bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
   return true;
 }
 
+// TODO declare return as InlineTypeBase
 Node* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
 
@@ -814,9 +816,13 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const {
+InlineTypeNode* InlineTypeBaseNode::make_larval(GraphKit* kit, bool allocate) const {
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = clone()->as_InlineType();
+  InlineTypeNode* res = InlineTypeNode::make_uninitialized(kit->gvn(), vk);
+  for (uint i = 1; i < req(); ++i) {
+    res->set_req(i, in(i));
+  }
+
   if (allocate) {
     // Re-execute if buffering triggers deoptimization
     PreserveReexecuteState preexecs(kit);
@@ -835,7 +841,7 @@ InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const 
   return res;
 }
 
-InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
+InlineTypeNode* InlineTypeBaseNode::finish_larval(GraphKit* kit) const {
   Node* obj = get_oop();
   Node* mark_addr = kit->basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
@@ -849,7 +855,10 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = clone()->as_InlineType();
+  InlineTypeNode* res = InlineTypeNode::make_uninitialized(kit->gvn(), vk);
+  for (uint i = 1; i < req(); ++i) {
+    res->set_req(i, in(i));
+  }
   res->set_type(TypeInlineType::make(vk, false));
   res = kit->gvn().transform(res)->as_InlineType();
   return res;

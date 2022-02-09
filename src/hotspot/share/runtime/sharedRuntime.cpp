@@ -2894,13 +2894,15 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _sig_cc_ro = _sig;
 }
 
-int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver, bool init) {
+int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool init) {
   InstanceKlass* holder = _method->method_holder();
-  sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
+  GrowableArray<SigEntry>* sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
+  bool has_scalarized = false;
   int idx = 0;
   if (!_method->is_static()) {
-    if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields()) {
+    if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
       sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
+      has_scalarized = true;
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT, holder->name());
     }
@@ -2912,6 +2914,7 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
     //if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
       InlineKlass* vk = ss.is_inline_klass(holder);
       if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
+        has_scalarized = true;
         int last = sig_cc->length();
         sig_cc->appendAll(vk->extended_sig());
         if (bt == T_OBJECT) {
@@ -2927,7 +2930,19 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
     }
     if (bt != T_VOID) idx++;
   }
-  regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
+  // TODO hack
+  if (!has_scalarized && scalar_receiver) {
+    return _args_on_stack;
+  }
+
+  VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
+  if (scalar_receiver) {
+    _sig_cc = sig_cc;
+    _regs_cc = regs_cc;
+  } else {
+    _sig_cc_ro = sig_cc;
+    _regs_cc_ro = regs_cc;
+  }
   return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
 }
 
@@ -2975,6 +2990,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
   if (_method != NULL) {
     int idx = 0;
     if (!_method->is_static()) {
+      // TODO missing && (init || _method->is_scalarized_arg(idx)) ?
       if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
         _has_inline_recv = true;
         _num_inline_args++;
@@ -3012,20 +3028,20 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
   _args_on_stack_cc_ro = _args_on_stack;
 
   if (has_inline_arg() && !_method->is_native()) {
-    _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true, init);
+    _args_on_stack_cc = compute_scalarized_cc(/* scalar_receiver = */ true, init);
 
     _sig_cc_ro = _sig_cc;
     _regs_cc_ro = _regs_cc;
     _args_on_stack_cc_ro = _args_on_stack_cc;
     if (_has_inline_recv) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
-      _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false, init);
+      _args_on_stack_cc_ro = compute_scalarized_cc(/* scalar_receiver = */ false, init);
     }
 
     // Upper bound on stack arguments to avoid hitting the argument limit and
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
-    if (_args_on_stack_cc > 50) {
+    if (_args_on_stack_cc > 60) {
       // Don't scalarize inline type arguments
       _sig_cc = _sig;
       _sig_cc_ro = _sig;

@@ -2327,6 +2327,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (base->is_InlineTypeBase()) {
     InlineTypeBaseNode* vt = base->as_InlineTypeBase();
     if (is_store) {
+
+      // TODO should check for pointer, right?
       if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->isa_inlinetype() || !_gvn.type(vt)->is_inlinetype()->larval()) {
         return false;
       }
@@ -2464,6 +2466,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       }
     } else if (adr_type->isa_aryptr()) {
       const Type* elem = adr_type->is_aryptr()->elem();
+      // TODO check for ptr?
       if (!elem->isa_inlinetype()) {
         mismatched = true;
       } else if (elem->inline_klass() != inline_klass) {
@@ -2474,7 +2477,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
-      if (!val_t->isa_inlinetype() || val_t->inline_klass() != inline_klass) {
+      if (!(val_t->isa_inlinetype() || val_t->is_inlinetypeptr()) || val_t->inline_klass() != inline_klass) {
         set_map(old_map);
         set_sp(old_sp);
         return false;
@@ -2593,7 +2596,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   if (argument(1)->is_InlineType() && is_store) {
     Node* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
-    value = value->as_InlineType()->make_larval(this, false);
+    value = value->as_InlineTypeBase()->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
 
@@ -2603,7 +2606,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
-  if (!value->is_InlineType()) {
+  if (!value->is_InlineTypeBase()) {
     return false;
   }
 
@@ -2612,7 +2615,7 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineType()->make_larval(this, true));
+  set_result(value->as_InlineTypeBase()->make_larval(this, true));
   return true;
 }
 

@@ -85,9 +85,9 @@ public final primitive class MyValue1 extends MyAbstract {
         int[] oa = {x};
         v = setOA(v, oa);
         v = setV1(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD));
-        v = setV2(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + x));
-        v = setV4(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + 2*x));
-        v = setV5(v, MyValue2.createWithFieldsInline(x, y, InlineTypes.rD + 2*x));
+        v = setV2(v, MyValue2.createWithFieldsInline(x + 1, y + 1, InlineTypes.rD + 1));
+        v = setV4(v, MyValue2.createWithFieldsInline(x + 2, y + 2, InlineTypes.rD + 2));
+        v = setV5(v, MyValue2.createWithFieldsInline(x + 3, y + 3, InlineTypes.rD + 3));
         v = setC(v, (int)(x+y));
         return v;
     }
@@ -95,7 +95,7 @@ public final primitive class MyValue1 extends MyAbstract {
     // Hash only primitive and inline type fields to avoid NullPointerException
     @ForceInline
     public long hashPrimitive() {
-        return s + sf + x + y + z + c + v1.hash() + v2.hash() + v3.hash();
+        return s + sf + x + y + z + c + v1.hash() + v2.hash() + v3.hash() + v5.hash();
     }
 
     @ForceInline

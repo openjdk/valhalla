@@ -346,8 +346,9 @@ void Parse::do_withfield() {
   Node* holder = pop();
   int nargs = 1 + field->type()->size();
 
-  if (!holder->is_InlineType()) {
+  if (!holder->is_InlineTypeBase()) {
     // Scalarize inline type holder
+    // TODO needed?
     assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
     holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
   }
@@ -363,13 +364,26 @@ void Parse::do_withfield() {
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
   }
+  if (val->is_InlineTypePtr() && field->is_null_free()) {
+    // TODO assert is too strong because make_null initializes non-null fields with null
+    //assert(!gvn().type(val)->maybe_null(), "Null store to null-free field");
+    // TODO otherwise we might keep allocation alive at return, add targeted tests!
+    // TODO hack
+    Node* newVal = InlineTypeNode::make_uninitialized(gvn(), field->type()->as_inline_klass());
+    for (uint i = 1; i < val->req(); ++i) {
+      newVal->set_req(i, val->in(i));
+    }
+    val = gvn().transform(newVal);
+  }
 
   // Clone the inline type node and set the new field value
-  InlineTypeNode* new_vt = holder->clone()->as_InlineType();
-  new_vt->set_oop(_gvn.zerocon(T_INLINE_TYPE));
-  gvn().set_type(new_vt, new_vt->bottom_type());
-  new_vt->set_field_value_by_offset(field->offset(), val);
+  assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
 
+  InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
+  for (uint i = 2; i < holder->req(); ++i) {
+    new_vt->set_req(i, holder->in(i));
+  }
+  new_vt->set_field_value_by_offset(field->offset(), val);
   push(_gvn.transform(new_vt));
 }
 
