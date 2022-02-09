@@ -34,6 +34,7 @@
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import static java.lang.invoke.MethodType.*;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -56,9 +57,12 @@ public class MHZeroValue {
     @DataProvider
     public static Object[][] defaultValue() {
         return new Object[][] {
-                new Object[] { V.class, null },
-                new Object[] { P.class.asPrimaryType(), null },
-                new Object[] { P.class.asValueType(), P.default },
+                // for any type T, default value is always the same as (new T[1])[0]
+                new Object[] { int.class,               (new int[1])[0] },
+                new Object[] { Integer.class,           (new Integer[1])[0] },
+                new Object[] { P.class.asValueType(),   (new P[1])[0] },
+                new Object[] { P.class.asPrimaryType(), (new P.ref[1])[0] },
+                new Object[] { V.class,                 (new V[1])[0] },
         };
     }
     @Test(dataProvider = "defaultValue")
@@ -67,30 +71,47 @@ public class MHZeroValue {
         assertEquals(mh.invoke(), value);
     }
 
-    @Test(dataProvider = "defaultValue")
-    public void constant(Class<?> type, Object value) throws Throwable {
-        MethodHandle mh = MethodHandles.constant(type, value);
-        assertEquals(mh.invoke(), value);
+    @DataProvider
+    public static Object[][] primitives() {
+        return new Object[][] {
+                // int : Integer
+                new Object[] { int.class,             Integer.class },
+                // Point : Point.ref
+                new Object[] { P.class.asValueType(), P.class.asPrimaryType() },
+                new Object[] { null,                  V.class },
+        };
     }
+    @Test(dataProvider = "primitives")
+    public void constant(Class<?> primitiveType, Class<?> refType) throws Throwable {
+        if (primitiveType != null) {
+            try {
+                MethodHandles.constant(primitiveType, null);
+                fail("Expected NPE thrown for " + primitiveType.getName());
+            } catch (NullPointerException e) {
+            }
+        }
 
-    @Test(expectedExceptions = ClassCastException.class)
-    public void constant() throws Throwable {
-        MethodHandles.constant(P.class.asValueType(), null);
+        try {
+            MethodHandles.constant(refType, "invalid value");
+            fail("Expected CCE thrown for " + refType.getName());
+        } catch (ClassCastException e) {}
     }
 
     @DataProvider
-    public static Object[][] methodTypes() {
+    public static Object[][] emptyTypes() {
         Class<?> pref = P.class.asPrimaryType();
         Class<?> pval = P.class.asValueType();
         return new Object[][] {
-                new Object[] { MethodType.methodType(pval, int.class, pref),       null,    P.default },
-                new Object[] { MethodType.methodType(pref, int.class, pval),       new P(), null },
-                new Object[] { MethodType.methodType(V.class, int.class, pval),    new P(), null },
-                new Object[] { MethodType.methodType(V.class, int.class, V.class), new V(), null },
+                new Object[] { methodType(int.class, int.class, Object.class),     new V(), 0 },
+                new Object[] { methodType(Integer.class, int.class, Object.class), new P(), null },
+                new Object[] { methodType(pval, int.class, pref),                  null,    P.default },
+                new Object[] { methodType(pref, int.class, pval),                  new P(), null },
+                new Object[] { methodType(V.class, int.class, pval),               new P(), null },
+                new Object[] { methodType(V.class, int.class, V.class),            new V(), null },
         };
     }
 
-    @Test(dataProvider = "methodTypes")
+    @Test(dataProvider = "emptyTypes")
     public void empty(MethodType mtype, Object param, Object value) throws Throwable {
         MethodHandle mh = MethodHandles.empty(mtype);
         assertEquals(mh.invoke(1, param), value);

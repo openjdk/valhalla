@@ -5033,7 +5033,9 @@ assert((int)twice.invokeExact(21) == 42);
      * @param type the return type of the desired method handle
      * @param value the value to return
      * @return a method handle of the given return type and no arguments, which always returns the given value
-     * @throws NullPointerException if the {@code type} argument is null
+     * @throws NullPointerException if the given {@code type} is null, or
+     *         if the given {@code type} is primitive or a primitive value type
+     *         and the given value is null
      * @throws ClassCastException if the value cannot be converted to the required return type
      * @throws IllegalArgumentException if the given type is {@code void.class}
      */
@@ -5046,12 +5048,8 @@ assert((int)twice.invokeExact(21) == 42);
             if (w.zero().equals(value))
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
-        } else if (type.isPrimitiveValueType()) {
-            if (value == null)
-                throw new ClassCastException("value cannot be null for primitive value type " + type.getName());
-            return defaultValue(type);
         } else {
-            if (value == null)
+            if (!type.isPrimitiveValueType() && value == null)
                 return zero(Wrapper.OBJECT, type);
             return identity(type).bindTo(value);
         }
@@ -5099,7 +5097,9 @@ assert((int)twice.invokeExact(21) == 42);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
         } else if (type.isPrimitiveValueType()) {
-            return defaultValue(type);
+            // singleton default value
+            Object value = UNSAFE.uninitializedDefaultValue(type);
+            return identity(type).bindTo(value);
         } else {
             return zero(Wrapper.OBJECT, type);
         }
@@ -5139,13 +5139,6 @@ assert((int)twice.invokeExact(21) == 42);
         MethodType mtype = MethodType.methodType(ptype, ptype);
         LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
         return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
-    }
-
-    private static MethodHandle defaultValue(Class<?> type) {
-        if (!type.isPrimitiveValueType())
-            throw new IllegalArgumentException(type.getName() + " not a primitive value type");
-        Object value = UNSAFE.uninitializedDefaultValue(type);
-        return identity(type).bindTo(value);
     }
 
     private static MethodHandle zero(Wrapper btw, Class<?> rtype) {
