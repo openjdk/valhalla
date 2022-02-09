@@ -5672,7 +5672,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
   // TODO we should only null check if there is work left and not if we bail out! Add test for that
   // TODO we only need a null check if the arg is nullable (check for pivot field?)
-  bool null_check = reg_state[from->value()] != reg_written;
+  bool null_check = false;
 
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
@@ -5716,6 +5716,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         movq(r10, Address(rsp, st_off));
         fromReg = r10;
       }
+      null_check = reg_state[from->value()] != reg_written;
       if (null_check) {
         testptr(fromReg, fromReg);
         jcc(Assembler::zero, L_null);
