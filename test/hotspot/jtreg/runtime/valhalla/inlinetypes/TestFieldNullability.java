@@ -24,7 +24,8 @@
 /**
  * @test TestFieldNullability
  * @library /test/lib
- * @compile -XDallowWithFieldOperator TestFieldNullability.java
+ * @compile TestFieldNullabilityHelper.jasm
+ * @compile TestFieldNullability.java
  * @run main/othervm -Xmx128m -XX:InlineFieldMaxFlatSize=32
  *                   runtime.valhalla.inlinetypes.TestFieldNullability
  */
@@ -51,46 +52,30 @@ public class TestFieldNullability {
             l10 = l11 = l12 = l13 = l14 = l15 = l16 = l17 = l18 = l19 = 271;
         }
     }
-
-    static primitive class TestInlineType {
-        final MyValue.ref nullableField;
-        final MyValue nullfreeField;        // flattened
-        final MyValue.ref nullField;           // src of null
-        final MyBigValue nullfreeBigField;  // not flattened
-        final MyBigValue.ref nullBigField;     // src of null
-
-        public void test() {
-            Asserts.assertNull(nullField, "Invalid non null value for uninitialized non flattenable field");
-            Asserts.assertNull(nullBigField, "Invalid non null value for uninitialized non flattenable field");
-            boolean NPE = false;
-            try {
-                TestInlineType tv = __WithField(this.nullableField, nullField);
-            } catch(NullPointerException e) {
-                NPE = true;
-            }
-            Asserts.assertFalse(NPE, "Invalid NPE when assigning null to a non flattenable field");
-            try {
-                TestInlineType tv = __WithField(this.nullfreeField, (MyValue) nullField);
-            } catch(NullPointerException e) {
-                NPE = true;
-            }
-            Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattened field");
-            try {
-                TestInlineType tv = __WithField(this.nullfreeBigField, (MyBigValue) nullBigField);
-            } catch(NullPointerException e) {
-                NPE = true;
-            }
-            Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattenable field");
+    
+    static void testInlineType() {
+        TestInlineType that = TestInlineType.default;
+        Asserts.assertNull(that.nullField, "Invalid non null value for uninitialized non flattenable field");
+        Asserts.assertNull(that.nullBigField, "Invalid non null value for uninitialized non flattenable field");
+        boolean NPE = false;
+        try {
+            TestInlineType tv = that.withNullableField(that.nullField);
+        } catch(NullPointerException e) {
+            NPE = true;
         }
-
-        public TestInlineType() {
-            nullableField = MyValue.default;
-            nullfreeField = MyValue.default;
-            nullField = MyValue.default;           // fake assignment
-            nullfreeBigField = MyBigValue.default;
-            nullBigField = MyBigValue.default;     // fake assignment
-
+        Asserts.assertFalse(NPE, "Invalid NPE when assigning null to a non flattenable field");
+        try {
+            TestInlineType tv = that.withNullfreeField((MyValue) that.nullField);
+        } catch(NullPointerException e) {
+            NPE = true;
         }
+        Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattened field");
+        try {
+            TestInlineType tv = that.withNullfreeBigField((MyBigValue) that.nullBigField);
+        } catch(NullPointerException e) {
+            NPE = true;
+        }
+        Asserts.assertTrue(NPE, "Missing NPE when assigning null to a flattenable field");
     }
 
     static class TestClass {
@@ -128,9 +113,7 @@ public class TestFieldNullability {
     public static void main(String[] args) {
         TestClass tc = new TestClass();
         tc.test();
-        TestInlineType tv =
-            TestInlineType.default;
-        tv.test();
+        testInlineType();
     }
 
 }
