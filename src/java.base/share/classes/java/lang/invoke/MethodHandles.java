@@ -5046,6 +5046,10 @@ assert((int)twice.invokeExact(21) == 42);
             if (w.zero().equals(value))
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
+        } else if (type.isPrimitiveValueType()) {
+            if (value == null)
+                throw new ClassCastException("value cannot be null for primitive value type " + type.getName());
+            return defaultValue(type);
         } else {
             if (value == null)
                 return zero(Wrapper.OBJECT, type);
@@ -5094,9 +5098,8 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (type.isValue()) {
-            // TBD
-            throw new UnsupportedOperationException();
+        } else if (type.isPrimitiveValueType()) {
+            return defaultValue(type);
         } else {
             return zero(Wrapper.OBJECT, type);
         }
@@ -5109,7 +5112,11 @@ assert((int)twice.invokeExact(21) == 42);
     /**
      * Produces a method handle of the requested type which ignores any arguments, does nothing,
      * and returns a suitable default depending on the return type.
-     * That is, it returns a zero primitive value, a {@code null}, or {@code void}.
+     * If the requested type is a primitive type or {@code void}, it returns
+     * a zero primitive value or {@ocde void}.
+     * If the requested type is a {@linkplain Class#isPrimitiveValueType() primitive value type},
+     * it returns a primitive object with the default value.
+     * If the requested type is a reference type, it returns {@code null}.
      * <p>The returned method handle is equivalent to
      * {@code dropArguments(zero(type.returnType()), 0, type.parameterList())}.
      *
@@ -5132,6 +5139,13 @@ assert((int)twice.invokeExact(21) == 42);
         MethodType mtype = MethodType.methodType(ptype, ptype);
         LambdaForm lform = LambdaForm.identityForm(BasicType.basicType(ptype));
         return MethodHandleImpl.makeIntrinsic(mtype, lform, Intrinsic.IDENTITY);
+    }
+
+    private static MethodHandle defaultValue(Class<?> type) {
+        if (!type.isPrimitiveValueType())
+            throw new IllegalArgumentException(type.getName() + " not a primitive value type");
+        Object value = UNSAFE.uninitializedDefaultValue(type);
+        return identity(type).bindTo(value);
     }
 
     private static MethodHandle zero(Wrapper btw, Class<?> rtype) {
