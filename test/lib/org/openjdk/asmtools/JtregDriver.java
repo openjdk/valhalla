@@ -41,6 +41,12 @@ import org.openjdk.asmtools.jdis.uEscWriter;
  *
  * - For other tools, class files are expected to appear in ${test.classes},
  *   and output is sent to the scratch working directory
+ *
+ * Example jtreg usage:
+ *
+ * @library /test/lib
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFile.jasm
  */
 public class JtregDriver {
     
