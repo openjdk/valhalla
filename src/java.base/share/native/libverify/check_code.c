@@ -3724,13 +3724,12 @@ static const char* get_result_signature(const char* signature) {
           case JVM_SIGNATURE_FUNC:  /* ignore initial (, if given */
             break;
           case JVM_SIGNATURE_CLASS:
-          case JVM_SIGNATURE_PRIMITIVE_OBJECT:
             while (*p != JVM_SIGNATURE_ENDCLASS) p++;
             break;
           case JVM_SIGNATURE_ARRAY:
             while (*p == JVM_SIGNATURE_ARRAY) p++;
             /* If an array of classes, skip over class name, too. */
-            if (*p == JVM_SIGNATURE_CLASS || *p == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+            if (*p == JVM_SIGNATURE_CLASS) {
                 while (*p != JVM_SIGNATURE_ENDCLASS) p++;
             }
             break;
@@ -3809,8 +3808,7 @@ signature_to_fieldtype(context_type *context,
                 array_depth++;
                 continue;       /* only time we ever do the loop > 1 */
 
-            case JVM_SIGNATURE_CLASS:
-            case JVM_SIGNATURE_PRIMITIVE_OBJECT: {
+            case JVM_SIGNATURE_CLASS: {
                 char buffer_space[256];
                 char *buffer = buffer_space;
                 char *finish = strchr(p, JVM_SIGNATURE_ENDCLASS);
@@ -4193,7 +4191,6 @@ static int signature_to_args_size(const char *method_signature)
             args_size += 1;
             break;
           case JVM_SIGNATURE_CLASS:
-          case JVM_SIGNATURE_PRIMITIVE_OBJECT:
             args_size += 1;
             while (*p != JVM_SIGNATURE_ENDCLASS) p++;
             break;
@@ -4201,7 +4198,7 @@ static int signature_to_args_size(const char *method_signature)
             args_size += 1;
             while ((*p == JVM_SIGNATURE_ARRAY)) p++;
             /* If an array of classes, skip over class name, too. */
-            if (*p == JVM_SIGNATURE_CLASS || *p == JVM_SIGNATURE_PRIMITIVE_OBJECT) {
+            if (*p == JVM_SIGNATURE_CLASS) {
                 while (*p != JVM_SIGNATURE_ENDCLASS)
                   p++;
             }
