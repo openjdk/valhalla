@@ -997,7 +997,7 @@ void DumperSupport:: write_header(AbstractDumpWriter* writer, hprofTag tag, u4 l
 hprofTag DumperSupport::sig2tag(Symbol* sig) {
   switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS    : return HPROF_NORMAL_OBJECT;
-    case JVM_SIGNATURE_INLINE_TYPE: return HPROF_NORMAL_OBJECT;
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT: return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_ARRAY    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_BYTE     : return HPROF_BYTE;
     case JVM_SIGNATURE_CHAR     : return HPROF_CHAR;
@@ -1028,7 +1028,7 @@ hprofTag DumperSupport::type2tag(BasicType type) {
 u4 DumperSupport::sig2size(Symbol* sig) {
   switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS:
-    case JVM_SIGNATURE_INLINE_TYPE:
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT:
     case JVM_SIGNATURE_ARRAY: return sizeof(address);
     case JVM_SIGNATURE_BOOLEAN:
     case JVM_SIGNATURE_BYTE: return 1;
@@ -1073,7 +1073,7 @@ void DumperSupport::dump_field_value(AbstractDumpWriter* writer, const FieldStre
   char type = fld.signature()->char_at(0);
   offset += fld.offset();
   switch (type) {
-    case JVM_SIGNATURE_INLINE_TYPE: {
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT: {
       if (fld.field_descriptor().is_inlined()) {
         writer->write_inlinedObjectID(writer->inlined_object_support());
         break;
@@ -1481,12 +1481,12 @@ void DumperSupport::dump_basic_type_array_class(AbstractDumpWriter* writer, Klas
 // which means we need to truncate arrays that are too long.
 int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, short header_size) {
   BasicType type = ArrayKlass::cast(array->klass())->element_type();
-  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_INLINE_TYPE, "invalid array element type");
+  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_PRIMITIVE_OBJECT, "invalid array element type");
 
   int length = array->length();
 
   int type_size;
-  if (type == T_OBJECT || type == T_INLINE_TYPE) {
+  if (type == T_OBJECT || type == T_PRIMITIVE_OBJECT) {
     type_size = sizeof(address);
   } else {
     type_size = type2aelembytes(type);
@@ -2043,7 +2043,6 @@ class VM_HeapDumper : public VM_GC_Operation, public WorkerTask {
       // Number of dumper threads that only iterate heap.
       uint _heap_only_dumper_threads = _num_dumper_threads - 1 /* VMDumper thread */;
       _dumper_controller = new (std::nothrow) DumperController(_heap_only_dumper_threads);
-      _poi = Universe::heap()->parallel_object_iterator(_num_dumper_threads);
     }
   }
 
@@ -2131,10 +2130,6 @@ class VM_HeapDumper : public VM_GC_Operation, public WorkerTask {
         delete _stack_traces[i];
       }
       FREE_C_HEAP_ARRAY(ThreadStackTrace*, _stack_traces);
-    }
-    if (_poi != NULL) {
-      delete _poi;
-      _poi = NULL;
     }
     if (_dumper_controller != NULL) {
       delete _dumper_controller;
@@ -2385,7 +2380,14 @@ void VM_HeapDumper::doit() {
     work(0);
   } else {
     prepare_parallel_dump(workers->active_workers());
-    workers->run_task(this);
+    if (_num_dumper_threads > 1) {
+      ParallelObjectIterator poi(_num_dumper_threads);
+      _poi = &poi;
+      workers->run_task(this);
+      _poi = NULL;
+    } else {
+      workers->run_task(this);
+    }
     finish_parallel_dump();
   }
 
@@ -2519,7 +2521,7 @@ void VM_HeapDumper::dump_stack_traces() {
       HandleMark hm(current_thread);
 
       ThreadStackTrace* stack_trace = new ThreadStackTrace(thread, false);
-      stack_trace->dump_stack_at_safepoint(-1);
+      stack_trace->dump_stack_at_safepoint(-1, /* ObjectMonitorsHashtable is not needed here */ nullptr);
       _stack_traces[_num_threads++] = stack_trace;
 
       // write HPROF_FRAME records for this thread's stack trace

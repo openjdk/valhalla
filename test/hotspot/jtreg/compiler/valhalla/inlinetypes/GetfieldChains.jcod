@@ -1,7 +1,7 @@
 class compiler/valhalla/inlinetypes/NamedRectangleN {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -161,7 +161,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
 class compiler/valhalla/inlinetypes/NamedRectangleP {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -318,58 +318,10 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/NamedRectangleP
 
-class compiler/valhalla/inlinetypes/PointN$ref {
-  0xCAFEBABE;
-  0; // minor version
-  62; // version
-  [] { // Constant Pool
-    ; // first element is empty
-    class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/PointN$ref"; // #2
-    class #4; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "SourceFile"; // #5
-    Utf8 "PointN.java"; // #6
-    Utf8 "NestMembers"; // #7
-    class #9; // #8
-    Utf8 "compiler/valhalla/inlinetypes/PointN"; // #9
-    Utf8 "PermittedSubclasses"; // #10
-  } // Constant Pool
-
-  0x0421; // access
-  #1;// this_cpx
-  #3;// super_cpx
-
-  [] { // Interfaces
-  } // Interfaces
-
-  [] { // Fields
-  } // Fields
-
-  [] { // Methods
-  } // Methods
-
-  [] { // Attributes
-    Attr(#5) { // SourceFile
-      #6;
-    } // end SourceFile
-    ;
-    Attr(#7) { // NestMembers
-      [] { // classes
-        #8;
-      }
-    } // end NestMembers
-    ;
-    Attr(#10) { // PermittedSubclasses
-      0x00010008;
-    } // end PermittedSubclasses
-  } // Attributes
-} // end class compiler/valhalla/inlinetypes/PointN$ref
-
 class compiler/valhalla/inlinetypes/PointN {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -386,7 +338,7 @@ class compiler/valhalla/inlinetypes/PointN {
     Utf8 "toString"; // #12
     Utf8 "(Qcompiler/valhalla/inlinetypes/PointN;)Ljava/lang/String;"; // #13
     class #15; // #14
-    Utf8 "compiler/valhalla/inlinetypes/PointN$ref"; // #15
+    Utf8 "java/lang/Object"; // #15
     Utf8 "()Ljava/lang/String;"; // #16
     Utf8 "Code"; // #17
     Utf8 "LineNumberTable"; // #18
@@ -517,58 +469,10 @@ class compiler/valhalla/inlinetypes/PointN {
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/PointN
 
-class compiler/valhalla/inlinetypes/RectangleN$ref {
-  0xCAFEBABE;
-  0; // minor version
-  62; // version
-  [] { // Constant Pool
-    ; // first element is empty
-    class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/RectangleN$ref"; // #2
-    class #4; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "SourceFile"; // #5
-    Utf8 "RectangleN.java"; // #6
-    Utf8 "NestMembers"; // #7
-    class #9; // #8
-    Utf8 "compiler/valhalla/inlinetypes/RectangleN"; // #9
-    Utf8 "PermittedSubclasses"; // #10
-  } // Constant Pool
-
-  0x0421; // access
-  #1;// this_cpx
-  #3;// super_cpx
-
-  [] { // Interfaces
-  } // Interfaces
-
-  [] { // Fields
-  } // Fields
-
-  [] { // Methods
-  } // Methods
-
-  [] { // Attributes
-    Attr(#5) { // SourceFile
-      #6;
-    } // end SourceFile
-    ;
-    Attr(#7) { // NestMembers
-      [] { // classes
-        #8;
-      }
-    } // end NestMembers
-    ;
-    Attr(#10) { // PermittedSubclasses
-      0x00010008;
-    } // end PermittedSubclasses
-  } // Attributes
-} // end class compiler/valhalla/inlinetypes/RectangleN$ref
-
 class compiler/valhalla/inlinetypes/RectangleN {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -591,7 +495,7 @@ class compiler/valhalla/inlinetypes/RectangleN {
     Utf8 "toString"; // #18
     Utf8 "(Qcompiler/valhalla/inlinetypes/RectangleN;)Ljava/lang/String;"; // #19
     class #21; // #20
-    Utf8 "compiler/valhalla/inlinetypes/RectangleN$ref"; // #21
+    Utf8 "java/lang/Object"; // #21
     Utf8 "()Ljava/lang/String;"; // #22
     Utf8 "Code"; // #23
     Utf8 "LineNumberTable"; // #24
@@ -721,58 +625,10 @@ class compiler/valhalla/inlinetypes/RectangleN {
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/RectangleN
 
-class compiler/valhalla/inlinetypes/RectangleP$ref {
-  0xCAFEBABE;
-  0; // minor version
-  62; // version
-  [] { // Constant Pool
-    ; // first element is empty
-    class #2; // #1
-    Utf8 "compiler/valhalla/inlinetypes/RectangleP$ref"; // #2
-    class #4; // #3
-    Utf8 "java/lang/Object"; // #4
-    Utf8 "SourceFile"; // #5
-    Utf8 "Rectangle.java"; // #6
-    Utf8 "NestMembers"; // #7
-    class #9; // #8
-    Utf8 "compiler/valhalla/inlinetypes/RectangleP"; // #9
-    Utf8 "PermittedSubclasses"; // #10
-  } // Constant Pool
-
-  0x0421; // access
-  #1;// this_cpx
-  #3;// super_cpx
-
-  [] { // Interfaces
-  } // Interfaces
-
-  [] { // Fields
-  } // Fields
-
-  [] { // Methods
-  } // Methods
-
-  [] { // Attributes
-    Attr(#5) { // SourceFile
-      #6;
-    } // end SourceFile
-    ;
-    Attr(#7) { // NestMembers
-      [] { // classes
-        #8;
-      }
-    } // end NestMembers
-    ;
-    Attr(#10) { // PermittedSubclasses
-      0x00010008;
-    } // end PermittedSubclasses
-  } // Attributes
-} // end class compiler/valhalla/inlinetypes/RectangleP$ref
-
 class compiler/valhalla/inlinetypes/RectangleP {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -795,7 +651,7 @@ class compiler/valhalla/inlinetypes/RectangleP {
     Utf8 "toString"; // #18
     Utf8 "(Qcompiler/valhalla/inlinetypes/RectangleP;)Ljava/lang/String;"; // #19
     class #21; // #20
-    Utf8 "compiler/valhalla/inlinetypes/RectangleP$ref"; // #21
+    Utf8 "java/lang/Object"; // #21
     Utf8 "()Ljava/lang/String;"; // #22
     Utf8 "Code"; // #23
     Utf8 "LineNumberTable"; // #24

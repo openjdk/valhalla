@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2002,7 +2002,7 @@ public class MethodHandles {
          * there is no internal form available to record in any class's constant pool.
          * A hidden class or interface is not discoverable by {@link Class#forName(String, boolean, ClassLoader)},
          * {@link ClassLoader#loadClass(String, boolean)}, or {@link #findClass(String)}, and
-         * is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
+         * is not {@linkplain java.instrument/java.lang.instrument.Instrumentation#isModifiableClass(Class)
          * modifiable} by Java agents or tool agents using the <a href="{@docRoot}/../specs/jvmti.html">
          * JVM Tool Interface</a>.
          *
@@ -2105,6 +2105,7 @@ public class MethodHandles {
          * @jvms 5.5 Initialization
          * @jls 12.7 Unloading of Classes and Interfaces
          */
+        @SuppressWarnings("doclint:reference") // cross-module links
         public Lookup defineHiddenClass(byte[] bytes, boolean initialize, ClassOption... options)
                 throws IllegalAccessException
         {
@@ -5032,7 +5033,9 @@ assert((int)twice.invokeExact(21) == 42);
      * @param type the return type of the desired method handle
      * @param value the value to return
      * @return a method handle of the given return type and no arguments, which always returns the given value
-     * @throws NullPointerException if the {@code type} argument is null
+     * @throws NullPointerException if the given {@code type} is null, or
+     *         if the given {@code type} is primitive or a primitive value type
+     *         and the given value is null
      * @throws ClassCastException if the value cannot be converted to the required return type
      * @throws IllegalArgumentException if the given type is {@code void.class}
      */
@@ -5046,7 +5049,7 @@ assert((int)twice.invokeExact(21) == 42);
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
         } else {
-            if (value == null)
+            if (!type.isPrimitiveValueType() && value == null)
                 return zero(Wrapper.OBJECT, type);
             return identity(type).bindTo(value);
         }
@@ -5093,9 +5096,10 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (type.isValue()) {
-            // TBD
-            throw new UnsupportedOperationException();
+        } else if (type.isPrimitiveValueType()) {
+            // singleton default value
+            Object value = UNSAFE.uninitializedDefaultValue(type);
+            return identity(type).bindTo(value);
         } else {
             return zero(Wrapper.OBJECT, type);
         }
@@ -5108,7 +5112,11 @@ assert((int)twice.invokeExact(21) == 42);
     /**
      * Produces a method handle of the requested type which ignores any arguments, does nothing,
      * and returns a suitable default depending on the return type.
-     * That is, it returns a zero primitive value, a {@code null}, or {@code void}.
+     * If the requested type is a primitive type or {@code void}, it returns
+     * a zero primitive value or {@code void}.
+     * If the requested type is a {@linkplain Class#isPrimitiveValueType() primitive value type},
+     * it returns a primitive object with the default value.
+     * If the requested type is a reference type, it returns {@code null}.
      * <p>The returned method handle is equivalent to
      * {@code dropArguments(zero(type.returnType()), 0, type.parameterList())}.
      *

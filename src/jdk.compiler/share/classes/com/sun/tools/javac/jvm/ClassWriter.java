@@ -1564,7 +1564,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & ClassFlags;
+            flags = flags & AdjustedClassFlags;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 

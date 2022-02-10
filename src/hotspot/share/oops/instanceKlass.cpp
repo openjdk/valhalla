@@ -142,6 +142,7 @@
 
 #endif //  ndef DTRACE_ENABLED
 
+bool InstanceKlass::_finalization_enabled = true;
 
 static inline bool is_class_loader(const Symbol* class_name,
                                    const ClassFileParser& parser) {
@@ -162,7 +163,7 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
-bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_INLINE_TYPE; }
+bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_PRIMITIVE_OBJECT; }
 
 // private: called to verify that k is a static member of this nest.
 // We know that k is an instance class in the same package and hence the
@@ -725,6 +726,12 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_permitted_subclasses(NULL);
 
+  if (preload_classes() != NULL &&
+      preload_classes() != Universe::the_empty_short_array() &&
+      !preload_classes()->is_shared()) {
+    MetadataFactory::free_array<jushort>(loader_data, preload_classes());
+  }
+
   // We should deallocate the Annotations instance if it's not in shared spaces.
   if (annotations() != NULL && !annotations()->is_shared()) {
     MetadataFactory::free_metadata(loader_data, annotations());
@@ -960,9 +967,9 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           if (ss.is_array()) {
             continue;
           }
-          if (ss.type() == T_INLINE_TYPE) {
+          if (ss.type() == T_PRIMITIVE_OBJECT) {
             Symbol* symb = ss.as_symbol();
-
+            if (symb == name()) continue;
             oop loader = class_loader();
             oop protection_domain = this->protection_domain();
             Klass* klass = SystemDictionary::resolve_or_fail(symb,
@@ -985,7 +992,9 @@ bool InstanceKlass::link_class_impl(TRAPS) {
     // Aggressively preloading all classes from the Preload attribute
     if (preload_classes() != NULL) {
       for (int i = 0; i < preload_classes()->length(); i++) {
+        if (constants()->tag_at(preload_classes()->at(i)).is_klass()) continue;
         Symbol* class_name = constants()->klass_at_noresolve(preload_classes()->at(i));
+        if (class_name == name()) continue;
         oop loader = class_loader();
         oop protection_domain = this->protection_domain();
         Klass* klass = SystemDictionary::resolve_or_null(class_name,
@@ -1309,7 +1318,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Initialize classes of inline fields
   if (EnableValhalla) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
+      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
         if (fs.access_flags().is_static() && klass == NULL) {
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
@@ -2609,7 +2618,9 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   } else {
     it->push(&_default_vtable_indices);
   }
-  it->push(&_fields);
+
+  // _fields might be written into by Rewriter::scan_method() -> fd.set_has_initialized_final_update()
+  it->push(&_fields, MetaspaceClosure::_writable);
 
   if (itable_length() > 0) {
     itableOffsetEntry* ioe = (itableOffsetEntry*)start_of_itable();
@@ -2631,6 +2642,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
+  it->push(&_preload_classes);
   it->push(&_record_components);
 
   if (has_inline_type_fields()) {
@@ -2682,7 +2694,7 @@ void InstanceKlass::remove_unshareable_info() {
 
   if (has_inline_type_fields()) {
     for (AllFieldStream fs(fields(), constants()); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
+      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         reset_inline_type_field_klass(fs.index());
       }
     }
@@ -3715,6 +3727,7 @@ void InstanceKlass::print_on(outputStream* st) const {
     st->print(BULLET"record components:     "); record_components()->print_value_on(st);     st->cr();
   }
   st->print(BULLET"permitted subclasses:     "); permitted_subclasses()->print_value_on(st);     st->cr();
+  st->print(BULLET"preload classes:     "); preload_classes()->print_value_on(st); st->cr();
   if (java_mirror() != NULL) {
     st->print(BULLET"java mirror:       ");
     java_mirror()->print_value_on(st);
