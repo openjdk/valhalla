@@ -5113,7 +5113,7 @@ assert((int)twice.invokeExact(21) == 42);
      * Produces a method handle of the requested type which ignores any arguments, does nothing,
      * and returns a suitable default depending on the return type.
      * If the requested type is a primitive type or {@code void}, it returns
-     * a zero primitive value or {@ocde void}.
+     * a zero primitive value or {@code void}.
      * If the requested type is a {@linkplain Class#isPrimitiveValueType() primitive value type},
      * it returns a primitive object with the default value.
      * If the requested type is a reference type, it returns {@code null}.
