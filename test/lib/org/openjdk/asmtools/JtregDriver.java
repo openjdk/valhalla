@@ -49,7 +49,7 @@ import org.openjdk.asmtools.jdis.uEscWriter;
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFile.jasm
  */
 public class JtregDriver {
-    
+
     public static void main(String... args) throws IOException {
         if (args.length == 0) {
             throw new IllegalArgumentException("Missing asmtools command");
@@ -59,13 +59,13 @@ public class JtregDriver {
                 && !cmd.equals("jdec") && !cmd.equals("jcdec")) {
             throw new IllegalArgumentException("Unrecognized asmtools command: " + cmd);
         }
-        boolean isAssembler = cmd.equals("jasm") || cmd.equals("jcoder");        
+        boolean isAssembler = cmd.equals("jasm") || cmd.equals("jcoder");
         String srcDir = System.getProperty("test.src", ".");
         String clsDir = System.getProperty("test.classes", ".");
         String fileDir = isAssembler ? srcDir : clsDir;
-        
+
         ArrayList<String> toolArgList = new ArrayList<String>();
-        
+
         if (isAssembler) {
             Path destPath = Paths.get(clsDir);
             if (!Files.exists(destPath)) {
@@ -75,7 +75,7 @@ public class JtregDriver {
             toolArgList.add("-d");
             toolArgList.add(clsDir);
         }
-        
+
         boolean isOptionArg = false; // marks an argument to a previous option
         for (int i = 1; i < args.length; i++) {
             String arg = args[i];
@@ -91,7 +91,7 @@ public class JtregDriver {
             }
             toolArgList.add(arg);
         }
-        
+
         String[] toolArgs = toolArgList.toArray(new String[0]);
         boolean success = switch (cmd) {
             case "jasm" -> {
@@ -122,5 +122,5 @@ public class JtregDriver {
             throw new RuntimeException("asmtools execution failed");
         }
     }
-    
+
 }
