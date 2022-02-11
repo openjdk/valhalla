@@ -4291,13 +4291,13 @@ public class TestLWorld {
 
     // Test withfield directly operating on inline type arg (instead of on defaultvalue)
     @Test
-    public MyValue5 test156(MyValue5 vt) throws Throwable {
+    public MyValue5 test156(MyValue5 vt) {
         return vt.withField(rI);
     }
 
     @Run(test = "test156")
     @Warmup(10000)
-    public void test156_verifier() throws Throwable {
+    public void test156_verifier() {
         Asserts.assertEquals(test156(new MyValue5()).x, rI);
     }
 
@@ -4327,5 +4327,25 @@ public class TestLWorld {
     public void test158_verifier() {
         Asserts.assertEquals(test158(0), test158Cache);
         Asserts.assertEquals(test158(rL).hash(), testValue1.hash());
+    }
+
+    // Test null check on withfield receiver
+    @Test
+    public MyValue5.ref test159(MyValue5.ref vt) {
+        return MyValue5.withField(vt, rI);
+    }
+
+    @Run(test = "test159")
+    @Warmup(10000)
+    public void test159_verifier(RunInfo info) {
+        Asserts.assertEquals(test159(new MyValue5()).x, rI);
+        if (!info.isWarmUp()) {
+            try {
+                test159(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 }

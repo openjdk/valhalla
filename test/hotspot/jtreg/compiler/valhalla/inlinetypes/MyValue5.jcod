@@ -32,13 +32,17 @@ primitive class MyValue5 {
     public MyValue5 withField(int x) {
         return __WithField(this.x, x);
     }
+
+    public static MyValue5.ref withField(MyValue5.ref val, int x) {
+        return __WithField(val.x, x);
+    }
 }
 */
 
 class compiler/valhalla/inlinetypes/MyValue5 {
   0xCAFEBABE;
   0; // minor version
-  62; // version
+  63; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -53,10 +57,11 @@ class compiler/valhalla/inlinetypes/MyValue5 {
     Utf8 "(I)Qcompiler/valhalla/inlinetypes/MyValue5;"; // #10
     Utf8 "Code"; // #11
     Utf8 "LineNumberTable"; // #12
-    Utf8 "<init>"; // #13
-    Utf8 "()Qcompiler/valhalla/inlinetypes/MyValue5;"; // #14
-    Utf8 "SourceFile"; // #15
-    Utf8 "MyValue5.java"; // #16
+    Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue5;I)Lcompiler/valhalla/inlinetypes/MyValue5;"; // #13
+    Utf8 "<init>"; // #14
+    Utf8 "()Qcompiler/valhalla/inlinetypes/MyValue5;"; // #15
+    Utf8 "SourceFile"; // #16
+    Utf8 "MyValue5.java"; // #17
   } // Constant Pool
 
   0x0930; // access
@@ -93,7 +98,31 @@ class compiler/valhalla/inlinetypes/MyValue5 {
           [] { // Attributes
             Attr(#12) { // LineNumberTable
               [] { // line_number_table
-                0  30;
+                0  7;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0009; // access
+      #9; // name_index
+      #13; // descriptor_index
+      [] { // Attributes
+        Attr(#11) { // Code
+          2; // max_stack
+          2; // max_locals
+          Bytes[]{
+            0x1B2A5FCC0003B0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#12) { // LineNumberTable
+              [] { // line_number_table
+                0  11;
               }
             } // end LineNumberTable
           } // Attributes
@@ -103,8 +132,8 @@ class compiler/valhalla/inlinetypes/MyValue5 {
     ;
     {  // method
       0x0008; // access
-      #13; // name_index
-      #14; // descriptor_index
+      #14; // name_index
+      #15; // descriptor_index
       [] { // Attributes
         Attr(#11) { // Code
           2; // max_stack
@@ -118,8 +147,8 @@ class compiler/valhalla/inlinetypes/MyValue5 {
           [] { // Attributes
             Attr(#12) { // LineNumberTable
               [] { // line_number_table
-                0  26;
-                4  27;
+                0  3;
+                4  4;
               }
             } // end LineNumberTable
           } // Attributes
@@ -129,8 +158,9 @@ class compiler/valhalla/inlinetypes/MyValue5 {
   } // Methods
 
   [] { // Attributes
-    Attr(#15) { // SourceFile
-      #16;
+    Attr(#16) { // SourceFile
+      #17;
     } // end SourceFile
   } // Attributes
 } // end class compiler/valhalla/inlinetypes/MyValue5
+

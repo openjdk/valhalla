@@ -2485,12 +2485,23 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     ResourceMark rm;
     Unique_Node_List worklist;
     worklist.push(this);
-    bool can_optimize = true;
+    bool can_optimize = false;
     ciInlineKlass* vk = NULL;
     // true if all IsInit inputs of all InlineType* nodes are true
     bool is_init = true;
     Node_List casts;
 
+    // TODO
+    // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
+    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+      Node* n = fast_out(i);
+      if (!(n->is_InlineTypePtr() && n->in(1) == this)) {
+        can_optimize = true;
+        break;
+      }
+    }
+
+    // TODO we could revisit the same node over and over again, right?
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
       for (uint i = 1; i < phi->req() && can_optimize; i++) {

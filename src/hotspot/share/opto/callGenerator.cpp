@@ -865,10 +865,10 @@ void CallGenerator::do_late_inline_helper() {
           vt->set_oop(buffer_oop);
           vt = kit.gvn().transform(vt)->as_InlineType();
         }
-        DEBUG_ONLY(buffer_oop = NULL);
         // Convert to InlineTypePtrNode to keep track of field values
         result = vt->as_ptr(&kit.gvn());
       }
+      DEBUG_ONLY(buffer_oop = NULL);
     } else {
       // TODO remove?
       assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "FAIL");

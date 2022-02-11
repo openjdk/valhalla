@@ -341,17 +341,14 @@ void Parse::do_withfield() {
   bool will_link;
   ciField* field = iter().get_field(will_link);
   assert(will_link, "withfield: typeflow responsibility");
-  Node* val = pop_node(field->layout_type());
-  ciInlineKlass* holder_klass = field->holder()->as_inline_klass();
-  Node* holder = pop();
-  int nargs = 1 + field->type()->size();
-
-  if (!holder->is_InlineTypeBase()) {
-    // Scalarize inline type holder
-    // TODO needed?
-    assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
-    holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
+  int holder_depth = field->type()->size();
+  null_check(peek(holder_depth));
+  if (stopped()) {
+    return;
   }
+  Node* val = pop_node(field->layout_type());
+  Node* holder = pop();
+
   if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
     assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
@@ -361,6 +358,7 @@ void Parse::do_withfield() {
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
+    int nargs = 1 + field->type()->size();
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
   }
@@ -377,7 +375,6 @@ void Parse::do_withfield() {
   }
 
   // Clone the inline type node and set the new field value
-  assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
   InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
   for (uint i = 2; i < holder->req(); ++i) {
     new_vt->set_req(i, holder->in(i));

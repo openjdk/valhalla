@@ -2106,6 +2106,7 @@ void GraphBuilder::withfield(int field_index) {
   ValueType* type = as_ValueType(field_type);
   Value val = pop(type);
   Value obj = apop();
+  null_check(obj);
 
   if (!holder->is_loaded() || !holder->is_inlinetype()) {
     apush(append_split(new Deoptimize(holder, state_before)));
@@ -2788,7 +2789,7 @@ Instruction* GraphBuilder::append_split(StateSplit* instr) {
 
 
 void GraphBuilder::null_check(Value value) {
-  if (value->as_NewArray() != NULL || value->as_NewInstance() != NULL) {
+  if (value->as_NewArray() != NULL || value->as_NewInstance() != NULL || value->as_NewInlineTypeInstance() != NULL) {
     return;
   } else {
     Constant* con = value->as_Constant();
