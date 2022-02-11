@@ -4300,4 +4300,32 @@ public class TestLWorld {
     public void test156_verifier() throws Throwable {
         Asserts.assertEquals(test156(new MyValue5()).x, rI);
     }
+
+    final static MyValue1 test157Cache = MyValue1.createWithFieldsInline(rI, 0);
+
+    // Test merging buffered inline type from field load with non-buffered inline type
+    @Test
+    public MyValue1 test157(long val) {
+        return (val == 0L) ? test157Cache : MyValue1.createWithFieldsInline(rI, val);
+    }
+
+    @Run(test = "test157")
+    public void test157_verifier() {
+        Asserts.assertEquals(test157(0), test157Cache);
+        Asserts.assertEquals(test157(rL).hash(), testValue1.hash());
+    }
+
+    static MyValue1 test158Cache = MyValue1.createWithFieldsInline(rI, 0);
+
+    // Same as test157 but with non-final field load
+    @Test
+    public MyValue1 test158(long val) {
+        return (val == 0L) ? test158Cache : MyValue1.createWithFieldsInline(rI, val);
+    }
+
+    @Run(test = "test158")
+    public void test158_verifier() {
+        Asserts.assertEquals(test158(0), test158Cache);
+        Asserts.assertEquals(test158(rL).hash(), testValue1.hash());
+    }
 }

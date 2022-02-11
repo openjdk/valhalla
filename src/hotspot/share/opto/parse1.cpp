@@ -1745,7 +1745,9 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
           // TODO Currently, the implementation relies on the assumption that InlineTypePtrNodes
           // are always buffered. We therefore need to allocate here.
           // Allocate inline type in src block to be able to merge it with oop in target block
+          // TODO but we can merge if the target block is inlinetypeptr!
           map()->set_req(j, n->as_InlineType()->buffer(this));
+          // TOOD add TraceOptoParse output
         } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {
           // Scalarize null in src block to be able to merge it with inline type in target block
           assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
@@ -1910,6 +1912,14 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         }
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
+        if (vtm->is_InlineTypePtr() && vtn->is_InlineType()) {
+          // TODO hack
+          Node* newVal = InlineTypeNode::make_uninitialized(gvn(), vtm->bottom_type()->inline_klass());
+          for (uint i = 1; i < vtm->req(); ++i) {
+            newVal->set_req(i, vtm->in(i));
+          }
+          vtm = gvn().transform(newVal)->as_InlineTypeBase();
+        }
         if (last_merge) {
           map()->set_req(j, _gvn.transform_no_reclaim(vtm));
           record_for_igvn(vtm);

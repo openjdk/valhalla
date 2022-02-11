@@ -4771,6 +4771,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != NULL) {
     Node* con = makecon(con_type);
     if (field->type()->is_inlinetype()) {
+      // TODO shouldn't con_type be inlinetypeptr here as well?
       con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
     } else if (con_type->is_inlinetypeptr()) {
       con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());

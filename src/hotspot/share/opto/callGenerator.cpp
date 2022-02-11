@@ -870,7 +870,8 @@ void CallGenerator::do_late_inline_helper() {
         result = vt->as_ptr(&kit.gvn());
       }
     } else {
-      assert(!call->tf()->returns_inline_type_as_fields(), "FAIL");
+      // TODO remove?
+      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "FAIL");
     }
     assert(buffer_oop == NULL, "unused buffer allocation");
 
