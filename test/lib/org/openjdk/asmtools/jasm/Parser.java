@@ -349,6 +349,9 @@ class Parser extends ParseBase {
             case METHODREF:
             case IDENT:
             case BRIDGE:
+            case VALUE:
+            case PERMITS_VALUE:
+            case PRIMITIVE:
                 v = scanner.idValue;
                 scanner.scan();
                 return pool.FindCellAsciz(v);
@@ -523,6 +526,9 @@ class Parser extends ParseBase {
             case METHODREF:
             case BRIDGE:
             case IDENT:
+            case VALUE:
+            case PERMITS_VALUE:
+            case PRIMITIVE:
                 v = scanner.idValue;
                 scanner.scan();
                 v = prependPackage(v, uncond);
@@ -711,6 +717,15 @@ class Parser extends ParseBase {
                 case MANDATED:
                     nextmod = ACC_MANDATED;
                     break;
+                case VALUE:
+                    nextmod = ACC_VALUE;
+                    break;
+                case PERMITS_VALUE:
+                    nextmod = ACC_PERMITS_VALUE;
+                    break;
+                case PRIMITIVE:
+                    nextmod = ACC_PRIMITIVE;
+                    break;
                 default:
                     return nextmod;
             }
@@ -831,6 +846,7 @@ class Parser extends ParseBase {
                         }
                         break;
                     case 'L':
+                    case 'Q':
                         for (; ; k++) {
                             if (k >= siglen) {
                                 errparam = 3;
@@ -866,7 +882,8 @@ class Parser extends ParseBase {
         ConstValue_String strConst = (ConstValue_String) nameCell.ref;
         String name = strConst.value;
         boolean is_clinit = name.equals("<clinit>");
-        boolean is_init = name.equals("<init>");
+        boolean is_init = name.equals("<init>")
+            && !Modifiers.isStatic(mod); // TODO: not a good way to detect factories...
         DefaultAnnotationAttr defAnnot = null;
 
         // check access modifiers:
@@ -1004,7 +1021,8 @@ class Parser extends ParseBase {
     }
 
     /**
-     * Parse a list of classes belonging to the [NestMembers | PermittedSubclasses]  entry
+     * Parse a list of classes belonging to the
+     * [NestMembers | PermittedSubclasses | Preload]  entry
      */
     private void parseClasses(Consumer<ArrayList<ConstCell>> classesConsumer)
             throws Scanner.SyntaxError, IOException {
@@ -1810,6 +1828,14 @@ class Parser extends ParseBase {
                     }
                     scanner.scan();
                     parseRecord();
+                    break;
+                case PRELOAD:
+                    if (cd.preloadAttributeExists()) {
+                        env.error(scanner.pos, "extra.preload.attribute");
+                        throw new Scanner.SyntaxError();
+                    }
+                    scanner.scan();
+                    parseClasses(list -> cd.addPreloads(list));
                     break;
                 default:
                     env.error(scanner.pos, "field.expected");

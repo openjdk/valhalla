@@ -1015,6 +1015,8 @@ class ClassData {
                     //    u2 classes[number_of_classes];
                     //  }
                 case ATT_PermittedSubclasses:
+                    // Preload attribute has same format
+                case ATT_Preload:
                     int nsubtypes = in.readUnsignedShort();
                     startArrayCmt(nsubtypes, "classes");
                     try {
@@ -1288,4 +1290,3 @@ class ClassData {
         System.out.println(s);
     }
 }// end class ClassData
-

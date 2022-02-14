@@ -58,6 +58,8 @@ class ClassData extends MemberData {
     // JEP 360 - PermittedSubclasses attribute since class file 59.65535
     private PermittedSubclassesAttr permittedSubclassesAttr;
 
+    private PreloadAttr preloadAttr;
+
     ModuleAttr moduleAttribute = null;
     Environment env;
     protected ConstantPool pool;
@@ -316,6 +318,10 @@ class ClassData extends MemberData {
         permittedSubclassesAttr = new PermittedSubclassesAttr(this, classes);
     }
 
+    public void addPreloads(List<ConstantPool.ConstCell> classes) {
+        env.traceln("addPreloads");
+        preloadAttr = new PreloadAttr(this, classes);
+    }
 
     public void endClass() {
         sourceFileNameAttr = new CPXAttr(this,
@@ -461,6 +467,8 @@ class ClassData extends MemberData {
             // since class version 59.65535 (JEP 360)
             if ( permittedSubclassesAttributesExist() )
                 attrs.add(permittedSubclassesAttr);
+            if (preloadAttributeExists())
+                attrs.add(preloadAttr);
         }
         return attrs;
     }
@@ -518,6 +526,8 @@ class ClassData extends MemberData {
     public boolean permittedSubclassesAttributesExist() { return permittedSubclassesAttr != null;  }
 
     public boolean recordAttributeExists() { return recordData != null;  }
+
+    public boolean preloadAttributeExists() { return preloadAttr != null; }
 
     /**
      * This is a wrapper for DataOutputStream, used for debugging purposes. it allows
@@ -638,4 +648,3 @@ class ClassData extends MemberData {
         }
     }
 }// end class ClassData
-

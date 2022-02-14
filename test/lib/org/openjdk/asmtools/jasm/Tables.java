@@ -235,7 +235,8 @@ public class Tables {
         //    u2 number_of_classes;
         //    u2 classes[number_of_classes];
         // }
-        ATT_PermittedSubclasses                       (35, "ATT_PermittedSubclasses", "PermittedSubclasses");
+        ATT_PermittedSubclasses                     (35, "ATT_PermittedSubclasses", "PermittedSubclasses"),
+        ATT_Preload                                 (36, "ATT_Preload", "Preload");
 
         private final Integer value;
         private final String printval;
