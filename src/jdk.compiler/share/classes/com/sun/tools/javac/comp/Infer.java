@@ -173,10 +173,10 @@ public class Infer {
                             Resolve.MethodResolutionContext resolveContext,
                             Warner warn) throws InferenceException {
         //-System.err.println("instantiateMethod(" + tvars + ", " + mt + ", " + argtypes + ")"); //DEBUG
-        final InferenceContext inferenceContext = new InferenceContext(this, tvars, allowBoxing);  //B0
+        final InferenceContext inferenceContext = new InferenceContext(this, tvars);  //B0
         try {
-                DeferredAttr.DeferredAttrContext deferredAttrContext =
-                        resolveContext.deferredAttrContext(msym, inferenceContext, resultInfo, warn);
+            DeferredAttr.DeferredAttrContext deferredAttrContext =
+                    resolveContext.deferredAttrContext(msym, inferenceContext, resultInfo, warn);
 
             resolveContext.methodCheck.argumentsAcceptable(env, deferredAttrContext,   //B2
                     argtypes, mt.getParameterTypes(), warn);
@@ -199,7 +199,7 @@ public class Infer {
 
                     Type newRestype = generateReturnConstraints(env.tree, resultInfo,  //B3
                             mt, minContext);
-                    mt = (MethodType)types.createMethodTypeWithReturn(mt, newRestype);
+                    mt = (MethodType) types.createMethodTypeWithReturn(mt, newRestype);
 
                     //propagate outwards if needed
                     if (shouldPropagate) {
@@ -220,7 +220,7 @@ public class Infer {
                 inferenceContext.solveLegacy(true, warn, LegacyInferenceSteps.EQ_LOWER.steps); //minimizeInst
             }
 
-            mt = (MethodType)inferenceContext.asInstType(mt);
+            mt = (MethodType) inferenceContext.asInstType(mt);
 
             if (!allowGraphInference &&
                     inferenceContext.restvars().nonEmpty() &&
@@ -228,7 +228,7 @@ public class Infer {
                     !warn.hasNonSilentLint(Lint.LintCategory.UNCHECKED)) {
                 generateReturnConstraints(env.tree, resultInfo, mt, inferenceContext);
                 inferenceContext.solveLegacy(false, warn, LegacyInferenceSteps.EQ_UPPER.steps); //maximizeInst
-                mt = (MethodType)inferenceContext.asInstType(mt);
+                mt = (MethodType) inferenceContext.asInstType(mt);
             }
 
             if (resultInfo != null && rs.verboseResolutionMode.contains(VerboseResolutionMode.DEFERRED_INST)) {
@@ -1166,20 +1166,18 @@ public class Infer {
     enum IncorporationBinaryOpKind {
         IS_SUBTYPE() {
             @Override
-            boolean apply(InferenceContext inferenceContext, Type op1, Type op2, Warner warn, Types types) {
-                return inferenceContext.allowBoxing ?
-                    types.isBoundedBy(op1, op2, warn, (t, s, w) -> types.isSubtypeUnchecked(t, s, w)) :
-                    types.isSubtypeUnchecked(op1, op2, warn);
+            boolean apply(Type op1, Type op2, Warner warn, Types types) {
+                return types.isBoundedBy(op1, op2, warn, (t, s, w) -> types.isSubtypeUnchecked(t, s, w));
             }
         },
         IS_SAME_TYPE() {
             @Override
-            boolean apply(InferenceContext inferenceContext, Type op1, Type op2, Warner warn, Types types) {
+            boolean apply(Type op1, Type op2, Warner warn, Types types) {
                 return types.isSameType(op1, op2);
             }
         };
 
-        abstract boolean apply(InferenceContext inferenceContext, Type op1, Type op2, Warner warn, Types types);
+        abstract boolean apply(Type op1, Type op2, Warner warn, Types types);
     }
 
     /**
@@ -1222,7 +1220,7 @@ public class Infer {
         }
 
         boolean apply(Warner warn) {
-            return opKind.apply(inferenceContext, op1, op2, warn, types);
+            return opKind.apply(op1, op2, warn, types);
         }
     }
 
