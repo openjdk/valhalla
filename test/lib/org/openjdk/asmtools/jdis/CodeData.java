@@ -436,7 +436,7 @@ public class CodeData extends Indenter {
             out.print("bytecode " + opcode);
             return 1;
         }
-        if (opcode.value() > Opcode.opc_jsr_w.value()) {
+        if (opcode.value() >= Opcode.opc_bytecode.value()) {
 // pseudo opcodes should be printed as bytecodes
             out.print("bytecode " + opcode);
             return 1;
@@ -538,10 +538,12 @@ public class CodeData extends Indenter {
             case opc_instanceof:
             case opc_checkcast:
             case opc_new:
+            case opc_aconst_init:
             case opc_putstatic:
             case opc_getstatic:
             case opc_putfield:
             case opc_getfield:
+            case opc_withfield:
             case opc_invokevirtual:
             case opc_invokespecial:
             case opc_invokestatic: {

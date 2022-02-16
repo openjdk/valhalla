@@ -241,6 +241,7 @@ public class ParserInstr extends ParseBase {
                         break;
                     }
                     case opc_new:
+                    case opc_aconst_init:
                     case opc_anewarray:
                     case opc_instanceof:
                     case opc_checkcast:
@@ -261,6 +262,7 @@ public class ParserInstr extends ParseBase {
                     case opc_getstatic:
                     case opc_putfield:
                     case opc_getfield:
+                    case opc_withfield:
                         arg = cpParser.parseConstRef(ConstType.CONSTANT_FIELD);
                         break;
                     case opc_invokevirtual:

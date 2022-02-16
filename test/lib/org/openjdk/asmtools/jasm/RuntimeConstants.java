@@ -42,13 +42,16 @@ public interface RuntimeConstants {
     int ACC_STATIC_PHASE  = 0x0020; //                                      requires(module)
     int ACC_SYNCHRONIZED  = 0x0020; //                      method
     int ACC_OPEN          = 0x0020; //                              module
+    int ACC_PERMITS_VALUE = 0x0040; // class, inner
     int ACC_VOLATILE      = 0x0040; //               field
     int ACC_BRIDGE        = 0x0040; //                      method
     int ACC_TRANSIENT     = 0x0080; //               field
     int ACC_VARARGS       = 0x0080; //                      method
+    int ACC_VALUE         = 0x0100; // class, inner
     int ACC_NATIVE        = 0x0100; //                      method
     int ACC_INTERFACE     = 0x0200; // class, inner
     int ACC_ABSTRACT      = 0x0400; // class, inner,        method
+    int ACC_PRIMITIVE     = 0x0800; // class, inner
     int ACC_STRICT        = 0x0800; //                      method
     int ACC_SYNTHETIC     = 0x1000; // class, inner, field, method, module  requires(module) exports(module)
     int ACC_ANNOTATION    = 0x2000; // class, inner
@@ -68,13 +71,16 @@ public interface RuntimeConstants {
                         put(ACC_FINAL        ,"final");
                         put(ACC_SUPER        ,"super");
                         put(ACC_SYNCHRONIZED ,"synchronized");
+                        put(ACC_PERMITS_VALUE,"permits_value");
                         put(ACC_VOLATILE     ,"volatile");
                         put(ACC_BRIDGE       ,"bridge");
                         put(ACC_TRANSIENT    ,"transient");
                         put(ACC_VARARGS      ,"varargs");
+                        put(ACC_VALUE        ,"value");
                         put(ACC_NATIVE       ,"native");
                         put(ACC_INTERFACE    ,"interface");
                         put(ACC_ABSTRACT     ,"abstract");
+                        put(ACC_PRIMITIVE    ,"primitive");
                         put(ACC_STRICT       ,"strict");
                         put(ACC_SYNTHETIC    ,"synthetic");
                         put(ACC_ANNOTATION   ,"annotation");

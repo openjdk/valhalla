@@ -99,6 +99,8 @@ public class ClassData extends MemberData {
     // The PermittedSubclasses of this class (JEP 360 (Sealed types): class file 59.65535)
     protected PermittedSubclassesData permittedSubclassesData;
 
+    protected PreloadData preloadData;
+
     // other parsing fields
     protected PrintWriter out;
     protected String pkgPrefix = "";
@@ -231,6 +233,9 @@ public class ClassData extends MemberData {
             case ATT_PermittedSubclasses:
                 // Read PermittedSubclasses Attribute (JEP 360 (Sealed types): class file 59.65535)
                 permittedSubclassesData = new PermittedSubclassesData(this).read(in, attrlen);
+                break;
+            case ATT_Preload:
+                preloadData = new PreloadData(this).read(in, attrlen);
                 break;
             default:
                 handled = false;
@@ -467,6 +472,12 @@ printSugar:
                 }
                 out.println();
             }
+
+            // Print Preload attribute
+            if (preloadData != null) {
+                preloadData.print();
+            }
+
             // Print the BootstrapMethods
             //
             // Only print these if printing extended constants
@@ -526,4 +537,3 @@ printSugar:
     }
 
 }// end class ClassData
-
