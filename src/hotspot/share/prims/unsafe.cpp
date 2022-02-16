@@ -46,6 +46,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
@@ -462,6 +463,7 @@ UNSAFE_LEAF(void, Unsafe_FullFence(JNIEnv *env, jobject unsafe)) {
 ////// Allocation requests
 
 UNSAFE_ENTRY(jobject, Unsafe_AllocateInstance(JNIEnv *env, jobject unsafe, jclass cls)) {
+  JvmtiVMObjectAllocEventCollector oam;
   instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(cls), CHECK_NULL);
   return JNIHandles::make_local(THREAD, i);
 } UNSAFE_END

@@ -82,6 +82,28 @@ public class Reflection {
         checkInstanceMethod(NonFlattenValue.class.asValueType(), "has", boolean.class, Point.class.asValueType(), Point.ref.class);
     }
 
+    @Test
+    public static void testValueOptionalClass() throws Exception  {
+        Point point = Point.makePoint(10,20);
+        Constructor<ValueOptional> ctor = ValueOptional.class.getDeclaredConstructor(Object.class);
+        ValueOptional o = ctor.newInstance(point);
+        assertEquals(o.getClass(), ValueOptional.class);
+
+        Field field = ValueOptional.class.getDeclaredField("o");
+        // accessible but no write access
+        field.trySetAccessible();
+        assertTrue(field.isAccessible());
+
+        if (field.get(o) != point) {
+            fail("Unexpected ValueOptional.o value: " +  field.get(o));
+        }
+        try {
+            field.set(o, point);
+            fail("IllegalAccessException not thrown");
+        } catch (IllegalAccessException e) {}
+
+        checkToString(field);
+    }
 
     static void checkInstanceField(Class<?> declaringClass, String name, Class<?> type) throws Exception {
         Field f = declaringClass.getDeclaredField(name);
@@ -100,6 +122,9 @@ public class Reflection {
         int mods = f.getModifiers();
         if (Modifier.isPublic(mods)) {
             sb.append("public").append(" ");
+        }
+        if (Modifier.isPrivate(mods)) {
+            sb.append("private").append(" ");
         }
         if (Modifier.isStatic(mods)) {
             sb.append("static").append(" ");

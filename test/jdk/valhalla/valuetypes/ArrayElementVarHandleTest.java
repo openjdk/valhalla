@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,110 +67,71 @@ public class ArrayElementVarHandleTest {
             NonFlattenValue.make(100, 200)
     };
 
-    /*
-     * VarHandle of Object[].class
-     */
-    @Test
-    public void testObjectArrayVarHandle() throws Throwable {
-        // Point[] <: Point.ref[] <: Object
-        Object[] array1 = newArray(Object[].class, POINTS.length);
-        setElements(array1, POINTS);
-        setElements(array1, NULL_POINTS);
-        setElements(array1, new Object[] { "abc", Point.makePoint(1, 2) });
+    private static final ValueOptional[] VALUES = new ValueOptional[]{
+            new ValueOptional(null),
+            new ValueOptional(P),
+            null
+    };
 
-        Point.ref[] array2 = new Point.ref[NULL_POINTS.length];
-        setElements(array2, POINTS);
-        setElements(array2, NULL_POINTS);
+    @DataProvider(name="data")
+    static Object[][] data() throws Throwable {
+        int plen = POINTS.length;
+        int llen = LINES.length;
+        int vlen = VALUES.length;
+        return new Object[][]{
+                // Point[] <: Point.ref[] <: Object[]
+                new Object[] { newArray(Object[].class, plen),    POINTS },
+                new Object[] { newArray(Object[].class, plen),    NULL_POINTS },
+                new Object[] { newArray(Object[].class, plen),    new Object[] { "abc", Point.makePoint(1, 2) } },
+                new Object[] { newArray(Point.ref[].class, plen), NULL_POINTS },
+                new Object[] { newArray(Point[].class, plen),     POINTS },
+                new Object[] { new Point.ref[plen],               POINTS },
+                new Object[] { new Point.ref[plen],               NULL_POINTS },
+                new Object[] { new Point[plen],                   POINTS },
 
-        Point[] array3 = new Point[POINTS.length];
-        setElements(array3, POINTS);
+                // Line[] <: Line.ref[]
+                new Object[] { newArray(Object[].class, llen),    LINES },
+                new Object[] { newArray(Object[].class, llen),    NULL_LINES },
+                new Object[] { newArray(Object[].class, llen),    LINES },
+                new Object[] { newArray(Line.ref[].class, llen),  NULL_LINES },
+                new Object[] { newArray(Line[].class, llen),      LINES },
+                new Object[] { new Line.ref[llen],                LINES },
+                new Object[] { new Line.ref[llen],                NULL_LINES },
+                new Object[] { new Line[llen],                    LINES },
+
+                // value class
+                new Object[] { newArray(Object[].class, vlen),        VALUES },
+                new Object[] { newArray(ValueOptional[].class, vlen), VALUES },
+                new Object[] { new ValueOptional[vlen],               VALUES },
+
+                // non flattened values
+                new Object[] { newArray(NonFlattenValue[].class, NFV_ARRAY.length), NFV_ARRAY },
+                new Object[] { new NonFlattenValue[NFV_ARRAY.length], NFV_ARRAY }
+        };
     }
 
     /*
-     * VarHandle of Point.ref[].class
+     * Test VarHandle to set elements of the given array with
+     * various access mode.
      */
-    @Test
-    public void testPointRefVarHandle() throws Throwable {
-        // Point[] <: Point.ref[] <: Object
-        Point.ref[] array1 = (Point.ref[])newArray(Point.ref[].class, POINTS.length);
-        assertTrue(array1.getClass().componentType() == Point.ref.class);
-
-        setElements(array1, POINTS);
-        setElements(array1, NULL_POINTS);
-
-        Point.ref[] array2 = new Point.ref[NULL_POINTS.length];
-        setElements(array2, POINTS);
-        setElements(array2, NULL_POINTS);
-
-        Point[] array3 = new Point[POINTS.length];
-        setElements(array3, POINTS);
+    @Test(dataProvider = "data")
+    public void testSetArrayElements(Object[] array, Object[] data) throws Throwable {
+        setElements(array, data);
     }
 
     /*
-     * VarHandle of Point[].class
+     * Constructs a new array of the specified type and size using
+     * MethodHandle.
      */
-    @Test
-    public void testPointArrayVarHandle()  throws Throwable {
-        // Point[] <: Point.ref[] <: Object
-        Point[] array1 = (Point[]) newArray(Point[].class, POINTS.length);
-        assertTrue(array1.getClass().componentType() == Point.class.asValueType());
-        setElements(array1, POINTS);
-
-        Point[] array3 = new Point[POINTS.length];
-        setElements(array3, POINTS);
-    }
-
-    /*
-     * VarHandle of Line.ref[].class
-     */
-    @Test
-    public void testLineRefVarHandle() throws Throwable {
-        // Line[] <: Line.ref[]
-        Line.ref[] array1 = (Line.ref[])newArray(Line.ref[].class, LINES.length);
-        assertTrue(array1.getClass().componentType() == Line.ref.class);
-
-        setElements(array1, LINES);
-        setElements(array1, NULL_LINES);
-
-        Line.ref[] array2 = new Line.ref[LINES.length];
-        setElements(array2, LINES);
-        setElements(array2, NULL_LINES);
-
-        Line[] array3 = new Line[LINES.length];
-        setElements(array3, LINES);
-    }
-
-    /*
-     * VarHandle of Line[].class
-     */
-    @Test
-    public void testLineVarHandle() throws Throwable {
-        Line[] array1 = (Line[])newArray(Line[].class, LINES.length);
-        assertTrue(array1.getClass().componentType() == Line.class.asValueType());
-        setElements(array1, LINES);
-
-        Line[] array3 = new Line[LINES.length];
-        setElements(array3, LINES);
-    }
-
-    /*
-     * VarHandle of NonFlattenValue[].class
-     */
-    @Test
-    public void testNonFlattenedValueVarHandle() throws Throwable {
-        NonFlattenValue[] array1 = (NonFlattenValue[])newArray(NonFlattenValue[].class, NFV_ARRAY.length);
-        assertTrue(array1.getClass().componentType() == NonFlattenValue.class.asValueType());
-        setElements(array1, NFV_ARRAY);
-
-        NonFlattenValue[] array3 = new NonFlattenValue[POINTS.length];
-        setElements(array3, NFV_ARRAY);
-    }
-
-    Object[] newArray(Class<?> arrayType, int size) throws Throwable {
+    static Object[] newArray(Class<?> arrayType, int size) throws Throwable {
         MethodHandle ctor = MethodHandles.arrayConstructor(arrayType);
         return (Object[]) ctor.invoke(size);
     }
 
+    /*
+     * Sets the given array with the given elements.
+     * This tests several VarHandle access mode.
+     */
     void setElements(Object[] array, Object[] elements) {
         Class<?> arrayType = array.getClass();
         assertTrue(array.length >= elements.length);
@@ -267,6 +228,4 @@ public class ArrayElementVarHandleTest {
             assertEquals(vh.compareAndExchange(array, i, elements[i], v), elements[i]);
         }
     }
-
-
 }

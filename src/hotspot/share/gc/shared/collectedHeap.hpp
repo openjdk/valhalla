@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,10 +62,23 @@ class VirtualSpaceSummary;
 class WorkerThreads;
 class nmethod;
 
-class ParallelObjectIterator : public CHeapObj<mtGC> {
+class ParallelObjectIteratorImpl : public CHeapObj<mtGC> {
 public:
+  virtual ~ParallelObjectIteratorImpl() {}
   virtual void object_iterate(ObjectClosure* cl, uint worker_id) = 0;
-  virtual ~ParallelObjectIterator() {}
+};
+
+// User facing parallel object iterator. This is a StackObj, which ensures that
+// the _impl is allocated and deleted in the scope of this object. This ensures
+// the life cycle of the implementation is as required by ThreadsListHandle,
+// which is sometimes used by the root iterators.
+class ParallelObjectIterator : public StackObj {
+  ParallelObjectIteratorImpl* _impl;
+
+public:
+  ParallelObjectIterator(uint thread_num);
+  ~ParallelObjectIterator();
+  void object_iterate(ObjectClosure* cl, uint worker_id);
 };
 
 //
@@ -77,11 +90,12 @@ public:
 //   ShenandoahHeap
 //   ZCollectedHeap
 //
-class CollectedHeap : public CHeapObj<mtInternal> {
+class CollectedHeap : public CHeapObj<mtGC> {
   friend class VMStructs;
   friend class JVMCIVMStructs;
   friend class IsGCActiveMark; // Block structured external access to _is_gc_active
   friend class MemAllocator;
+  friend class ParallelObjectIterator;
 
  private:
   GCHeapLog* _gc_heap_log;
@@ -276,7 +290,10 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   }
 
   virtual void fill_with_dummy_object(HeapWord* start, HeapWord* end, bool zap);
-  virtual size_t min_dummy_object_size() const;
+  static constexpr size_t min_dummy_object_size() {
+    return oopDesc::header_size();
+  }
+
   size_t tlab_alloc_reserve() const;
 
   // Some heaps may offer a contiguous region for shared non-blocking
@@ -385,10 +402,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Iterate over all objects, calling "cl.do_object" on each.
   virtual void object_iterate(ObjectClosure* cl) = 0;
 
-  virtual ParallelObjectIterator* parallel_object_iterator(uint thread_num) {
+ protected:
+  virtual ParallelObjectIteratorImpl* parallel_object_iterator(uint thread_num) {
     return NULL;
   }
 
+ public:
   // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
   virtual void keep_alive(oop obj) {}
 

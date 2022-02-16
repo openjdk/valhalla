@@ -56,7 +56,9 @@ public class MethodHandleTest {
                 new Object[] { "MutablePath", PATH, new String[] {"p1", "p2"} },
                 new Object[] { "Point", path.p1, new String[] {"x", "y"} },
                 new Object[] { "Point", path.p2, new String[] {"x", "y"} },
-                new Object[] { "MixedValues", mv, new String[] {"p", "l", "mutablePath", "list", "nfp"} },
+                // identity class whose non-final fields are of primitive value type,
+                // primitive reference type, reference type and value class
+                new Object[] { "MixedValues", mv, new String[] {"p", "l", "mutablePath", "list", "nfp", "voptional"} },
         };
     }
 
@@ -80,7 +82,7 @@ public class MethodHandleTest {
             MethodHandle mh3 = LOOKUP.unreflectGetter(f);
             Object v3 = mh.invoke(o);
 
-            if (c.isPrimitiveClass())
+            if (c.isValue())
                 ensureImmutable(f, o);
             else
                 ensureNullable(f, o);
@@ -105,6 +107,7 @@ public class MethodHandleTest {
         MixedValues mv = new MixedValues(P, L, PATH, "mixed", "types");
         Point p = Point.makePoint(100, 200);
         Line l = Line.makeLine(100, 200, 300, 400);
+        ValueOptional v = new ValueOptional(P);
 
         setValueField(MutablePath.class, "p1", path, p);
         setValueField(MutablePath.class, "p2", path, p);
@@ -113,8 +116,11 @@ public class MethodHandleTest {
         setValueField(MixedValues.class, "staticPoint", null, p);
         // the following are nullable fields
         setField(MixedValues.class, "nfp", mv, p, false);
+        setField(MixedValues.class, "voptional", mv, v, false);
+        // static fields of reference type
         setField(MixedValues.class, "staticLine", null, l, false);
         setField(MixedValues.class, "staticLine", null, null, false);
+        setField(MixedValues.class, "staticValue", null, v, false);
     }
 
     @DataProvider(name="arrays")
@@ -226,11 +232,11 @@ public class MethodHandleTest {
      * Test Field::set, MethodHandle::set on a method handle of a field
      * and VarHandle::compareAndSet and compareAndExchange.
      */
-    static void setField(Class<?> c, String name, Object obj, Object value, boolean isValue) throws Throwable {
+    static void setField(Class<?> c, String name, Object obj, Object value, boolean isPrimitiveValue) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isPrimitiveClass());
-        assertTrue(f.getType().isPrimitiveValueType() == isValue);
+        assertTrue(f.getType().isValue());
+        assertTrue(f.getType().isPrimitiveValueType() == isPrimitiveValue);
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 

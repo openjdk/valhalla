@@ -93,6 +93,7 @@ class ciMethod : public ciMetadata {
   bool _is_c2_compilable;
   bool _can_be_parsed;
   bool _can_be_statically_bound;
+  bool _can_omit_stack_trace;
   bool _has_reserved_stack_access;
   bool _is_overpass;
 
@@ -369,6 +370,8 @@ class ciMethod : public ciMetadata {
   bool is_vector_method() const;
 
   bool can_be_statically_bound(ciInstanceKlass* context) const;
+
+  bool can_omit_stack_trace() const;
 
   // Replay data methods
   static void dump_name_as_ascii(outputStream* st, Method* method);

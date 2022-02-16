@@ -189,14 +189,13 @@ Address LIR_Assembler::as_Address(LIR_Address* addr, Register tmp) {
       default:
         ShouldNotReachHere();
       }
-  } else  {
-    intptr_t addr_offset = intptr_t(addr->disp());
-    if (Address::offset_ok_for_immed(addr_offset, addr->scale()))
-      return Address(base, addr_offset, Address::lsl(addr->scale()));
-    else {
-      __ mov(tmp, addr_offset);
-      return Address(base, tmp, Address::lsl(addr->scale()));
-    }
+  } else {
+    assert(addr->scale() == 0,
+           "expected for immediate operand, was: %d", addr->scale());
+    ptrdiff_t offset = ptrdiff_t(addr->disp());
+    // NOTE: Does not handle any 16 byte vector access.
+    const uint type_size = type2aelembytes(addr->type(), true);
+    return __ legitimize_address(Address(base, offset), type_size, tmp);
   }
   return Address();
 }
@@ -441,7 +440,11 @@ int LIR_Assembler::emit_unwind_handler() {
   if (method()->is_synchronized()) {
     monitor_address(0, FrameMap::r0_opr);
     stub = new MonitorExitStub(FrameMap::r0_opr, true, 0);
-    __ unlock_object(r5, r4, r0, *stub->entry());
+    if (UseHeavyMonitors) {
+      __ b(*stub->entry());
+    } else {
+      __ unlock_object(r5, r4, r0, *stub->entry());
+    }
     __ bind(*stub->continuation());
   }
 
@@ -582,7 +585,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
       break;
     }
 
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
     case T_OBJECT: {
         if (patch_code != lir_patch_none) {
           jobject2reg_with_patching(dest->as_register(), info);
@@ -629,7 +632,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
   LIR_Const* c = src->as_constant_ptr();
   switch (c->type()) {
-  case T_INLINE_TYPE:
+  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
     {
       if (! c->as_jobject())
@@ -696,7 +699,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     assert(c->as_jint() == 0, "should be");
     insn = &Assembler::strw;
     break;
-  case T_INLINE_TYPE:
+  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
   case T_ARRAY:
     // Non-null case is not handled on aarch64 but handled on x86
@@ -739,7 +742,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
       return;
     }
     assert(src->is_single_cpu(), "must match");
-    if (src->type() == T_OBJECT || src->type() == T_INLINE_TYPE) {
+    if (src->type() == T_OBJECT || src->type() == T_PRIMITIVE_OBJECT) {
       __ verify_oop(src->as_register());
     }
     move_regs(src->as_register(), dest->as_register());
@@ -839,7 +842,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_INLINE_TYPE: // fall through
+    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -969,7 +972,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
-  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_INLINE_TYPE) {
+  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_PRIMITIVE_OBJECT) {
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -993,7 +996,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_INLINE_TYPE: // fall through
+    case T_PRIMITIVE_OBJECT: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -1011,14 +1014,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ ldr(dest->as_register(), as_Address(from_addr));
       break;
     case T_ADDRESS:
-      // FIXME: OMG this is a horrible kludge.  Any offset from an
-      // address that matches klass_offset_in_bytes() will be loaded
-      // as a word, not a long.
-      if (UseCompressedClassPointers && addr->disp() == oopDesc::klass_offset_in_bytes()) {
-        __ ldrw(dest->as_register(), as_Address(from_addr));
-      } else {
-        __ ldr(dest->as_register(), as_Address(from_addr));
-      }
+      __ ldr(dest->as_register(), as_Address(from_addr));
       break;
     case T_INT:
       __ ldrw(dest->as_register(), as_Address(from_addr));
@@ -1056,10 +1052,6 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     if (!UseZGC) {
       // Load barrier has not yet been applied, so ZGC can't verify the oop here
       __ verify_oop(dest->as_register());
-    }
-  } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
-    if (UseCompressedClassPointers) {
-      __ decode_klass_not_null(dest->as_register());
     }
   }
 }
@@ -1269,7 +1261,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   __ uxtw(len, len);
 
-  if (UseSlowPath || op->type() == T_INLINE_TYPE ||
+  if (UseSlowPath || op->type() == T_PRIMITIVE_OBJECT ||
       (!UseFastNewObjectArray && is_reference_type(op->type())) ||
       (!UseFastNewTypeArray   && !is_reference_type(op->type()))) {
     __ b(*op->stub()->entry());
@@ -2149,7 +2141,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       case T_METADATA:
         imm = (intptr_t)(opr2->as_constant_ptr()->as_metadata());
         break;
-      case T_INLINE_TYPE:
+      case T_PRIMITIVE_OBJECT:
       case T_OBJECT:
       case T_ARRAY:
         jobject2reg(opr2->as_constant_ptr()->as_jobject(), rscratch1);
@@ -2316,7 +2308,7 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr
       }
       break;
     case T_LONG:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
     case T_ADDRESS:
     case T_OBJECT:
       switch (code) {
@@ -2353,7 +2345,7 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, jint count, LIR_Opr de
       break;
     case T_LONG:
     case T_ADDRESS:
-    case T_INLINE_TYPE:
+    case T_PRIMITIVE_OBJECT:
     case T_OBJECT:
       switch (code) {
       case lir_shl:  __ lsl (dreg, lreg, count); break;
@@ -2782,7 +2774,7 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
   Register obj = op->obj_opr()->as_register();  // may not be an oop
   Register hdr = op->hdr_opr()->as_register();
   Register lock = op->lock_opr()->as_register();
-  if (!UseFastLocking) {
+  if (UseHeavyMonitors) {
     __ b(*op->stub()->entry());
   } else if (op->code() == lir_lock) {
     assert(BasicLock::displaced_header_offset_in_bytes() == 0, "lock_reg must point to the displaced header");
@@ -2801,6 +2793,22 @@ void LIR_Assembler::emit_lock(LIR_OpLock* op) {
   __ bind(*op->stub()->continuation());
 }
 
+void LIR_Assembler::emit_load_klass(LIR_OpLoadKlass* op) {
+  Register obj = op->obj()->as_pointer_register();
+  Register result = op->result_opr()->as_pointer_register();
+
+  CodeEmitInfo* info = op->info();
+  if (info != NULL) {
+    add_debug_info_for_null_check_here(info);
+  }
+
+  if (UseCompressedClassPointers) {
+    __ ldrw(result, Address (obj, oopDesc::klass_offset_in_bytes()));
+    __ decode_klass_not_null(result);
+  } else {
+    __ ldr(result, Address (obj, oopDesc::klass_offset_in_bytes()));
+  }
+}
 
 void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
   ciMethod* method = op->profiled_method();
@@ -3370,7 +3378,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     xchg = &MacroAssembler::atomic_xchgal;
     add = &MacroAssembler::atomic_addal;
     break;
-  case T_INLINE_TYPE:
+  case T_PRIMITIVE_OBJECT:
   case T_OBJECT:
   case T_ARRAY:
     if (UseCompressedOops) {

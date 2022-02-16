@@ -779,7 +779,7 @@ void InterpreterMacroAssembler::remove_activation(
     ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
     ldr(rscratch1, Address(rscratch1, Method::const_offset()));
     ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
-    cmpw(rscratch1, (u1) T_INLINE_TYPE);
+    cmpw(rscratch1, (u1) T_PRIMITIVE_OBJECT);
     br(Assembler::NE, skip);
 
     // We are returning an inline type, load its fields into registers

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -588,10 +588,14 @@ public:
   virtual jlong hi_as_long() const = 0;
   virtual jlong lo_as_long() const = 0;
   jlong get_con_as_long(BasicType bt) const;
+  bool is_con() const { return lo_as_long() == hi_as_long(); }
 
   static const TypeInteger* make(jlong lo, jlong hi, int w, BasicType bt);
 
   static const TypeInteger* bottom(BasicType type);
+  static const TypeInteger* zero(BasicType type);
+  static const TypeInteger* one(BasicType type);
+  static const TypeInteger* minus_1(BasicType type);
 };
 
 
@@ -618,9 +622,9 @@ public:
   static const TypeInt *make(jint lo, jint hi, int w);
 
   // Check for single integer
-  int is_con() const { return _lo==_hi; }
-  bool is_con(int i) const { return is_con() && _lo == i; }
-  jint get_con() const { assert( is_con(), "" );  return _lo; }
+  bool is_con() const { return _lo==_hi; }
+  bool is_con(jint i) const { return is_con() && _lo == i; }
+  jint get_con() const { assert(is_con(), "" );  return _lo; }
 
   virtual bool        is_finite() const;  // Has a finite value
 
@@ -686,9 +690,9 @@ public:
   static const TypeLong *make(jlong lo, jlong hi, int w);
 
   // Check for single integer
-  int is_con() const { return _lo==_hi; }
-  bool is_con(int i) const { return is_con() && _lo == i; }
-  jlong get_con() const { assert( is_con(), "" ); return _lo; }
+  bool is_con() const { return _lo==_hi; }
+  bool is_con(jlong i) const { return is_con() && _lo == i; }
+  jlong get_con() const { assert(is_con(), "" ); return _lo; }
 
   // Check for positive 32-bit value.
   int is_positive_int() const { return _lo >= 0 && _hi <= (jlong)max_jint; }
@@ -946,6 +950,8 @@ public:
   TypeVectMask(const Type* elem, uint length) : TypeVect(VectorMask, elem, length) {}
   virtual bool eq(const Type *t) const;
   virtual const Type *xdual() const;
+  static const TypeVectMask* make(const BasicType elem_bt, uint length);
+  static const TypeVectMask* make(const Type* elem, uint length);
 };
 
 //------------------------------TypePtr----------------------------------------
@@ -1079,9 +1085,11 @@ public:
   virtual bool maybe_null() const { return meet_ptr(Null) == ptr(); }
 
   virtual bool can_be_inline_type() const { return false; }
-  virtual bool flatten_array() const { return false; }
-  virtual bool is_not_flat() const { return false; }
-  virtual bool is_not_null_free() const { return false; }
+  virtual bool flatten_array()      const { return false; }
+  virtual bool is_flat()            const { return false; }
+  virtual bool is_not_flat()        const { return false; }
+  virtual bool is_null_free()       const { return false; }
+  virtual bool is_not_null_free()   const { return false; }
 
   // Tests for relation to centerline of type lattice:
   static bool above_centerline(PTR ptr) { return (ptr <= AnyNull); }
@@ -1658,9 +1666,10 @@ public:
     return TypeKlassPtr::empty() || _elem->empty();
   }
 
-  virtual bool is_not_flat() const { return _not_flat; }
-  virtual bool is_not_null_free() const { return _not_null_free; }
-  bool null_free() const { return _null_free; }
+  bool is_flat()          const { return klass()->is_flat_array_klass(); }
+  bool is_not_flat()      const { return _not_flat; }
+  bool is_null_free()     const { return _null_free; }
+  bool is_not_null_free() const { return _not_null_free; }
 
 #ifndef PRODUCT
   virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping

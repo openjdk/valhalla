@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle of static init factories
- * @run main/othervm StaticFactoryMethodHandleTest
+ * @run testng/othervm StaticFactoryMethodHandleTest
  */
 
 import java.lang.invoke.MethodHandle;
@@ -36,6 +36,12 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+import static java.lang.invoke.MethodType.*;
+import static org.testng.Assert.*;
 
 public class StaticFactoryMethodHandleTest {
     static interface Cons {};
@@ -61,37 +67,70 @@ public class StaticFactoryMethodHandleTest {
             this.y = y+z;
         }
     }
+    static value class Value implements Cons {
+        int x;
+        public Value(int x) {
+            this.x = x;
+        }
+    }
 
-    public static void main(String... args) throws Throwable {
+    /*
+     * Test no-arg static factory
+     */
+    @Test
+    public void testNoArgStaticFactory() throws Throwable {
         // test default static init factory
-        MethodType mtype0 = MethodType.methodType(DefaultConstructor.class.asValueType());
-        MethodHandle mh0 = staticInitFactory(DefaultConstructor.val.class, mtype0);
-        DefaultConstructor o0 = (DefaultConstructor)mh0.invokeExact();
-        assertEquals(o0, new DefaultConstructor());
-        assertEquals(o0, newInstance(DefaultConstructor.val.class, 0, mh0.type().parameterArray()));
+        Class<? extends Cons> cls = (Class<? extends Cons>)DefaultConstructor.class.asValueType();
+        MethodHandle mh = staticInitFactory(cls, methodType(cls));
+        DefaultConstructor o = (DefaultConstructor)mh.invokeExact();
+        assertEquals(o, new DefaultConstructor());
+        assertEquals(o, newInstance(cls, 0, new Class<?>[0]));
+    }
 
-        // test 1-arg static init factory
-        MethodType mtype1 = MethodType.methodType(ConstructorWithArgs.class.asValueType(), int.class);
-        MethodHandle mh1 = staticInitFactory(ConstructorWithArgs.val.class, mtype1);
-        ConstructorWithArgs o1 = (ConstructorWithArgs)mh1.invokeExact(1);
-        assertEquals(o1, new ConstructorWithArgs(1));
-        assertEquals(o1, newInstance(ConstructorWithArgs.val.class, Modifier.PUBLIC, mh1.type().parameterArray(), 1));
+    @DataProvider(name="ctorWithArgs")
+    static Object[][] ctorWithArgs() {
+        Class<? extends Cons> cls = (Class<? extends Cons>)ConstructorWithArgs.class.asValueType();
+        return new Object[][]{
+                new Object[] { cls, methodType(cls, int.class), Modifier.PUBLIC, new ConstructorWithArgs(1) },
+                new Object[] { cls, methodType(cls, int.class, int.class), 0, new ConstructorWithArgs(1, 2) },
+                new Object[] { cls, methodType(cls, int.class, int.class, int.class), Modifier.PRIVATE, new ConstructorWithArgs(1, 2, 3) },
+        };
+    }
 
+    /*
+     * Test static factory with args
+     */
+    @Test(dataProvider="ctorWithArgs")
+    public void testStaticFactoryWithArgs(Class<? extends Cons> c, MethodType mtype, int modifiers, ConstructorWithArgs o) throws Throwable {
+        MethodHandle mh = staticInitFactory(c, mtype);
+        ConstructorWithArgs o1;
+        Object o2;
+        switch (mtype.parameterCount()) {
+            case 1: o1 = (ConstructorWithArgs)mh.invokeExact(1);
+                    o2 = newInstance(c, modifiers, mtype.parameterArray(), 1);
+                    break;
+            case 2: o1 = (ConstructorWithArgs)mh.invokeExact(1, 2);
+                    o2 = newInstance(c, modifiers, mtype.parameterArray(), 1, 2);
+                    break;
+            case 3: o1 = (ConstructorWithArgs)mh.invokeExact(1, 2, 3);
+                    o2 = newInstance(c, modifiers, mtype.parameterArray(), 1, 2, 3);
+                    break;
+            default:
+                    throw new IllegalArgumentException(c + " " + mtype);
+        }
 
-        // test 2-arg static init factory
-        MethodType mtype2 = MethodType.methodType(ConstructorWithArgs.class.asValueType(), int.class, int.class);
-        MethodHandle mh2 = staticInitFactory(ConstructorWithArgs.val.class, mtype2);
-        ConstructorWithArgs o2 = (ConstructorWithArgs)mh2.invokeExact(1, 2);
-        assertEquals(o2, new ConstructorWithArgs(1, 2));
-        assertEquals(o2, newInstance(ConstructorWithArgs.val.class, 0, mh2.type().parameterArray(), 1, 2));
+        assertEquals(o1, o);
+        assertEquals(o1, o2);
+    }
 
-
-        // test 3-arg static init factory
-        MethodType mtype3 = MethodType.methodType(ConstructorWithArgs.class.asValueType(), int.class, int.class, int.class);
-        MethodHandle mh3 = staticInitFactory(ConstructorWithArgs.val.class, mtype3);
-        ConstructorWithArgs o3 = (ConstructorWithArgs)mh3.invokeExact(1, 2, 3);
-        assertEquals(o3, new ConstructorWithArgs(1, 2, 3));
-        assertEquals(o3, newInstance(ConstructorWithArgs.val.class, Modifier.PRIVATE, mh3.type().parameterArray(), 1, 2, 3));
+    @Test
+    public void testValueClasstaticFactory() throws Throwable {
+        // test default static init factory
+        MethodType mtype = methodType(Value.class, int.class);
+        MethodHandle mh = staticInitFactory(Value.class, mtype);
+        Value o = (Value)mh.invokeExact(10);
+        assertEquals(o, new Value(10));
+        assertEquals(o, newInstance(Value.class, Modifier.PUBLIC, mtype.parameterArray(), 10));
     }
 
     /*
@@ -160,19 +199,5 @@ public class StaticFactoryMethodHandleTest {
         }
         assertEquals(o1, o2);
         return o1;
-    }
-
-    static void assertTrue(boolean v) {
-        if (!v) {
-            throw new AssertionError("expected true");
-        }
-    }
-
-    static void assertEquals(Object o1, Object o2) {
-        if (o1 == o2) return;
-
-        if (!o1.equals(o2)) {
-            throw new AssertionError(o1 + " != " + o2);
-        }
     }
 }

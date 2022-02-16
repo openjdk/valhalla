@@ -422,7 +422,7 @@ public class Flags {
      */
     public static final int
         AccessFlags                       = PUBLIC | PROTECTED | PRIVATE,
-        LocalClassFlags                   = FINAL | ABSTRACT | ENUM | SYNTHETIC  | ACC_PRIMITIVE | ACC_VALUE | ACC_PERMITS_VALUE,
+        LocalClassFlags                   = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC | ACC_PERMITS_VALUE,
         StaticLocalClassFlags             = LocalClassFlags | STATIC | INTERFACE,
         MemberClassFlags                  = LocalClassFlags | INTERFACE | AccessFlags,
         MemberStaticClassFlags            = MemberClassFlags | STATIC,
@@ -435,7 +435,8 @@ public class Flags {
         MethodFlags                       = AccessFlags | ABSTRACT | STATIC | NATIVE |
                                             SYNCHRONIZED | FINAL | STRICTFP,
         RecordMethodFlags                 = AccessFlags | ABSTRACT | STATIC |
-                                            SYNCHRONIZED | FINAL | STRICTFP;
+                                            SYNCHRONIZED | FINAL | STRICTFP,
+        AdjustedClassFlags                = ClassFlags | ACC_PRIMITIVE | ACC_VALUE;
     public static final long
         ExtendedStandardFlags             = (long)StandardFlags | DEFAULT | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,
         ExtendedMemberClassFlags          = (long)MemberClassFlags | SEALED | NON_SEALED | PRIMITIVE_CLASS | VALUE_CLASS,

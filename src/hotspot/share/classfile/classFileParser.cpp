@@ -142,8 +142,9 @@
 
 #define JAVA_18_VERSION                   62
 
-#define CONSTANT_CLASS_DESCRIPTORS        62
+#define JAVA_19_VERSION                   63
 
+#define CONSTANT_CLASS_DESCRIPTORS        63
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -1456,7 +1457,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   NONSTATIC_DOUBLE,    // T_LONG        = 11,
   NONSTATIC_OOP,       // T_OBJECT      = 12,
   NONSTATIC_OOP,       // T_ARRAY       = 13,
-  NONSTATIC_OOP,       // T_INLINE_TYPE = 14,
+  NONSTATIC_OOP,       // T_PRIMITIVE_OBJECT = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1477,7 +1478,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   STATIC_DOUBLE,       // T_LONG        = 11,
   STATIC_OOP,          // T_OBJECT      = 12,
   STATIC_OOP,          // T_ARRAY       = 13,
-  STATIC_OOP,          // T_INLINE_TYPE = 14,
+  STATIC_OOP,          // T_PRIMITIVE_OBJECT = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1521,6 +1522,7 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    bool is_interface,
                                    bool is_inline_type,
+                                   bool is_permits_value_class,
                                    FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
@@ -1585,7 +1587,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
-    verify_legal_field_modifiers(flags, is_interface, is_inline_type, CHECK);
+    verify_legal_field_modifiers(flags, is_interface, is_inline_type, is_permits_value_class, CHECK);
     AccessFlags access_flags;
     access_flags.set_flags(flags);
 
@@ -1662,7 +1664,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Update FieldAllocationCount for this kind of field
-    fac->update(is_static, type, type == T_INLINE_TYPE);
+    fac->update(is_static, type, type == T_PRIMITIVE_OBJECT);
 
     // After field is initialized with type, we can augment it with aux info
     if (parsed_annotations.has_any_annotations()) {
@@ -2354,6 +2356,7 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
                                       bool is_inline_type,
+                                      bool is_permits_value_class,
                                       const ConstantPool* cp,
                                       AccessFlags* const promoted_flags,
                                       TRAPS) {
@@ -2395,7 +2398,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       return NULL;
     }
   } else {
-    verify_legal_method_modifiers(flags, is_interface, is_inline_type, name, CHECK_NULL);
+    verify_legal_method_modifiers(flags, is_interface, is_inline_type, is_permits_value_class, name, CHECK_NULL);
   }
 
   if (name == vmSymbols::object_initializer_name()) {
@@ -2988,7 +2991,8 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                           annotation_default_length,
                           CHECK_NULL);
 
-  if (name == vmSymbols::finalize_method_name() &&
+  if (InstanceKlass::is_finalization_enabled() &&
+      name == vmSymbols::finalize_method_name() &&
       signature == vmSymbols::void_method_signature()) {
     if (m->is_empty_method()) {
       _has_empty_finalizer = true;
@@ -3014,6 +3018,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
                                     bool is_inline_type,
+                                    bool is_permits_value_class,
                                     AccessFlags* promoted_flags,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -3039,6 +3044,7 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
       Method* method = parse_method(cfs,
                                     is_interface,
                                     is_inline_type,
+                                    is_permits_value_class,
                                     _cp,
                                     promoted_flags,
                                     CHECK);
@@ -3205,6 +3211,7 @@ static int inner_classes_jump_to_outer(const Array<u2>* inner_classes, int inner
 static bool inner_classes_check_loop_through_outer(const Array<u2>* inner_classes, int idx, const ConstantPool* cp, int length) {
   int slow = inner_classes->at(idx + InstanceKlass::inner_class_inner_class_info_offset);
   int fast = inner_classes->at(idx + InstanceKlass::inner_class_outer_class_info_offset);
+
   while (fast != -1 && fast != 0) {
     if (slow != 0 && (cp->klass_name_at(slow) == cp->klass_name_at(fast))) {
       return true;  // found a circularity
@@ -3234,14 +3241,15 @@ bool ClassFileParser::check_inner_classes_circularity(const ConstantPool* cp, in
     for (int y = idx + InstanceKlass::inner_class_next_offset; y < length;
          y += InstanceKlass::inner_class_next_offset) {
 
-      // To maintain compatibility, throw an exception if duplicate inner classes
-      // entries are found.
-      guarantee_property((_inner_classes->at(idx) != _inner_classes->at(y) ||
-                          _inner_classes->at(idx+1) != _inner_classes->at(y+1) ||
-                          _inner_classes->at(idx+2) != _inner_classes->at(y+2) ||
-                          _inner_classes->at(idx+3) != _inner_classes->at(y+3)),
-                         "Duplicate entry in InnerClasses attribute in class file %s",
-                         CHECK_(true));
+      // 4347400: make sure there's no duplicate entry in the classes array
+      if (_major_version >= JAVA_1_5_VERSION) {
+        guarantee_property((_inner_classes->at(idx) != _inner_classes->at(y) ||
+                            _inner_classes->at(idx+1) != _inner_classes->at(y+1) ||
+                            _inner_classes->at(idx+2) != _inner_classes->at(y+2) ||
+                            _inner_classes->at(idx+3) != _inner_classes->at(y+3)),
+                           "Duplicate entry in InnerClasses attribute in class file %s",
+                           CHECK_(true));
+      }
       // Return true if there are two entries with the same inner_class_info_index.
       if (_inner_classes->at(y) == _inner_classes->at(idx)) {
         return true;
@@ -3319,9 +3327,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
+    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_PERMITS_VALUE are defined for class file version 62 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
+      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
     }
 
     // Access flags
@@ -3340,10 +3348,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     inner_classes->at_put(index++, inner_access_flags.as_short());
   }
 
-  // 4347400: make sure there's no duplicate entry in the classes array
-  // Also, check for circular entries.
+  // Check for circular and duplicate entries.
   bool has_circularity = false;
-  if (_need_verify && _major_version >= JAVA_1_5_VERSION) {
+  if (_need_verify) {
     has_circularity = check_inner_classes_circularity(cp, length * 4, CHECK_0);
     if (has_circularity) {
       // If circularity check failed then ignore InnerClasses attribute.
@@ -3753,6 +3760,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   _nest_members = Universe::the_empty_short_array();
   // Set _permitted_subclasses attribute to default sentinel
   _permitted_subclasses = Universe::the_empty_short_array();
+  // Set _preload_classes attribute to default sentinel
+  _preload_classes = Universe::the_empty_short_array();
   cfs->guarantee_more(2, CHECK);  // attributes_count
   u2 attributes_count = cfs->get_u2_fast();
   bool parsed_sourcefile_attribute = false;
@@ -4408,7 +4417,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   bool f = false;
   const Method* const m = ik->lookup_method(vmSymbols::finalize_method_name(),
                                            vmSymbols::void_method_signature());
-  if (m != NULL && !m->is_empty_method()) {
+  if (InstanceKlass::is_finalization_enabled() &&
+      (m != NULL) && !m->is_empty_method()) {
       f = true;
   }
 
@@ -4573,6 +4583,18 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
 
     if (super_ik->is_sealed() && !super_ik->has_as_permitted_subclass(this_klass)) {
       classfile_icce_error("class %s cannot inherit from sealed class %s", super_ik, THREAD);
+      return;
+    }
+
+    // The JVMS says that super classes for value types must have the ACC_PERMITS_VALUE
+    // flag set.  However, since java.lang.Object has not yet been changed into an abstract
+    // class, it cannot have its ACC_PERMITS_VALUE flag set.  But, java.lang.Object must
+    // still be allowed to be a direct super class for a value classes.  So, it is treated
+    // as a special case for now.
+    if (this_klass->access_flags().is_value_class() &&
+        super_ik->name() != vmSymbols::java_lang_Object() &&
+        !super_ik->is_permits_value_class()) {
+      classfile_icce_error("value class %s cannot inherit from class %s", super_ik, THREAD);
       return;
     }
 
@@ -4763,9 +4785,11 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
   const bool is_value_class = (flags & JVM_ACC_VALUE) != 0;
   const bool is_primitive_class = (flags & JVM_ACC_PRIMITIVE) != 0;
+  const bool is_permits_value_class = (flags & JVM_ACC_PERMITS_VALUE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
   assert(supports_inline_types() || !is_value_class, "JVM_ACC_VALUE should not be set");
   assert(supports_inline_types() || !is_primitive_class, "JVM_ACC_PRIMITIVE should not be set");
+  assert(supports_inline_types() || !is_permits_value_class, "JVM_ACC_PERMITS_VALUE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4799,18 +4823,19 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_enum       = (flags & JVM_ACC_ENUM)       != 0;
   const bool is_annotation = (flags & JVM_ACC_ANNOTATION) != 0;
   const bool major_gte_1_5 = _major_version >= JAVA_1_5_VERSION;
-  const bool major_gte_14  = _major_version >= JAVA_14_VERSION;
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_super || is_enum)) ||
       (!is_interface && major_gte_1_5 && is_annotation) ||
-      (is_value_class && (is_interface || is_abstract || is_enum || !is_final)) ||
+      (is_value_class && (is_interface || is_abstract || is_enum || !is_final || is_permits_value_class)) ||
+      (is_permits_value_class && (is_interface || is_final || !is_abstract)) ||
       (is_primitive_class && !is_value_class)) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
     if (is_value_class)  class_note = " (a value class)";
     if (is_primitive_class)  class_note = " (a primitive class)";
+    if (is_permits_value_class)  class_note = " (a permits_value class)";
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -4886,6 +4911,7 @@ void ClassFileParser::verify_class_version(u2 major, u2 minor, Symbol* class_nam
 void ClassFileParser::verify_legal_field_modifiers(jint flags,
                                                    bool is_interface,
                                                    bool is_inline_type,
+                                                   bool is_permits_value_class,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
@@ -4913,6 +4939,8 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
     } else {
       if (is_inline_type && !is_static && !is_final) {
         is_illegal = true;
+      } else if (is_permits_value_class && !is_static) {
+        is_illegal = true;
       }
     }
   }
@@ -4931,6 +4959,7 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
 void ClassFileParser::verify_legal_method_modifiers(jint flags,
                                                     bool is_interface,
                                                     bool is_inline_type,
+                                                    bool is_permits_value_class,
                                                     const Symbol* name,
                                                     TRAPS) const {
   if (!_need_verify) { return; }
@@ -5001,7 +5030,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
           class_note = (is_inline_type ? " (an inline class)" : " (not an inline class)");
         }
       } else { // not initializer
-        if (is_inline_type && is_synchronized && !is_static) {
+        if ((is_inline_type || is_permits_value_class) && is_synchronized && !is_static) {
           is_illegal = true;
           class_note = " (an inline class)";
         } else {
@@ -5081,7 +5110,7 @@ bool ClassFileParser::verify_unqualified_name(const char* name,
 
 // Take pointer to a UTF8 byte string (not NUL-terminated).
 // Skip over the longest part of the string that could
-// be taken as a fieldname. Allow '/' if slash_ok is true.
+// be taken as a fieldname. Allow non-trailing '/'s if slash_ok is true.
 // Return a pointer to just past the fieldname.
 // Return NULL if no fieldname at all was found, or in the case of slash_ok
 // being true, we saw consecutive slashes (meaning we were looking for a
@@ -5155,7 +5184,7 @@ static const char* skip_over_field_name(const char* const name,
     }
     return (not_first_ch) ? old_p : NULL;
   }
-  return (not_first_ch) ? p : NULL;
+  return (not_first_ch && !last_is_slash) ? p : NULL;
 }
 
 // Take pointer to a UTF8 byte string (not NUL-terminated).
@@ -5180,13 +5209,15 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_LONG:
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
-    case JVM_SIGNATURE_INLINE_TYPE:
-      // Can't enable this check until JDK upgrades the bytecode generators
-      // if (_major_version < CONSTANT_CLASS_DESCRIPTORS ) {
-      //   classfile_parse_error("Class name contains illegal Q-signature "
-      //                                    "in descriptor in class file %s",
-      //                                    CHECK_0);
-      // }
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT:
+      // Can't enable this check fully until JDK upgrades the bytecode generators.
+      // For now, compare to class file version 51 so old verifier doesn't see Q signatures.
+      if (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) {
+        classfile_parse_error("Class name contains illegal Q-signature "
+                              "in descriptor in class file %s",
+                              CHECK_0);
+        return NULL;
+      }
       // fall through
     case JVM_SIGNATURE_CLASS:
     {
@@ -6090,7 +6121,7 @@ ClassFileParser::~ClassFileParser() {
     MetadataFactory::free_array<u2>(_loader_data, _permitted_subclasses);
   }
 
-  if (_preload_classes != NULL) {
+  if (_preload_classes != NULL && _preload_classes != Universe::the_empty_short_array()) {
     MetadataFactory::free_array<u2>(_loader_data, _preload_classes);
   }
 
@@ -6185,7 +6216,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
   // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
+    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
   }
 
   // Access flags
@@ -6306,6 +6337,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_fields(stream,
                is_interface(),
                is_inline_type(),
+               is_permits_value_class(),
                _fac,
                cp,
                cp_size,
@@ -6319,6 +6351,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_methods(stream,
                 is_interface(),
                 is_inline_type(),
+                is_permits_value_class(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
@@ -6542,7 +6575,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                    NULL,
                                                    CHECK);
     for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE && !fs.access_flags().is_static()) {
+      if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT && !fs.access_flags().is_static()) {
         // Pre-load inline class
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
             Handle(THREAD, _loader_data->class_loader()),
