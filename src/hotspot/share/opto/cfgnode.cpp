@@ -2485,18 +2485,19 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     ResourceMark rm;
     Unique_Node_List worklist;
     worklist.push(this);
-    bool can_optimize = false;
+    bool can_optimize = true;
     ciInlineKlass* vk = NULL;
     // true if all IsInit inputs of all InlineType* nodes are true
     bool is_init = true;
     Node_List casts;
 
-    // TODO
+    // TODO we need to prevent endless pushing through
     // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
+    // TestLWordl -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* n = fast_out(i);
-      if (!(n->is_InlineTypePtr() && n->in(1) == this)) {
-        can_optimize = true;
+      if (n->is_InlineTypePtr() && n->in(1) == this) {
+        can_optimize = false;
         break;
       }
     }

@@ -1077,7 +1077,6 @@ public class TestLWorld {
         });
 
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test35(MyValue1[] va, int index) throws Throwable {
         setArrayElementNull.invoke(this, va, index);
     }
@@ -1415,7 +1414,6 @@ public class TestLWorld {
         });
 
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test44(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         setArrayElementIncompatible.invoke(this, va, index, v);
     }
@@ -4022,7 +4020,6 @@ public class TestLWorld {
 
     // Same as test44 but with .ref store to array
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test145(MyValue1[] va, int index, MyValue2.ref v) throws Throwable {
         setArrayElementIncompatibleRef.invoke(this, va, index, v);
     }

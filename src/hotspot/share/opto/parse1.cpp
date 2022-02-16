@@ -1913,12 +1913,14 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
         if (vtm->is_InlineTypePtr() && vtn->is_InlineType()) {
-          // TODO hack
+          // TODO hack, remove this!!
           Node* newVal = InlineTypeNode::make_uninitialized(gvn(), vtm->bottom_type()->inline_klass());
           for (uint i = 1; i < vtm->req(); ++i) {
             newVal->set_req(i, vtm->in(i));
           }
-          vtm = gvn().transform(newVal)->as_InlineTypeBase();
+          _gvn.set_type(newVal, vtm->bottom_type());
+          vtm->replace_by(newVal);
+          vtm = newVal->as_InlineTypeBase();
         }
         if (last_merge) {
           map()->set_req(j, _gvn.transform_no_reclaim(vtm));
