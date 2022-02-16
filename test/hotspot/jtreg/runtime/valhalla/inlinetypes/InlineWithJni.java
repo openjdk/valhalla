@@ -38,7 +38,7 @@ public primitive final class InlineWithJni {
     }
 
     final int x;
-    
+
     public InlineWithJni(int x) {
         this.x = x;
     }

@@ -40,7 +40,7 @@ public primitive class TestValue2 {
         s = Long.valueOf(l).toString();
         d = Double.parseDouble(s);
     }
-    
+
     public TestValue2(long l) {
         this.l = l;
         s = Long.valueOf(l).toString();

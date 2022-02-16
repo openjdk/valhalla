@@ -37,7 +37,7 @@ public primitive class TestValue3 {
     public TestValue3() {
         b = 123;
     }
-    
+
     public TestValue3(byte b) {
         this.b = b;
     }

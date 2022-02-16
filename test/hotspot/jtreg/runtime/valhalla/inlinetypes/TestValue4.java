@@ -47,7 +47,7 @@ public primitive class TestValue4 {
     public TestValue4() {
         this((int) System.nanoTime());
     }
-    
+
     public TestValue4(int i) {
         this.i = i;
         val = Integer.valueOf(i).toString();

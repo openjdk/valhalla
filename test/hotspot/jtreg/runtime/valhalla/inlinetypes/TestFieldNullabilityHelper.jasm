@@ -30,7 +30,7 @@ public class runtime/valhalla/inlinetypes/TestInlineType
     final Field nullField:       "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;"; // src of null
     final Field nullfreeBigField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // not flattened
     final Field nullBigField:    "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // src of null
-    
+
     public Method withNullableField:"(Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestInlineType;"
     {
         aload_0;
@@ -38,7 +38,7 @@ public class runtime/valhalla/inlinetypes/TestInlineType
         putfield nullableField:"Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
         areturn;
     }
-    
+
     public Method withNullFreeField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestInlineType;"
     {
         aload_0;

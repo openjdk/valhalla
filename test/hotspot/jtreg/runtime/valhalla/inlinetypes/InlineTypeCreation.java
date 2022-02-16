@@ -83,6 +83,6 @@ public class InlineTypeCreation {
         public static void test() {
             String s = DEFAULT.toString();
         }
-        
+
     }
 }

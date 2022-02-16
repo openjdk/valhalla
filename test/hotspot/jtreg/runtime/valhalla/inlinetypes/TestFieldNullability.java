@@ -52,7 +52,7 @@ public class TestFieldNullability {
             l10 = l11 = l12 = l13 = l14 = l15 = l16 = l17 = l18 = l19 = 271;
         }
     }
-    
+
     static void testInlineType() {
         TestInlineType that = TestInlineType.default;
         Asserts.assertNull(that.nullField, "Invalid non null value for uninitialized non flattenable field");
