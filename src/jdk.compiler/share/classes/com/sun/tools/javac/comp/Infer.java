@@ -248,8 +248,6 @@ public class Infer {
 
             // return instantiated version of method type
             return mt;
-        } catch (Throwable t) {
-            throw t;
         } finally {
             if (resultInfo != null || !allowGraphInference) {
                 inferenceContext.notifyChange();
