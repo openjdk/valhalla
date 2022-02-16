@@ -22,7 +22,7 @@
  *
  */
 
-public class runtime/valhalla/inlinetypes/TestInlineType
+public final primitive value class runtime/valhalla/inlinetypes/TestPrimitiveClass
     version 62:0
 {
     final Field nullableField:   "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
@@ -31,27 +31,30 @@ public class runtime/valhalla/inlinetypes/TestInlineType
     final Field nullfreeBigField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // not flattened
     final Field nullBigField:    "Lruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;"; // src of null
 
-    public Method withNullableField:"(Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestInlineType;"
+    public Method withNullableField:"(Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
+        stack 2
     {
         aload_0;
         aload_1;
-        putfield nullableField:"Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
+        withfield nullableField:"Lruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
         areturn;
     }
 
-    public Method withNullFreeField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestInlineType;"
+    public Method withNullfreeField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
+        stack 2
     {
         aload_0;
         aload_1;
-        putfield nullfreeField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
+        withfield nullfreeField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyValue;";
         areturn;
     }
 
-    public Method withNullFreeBigField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;)Lruntime/valhalla/inlinetypes/TestInlineType;"
+    public Method withNullfreeBigField:"(Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;)Lruntime/valhalla/inlinetypes/TestPrimitiveClass;"
+        stack 2
     {
         aload_0;
         aload_1;
-        putfield nullfreeBigField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;";
+        withfield nullfreeBigField:"Qruntime/valhalla/inlinetypes/TestFieldNullability$MyBigValue;";
         areturn;
     }
 

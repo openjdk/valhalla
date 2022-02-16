@@ -28,8 +28,8 @@ import jdk.test.lib.Asserts;
 /**
  * @test
  * @library /test/lib
- * @compile TestFieldTypeMismatchHelper.jasm
- * @compile TestFieldTypeMismatch.java
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldTypeMismatchHelper.jasm
  * @run main/othervm runtime.valhalla.inlinetypes.TestFieldTypeMismatch
  */
 
@@ -51,4 +51,3 @@ public class TestFieldTypeMismatch {
         Asserts.assertTrue(exception);
     }
 }
-
