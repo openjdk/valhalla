@@ -213,6 +213,17 @@ public class Infer {
 
             deferredAttrContext.complete();
 
+            /* if boxing is not allowed then, no undetVar should have a bound that is a primitive class, unless the bound
+             * was originally declared as an upper bound in the corresponding inference variable.
+             * InferenceContext::boundedVars returns those variables with bounds that were not originally declared as
+             * upper bounds of the inference variable
+             */
+            if (!allowBoxing && inferenceContext.asUndetVars(inferenceContext.boundedVars())
+                    .stream().map(t -> ((UndetVar)t).getBounds(InferenceBound.EQ, InferenceBound.LOWER, InferenceBound.UPPER))
+                    .flatMap(Collection::stream).anyMatch(Type::isPrimitiveClass)) {
+                throw error(null);
+            }
+
             // minimize as yet undetermined type variables
             if (allowGraphInference) {
                 inferenceContext.solve(warn);

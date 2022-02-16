@@ -1052,11 +1052,8 @@ public class Resolve {
 
         public boolean compatible(Type found, Type req, Warner warn) {
             InferenceContext inferenceContext = deferredAttrContext.inferenceContext;
-            boolean anyIsUndetVar = inferenceContext.asUndetVar(found).hasTag(UNDETVAR) || inferenceContext.asUndetVar(req).hasTag(UNDETVAR);
-            boolean anyIsPrimitiveClass = found.isPrimitiveClass() || req.isPrimitiveClass();
             return strict ?
-                    (anyIsUndetVar && anyIsPrimitiveClass ? false :
-                    types.isSubtypeUnchecked(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn)) :
+                    types.isSubtypeUnchecked(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn) :
                     types.isConvertible(inferenceContext.asUndetVar(found), inferenceContext.asUndetVar(req), warn);
         }
 
