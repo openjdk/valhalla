@@ -218,7 +218,9 @@ public class Infer {
              * InferenceContext::boundedVars returns those variables with bounds that were not originally declared as
              * upper bounds of the inference variable
              */
-            if (!allowBoxing && inferenceContext.asUndetVars(inferenceContext.boundedVars())
+            if (!allowBoxing &&
+                    resultInfo == null &&
+                    inferenceContext.asUndetVars(inferenceContext.boundedVars())
                     .stream().map(t -> ((UndetVar)t).getBounds(InferenceBound.EQ, InferenceBound.LOWER, InferenceBound.UPPER))
                     .flatMap(Collection::stream).anyMatch(Type::isPrimitiveClass)) {
                 throw error(null);

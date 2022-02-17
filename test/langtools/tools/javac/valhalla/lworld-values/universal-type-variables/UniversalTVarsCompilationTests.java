@@ -486,8 +486,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 """
         );
 
-        // primitive classes don't have subtypes
-        assertFail("compiler.err.not.within.bounds",
+        assertOK(
                 """
                 primitive class Point {}
 
@@ -497,6 +496,35 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     void m() {
                         MyList<? extends Point> ls = null;
                     }
+                }
+                """
+        );
+    }
+
+    public void testInferenceAndTypeSystem() {
+        assertOK(
+                """
+                primitive class MyValue {
+                    MyValue m(U u) {
+                        return u.getValue(MyValue.class.asValueType());
+                    }
+                }
+
+                class U {
+                    <V> V getValue(Class<?> pc) { return null; }
+                }
+                """
+        );
+        assertOK(
+                """
+                primitive class MyValue {
+                    void m(U u) {
+                        MyValue vt = u.makePrivateBuffer(this);
+                    }
+                }
+
+                class U {
+                    <V> V makePrivateBuffer(V value) { return null; }
                 }
                 """
         );
