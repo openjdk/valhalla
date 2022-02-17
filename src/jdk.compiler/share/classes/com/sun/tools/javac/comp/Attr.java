@@ -179,7 +179,7 @@ public class Attr extends JCTree.Visitor {
         allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-
+        tolerateObjectInstantiation = options.isSet("tolerateObjectInstantiation");
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
         unknownExprInfo = new ResultInfo(KindSelector.VAL, Type.noType);
@@ -234,6 +234,12 @@ public class Attr extends JCTree.Visitor {
      * RFE: 6425594
      */
     boolean useBeforeDeclarationWarning;
+
+    /**
+     * Switch: warn about use of new Object() ? By default, Yes;
+     * but not if -XDtolerateObjectInstantiation is in effect
+     */
+    boolean tolerateObjectInstantiation;
 
     /**
      * Switch: name of source level; used for error reporting.
@@ -2844,7 +2850,7 @@ public class Attr extends JCTree.Visitor {
             clazztype = TreeInfo.isEnumInit(env.tree) ?
                 attribIdentAsEnumType(env, (JCIdent)clazz) :
                 attribType(clazz, env);
-            if (clazztype.tsym == syms.objectType.tsym && cdef == null && !tree.classDeclRemoved()) {
+            if (!tolerateObjectInstantiation && clazztype.tsym == syms.objectType.tsym && cdef == null && !tree.classDeclRemoved()) {
                 log.note(tree.pos(), Notes.CantInstantiateObjectDirectly);
             }
         } finally {

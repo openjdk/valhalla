@@ -5907,7 +5907,7 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
       // below the centerline when the superclass is exact. We need to
       // do the same here.
       if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact()) {
-        return TypeAryKlassPtr::make(ptr, tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->null_free());
+        return TypeAryKlassPtr::make(ptr, tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->is_null_free());
       } else {
         // cannot subclass, so the meet has to fall badly below the centerline
         ptr = NotNull;
@@ -5926,7 +5926,7 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
         if (klass()->equals(ciEnv::current()->Object_klass())) {
           // that is, tp's array type is a subtype of my klass
           return TypeAryKlassPtr::make(ptr,
-                                       tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->null_free());
+                                       tp->elem(), tp->klass(), offset, tp->is_not_flat(), tp->is_not_null_free(), tp->is_null_free());
         }
       }
       // The other case cannot happen, since I cannot be a subtype of an array.

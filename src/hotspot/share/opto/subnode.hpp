@@ -282,15 +282,16 @@ public:
 };
 
 //--------------------------FlatArrayCheckNode---------------------------------
-// Returns true if one of the input arrays (there can be multiple) is flat.
+// Returns true if one of the input array objects or array klass ptrs (there
+// can be multiple) is flat.
 class FlatArrayCheckNode : public CmpNode {
 public:
   enum {
     Control,
     Memory,
-    Array
+    ArrayOrKlass
   };
-  FlatArrayCheckNode(Compile* C, Node* mem, Node* array) : CmpNode(mem, array) {
+  FlatArrayCheckNode(Compile* C, Node* mem, Node* array_or_klass) : CmpNode(mem, array_or_klass) {
     init_class_id(Class_FlatArrayCheck);
     init_flags(Flag_is_macro);
     C->add_macro_node(this);
