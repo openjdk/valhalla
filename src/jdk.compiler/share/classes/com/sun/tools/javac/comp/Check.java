@@ -109,6 +109,13 @@ public class Check {
     private final Preview preview;
     private final boolean warnOnAnyAccessToMembers;
 
+    /**
+     * Switch: warn about use of new Object() ? By default, Yes;
+     * but not if -XDtolerateObjectInstantiation is in effect
+     */
+    boolean tolerateObjectInstantiation;
+
+
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
     // visits all the various parts of the trees during attribution.
@@ -145,6 +152,7 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
+        tolerateObjectInstantiation = options.isSet("tolerateObjectInstantiation");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
@@ -827,7 +835,7 @@ public class Check {
             /* Tolerate an encounter with abstract Object, we will mutate the constructor reference
                to an invocation of java.util.Objects.newIdentity downstream.
             */
-            if (t.tsym == syms.objectType.tsym)
+            if (!tolerateObjectInstantiation && t.tsym == syms.objectType.tsym)
                 log.note(expr.pos(), Notes.CantInstantiateObjectDirectly);
             if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0 && t.tsym != syms.objectType.tsym) {
                 log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));

@@ -323,8 +323,8 @@ IfNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
     assert(cmp->req() == 3, "unexpected number of inputs for FlatArrayCheck");
     cmp->add_req_batch(C->top(), unswitch_iffs.size() - 1);
     for (uint i = 0; i < unswitch_iffs.size(); i++) {
-      Node* array = unswitch_iffs.at(i)->in(1)->in(1)->in(FlatArrayCheckNode::Array);
-      cmp->set_req(FlatArrayCheckNode::Array + i, array);
+      Node* array = unswitch_iffs.at(i)->in(1)->in(1)->in(FlatArrayCheckNode::ArrayOrKlass);
+      cmp->set_req(FlatArrayCheckNode::ArrayOrKlass + i, array);
     }
   }
 
