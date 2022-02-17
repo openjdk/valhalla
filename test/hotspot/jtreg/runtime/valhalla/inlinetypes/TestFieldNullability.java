@@ -25,7 +25,7 @@
  * @test TestFieldNullability
  * @library /test/lib
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
- * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldNullabilityHelper.jasm
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldNullabilityClasses.jasm
  * @run main/othervm -Xmx128m -XX:InlineFieldMaxFlatSize=32
  *                   runtime.valhalla.inlinetypes.TestFieldNullability
  */
