@@ -47,7 +47,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldOwner
         invokestatic java/lang/Long.valueOf:"(J)Ljava/lang/Long;";
         ldc "unexpected l value";
         invokestatic jdk/test/lib/Asserts.assertEquals:"(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;)V";
-        
+
         aload_0;
         getfield d:D;
         invokestatic java/lang/Double.valueOf:"(D)Ljava/lang/Double;";
@@ -55,7 +55,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldOwner
         invokestatic java/lang/Double.valueOf:"(D)Ljava/lang/Double;";
         ldc "unexpected d value";
         invokestatic jdk/test/lib/Asserts.assertEquals:"(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;)V";
-        
+
         aload_0;
         getfield i:I;
         invokestatic java/lang/Integer.valueOf:"(I)Ljava/lang/Integer;";

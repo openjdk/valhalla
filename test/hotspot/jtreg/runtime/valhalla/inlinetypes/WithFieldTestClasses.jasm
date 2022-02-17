@@ -37,14 +37,14 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldPoint
         iconst_0;
         iconst_0;
         invokevirtual checkFields:"(II)V";
-        
+
         iload_0;
         withfield x:I;
         dup;
         iload_0;
         iconst_0;
         invokevirtual checkFields:"(II)V";
-        
+
         iload_1;
         withfield y:I;
         dup;
@@ -60,13 +60,13 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldPoint
         getfield x:I;
         ireturn;
     }
-    
+
     public Method getY:"()I" stack 1 {
         aload_0;
         getfield y:I;
         ireturn;
     }
-    
+
     public Method withX:"(I)Qruntime/valhalla/inlinetypes/WithFieldPoint;" stack 2 {
         aload_0;
         iload_1;
@@ -97,7 +97,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldPoint
         invokestatic java/lang/Integer.valueOf:"(I)Ljava/lang/Integer;";
         ldc "invalid y value";
         invokestatic jdk/test/lib/Asserts.assertEquals:"(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/String;)V";
-        
+
         return;
     }
 
