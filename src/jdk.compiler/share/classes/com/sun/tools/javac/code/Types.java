@@ -613,7 +613,11 @@ public class Types {
         boolean sValue = s.isPrimitiveClass();
         if (allowUniversalTVars && ((s.hasTag(TYPEVAR)) && ((TypeVar)s).isValueProjection() &&
                 (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isValueProjection()))) {
-            warn.warn(LintCategory.UNIVERSAL);
+            if (t.hasTag(BOT)) {
+                chk.warnUniversalTVar(warn.pos(), Warnings.UniversalVariableCannotBeAssignedNull);
+            } else {
+                chk.warnUniversalTVar(warn.pos(), Warnings.UniversalVariableCannotBeAssignedNull2);
+            }
             return true;
         }
 
@@ -627,7 +631,7 @@ public class Types {
             if (result && (allowUniversalTVars && !t.hasTag(BOT) &&
                     s.isPrimitiveClass() && !t.isPrimitiveClass() &&
                     s.referenceProjectionOrSelf().tsym == t.tsym)) {
-                chk.warnValueConversion(warn.pos(), Warnings.PrimitiveValueConversion);
+                chk.warnUniversalTVar(warn.pos(), Warnings.PrimitiveValueConversion);
             }
             return result;
         }
