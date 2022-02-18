@@ -93,6 +93,23 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 """
         );
 
+        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null.2",
+                """
+                import java.util.function.*;
+
+                class MyMap<__universal K, __universal V> {
+                    K getKey(K k) { return k; }
+                    V getValue(V v) { return v; }
+
+                    void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
+                        K k = getKey(k1);
+                        V v = getValue(v1);
+                        v = f.apply(k, v);
+                    }
+                }
+                """
+        );
+
         setCompileOptions(EMPTY_OPTIONS);
         assertOK(
                 """
