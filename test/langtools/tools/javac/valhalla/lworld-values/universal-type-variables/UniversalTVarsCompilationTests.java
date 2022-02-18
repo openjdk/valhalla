@@ -72,12 +72,21 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null",
+        assertOK(
                 """
                 class C<__universal T> {
                     T.ref x = null;
                     T get() { return x; } // warning: possible null value conversion
                     T.ref getRef() { return x; } // OK
+                }
+                """
+        );
+        assertOK(
+                """
+                class C<__universal T> {
+                    T.ref m() {
+                        return null;
+                    }
                 }
                 """
         );
@@ -89,6 +98,23 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         this.t = t;
                     }
                     void m() { t = null; }
+                }
+                """
+        );
+
+        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null.2",
+                """
+                import java.util.function.*;
+
+                class MyMap<__universal K, __universal V> {
+                    K getKey(K k) { return k; }
+                    V getValue(V v) { return v; }
+
+                    void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
+                        K k = getKey(k1);
+                        V v = getValue(v1);
+                        v = f.apply(k, v);
+                    }
                 }
                 """
         );
