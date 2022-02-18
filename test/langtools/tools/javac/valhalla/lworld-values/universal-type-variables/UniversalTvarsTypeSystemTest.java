@@ -78,14 +78,19 @@ public class UniversalTvarsTypeSystemTest extends TypeHarness {
                 interface I {}
                 static abstract class A {}
                 primitive class Point extends A implements I {}
+                primitive class Circle extends A implements I {}
                 """,
-                "Point", "Point.ref", "A", "I");
+                "Point", "Point.ref", "Circle", "Circle.ref", "A", "I");
         Assert.check(types.lub(typeMap.get("Point"), typeMap.get("Point.ref")).tsym == typeMap.get("Point.ref").tsym);
         Assert.check(types.lub(typeMap.get("Point"), typeMap.get("A")).tsym == typeMap.get("A").tsym);
         Assert.check(types.lub(typeMap.get("Point"), typeMap.get("I")).tsym == typeMap.get("I").tsym);
+        Assert.check(types.lub(typeMap.get("Circle"), typeMap.get("I")).tsym == typeMap.get("I").tsym);
 
-        // this is currently failing we need to update the implementation of Types::glb
-        //Assert.check(types.glb(primitiveType, primitiveRefType).tsym == primitiveType.tsym);
+        Assert.check(types.glb(typeMap.get("Point"), typeMap.get("Point.ref")).tsym == typeMap.get("Point").tsym);
+        Assert.check(types.glb(typeMap.get("Point"), typeMap.get("I")).tsym == typeMap.get("Point").tsym);
+        Assert.check(types.glb(typeMap.get("Point.ref"), typeMap.get("I")).tsym == typeMap.get("Point.ref").tsym);
+        Assert.check(types.glb(typeMap.get("Circle"), typeMap.get("I")).tsym == typeMap.get("Circle").tsym);
+        Assert.check(types.glb(typeMap.get("Circle.ref"), typeMap.get("I")).tsym == typeMap.get("Circle.ref").tsym);
     }
 
     void test_isBoundedBy() {

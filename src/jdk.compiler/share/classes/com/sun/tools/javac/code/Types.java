@@ -4390,9 +4390,9 @@ public class Types {
             return t;
         else if (t.isPrimitive() || s.isPrimitive())
             return syms.errType;
-        else if (isSubtypeNoCapture(t, s))
+        else if (isBoundedBy(t, s, (t1, s1, w) -> isSubtypeNoCapture(t1, s1)))
             return t;
-        else if (isSubtypeNoCapture(s, t))
+        else if (isBoundedBy(s, t, (s1, t1, w) -> isSubtypeNoCapture(s1, t1)))
             return s;
 
         List<Type> closure = union(closure(t), closure(s));
