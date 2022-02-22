@@ -67,7 +67,7 @@ public class PreloadAttributeTest {
             return null;
         }
     }
-    // So we expect ONLY V2, V3 V5, V7 to be in Preload list 
+    // So we expect ONLY V2, V3 V5, V7 to be in Preload list
 
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(PreloadAttributeTest.class.getResourceAsStream("PreloadAttributeTest$X.class"));
@@ -96,7 +96,7 @@ public class PreloadAttributeTest {
                     mask &= ~4; break;
                 case "PreloadAttributeTest$V5":
                     mask &= ~16; break;
-                case "PreloadAttributeTest$V7" : 
+                case "PreloadAttributeTest$V7" :
                     mask &= ~64; break;
                 default:
                     throw new AssertionError("Unexpected Preload class entry!");
