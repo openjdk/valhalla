@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test QuickeningTest
  * @summary Test quickening of getfield and putfield applied to inline fields
  * @library /test/lib
- * @compile -XDallowWithFieldOperator Point.java JumboInline.java QuickeningTest.java
+ * @compile Point.java JumboInline.java QuickeningTest.java
  * @run main runtime.valhalla.inlinetypes.QuickeningTest
  */
 
@@ -62,13 +62,9 @@ public class QuickeningTest {
         final JumboInline fj;    /* Flattenable not flattened inline field */
 
         private Value() {
-            nfp = Point.createPoint(0, 0);
-            fp = Point.createPoint(0, 0);
-            fj = JumboInline.createJumboInline();
-        }
-
-        public static Value create() {
-            return Value.default;
+            nfp = Point.default;
+            fp = Point.default;
+            fj = JumboInline.default;
         }
     }
 
@@ -92,7 +88,7 @@ public class QuickeningTest {
         Asserts.assertEquals(c.fj2.l0, 0L, "invalid value for uninitialized not flattened field");
         Asserts.assertEquals(c.fj2.l1, 0L, "invalid value for uninitialized not flattened field");
 
-        Value v = Value.create();
+        Value v = Value.default;
         Asserts.assertEquals(v.nfp, null, "invalid uninitialized not flattenable");
         Asserts.assertEquals(v.fp.x, 0, "invalid value for uninitialized flattened field");
         Asserts.assertEquals(v.fp.y, 0, "invalid value for uninitialized flattened field");
@@ -101,11 +97,11 @@ public class QuickeningTest {
     }
 
     static void testPutfieldAndGetField() {
-        Point p1 = Point.createPoint(16, 47);
-        Point p2 = Point.createPoint(32, 64);
+        Point p1 = new Point(16, 47);
+        Point p2 = new Point(32, 64);
 
-        JumboInline j1 = JumboInline.createJumboInline().update(4, 5);
-        JumboInline j2 = JumboInline.createJumboInline().update(7, 9);
+        JumboInline j1 = new JumboInline(4, 5);
+        JumboInline j2 = new JumboInline(7, 9);
 
         Parent p = new Parent();
         // executing each setter twice to test quickened bytecodes

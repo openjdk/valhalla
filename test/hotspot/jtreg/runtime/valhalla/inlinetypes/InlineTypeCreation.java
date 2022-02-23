@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeCreation
  * @summary Inline Type creation test
  * @library /test/lib
- * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers InlineTypeCreation.java Point.java Long8Inline.java Person.java
+ * @compile -XDallowFlattenabilityModifiers InlineTypeCreation.java Point.java Long8Inline.java Person.java
  * @run main runtime.valhalla.inlinetypes.InlineTypeCreation
  */
 public class InlineTypeCreation {
@@ -45,7 +45,7 @@ public class InlineTypeCreation {
     }
 
     void testPoint() {
-        Point p = Point.createPoint(1, 2);
+        Point p = new Point(1, 2);
         Asserts.assertEquals(p.x, 1, "invalid point x value");
         Asserts.assertEquals(p.y, 2, "invalid point y value");
         Point p2 = clonePoint(p);
@@ -59,14 +59,14 @@ public class InlineTypeCreation {
     }
 
     void testLong8() {
-        Long8Inline long8Inline = Long8Inline.create(1, 2, 3, 4, 5, 6, 7, 8);
+        Long8Inline long8Inline = new Long8Inline(1, 2, 3, 4, 5, 6, 7, 8);
         Asserts.assertEquals(long8Inline.getLongField1(), 1L, "Field 1 incorrect");
         Asserts.assertEquals(long8Inline.getLongField8(), 8L, "Field 8 incorrect");
         Long8Inline.check(long8Inline, 1, 2, 3, 4, 5, 6, 7, 8);
     }
 
     void testPerson() {
-        Person person = Person.create(1, "John", "Smith");
+        Person person = new Person(1, "John", "Smith");
         Asserts.assertEquals(person.getId(), 1, "Id field incorrect");
         Asserts.assertEquals(person.getFirstName(), "John", "First name incorrect");
         Asserts.assertEquals(person.getLastName(), "Smith", "Last name incorrect");
@@ -74,17 +74,11 @@ public class InlineTypeCreation {
 
     static final primitive class StaticSelf {
 
-        static final StaticSelf.ref DEFAULT = create(0);
+        static final StaticSelf.ref DEFAULT = new StaticSelf(0);
         final int f1;
 
-        private StaticSelf() { f1 = 0; }
+        public StaticSelf(int f1) { this.f1 = f1; }
         public String toString() { return "StaticSelf f1=" + f1; }
-
-        static StaticSelf create(int f1) {
-            StaticSelf s = StaticSelf.default;
-            s = __WithField(s.f1, f1);
-            return s;
-        }
 
         public static void test() {
             String s = DEFAULT.toString();
