@@ -55,89 +55,116 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         setDefaultFilename("Test.java");
     }
 
+    enum TestResult {
+        COMPILE_OK,
+        COMPILE_WITH_WARNING,
+        ERROR
+    }
+
+    void testHelper(String[] compilerOptions, String diagsMessage, TestResult testResult, String code) {
+        setCompileOptions(compilerOptions);
+        if (testResult != TestResult.COMPILE_OK) {
+            if (testResult == TestResult.COMPILE_WITH_WARNING) {
+                assertOKWithWarning(diagsMessage, code);
+            } else {
+                assertFail(diagsMessage, code);
+            }
+        } else {
+            assertOK(code);
+        }
+    }
+
     public void testWarningNullAssigment() {
-        setCompileOptions(LINT_OPTIONS);
-        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null",
-                """
-                class Box<__universal T> {
-                    T t;
-                    void m() { t = null; }
-                }
-                """
-        );
-        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null",
-                """
-                class Box<__universal T> {
-                    T m() { return null; }
-                }
-                """
-        );
-        assertOK(
+        record DiagAndCode(String diag, String code){}
+        String warning1 = "compiler.warn.universal.variable.cannot.be.assigned.null";
+        for (DiagAndCode diagAndCode : java.util.List.of(
+                new DiagAndCode(warning1,
+                    """
+                    class Box<__universal T> {
+                        T t;
+                        void m() { t = null; }
+                    }
+                    """),
+                new DiagAndCode(warning1,
+                    """
+                    class Box<__universal T> {
+                        T m() { return null; }
+                    }
+                    """),
+                new DiagAndCode(warning1,
+                    """
+                    class Box<__universal T> {
+                        T t;
+                        Box(T t) {
+                            this.t = t;
+                        }
+                        void m() { t = null; }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null.2",
+                    """
+                    import java.util.function.*;
+
+                    class MyMap<__universal K, __universal V> {
+                        K getKey(K k) { return k; }
+                        V getValue(V v) { return v; }
+    
+                        void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
+                            K k = getKey(k1);
+                            V v = getValue(v1);
+                            v = f.apply(k, v);
+                        }
+                    }
+                    """) )) {
+            testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
+            testHelper(EMPTY_OPTIONS, "", TestResult.COMPILE_OK, diagAndCode.code);
+        }
+
+        for (String code : java.util.List.of(
                 """
                 class C<__universal T> {
                     T.ref x = null;
                     T get() { return x; } // warning: possible null value conversion
                     T.ref getRef() { return x; } // OK
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 class C<__universal T> {
                     T.ref m() {
                         return null;
                     }
                 }
+                """,
                 """
-        );
-        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null",
-                """
-                class Box<__universal T> {
-                    T t;
-                    Box(T t) {
-                        this.t = t;
-                    }
-                    void m() { t = null; }
-                }
-                """
-        );
-
-        assertOKWithWarning("compiler.warn.universal.variable.cannot.be.assigned.null.2",
-                """
-                import java.util.function.*;
-
-                class MyMap<__universal K, __universal V> {
-                    K getKey(K k) { return k; }
-                    V getValue(V v) { return v; }
-
-                    void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
-                        K k = getKey(k1);
-                        V v = getValue(v1);
-                        v = f.apply(k, v);
+                class C<__universal T> {
+                    void m(boolean b) {
+                        T.ref t = b ? null : null;
                     }
                 }
+                """,
                 """
-        );
-
-        setCompileOptions(EMPTY_OPTIONS);
-        assertOK(
+                class C {        
+                    <__universal T> void foo(T.ref[] a) {
+                        a[0] = null;
+                    }
+                }
+                """,
                 """
                 import java.io.*;
                 class C<__universal T extends Reader> { T x = null; }
-                """
-        );
-        assertOK(
+                """,
                 """
                 import java.io.*;
                 class C<T extends Reader> { T x = null; }
-                """
-        );
-        assertOK(
+                """,
                 """
                 import java.io.*;
                 class C<__universal T extends Reader> { T.ref x = null; }
                 """
-        );
+                )) {
+            testHelper(LINT_OPTIONS, "", TestResult.COMPILE_OK, code);
+            testHelper(EMPTY_OPTIONS, "", TestResult.COMPILE_OK, code);
+        }
     }
 
     public void testPosCompilations() {
