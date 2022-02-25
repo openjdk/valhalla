@@ -61,6 +61,10 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         ERROR
     }
 
+    void testHelper(String[] compilerOptions, String code) {
+        testHelper(compilerOptions, "", TestResult.COMPILE_OK, code);
+    }
+
     void testHelper(String[] compilerOptions, String diagsMessage, TestResult testResult, String code) {
         setCompileOptions(compilerOptions);
         if (testResult != TestResult.COMPILE_OK) {
@@ -117,7 +121,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     }
                     """) )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
-            testHelper(EMPTY_OPTIONS, "", TestResult.COMPILE_OK, diagAndCode.code);
+            testHelper(EMPTY_OPTIONS, diagAndCode.code);
         }
 
         for (String code : java.util.List.of(
@@ -162,11 +166,12 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class C<__universal T extends Reader> { T.ref x = null; }
                 """
                 )) {
-            testHelper(LINT_OPTIONS, "", TestResult.COMPILE_OK, code);
-            testHelper(EMPTY_OPTIONS, "", TestResult.COMPILE_OK, code);
+            testHelper(LINT_OPTIONS, code);
+            testHelper(EMPTY_OPTIONS, code);
         }
     }
 
+    // convert the rest of the tests to use the approach above
     public void testPosCompilations() {
         setCompileOptions(EMPTY_OPTIONS);
         assertOK(
