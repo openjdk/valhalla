@@ -4596,7 +4596,12 @@ public class Attr extends JCTree.Visitor {
                 throw new AssertionError(tree);
             case TYPEVAR:
                 if (allowUniversalTVars && name == names.ref && ((TypeVar)site).isUniversal()) {
-                    return ((TypeVar)site).referenceProjection().tsym;
+                    /* return a wrapper around the type the reference projection of this type variable
+                     * this is needed as a type variable and its reference projection share the same
+                     * tsym but their types are different
+                     */
+                    return new TypeVariableSymbol(site.tsym.flags(), site.tsym.name,
+                            ((TypeVar)site).referenceProjection(), site.tsym.owner);
                 }
                 // Normally, site.getUpperBound() shouldn't be null.
                 // It should only happen during memberEnter/attribBase
