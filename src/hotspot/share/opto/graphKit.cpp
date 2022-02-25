@@ -1260,6 +1260,14 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     if (stopped()) {
       return top();
     }
+    if (assert_null) {
+      // TODO inline type does not mix well with null and leads to compilation bailouts
+      // -XX:+AbortVMOnCompilationFailure
+      //vt = InlineTypeNode::make_null(_gvn, vt->type()->inline_klass());
+      //replace_in_map(value, vt);
+      //return vt;
+      return null();
+    }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
   } else if (value->is_InlineTypePtr()) {
@@ -1274,9 +1282,12 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
-      replace_in_map(value, vtptr);
-      return vtptr;
+      // TODO inline type does not mix well with null and leads to compilation bailouts
+      // -XX:+AbortVMOnCompilationFailure
+      //vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
+      //replace_in_map(value, vtptr);
+      //return vtptr;
+      return null();
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
@@ -3540,30 +3551,18 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineTypeBase(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
-        if (from_inline || null_free) {
-          assert(safe_for_replace, "must be");
-          // TODO is this correct???
-          null_check(obj);
-          // Inline type is null-free. Always throw an exception.
+        // It needs a null check because a null will *pass* the cast check.
+        const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
+        if (null_free || (objtp != NULL && !objtp->maybe_null())) {
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
           builtin_throw(reason, makecon(TypeKlassPtr::make(klass)));
           return top();
-        } else {
-          // It needs a null check because a null will *pass* the cast check.
-          const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-          if (!objtp->maybe_null()) {
-            bool is_aastore = (java_bc() == Bytecodes::_aastore);
-            Deoptimization::DeoptReason reason = is_aastore ?
-              Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
-            builtin_throw(reason, makecon(TypeKlassPtr::make(objtp->klass())));
-            return top();
-          } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
-            return null_assert(obj);
-          }
-          break; // Fall through to full check
+        } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
+          return null_assert(obj);
         }
+        break; // Fall through to full check
       }
     }
   }
@@ -3789,10 +3788,6 @@ Node* GraphKit::null_free_array_test(Node* klass, bool null_free) {
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
 Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace) {
-  const Type* val_t = _gvn.type(val);
-  if (val->is_InlineType() || !TypePtr::NULL_PTR->higher_equal(val_t)) {
-    return ary; // Never null
-  }
   RegionNode* region = new RegionNode(3);
   Node* null_ctl = top();
   null_check_oop(val, &null_ctl);
@@ -3800,6 +3795,7 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
     PreserveJVMState pjvms(this);
     set_control(null_ctl);
     {
+      // TODO depending on where we call from, we know array is flat->null_free, we should not check
       // Deoptimize if null-free array
       BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
       inc_sp(nargs);
@@ -3811,7 +3807,8 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
   region->init_req(2, control());
   set_control(_gvn.transform(region));
   record_for_igvn(region);
-  if (val_t == TypePtr::NULL_PTR) {
+  // TODO could be "scalarized" null
+  if (_gvn.type(val) == TypePtr::NULL_PTR) {
     // Since we were just successfully storing null, the array can't be null free.
     const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
     ary_t = ary_t->cast_to_not_null_free();

@@ -461,7 +461,14 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
   Node* not_null_oop = kit->null_check_oop(get_oop(), &not_buffered_ctl);
   if (not_buffered_ctl->is_top()) {
     // Already buffered
-    return as_ptr(&kit->gvn());
+
+    // TODO set null free?
+    InlineTypePtrNode* vtrptr = as_ptr(&kit->gvn(), false);
+
+    if (safe_for_replace) {
+      kit->replace_in_map(this, vtrptr);
+    }
+    return vtrptr;
   }
   Node* buffered_ctl = kit->control();
   kit->set_control(not_buffered_ctl);

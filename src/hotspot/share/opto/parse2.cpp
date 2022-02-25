@@ -265,19 +265,15 @@ void Parse::array_store(BasicType bt) {
         ideal.sync_kit(this);
       } ideal.else_(); {
         sync_kit(ideal);
-        Node* val = cast_val;
         // flattened
-        if (!val->is_InlineType() && tval->maybe_null()) {
-          // Add null check
-          Node* null_ctl = top();
-          val = null_check_oop(val, &null_ctl);
-          if (null_ctl != top()) {
-            PreserveJVMState pjvms(this);
-            inc_sp(3);
-            set_control(null_ctl);
-            uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-            dec_sp(3);
-          }
+        Node* null_ctl = top();
+        Node* val = null_check_oop(cast_val, &null_ctl);
+        if (null_ctl != top()) {
+          PreserveJVMState pjvms(this);
+          inc_sp(3);
+          set_control(null_ctl);
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+          dec_sp(3);
         }
         // Try to determine the inline klass
         ciInlineKlass* vk = NULL;
@@ -1935,6 +1931,7 @@ void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTe
 Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, Node*& null_ctl) {
   inc_sp(2);
   null_ctl = top();
+  // TODO isn't this safe for replace in some cases?
   Node* cast = null_check_oop(input, &null_ctl,
                               input_ptr == ProfileNeverNull || (input_ptr == ProfileUnknownNull && !too_many_traps_or_recompiles(Deoptimization::Reason_null_check)),
                               false,

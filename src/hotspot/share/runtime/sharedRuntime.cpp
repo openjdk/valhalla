@@ -2910,9 +2910,9 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
-    if (bt == T_PRIMITIVE_OBJECT) {
-    //if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
-      InlineKlass* vk = ss.is_inline_klass(holder);
+    // TODO check preload attribute
+    if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
+      InlineKlass* vk = ss.as_inline_klass(holder);
       if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
         has_scalarized = true;
         int last = sig_cc->length();
@@ -3000,8 +3000,10 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
-      if (bt == T_PRIMITIVE_OBJECT) {
-        if (ss.as_inline_klass(_method->method_holder())->can_be_passed_as_fields()) {
+      // TODO check preload attribute
+      if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
+        InlineKlass* vk = ss.as_inline_klass(_method->method_holder());
+        if (vk != NULL && vk->can_be_passed_as_fields()) {
           _num_inline_args++;
         }
         bt = T_OBJECT;
@@ -3666,9 +3668,8 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     nb_slots++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    // TODO
-    if (ss.type() == T_PRIMITIVE_OBJECT) {
-    //if (ss.is_inline_klass(holder)) {
+    // TODO check preload attribute
+    if (ss.is_reference() && ss.as_inline_klass(holder)) {
       nb_slots++;
     }
   }
@@ -3678,16 +3679,16 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
   if (allocate_receiver) {
     InlineKlass* vk = InlineKlass::cast(holder);
     oop res = vk->allocate_instance(CHECK_NULL);
-    array->obj_at_put(i, res);
-    i++;
+    array->obj_at_put(i++, res);
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_PRIMITIVE_OBJECT) {
-    //if (ss.is_inline_klass(holder)) {
+    // TODO check preload attribute
+    if (ss.is_reference()) {
       InlineKlass* vk = ss.as_inline_klass(holder);
-      oop res = vk->allocate_instance(CHECK_NULL);
-      array->obj_at_put(i, res);
-      i++;
+      if (vk != NULL) {
+        oop res = vk->allocate_instance(CHECK_NULL);
+        array->obj_at_put(i++, res);
+      }
     }
   }
   return array();

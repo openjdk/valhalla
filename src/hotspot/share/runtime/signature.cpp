@@ -388,30 +388,36 @@ Symbol* SignatureStream::find_symbol() {
   return name;
 }
 
-InlineKlass* SignatureStream::is_inline_klass(InstanceKlass* holder) {
+InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
+  // TODO add a flag
+  //if (type() != T_PRIMITIVE_OBJECT) return NULL;
+
   JavaThread* THREAD = JavaThread::current();
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
   // TODO we need to check parent method args, look at klassVtable::needs_new_vtable_entry
-  // TODO Make sure no classes are loaded
-  //Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);
-  // TODO For now, load all signature classes
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
   assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved inline klass");
   if (k != NULL && k->is_inline_klass()) {
+    /*
+    bool found = false;
+    for (int i = 0; i < holder->preload_classes()->length(); i++) {
+      Symbol* class_name = holder->constants()->klass_at_noresolve(holder->preload_classes()->at(i));
+      if (class_name == k->name()) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      holder->print();
+      k->print();
+      assert(false, "Preload argument missing");
+    }
+    */
     return InlineKlass::cast(k);
   } else {
     return NULL;
   }
-}
-
-InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
-  JavaThread* THREAD = JavaThread::current();
-  Handle class_loader(THREAD, holder->class_loader());
-  Handle protection_domain(THREAD, holder->protection_domain());
-  Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
-  assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved inline klass");
-  return InlineKlass::cast(k);
 }
 
 Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
