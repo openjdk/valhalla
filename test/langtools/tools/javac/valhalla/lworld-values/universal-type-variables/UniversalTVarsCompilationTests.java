@@ -147,7 +147,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 }
                 """,
                 """
-                class C {        
+                class C {
                     <__universal T> void foo(T.ref[] a) {
                         a[0] = null;
                     }
