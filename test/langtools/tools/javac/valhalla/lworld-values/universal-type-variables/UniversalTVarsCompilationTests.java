@@ -171,19 +171,15 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         }
     }
 
-    // convert the rest of the tests to use the approach above
     public void testPosCompilations() {
-        setCompileOptions(EMPTY_OPTIONS);
-        assertOK(
+        for (String code : java.util.List.of(
                 """
                 primitive class Point {}
 
                 class C<__universal T> {
                     C<Point> cp;
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 interface Shape {}
 
@@ -202,9 +198,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
                     void foo(Box<? extends Shape> ls) {}
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 interface Shape {}
 
@@ -219,9 +213,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
                     void foo(Box<? super Point> ls) {}
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 import java.io.*;
 
@@ -235,9 +227,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         Point.ref p = new C<Point.ref>().x;
                     }
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 import java.io.*;
 
@@ -252,17 +242,13 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         Point.ref p2 = new C<Point>().x;
                     }
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 class C<__universal T> {
                     T.ref x = null;
                     void set(T arg) { x = arg; }
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 primitive class Point {}
 
@@ -277,10 +263,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         MyList.of(new Point());
                     }
                 }
-                """
-        );
-
-        assertOK(
+                """,
                 """
                 primitive class Point {}
 
@@ -298,7 +281,10 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     }
                 }
                 """
-        );
+        )) {
+            testHelper(LINT_OPTIONS, code);
+            testHelper(EMPTY_OPTIONS, code);
+        }
     }
 
     public void testUniversalTVarFieldMustBeInit() {
@@ -356,8 +342,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testPosCompilations2() {
-        setCompileOptions(EMPTY_OPTIONS);
-        assertOK(
+        for (String code : java.util.List.of(
                 """
                 interface MyComparable<__universal T> {
                     public int compareTo(T o);
@@ -376,9 +361,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         m(i);
                     }
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 interface MyComparable<__universal T> {}
 
@@ -395,9 +378,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         m(i);
                     }
                 }
-                """
-        );
-        assertOK(
+                """,
                 """
                 import java.util.*;
 
@@ -412,10 +393,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         List<? extends I> values = bar();
                     }
                 }
-                """
-        );
-
-        assertOK(
+                """,
                 """
                 class Test<__universal T> {
                     T.ref t;
@@ -424,20 +402,14 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         this.t = null;
                     }
                 }
-                """
-        );
-
-        assertOK(
+                """,
                 """
                 import java.util.*;
 
                 class Test {
                     Map<String, String> types = new HashMap<>();
                 }
-                """
-        );
-
-        assertOK(
+                """,
                 """
                 class C1 {
                     <__universal T> void foo(T t) {}
@@ -446,10 +418,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class C2 extends C1 {
                     <__universal T> void foo(T.ref t) { }
                 }
-                """
-        );
-
-        assertOK(
+                """,
                 """
                 class C1 {
                     <__universal T> void foo(T.ref t) {}
@@ -458,20 +427,20 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class C2 extends C1 {
                     <__universal T> void foo(T t) { }
                 }
+                """,
                 """
-        );
-
-        assertOK(
-                """
-                    import java.util.function.*;
-                    class Test<__universal T> {
-                        T.ref field;
-                        void foo(T t, Consumer<? super T> action) {
-                            action.accept(field = t);
-                        }
+                import java.util.function.*;
+                class Test<__universal T> {
+                    T.ref field;
+                    void foo(T t, Consumer<? super T> action) {
+                        action.accept(field = t);
                     }
+                }
                 """
-        );
+        )) {
+            testHelper(LINT_OPTIONS, code);
+            testHelper(EMPTY_OPTIONS, code);
+        }
     }
 
     public void testPrimitiveValueConversion() {
