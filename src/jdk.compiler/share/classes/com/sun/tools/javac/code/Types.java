@@ -1084,9 +1084,22 @@ public class Types {
      * Is t an unchecked subtype of s?
      */
     public boolean isSubtypeUnchecked(Type t, Type s, Warner warn) {
-        boolean result = isSubtypeUncheckedInternal(t, s, true, warn);
-        if (result) {
-            checkUnsafeVarargsConversion(t, s, warn);
+        boolean result = false;
+        if (warn != warnStack.head) {
+            try {
+                warnStack = warnStack.prepend(warn);
+                result = isSubtypeUncheckedInternal(t, s, true, warn);
+                if (result) {
+                    checkUnsafeVarargsConversion(t, s, warn);
+                }
+            } finally {
+                warnStack = warnStack.tail;
+            }
+        } else {
+            result = isSubtypeUncheckedInternal(t, s, true, warn);
+            if (result) {
+                checkUnsafeVarargsConversion(t, s, warn);
+            }
         }
         return result;
     }
@@ -1672,8 +1685,18 @@ public class Types {
             public Boolean visitType(Type t, Type s) {
                 if (s.isPartial())
                     return containedBy(s, t);
-                else
-                    return isSameType(t, s);
+                else {
+                    boolean result = isSameType(t, s);
+                    // warnStack.head is != null if we are checking for an assignment, in other cases we should be strict
+                    // the order in the condition below matters
+                    if (warnStack.head != null && allowUniversalTVars && !result) {
+                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
+                        if (result) {
+                            warnStack.head.warn(LintCategory.UNCHECKED);
+                        }
+                    }
+                    return result;
+                }
             }
 
 //            void debugContainsType(WildcardType t, Type s) {
