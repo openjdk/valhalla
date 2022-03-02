@@ -26,6 +26,8 @@
 package java.lang.reflect;
 
 import jdk.internal.misc.VM;
+import jdk.internal.org.objectweb.asm.Attribute;
+import jdk.internal.org.objectweb.asm.ByteVector;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.Label;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
@@ -40,10 +42,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
+import java.util.Set;
 
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
@@ -490,6 +494,7 @@ final class ProxyGenerator extends ClassWriter {
 
         generateConstructor();
 
+        Set<Class<?>> preloadClasses = new HashSet<>();
         for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
             for (ProxyMethod pm : sigmethods) {
                 // add static field for the Method object
@@ -498,7 +503,11 @@ final class ProxyGenerator extends ClassWriter {
 
                 // Generate code for proxy method
                 pm.generateMethod(this, className);
+                preloadClasses.addAll(pm.preloadClasses());
             }
+        }
+        if (preloadClasses.size() > 0) {
+            generatePreloadAttribute(preloadClasses);
         }
 
         generateStaticInitializer();
@@ -674,6 +683,24 @@ final class ProxyGenerator extends ClassWriter {
         mv.visitEnd();
     }
 
+    private void generatePreloadAttribute(Set<Class<?>> preloadClasses) {
+        Attribute attr = new Attribute("Preload") {
+            @Override
+            protected ByteVector write(ClassWriter cw,
+                                       byte[] code,
+                                       int len,
+                                       int maxStack,
+                                       int maxLocals) {
+                ByteVector attr = new ByteVector();
+                attr.putShort(preloadClasses.size());
+                for (Class<?> c : preloadClasses) {
+                    attr.putShort(cw.newClass(Type.getInternalName(c)));
+                }
+                return attr;
+            }
+        };
+        visitAttribute(attr);
+    }
     /**
      * A ProxyMethod object represents a proxy method in the proxy class
      * being generated: a method whose implementation will encode and
@@ -801,6 +828,27 @@ final class ProxyGenerator extends ClassWriter {
             // Maxs computed by ClassWriter.COMPUTE_FRAMES, these arguments ignored
             mv.visitMaxs(-1, -1);
             mv.visitEnd();
+        }
+
+        Set<Class<?>> preloadClasses() {
+            Set<Class<?>> preloadClasses = new HashSet<>();
+            for (Class<?> type : parameterTypes) {
+                if (requiresPreload(type)) {
+                    preloadClasses.add(type);
+                }
+            }
+            if (requiresPreload(returnType)) {
+                preloadClasses.add(returnType);
+            }
+            return preloadClasses;
+        }
+
+        boolean requiresPreload(Class<?> cls) {
+            Class<?> c = cls;
+            while (c.isArray()) {
+                c = c.getComponentType();
+            }
+            return (c.isValue() && !c.isPrimitiveClass()) || c.isPrimitiveValueType();
         }
 
         /**
