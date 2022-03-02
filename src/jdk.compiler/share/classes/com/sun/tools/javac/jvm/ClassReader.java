@@ -1007,7 +1007,8 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValueClass()) {
+                        // Map value class factory methods back to constructors for the benefit of earlier pipeline stages
+                        if (sym.kind == MTH  && sym.name == names.init && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
