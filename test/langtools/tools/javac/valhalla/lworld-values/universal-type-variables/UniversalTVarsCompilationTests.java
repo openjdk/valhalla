@@ -123,7 +123,6 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null",
                     """
                     class Foo<__universal X> {
-                        void m() {}
                         void m2(X x) {}
                         void test() {
                             m2(null);
