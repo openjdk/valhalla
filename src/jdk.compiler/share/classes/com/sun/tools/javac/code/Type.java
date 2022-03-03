@@ -2029,12 +2029,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         public boolean isValueProjection() {
             return isUniversal() && !isReferenceProjection();
         }
-
-        public Type withTypeVar(Type t) {
-            return t.hasTag(TYPEVAR) && t.isReferenceProjection() && t == projection ?
-                    referenceProjection() :
-                    this;
-        }
     }
 
     /** A captured type variable comes from wildcards which can have
@@ -2100,10 +2094,6 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
             sb.append(" of ");
             sb.append(wildcard);
             return sb.toString();
-        }
-
-        public Type withTypeVar(Type t) {
-            return this;
         }
     }
 

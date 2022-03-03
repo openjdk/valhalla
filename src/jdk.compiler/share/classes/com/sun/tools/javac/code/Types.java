@@ -1685,18 +1685,8 @@ public class Types {
             public Boolean visitType(Type t, Type s) {
                 if (s.isPartial())
                     return containedBy(s, t);
-                else {
-                    boolean result = isSameType(t, s);
-                    // warnStack.head is != null if we are checking for an assignment, in other cases we should be strict
-                    // the order in the condition below matters
-                    if (warnStack.head != null && allowUniversalTVars && !result) {
-                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
-                        if (result) {
-                            warnStack.head.warn(LintCategory.UNCHECKED);
-                        }
-                    }
-                    return result;
-                }
+                else
+                    return isSameType(t, s);
             }
 
 //            void debugContainsType(WildcardType t, Type s) {
@@ -1750,12 +1740,8 @@ public class Types {
             public Boolean visitTypeVar(TypeVar t, Type s) {
                 if (s.hasTag(TYPEVAR)) {
                     TypeVar other = (TypeVar)s;
-                    if (allowUniversalTVars && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym) {
-                        if (warnStack.head != null) {
-                            warnStack.head.warn(LintCategory.UNCHECKED);
-                        }
+                    if (allowUniversalTVars && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym)
                         return true;
-                    }
                 }
                 return isSameType(t, s);
             }
