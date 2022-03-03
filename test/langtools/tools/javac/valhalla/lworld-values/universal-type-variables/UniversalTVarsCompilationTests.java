@@ -83,40 +83,41 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         String warning1 = "compiler.warn.universal.variable.cannot.be.assigned.null";
         for (DiagAndCode diagAndCode : java.util.List.of(
                 new DiagAndCode(warning1,
-                """
-                class Box<__universal T> {
-                    T t;
-                    void m() { t = null; }
-                }
-                """),
-                new DiagAndCode(warning1,
-                """
-                class Box<__universal T> {
-                    T m() { return null; }
-                }
-                """),
-                new DiagAndCode(warning1,
-                """
-                class Box<__universal T> {
-                    T t;
-                    Box(T t) {
-                        this.t = t;
+                    """
+                    class Box<__universal T> {
+                        T t;
+                        void m() { t = null; }
                     }
-                    void m() { t = null; }
-                }
-                """),
+                    """),
+                new DiagAndCode(warning1,
+                    """
+                    class Box<__universal T> {
+                        T m() { return null; }
+                    }
+                    """),
+                new DiagAndCode(warning1,
+                    """
+                    class Box<__universal T> {
+                        T t;
+                        Box(T t) {
+                            this.t = t;
+                        }
+                        void m() { t = null; }
+                    }
+                    """),
                 new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null.2",
-                """
-                import java.util.function.*;
-
-                class MyMap<__universal K, __universal V> {
-                    K getKey(K k) { return k; }
-                    V getValue(V v) { return v; }
-
-                    void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
-                        K k = getKey(k1);
-                        V v = getValue(v1);
-                        v = f.apply(k, v);
+                    """
+                    import java.util.function.*;
+        
+                    class MyMap<__universal K, __universal V> {
+                        K getKey(K k) { return k; }
+                        V getValue(V v) { return v; }
+        
+                        void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
+                            K k = getKey(k1);
+                            V v = getValue(v1);
+                            v = f.apply(k, v);
+                        }
                     }
                     """),
                 new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null",
@@ -129,63 +130,60 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     }
                     """),
                 new DiagAndCode("compiler.warn.prob.found.req",
-                """
-                class Foo<__universal X> { }
-
-                primitive class Atom { }
-
-                class Test {
-                    void m(Foo<Atom> val, Foo<Atom.ref> ref) {
-                        val = ref;
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom { }
+                    class Test {
+                        void m(Foo<Atom> val, Foo<Atom.ref> ref) {
+                            val = ref;
+                        }
                     }
-                }
-                """),
+                    """),
                 new DiagAndCode("compiler.warn.prob.found.req",
-                """
-                class Foo<__universal X> { }
-                primitive class Atom { }
-                class Test {
-                    void m(Foo<Atom> val, Foo<Atom.ref> ref) {
-                        ref = val;
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom { }
+                    class Test {
+                        void m(Foo<Atom> val, Foo<Atom.ref> ref) {
+                            ref = val;
+                        }
                     }
-                }
-                """),
+                    """),
                 new DiagAndCode("compiler.warn.unchecked.meth.invocation.applied",
-                """
-                class Foo<__universal X> { }
-                primitive class Atom {}
-                class Test {
-                    void bar(Foo<Atom.ref> f) {}
-                    void m() {
-                        Foo<Atom> val = null;
-                        bar(val);
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom {}
+                    class Test {
+                        void bar(Foo<Atom.ref> f) {}
+                        void m() {
+                            Foo<Atom> val = null;
+                            bar(val);
+                        }
                     }
-                }
-                """),
+                    """),
                 new DiagAndCode("compiler.warn.unchecked.meth.invocation.applied",
-                """
-                class Foo<__universal X> { }
-                primitive class Atom {}
-                class Test {
-                    void bar(Foo<Atom> f) {}
-                    void m() {
-                        Foo<Atom.ref> ref = null;
-                        bar(ref);
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom {}
+                    class Test {
+                        void bar(Foo<Atom> f) {}
+                        void m() {
+                            Foo<Atom.ref> ref = null;
+                            bar(ref);
+                        }
                     }
-                }
-                """),
+                    """),
                 new DiagAndCode("compiler.warn.prob.found.req",
-                """
-                class Wrapper<__universal T> {}
-                class Test<__universal T> {
-                    Wrapper<T.ref> newWrapper() { return null; }
-                    void m() {
-                        Wrapper<T> w = newWrapper();
+                    """
+                    class Wrapper<__universal T> {}
+                    class Test<__universal T> {
+                        Wrapper<T.ref> newWrapper() { return null; }
+                        void m() {
+                            Wrapper<T> w = newWrapper();
+                        }
                     }
-                }
-                """)
-
-            )) {
+                    """)
+                )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
             testHelper(EMPTY_OPTIONS, diagAndCode.code);
         }
@@ -248,18 +246,14 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         for (String code : java.util.List.of(
                 """
                 primitive class Point {}
-
                 class C<__universal T> {
                     C<Point> cp;
                 }
                 """,
                 """
                 interface Shape {}
-
                 primitive class Point implements Shape {}
-
                 class Box<__universal T> {}
-
                 class Test {
                     void m(Box<Point> lp) {
                         // this invocation will provoke a subtype checking, basically a check testing if:
@@ -268,22 +262,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         // `Point.ref` isBoundedBy Shape
                         foo(lp);
                     }
-
                     void foo(Box<? extends Shape> ls) {}
                 }
                 """,
                 """
                 interface Shape {}
-
                 primitive class Point implements Shape {}
-
                 class Box<__universal T> {}
-
                 class Test {
                     void m(Box<Shape> lp) {
                         foo(lp);
                     }
-
                     void foo(Box<? super Point> ls) {}
                 }
                 """,
