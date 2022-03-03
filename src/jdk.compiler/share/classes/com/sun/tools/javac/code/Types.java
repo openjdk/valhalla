@@ -1750,8 +1750,12 @@ public class Types {
             public Boolean visitTypeVar(TypeVar t, Type s) {
                 if (s.hasTag(TYPEVAR)) {
                     TypeVar other = (TypeVar)s;
-                    if (allowUniversalTVars && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym)
+                    if (allowUniversalTVars && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym) {
+                        if (warnStack.head != null) {
+                            warnStack.head.warn(LintCategory.UNCHECKED);
+                        }
                         return true;
+                    }
                 }
                 return isSameType(t, s);
             }

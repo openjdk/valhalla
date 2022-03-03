@@ -83,53 +83,53 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         String warning1 = "compiler.warn.universal.variable.cannot.be.assigned.null";
         for (DiagAndCode diagAndCode : java.util.List.of(
                 new DiagAndCode(warning1,
-                    """
-                    class Box<__universal T> {
-                        T t;
-                        void m() { t = null; }
-                    }
-                    """),
+                """
+                class Box<__universal T> {
+                    T t;
+                    void m() { t = null; }
+                }
+                """),
                 new DiagAndCode(warning1,
-                    """
-                    class Box<__universal T> {
-                        T m() { return null; }
-                    }
-                    """),
+                """
+                class Box<__universal T> {
+                    T m() { return null; }
+                }
+                """),
                 new DiagAndCode(warning1,
-                    """
-                    class Box<__universal T> {
-                        T t;
-                        Box(T t) {
-                            this.t = t;
-                        }
-                        void m() { t = null; }
+                """
+                class Box<__universal T> {
+                    T t;
+                    Box(T t) {
+                        this.t = t;
                     }
-                    """),
+                    void m() { t = null; }
+                }
+                """),
                 new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null.2",
-                    """
-                    import java.util.function.*;
+                """
+                import java.util.function.*;
 
-                    class MyMap<__universal K, __universal V> {
-                        K getKey(K k) { return k; }
-                        V getValue(V v) { return v; }
+                class MyMap<__universal K, __universal V> {
+                    K getKey(K k) { return k; }
+                    V getValue(V v) { return v; }
 
-                        void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
-                            K k = getKey(k1);
-                            V v = getValue(v1);
-                            v = f.apply(k, v);
-                        }
+                    void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
+                        K k = getKey(k1);
+                        V v = getValue(v1);
+                        v = f.apply(k, v);
                     }
-                    """),
-                    new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null",
-                    """
-                    class Foo<__universal X> {
-                        void m() {}
-                        void m2(X x) {}
-                        void test() {
-                            m2(null);
-                        }
+                }
+                """),
+                new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null",
+                """
+                class Foo<__universal X> {
+                    void m() {}
+                    void m2(X x) {}
+                    void test() {
+                        m2(null);
                     }
-                    """),
+                }
+                """),
                 new DiagAndCode("compiler.warn.prob.found.req",
                 """
                 class Foo<__universal X> { }
@@ -173,6 +173,16 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     void m() {
                         Foo<Atom.ref> ref = null;
                         bar(ref);
+                    }
+                }
+                """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                """
+                class Wrapper<__universal T> {}
+                class Test<__universal T> {
+                    Wrapper<T.ref> newWrapper() { return null; }
+                    void m() {
+                        Wrapper<T> w = newWrapper();
                     }
                 }
                 """)
