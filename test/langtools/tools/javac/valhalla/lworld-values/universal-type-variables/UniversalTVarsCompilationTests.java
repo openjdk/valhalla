@@ -119,7 +119,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                             v = f.apply(k, v);
                         }
                     }
-                    """) )) {
+                    """),
+                new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null",
+                    """
+                    class Foo<__universal X> {
+                        void m2(X x) {}
+                        void test() {
+                            m2(null);
+                        }
+                    }
+                    """)
+                    )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
             testHelper(EMPTY_OPTIONS, diagAndCode.code);
         }

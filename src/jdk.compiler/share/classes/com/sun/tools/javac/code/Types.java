@@ -1084,9 +1084,22 @@ public class Types {
      * Is t an unchecked subtype of s?
      */
     public boolean isSubtypeUnchecked(Type t, Type s, Warner warn) {
-        boolean result = isSubtypeUncheckedInternal(t, s, true, warn);
-        if (result) {
-            checkUnsafeVarargsConversion(t, s, warn);
+        boolean result = false;
+        if (warn != warnStack.head) {
+            try {
+                warnStack = warnStack.prepend(warn);
+                result = isSubtypeUncheckedInternal(t, s, true, warn);
+                if (result) {
+                    checkUnsafeVarargsConversion(t, s, warn);
+                }
+            } finally {
+                warnStack = warnStack.tail;
+            }
+        } else {
+            result = isSubtypeUncheckedInternal(t, s, true, warn);
+            if (result) {
+                checkUnsafeVarargsConversion(t, s, warn);
+            }
         }
         return result;
     }
