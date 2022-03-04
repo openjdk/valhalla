@@ -321,17 +321,19 @@ public class OpcodeTables {
     opc_ifnonnull           (199, "ifnonnull", 3),
     opc_goto_w              (200, "goto_w", 5),
     opc_jsr_w               (201, "jsr_w", 5),
-//    opc_bytecode 202            (202, "bytecode 202", 1),
+    opc_aconst_init         (203, "aconst_init", 3),
+    opc_withfield           (204, "withfield", 3),
+
         /* Pseudo-instructions */
-    opc_bytecode            (203, "bytecode", 1),
-    opc_try                 (204, "try", 0),
-    opc_endtry              (205, "endtry", 0),
-    opc_catch               (206, "catch", 0),
-    opc_var                 (207, "var", 0),
-    opc_endvar              (208, "endvar", 0),
-    opc_locals_map          (209, "locals_map", 0),
-    opc_stack_map           (210, "stack_map", 0),
-    opc_stack_frame_type    (211, "stack_frame_type", 0),
+    opc_bytecode            (210, "bytecode", 1),
+    opc_try                 (211, "try", 0),
+    opc_endtry              (212, "endtry", 0),
+    opc_catch               (213, "catch", 0),
+    opc_var                 (214, "var", 0),
+    opc_endvar              (215, "endvar", 0),
+    opc_locals_map          (216, "locals_map", 0),
+    opc_stack_map           (217, "stack_map", 0),
+    opc_stack_frame_type    (218, "stack_frame_type", 0),
 
 
         // Priv/NonPriv Marker (not really an opcode)

@@ -2252,6 +2252,7 @@ public class CreateSymbols {
                 }
                 ((FieldDescription) feature).constantValue = value;
                 break;
+            case "Preload":
             case "SourceFile":
                 //ignore, not needed
                 break;

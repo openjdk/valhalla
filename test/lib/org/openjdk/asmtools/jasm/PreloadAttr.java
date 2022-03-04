@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,26 +19,13 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
+package org.openjdk.asmtools.jasm;
 
-public class runtime/valhalla/inlinetypes/TestFieldTypeMismatchHelper version 63:0 {
+import java.util.List;
 
-    Field field:"Qruntime/valhalla/inlinetypes/MyValue;";
-
-    public Method "<init>":"()V"
-      stack 1 locals 1
-    {
-        aload_0;
-        invokespecial Method java/lang/Object."<init>":"()V";
-        return;
-    }
-
-    public Method test:"()V" stack 2 locals 1 {
-        aload_0;
-        aconst_null;
-        putfield Field field:"Qruntime/valhalla/inlinetypes/MyValue;";
-        return;
+public class PreloadAttr extends ClassArrayAttr {
+    public PreloadAttr(ClassData cdata, List<ConstantPool.ConstCell> classes) {
+        super(Tables.AttrTag.ATT_Preload.parsekey(), cdata, classes);
     }
 }
-

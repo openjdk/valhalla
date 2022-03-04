@@ -26,7 +26,7 @@ public primitive final class Point {
     final int x;
     final int y;
 
-    private Point(int x, int y) {
+    public Point(int x, int y) {
         this.x = x;
         this.y = y;
     }
@@ -50,7 +50,4 @@ public primitive final class Point {
         }
     }
 
-    public static Point createPoint(int x, int y) {
-        return new Point(x, y);
-    }
 }

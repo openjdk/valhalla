@@ -96,7 +96,7 @@ public class PoolWriter {
     /** The inner classes to be written, as an ordered set (enclosing first). */
     LinkedHashSet<ClassSymbol> innerClasses = new LinkedHashSet<>();
 
-    Set<ClassSymbol> valueClasses = new HashSet<>();
+    Set<ClassSymbol> preloadClasses = new HashSet<>();
 
     /** The list of entries in the BootstrapMethods attribute. */
     Map<BsmKey, Integer> bootstrapMethods = new LinkedHashMap<>();
@@ -250,25 +250,14 @@ public class PoolWriter {
         }
     }
 
-    /** Enter a value class into the `valueClasses' set.
+    /** Enter a value class into the `preloadClasses' set.
      */
-    void enterValueClass(ClassSymbol c) {
+    void enterPreloadClass(ClassSymbol c) {
         if (c.type.isCompound()) {
             throw new AssertionError("Unexpected intersection type: " + c.type);
         }
         c.complete();
-        if (c.isValueClass() && !c.isPrimitiveClass()) {
-            valueClasses.add(c);
-        }
-        if (c.owner.enclClass() != null) {
-            enterValueClass(c.owner.enclClass());
-        }
-    }
-
-
-    void enterInnerAndValueClass(ClassSymbol c) {
-        enterInnerClass(c);
-        enterValueClass(c);
+        preloadClasses.add(c);
     }
 
     /**
@@ -356,7 +345,7 @@ public class PoolWriter {
 
         @Override
         protected void classReference(ClassSymbol c) {
-            enterInnerAndValueClass(c);
+            enterInnerClass(c);
         }
 
         protected void reset() {
@@ -409,7 +398,7 @@ public class PoolWriter {
                     poolbuf.appendByte(tag);
                     poolbuf.appendChar(putName(name));
                     if (ct.hasTag(CLASS)) {
-                        enterInnerAndValueClass((ClassSymbol)ct.tsym);
+                        enterInnerClass((ClassSymbol)ct.tsym);
                     }
                     break;
                 }
@@ -548,7 +537,7 @@ public class PoolWriter {
 
     void reset() {
         innerClasses.clear();
-        valueClasses.clear();
+        preloadClasses.clear();
         bootstrapMethods.clear();
         pool.reset();
     }

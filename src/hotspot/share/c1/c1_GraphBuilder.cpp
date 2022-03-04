@@ -2108,7 +2108,7 @@ void GraphBuilder::withfield(int field_index) {
   Value obj = apop();
   null_check(obj);
 
-  if (!holder->is_loaded() || !holder->is_inlinetype()) {
+  if (!holder->is_loaded() || !holder->is_inlinetype() || !will_link) {
     apush(append_split(new Deoptimize(holder, state_before)));
     return;
   }

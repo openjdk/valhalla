@@ -28,30 +28,22 @@ final class ContainerValue3 {
     TestValue3[] valueArray;
 }
 
-public primitive final class TestValue3 {
+public primitive class TestValue3 {
 
     static TestValue3.ref staticValue = getInstance();
 
     final byte b;
 
-    private TestValue3() {
+    public TestValue3() {
         b = 123;
     }
 
-    public static TestValue3 create(byte b) {
-        TestValue3 v = TestValue3.default;
-        v = __WithField(v.b, b);
-        return v;
-    }
-
-    public static TestValue3 create() {
-        TestValue3 v = TestValue3.default;
-        v = __WithField(v.b, 123);
-        return v;
+    public TestValue3(byte b) {
+        this.b = b;
     }
 
     public static TestValue3 getInstance() {
-        return create();
+        return new TestValue3();
     }
 
     public static TestValue3 getNonBufferedInstance() {

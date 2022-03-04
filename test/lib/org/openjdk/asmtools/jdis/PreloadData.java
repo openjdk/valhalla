@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -20,30 +20,19 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
+package org.openjdk.asmtools.jdis;
 
-package runtime.valhalla.inlinetypes;
+import org.openjdk.asmtools.jasm.JasmTokens;
 
-import jdk.test.lib.Asserts;
+import java.io.DataInputStream;
+import java.io.IOException;
 
-/**
- * @test
- * @library /test/lib
- * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
- * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldTypeMismatchClasses.jasm
- * @run main/othervm runtime.valhalla.inlinetypes.TestFieldTypeMismatch
- */
+public class PreloadData extends ClassArrayData {
+    public PreloadData(ClassData cls) {
+        super(cls, JasmTokens.Token.PRELOAD.parseKey());
+    }
 
-public class TestFieldTypeMismatch {
-
-    public static void main(String[] args) {
-        boolean exception = false;
-        try {
-          TestFieldTypeMismatchClass t = new TestFieldTypeMismatchClass();
-        } catch(IncompatibleClassChangeError err) {
-            exception = true;
-            Asserts.assertEquals(err.getMessage(),
-                "Class runtime/valhalla/inlinetypes/TestFieldTypeMismatchClass expects class runtime.valhalla.inlinetypes.MyValue to be an inline type, but it is not");
-        }
-        Asserts.assertTrue(exception);
+    public PreloadData read(DataInputStream in, int attribute_length) throws IOException, ClassFormatError {
+        return (PreloadData) super.read(in, attribute_length);
     }
 }

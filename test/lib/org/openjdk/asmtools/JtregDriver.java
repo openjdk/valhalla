@@ -62,7 +62,6 @@ public class JtregDriver {
         try {
             altMain.getMethod("main", String[].class).invoke(null, (Object) args);
         } catch (InvocationTargetException e) {
-            System.out.println("Throwing " + e);
             throw e.getCause();
         }
     }
@@ -137,7 +136,6 @@ public class JtregDriver {
                 }
                 default -> throw new AssertionError();
             };
-            System.out.printf("ran %s, result %s%n", cmd, success);
             if (!success) {
                 throw new RuntimeException("asmtools execution failed");
             }

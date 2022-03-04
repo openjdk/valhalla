@@ -42,7 +42,8 @@ public class Modifiers {
     public static final int MM_INTRF       = MM_ACCESS  | ACC_ABSTRACT  | ACC_INTERFACE | MM_ATTR | ACC_ANNOTATION;
 
     public static final int MM_CLASS       = MM_ACCESS  | ACC_FINAL     |  ACC_SUPER    | ACC_ABSTRACT | ACC_ENUM |
-                                             MM_ATTR    |  ACC_MODULE ;
+                                             MM_ATTR    |  ACC_MODULE |
+                                             ACC_VALUE | ACC_PERMITS_VALUE | ACC_PRIMITIVE;
 
     public static final int MM_FIELD       = MM_ACCESS    | ACC_STATIC | ACC_FINAL    |  ACC_VOLATILE | ACC_TRANSIENT |
                                             ACC_SYNTHETIC | ACC_ENUM   |
@@ -62,7 +63,8 @@ public class Modifiers {
                                              MM_ATTR ;
 
     public static final int MM_INNERCLASS  = MM_ACCESS    | ACC_STATIC    | ACC_FINAL      | ACC_SUPER | ACC_INTERFACE |
-                                             ACC_ABSTRACT | ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM  | MM_ATTR ;
+                                             ACC_ABSTRACT | ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM  | MM_ATTR |
+                                             ACC_VALUE | ACC_PERMITS_VALUE | ACC_PRIMITIVE;
 
     public static final int MM_REQUIRES    = ACC_TRANSITIVE | ACC_STATIC_PHASE  | ACC_SYNTHETIC | ACC_MANDATED ;
 
@@ -217,6 +219,18 @@ public class Modifiers {
     public static boolean isTransitive(int mod) { return (mod & ACC_TRANSITIVE) != 0;  }
 
     public static boolean isStaticPhase(int mod) { return (mod & ACC_STATIC_PHASE) != 0;  }
+
+    public static boolean isValue(int mod) {
+        return (mod & ACC_VALUE) != 0;
+    }
+
+    public static boolean isPermitsValue(int mod) {
+        return (mod & ACC_PERMITS_VALUE) != 0;
+    }
+
+    public static boolean isPrimitive(int mod) {
+        return (mod & ACC_PRIMITIVE) != 0;
+    }
 
     /*
      * Checks that only one (or none) of the Access flags are set.
@@ -405,11 +419,17 @@ public class Modifiers {
             if (isNative(mod)) {
                 sb.append(Token.NATIVE.parseKey() + " ");
             }
+            if (isStrict(mod)) {
+                sb.append(Token.STRICT.parseKey() + " ");
+            }
         }
         if (isAbstract(mod)) {
             if ((context != CF_Context.CTX_CLASS) || !isInterface(mod)) {
                 sb.append(Token.ABSTRACT.parseKey() + " ");
             }
+        }
+        if (context.isOneOf(CF_Context.CTX_CLASS, CF_Context.CTX_INNERCLASS) && isPermitsValue(mod)) {
+            sb.append(Token.PERMITS_VALUE.parseKey() + " ");
         }
         if (  context.isOneOf(CF_Context.CTX_CLASS, CF_Context.CTX_INNERCLASS, CF_Context.CTX_FIELD) && isFinal(mod)) {
             sb.append(Token.FINAL.parseKey() + " ");
@@ -419,9 +439,6 @@ public class Modifiers {
                 sb.append(Token.ANNOTATION_ACCESS.parseKey() + " ");
             }
             sb.append(Token.INTERFACE.parseKey() + " ");
-        }
-        if (isStrict(mod)) {
-            sb.append(Token.STRICT.parseKey() + " ");
         }
         if (isSynthetic(mod)) {
             sb.append(Token.SYNTHETIC.parseKey() + " ");
@@ -434,6 +451,12 @@ public class Modifiers {
         }
         if (context.isOneOf(CF_Context.CTX_METHOD, CF_Context.CTX_FIELD) && isMandated(mod)) {
             sb.append(Token.MANDATED.parseKey() + " ");
+        }
+        if (context.isOneOf(CF_Context.CTX_CLASS, CF_Context.CTX_INNERCLASS) && isPrimitive(mod)) {
+            sb.append(Token.PRIMITIVE.parseKey() + " ");
+        }
+        if (context.isOneOf(CF_Context.CTX_CLASS, CF_Context.CTX_INNERCLASS) && isValue(mod)) {
+            sb.append(Token.VALUE.parseKey() + " ");
         }
 
         return sb;
