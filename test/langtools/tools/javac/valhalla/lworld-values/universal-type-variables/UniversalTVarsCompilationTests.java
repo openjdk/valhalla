@@ -180,6 +180,90 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                             Wrapper<T> w = newWrapper();
                         }
                     }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MyFunction<__universal T, __universal R> {
+                        R apply(T t);
+                    }
+                    primitive class Point {}
+                    class Color {
+                        static Color gray() { return new Color(); }
+                    }
+                    class Test {
+                        void plot(MyFunction<Point.ref, Color> f) {}
+                        void m() {
+                            MyFunction<Point, Color> gradient = p -> Color.gray();
+                            plot(gradient);
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MyFunction<__universal T, __universal R> {
+                        R apply(T t);
+                    }
+                    primitive class Point {}
+                    class Color {
+                        static Color gray() { return new Color(); }
+                    }
+                    class Test {
+                        void plot(MyFunction<Point, Color> f) {}
+                        void m() {
+                            MyFunction<Point.ref, Color> gradient = p -> Color.gray();
+                            plot(gradient);
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySupplier<__universal S> {
+                        S get();
+                    }
+                    class Test<__universal T> {
+                        void m() {
+                            MySupplier<? extends T.ref> factory = nullFactory();
+                        }
+                        MySupplier<? extends T> nullFactory() { return () -> null; }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySupplier<__universal S> {
+                        S get();
+                    }
+                    class Test<__universal T> {
+                        void m() {
+                            MySupplier<? extends T> factory = nullFactory();
+                        }
+                        MySupplier<? extends T.ref> nullFactory() { return () -> null; }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySet<__universal E> {}
+                    interface MyMap<__universal K, __universal V> {
+                        interface Entry<__universal K, __universal V> {}
+                    }
+                    class Test<__universal T> {
+                        MySet<MyMap.Entry<String, T.ref>> allEntries() { return null; }
+                        void m() {
+                            MySet<MyMap.Entry<String, T>> entries = allEntries();
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySet<__universal E> {}
+                    interface MyMap<__universal K, __universal V> {
+                        interface Entry<__universal K, __universal V> {}
+                    }
+                    class Test<__universal T> {
+                        MySet<MyMap.Entry<String, T>> allEntries() { return null; }
+                        void m() {
+                            MySet<MyMap.Entry<String, T.ref>> entries = allEntries();
+                        }
+                    }
                     """)
                 )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);

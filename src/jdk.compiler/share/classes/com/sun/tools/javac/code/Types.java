@@ -1178,6 +1178,10 @@ public class Types {
         if (t.equalsIgnoreMetadata(s))
             return true;
         if (t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+            // warnStack.head is != null if we are checking for an assignment
+            if (warnStack.head != null && allowUniversalTVars && t.isReferenceProjection() != s.isReferenceProjection()) {
+                warnStack.head.warn(LintCategory.UNCHECKED);
+            }
             return true;
         }
         if (s.isPartial())
@@ -1201,7 +1205,8 @@ public class Types {
                 return isSubtype(capture ? capture(t) : t, lower, false);
         }
 
-        return isSubtype.visit(capture ? capture(t) : t, s);
+        t = capture ? capture(t) : t;
+        return isSubtype.visit(t, s);
     }
     // where
         private TypeRelation isSubtype = new TypeRelation()
