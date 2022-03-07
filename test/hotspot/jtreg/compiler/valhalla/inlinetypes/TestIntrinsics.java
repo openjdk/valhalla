@@ -67,6 +67,11 @@ public class TestIntrinsics {
                    .start();
     }
 
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
+    }
+
     // Test correctness of the Class::isAssignableFrom intrinsic
     @Test
     public boolean test1(Class<?> supercls, Class<?> subcls) {

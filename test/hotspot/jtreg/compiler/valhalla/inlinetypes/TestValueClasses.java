@@ -63,6 +63,11 @@ public class TestValueClasses {
                    .start();
     }
 
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
+    }
+
     private static final MyValueClass1 testValue1 = MyValueClass1.createWithFieldsInline(rI, rL);
 
     MyValueClass1 nullValField = null;

@@ -2913,6 +2913,25 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
     // TODO check preload attribute
     if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
       InlineKlass* vk = ss.as_inline_klass(holder);
+      // TODO add a flag
+      //if (type() != T_PRIMITIVE_OBJECT) return NULL;
+      // TODO we need to check parent method args, look at klassVtable::needs_new_vtable_entry
+      if (false && vk != NULL) {
+        bool found = false;
+        for (int i = 0; i < holder->preload_classes()->length(); i++) {
+          Symbol* class_name = holder->constants()->klass_at_noresolve(holder->preload_classes()->at(i));
+          if (class_name == vk->name()) {
+            found = true;
+            break;
+          }
+        }
+        if (!found && holder != vk && bt == T_OBJECT) {
+          vk->print();
+          _method->print();
+          assert(false, "Preload argument missing");
+        }
+      }
+
       if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
         has_scalarized = true;
         int last = sig_cc->length();

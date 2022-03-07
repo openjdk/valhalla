@@ -72,6 +72,11 @@ public class TestLWorld {
                    .start();
     }
 
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
+    }
+
     // Helper methods
 
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
@@ -566,7 +571,7 @@ public class TestLWorld {
 
     // Test subtype check when casting to inline type
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test17(MyValue1 vt, Object obj) {
         try {
             vt = (MyValue1)obj;
@@ -1619,7 +1624,7 @@ public class TestLWorld {
 
     // Access non-flattened, uninitialized inline type field with inline type holder
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test52(Test51Value holder) {
         if ((Object)holder.valueField5 != null) {
             throw new RuntimeException("Should be null");
