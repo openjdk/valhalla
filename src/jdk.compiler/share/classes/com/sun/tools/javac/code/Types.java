@@ -1121,7 +1121,7 @@ public class Types {
                         return false;
                     return true;
                 }
-            } else if (isSubtype(t, s, capture)) {
+            } else if (isSubtype(t, s, capture, new SubtypingParameters(true, isSubtypeUncheckedRelation, containsTypeUnchecked))) {
                 return true;
             } else if (allowUniversalTVars && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
                 warn.warn(LintCategory.UNIVERSAL);
@@ -1175,9 +1175,15 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
+        return isSubtype(t, s, capture, new SubtypingParameters(false, isSubtype, containsType));
+    }
+
+    record SubtypingParameters(boolean uncheckedAllowed, TypeRelation subtypingRelation, TypeRelation containmentRelation) {}
+
+    public boolean isSubtype(Type t, Type s, boolean capture, SubtypingParameters subtypingParameters) {
         if (t.equalsIgnoreMetadata(s))
             return true;
-        if (t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+        if (subtypingParameters.uncheckedAllowed() && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
             // warnStack.head is != null if we are checking for an assignment
             if (warnStack.head != null && allowUniversalTVars && t.isReferenceProjection() != s.isReferenceProjection()) {
                 warnStack.head.warn(LintCategory.UNCHECKED);
@@ -1189,7 +1195,7 @@ public class Types {
 
         if (s.isCompound()) {
             for (Type s2 : interfaces(s).prepend(supertype(s))) {
-                if (!isSubtype(t, s2, capture))
+                if (!isSubtype(t, s2, capture, subtypingParameters))
                     return false;
             }
             return true;
@@ -1202,15 +1208,16 @@ public class Types {
             // TODO: JDK-8039198, bounds checking sometimes passes in a wildcard as s
             Type lower = cvarLowerBound(wildLowerBound(s));
             if (s != lower && !lower.hasTag(BOT))
-                return isSubtype(capture ? capture(t) : t, lower, false);
+                return isSubtype(capture ? capture(t) : t, lower, false, subtypingParameters);
         }
 
         t = capture ? capture(t) : t;
-        return isSubtype.visit(t, s);
+        return subtypingParameters.subtypingRelation().visit(t, s);
     }
     // where
-        private TypeRelation isSubtype = new TypeRelation()
-        {
+        IsSubtypeRelation isSubtype = new IsSubtypeRelation();
+
+        class IsSubtypeRelation extends TypeRelation {
             @Override
             public Boolean visitType(Type t, Type s) {
                 switch (t.getTag()) {
@@ -1226,9 +1233,6 @@ public class Types {
                  case TYPEVAR:
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
-                     if (allowUniversalTVars && s.hasTag(TYPEVAR) && ((TypeVar)s).isValueProjection()) {
-                         warnStack.head.warn(LintCategory.UNIVERSAL);
-                     }
                      return
                          s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
@@ -1242,7 +1246,7 @@ public class Types {
 
             private Set<TypePair> cache = new HashSet<>();
 
-            private boolean containsTypeRecursive(Type t, Type s) {
+            public boolean containsTypeRecursive(Type t, Type s) {
                 TypePair pair = new TypePair(t, s);
                 if (cache.add(pair)) {
                     try {
@@ -1257,7 +1261,7 @@ public class Types {
                 }
             }
 
-            private Type rewriteSupers(Type t) {
+            protected Type rewriteSupers(Type t) {
                 if (!t.isParameterized())
                     return t;
                 ListBuffer<Type> from = new ListBuffer<>();
@@ -1352,7 +1356,38 @@ public class Types {
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
             }
-        };
+        }
+
+        IsSubtypeUncheckedRelation isSubtypeUncheckedRelation = new IsSubtypeUncheckedRelation();
+        class IsSubtypeUncheckedRelation extends IsSubtypeRelation {
+            @Override
+            public Boolean visitType(Type t, Type s) {
+                if (t.getTag() == BOT) {
+                    if (allowUniversalTVars && s.hasTag(TYPEVAR) && ((TypeVar)s).isValueProjection()) {
+                        warnStack.head.warn(LintCategory.UNIVERSAL);
+                    }
+                }
+                return super.visitType(t, s);
+            }
+
+            private Set<TypePair> cache = new HashSet<>();
+
+            @Override
+            public boolean containsTypeRecursive(Type t, Type s) {
+                TypePair pair = new TypePair(t, s);
+                if (cache.add(pair)) {
+                    try {
+                        return containsType(t.getTypeArguments(),
+                                s.getTypeArguments(), containsTypeUnchecked);
+                    } finally {
+                        cache.remove(pair);
+                    }
+                } else {
+                    return containsType(t.getTypeArguments(),
+                            rewriteSupers(s).getTypeArguments(), containsTypeUnchecked);
+                }
+            }
+        }
 
     /**
      * Is t a subtype of every type in given list `ts'?<br>
@@ -1648,8 +1683,12 @@ public class Types {
     }
 
     boolean containsType(List<Type> ts, List<Type> ss) {
+        return containsType(ts, ss, containsType);
+    }
+
+    boolean containsType(List<Type> ts, List<Type> ss, TypeRelation containmentRelation) {
         while (ts.nonEmpty() && ss.nonEmpty()
-               && containsType(ts.head, ss.head)) {
+                && containsType(ts.head, ss.head, containmentRelation)) {
             ts = ts.tail;
             ss = ss.tail;
         }
@@ -1682,25 +1721,21 @@ public class Types {
      * @param s a type
      */
     public boolean containsType(Type t, Type s) {
-        return containsType.visit(t, s);
+        return containsType(t, s, containsType);
+    }
+
+    public boolean containsType(Type t, Type s, TypeRelation containmentRelation) {
+        return containmentRelation.visit(t, s);
     }
     // where
-        private TypeRelation containsType = new TypeRelation() {
+        private ContainsType containsType = new ContainsType();
+        class ContainsType extends TypeRelation {
 
             public Boolean visitType(Type t, Type s) {
                 if (s.isPartial())
                     return containedBy(s, t);
                 else {
-                    boolean result = isSameType(t, s);
-                    // warnStack.head is != null if we are checking for an assignment, in other cases we should be strict
-                    // the order in the condition below matters
-                    if (warnStack.head != null && allowUniversalTVars && !result) {
-                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
-                        if (result) {
-                            warnStack.head.warn(LintCategory.UNCHECKED);
-                        }
-                    }
-                    return result;
+                    return isSameType(t, s);
                 }
             }
 
@@ -1752,6 +1787,32 @@ public class Types {
             }
 
             @Override
+            public Boolean visitErrorType(ErrorType t, Type s) {
+                return true;
+            }
+        }
+
+        private ContainsTypeUnchecked containsTypeUnchecked = new ContainsTypeUnchecked();
+        class ContainsTypeUnchecked extends ContainsType {
+
+            public Boolean visitType(Type t, Type s) {
+                if (s.isPartial())
+                    return containedBy(s, t);
+                else {
+                    boolean result = isSameType(t, s);
+                    // warnStack.head is != null if we are checking for an assignment, in other cases we should be strict
+                    // the order in the condition below matters
+                    if (warnStack.head != null && allowUniversalTVars && !result) {
+                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
+                        if (result) {
+                            warnStack.head.warn(LintCategory.UNCHECKED);
+                        }
+                    }
+                    return result;
+                }
+            }
+
+            @Override
             public Boolean visitTypeVar(TypeVar t, Type s) {
                 if (s.hasTag(TYPEVAR)) {
                     TypeVar other = (TypeVar)s;
@@ -1764,12 +1825,7 @@ public class Types {
                 }
                 return isSameType(t, s);
             }
-
-            @Override
-            public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
-            }
-        };
+        }
 
     public boolean isCaptureOf(Type s, WildcardType t) {
         if (!s.hasTag(TYPEVAR) || !((TypeVar)s).isCaptured())
