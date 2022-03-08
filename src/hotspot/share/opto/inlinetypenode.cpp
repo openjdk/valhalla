@@ -938,7 +938,7 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
 void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
   if (!null_free) {
-    // Nullable inline type, set IsInit field
+    // Nullable inline type, set is_init field
     Node* parm = NULL;
     if (multi->is_Start()) {
       assert(in, "return from start?");

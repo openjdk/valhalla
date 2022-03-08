@@ -354,7 +354,6 @@ void Parse::do_withfield() {
     assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
     val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
   } else if (val->is_InlineType() && !field->is_null_free()) {
-    // TODO why is this needed?
     // Field value needs to be allocated because it can be merged with an oop.
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
@@ -364,9 +363,7 @@ void Parse::do_withfield() {
     val = val->as_InlineType()->buffer(this);
   }
   if (val->is_InlineTypePtr() && field->is_null_free()) {
-    // TODO assert is too strong because make_null initializes non-null fields with null
-    //assert(!gvn().type(val)->maybe_null(), "Null store to null-free field");
-    // TODO hack
+    // TODO hack, remove this!!
     Node* newVal = InlineTypeNode::make_uninitialized(gvn(), field->type()->as_inline_klass());
     for (uint i = 1; i < val->req(); ++i) {
       newVal->set_req(i, val->in(i));

@@ -2851,12 +2851,19 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
   if (total_args_passed == 0) {
     return _no_arg_handler;
   } else if (total_args_passed == 1) {
-    if (!method->is_static() && !method->method_holder()->is_inline_klass()) {
+    if (!method->is_static() && (!InlineTypePassFieldsAsArgs || !method->method_holder()->is_inline_klass())) {
       return _obj_arg_handler;
     }
     switch (method->signature()->char_at(1)) {
-      // TODO re-enable
-      //case JVM_SIGNATURE_CLASS:
+      case JVM_SIGNATURE_CLASS: {
+        if (InlineTypePassFieldsAsArgs) {
+          SignatureStream ss(method->signature());
+          if (method->method_holder()->is_preload_class(ss.as_symbol())) {
+            return NULL;
+          }
+        }
+        return _obj_arg_handler;
+      }
       case JVM_SIGNATURE_ARRAY:
         return _obj_arg_handler;
       case JVM_SIGNATURE_INT:
@@ -2867,10 +2874,17 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
         return _int_arg_handler;
     }
   } else if (total_args_passed == 2 &&
-             !method->is_static() && !method->method_holder()->is_inline_klass()) {
+             !method->is_static() && (!InlineTypePassFieldsAsArgs || !method->method_holder()->is_inline_klass())) {
     switch (method->signature()->char_at(1)) {
-      // TODO re-enable
-      //case JVM_SIGNATURE_CLASS:
+      case JVM_SIGNATURE_CLASS: {
+        if (InlineTypePassFieldsAsArgs) {
+          SignatureStream ss(method->signature());
+          if (method->method_holder()->is_preload_class(ss.as_symbol())) {
+            return NULL;
+          }
+        }
+        return _obj_obj_arg_handler;
+      }
       case JVM_SIGNATURE_ARRAY:
         return _obj_obj_arg_handler;
       case JVM_SIGNATURE_INT:
@@ -2894,7 +2908,7 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _sig_cc_ro = _sig;
 }
 
-int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool init) {
+void CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool init) {
   InstanceKlass* holder = _method->method_holder();
   GrowableArray<SigEntry>* sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
   bool has_scalarized = false;
@@ -2910,34 +2924,16 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
-    // TODO check preload attribute
     if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
       InlineKlass* vk = ss.as_inline_klass(holder);
-      // TODO add a flag
-      //if (type() != T_PRIMITIVE_OBJECT) return NULL;
-      // TODO we need to check parent method args, look at klassVtable::needs_new_vtable_entry
-      if (false && vk != NULL) {
-        bool found = false;
-        for (int i = 0; i < holder->preload_classes()->length(); i++) {
-          Symbol* class_name = holder->constants()->klass_at_noresolve(holder->preload_classes()->at(i));
-          if (class_name == vk->name()) {
-            found = true;
-            break;
-          }
-        }
-        if (!found && holder != vk && bt == T_OBJECT) {
-          vk->print();
-          _method->print();
-          assert(false, "Preload argument missing");
-        }
-      }
-
-      if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
+      // TODO Mismatch handling (same for receiver), we need to check parent method args, look at klassVtable::needs_new_vtable_entry
+      if (vk != NULL && (bt == T_PRIMITIVE_OBJECT || holder->is_preload_class(vk->name())) &&
+          vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
         has_scalarized = true;
         int last = sig_cc->length();
         sig_cc->appendAll(vk->extended_sig());
         if (bt == T_OBJECT) {
-          // Nullable
+          // Nullable inline type argument, insert is_init field right after T_PRIMITIVE_OBJECT
           sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
         }
       } else {
@@ -2950,20 +2946,19 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
       arg_num++;
     }
   }
-  // TODO hack
-  if (!has_scalarized && scalar_receiver) {
-    return _args_on_stack;
+  if (has_scalarized) {
+    VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
+    int args_on_stack = SharedRuntime::java_calling_convention(sig_cc, regs_cc);
+    if (scalar_receiver) {
+      _sig_cc = sig_cc;
+      _regs_cc = regs_cc;
+      _args_on_stack_cc = args_on_stack;
+    } else {
+      _sig_cc_ro = sig_cc;
+      _regs_cc_ro = regs_cc;
+      _args_on_stack_cc_ro = args_on_stack;
+    }
   }
-
-  VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
-  if (scalar_receiver) {
-    _sig_cc = sig_cc;
-    _regs_cc = regs_cc;
-  } else {
-    _sig_cc_ro = sig_cc;
-    _regs_cc_ro = regs_cc;
-  }
-  return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
 }
 
 // See if we can save space by sharing the same entry for VIEP and VIEP(RO),
@@ -3047,14 +3042,15 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
   _args_on_stack_cc_ro = _args_on_stack;
 
   if (has_inline_arg() && !_method->is_native()) {
-    _args_on_stack_cc = compute_scalarized_cc(/* scalar_receiver = */ true, init);
+    compute_scalarized_cc(/* scalar_receiver = */ true, init);
 
-    _sig_cc_ro = _sig_cc;
-    _regs_cc_ro = _regs_cc;
-    _args_on_stack_cc_ro = _args_on_stack_cc;
     if (_has_inline_recv) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
-      _args_on_stack_cc_ro = compute_scalarized_cc(/* scalar_receiver = */ false, init);
+      compute_scalarized_cc(/* scalar_receiver = */ false, init);
+    } else {
+      _sig_cc_ro = _sig_cc;
+      _regs_cc_ro = _regs_cc;
+      _args_on_stack_cc_ro = _args_on_stack_cc;
     }
 
     // Upper bound on stack arguments to avoid hitting the argument limit and

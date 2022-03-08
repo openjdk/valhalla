@@ -2587,17 +2587,54 @@ public class TestNullableInlineTypes {
     }
 
     @DontInline
-    public MyValue1.ref test95_helper1() {
+    public static MyValue1.ref test95_helper1(MyValue1.ref vt) {
+        return vt;
+    }
+
+    @ForceInline
+    public static MyValue1.ref test95_helper2(MyValue1.ref vt) {
+        return test95_helper1(vt);
+    }
+
+    @ForceInline
+    public static MyValue1.ref test95_helper3(Object vt) {
+        return test95_helper2((MyValue1.ref)vt);
+    }
+
+    // Same as test94 but with static methods to trigger simple adapter logic
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation, 1 MyValue2 allocation + 1 Integer allocation
+    public static MyValue1.ref test95(MyValue1.ref vt) {
+        MyValue1.ref res = test95_helper1(vt);
+        vt = MyValue1.createWithFieldsInline(rI, rL);
+        test95_helper1(vt);
+        test95_helper2(vt);
+        test95_helper3(vt);
+        return res;
+    }
+
+    @Run(test = "test95")
+    public void test95_verifier() {
+        Asserts.assertEQ(test95(testValue1), testValue1);
+        Asserts.assertEQ(test95(null), null);
+    }
+
+
+    @DontInline
+    public MyValue1.ref test96_helper1() {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
     @ForceInline
-    public MyValue1.ref test95_helper2() {
+    public MyValue1.ref test96_helper2() {
         return null;
     }
 
     @ForceInline
-    public MyValue1.ref test95_helper3() {
+    public MyValue1.ref test96_helper3() {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
@@ -2608,23 +2645,23 @@ public class TestNullableInlineTypes {
 //        counts = {ALLOC_G, " = 7"}) // 6 MyValue2/MyValue2Inline allocations + 1 Integer allocation
 //    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
 //        counts = {ALLOC_G, " = 8"}) // 1 MyValue1 allocation, 6 MyValue2/MyValue2Inline allocations + 1 Integer allocation
-    public MyValue1.ref test95(int c) {
+    public MyValue1.ref test96(int c) {
         MyValue1.ref res = null;
         if (c == 1) {
-            res = test95_helper1();
+            res = test96_helper1();
         } else if (c == 2) {
-            res = test95_helper2();
+            res = test96_helper2();
         } else if (c == 3) {
-            res = test95_helper3();
+            res = test96_helper3();
         }
         return res;
     }
 
-    @Run(test = "test95")
-    public void test95_verifier() {
-        Asserts.assertEQ(test95(0), null);
-        Asserts.assertEQ(test95(1).hash(), testValue1.hash());
-        Asserts.assertEQ(test95(2), null);
-        Asserts.assertEQ(test95(3).hash(), testValue1.hash());
+    @Run(test = "test96")
+    public void test96_verifier() {
+        Asserts.assertEQ(test96(0), null);
+        Asserts.assertEQ(test96(1).hash(), testValue1.hash());
+        Asserts.assertEQ(test96(2), null);
+        Asserts.assertEQ(test96(3).hash(), testValue1.hash());
     }
 }

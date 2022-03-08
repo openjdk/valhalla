@@ -826,7 +826,7 @@ public:
   void compute_calling_conventions(bool init = true);
 
 private:
-  int compute_scalarized_cc(bool scalar_receiver, bool init);
+  void compute_scalarized_cc(bool scalar_receiver, bool init);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP
