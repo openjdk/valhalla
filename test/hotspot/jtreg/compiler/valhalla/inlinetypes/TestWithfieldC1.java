@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,8 @@ import compiler.lib.ir_framework.*;
  * @summary Verify that C1 performs escape analysis before optimizing withfield bytecode to putfield.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDallowWithFieldOperator TestWithfieldC1.java
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestWithfieldC1Classes.jasm
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestWithfieldC1
  */
 
@@ -75,114 +76,6 @@ public class TestWithfieldC1 {
         }
     }
 
-    static primitive class FooValue {
-        public int x = 0, y = 0;
-
-        @ForceInline
-        static FooValue test1() {
-            FooValue v = FooValue.default;
-
-            v = __WithField(v.x, 1);
-            v = __WithField(v.y, 1);
-            foo_static = v;
-
-            v = __WithField(v.x, 2);
-            v = __WithField(v.y, 2);
-            return v;
-        }
-
-        @ForceInline
-        static FooValue test3() {
-            FooValue v = FooValue.default;
-
-            v = __WithField(v.x, 1);
-            v = __WithField(v.y, 1);
-            set_foo_static_if_null(v);
-
-            v = __WithField(v.x, 2);
-            v = __WithField(v.y, 2);
-            return v;
-        }
-
-        @ForceInline
-        static FooValue test4() {
-            FooValue v = FooValue.default;
-            for (int i=1; i<=2; i++) {
-                v = __WithField(v.x, i);
-                v = __WithField(v.y, i);
-                set_foo_static_if_null(v);
-            }
-
-            return v;
-        }
-
-        @ForceInline
-        static FooValue test5() {
-            FooValue v1 = FooValue.default;
-            FooValue v2 = FooValue.default;
-            v2 = v1;
-
-            v1 = __WithField(v1.x, 1);
-            v1 = __WithField(v1.y, 1);
-            set_foo_static_if_null(v1);
-
-            v2 = __WithField(v2.x, 2);
-            v2 = __WithField(v2.y, 2);
-
-            return v2;
-        }
-
-        @ForceInline
-        static FooValue test6() {
-            FooValue v = FooValue.default;
-
-            v = __WithField(v.x, 1);
-            v = __WithField(v.y, 1);
-            foo_static_arr[0] = v;
-
-            v = __WithField(v.x, 2);
-            v = __WithField(v.y, 2);
-            return v;
-        }
-
-
-        @ForceInline
-        static FooValue test7() {
-            FooValue v1 = FooValue.default;
-            FooValue v2 = FooValue.default;
-            v2 = v1;
-
-            v1 = __WithField(v1.x, 1);
-            v1 = __WithField(v1.y, 1);
-
-            v2 = __WithField(v2.x, 2);
-            v2 = __WithField(v2.y, 2);
-
-            return v1;
-        }
-
-        @ForceInline
-        static FooValue test8() {
-            FooValue v1 = FooValue.default;
-
-            v1 = __WithField(v1.x, 1);
-            v1 = __WithField(v1.y, 1);
-
-            v1.non_static_method();
-
-            v1 = __WithField(v1.x, 2);
-            v1 = __WithField(v1.y, 2);
-
-            return v1;
-        }
-
-
-        @DontInline
-        private void non_static_method() {
-            set_foo_static_if_null(this);
-        }
-    }
-
     static void validate_foo_static_and(FooValue v) {
         Asserts.assertEQ(foo_static.x, 1);
         Asserts.assertEQ(foo_static.y, 1);
@@ -205,15 +98,7 @@ public class TestWithfieldC1 {
     // escape with putfield
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test2() {
-        FooValue v = FooValue.default;
-
-        v = __WithField(v.x, 1);
-        v = __WithField(v.y, 1);
-        foo_instance = v;
-
-        v = __WithField(v.x, 2);
-        v = __WithField(v.y, 2);
-        return v;
+        return FooValue.test2(this);
     }
 
     @Run(test = "test2")
@@ -310,21 +195,7 @@ public class TestWithfieldC1 {
     // duplicate reference with local variables
     @Test(compLevel = CompLevel.C1_SIMPLE)
     public FooValue test9() {
-        FooValue v = FooValue.default;
-
-        v = __WithField(v.x, 1);
-        v = __WithField(v.y, 1);
-
-        FooValue v2 = v;
-
-        v = __WithField(v.x, 2);
-        v = __WithField(v.y, 2);
-
-        v2 = __WithField(v2.x, 3);
-        v2 = __WithField(v2.y, 3);
-
-        foo_instance = v2;
-        return v;
+        return FooValue.test9(this);
     }
 
     @Run(test = "test9")
