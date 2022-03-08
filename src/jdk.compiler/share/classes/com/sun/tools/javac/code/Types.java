@@ -4939,7 +4939,7 @@ public class Types {
 
     private boolean containsTypeEquivalent(Type t, Type s) {
         return isSameType(t, s) || // shortcut
-            containsType(t, s) && containsType(s, t);
+            containsType(t, s, containsTypeUnchecked) && containsType(s, t, containsTypeUnchecked);
     }
 
     // <editor-fold defaultstate="collapsed" desc="adapt">
