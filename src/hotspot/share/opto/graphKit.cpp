@@ -537,7 +537,6 @@ void GraphKit::uncommon_trap_if_should_post_on_exceptions(Deoptimization::DeoptR
 
 }
 
-// TODO arg is unused, also in mainline
 //------------------------------builtin_throw----------------------------------
 void GraphKit::builtin_throw(Deoptimization::DeoptReason reason, Node* arg) {
   bool must_throw = true;
@@ -1474,7 +1473,6 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
-    // TODO
     InlineTypeNode* vt = obj->clone()->as_InlineType();
     vt->set_is_init(_gvn);
     vt = _gvn.transform(vt)->as_InlineType();
@@ -1490,7 +1488,6 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
       return top();
     }
     // Create a new node with the casted oop input and is_init set
-    // TODO simply use clone here?
     InlineTypeBaseNode* vt = obj->clone()->as_InlineTypePtr();
     vt->set_oop(cast);
     vt->set_is_init(_gvn);
@@ -1891,8 +1888,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     if (t->is_inlinetypeptr() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineTypeBase()) {
-        // TODO should be null, right?
-        // assert !t->inline_klass()->is_nullable_flattenable()
+        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
         arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
       }
       InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
@@ -1910,7 +1906,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
         arg = arg->as_InlineTypePtr()->get_oop();
       }
     }
-    if (t != Type::HALF) arg_num++;
+    if (t != Type::HALF) {
+      arg_num++;
+    }
     call->init_req(idx++, arg);
   }
 }
@@ -3609,8 +3607,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     set_control(null_ctl);
     if (toop->is_inlinetypeptr()) {
       return InlineTypePtrNode::make_null(_gvn, toop->inline_klass());
-    } else {
-      return null();
     }
     return null();
   }
@@ -3795,7 +3791,6 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
     PreserveJVMState pjvms(this);
     set_control(null_ctl);
     {
-      // TODO depending on where we call from, we know array is flat->null_free, we should not check
       // Deoptimize if null-free array
       BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
       inc_sp(nargs);
@@ -3807,7 +3802,6 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
   region->init_req(2, control());
   set_control(_gvn.transform(region));
   record_for_igvn(region);
-  // TODO could be "scalarized" null
   if (_gvn.type(val) == TypePtr::NULL_PTR) {
     // Since we were just successfully storing null, the array can't be null free.
     const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
@@ -4768,7 +4762,6 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != NULL) {
     Node* con = makecon(con_type);
     if (field->type()->is_inlinetype()) {
-      // TODO shouldn't con_type be inlinetypeptr here as well?
       con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
     } else if (con_type->is_inlinetypeptr()) {
       con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());

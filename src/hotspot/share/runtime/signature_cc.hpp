@@ -41,9 +41,7 @@ class ScalarizedInlineArgsStream : public StackObj {
 public:
   ScalarizedInlineArgsStream(const GrowableArray<SigEntry>* sig, int sig_idx, VMRegPair* regs, int regs_count, int regs_idx, int step = 1)
     : _sig(sig), _sig_idx(sig_idx), _regs(regs), _regs_count(regs_count), _regs_idx(regs_idx), _step(step) {
-    assert(_sig->at(_sig_idx)._bt == (step > 0) ? T_PRIMITIVE_OBJECT : T_VOID, "should be at inline type delimiter");
-    _depth = 1;
-    DEBUG_ONLY(_finished = false);
+    reset(sig_idx, regs_idx);
   }
 
   bool next(VMReg& reg, BasicType& bt) {
@@ -72,6 +70,14 @@ public:
 
     DEBUG_ONLY(_finished = true);
     return false;
+  }
+
+  void reset(int sig_idx, int regs_idx) {
+    _sig_idx = sig_idx;
+    _regs_idx = regs_idx;
+    assert(_sig->at(_sig_idx)._bt == (_step > 0) ? T_PRIMITIVE_OBJECT : T_VOID, "should be at inline type delimiter");
+    _depth = 1;
+    DEBUG_ONLY(_finished = false);
   }
 
   int sig_index()  { return _sig_idx;  }

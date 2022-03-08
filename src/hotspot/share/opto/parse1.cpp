@@ -882,7 +882,9 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     map->init_req(i, parm);
     // Record all these guys for later GVN.
     record_for_igvn(parm);
-    if (i >= TypeFunc::Parms && t != Type::HALF) arg_num++;
+    if (i >= TypeFunc::Parms && t != Type::HALF) {
+      arg_num++;
+    }
   }
   for (; i < map->req(); i++) {
     map->init_req(i, top());
@@ -1741,13 +1743,11 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != NULL && t != Type::BOTTOM) {
-        if (n->is_InlineType() && !t->isa_inlinetype()) {
+        if (n->is_InlineType() && (!t->isa_inlinetype() && !t->is_inlinetypeptr())) {
           // TODO Currently, the implementation relies on the assumption that InlineTypePtrNodes
           // are always buffered. We therefore need to allocate here.
           // Allocate inline type in src block to be able to merge it with oop in target block
-          // TODO but we can merge if the target block is inlinetypeptr!
           map()->set_req(j, n->as_InlineType()->buffer(this));
-          // TOOD add TraceOptoParse output
         } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {
           // Scalarize null in src block to be able to merge it with inline type in target block
           assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");

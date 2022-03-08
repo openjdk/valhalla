@@ -373,8 +373,6 @@ class GraphKit : public Phase {
     return null_check_common(value, type, false, NULL, !_gvn.type(value)->speculative_maybe_null());
   }
   Node* null_check_receiver() {
-    // TODO Re-enable this
-    //assert(argument(0)->bottom_type()->isa_ptr(), "must be");
     return null_check(argument(0));
   }
   Node* zero_check_int(Node* value) {

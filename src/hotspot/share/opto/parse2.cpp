@@ -1931,7 +1931,6 @@ void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTe
 Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, Node*& null_ctl) {
   inc_sp(2);
   null_ctl = top();
-  // TODO isn't this safe for replace in some cases?
   Node* cast = null_check_oop(input, &null_ctl,
                               input_ptr == ProfileNeverNull || (input_ptr == ProfileUnknownNull && !too_many_traps_or_recompiles(Deoptimization::Reason_null_check)),
                               false,
@@ -2090,15 +2089,6 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   Node* cmp = CmpP(left, right);
   cmp = optimize_cmp_with_klass(cmp);
-
-  // TODO remove
-  if (left->is_InlineTypeBase() && _gvn.type(left->as_InlineTypeBase()->get_is_init())->is_int()->is_con(0)) {
-    tleft = NULL;
-  }
-  if (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_int()->is_con(0)) {
-    tright = NULL;
-  }
-
   if (tleft == NULL || !tleft->can_be_inline_type() ||
       tright == NULL || !tright->can_be_inline_type()) {
     // This is sufficient, if one of the operands can't be an inline type
@@ -3384,8 +3374,8 @@ void Parse::do_one_bytecode() {
     a = null();
     b = pop();
     if (b->is_InlineType()) {
-      // TODO
-      // Return constant false because 'b' is always non-null
+      // Null checking a scalarized but nullable inline type. Check the is_init
+      // input instead of the oop input to avoid keeping buffer allocations alive
       c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&

@@ -2898,15 +2898,15 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
   InstanceKlass* holder = _method->method_holder();
   GrowableArray<SigEntry>* sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
   bool has_scalarized = false;
-  int idx = 0;
+  int arg_num = 0;
   if (!_method->is_static()) {
-    if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
+    if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
       sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
       has_scalarized = true;
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT, holder->name());
     }
-    idx++;
+    arg_num++;
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
@@ -2932,7 +2932,7 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
         }
       }
 
-      if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(idx))) {
+      if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
         has_scalarized = true;
         int last = sig_cc->length();
         sig_cc->appendAll(vk->extended_sig());
@@ -2944,10 +2944,11 @@ int CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool ini
         SigEntry::add_entry(sig_cc, T_OBJECT, ss.as_symbol());
       }
     } else {
-      // TODO symbol is only needed for reference types
       SigEntry::add_entry(sig_cc, ss.type(), ss.as_symbol());
     }
-    if (bt != T_VOID) idx++;
+    if (bt != T_VOID) {
+      arg_num++;
+    }
   }
   // TODO hack
   if (!has_scalarized && scalar_receiver) {

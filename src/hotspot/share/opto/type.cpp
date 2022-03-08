@@ -2186,7 +2186,8 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     case T_PRIMITIVE_OBJECT: {
       if (vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
         if (!sig->is_null_free_at(i)) {
-          field_array[pos++] = get_const_basic_type(T_BOOLEAN); // TODO
+          // InlineTypeBaseNode::IsInit field used for null checking
+          field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         }
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {

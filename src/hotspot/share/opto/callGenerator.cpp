@@ -780,7 +780,9 @@ void CallGenerator::do_late_inline_helper() {
       } else {
         map->set_argument(jvms, i1, call->in(j++));
       }
-      if (t != Type::HALF) arg_num++;
+      if (t != Type::HALF) {
+        arg_num++;
+      }
     }
 
     C->print_inlining_assert_ready();
@@ -870,8 +872,7 @@ void CallGenerator::do_late_inline_helper() {
       }
       DEBUG_ONLY(buffer_oop = NULL);
     } else {
-      // TODO remove?
-      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "FAIL");
+      assert(result->is_top() || !call->tf()->returns_inline_type_as_fields(), "Unexpected return value");
     }
     assert(buffer_oop == NULL, "unused buffer allocation");
 

@@ -2595,8 +2595,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (argument(1)->is_InlineType() && is_store) {
-    Node* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
-    value = value->as_InlineTypeBase()->make_larval(this, false);
+    InlineTypeBaseNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
+    value = value->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
 

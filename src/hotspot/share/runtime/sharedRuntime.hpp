@@ -777,7 +777,6 @@ class AdapterHandlerLibrary: public AllStatic {
 //     Method::_from_compiled_inline_entry        - sig
 class CompiledEntrySignature : public StackObj {
   Method* _method;
-  // TODO do we need all this?
   int  _num_inline_args;
   bool _has_inline_recv;
   GrowableArray<SigEntry> *_sig;

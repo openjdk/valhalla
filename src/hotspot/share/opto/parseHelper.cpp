@@ -366,7 +366,6 @@ void Parse::do_withfield() {
   if (val->is_InlineTypePtr() && field->is_null_free()) {
     // TODO assert is too strong because make_null initializes non-null fields with null
     //assert(!gvn().type(val)->maybe_null(), "Null store to null-free field");
-    // TODO otherwise we might keep allocation alive at return, add targeted tests!
     // TODO hack
     Node* newVal = InlineTypeNode::make_uninitialized(gvn(), field->type()->as_inline_klass());
     for (uint i = 1; i < val->req(); ++i) {

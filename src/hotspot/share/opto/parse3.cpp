@@ -235,8 +235,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     return;
   } else if (field->is_flattened()) {
     // Storing to a flattened inline type field.
-    // TODO enable
-    //assert(!gvn().type(value)->maybe_null(), "Flattened inline types are null-free");
     if (!val->is_InlineType()) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }

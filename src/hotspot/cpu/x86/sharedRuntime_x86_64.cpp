@@ -937,18 +937,19 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
           if (off == -1) {
+            // Nullable inline type argument, emit null check
             VMReg reg = regs[next_arg_comp-ignored].first();
-            Label L_OK;
+            Label L_notNull;
             if (reg->is_stack()) {
               int ld_off = reg->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
               __ testb(Address(rsp, ld_off), 1);
             } else {
               __ testb(reg->as_Register(), 1);
             }
-            __ jcc(Assembler::notZero, L_OK);
+            __ jcc(Assembler::notZero, L_notNull);
             __ movptr(Address(rsp, st_off), 0);
             __ jmp(L_null);
-            __ bind(L_OK);
+            __ bind(L_notNull);
             continue;
           }
           assert(off > 0, "offset in object should be positive");

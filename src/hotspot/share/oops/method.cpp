@@ -2375,27 +2375,28 @@ bool Method::is_valid_method(const Method* m) {
 }
 
 bool Method::is_scalarized_arg(int idx) const {
-  if (!has_scalarized_args()) return false;
-
-  // TODO what about empty inline type args?
+  if (!has_scalarized_args()) {
+    return false;
+  }
+  // Search through signature and check if argument is wrapped in T_PRIMITIVE_OBJECT/T_VOID
+  int depth = 0;
   const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
-  int orig_idx = idx;
-  // ILVSOAT
-  int s = 0;
   for (int i = 0; i < sig->length(); i++) {
     BasicType bt = sig->at(i)._bt;
     if (bt == T_PRIMITIVE_OBJECT) {
-      s++;
+      depth++;
     }
-    if (idx == 0) break;
+    if (idx == 0) {
+      break; // Argument found
+    }
     if (bt == T_VOID && (sig->at(i-1)._bt != T_LONG && sig->at(i-1)._bt != T_DOUBLE)) {
-      s--;
+      depth--;
     }
-    if (s == 0 && bt != T_LONG && bt != T_DOUBLE) {
-      idx--;
+    if (depth == 0 && bt != T_LONG && bt != T_DOUBLE) {
+      idx--; // Advance to next argument
     }
   }
-  return s != 0;
+  return depth != 0;
 }
 
 #ifndef PRODUCT

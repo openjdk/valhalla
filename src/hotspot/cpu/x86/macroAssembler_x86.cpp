@@ -5663,20 +5663,28 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
                                           RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
   assert(from->is_valid(), "source must be valid");
-#ifdef ASSERT
   bool progress = false;
+#ifdef ASSERT
   const int start_offset = offset();
 #endif
 
   Label L_null, L_notNull;
-  bool null_check = false;
-
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
   bool mark_done = true;
   VMReg toReg;
   BasicType bt;
+  // Check if argument requires a null check
+  bool null_check = false;
+  VMReg nullCheckReg;
+  while (stream.next(nullCheckReg, bt)) {
+    if (sig->at(stream.sig_index())._offset == -1) {
+      null_check = true;
+      break;
+    }
+  }
+  stream.reset(sig_index, to_index);
   while (stream.next(toReg, bt)) {
     assert(toReg->is_valid(), "destination must be valid");
     int idx = (int)toReg->value();
@@ -5691,7 +5699,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
     assert(reg_state[idx] == reg_writable, "must be writable");
     reg_state[idx] = reg_written;
-    DEBUG_ONLY(progress = true);
+    progress = true;
 
     if (fromReg == noreg) {
       if (from->is_reg()) {
@@ -5701,15 +5709,15 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         movq(r10, Address(rsp, st_off));
         fromReg = r10;
       }
-      // TODO we only need a null check if the arg is nullable (check for pivot field?)
-      null_check = true;
       if (null_check) {
+        // Nullable inline type argument, emit null check
         testptr(fromReg, fromReg);
         jcc(Assembler::zero, L_null);
       }
     }
     int off = sig->at(stream.sig_index())._offset;
     if (off == -1) {
+      assert(null_check, "Missing null check at");
       if (toReg->is_stack()) {
         int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         movq(Address(rsp, st_off), 1);
@@ -5739,19 +5747,16 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       movflt(toReg->as_XMMRegister(), fromAddr);
     }
   }
-  if (null_check) {
+  if (progress && null_check) {
     if (done) {
       jmp(L_notNull);
       bind(L_null);
-
-      // Set all fields to 0
-      ScalarizedInlineArgsStream stream1(sig, sig_index, to, to_count, to_index, -1);
-      bool found = false;
-      while (stream1.next(toReg, bt)) {
+      // Set all fields to zero
+      // TODO can we change this to only set the pivot field? Seems like uses are floating above the check.
+      stream.reset(sig_index, to_index);
+      while (stream.next(toReg, bt)) {
         assert(toReg->is_valid(), "destination must be valid");
         assert(reg_state[(int)toReg->value()] == reg_written, "unexpected state");
-
-        // TODO double check if this is correct
         if (!toReg->is_XMMRegister()) {
           if (toReg->is_stack()) {
             int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
@@ -5766,7 +5771,6 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
           xorps(toReg->as_XMMRegister(), toReg->as_XMMRegister());
         }
       }
-
       bind(L_notNull);
     } else {
       bind(L_null);
@@ -5826,17 +5830,18 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
     int off = sig->at(stream.sig_index())._offset;
     if (off == -1) {
-      Label L_OK;
+      // Nullable inline type argument, emit null check
+      Label L_notNull;
       if (fromReg->is_stack()) {
         int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         testb(Address(rsp, ld_off), 1);
       } else {
         testb(fromReg->as_Register(), 1);
       }
-      jcc(Assembler::notZero, L_OK);
+      jcc(Assembler::notZero, L_notNull);
       movptr(val_obj, 0);
       jmp(L_null);
-      bind(L_OK);
+      bind(L_notNull);
       continue;
     }
 

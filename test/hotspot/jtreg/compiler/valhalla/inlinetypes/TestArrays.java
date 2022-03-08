@@ -2056,7 +2056,7 @@ public class TestArrays {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 2"})
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
@@ -2092,7 +2092,7 @@ public class TestArrays {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
-        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 2"})
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
