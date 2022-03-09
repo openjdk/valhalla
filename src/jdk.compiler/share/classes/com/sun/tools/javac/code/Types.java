@@ -1121,7 +1121,7 @@ public class Types {
                         return false;
                     return true;
                 }
-            } else if (isSubtype(t, s, capture, new SubtypingParameters(true, isSubtypeUncheckedRelation, containsTypeUnchecked))) {
+            } else if (isSubtype(t, s, capture, typeRelationsUnchecked)) {
                 return true;
             } else if (allowUniversalTVars && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
                 warn.warn(LintCategory.UNIVERSAL);
@@ -1175,16 +1175,18 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
-        return isSubtype(t, s, capture, new SubtypingParameters(false, isSubtype, containsType));
+        return isSubtype(t, s, capture, typeRelations);
     }
 
-    record SubtypingParameters(boolean uncheckedAllowed, TypeRelation subtypingRelation, TypeRelation containmentRelation) {}
+    record TypeRelations(boolean uncheckedAllowed, TypeRelation subtypingRelation, TypeRelation containmentRelation) {}
 
-    public boolean isSubtype(Type t, Type s, boolean capture, SubtypingParameters subtypingParameters) {
+    TypeRelations typeRelations = new TypeRelations(false, new IsSubtypeRelation(), new ContainsType());
+    TypeRelations typeRelationsUnchecked = new TypeRelations(true, new IsSubtypeUncheckedRelation(), new ContainsTypeUnchecked());
+
+    public boolean isSubtype(Type t, Type s, boolean capture, TypeRelations subtypingParameters) {
         if (t.equalsIgnoreMetadata(s))
             return true;
         if (subtypingParameters.uncheckedAllowed() && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
-            // warnStack.head is != null if we are checking for an assignment
             if (warnStack.head != null && allowUniversalTVars && t.isReferenceProjection() != s.isReferenceProjection()) {
                 warnStack.head.warn(LintCategory.UNCHECKED);
             }
@@ -1215,9 +1217,11 @@ public class Types {
         return subtypingParameters.subtypingRelation().visit(t, s);
     }
     // where
-        IsSubtypeRelation isSubtype = new IsSubtypeRelation();
-
         class IsSubtypeRelation extends TypeRelation {
+            public TypeRelations getTypeRelations() {
+                return typeRelations;
+            }
+
             @Override
             public Boolean visitType(Type t, Type s) {
                 switch (t.getTag()) {
@@ -1231,7 +1235,7 @@ public class Types {
                  case BOOLEAN: case VOID:
                      return t.hasTag(s.getTag());
                  case TYPEVAR:
-                     return isSubtypeNoCapture(t.getUpperBound(), s);
+                     return isSubtype(t.getUpperBound(), s, false, getTypeRelations());
                  case BOT:
                      return
                          s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
@@ -1358,8 +1362,11 @@ public class Types {
             }
         }
 
-        IsSubtypeUncheckedRelation isSubtypeUncheckedRelation = new IsSubtypeUncheckedRelation();
         class IsSubtypeUncheckedRelation extends IsSubtypeRelation {
+            public TypeRelations getTypeRelations() {
+                return typeRelationsUnchecked;
+            }
+
             @Override
             public Boolean visitType(Type t, Type s) {
                 if (t.getTag() == BOT) {
@@ -1771,9 +1778,9 @@ public class Types {
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isBoundedBy(wildLowerBound(t), wildLowerBound(s),
-                                (t1, s1, w) -> isSubtypeNoCapture(t1, s1))) &&
+                                (t1, s1, w) -> isSubtype(t1, s1, false, typeRelationsUnchecked))) &&
                             (t.isSuperBound() || isBoundedBy(wildUpperBound(s), wildUpperBound(t),
-                                (t1, s1, w) -> isSubtypeNoCapture(t1, s1))));
+                                (t1, s1, w) -> isSubtype(t1, s1, false, typeRelationsUnchecked))));
                 }
             }
 
