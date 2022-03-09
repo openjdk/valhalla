@@ -1183,10 +1183,10 @@ public class Types {
     TypeRelations typeRelations = new TypeRelations(false, new IsSubtypeRelation(), new ContainsType());
     TypeRelations typeRelationsUnchecked = new TypeRelations(true, new IsSubtypeUncheckedRelation(), new ContainsTypeUnchecked());
 
-    public boolean isSubtype(Type t, Type s, boolean capture, TypeRelations subtypingParameters) {
+    public boolean isSubtype(Type t, Type s, boolean capture, TypeRelations typeRelations) {
         if (t.equalsIgnoreMetadata(s))
             return true;
-        if (subtypingParameters.uncheckedAllowed() && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+        if (typeRelations.uncheckedAllowed() && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
             if (warnStack.head != null && allowUniversalTVars && t.isReferenceProjection() != s.isReferenceProjection()) {
                 warnStack.head.warn(LintCategory.UNCHECKED);
             }
@@ -1197,7 +1197,7 @@ public class Types {
 
         if (s.isCompound()) {
             for (Type s2 : interfaces(s).prepend(supertype(s))) {
-                if (!isSubtype(t, s2, capture, subtypingParameters))
+                if (!isSubtype(t, s2, capture, typeRelations))
                     return false;
             }
             return true;
@@ -1210,11 +1210,11 @@ public class Types {
             // TODO: JDK-8039198, bounds checking sometimes passes in a wildcard as s
             Type lower = cvarLowerBound(wildLowerBound(s));
             if (s != lower && !lower.hasTag(BOT))
-                return isSubtype(capture ? capture(t) : t, lower, false, subtypingParameters);
+                return isSubtype(capture ? capture(t) : t, lower, false, typeRelations);
         }
 
         t = capture ? capture(t) : t;
-        return subtypingParameters.subtypingRelation().visit(t, s);
+        return typeRelations.subtypingRelation().visit(t, s);
     }
     // where
         class IsSubtypeRelation extends TypeRelation {
