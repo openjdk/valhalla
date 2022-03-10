@@ -1805,7 +1805,6 @@ public class Types {
                     return containedBy(s, t);
                 else {
                     boolean result = isSameType(t, s, this);
-                    // warnStack.head is != null if we are checking for an assignment, in other cases we should be strict
                     // the order in the condition below matters
                     if (warnStack.head != null && allowUniversalTVars && !result) {
                         result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
