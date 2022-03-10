@@ -1121,7 +1121,7 @@ public class Types {
                         return false;
                     return true;
                 }
-            } else if (isSubtype(t, s, capture, refValSubtypingRelation)) {
+            } else if (isSubtype(t, s, capture, SubtypingRelationKind.REF_VAL_ALLOWED)) {
                 return true;
             } else if (allowUniversalTVars && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
                 warn.warn(LintCategory.UNIVERSAL);
@@ -1175,13 +1175,13 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
-        return isSubtype(t, s, capture, isSubtypeRelation);
+        return isSubtype(t, s, capture, SubtypingRelationKind.STRICT);
     }
 
-    public boolean isSubtype(Type t, Type s, boolean capture, SubtypingRelation typeRelations) {
+    public boolean isSubtype(Type t, Type s, boolean capture, SubtypingRelationKind subtypingKind) {
         if (t.equalsIgnoreMetadata(s))
             return true;
-        if (typeRelations.allowRefValSubtyping() && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
+        if (subtypingKind == SubtypingRelationKind.REF_VAL_ALLOWED && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
             if (warnStack.head != null && allowUniversalTVars && t.isReferenceProjection() != s.isReferenceProjection()) {
                 warnStack.head.warn(LintCategory.UNCHECKED);
             }
@@ -1192,7 +1192,7 @@ public class Types {
 
         if (s.isCompound()) {
             for (Type s2 : interfaces(s).prepend(supertype(s))) {
-                if (!isSubtype(t, s2, capture, typeRelations))
+                if (!isSubtype(t, s2, capture, subtypingKind))
                     return false;
             }
             return true;
@@ -1205,21 +1205,36 @@ public class Types {
             // TODO: JDK-8039198, bounds checking sometimes passes in a wildcard as s
             Type lower = cvarLowerBound(wildLowerBound(s));
             if (s != lower && !lower.hasTag(BOT))
-                return isSubtype(capture ? capture(t) : t, lower, false, typeRelations);
+                return isSubtype(capture ? capture(t) : t, lower, false, subtypingKind);
         }
 
         t = capture ? capture(t) : t;
-        return typeRelations.visit(t, s);
+        return isSubtypeRelation.visit(t, s, subtypingKind);
     }
     // where
-        SubtypingRelation isSubtypeRelation = new SubtypingRelation();
-        class SubtypingRelation extends TypeRelation {
-            public boolean allowRefValSubtyping() {
-                return false;
-            }
+        enum SubtypingRelationKind {
+            STRICT,
+            REF_VAL_ALLOWED
+        }
 
-            TypeRelation containmentRelation() {
-                return containsType;
+        public abstract static class ParameterizedTypeRelation<P> extends TypeRelation {
+            P param;
+
+            public final Boolean visit(Type t, Type s, P param) {
+                P prevParam = this.param;
+                try {
+                    this.param = param;
+                    return visit(t, s);
+                } finally {
+                    this.param = prevParam;
+                }
+            }
+        }
+
+        SubtypingRelation isSubtypeRelation = new SubtypingRelation();
+        class SubtypingRelation extends ParameterizedTypeRelation<SubtypingRelationKind> {
+            public boolean allowRefValSubtyping() {
+                return param == SubtypingRelationKind.REF_VAL_ALLOWED;
             }
 
             @Override
@@ -1235,8 +1250,11 @@ public class Types {
                  case BOOLEAN: case VOID:
                      return t.hasTag(s.getTag());
                  case TYPEVAR:
-                     return isSubtype(t.getUpperBound(), s, false, this);
+                     return isSubtype(t.getUpperBound(), s, false, param);
                  case BOT:
+                     if (allowUniversalTVars && allowRefValSubtyping() && s.hasTag(TYPEVAR) && ((TypeVar)s).isValueProjection()) {
+                         warnStack.head.warn(LintCategory.UNIVERSAL);
+                     }
                      return
                          s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
@@ -1255,13 +1273,13 @@ public class Types {
                 if (cache.add(pair)) {
                     try {
                         return containsType(t.getTypeArguments(),
-                                            s.getTypeArguments(), containmentRelation());
+                                            s.getTypeArguments(), param);
                     } finally {
                         cache.remove(pair);
                     }
                 } else {
                     return containsType(t.getTypeArguments(),
-                                        rewriteSupers(s).getTypeArguments(), containmentRelation());
+                                        rewriteSupers(s).getTypeArguments(), param);
                 }
             }
 
@@ -1359,27 +1377,6 @@ public class Types {
             @Override
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
-            }
-        }
-
-        RefValSubtypingRelation refValSubtypingRelation = new RefValSubtypingRelation();
-        class RefValSubtypingRelation extends SubtypingRelation {
-            public boolean allowRefValSubtyping() {
-                return true;
-            }
-
-            TypeRelation containmentRelation() {
-                return refValContainsType;
-            }
-
-            @Override
-            public Boolean visitType(Type t, Type s) {
-                if (t.getTag() == BOT) {
-                    if (allowUniversalTVars && s.hasTag(TYPEVAR) && ((TypeVar)s).isValueProjection()) {
-                        warnStack.head.warn(LintCategory.UNIVERSAL);
-                    }
-                }
-                return super.visitType(t, s);
             }
         }
 
@@ -1489,27 +1486,19 @@ public class Types {
      * Is t the same type as s?
      */
     public boolean isSameType(Type t, Type s) {
-        return isSameType(t, s, containsType);
+        return isSameType(t, s, SubtypingRelationKind.STRICT);
     }
 
-    public boolean isSameType(Type t, Type s, ContainsType containmentRelation) {
-        isSameTypeVisitor.setContainmentRel(containmentRelation);
-        return isSameTypeVisitor.visit(t, s);
+    public boolean isSameType(Type t, Type s, SubtypingRelationKind subtypingKind) {
+        return isSameTypeVisitor.visit(t, s, subtypingKind);
     }
     // where
-
         /**
          * Type-equality relation - type variables are considered
          * equals if they share the same object identity.
          */
         SameTypeVisitor isSameTypeVisitor = new SameTypeVisitor();
-        class SameTypeVisitor extends TypeRelation {
-            ContainsType containmentRel = containsType;
-
-            public void setContainmentRel(ContainsType containmentRel) {
-                this.containmentRel = containmentRel;
-            }
-
+        class SameTypeVisitor extends ParameterizedTypeRelation<SubtypingRelationKind> {
             public Boolean visitType(Type t, Type s) {
                 if (t.equalsIgnoreMetadata(s))
                     return true;
@@ -1585,7 +1574,7 @@ public class Types {
                 return t.tsym == s.tsym
                     && t.isReferenceProjection() == s.isReferenceProjection()
                     && visit(getEnclosingType(t), getEnclosingType(s))
-                    && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments(), containmentRel);
+                    && containsTypeEquivalent(t.getTypeArguments(), s.getTypeArguments(), param);
             }
                 // where
                 private Type getEnclosingType(Type t) {
@@ -1688,12 +1677,12 @@ public class Types {
     }
 
     boolean containsType(List<Type> ts, List<Type> ss) {
-        return containsType(ts, ss, containsType);
+        return containsType(ts, ss, SubtypingRelationKind.STRICT);
     }
 
-    boolean containsType(List<Type> ts, List<Type> ss, TypeRelation containmentRelation) {
+    boolean containsType(List<Type> ts, List<Type> ss, SubtypingRelationKind subtypingKind) {
         while (ts.nonEmpty() && ss.nonEmpty()
-                && containsType(ts.head, ss.head, containmentRelation)) {
+                && containsType(ts.head, ss.head, subtypingKind)) {
             ts = ts.tail;
             ss = ss.tail;
         }
@@ -1726,21 +1715,29 @@ public class Types {
      * @param s a type
      */
     public boolean containsType(Type t, Type s) {
-        return containsType(t, s, containsType);
+        return containsType(t, s, SubtypingRelationKind.STRICT);
     }
 
-    public boolean containsType(Type t, Type s, TypeRelation containmentRelation) {
-        return containmentRelation.visit(t, s);
+    public boolean containsType(Type t, Type s, SubtypingRelationKind subtypingKind) {
+        return containsType.visit(t, s, subtypingKind);
     }
     // where
         private ContainsType containsType = new ContainsType();
-        class ContainsType extends TypeRelation {
+        class ContainsType extends ParameterizedTypeRelation<SubtypingRelationKind> {
 
             public Boolean visitType(Type t, Type s) {
                 if (s.isPartial())
                     return containedBy(s, t);
                 else {
-                    return isSameType(t, s);
+                    boolean result = isSameType(t, s, param);
+                    // the order in the condition below matters
+                    if (param == SubtypingRelationKind.REF_VAL_ALLOWED &&  warnStack.head != null && allowUniversalTVars && !result) {
+                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
+                        if (result) {
+                            warnStack.head.warn(LintCategory.UNCHECKED);
+                        }
+                    }
+                    return result;
                 }
             }
 
@@ -1776,9 +1773,9 @@ public class Types {
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isBoundedBy(wildLowerBound(t), wildLowerBound(s),
-                                (t1, s1, w) -> isSubtype(t1, s1, false, refValSubtypingRelation))) &&
+                                (t1, s1, w) -> isSubtype(t1, s1, false, SubtypingRelationKind.REF_VAL_ALLOWED))) &&
                             (t.isSuperBound() || isBoundedBy(wildUpperBound(s), wildUpperBound(t),
-                                (t1, s1, w) -> isSubtype(t1, s1, false, refValSubtypingRelation))));
+                                (t1, s1, w) -> isSubtype(t1, s1, false, SubtypingRelationKind.REF_VAL_ALLOWED))));
                 }
             }
 
@@ -1792,35 +1789,12 @@ public class Types {
             }
 
             @Override
-            public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
-            }
-        }
-
-        private RefValContainsType refValContainsType = new RefValContainsType();
-        class RefValContainsType extends ContainsType {
-
-            public Boolean visitType(Type t, Type s) {
-                if (s.isPartial())
-                    return containedBy(s, t);
-                else {
-                    boolean result = isSameType(t, s, this);
-                    // the order in the condition below matters
-                    if (warnStack.head != null && allowUniversalTVars && !result) {
-                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
-                        if (result) {
-                            warnStack.head.warn(LintCategory.UNCHECKED);
-                        }
-                    }
-                    return result;
-                }
-            }
-
-            @Override
             public Boolean visitTypeVar(TypeVar t, Type s) {
                 if (s.hasTag(TYPEVAR)) {
                     TypeVar other = (TypeVar)s;
-                    if (allowUniversalTVars && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym) {
+                    if (allowUniversalTVars
+                            && param == SubtypingRelationKind.REF_VAL_ALLOWED
+                            && t.isValueProjection() != other.isValueProjection() && t.tsym == other.tsym) {
                         if (warnStack.head != null) {
                             warnStack.head.warn(LintCategory.UNCHECKED);
                         }
@@ -1828,6 +1802,11 @@ public class Types {
                     }
                 }
                 return isSameType(t, s);
+            }
+
+            @Override
+            public Boolean visitErrorType(ErrorType t, Type s) {
+                return true;
             }
         }
 
@@ -1845,12 +1824,12 @@ public class Types {
     }
 
     public boolean containsTypeEquivalent(List<Type> ts, List<Type> ss) {
-        return containsTypeEquivalent(ts, ss, containsType);
+        return containsTypeEquivalent(ts, ss, SubtypingRelationKind.STRICT);
     }
 
-    public boolean containsTypeEquivalent(List<Type> ts, List<Type> ss, TypeRelation containmentRelation) {
+    public boolean containsTypeEquivalent(List<Type> ts, List<Type> ss, SubtypingRelationKind subtypingKind) {
         while (ts.nonEmpty() && ss.nonEmpty()
-                && containsTypeEquivalent(ts.head, ss.head, containmentRelation)) {
+                && containsTypeEquivalent(ts.head, ss.head, subtypingKind)) {
             ts = ts.tail;
             ss = ss.tail;
         }
@@ -3653,7 +3632,7 @@ public class Types {
             @Override
             public Boolean visitMethodType(MethodType t, Type s) {
                 return s.hasTag(METHOD)
-                    && containsTypeEquivalent(t.argtypes, s.getParameterTypes(), refValContainsType);
+                    && containsTypeEquivalent(t.argtypes, s.getParameterTypes(), SubtypingRelationKind.REF_VAL_ALLOWED);
             }
 
             @Override
@@ -4948,12 +4927,12 @@ public class Types {
     }
 
     private boolean containsTypeEquivalent(Type t, Type s) {
-        return containsTypeEquivalent(t, s, refValContainsType);
+        return containsTypeEquivalent(t, s, SubtypingRelationKind.REF_VAL_ALLOWED);
     }
 
-    private boolean containsTypeEquivalent(Type t, Type s, TypeRelation containmentRelation) {
+    private boolean containsTypeEquivalent(Type t, Type s, SubtypingRelationKind subtypingKind) {
         return isSameType(t, s) || // shortcut
-                containsType(t, s, containmentRelation) && containsType(s, t, containmentRelation);
+                containsType(t, s, subtypingKind) && containsType(s, t, subtypingKind);
     }
 
     // <editor-fold defaultstate="collapsed" desc="adapt">
