@@ -814,7 +814,6 @@ public:
   int args_on_stack_cc_ro()            const { return _args_on_stack_cc_ro; }
 
   int  num_inline_args()               const { return _num_inline_args; }
-  bool has_inline_arg()                const { return _num_inline_args > 0; }
   bool has_inline_recv()               const { return _has_inline_recv; }
 
   bool has_scalarized_args()           const { return _sig != _sig_cc; }
@@ -824,9 +823,6 @@ public:
 
   CompiledEntrySignature(Method* method = NULL);
   void compute_calling_conventions(bool init = true);
-
-private:
-  void compute_scalarized_cc(bool scalar_receiver, bool init);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

@@ -1185,6 +1185,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
         InlineKlass::cast(callee->method_holder())->can_be_passed_as_fields()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
+      // TODO is this still correct? Do we need to check is_scalarized_arg?
       assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
       if (bc == Bytecodes::_invokeinterface) {
         bc = Bytecodes::_invokevirtual; // C2 optimistically replaces interface calls by virtual calls
@@ -1325,6 +1326,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
     Klass* receiver_klass = NULL;
     if (!caller_is_c1 && callee_method->has_scalarized_args() && callee_method->method_holder()->is_inline_klass() &&
         InlineKlass::cast(callee_method->method_holder())->can_be_passed_as_fields()) {
+      // TODO is this still correct? Do we need is_scalarized_arg check?
       // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
@@ -2904,61 +2906,8 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
   _c1_needs_stack_repair(false), _c2_needs_stack_repair(false) {
   _sig = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
-  _sig_cc = _sig;
-  _sig_cc_ro = _sig;
-}
-
-void CompiledEntrySignature::compute_scalarized_cc(bool scalar_receiver, bool init) {
-  InstanceKlass* holder = _method->method_holder();
-  GrowableArray<SigEntry>* sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
-  bool has_scalarized = false;
-  int arg_num = 0;
-  if (!_method->is_static()) {
-    if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
-      sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
-      has_scalarized = true;
-    } else {
-      SigEntry::add_entry(sig_cc, T_OBJECT, holder->name());
-    }
-    arg_num++;
-  }
-  for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-    BasicType bt = ss.type();
-    if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
-      InlineKlass* vk = ss.as_inline_klass(holder);
-      // TODO Mismatch handling (same for receiver), we need to check parent method args, look at klassVtable::needs_new_vtable_entry
-      if (vk != NULL && (bt == T_PRIMITIVE_OBJECT || holder->is_preload_class(vk->name())) &&
-          vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
-        has_scalarized = true;
-        int last = sig_cc->length();
-        sig_cc->appendAll(vk->extended_sig());
-        if (bt == T_OBJECT) {
-          // Nullable inline type argument, insert is_init field right after T_PRIMITIVE_OBJECT
-          sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
-        }
-      } else {
-        SigEntry::add_entry(sig_cc, T_OBJECT, ss.as_symbol());
-      }
-    } else {
-      SigEntry::add_entry(sig_cc, ss.type(), ss.as_symbol());
-    }
-    if (bt != T_VOID) {
-      arg_num++;
-    }
-  }
-  if (has_scalarized) {
-    VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
-    int args_on_stack = SharedRuntime::java_calling_convention(sig_cc, regs_cc);
-    if (scalar_receiver) {
-      _sig_cc = sig_cc;
-      _regs_cc = regs_cc;
-      _args_on_stack_cc = args_on_stack;
-    } else {
-      _sig_cc_ro = sig_cc;
-      _regs_cc_ro = regs_cc;
-      _args_on_stack_cc_ro = args_on_stack;
-    }
-  }
+  _sig_cc = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
+  _sig_cc_ro = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
 }
 
 // See if we can save space by sharing the same entry for VIEP and VIEP(RO),
@@ -3001,74 +2950,93 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
 }
 
 void CompiledEntrySignature::compute_calling_conventions(bool init) {
-  // Get the (non-scalarized) signature and check for inline type arguments
+  // Iterate over arguments and compute scalarized and non-scalarized signatures
+  bool has_scalarized = false;
   if (_method != NULL) {
-    int idx = 0;
+    InstanceKlass* holder = _method->method_holder();
+    int arg_num = 0;
     if (!_method->is_static()) {
-      // TODO missing && (init || _method->is_scalarized_arg(idx)) ?
-      if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
+      if (holder->is_inline_klass() && InlineKlass::cast(holder)->can_be_passed_as_fields() &&
+          (init || _method->is_scalarized_arg(arg_num))) {
+        _sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
+        has_scalarized = true;
         _has_inline_recv = true;
         _num_inline_args++;
+      } else {
+        SigEntry::add_entry(_sig_cc, T_OBJECT, holder->name());
       }
-      SigEntry::add_entry(_sig, T_OBJECT, _method->name());
-      idx++;
+      SigEntry::add_entry(_sig, T_OBJECT, holder->name());
+      SigEntry::add_entry(_sig_cc_ro, T_OBJECT, holder->name());
+      arg_num++;
     }
     for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
       BasicType bt = ss.type();
-      // TODO check preload attribute
       if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
-        InlineKlass* vk = ss.as_inline_klass(_method->method_holder());
-        if (vk != NULL && vk->can_be_passed_as_fields()) {
+        InlineKlass* vk = ss.as_inline_klass(holder);
+        // TODO Mismatch handling, we need to check parent method args, look at klassVtable::needs_new_vtable_entry
+        if (vk != NULL && (bt == T_PRIMITIVE_OBJECT || holder->is_preload_class(vk->name())) &&
+            vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
           _num_inline_args++;
+          has_scalarized = true;
+          int last = _sig_cc->length();
+          int last_ro = _sig_cc_ro->length();
+          _sig_cc->appendAll(vk->extended_sig());
+          _sig_cc_ro->appendAll(vk->extended_sig());
+          if (bt == T_OBJECT) {
+            // Nullable inline type argument, insert is_init field right after T_PRIMITIVE_OBJECT
+            _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
+            _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, NULL));
+          }
+        } else {
+          SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
+          SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
         }
         bt = T_OBJECT;
+      } else {
+        SigEntry::add_entry(_sig_cc, ss.type(), ss.as_symbol());
+        SigEntry::add_entry(_sig_cc_ro, ss.type(), ss.as_symbol());
       }
       SigEntry::add_entry(_sig, bt, ss.as_symbol());
-      if (bt != T_VOID) idx++;
+      if (bt != T_VOID) {
+        arg_num++;
+      }
     }
-    if (_method->is_abstract() && !has_inline_arg()) {
+    if (_method->is_abstract() && !has_scalarized) {
       return;
     }
   }
 
-  // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
+  // Compute the non-scalarized calling convention
   _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
 
-  // Now compute the scalarized calling convention if there are inline types in the signature
-  _regs_cc = _regs;
-  _regs_cc_ro = _regs;
-  _args_on_stack_cc = _args_on_stack;
-  _args_on_stack_cc_ro = _args_on_stack;
+  // Compute the scalarized calling conventions if there are scalarized inline types in the signature
+  if (has_scalarized) {
+    _regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, _sig_cc->length());
+    _args_on_stack_cc = SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
 
-  if (has_inline_arg() && !_method->is_native()) {
-    compute_scalarized_cc(/* scalar_receiver = */ true, init);
+    _regs_cc_ro = NEW_RESOURCE_ARRAY(VMRegPair, _sig_cc_ro->length());
+    _args_on_stack_cc_ro = SharedRuntime::java_calling_convention(_sig_cc_ro, _regs_cc_ro);
 
-    if (_has_inline_recv) {
-      // For interface calls, we need another entry point / adapter to unpack the receiver
-      compute_scalarized_cc(/* scalar_receiver = */ false, init);
-    } else {
-      _sig_cc_ro = _sig_cc;
-      _regs_cc_ro = _regs_cc;
-      _args_on_stack_cc_ro = _args_on_stack_cc;
-    }
+    _c1_needs_stack_repair = (_args_on_stack_cc < _args_on_stack) || (_args_on_stack_cc_ro < _args_on_stack);
+    _c2_needs_stack_repair = (_args_on_stack_cc > _args_on_stack) || (_args_on_stack_cc > _args_on_stack_cc_ro);
 
     // Upper bound on stack arguments to avoid hitting the argument limit and
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
-    if (_args_on_stack_cc > 60) {
-      // Don't scalarize inline type arguments
-      _sig_cc = _sig;
-      _sig_cc_ro = _sig;
-      _regs_cc = _regs;
-      _regs_cc_ro = _regs;
-      _args_on_stack_cc = _args_on_stack;
-      _args_on_stack_cc_ro = _args_on_stack;
-    } else {
-      _c1_needs_stack_repair = (_args_on_stack_cc < _args_on_stack) || (_args_on_stack_cc_ro < _args_on_stack);
-      _c2_needs_stack_repair = (_args_on_stack_cc > _args_on_stack) || (_args_on_stack_cc > _args_on_stack_cc_ro);
+    if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 60) {
+      return; // Sucess
     }
   }
+
+  // No scalarized args
+  _sig_cc = _sig;
+  _regs_cc = _regs;
+  _args_on_stack_cc = _args_on_stack;
+
+  _sig_cc_ro = _sig;
+  _regs_cc_ro = _regs;
+  _args_on_stack_cc_ro = _args_on_stack;
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
@@ -3114,7 +3082,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     }
 
     // Lookup method signature's fingerprint
-    entry = _adapters->lookup(&ces.sig_cc(), ces.regs_cc() != ces.regs_cc_ro());
+    entry = _adapters->lookup(&ces.sig_cc(), ces.has_inline_recv());
 
     if (entry != NULL) {
 #ifdef ASSERT
@@ -3157,7 +3125,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_ada
                                           sizeof(buffer_locs)/sizeof(relocInfo));
 
   // Make a C heap allocated version of the fingerprint to store in the adapter
-  AdapterFingerPrint* fingerprint = new AdapterFingerPrint(&ces.sig_cc(), ces.regs_cc() != ces.regs_cc_ro());
+  AdapterFingerPrint* fingerprint = new AdapterFingerPrint(&ces.sig_cc(), ces.has_inline_recv());
   MacroAssembler _masm(&buffer);
   AdapterHandlerEntry* entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
                                                 ces.args_on_stack(),
