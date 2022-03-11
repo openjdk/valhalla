@@ -40,6 +40,7 @@ public class Inline64longFillInstRef extends StatesQ64long {
         Q64long.ref f = new Q64long(42);
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fillinst0(Val_as_Val st, InstanceField f) {
@@ -49,6 +50,7 @@ public class Inline64longFillInstRef extends StatesQ64long {
         }
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fillinst1(Val_as_Val st, InstanceField f) {

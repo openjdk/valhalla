@@ -37,6 +37,7 @@ public class Inline64longFillRef extends StatesQ64long {
         return new Q64long(i);
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fill0(Val_as_Val st) {
@@ -47,6 +48,7 @@ public class Inline64longFillRef extends StatesQ64long {
         }
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fill1(Val_as_Val st) {

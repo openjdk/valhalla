@@ -69,6 +69,7 @@ public class Inline64int extends StatesQ64int {
         }
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Val_read(Val_as_Ref st) {

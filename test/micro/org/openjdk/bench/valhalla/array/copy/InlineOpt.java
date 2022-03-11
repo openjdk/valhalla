@@ -46,6 +46,7 @@ public class InlineOpt extends StatesQOpt {
         System.arraycopy(s.arr, 0, d.arr, 0, s.arr.length);
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_copy(Ref_as_Ref s, Val_as_Val d) {

@@ -28,6 +28,7 @@ import org.openjdk.jmh.annotations.CompilerControl;
 
 public class Inline64byte extends StatesQ64byte {
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_copy(RefState s, ValState d) {

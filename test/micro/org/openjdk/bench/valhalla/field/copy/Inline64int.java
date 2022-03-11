@@ -28,6 +28,7 @@ import org.openjdk.jmh.annotations.CompilerControl;
 
 public class Inline64int extends StatesQ64int {
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_copy(RefState s, ValState d) {
