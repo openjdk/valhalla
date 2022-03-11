@@ -48,7 +48,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     private static String[] EMPTY_OPTIONS = {};
 
     private static String[] LINT_OPTIONS = {
-        "-Xlint:universal"
+        "-Xlint:all"
     };
 
     public UniversalTVarsCompilationTests() {
@@ -78,7 +78,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         }
     }
 
-    public void testWarningNullAssigment() {
+    public void testWarnings() {
         record DiagAndCode(String diag, String code){}
         String warning1 = "compiler.warn.universal.variable.cannot.be.assigned.null";
         for (DiagAndCode diagAndCode : java.util.List.of(
@@ -108,11 +108,9 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 new DiagAndCode("compiler.warn.universal.variable.cannot.be.assigned.null.2",
                     """
                     import java.util.function.*;
-
                     class MyMap<__universal K, __universal V> {
                         K getKey(K k) { return k; }
                         V getValue(V v) { return v; }
-
                         void m(BiFunction<? super K, ? super V, ? extends V> f, K k1, V v1) {
                             K k = getKey(k1);
                             V v = getValue(v1);
@@ -128,8 +126,146 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                             m2(null);
                         }
                     }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom { }
+                    class Test {
+                        void m(Foo<Atom> val, Foo<Atom.ref> ref) {
+                            val = ref;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom { }
+                    class Test {
+                        void m(Foo<Atom> val, Foo<Atom.ref> ref) {
+                            ref = val;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.unchecked.meth.invocation.applied",
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom {}
+                    class Test {
+                        void bar(Foo<Atom.ref> f) {}
+                        void m() {
+                            Foo<Atom> val = null;
+                            bar(val);
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.unchecked.meth.invocation.applied",
+                    """
+                    class Foo<__universal X> { }
+                    primitive class Atom {}
+                    class Test {
+                        void bar(Foo<Atom> f) {}
+                        void m() {
+                            Foo<Atom.ref> ref = null;
+                            bar(ref);
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Wrapper<__universal T> {}
+                    class Test<__universal T> {
+                        Wrapper<T.ref> newWrapper() { return null; }
+                        void m() {
+                            Wrapper<T> w = newWrapper();
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MyFunction<__universal T, __universal R> {
+                        R apply(T t);
+                    }
+                    primitive class Point {}
+                    class Color {
+                        static Color gray() { return new Color(); }
+                    }
+                    class Test {
+                        void plot(MyFunction<Point.ref, Color> f) {}
+                        void m() {
+                            MyFunction<Point, Color> gradient = p -> Color.gray();
+                            plot(gradient);
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MyFunction<__universal T, __universal R> {
+                        R apply(T t);
+                    }
+                    primitive class Point {}
+                    class Color {
+                        static Color gray() { return new Color(); }
+                    }
+                    class Test {
+                        void plot(MyFunction<Point, Color> f) {}
+                        void m() {
+                            MyFunction<Point.ref, Color> gradient = p -> Color.gray();
+                            plot(gradient);
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySupplier<__universal S> {
+                        S get();
+                    }
+                    class Test<__universal T> {
+                        void m() {
+                            MySupplier<? extends T.ref> factory = nullFactory();
+                        }
+                        MySupplier<? extends T> nullFactory() { return () -> null; }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySupplier<__universal S> {
+                        S get();
+                    }
+                    class Test<__universal T> {
+                        void m() {
+                            MySupplier<? extends T> factory = nullFactory();
+                        }
+                        MySupplier<? extends T.ref> nullFactory() { return () -> null; }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySet<__universal E> {}
+                    interface MyMap<__universal K, __universal V> {
+                        interface Entry<__universal K, __universal V> {}
+                    }
+                    class Test<__universal T> {
+                        MySet<MyMap.Entry<String, T.ref>> allEntries() { return null; }
+                        void m() {
+                            MySet<MyMap.Entry<String, T>> entries = allEntries();
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    interface MySet<__universal E> {}
+                    interface MyMap<__universal K, __universal V> {
+                        interface Entry<__universal K, __universal V> {}
+                    }
+                    class Test<__universal T> {
+                        MySet<MyMap.Entry<String, T>> allEntries() { return null; }
+                        void m() {
+                            MySet<MyMap.Entry<String, T.ref>> entries = allEntries();
+                        }
+                    }
                     """)
-                    )) {
+                )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
             testHelper(EMPTY_OPTIONS, diagAndCode.code);
         }
@@ -174,6 +310,13 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 """
                 import java.io.*;
                 class C<__universal T extends Reader> { T.ref x = null; }
+                """,
+                """
+                primitive class Atom {}
+                class Test {
+                    void bar(Atom f) {}
+                    void bar(Atom.ref f) {}
+                }
                 """
                 )) {
             testHelper(LINT_OPTIONS, code);
@@ -185,18 +328,14 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         for (String code : java.util.List.of(
                 """
                 primitive class Point {}
-
                 class C<__universal T> {
                     C<Point> cp;
                 }
                 """,
                 """
                 interface Shape {}
-
                 primitive class Point implements Shape {}
-
                 class Box<__universal T> {}
-
                 class Test {
                     void m(Box<Point> lp) {
                         // this invocation will provoke a subtype checking, basically a check testing if:
@@ -205,22 +344,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         // `Point.ref` isBoundedBy Shape
                         foo(lp);
                     }
-
                     void foo(Box<? extends Shape> ls) {}
                 }
                 """,
                 """
                 interface Shape {}
-
                 primitive class Point implements Shape {}
-
                 class Box<__universal T> {}
-
                 class Test {
                     void m(Box<Shape> lp) {
                         foo(lp);
                     }
-
                     void foo(Box<? super Point> ls) {}
                 }
                 """,
