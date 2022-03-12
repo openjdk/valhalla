@@ -6,7 +6,7 @@
  */
 
 final primitive class TypeRelationsNegativeTest {
-
+    @SuppressWarnings("universal")
     void foo() {
         TypeRelationsNegativeTest x = null; // error
         TypeRelationsNegativeTest.ref xq = null;

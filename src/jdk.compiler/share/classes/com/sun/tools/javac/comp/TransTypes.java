@@ -469,11 +469,7 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitClassDef(JCClassDecl tree) {
-        try {
-            translateClass(tree.sym);
-        } catch (Throwable t) {
-            System.out.println("failing for class " + tree);
-        }
+        translateClass(tree.sym);
         result = tree;
     }
 
