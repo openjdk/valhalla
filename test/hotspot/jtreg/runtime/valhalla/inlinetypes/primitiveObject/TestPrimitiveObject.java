@@ -91,13 +91,13 @@ public class TestPrimitiveObject {
     }
 
     static ClassBuilder createClass() {
-        return new BasicClassBuilder("ANormalClass", 62, 0)
+        return new BasicClassBuilder("ANormalClass", 63, 0)
             .withSuperclass("java/lang/Object")
             .withSuperinterface("java/lang/ValueObject");
     }
 
     static ClassBuilder createAbstractWithField() {
-        return new BasicClassBuilder("AbstractWithField", 62, 0)
+        return new BasicClassBuilder("AbstractWithField", 63, 0)
             .withSuperclass("java/lang/Object")
             .withFlags(Flag.ACC_ABSTRACT)
             .withField("aFieldWhichIsIllegalAsAnAbstractSuperToPrimitiveObject", "I")
@@ -105,7 +105,7 @@ public class TestPrimitiveObject {
     }
 
     static ClassBuilder createAbstractIdentity() {
-        return new BasicClassBuilder("AbstractIdentity", 62, 0)
+        return new BasicClassBuilder("AbstractIdentity", 63, 0)
             .withSuperclass("java/lang/Object")
             .withFlags(Flag.ACC_ABSTRACT)
             .withSuperinterface("java/lang/IdentityObject")
@@ -113,7 +113,7 @@ public class TestPrimitiveObject {
     }
 
   static ClassBuilder createIdentity() {
-        return new BasicClassBuilder("Identity", 62, 0)
+        return new BasicClassBuilder("Identity", 63, 0)
             .withSuperclass("java/lang/Object")
             .withSuperinterface("java/lang/IdentityObject")
             .withSuperinterface("java/lang/ValueObject");

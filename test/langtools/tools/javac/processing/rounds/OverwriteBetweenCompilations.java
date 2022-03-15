@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug 8038455
  * @summary Verify that annotation processor can overwrite source and class files it generated

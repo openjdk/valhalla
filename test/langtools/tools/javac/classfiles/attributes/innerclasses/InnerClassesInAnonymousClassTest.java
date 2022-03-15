@@ -58,7 +58,7 @@ public class InnerClassesInAnonymousClassTest extends InnerClassesTestBase {
     @Override
     public List<TestCase> generateTestCases() {
         currentClassType = ClassType.CLASS;
-        setPrefix("class Anonymous {} {new Anonymous() {");
+        setPrefix("class Anonymous { int f; } {new Anonymous() {");
         List<TestCase> sources = super.generateTestCases();
 
         currentClassType = ClassType.INTERFACE;

@@ -171,9 +171,7 @@ class LibraryCallKit : public GraphKit {
     NonArray,
     ObjectArray,
     NonObjectArray,
-    TypeArray,
-    FlatArray,
-    NonFlatArray
+    TypeArray
   };
 
   Node* generate_hidden_class_guard(Node* kls, RegionNode* region);
@@ -192,14 +190,6 @@ class LibraryCallKit : public GraphKit {
   }
   Node* generate_typeArray_guard(Node* kls, RegionNode* region) {
     return generate_array_guard_common(kls, region, TypeArray);
-  }
-  Node* generate_flatArray_guard(Node* kls, RegionNode* region) {
-    assert(UseFlatArray, "can never be flattened");
-    return generate_array_guard_common(kls, region, FlatArray);
-  }
-  Node* generate_non_flatArray_guard(Node* kls, RegionNode* region) {
-    assert(UseFlatArray, "can never be flattened");
-    return generate_array_guard_common(kls, region, NonFlatArray);
   }
   Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
   Node* generate_virtual_guard(Node* obj_klass, RegionNode* slow_region);
@@ -347,7 +337,7 @@ class LibraryCallKit : public GraphKit {
 
   // Vector API support
   bool inline_vector_nary_operation(int n);
-  bool inline_vector_broadcast_coerced();
+  bool inline_vector_frombits_coerced();
   bool inline_vector_shuffle_to_vector();
   bool inline_vector_shuffle_iota();
   bool inline_vector_mask_operation();

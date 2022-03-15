@@ -47,6 +47,9 @@ public class ValueConstantDesc {
             new Object[] { Point.ref.class, ClassDesc.ofDescriptor("L" + NAME + ";"), NAME},
             new Object[] { Point[].class,   ClassDesc.ofDescriptor("[Q" + NAME + ";"), NAME + "[]"},
             new Object[] { Point.ref[][].class, ClassDesc.ofDescriptor("[[L" + NAME + ";"), NAME + "[][]"},
+            new Object[] { ValueOptional.class, ClassDesc.ofDescriptor("LValueOptional;"), "ValueOptional"},
+            new Object[] { ValueOptional[].class, ClassDesc.ofDescriptor("[LValueOptional;"), "ValueOptional[]"},
+            new Object[] { ValueOptional[][].class, ClassDesc.ofDescriptor("[[LValueOptional;"), "ValueOptional[][]"},
         };
     }
 
@@ -69,7 +72,8 @@ public class ValueConstantDesc {
     static Object[][] componentTypes() {
         return new Object[][]{
             new Object[] { Point.class.asValueType() },
-            new Object[] { Point.ref.class }
+            new Object[] { Point.ref.class },
+            new Object[] { ValueOptional.class }
         };
     }
 
@@ -92,6 +96,8 @@ public class ValueConstantDesc {
                 new Object[] { Point.ref.class,     "L" + NAME + ";"},
                 new Object[] { Point[].class,       "[Q" + NAME + ";"},
                 new Object[] { Point.ref[][].class, "[[L" + NAME + ";"},
+                new Object[] { ValueOptional.class, "LValueOptional;"},
+                new Object[] { ValueOptional[].class, "[LValueOptional;"},
         };
     }
     @Test(dataProvider="valueDesc")
@@ -102,7 +108,7 @@ public class ValueConstantDesc {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> c = (Class<?>) cd.resolveConstantDesc(lookup);
         assertTrue(c == type);
-        assertTrue(cd.isValueType() == type.isValueType());
+        assertTrue(cd.isPrimitiveValueType() == type.isPrimitiveValueType());
     }
 
     @Test(expectedExceptions = {LinkageError.class})

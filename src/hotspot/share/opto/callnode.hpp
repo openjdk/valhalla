@@ -950,6 +950,7 @@ public:
     InlineTypeNode,                   // InlineTypeNode if this is an inline type allocation
     DefaultValue,                     // default value in case of non-flattened inline type array
     RawDefaultValue,                  // same as above but as raw machine word
+    ValidLengthTest,
     ParmLimit
   };
 
@@ -962,6 +963,7 @@ public:
     fields[InlineTypeNode] = Type::BOTTOM;
     fields[DefaultValue] = TypeInstPtr::NOTNULL;
     fields[RawDefaultValue] = TypeX_X;
+    fields[ValidLengthTest] = TypeInt::BOOL;
 
     const TypeTuple *domain = TypeTuple::make(ParmLimit, fields);
 
@@ -1058,18 +1060,18 @@ public:
 //
 class AllocateArrayNode : public AllocateNode {
 public:
-  AllocateArrayNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
-                    Node* size, Node* klass_node, Node* initial_test,
-                    Node* count_val, Node* default_value, Node* raw_default_value)
+  AllocateArrayNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio, Node* size, Node* klass_node,
+                    Node* initial_test, Node* count_val, Node* valid_length_test,
+                    Node* default_value, Node* raw_default_value)
     : AllocateNode(C, atype, ctrl, mem, abio, size, klass_node, initial_test)
   {
     init_class_id(Class_AllocateArray);
     set_req(AllocateNode::ALength,        count_val);
+    set_req(AllocateNode::ValidLengthTest, valid_length_test);
     init_req(AllocateNode::DefaultValue,  default_value);
     init_req(AllocateNode::RawDefaultValue, raw_default_value);
   }
   virtual int Opcode() const;
-  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
 
   // Dig the length operand out of a array allocation site.
   Node* Ideal_length() {

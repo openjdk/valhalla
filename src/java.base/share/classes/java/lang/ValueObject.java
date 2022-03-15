@@ -59,7 +59,7 @@ package java.lang;
  * wish to guarantee that all instances of the class or interface are value
  * objects.
  *
- * @since 1.18
+ * @since Valhalla
  */
 
 public interface ValueObject {

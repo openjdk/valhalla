@@ -29,7 +29,7 @@ public final primitive class Person {
     final String firstName;
     final String lastName;
 
-    private Person(int id, String firstName, String lastName) {
+    public Person(int id, String firstName, String lastName) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
@@ -41,9 +41,5 @@ public final primitive class Person {
 
     public String toString() {
         return getFirstName() + " " + getLastName() + " (id=" + getId() + ")";
-    }
-
-    static Person create(int id, String firstName, String lastName) {
-        return new Person(id, firstName, lastName);
     }
 }

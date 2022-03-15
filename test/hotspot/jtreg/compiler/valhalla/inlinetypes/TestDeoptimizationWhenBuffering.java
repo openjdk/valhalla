@@ -34,7 +34,9 @@ import sun.hotspot.WhiteBox;
  * @test TestDeoptimizationWhenBuffering
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile -XDallowWithFieldOperator TestDeoptimizationWhenBuffering.java
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @build sun.hotspot.WhiteBox
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestDeoptimizationWhenBufferingClasses.jasm
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
@@ -73,35 +75,6 @@ import sun.hotspot.WhiteBox;
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering
  */
-
-final primitive class MyValue1 {
-    static int cnt = 0;
-    final int x;
-    final MyValue2 vtField1;
-    final MyValue2.ref vtField2;
-
-    public MyValue1() {
-        this.x = ++cnt;
-        this.vtField1 = new MyValue2();
-        this.vtField2 = new MyValue2();
-    }
-
-    public int hash() {
-        return x + vtField1.x + vtField2.x;
-    }
-
-    public MyValue1 testWithField(int x) {
-        return __WithField(this.x, x);
-    }
-}
-
-final primitive class MyValue2 {
-    static int cnt = 0;
-    final int x;
-    public MyValue2() {
-        this.x = ++cnt;
-    }
-}
 
 public class TestDeoptimizationWhenBuffering {
     static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();

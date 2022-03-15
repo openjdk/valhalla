@@ -721,7 +721,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 16:
-    // Defaultvalue with type which is not an inline type
+    // aconst_init with type which is not an inline type
     static final class MyValue16 {
         final int foo;
 
@@ -757,7 +757,7 @@ public class TestUnloadedInlineTypeField {
     }
 
     // Test case 17:
-    // Same as test16 but with unloaded type at defaultvalue
+    // Same as test16 but with unloaded type at aconst_init
     static final class MyValue17 {
         final int foo;
 

@@ -2342,7 +2342,7 @@ public class Types {
         private boolean implicitIdentityType(Type t) {
             /* An abstract class can be declared to implement either IdentityObject or ValueObject;
              * or, if it declares a field, an instance initializer, a non-empty constructor, or
-             * a synchronized method, it implicitly implements IdentityObject.
+             * a synchronized instance method, it implicitly implements IdentityObject.
              */
             if (!t.tsym.isAbstract())
                 return false;
@@ -2376,7 +2376,7 @@ public class Types {
                             }
                             break;
                         case MTH:
-                            if ((s.flags() & SYNCHRONIZED) != 0) {
+                            if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
                             } else if (s.isConstructor()) {
                                 MethodSymbol m = (MethodSymbol)s;

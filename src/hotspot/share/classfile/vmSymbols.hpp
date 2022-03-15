@@ -146,6 +146,7 @@
   template(java_lang_Record,                          "java/lang/Record")                         \
   template(sun_instrument_InstrumentationImpl,        "sun/instrument/InstrumentationImpl")       \
   template(java_lang_Identity,                        "java/lang/Identity")                       \
+  template(sun_invoke_util_ValueConversions,          "sun/invoke/util/ValueConversions")         \
                                                                                                   \
   template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \
   template(jdk_internal_loader_BuiltinClassLoader,    "jdk/internal/loader/BuiltinClassLoader")   \
@@ -171,6 +172,7 @@
   template(tag_inner_classes,                         "InnerClasses")                             \
   template(tag_nest_members,                          "NestMembers")                              \
   template(tag_nest_host,                             "NestHost")                                 \
+  template(tag_preload,                               "Preload")                                  \
   template(tag_constant_value,                        "ConstantValue")                            \
   template(tag_code,                                  "Code")                                     \
   template(tag_exceptions,                            "Exceptions")                               \
@@ -355,7 +357,6 @@
   /* Foreign API Support */                                                                                          \
   template(jdk_internal_invoke_NativeEntryPoint,                 "jdk/internal/invoke/NativeEntryPoint")           \
   template(jdk_internal_invoke_NativeEntryPoint_signature,       "Ljdk/internal/invoke/NativeEntryPoint;")         \
-  template(jdk_incubator_foreign_MemoryAccess,       "jdk/incubator/foreign/MemoryAccess")        \
                                                                                                   \
   /* Support for JVMCI */                                                                         \
   JVMCI_VM_SYMBOLS_DO(template, do_alias)                                                         \

@@ -46,6 +46,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
@@ -467,6 +468,7 @@ UNSAFE_ENTRY(jobject, Unsafe_AllocateInstance(JNIEnv *env, jobject unsafe, jclas
   if (k == vmClasses::Object_klass() && vmClasses::Object_klass()->is_abstract()) {
     k = vmClasses::Identity_klass();
   }
+  JvmtiVMObjectAllocEventCollector oam;
   instanceOop i = InstanceKlass::allocate_instance(k->java_mirror(), CHECK_NULL);
   return JNIHandles::make_local(THREAD, i);
 } UNSAFE_END

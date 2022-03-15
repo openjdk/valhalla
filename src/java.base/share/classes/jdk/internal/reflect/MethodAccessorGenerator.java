@@ -91,7 +91,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                                    Class<?>[] checkedExceptions,
                                                    int modifiers)
     {
-        boolean isStaticFactory = declaringClass.isPrimitiveClass();
+        boolean isStaticFactory = declaringClass.isValue();
         return (ConstructorAccessor) generate(declaringClass,
                                               "<init>",
                                               parameterTypes,

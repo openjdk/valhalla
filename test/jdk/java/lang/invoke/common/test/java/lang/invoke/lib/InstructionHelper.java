@@ -217,7 +217,7 @@ public class InstructionHelper {
 
                 return new IsolatedMethodBuilder(className, lookup)
                     .withSuperclass(Object.class)
-                    .withMajorVersion(62)
+                    .withMajorVersion(63)
                     .withMinorVersion(0)
                     .withFlags(Flag.ACC_PUBLIC)
                     .withMethod(methodName, type, M ->
@@ -289,7 +289,7 @@ public class InstructionHelper {
             @Override
             public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isValueType();
+                return aClass != null && aClass.isPrimitiveValueType();
             }
 
             @Override

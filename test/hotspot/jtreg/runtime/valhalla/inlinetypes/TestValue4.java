@@ -30,7 +30,7 @@ final class ContainerValue4 {
     TestValue4[] valueArray;
 }
 
-public primitive final class TestValue4 {
+public primitive class TestValue4 {
 
     static TestValue4.ref staticValue = getInstance();
 
@@ -44,41 +44,27 @@ public primitive final class TestValue4 {
     final long l;
     final String val;
 
-    private TestValue4() {
-        i = (int)System.nanoTime();
-        val = Integer.valueOf(i).toString();
-        l = ((long)i) << Integer.SIZE | i;
-        s1 = (short)(i & ~Short.MIN_VALUE);
-        s2 = (short)(i >> Short.SIZE);
-        b1 = (byte)(i & ~Byte.MIN_VALUE);
-        b2 = (byte)((i >> Byte.SIZE) & ~Byte.MIN_VALUE);
-        b3 = (byte)((i >> (2 * Byte.SIZE)) & ~Byte.MIN_VALUE);
-        b4 = (byte)((i >> (3 * Byte.SIZE)) & ~Byte.MIN_VALUE);
+    public TestValue4() {
+        this((int) System.nanoTime());
     }
 
-    public static TestValue4 create(int i) {
-        TestValue4 v = TestValue4.default;
-        v = __WithField(v.i, i);
-        v = __WithField(v.val, Integer.valueOf(i).toString());
+    public TestValue4(int i) {
+        this.i = i;
+        val = Integer.valueOf(i).toString();
         ByteBuffer bf = ByteBuffer.allocate(8);
         bf.putInt(0, i);
         bf.putInt(4, i);
-        v = __WithField(v.l, bf.getLong(0));
-        v = __WithField(v.s1, bf.getShort(2));
-        v = __WithField(v.s2, bf.getShort(0));
-        v = __WithField(v.b1, bf.get(3));
-        v = __WithField(v.b2, bf.get(2));
-        v = __WithField(v.b3, bf.get(1));
-        v = __WithField(v.b4, bf.get(0));
-        return v;
-    }
-
-    public static TestValue4 create() {
-        return create((int)System.nanoTime());
+        l = bf.getLong(0);
+        s1 = bf.getShort(2);
+        s2 = bf.getShort(0);
+        b1 = bf.get(3);
+        b2 = bf.get(2);
+        b3 = bf.get(1);
+        b4 = bf.get(0);
     }
 
     public static TestValue4 getInstance() {
-        return create();
+        return new TestValue4();
     }
 
     public static TestValue4 getNonBufferedInstance() {

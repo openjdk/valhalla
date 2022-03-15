@@ -184,7 +184,8 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   size_t size = objArrayOopDesc::object_size(length);
   bool populate_null_free = is_null_free_array_klass();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
-                                                       /* do_zero */ true, THREAD);
+                                                       /* do_zero */ true, CHECK_NULL);
+  objArrayHandle array_h(THREAD, array);
   if (populate_null_free) {
     assert(dimension() == 1, "Can only populate the final dimension");
     assert(element_klass()->is_inline_klass(), "Unexpected");
@@ -192,13 +193,12 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
     assert(!InlineKlass::cast(element_klass())->flatten_array(), "Expected flatArrayOop allocation");
     element_klass()->initialize(CHECK_NULL);
     // Populate default values...
-    objArrayHandle array_h(THREAD, array);
     instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
     for (int i = 0; i < length; i++) {
       array_h->obj_at_put(i, value);
     }
   }
-  return array;
+  return array_h();
 }
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {

@@ -27,7 +27,7 @@ package java.lang;
 
 /**
  * A restricted interface implemented by all identity objects.
-
+ *
  * IdentityObject: An object with identity.
  *
  * *Identity* is a property of certain objects, determined at instance creation
@@ -59,7 +59,7 @@ package java.lang;
  * Abstract classes and interfaces may implement or extend this interface if they
  * wish to guarantee that all instances of the class or interface have identity.
  *
- * @since 1.18
+ * @since Valhalla
  */
 public interface IdentityObject {
 }

@@ -135,11 +135,11 @@ arrayOop oopFactory::new_valueArray(Klass* k, int length, TRAPS) {
 
   arrayOop oop;
   if (array_klass->is_flatArray_klass()) {
-    oop = (arrayOop) FlatArrayKlass::cast(array_klass)->allocate(length, THREAD);
+    oop = (arrayOop) FlatArrayKlass::cast(array_klass)->allocate(length, CHECK_NULL);
     assert(oop == NULL || oop->is_flatArray(), "sanity");
     assert(oop == NULL || oop->klass()->is_flatArray_klass(), "sanity");
   } else {
-    oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
+    oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, CHECK_NULL);
   }
   assert(oop == NULL || oop->klass()->is_null_free_array_klass(), "sanity");
   assert(oop == NULL || oop->is_null_free_array(), "sanity");

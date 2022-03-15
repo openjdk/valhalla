@@ -28,34 +28,25 @@ final class ContainerValue1 {
     TestValue1[] inlineArray;
 }
 
-public primitive final class TestValue1 {
+public primitive class TestValue1 {
 
     static TestValue1.ref staticValue = getInstance();
 
     final int i;
     final String name;
 
-    private TestValue1() {
+    public TestValue1() {
         i = (int)System.nanoTime();
         name = Integer.valueOf(i).toString();
     }
 
-    public static TestValue1 create(int i) {
-        TestValue1 v = TestValue1.default;
-        v = __WithField(v.i, i);
-        v = __WithField(v.name, Integer.valueOf(i).toString());
-        return v;
-    }
-
-    public static TestValue1 create() {
-        TestValue1 v = TestValue1.default;
-        v = __WithField(v.i, (int)System.nanoTime());
-        v = __WithField(v.name, Integer.valueOf(v.i).toString());
-        return v;
+    public TestValue1(int i) {
+        this.i = i;
+        name = Integer.valueOf(i).toString();
     }
 
     public static TestValue1 getInstance() {
-        return create();
+        return new TestValue1();
     }
 
     public static TestValue1 getNonBufferedInstance() {

@@ -1433,7 +1433,7 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test71")
-    public void test71_verifier(RunInfo info) {
+    public void test71_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         Asserts.assertEQ(test71(true, v, v), v.v1);
         Asserts.assertEQ(test71(false, v, v), v.v1);
@@ -1457,7 +1457,7 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test72")
-    public void test72_verifier(RunInfo info) {
+    public void test72_verifier() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         Asserts.assertEQ(test72(true, v, v, V1_OFFSET), v.v1);
         Asserts.assertEQ(test72(false, v, v, V1_OFFSET), v.v1);
@@ -1484,8 +1484,74 @@ public class TestIntrinsics {
     }
 
     @Run(test = "test73")
-    public void test73_verifier(RunInfo info) {
+    public void test73_verifier() {
         Asserts.assertEQ(test73(true, V1_OFFSET), test73_value1.v1);
         Asserts.assertEQ(test73(false, V1_OFFSET), test73_value2.v1);
+    }
+
+    static primitive class EmptyInline {
+
+    }
+
+    static primitive class ByteInline {
+        byte x = 0;
+    }
+
+    @Test
+    public void test74(EmptyInline[] emptyArray) {
+        System.arraycopy(emptyArray, 0, emptyArray, 10, 10);
+        System.arraycopy(emptyArray, 0, emptyArray, 20, 10);
+    }
+
+    @Run(test = "test74")
+    public void test74_verifier() {
+        EmptyInline[] emptyArray = new EmptyInline[100];
+        test74(emptyArray);
+        for (EmptyInline empty : emptyArray) {
+            Asserts.assertEQ(empty, EmptyInline.default);
+        }
+    }
+
+    @Test
+    public void test75(EmptyInline[] emptyArray) {
+        System.arraycopy(emptyArray, 0, emptyArray, 10, 10);
+    }
+
+    @Run(test = "test75")
+    public void test75_verifier() {
+        EmptyInline[] emptyArray = new EmptyInline[100];
+        test75(emptyArray);
+        for (EmptyInline empty : emptyArray) {
+            Asserts.assertEQ(empty, EmptyInline.default);
+        }
+    }
+
+    @Test
+    public void test76(ByteInline[] byteArray) {
+        System.arraycopy(byteArray, 0, byteArray, 10, 10);
+        System.arraycopy(byteArray, 0, byteArray, 20, 10);
+    }
+
+    @Run(test = "test76")
+    public void test76_verifier() {
+        ByteInline[] byteArray = new ByteInline[100];
+        test76(byteArray);
+        for (ByteInline b : byteArray) {
+            Asserts.assertEQ(b, ByteInline.default);
+        }
+    }
+
+    @Test
+    public void test77(ByteInline[] byteArray) {
+        System.arraycopy(byteArray, 0, byteArray, 10, 10);
+    }
+
+    @Run(test = "test77")
+    public void test77_verifier() {
+        ByteInline[] byteArray = new ByteInline[100];
+        test77(byteArray);
+        for (ByteInline b : byteArray) {
+            Asserts.assertEQ(b, ByteInline.default);
+        }
     }
 }

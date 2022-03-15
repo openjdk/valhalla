@@ -1007,7 +1007,8 @@ public class ClassReader {
                         //- System.err.println(" # " + sym.type);
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
-                        if (sym.kind == MTH  && sym.name == names.init && sym.owner.isValueClass()) {
+                        // Map value class factory methods back to constructors for the benefit of earlier pipeline stages
+                        if (sym.kind == MTH  && sym.name == names.init && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -2801,6 +2802,10 @@ public class ClassReader {
             if (allowValueClasses) {
                 flags |= VALUE_CLASS;
             }
+        }
+        if ((flags & ACC_PERMITS_VALUE) != 0) {
+            flags &= ~ACC_PERMITS_VALUE;
+            flags |= PERMITS_VALUE;
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }

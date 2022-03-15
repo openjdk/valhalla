@@ -221,6 +221,12 @@ public class ClassWriter extends ClassFile {
 
     /** Return flags as a string, separated by " ".
      */
+    public static String classFlagNames(long flags) {
+        return flagNames(flags).replace("VOLATILE", "PERMITS_VALUE");
+    }
+
+    /** Return flags as a string, separated by " ".
+     */
     public static String flagNames(long flags) {
         StringBuilder sbuf = new StringBuilder();
         int i = 0;
@@ -834,7 +840,7 @@ public class ClassWriter extends ClassFile {
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
-                pw.println("---" + flagNames(flags));
+                pw.println("---" + classFlagNames(flags));
             }
             databuf.appendChar(poolWriter.putClass(inner));
             databuf.appendChar(
@@ -846,12 +852,12 @@ public class ClassWriter extends ClassFile {
         endAttr(alenIdx);
     }
 
-     /** Write out "Preload" attribute by enumerating the value classes encountered during this compilation.
+     /** Write out "Preload" attribute by enumerating the value classes encountered in field/method descriptors during this compilation.
       */
-     void writeValueClasses() {
+     void writePreloadAttribute() {
         int alenIdx = writeAttr(names.Preload);
-        databuf.appendChar(poolWriter.valueClasses.size());
-        for (ClassSymbol c : poolWriter.valueClasses) {
+        databuf.appendChar(poolWriter.preloadClasses.size());
+        for (ClassSymbol c : poolWriter.preloadClasses) {
             databuf.appendChar(poolWriter.putClass(c));
         }
         endAttr(alenIdx);
@@ -970,6 +976,10 @@ public class ClassWriter extends ClassFile {
         }
         databuf.appendChar(poolWriter.putName(v.name));
         databuf.appendChar(poolWriter.putDescriptor(v));
+        Type fldType = v.erasure(types);
+        if (fldType.requiresPreload(v.owner)) {
+            poolWriter.enterPreloadClass((ClassSymbol) fldType.tsym);
+        }
         int acountIdx = beginAttrs();
         int acount = 0;
         if (v.getConstValue() != null) {
@@ -995,6 +1005,16 @@ public class ClassWriter extends ClassFile {
         }
         databuf.appendChar(poolWriter.putName(m.name));
         databuf.appendChar(poolWriter.putDescriptor(m));
+        MethodType mtype = (MethodType) m.externalType(types);
+        for (Type t : mtype.getParameterTypes()) {
+            if (t.requiresPreload(m.owner)) {
+                poolWriter.enterPreloadClass((ClassSymbol) t.tsym);
+            }
+        }
+        Type returnType = mtype.getReturnType();
+        if (returnType.requiresPreload(m.owner)) {
+            poolWriter.enterPreloadClass((ClassSymbol) returnType.tsym);
+        }
         int acountIdx = beginAttrs();
         int acount = 0;
         if (m.code != null) {
@@ -1558,7 +1578,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & ClassFlags;
+            flags = flags & AdjustedClassFlags;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1566,7 +1586,7 @@ public class ClassWriter extends ClassFile {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
             pw.println();
             pw.println("CLASSFILE  " + c.getQualifiedName());
-            pw.println("---" + flagNames(flags));
+            pw.println("---" + classFlagNames(flags));
         }
         databuf.appendChar(flags);
 
@@ -1587,14 +1607,14 @@ public class ClassWriter extends ClassFile {
             case VAR: fieldsCount++; break;
             case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
                       break;
-            case TYP: poolWriter.enterInnerAndValueClass((ClassSymbol)sym); break;
+            case TYP: poolWriter.enterInnerClass((ClassSymbol)sym); break;
             default : Assert.error();
             }
         }
 
         if (c.trans_local != null) {
             for (ClassSymbol local : c.trans_local) {
-                poolWriter.enterInnerAndValueClass(local);
+                poolWriter.enterInnerClass(local);
             }
         }
 
@@ -1685,8 +1705,8 @@ public class ClassWriter extends ClassFile {
             acount++;
         }
 
-        if (!poolWriter.valueClasses.isEmpty()) {
-            writeValueClasses();
+        if (!poolWriter.preloadClasses.isEmpty()) {
+            writePreloadAttribute();
             acount++;
         }
 
@@ -1737,6 +1757,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_PRIMITIVE;
         if ((flags & VALUE_CLASS) != 0)
             result |= ACC_VALUE;
+        if ((flags & PERMITS_VALUE) != 0)
+            result |= ACC_PERMITS_VALUE;
         return result;
     }
 
