@@ -41,6 +41,7 @@ public class UnifiedPrimitiveClassBytecodeTest {
 
         X.ref xr = null;
 
+        @SuppressWarnings("universal")
         public void foo(X.ref[] xra, X[] xa) {
             xa = new X[10];
             xra = new X.ref[10];

@@ -48,6 +48,7 @@ public class Inline64byte extends StatesQ64byte {
         }
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_set(ValState st) {

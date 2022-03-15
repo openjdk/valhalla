@@ -296,8 +296,9 @@ public class Check {
      *  @param warnKey    A warning key.
      */
     public void warnUniversalTVar(DiagnosticPosition pos, Warning warnKey) {
-        if (lint.isEnabled(LintCategory.UNIVERSAL))
+        if (!lint.isSuppressed(LintCategory.UNIVERSAL)) {
             log.warning(LintCategory.UNIVERSAL, pos, warnKey);
+        }
     }
 
     /** Warn about unsafe vararg method decl.

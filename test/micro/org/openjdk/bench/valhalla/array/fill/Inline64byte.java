@@ -70,6 +70,7 @@ public class Inline64byte extends StatesQ64byte {
         }
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fillstat(Val_as_Val st) {
@@ -88,6 +89,7 @@ public class Inline64byte extends StatesQ64byte {
         }
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_fillinst(Val_as_Val st, RefInstanceField f) {

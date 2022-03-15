@@ -57,6 +57,7 @@ public class Inline64int extends StatesQ64int {
         return new Q64int(i);
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_set(Val_as_Val st) {

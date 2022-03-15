@@ -57,6 +57,7 @@ public class Inline32int extends StatesQ32int {
         return new Q32int(i);
     }
 
+    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Val_set(Val_as_Val st) {

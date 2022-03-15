@@ -13,7 +13,7 @@ primitive
 class GenericInlineTest<T, U> extends High<U, T> {
 
     int x = 0;
-
+    @SuppressWarnings("universal")
     void foo() {
 
         GenericInlineTest<String, Integer> g = new GenericInlineTest<String, Integer>();
