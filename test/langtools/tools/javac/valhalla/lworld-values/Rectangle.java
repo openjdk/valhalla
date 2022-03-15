@@ -29,7 +29,7 @@ public primitive class Rectangle {
 
     static Point origin;
 
-    @SuppressWarnings("universal")
+    @SuppressWarnings("unchecked")
     static Rectangle from (Point.ref topLeft, Point.ref bottomRight) {
         return new Rectangle(topLeft, bottomRight);
     }

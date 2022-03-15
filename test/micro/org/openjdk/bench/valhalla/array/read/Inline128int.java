@@ -69,7 +69,6 @@ public class Inline128int extends StatesQ128int {
         }
     }
 
-    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Val_read(Val_as_Ref st) {

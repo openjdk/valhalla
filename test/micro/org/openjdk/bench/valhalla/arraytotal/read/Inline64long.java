@@ -82,7 +82,6 @@ public class Inline64long extends StatesQ64long {
         }
     }
 
-    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_as_Ref_to_Val_read(Val_as_Ref st) {
@@ -146,7 +145,6 @@ public class Inline64long extends StatesQ64long {
         }
     }
 
-    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_as_Ref_to_Val_read(Ref_as_Ref st) {
