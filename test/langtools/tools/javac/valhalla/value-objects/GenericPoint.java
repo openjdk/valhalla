@@ -21,9 +21,12 @@
  * questions.
  */
 
-final value class V1 {}
-final value class V2 {}
-final value class V3 {}
-final value class V4 {}
-final value class V5 {}
-final value class V6 {}
+public value class GenericPoint<T> {
+
+    T x, y;
+
+    GenericPoint(T x, T y) {
+        this.x = x;
+        this.y = y;
+    }
+}

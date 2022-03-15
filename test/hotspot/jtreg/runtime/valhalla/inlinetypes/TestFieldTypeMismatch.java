@@ -28,27 +28,22 @@ import jdk.test.lib.Asserts;
 /**
  * @test
  * @library /test/lib
- * @compile TestFieldTypeMismatchHelper.jasm
- * @compile TestFieldTypeMismatch.java
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestFieldTypeMismatchClasses.jasm
  * @run main/othervm runtime.valhalla.inlinetypes.TestFieldTypeMismatch
  */
-
-final class MyValue {
-    int foo = 42;
-}
 
 public class TestFieldTypeMismatch {
 
     public static void main(String[] args) {
         boolean exception = false;
         try {
-          TestFieldTypeMismatchHelper t = new TestFieldTypeMismatchHelper();
+          TestFieldTypeMismatchClass t = new TestFieldTypeMismatchClass();
         } catch(IncompatibleClassChangeError err) {
             exception = true;
             Asserts.assertEquals(err.getMessage(),
-                "Class runtime/valhalla/inlinetypes/TestFieldTypeMismatchHelper expects class runtime.valhalla.inlinetypes.MyValue to be an inline type, but it is not");
+                "Class runtime/valhalla/inlinetypes/TestFieldTypeMismatchClass expects class runtime.valhalla.inlinetypes.MyValue to be an inline type, but it is not");
         }
         Asserts.assertTrue(exception);
     }
 }
-

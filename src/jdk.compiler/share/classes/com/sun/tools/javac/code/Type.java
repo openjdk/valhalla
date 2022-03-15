@@ -245,6 +245,15 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
+    // Does this type need to be preloaded in the context of the referring class ??
+    public boolean requiresPreload(Symbol referringClass) {
+        if (this.tsym == referringClass)
+            return false; // pointless
+        if (this.isReferenceProjection())
+            return true;
+        return this.isValueClass() && !this.isPrimitiveClass();
+    }
+
     /**
      * Return the `flavor' associated with a ClassType.
      * @see ClassType.Flavor

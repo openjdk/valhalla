@@ -27,7 +27,6 @@ package runtime.valhalla.inlinetypes;
  * @test Test8186715
  * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
- * @compile -XDallowWithFieldOperator Test8186715.java
  * @run main runtime.valhalla.inlinetypes.Test8186715
  */
 
@@ -46,9 +45,9 @@ primitive final class MyValueType {
     final int i;
     final int j;
 
-    private MyValueType() {
-        i = 0;
-        j = 0;
+    private MyValueType(int i, int j) {
+        this.i = i;
+        this.j = j;
     }
 
     static MyValueType testDefault() {
@@ -57,8 +56,7 @@ primitive final class MyValueType {
 
     static MyValueType testBranchArg1(boolean flag, MyValueType v1) {
         if (flag) {
-            v1 = __WithField(v1.i, 3);
-            v1 = __WithField(v1.j, 4);
+            v1 = new MyValueType(3, 4);
         }
         return v1;
     }

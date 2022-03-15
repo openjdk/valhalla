@@ -29,8 +29,8 @@ import jdk.test.lib.Asserts;
  * @test VDefaultTest
  * @summary vdefault bytecode test
  * @library /test/lib
- * @compile -XDallowWithFieldOperator Point.java
- * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers VDefaultTest.java
+ * @compile Point.java
+ * @compile -XDallowFlattenabilityModifiers VDefaultTest.java
  * @run main runtime.valhalla.inlinetypes.VDefaultTest
  */
 
@@ -96,4 +96,3 @@ public class VDefaultTest {
         Asserts.assertEquals(v.p.y, 0, "invalid embedded inline type value");
     }
 }
-

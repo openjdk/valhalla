@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeDensity
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @compile -XDallowWithFieldOperator InlineTypeDensity.java
+ * @compile InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -78,23 +78,16 @@ public class InlineTypeDensity {
         final short month;
         final short day;
 
-        LocalDateValue() {
-            year  = 0;
-            month = 0;
-            day   = 0;
+        public LocalDateValue(int year, short month, short day) {
+            this.year = year;
+            this.month = month;
+            this.day = day;
         }
 
         public int   getYear()  { return year; }
         public short getMonth() { return month; }
         public short getDay()   { return day; }
 
-        public static LocalDateValue create(int year, short month, short day) {
-            LocalDateValue localDate = LocalDateValue.default;
-            localDate = __WithField(localDate.year, year);
-            localDate = __WithField(localDate.month, month);
-            localDate = __WithField(localDate.day, day);
-            return localDate;
-        }
     }
 
     static final primitive class LocalTimeValue implements LocalTime {
@@ -103,11 +96,11 @@ public class InlineTypeDensity {
         final byte second;
         final int nano;
 
-        LocalTimeValue() {
-            hour   = 0;
-            minute = 0;
-            second = 0;
-            nano   = 0;
+        public LocalTimeValue(byte hour, byte minute, byte second, int nano) {
+            this.hour = hour;
+            this.minute = minute;
+            this.second = second;
+            this.nano = nano;
         }
 
         public byte getHour()   { return hour; }
@@ -115,24 +108,15 @@ public class InlineTypeDensity {
         public byte getSecond() { return second; }
         public int getNano()    { return nano; }
 
-        public static LocalTimeValue create(byte hour, byte minute, byte second, int nano) {
-            LocalTimeValue localTime = LocalTimeValue.default;
-            localTime = __WithField(localTime.hour, hour);
-            localTime = __WithField(localTime.minute, minute);
-            localTime = __WithField(localTime.second, second);
-            localTime = __WithField(localTime.nano, nano);
-            return localTime;
-        }
     }
 
     static final primitive class LocalDateTimeValue implements LocalDateTime {
         final LocalDateValue date;
         final LocalTimeValue time;
 
-        LocalDateTimeValue() {
-            // Well this is a little weird...
-            date = LocalDateValue.create(0, (short)0, (short)0);
-            time = LocalTimeValue.create((byte)0, (byte)0, (byte)0, 0);
+        public LocalDateTimeValue(LocalDateValue date, LocalTimeValue time) {
+            this.date = date;
+            this.time = time;
         }
 
         public int   getYear()  { return date.year; }
@@ -144,12 +128,6 @@ public class InlineTypeDensity {
         public byte getSecond() { return time.second; }
         public int getNano()    { return time.nano; }
 
-        public static LocalDateTimeValue create(LocalDateValue date, LocalTimeValue time) {
-            LocalDateTimeValue localDateTime = LocalDateTimeValue.default;
-            localDateTime = __WithField(localDateTime.date, date);
-            localDateTime = __WithField(localDateTime.time, time);
-            return localDateTime;
-        }
     }
 
     static final class LocalDateClass implements LocalDate {
@@ -316,4 +294,3 @@ public class InlineTypeDensity {
     }
 
 }
-

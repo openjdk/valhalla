@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @bug 8280164
- * @summary Check emission of Preload attribute
+ * @bug 8280942
+ * @summary Preload attribute should mention primitive classes when reference projection is used in descriptors
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @run main PreloadAttributeTest
  */
@@ -34,43 +34,31 @@ import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 
 public class PreloadAttributeTest {
 
-    final value class V1 {}
-    final value class V2 {}
-    final value class V3 {}
-    final value class V4 {}
-    final value class V5 {}
-    final value class V6 {}
-    final value class V7 {}
-    final value class V8 {}
-    final value class V9 {}
+    public primitive class P1 {}
+    public primitive class P2 {}
+    public primitive class P3 {}
+    public primitive class P4 {}
+    public primitive class P5 {}
+    public primitive class P6 {}
+    public primitive class P7 {}
+    public primitive class P8 {}
 
-    static final value class X {
-        final V1 [] v1 = null; // field descriptor, encoding array type - no preload.
-        V2 foo() {  // method descriptor encoding value type, to be preloaded
-            return null;
-        }
-        void foo(V3 v3) { // method descriptor encoding value type, to be preloaded
-        }
-        void foo(int x) {
-            V4 [] v4 = null; // local variable encoding array type - no preload.
-        }
-        void goo(V6[] v6) { // parameter uses value type but as array component - no preload.
-            V5 v5 = null;  // preload value type used for local type.
-            if (v5 == null) {
-                // ...
-            } else {
-               V5 [] v52 = null;
-            }
-        }
-        final V7 v7 = null; // field descriptor uses value type - to be preloaded.
-        V8 [] goo(V9 [] v9) { // neither V8 nor V9 call for preload being array component types
-            return null;
-        }
+    // We expect NO Preload Entries for ANY of P1 .. P4
+    P1 p1;
+    P2 foo(P3 p3) {
+        P4 p4;
+        return new P2();
     }
-    // So we expect ONLY V2, V3 V5, V7 to be in Preload list
+
+    // We expect Preload Entries for ALL of P5 .. P8
+    P5.ref p5;
+    P6.ref foo(P7.ref p7) {
+        P8.ref p8;
+        return null;
+    }
 
     public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(PreloadAttributeTest.class.getResourceAsStream("PreloadAttributeTest$X.class"));
+        ClassFile cls = ClassFile.read(PreloadAttributeTest.class.getResourceAsStream("PreloadAttributeTest.class"));
 
         if (cls == null) {
             throw new AssertionError("Could not locate the class files");
@@ -85,21 +73,21 @@ public class PreloadAttributeTest {
             throw new AssertionError("Incorrect number of Preload classes");
         }
 
-        int mask = 0x56;
+        int mask = 0xF0;
         for (int i = 0; i < preloads.number_of_classes; i++) {
             CONSTANT_Class_info clsInfo = cls.constant_pool.getClassInfo(
                                   preloads.value_class_info_index[i]);
             switch (clsInfo.getName()) {
-                case "PreloadAttributeTest$V2":
-                    mask &= ~2; break;
-                case "PreloadAttributeTest$V3":
-                    mask &= ~4; break;
-                case "PreloadAttributeTest$V5":
+                case "PreloadAttributeTest$P5":
                     mask &= ~16; break;
-                case "PreloadAttributeTest$V7" :
+                case "PreloadAttributeTest$P6":
+                    mask &= ~32; break;
+                case "PreloadAttributeTest$P7":
                     mask &= ~64; break;
+                case "PreloadAttributeTest$P8" :
+                    mask &= ~128; break;
                 default:
-                    throw new AssertionError("Unexpected Preload class entry!");
+                    throw new AssertionError("Unexpected Preload class entry: " + clsInfo.getName());
             }
         }
         if (mask != 0) {

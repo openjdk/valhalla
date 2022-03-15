@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeGetField
  * @summary Inline Type get field test
  * @library /test/lib
- * @compile -XDallowWithFieldOperator Point.java InlineTypeGetField.java
+ * @compile Point.java InlineTypeGetField.java
  * @run main runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
@@ -39,13 +39,13 @@ public class InlineTypeGetField {
     Point instancePoint1;
 
     static {
-        staticPoint0 = Point.createPoint(358, 406);
-        staticPoint1 = Point.createPoint(101, 2653);
+        staticPoint0 = new Point(358, 406);
+        staticPoint1 = new Point(101, 2653);
     }
 
     InlineTypeGetField() {
-        instancePoint0 = Point.createPoint(1890, 1918);
-        instancePoint1 = Point.createPoint(91, 102);
+        instancePoint0 = new Point(1890, 1918);
+        instancePoint1 = new Point(91, 102);
     }
 
     public static void main(String[] args) {

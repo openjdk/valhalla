@@ -28,7 +28,7 @@ package runtime.valhalla.inlinetypes;
  * @summary unsafe get/put/with inline type
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile -XDallowWithFieldOperator Point.java UnsafeTest.java
+ * @compile Point.java UnsafeTest.java
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
  */
 
@@ -75,7 +75,7 @@ public class UnsafeTest {
     public static void main(String[] args) throws Throwable {
         printValueClass(Value3.class, 0);
 
-        Value1 v1 = new Value1(Point.createPoint(10,10), Point.createPoint(20,20), Point.createPoint(30,30));
+        Value1 v1 = new Value1(new Point(10,10), new Point(20,20), new Point(30,30));
         Value2 v2 = new Value2(v1, 20);
         Value3 v3 = new Value3(v2, List.of("Value3"));
         long off_o = U.objectFieldOffset(Value3.class, "o");
@@ -107,17 +107,17 @@ public class UnsafeTest {
             U.putInt(v, off_v + off_i - U.valueHeaderSize(Value2.class), 999);
             // patch v3.v.v.point
             U.putValue(v, off_v + off_v2 - U.valueHeaderSize(Value2.class) + off_point - U.valueHeaderSize(Value1.class),
-                       Point.class, Point.createPoint(100, 100));
+                       Point.class, new Point(100, 100));
         } finally {
             v = U.finishPrivateBuffer(v);
         }
 
-        assertEquals(v.v.v.point, Point.createPoint(100, 100));
+        assertEquals(v.v.v.point, new Point(100, 100));
         assertEquals(v.v.i, 999);
         assertEquals(v.o, list);
         assertEquals(v.v.v.array, v1.array);
 
-        Value1 nv1 = new Value1(Point.createPoint(70,70), Point.createPoint(80,80), Point.createPoint(90,90));
+        Value1 nv1 = new Value1(new Point(70,70), new Point(80,80), new Point(90,90));
         Value2 nv2 = new Value2(nv1, 100);
         Value3 nv3 = new Value3(nv2, list);
 

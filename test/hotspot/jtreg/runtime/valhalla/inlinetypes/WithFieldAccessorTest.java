@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,49 +21,57 @@
  * questions.
  */
 
+package runtime.valhalla.inlinetypes;
+
+import jdk.test.lib.Asserts;
+
 /**
  * @test
  * @bug 8210351
  * @summary test nestmate access to an inline type's public, protected and private final fields.
- * @compile -XDallowWithFieldOperator WithFieldAccessorTest.java
- * @run main/othervm WithFieldAccessorTest
+ * @library /test/lib
+ * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
+ * @run driver org.openjdk.asmtools.JtregDriver jasm -strict WithFieldAccessorTestClasses.jasm
+ * @run main/othervm runtime.valhalla.inlinetypes.WithFieldAccessorTest
  */
 
-// This test is similar to javac's WithFieldAccessorTest but tests nestmate
-// access to public, protected, and private final fields in an inline type.
 public class WithFieldAccessorTest {
 
-    public static final primitive class V {
-        public final char c;
-        protected final long l;
-        private final int i;
-        V() {
-            this.c = '0';
-            this.l = 0;
-            this.i = 0;
-        }
+    public static void main(String... args) {
+        WithFieldOwner start = WithFieldOwner.default;
+        WithFieldOwner x = start;
+        x.checkFields((char) 0, 0, 0, 0);
 
-        public static V make(char c, long l, int i) {
-            V v = V.default;
-            v = __WithField(v.c, c);
-            v = __WithField(v.l, l);
-            v = __WithField(v.i, i);
-            return v;
-        }
+        x = WithFieldOwner.withC(start, 'a');
+        x = WithFieldOwner.withL(x, 1);
+        x = WithFieldOwner.withD(x, 2);
+        x = WithFieldOwner.withI(x, 3);
+        x.checkFields('a', 1, 2, 3);
+
+        x = WithFieldNestHost.withC(start, 'b');
+        x = WithFieldNestHost.withL(x, 4);
+        x = WithFieldNestHost.withD(x, 5);
+        x = WithFieldNestHost.withI(x, 6);
+        x.checkFields('b', 4, 5, 6);
+
+        x = WithFieldNestmate.withC(start, 'c');
+        x = WithFieldNestmate.withL(x, 7);
+        x = WithFieldNestmate.withD(x, 8);
+        x = WithFieldNestmate.withI(x, 9);
+        x.checkFields('c', 7, 8, 9);
+
+        catchAccessError(() -> WithFieldSamePackage.withC(start, 'd'));
+        catchAccessError(() -> WithFieldSamePackage.withL(start, 10));
+        catchAccessError(() -> WithFieldSamePackage.withD(start, 11));
+        catchAccessError(() -> WithFieldSamePackage.withI(start, 12));
     }
 
-    public static void main(String... args) throws Throwable {
-        V v = __WithField(V.make('a', 5, 10).c, 'b');
-        if (!v.toString().equals("WithFieldAccessorTest$V@" + Integer.toHexString(v.hashCode()))) {
-            throw new AssertionError("Withfield of 'c' didn't work!" + v.toString());
+    static void catchAccessError(Runnable r) {
+        try {
+            r.run();
+            Asserts.fail("access violation not caught");
         }
-        v = __WithField(V.make('a', 5, 10).l, 25);
-        if (!v.toString().equals("WithFieldAccessorTest$V@" + Integer.toHexString(v.hashCode()))) {
-            throw new AssertionError("Withfield of 'l' didn't work!" + v.toString());
-        }
-        v = __WithField(V.make('a', 5, 10).i, 20);
-        if (!v.toString().equals("WithFieldAccessorTest$V@" + Integer.toHexString(v.hashCode()))) {
-            throw new AssertionError("Withfield of 'i' didn't work!" + v.toString());
-        }
+        catch (IllegalAccessError e)  { /* expected */ }
     }
+
 }
