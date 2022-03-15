@@ -25,7 +25,6 @@ package runtime.valhalla.inlinetypes;
 
 /* @test
  * @summary test JNI functions with inline types
- * @compile -XDallowWithFieldOperator InlineWithJni.java
  * @run main/native runtime.valhalla.inlinetypes.InlineWithJni
  */
 public primitive final class InlineWithJni {
@@ -39,21 +38,18 @@ public primitive final class InlineWithJni {
     }
 
     final int x;
-    private InlineWithJni() { x = 0; }
+
+    public InlineWithJni(int x) {
+        this.x = x;
+    }
 
     public native void doJniMonitorEnter();
     public native void doJniMonitorExit();
 
-    public static InlineWithJni createInlineWithJni(int x) {
-        InlineWithJni v = InlineWithJni.default;
-        v = __WithField(v.x, x);
-        return v;
-    }
-
     public static void testJniMonitorOps() {
         boolean sawImse = false;
         try {
-            createInlineWithJni(0).doJniMonitorEnter();
+            new InlineWithJni(0).doJniMonitorEnter();
         } catch (Throwable t) {
             sawImse = checkImse(t);
         }
@@ -62,7 +58,7 @@ public primitive final class InlineWithJni {
         }
         sawImse = false;
         try {
-            createInlineWithJni(0).doJniMonitorExit();
+            new InlineWithJni(0).doJniMonitorExit();
         } catch (Throwable t) {
             sawImse = checkImse(t);
         }

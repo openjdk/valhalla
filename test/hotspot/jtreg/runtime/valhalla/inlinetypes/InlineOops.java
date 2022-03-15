@@ -38,8 +38,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test embedding oops into Inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
@@ -53,8 +52,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test embedding oops into Inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
@@ -68,8 +66,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test embedding oops into Inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
@@ -83,8 +80,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Test embedding oops into Inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile -XDallowWithFieldOperator Person.java
- * @compile -XDallowWithFieldOperator InlineOops.java
+ * @compile Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
@@ -150,16 +146,9 @@ public class InlineOops {
         public final Person onePerson;
         public final Person otherPerson;
 
-        private Composition() {
-            onePerson   = Person.create(0, null, null);
-            otherPerson = Person.create(0, null, null);
-        }
-
-        public static Composition create(Person onePerson, Person otherPerson) {
-            Composition comp = Composition.default;
-            comp = __WithField(comp.onePerson, onePerson);
-            comp = __WithField(comp.otherPerson, otherPerson);
-            return comp;
+        public Composition(Person onePerson, Person otherPerson) {
+            this.onePerson = onePerson;
+            this.otherPerson = otherPerson;
         }
     }
 
@@ -192,7 +181,7 @@ public class InlineOops {
         couple.onePerson = createIndexedPerson(index);
         validateIndexedPerson(couple.onePerson, index);
 
-        Composition composition = Composition.create(couple.onePerson, couple.onePerson);
+        Composition composition = new Composition(couple.onePerson, couple.onePerson);
         validateIndexedPerson(composition.onePerson, index);
         validateIndexedPerson(composition.otherPerson, index);
     }
@@ -212,8 +201,8 @@ public class InlineOops {
         String fn2 = "Jane";
         String ln2 = "Jones";
         Couple couple = new Couple();
-        couple.onePerson = Person.create(0, fn1, ln1);
-        couple.otherPerson = Person.create(1, fn2, ln2);
+        couple.onePerson = new Person(0, fn1, ln1);
+        couple.otherPerson = new Person(1, fn2, ln2);
         objects = WB.getObjectsViaKlassOopMaps(couple);
         assertTrue(objects.length == 4, "Expected 4 oops");
         assertTrue(objects[0] == fn1, "Bad oop fn1");
@@ -265,7 +254,7 @@ public class InlineOops {
         int someId = 89898;
         Person person = couple.onePerson;
         assertTrue(person.getId() == 0, "Bad Person");
-        Person anotherPerson = Person.create(someId, TEST_STRING1, TEST_STRING2);
+        Person anotherPerson = new Person(someId, TEST_STRING1, TEST_STRING2);
         assertTrue(anotherPerson.getId() == someId, "Bad Person");
         return getOopMap();
     }
@@ -460,7 +449,7 @@ public class InlineOops {
     }
 
     static Person createIndexedPerson(int i) {
-        return Person.create(i, firstName(i), lastName(i));
+        return new Person(i, firstName(i), lastName(i));
     }
 
     static void validateIndexedPerson(Person person, int i) {
@@ -468,7 +457,7 @@ public class InlineOops {
     }
 
     static Person createDefaultPerson() {
-        return Person.create(0, null, null);
+        return Person.default;
     }
 
     static void validateDefaultPerson(Person person) {
@@ -555,22 +544,12 @@ public class InlineOops {
         public final long timestamp;
         public final String notes;
 
-        private FooValue() {
-            id          = 0;
-            name        = null;
-            description = null;
-            timestamp   = 0L;
-            notes       = null;
-        }
-
-        public static FooValue create(int id, String name, String description, long timestamp, String notes) {
-            FooValue f = FooValue.default;
-            f = __WithField(f.id, id);
-            f = __WithField(f.name, name);
-            f = __WithField(f.description, description);
-            f = __WithField(f.timestamp, timestamp);
-            f = __WithField(f.notes, notes);
-            return f;
+        public FooValue(int id, String name, String description, long timestamp, String notes) {
+            this.id = id;
+            this.name = name;
+            this.description = description;
+            this.timestamp = timestamp;
+            this.notes = notes;
         }
 
         public static void testFrameOopsDefault(Object[][] oopMaps) {
@@ -615,7 +594,7 @@ public class InlineOops {
         }
 
         public static void testFrameOopsRefs(String name, String description, String notes, Object[][] oopMaps) {
-            FooValue f = create(4711, name, description, 9876543231L, notes);
+            FooValue f = new FooValue(4711, name, description, 9876543231L, notes);
             FooValue[] fa = new FooValue[] { f };
             MethodType mt = MethodType.methodType(Void.TYPE, fa.getClass(), oopMaps.getClass());
             int fooArraySlot  = 0;
@@ -663,4 +642,3 @@ public class InlineOops {
     }
 
 }
-

@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary Test basic verifier assignability of inline types.
- * @compile -XDallowWithFieldOperator VTAssignability.java
  * @run main/othervm -Xverify:remote VTAssignability
  */
 
@@ -37,9 +36,9 @@ public primitive final class VTAssignability implements II {
     final int x;
     final int y;
 
-    private VTAssignability() {
-        x = 0;
-        y = 0;
+    public VTAssignability(int x, int y) {
+        this.x = x;
+        this.y = y;
     }
 
     public int getX() { return x; }
@@ -61,16 +60,9 @@ public primitive final class VTAssignability implements II {
         System.out.println("Test passes!!");
     }
 
-    public static VTAssignability createVTAssignability(int x, int y) {
-        VTAssignability p = VTAssignability.default;
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
-    }
-
     public static void main(String[] args) {
-        VTAssignability a = createVTAssignability(3, 4);
-        VTAssignability b = createVTAssignability(2, 4);
+        VTAssignability a = new VTAssignability(3, 4);
+        VTAssignability b = new VTAssignability(2, 4);
 
         // Test assignability of an inline type to itself.
         boolean res = a.isSameVTAssignability(b);
