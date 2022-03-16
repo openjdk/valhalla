@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8237072
  * @summary Test various relationships between a value type and its reference projection.
- * @compile/fail/ref=GenericInlineTest.out -XDrawDiagnostics GenericInlineTest.java
+ * @compile/fail/ref=GenericInlineTest.out -XDrawDiagnostics -Xlint:unchecked GenericInlineTest.java
  */
 
 abstract class Low<T, U> {}
@@ -13,7 +13,7 @@ primitive
 class GenericInlineTest<T, U> extends High<U, T> {
 
     int x = 0;
-    @SuppressWarnings("universal")
+
     void foo() {
 
         GenericInlineTest<String, Integer> g = new GenericInlineTest<String, Integer>();

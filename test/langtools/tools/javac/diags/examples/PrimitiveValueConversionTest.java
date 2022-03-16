@@ -22,7 +22,7 @@
  */
 
 // key: compiler.warn.primitive.value.conversion
-// options: -Xlint:universal
+// options: -Xlint:unchecked
 
 class PrimitiveValueConversionTest {
     primitive class Point {}

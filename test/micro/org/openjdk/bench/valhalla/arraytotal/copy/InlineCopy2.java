@@ -811,7 +811,6 @@ public class InlineCopy2 extends StatesQ64long {
         }
     }
 
-    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_to_Ref_copy(Ref_as_Ref s, Val_as_Ref d) {
@@ -822,7 +821,6 @@ public class InlineCopy2 extends StatesQ64long {
         }
     }
 
-    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Ref_to_Val_as_Ref_to_Val_copy(Ref_as_Ref s, Val_as_Val d) {
@@ -923,7 +921,6 @@ public class InlineCopy2 extends StatesQ64long {
         }
     }
 
-    @SuppressWarnings("universal")
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public void Val_to_Val_as_Ref_to_Val_copy(Val_as_Ref s, Val_as_Val d) {

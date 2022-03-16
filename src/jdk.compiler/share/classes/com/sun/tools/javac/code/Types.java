@@ -630,9 +630,8 @@ public class Types {
                     !t.hasTag(BOT) && isSubtype(t, allowUniversalTVars && (tUndet || sUndet) ? s : s.referenceProjection());
             if (result && (allowUniversalTVars && !t.hasTag(BOT) &&
                     s.isPrimitiveClass() && !t.isPrimitiveClass() &&
-                    s.referenceProjectionOrSelf().tsym == t.tsym) &&
-                    warn != noWarnings) {
-                chk.warnUniversalTVar(warn.pos(), Warnings.PrimitiveValueConversion);
+                    s.referenceProjectionOrSelf().tsym == t.tsym)) {
+                chk.warnUnchecked(warn.pos(), Warnings.PrimitiveValueConversion);
             }
             return result;
         }

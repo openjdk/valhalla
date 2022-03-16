@@ -2,11 +2,10 @@
  * @test /nodynamiccopyright/
  * @bug 8222792
  * @summary Javac should enforce the latest relationship rules between an inline type and its nullable projection
- * @compile/fail/ref=TypeRelationsNegativeTest.out -XDrawDiagnostics TypeRelationsNegativeTest.java
+ * @compile/fail/ref=TypeRelationsNegativeTest.out -XDrawDiagnostics -Xlint:unchecked TypeRelationsNegativeTest.java
  */
 
 final primitive class TypeRelationsNegativeTest {
-    @SuppressWarnings("universal")
     void foo() {
         TypeRelationsNegativeTest x = null; // error
         TypeRelationsNegativeTest.ref xq = null;
