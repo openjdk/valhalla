@@ -1703,7 +1703,7 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
     if (use->is_Region()) {
       Node* c = use;
       do {
-        c = c->unique_ctrl_out();
+        c = c->unique_ctrl_out_or_null();
       } while (c != NULL && c->is_Region());
       if (c != NULL && c->is_CallStaticJava() && c->as_CallStaticJava()->uncommon_trap_request() != 0) {
         _worklist.push(c);
