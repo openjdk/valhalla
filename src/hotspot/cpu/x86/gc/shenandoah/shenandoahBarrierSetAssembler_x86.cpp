@@ -599,7 +599,6 @@ void ShenandoahBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet 
   if (on_oop && in_heap) {
     bool needs_pre_barrier = as_normal;
 
-    Register tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
     Register rthread = LP64_ONLY(r15_thread) NOT_LP64(rcx);
     // flatten object address if needed
     // We do it regardless of precise because we need the registers
