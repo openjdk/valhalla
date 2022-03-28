@@ -35,8 +35,8 @@ import compiler.lib.ir_framework.*;
 
 public class TestStripMiningDropsSafepoint {
     public static void main(String[] args) {
-        TestFramework.runWithFlags("-XX:+UseCountedLoopSafepoints", "-XX:LoopStripMiningIter=1000", "-XX:LoopMaxUnroll=1", "-XX:-RangeCheckElimination");
-        TestFramework.runWithFlags("-XX:+UseCountedLoopSafepoints", "-XX:LoopStripMiningIter=1000", "-XX:LoopMaxUnroll=1", "-XX:-RangeCheckElimination", "-XX:-PartialPeelLoop");
+        TestFramework.runWithFlags("-XX:CompileCommand=inline,java.util.Objects::newIdentity", "-XX:+UseCountedLoopSafepoints", "-XX:LoopStripMiningIter=1000", "-XX:LoopMaxUnroll=1", "-XX:-RangeCheckElimination");
+        TestFramework.runWithFlags("-XX:CompileCommand=inline,java.util.Objects::newIdentity", "-XX:+UseCountedLoopSafepoints", "-XX:LoopStripMiningIter=1000", "-XX:LoopMaxUnroll=1", "-XX:-RangeCheckElimination", "-XX:-PartialPeelLoop");
     }
 
     @Test
