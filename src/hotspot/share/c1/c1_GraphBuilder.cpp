@@ -2788,7 +2788,7 @@ Instruction* GraphBuilder::append_split(StateSplit* instr) {
 
 
 void GraphBuilder::null_check(Value value) {
-  if (value->as_NewArray() != NULL || value->as_NewInstance() != NULL) {
+  if (value->as_NewArray() != NULL || value->as_NewInstance() != NULL || value->as_NewInlineTypeInstance()) {
     return;
   } else {
     Constant* con = value->as_Constant();
@@ -2801,6 +2801,7 @@ void GraphBuilder::null_check(Value value) {
         }
       }
     }
+    if (value->is_null_free()) return;
   }
   append(new NullCheck(value, copy_state_for_exception()));
 }
