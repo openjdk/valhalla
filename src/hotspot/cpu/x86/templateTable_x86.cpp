@@ -4309,11 +4309,9 @@ void TemplateTable::_new() {
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
   __ jcc(Assembler::notEqual, slow_case);
 
-  if (EnableValhalla) {
-    __ movl(rdx, Address(rcx, Klass::access_flags_offset()));
-    __ testl(rdx, JVM_ACC_ABSTRACT);
-    __ jcc(Assembler::notZero, slow_case);
-  }
+  __ movl(rdx, Address(rcx, Klass::access_flags_offset()));
+  __ testl(rdx, JVM_ACC_ABSTRACT);
+  __ jcc(Assembler::notZero, slow_case);
 
   __ allocate_instance(rcx, rax, rdx, rbx, true, slow_case);
   __ jmp(done);
