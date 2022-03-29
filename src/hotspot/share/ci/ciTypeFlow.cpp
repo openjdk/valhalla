@@ -838,6 +838,11 @@ void ciTypeFlow::StateVector::do_multianewarray(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
+
+  if (klass == outer()->env()->Object_klass() && outer()->env()->Object_klass()->is_abstract()) {
+    klass = outer()->env()->Identity_klass();
+  }
+
   if (!will_link || str->is_unresolved_klass() || klass->is_inlinetype()) {
     trap(str, klass, str->get_klass_index());
   } else {

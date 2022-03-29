@@ -39,7 +39,7 @@ import utils.*;
 public class WaitNotifyThreadTest {
 
     private Object monitor = java.util.Objects.newIdentity();
-    private final String OBJECT = "a java.util.Objects$1";
+    private final String OBJECT = "a java.lang.Identity";
     private final String OBJECT_WAIT = "java.lang.Object.wait";
     private final String RUN_METHOD = "WaitNotifyThreadTest$WaitThread.run";
 

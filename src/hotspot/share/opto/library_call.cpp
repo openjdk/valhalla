@@ -3002,6 +3002,21 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   kls = null_check(kls);
   if (stopped())  return true;  // argument was like int.class
 
+  bool object_check = C->env()->Object_klass()->is_abstract();
+
+  IdealKit ideal(this);
+#define __ ideal.
+  IdealVariable result(ideal); __ declarations_done();
+
+  if (object_check) {
+    __ if_then(kls, BoolTest::eq, makecon(TypeKlassPtr::make(C->env()->Object_klass())));
+    sync_kit(ideal);
+    Node* obj = new_instance(makecon(TypeKlassPtr::make(C->env()->Identity_klass())));
+    ideal.sync_kit(this);
+    ideal.set(result, obj);
+    __ else_();
+    sync_kit(ideal);
+  }
   Node* test = NULL;
   if (LibraryCallKit::klass_needs_init_guard(kls)) {
     // Note:  The argument might still be an illegal value like
@@ -3022,7 +3037,15 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   } else {
     obj = new_instance(kls, test);
   }
+  if (object_check) {
+    ideal.sync_kit(this);
+    ideal.set(result, obj);
+    __ end_if();
+    final_sync(ideal);
+    obj = ideal.value(result);
+  }
   set_result(obj);
+#undef __
   return true;
 }
 

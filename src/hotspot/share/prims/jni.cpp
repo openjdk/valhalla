@@ -999,7 +999,11 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
   }
 
   if (!k->is_inline_klass()) {
-    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+    Klass* ik = k;
+    if (ik == vmClasses::Object_klass() && vmClasses::Object_klass()->is_abstract()) {
+      ik = vmClasses::Identity_klass();
+    }
+    instanceOop i = InstanceKlass::allocate_instance(k->java_mirror(), CHECK_NULL);
     obj = JNIHandles::make_local(THREAD, i);
     JavaValue jvalue(T_VOID);
     JNI_ArgumentPusherArray ap(methodID, args);
@@ -1031,7 +1035,11 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
   }
 
   if (!k->is_inline_klass()) {
-    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+    Klass* ik = k;
+    if (ik == vmClasses::Object_klass() && vmClasses::Object_klass()->is_abstract()) {
+      ik = vmClasses::Identity_klass();
+    }
+    instanceOop i = InstanceKlass::allocate_instance(ik->java_mirror(), CHECK_NULL);
     obj = JNIHandles::make_local(THREAD, i);
     JavaValue jvalue(T_VOID);
     JNI_ArgumentPusherVaArg ap(methodID, args);
@@ -1063,7 +1071,11 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   }
 
   if (!k->is_inline_klass()) {
-    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+     Klass* ik = k;
+    if (ik == vmClasses::Object_klass() && vmClasses::Object_klass()->is_abstract()) {
+      ik = vmClasses::Identity_klass();
+    }
+    instanceOop i = InstanceKlass::allocate_instance(ik->java_mirror(), CHECK_NULL);
     obj = JNIHandles::make_local(THREAD, i);
     va_list args;
     va_start(args, methodID);
