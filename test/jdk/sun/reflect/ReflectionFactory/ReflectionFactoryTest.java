@@ -88,7 +88,10 @@ public class ReflectionFactoryTest {
         Constructor<?> c = factory.newConstructorForSerialization(type);
 
         Object o = c.newInstance();
-        Assert.assertEquals(o.getClass(), type, "Instance is wrong type");
+        // java.lang.Object is an abstract class.  For compatibility reason,
+        // newInstance is supported on Object.class and returns a new Identity instance.
+        Class<?> expectedType = type == Object.class ? Identity.class : type;
+        Assert.assertEquals(o.getClass(), expectedType, "Instance is wrong type");
         if (o instanceof Foo) {
             Foo foo = (Foo)o;
             foo.check();
