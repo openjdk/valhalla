@@ -196,10 +196,9 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   }
 
   MergeMemNode* mem = phase->transform(MergeMemNode::make(in_mem))->as_MergeMem();
-  PhaseIterGVN* igvn = phase->is_IterGVN();
   phase->record_for_igvn(mem);
-  if (igvn != NULL) {
-    igvn->_worklist.push(mem);
+  if (can_reshape) {
+    phase->is_IterGVN()->_worklist.push(mem);
   }
 
   if (!inst_src->klass_is_exact()) {
@@ -311,9 +310,17 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
 
     src_offset = Compile::conv_I2X_index(phase, src_offset, ary_src->size());
-    dest_offset = Compile::conv_I2X_index(phase, dest_offset, ary_dest->size());
-    if (src_offset->is_top() || dest_offset->is_top()) {
+    if (src_offset->is_top()) {
       // Offset is out of bounds (the ArrayCopyNode will be removed)
+      return false;
+    }
+    dest_offset = Compile::conv_I2X_index(phase, dest_offset, ary_dest->size());
+    if (dest_offset->is_top()) {
+      // Offset is out of bounds (the ArrayCopyNode will be removed)
+      if (can_reshape) {
+        // record src_offset, so it can be deleted later (if it is dead)
+        phase->is_IterGVN()->_worklist.push(src_offset);
+      }
       return false;
     }
 
@@ -633,6 +640,8 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (!prepare_array_copy(phase, can_reshape,
                           adr_src, base_src, adr_dest, base_dest,
                           copy_type, value_type, disjoint_bases)) {
+    assert(adr_src == NULL, "no node can be left behind");
+    assert(adr_dest == NULL, "no node can be left behind");
     return NULL;
   }
 
@@ -718,6 +727,9 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (!finish_transform(phase, can_reshape, kit.control(), mem)) {
     if (!can_reshape) {
       phase->record_for_igvn(this);
+    } else {
+      // put in worklist, so that if it happens to be dead it is removed
+      phase->is_IterGVN()->_worklist.push(mem);
     }
     return NULL;
   }

@@ -612,7 +612,7 @@ bool InstructForm::needs_anti_dependence_check(FormDict &globals) const {
         strcmp(_matrule->_rChild->_opType,"StrEquals"  )==0 ||
         strcmp(_matrule->_rChild->_opType,"StrIndexOf" )==0 ||
         strcmp(_matrule->_rChild->_opType,"StrIndexOfChar" )==0 ||
-        strcmp(_matrule->_rChild->_opType,"HasNegatives" )==0 ||
+        strcmp(_matrule->_rChild->_opType,"CountPositives" )==0 ||
         strcmp(_matrule->_rChild->_opType,"AryEq"      )==0 ))
     return true;
 
@@ -903,7 +903,7 @@ uint InstructForm::oper_input_base(FormDict &globals) {
         strcmp(_matrule->_rChild->_opType,"StrCompressedCopy" )==0 ||
         strcmp(_matrule->_rChild->_opType,"StrIndexOf")==0 ||
         strcmp(_matrule->_rChild->_opType,"StrIndexOfChar")==0 ||
-        strcmp(_matrule->_rChild->_opType,"HasNegatives")==0 ||
+        strcmp(_matrule->_rChild->_opType,"CountPositives")==0 ||
         strcmp(_matrule->_rChild->_opType,"EncodeISOArray")==0)) {
         // String.(compareTo/equals/indexOf) and Arrays.equals
         // and sun.nio.cs.iso8859_1$Encoder.EncodeISOArray
@@ -1367,7 +1367,7 @@ void InstructForm::set_unique_opnds() {
     // component back to an index and any DEF always goes at 0 so the
     // length of the array has to be the number of components + 1.
     _uniq_idx_length = _components.count() + 1;
-    uniq_idx = (uint*) AllocateHeap(sizeof(uint) * _uniq_idx_length);
+    uniq_idx = (uint*) AdlAllocateHeap(sizeof(uint) * _uniq_idx_length);
     for (i = 0; i < _uniq_idx_length; i++) {
       uniq_idx[i] = i;
     }
@@ -3477,7 +3477,7 @@ void MatchNode::build_internalop( ) {
   rstr = (_rChild) ? ((_rChild->_internalop) ?
                        _rChild->_internalop : _rChild->_opType) : "";
   len += (int)strlen(lstr) + (int)strlen(rstr);
-  subtree = (char *)AllocateHeap(len);
+  subtree = (char *)AdlAllocateHeap(len);
   sprintf(subtree,"_%s_%s_%s", _opType, lstr, rstr);
   // Hash the subtree string in _internalOps; if a name exists, use it
   iop = (char *)_AD._internalOps[subtree];
@@ -3927,7 +3927,7 @@ void MatchRule::matchrule_swap_commutative_op(const char* instr_ident, int count
   MatchRule* clone = new MatchRule(_AD, this);
   // Swap operands of commutative operation
   ((MatchNode*)clone)->swap_commutative_op(true, count);
-  char* buf = (char*) AllocateHeap(strlen(instr_ident) + 4);
+  char* buf = (char*) AdlAllocateHeap(strlen(instr_ident) + 4);
   sprintf(buf, "%s_%d", instr_ident, match_rules_cnt++);
   clone->_result = buf;
 
@@ -4235,6 +4235,7 @@ bool MatchRule::is_vector() const {
     "VectorRearrange","VectorLoadShuffle", "VectorLoadConst",
     "VectorCastB2X", "VectorCastS2X", "VectorCastI2X",
     "VectorCastL2X", "VectorCastF2X", "VectorCastD2X",
+    "VectorUCastB2X", "VectorUCastS2X", "VectorUCastI2X",
     "VectorMaskWrapper","VectorMaskCmp","VectorReinterpret","LoadVectorMasked","StoreVectorMasked",
     "FmaVD","FmaVF","PopCountVI", "PopCountVL", "VectorLongToMask",
     // Next are vector mask ops.

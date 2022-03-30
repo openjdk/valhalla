@@ -1240,5 +1240,9 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
 #define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
+//----------------------------------------------------------------------------------------------------
+
+// Allow use of C++ thread_local when approved - see JDK-8282469.
+#define APPROVED_CPP_THREAD_LOCAL thread_local
 
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP

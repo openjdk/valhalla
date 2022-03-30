@@ -67,7 +67,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
 
     __ jcc(Assembler::equal, filtered);
 
-    __ pusha();                      // push registers
+    __ push_call_clobbered_registers(false /* save_fpu */);
 #ifdef _LP64
     if (count == c_rarg0) {
       if (addr == c_rarg1) {
@@ -90,7 +90,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_oop_entry),
                     addr, count);
 #endif
-    __ popa();
+    __ pop_call_clobbered_registers(false /* save_fpu */);
 
     __ bind(filtered);
   }
@@ -98,7 +98,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
 
 void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* masm, DecoratorSet decorators,
                                                              Register addr, Register count, Register tmp) {
-  __ pusha();             // push registers (overkill)
+  __ push_call_clobbered_registers(false /* save_fpu */);
 #ifdef _LP64
   if (c_rarg0 == count) { // On win64 c_rarg0 == rcx
     assert_different_registers(c_rarg1, addr);
@@ -114,7 +114,7 @@ void G1BarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssembler* mas
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_post_entry),
                   addr, count);
 #endif
-  __ popa();
+  __ pop_call_clobbered_registers(false /* save_fpu */);
 }
 
 void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
@@ -205,6 +205,7 @@ void G1BarrierSetAssembler::g1_write_barrier_pre(MacroAssembler* masm,
   __ bind(runtime);
   // Barriers might be emitted when converting between (scalarized) calling conventions for inline
   // types. Save all argument registers before calling into the runtime.
+  // TODO: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64 )
   __ pusha();
   __ subptr(rsp, 64);
   __ movdbl(Address(rsp, 0),  j_farg0);
@@ -331,6 +332,7 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ bind(runtime);
   // Barriers might be emitted when converting between (scalarized) calling conventions for inline
   // types. Save all argument registers before calling into the runtime.
+  // TODO: use push_set() (see JDK-8283327 push/pop_call_clobbered_registers & aarch64)
   __ pusha();
   __ subptr(rsp, 64);
   __ movdbl(Address(rsp, 0),  j_farg0);
@@ -374,9 +376,6 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
   bool needs_pre_barrier = as_normal && !dest_uninitialized;
   bool needs_post_barrier = val != noreg && in_heap;
 
-  if (tmp3 == noreg) {
-    tmp3 = LP64_ONLY(r8) NOT_LP64(rsi);
-  }
   Register rthread = LP64_ONLY(r15_thread) NOT_LP64(rcx);
   // flatten object address if needed
   // We do it regardless of precise because we need the registers
@@ -522,13 +521,13 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
 
   __ bind(runtime);
 
-  __ save_live_registers_no_oop_map(true);
+  __ push_call_clobbered_registers();
 
   // load the pre-value
   __ load_parameter(0, rcx);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_pre_entry), rcx, thread);
 
-  __ restore_live_registers(true);
+  __ pop_call_clobbered_registers();
 
   __ bind(done);
 
@@ -540,9 +539,6 @@ void G1BarrierSetAssembler::generate_c1_pre_barrier_runtime_stub(StubAssembler* 
 
 void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler* sasm) {
   __ prologue("g1_post_barrier", false);
-
-  // arg0: store_address
-  Address store_addr(rbp, 2*BytesPerWord);
 
   CardTableBarrierSet* ct =
     barrier_set_cast<CardTableBarrierSet>(BarrierSet::barrier_set());
@@ -599,12 +595,11 @@ void G1BarrierSetAssembler::generate_c1_post_barrier_runtime_stub(StubAssembler*
   __ jmp(enqueued);
 
   __ bind(runtime);
-
-  __ save_live_registers_no_oop_map(true);
+  __ push_call_clobbered_registers();
 
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, thread);
 
-  __ restore_live_registers(true);
+  __ pop_call_clobbered_registers();
 
   __ bind(enqueued);
   __ pop(rdx);

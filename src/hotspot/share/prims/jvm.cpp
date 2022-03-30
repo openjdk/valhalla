@@ -30,7 +30,7 @@
 #include "cds/heapShared.hpp"
 #include "cds/lambdaFormInvokers.hpp"
 #include "classfile/classFileStream.hpp"
-#include "classfile/classLoader.hpp"
+#include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderData.hpp"
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/classLoadInfo.hpp"
@@ -488,7 +488,7 @@ JVM_ENTRY_NO_ENV(jint, JVM_ActiveProcessorCount(void))
   return os::active_processor_count();
 JVM_END
 
-JVM_ENTRY_NO_ENV(jboolean, JVM_IsUseContainerSupport(void))
+JVM_LEAF(jboolean, JVM_IsUseContainerSupport(void))
 #ifdef LINUX
   if (UseContainerSupport) {
     return JNI_TRUE;
@@ -713,7 +713,7 @@ JVM_ENTRY(void, JVM_ReportFinalizationComplete(JNIEnv * env, jobject finalizee))
   MANAGEMENT_ONLY(FinalizerService::on_complete(JNIHandles::resolve_non_null(finalizee), THREAD);)
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsFinalizationEnabled(JNIEnv * env))
+JVM_LEAF(jboolean, JVM_IsFinalizationEnabled(JNIEnv * env))
   return InstanceKlass::is_finalization_enabled();
 JVM_END
 
@@ -2934,6 +2934,26 @@ static void thread_entry(JavaThread* thread, TRAPS) {
 
 
 JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
+#if INCLUDE_CDS
+  if (DumpSharedSpaces) {
+    // During java -Xshare:dump, if we allow multiple Java threads to
+    // execute in parallel, symbols and classes may be loaded in
+    // random orders which will make the resulting CDS archive
+    // non-deterministic.
+    //
+    // Lucikly, during java -Xshare:dump, it's important to run only
+    // the code in the main Java thread (which is NOT started here) that
+    // creates the module graph, etc. It's safe to not start the other
+    // threads which are launched by class static initializers
+    // (ReferenceHandler, FinalizerThread and CleanerImpl).
+    if (log_is_enabled(Info, cds)) {
+      ResourceMark rm;
+      oop t = JNIHandles::resolve_non_null(jthread);
+      log_info(cds)("JVM_StartThread() ignored: %s", t->klass()->external_name());
+    }
+    return;
+  }
+#endif
   JavaThread *native_thread = NULL;
 
   // We cannot hold the Threads_lock when we throw an exception,
@@ -3104,7 +3124,7 @@ JVM_ENTRY(void, JVM_SetThreadPriority(JNIEnv* env, jobject jthread, jint prio))
 JVM_END
 
 
-JVM_ENTRY(void, JVM_Yield(JNIEnv *env, jclass threadClass))
+JVM_LEAF(void, JVM_Yield(JNIEnv *env, jclass threadClass))
   if (os::dont_yield()) return;
   HOTSPOT_THREAD_YIELD();
   os::naked_yield();
@@ -3442,6 +3462,11 @@ JVM_END
 
 // Library support ///////////////////////////////////////////////////////////////////////////
 
+JVM_LEAF(void*, JVM_LoadZipLibrary())
+  ClassLoader::load_zip_library_if_needed();
+  return ClassLoader::zip_library_handle();
+JVM_END
+
 JVM_ENTRY_NO_ENV(void*, JVM_LoadLibrary(const char* name, jboolean throwException))
   //%note jvm_ct
   char ebuf[1024];
@@ -3707,11 +3732,11 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 #endif // INCLUDE_CDS
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
+JVM_LEAF(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
   return Arguments::is_dumping_archive();
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
+JVM_LEAF(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
   return UseSharedSpaces;
 JVM_END
 
@@ -3737,7 +3762,7 @@ JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
   }
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsDumpingClassList(JNIEnv *env))
+JVM_LEAF(jboolean, JVM_IsDumpingClassList(JNIEnv *env))
 #if INCLUDE_CDS
   return ClassListWriter::is_enabled() || DynamicDumpSharedSpaces;
 #else
@@ -3753,9 +3778,9 @@ JVM_ENTRY(void, JVM_LogLambdaFormInvoker(JNIEnv *env, jstring line))
     Handle h_line (THREAD, JNIHandles::resolve_non_null(line));
     char* c_line = java_lang_String::as_utf8_string(h_line());
     if (DynamicDumpSharedSpaces) {
-      // Note: LambdaFormInvokers::append_filtered and LambdaFormInvokers::append take same format which is not
+      // Note: LambdaFormInvokers::append take same format which is not
       // same as below the print format. The line does not include LAMBDA_FORM_TAG.
-      LambdaFormInvokers::append_filtered(os::strdup((const char*)c_line, mtInternal));
+      LambdaFormInvokers::append(os::strdup((const char*)c_line, mtInternal));
     }
     if (ClassListWriter::is_enabled()) {
       ClassListWriter w;
@@ -3846,7 +3871,7 @@ JVM_ENTRY(jobjectArray, JVM_DumpThreads(JNIEnv *env, jclass threadClass, jobject
 JVM_END
 
 // JVM monitoring and management support
-JVM_ENTRY_NO_ENV(void*, JVM_GetManagement(jint version))
+JVM_LEAF(void*, JVM_GetManagement(jint version))
   return Management::get_jmm_interface(version);
 JVM_END
 
@@ -3935,7 +3960,7 @@ JVM_ENTRY(jobjectArray, JVM_GetVmArguments(JNIEnv *env))
   return (jobjectArray) JNIHandles::make_local(THREAD, result_h());
 JVM_END
 
-JVM_ENTRY_NO_ENV(jint, JVM_FindSignal(const char *name))
+JVM_LEAF(jint, JVM_FindSignal(const char *name))
   return os::get_signal_number(name);
 JVM_END
 
