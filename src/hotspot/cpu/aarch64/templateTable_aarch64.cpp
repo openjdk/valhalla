@@ -3792,6 +3792,9 @@ void TemplateTable::_new() {
   __ cmp(rscratch1, (u1)InstanceKlass::fully_initialized);
   __ br(Assembler::NE, slow_case);
 
+  __ ldrw(rscratch1, Address(r4, Klass::access_flags_offset()));
+  __ tbz(rscratch1, exact_log2(JVM_ACC_ABSTRACT), slow_case);
+
   __ allocate_instance(r4, r0, r3, r1, true, slow_case);
   __ b(done);
 

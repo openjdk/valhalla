@@ -1703,7 +1703,7 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
     if (use->is_Region()) {
       Node* c = use;
       do {
-        c = c->unique_ctrl_out();
+        c = c->unique_ctrl_out_or_null();
       } while (c != NULL && c->is_Region());
       if (c != NULL && c->is_CallStaticJava() && c->as_CallStaticJava()->uncommon_trap_request() != 0) {
         _worklist.push(c);
@@ -1732,7 +1732,7 @@ bool PhaseIterGVN::no_dependent_zero_check(Node* n) const {
     case Op_DivI:
     case Op_ModI: {
       // Type of divisor includes 0?
-      if (n->in(2)->is_top()) {
+      if (type(n->in(2)) == Type::TOP) {
         // 'n' is dead. Treat as if zero check is still there to avoid any further optimizations.
         return false;
       }
@@ -1742,7 +1742,7 @@ bool PhaseIterGVN::no_dependent_zero_check(Node* n) const {
     case Op_DivL:
     case Op_ModL: {
       // Type of divisor includes 0?
-      if (n->in(2)->is_top()) {
+      if (type(n->in(2)) == Type::TOP) {
         // 'n' is dead. Treat as if zero check is still there to avoid any further optimizations.
         return false;
       }

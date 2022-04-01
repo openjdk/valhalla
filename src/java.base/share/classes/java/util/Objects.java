@@ -228,6 +228,7 @@ public final class Objects {
      * @return {@code obj} if not {@code null}
      * @throws NullPointerException if {@code obj} is {@code null}
      */
+    @ForceInline
     public static <T> T requireNonNull(T obj) {
         if (obj == null)
             throw new NullPointerException();
@@ -253,6 +254,7 @@ public final class Objects {
      * @return {@code obj} if not {@code null}
      * @throws NullPointerException if {@code obj} is {@code null}
      */
+    @ForceInline
     public static <T> T requireNonNull(T obj, String message) {
         if (obj == null)
             throw new NullPointerException(message);
@@ -531,6 +533,6 @@ public final class Objects {
      * @since 17
      */
     public static Object newIdentity() {
-        return new Object() {};
+        return new Identity();
     }
 }

@@ -237,7 +237,7 @@ inline void HeapRegion::update_bot_for_obj(HeapWord* obj_start, size_t obj_size)
          HR_FORMAT_PARAMS(this),
          p2i(obj_start), p2i(obj_end));
 
-  _bot_part.alloc_block(obj_start, obj_end);
+  _bot_part.update_for_block(obj_start, obj_end);
 }
 
 inline void HeapRegion::note_start_of_marking() {
@@ -328,16 +328,6 @@ HeapWord* HeapRegion::oops_on_memregion_seq_iterate_careful(MemRegion mr,
 
   // Find the obj that extends onto mr.start().
   HeapWord* cur = block_start(start);
-
-#ifdef ASSERT
-  {
-    assert(cur <= start,
-           "cur: " PTR_FORMAT ", start: " PTR_FORMAT, p2i(cur), p2i(start));
-    HeapWord* next = cur + block_size(cur);
-    assert(start < next,
-           "start: " PTR_FORMAT ", next: " PTR_FORMAT, p2i(start), p2i(next));
-  }
-#endif
 
   const G1CMBitMap* const bitmap = g1h->concurrent_mark()->prev_mark_bitmap();
   while (true) {
