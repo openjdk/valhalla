@@ -75,6 +75,7 @@ compiler/codecache/jmx/PoolsIndependenceTest.java 8264632 macosx-all
 compiler/codecache/TestStressCodeBuffers.java 8272094 generic-aarch64
 
 compiler/arraycopy/TestArrayCopyAsLoadsStores.java 8283777 generic-all
+compiler/arraycopy/TestArrayCopyAsLoadsStores.java#id1 8283777 generic-all
 #############################################################################
 
 # :hotspot_gc
