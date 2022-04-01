@@ -38,7 +38,7 @@ import java.util.Objects;
  * @see     java.lang.Class
  * @since   1.0
  */
-public class Object {
+public abstract class Object {
 
     /**
      * Constructs a new object.

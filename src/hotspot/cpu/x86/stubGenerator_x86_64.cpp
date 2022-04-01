@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/assembler.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "ci/ciUtilities.hpp"
@@ -39,6 +40,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "register_x86.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -46,6 +48,8 @@
 #include "runtime/stubCodeGenerator.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/thread.inline.hpp"
+#include "utilities/macros.hpp"
+#include "vmreg_x86.inline.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
@@ -55,6 +59,7 @@
 #if INCLUDE_ZGC
 #include "gc/z/zThreadLocalData.hpp"
 #endif
+
 
 // Declaration and definition of StubGenerator (no .hpp file).
 // For a more detailed description of the stub routine structure
@@ -807,6 +812,21 @@ class StubGenerator: public StubCodeGenerator {
 
     __ ret(0);
 
+    return start;
+  }
+
+  address generate_popcount_avx_lut(const char *stub_name) {
+    __ align64();
+    StubCodeMark mark(this, "StubRoutines", stub_name);
+    address start = __ pc();
+    __ emit_data64(0x0302020102010100, relocInfo::none);
+    __ emit_data64(0x0403030203020201, relocInfo::none);
+    __ emit_data64(0x0302020102010100, relocInfo::none);
+    __ emit_data64(0x0403030203020201, relocInfo::none);
+    __ emit_data64(0x0302020102010100, relocInfo::none);
+    __ emit_data64(0x0403030203020201, relocInfo::none);
+    __ emit_data64(0x0302020102010100, relocInfo::none);
+    __ emit_data64(0x0403030203020201, relocInfo::none);
     return start;
   }
 
@@ -7592,6 +7612,10 @@ address generate_avx_ghash_processBlocks() {
   // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
   // allocated inline type instance.
+  // Register is a class, but it would be assigned numerical value.
+  // "0" is assigned for xmm0. Thus we need to ignore -Wnonnull.
+  PRAGMA_DIAG_PUSH
+  PRAGMA_NONNULL_IGNORED
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
     // We need to save all registers the calling convention may use so
     // the runtime calls read or update those registers. This needs to
@@ -7897,6 +7921,11 @@ address generate_avx_ghash_processBlocks() {
     StubRoutines::x86::_vector_long_shuffle_mask = generate_vector_mask("vector_long_shuffle_mask", 0x0000000100000000);
     StubRoutines::x86::_vector_long_sign_mask = generate_vector_mask("vector_long_sign_mask", 0x8000000000000000);
     StubRoutines::x86::_vector_iota_indices = generate_iota_indices("iota_indices");
+
+    if (UsePopCountInstruction && VM_Version::supports_avx2() && !VM_Version::supports_avx512_vpopcntdq()) {
+      // lut implementation influenced by counting 1s algorithm from section 5-1 of Hackers' Delight.
+      StubRoutines::x86::_vector_popcount_lut = generate_popcount_avx_lut("popcount_lut");
+    }
 
     // support for verify_oop (must happen after universe_init)
     if (VerifyOops) {

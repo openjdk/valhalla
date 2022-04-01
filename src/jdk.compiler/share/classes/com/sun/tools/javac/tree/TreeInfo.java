@@ -1391,4 +1391,10 @@ public class TreeInfo {
 
     public record PatternPrimaryType(Type type, boolean unconditional) {}
 
+    public static boolean expectedExhaustive(JCSwitch tree) {
+        return tree.patternSwitch ||
+               tree.cases.stream()
+                         .flatMap(c -> c.labels.stream())
+                         .anyMatch(l -> TreeInfo.isNull(l));
+    }
 }

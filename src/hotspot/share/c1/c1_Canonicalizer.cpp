@@ -640,7 +640,7 @@ void Canonicalizer::do_Convert        (Convert*         x) {
 }
 
 void Canonicalizer::do_NullCheck      (NullCheck*       x) {
-  if (x->obj()->as_NewArray() != NULL || x->obj()->as_NewInstance() != NULL) {
+  if (x->obj()->as_NewArray() != NULL || x->obj()->as_NewInstance() != NULL || x->obj()->as_NewInlineTypeInstance()) {
     set_canonical(x->obj());
   } else {
     Constant* con = x->obj()->as_Constant();
@@ -692,7 +692,7 @@ void Canonicalizer::do_InstanceOf     (InstanceOf*      x) {
   if (x->klass()->is_loaded()) {
     Value obj = x->obj();
     ciType* exact = obj->exact_type();
-    if (exact != NULL && exact->is_loaded() && (obj->as_NewInstance() || obj->as_NewArray())) {
+    if (exact != NULL && exact->is_loaded() && (obj->as_NewInstance() || obj->as_NewArray() || obj->as_NewInlineTypeInstance())) {
       set_constant(exact->is_subtype_of(x->klass()) ? 1 : 0);
       return;
     }
@@ -815,7 +815,7 @@ void Canonicalizer::do_If(If* x) {
       }
     }
   } else if (rt == objectNull &&
-           (l->as_NewInstance() || l->as_NewArray() ||
+           (l->as_NewInstance() || l->as_NewArray() || l->as_NewInlineTypeInstance() ||
              (l->as_Local() && l->as_Local()->is_receiver()))) {
     if (x->cond() == Instruction::eql) {
       BlockBegin* sux = x->fsux();
