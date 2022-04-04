@@ -794,7 +794,7 @@ public class Check {
                         if (m.getParameters().size() > 0) {
                             log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, c, st));
                         } else {
-                            if ((m.flags() & (GENERATEDCONSTR | EMPTYNOARGCONSTR)) == 0) {
+                            if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
                                 log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, c, st));
                             }
                         }

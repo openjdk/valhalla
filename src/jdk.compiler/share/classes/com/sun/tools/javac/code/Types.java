@@ -2380,12 +2380,8 @@ public class Types {
                                 return true;
                             } else if (s.isConstructor()) {
                                 MethodSymbol m = (MethodSymbol)s;
-                                if (m.getParameters().size() > 0) {
+                                if (m.getParameters().size() > 0 || (m.flags() & EMPTYNOARGCONSTR) == 0) {
                                     return true;
-                                } else {
-                                    if ((m.flags() & (GENERATEDCONSTR | EMPTYNOARGCONSTR)) == 0) {
-                                        return true;
-                                    }
                                 }
                             }
                             break;
