@@ -333,17 +333,7 @@ public class Attr extends JCTree.Visitor {
             if (v.isResourceVariable()) { //TWR resource
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
-                boolean complain = true;
-                /* Allow updates to instance fields of primitive classes by any method in the same nest via the
-                   withfield operator -This does not result in mutation of final fields; the code generator
-                   would implement `copy on write' semantics via the opcode `withfield'.
-                */
-                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && v.owner.type.isValueClass()) {
-                    if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
-                        complain = false;
-                }
-                if (complain)
-                    log.error(pos, Errors.CantAssignValToFinalVar(v));
+                log.error(pos, Errors.CantAssignValToFinalVar(v));
             }
         }
     }
@@ -1521,39 +1511,6 @@ public class Attr extends JCTree.Visitor {
     private boolean breaksOutOf(JCTree loop, JCTree body) {
         preFlow(body);
         return flow.breaksOutOf(env, loop, body, make);
-    }
-
-    public void visitWithField(JCWithField tree) {
-        boolean inWithField = env.info.inWithField;
-        try {
-            env.info.inWithField = true;
-            Type fieldtype = attribTree(tree.field, env.dup(tree), varAssignmentInfo);
-            attribExpr(tree.value, env, fieldtype);
-            Type capturedType = syms.errType;
-            if (tree.field.type != null && !tree.field.type.isErroneous()) {
-                final Symbol sym = TreeInfo.symbol(tree.field);
-                if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
-                        (sym.flags() & STATIC) != 0 || !sym.owner.type.isValueClass()) {
-                    log.error(tree.field.pos(), Errors.ValueClassInstanceFieldExpectedHere);
-                } else {
-                    Type ownType = sym.owner.type;
-                    switch(tree.field.getTag()) {
-                        case IDENT:
-                            JCIdent ident = (JCIdent) tree.field;
-                            ownType = ident.sym.owner.type;
-                            break;
-                        case SELECT:
-                            JCFieldAccess fieldAccess = (JCFieldAccess) tree.field;
-                            ownType = fieldAccess.selected.type;
-                            break;
-                    }
-                    capturedType = capture(ownType);
-                }
-            }
-            result = check(tree, capturedType, KindSelector.VAL, resultInfo);
-        } finally {
-            env.info.inWithField = inWithField;
-        }
     }
 
     public void visitForLoop(JCForLoop tree) {

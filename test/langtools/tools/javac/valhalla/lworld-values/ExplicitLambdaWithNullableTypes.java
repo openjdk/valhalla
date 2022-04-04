@@ -25,7 +25,7 @@
  * @test
  * @bug 8229537
  * @summary [lworld] Poor interaction between explicit lambda parameters and nullable projection types.
- * @compile -XDallowWithFieldOperator ExplicitLambdaWithNullableTypes.java
+ * @compile ExplicitLambdaWithNullableTypes.java
  * @run main/othervm ExplicitLambdaWithNullableTypes
  */
 
@@ -37,18 +37,20 @@ import java.util.NoSuchElementException;
 primitive class OptionalInt {
     // private static final OptionalInt EMPTY = OptionalInt.default;
 
-    private boolean isPresent = false;
-    private int v = 0;
+    private boolean isPresent;
+    private int v;
 
     public static OptionalInt empty() {
         return OptionalInt.default;
     }
 
+    public OptionalInt(int val) {
+        this.v = val;
+        this.isPresent = true;
+    }
+
     public static OptionalInt of(int val) {
-        OptionalInt self = OptionalInt.default;
-        self = __WithField(self.v, val);
-        self = __WithField(self.isPresent, true);
-        return self;
+        return new OptionalInt(val);
     }
 
     public int getAsInt() {

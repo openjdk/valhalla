@@ -24,18 +24,22 @@
 /**
  * @test
  * @summary Test withfield behavior at runtime.
- * @compile -XDallowWithFieldOperator WithFieldRuntimeTest.java
+ * @compile WithFieldRuntimeTest.java
  * @run main/othervm WithFieldRuntimeTest
  */
 
 public final primitive class WithFieldRuntimeTest {
 
-    final int x = 10;
+    final int x;
+
+    WithFieldRuntimeTest(int x) {
+        this.x = x;
+    }
 
     static void foo(WithFieldRuntimeTest x) {
         if (x.x != 0)
             throw new AssertionError("Expected default value, found something else.");
-        x = __WithField(x.x, 20);
+        x = new WithFieldRuntimeTest(20);
         if (x.x != 20)
             throw new AssertionError("Expected updated value, found something else.");
     }

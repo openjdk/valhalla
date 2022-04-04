@@ -188,7 +188,6 @@ public class JavacParser implements Parser {
         this.keepLineMap = keepLineMap;
         this.errorTree = F.Erroneous();
         endPosTable = newEndPosTable(keepEndPositions);
-        this.allowWithFieldOperator = fac.options.isSet("allowWithFieldOperator");
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
@@ -211,10 +210,6 @@ public class JavacParser implements Parser {
     /** Switch: should we fold strings?
      */
     boolean allowStringFolding;
-
-    /** Switch: should we allow withField operator at source level ?
-    */
-    boolean allowWithFieldOperator;
 
     /** Switch: should we keep docComments?
      */
@@ -1208,21 +1203,6 @@ public class JavacParser implements Parser {
                 }
             } else return illegal();
             break;
-        case WITHFIELD:
-            if (!allowWithFieldOperator) {
-                log.error(pos, Errors.WithFieldOperatorDisallowed);
-            }
-            if (typeArgs == null && (mode & EXPR) != 0) {
-                nextToken();
-                accept(LPAREN);
-                mode = EXPR;
-                t = term();
-                accept(COMMA);
-                mode = EXPR;
-                JCExpression v = term();
-                accept(RPAREN);
-                return F.at(pos).WithField(t, v);
-            } else return illegal();
         case LPAREN:
             if (typeArgs == null && (mode & EXPR) != 0) {
                 ParensResult pres = analyzeParens();

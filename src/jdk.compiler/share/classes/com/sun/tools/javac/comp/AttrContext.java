@@ -88,11 +88,6 @@ public class AttrContext {
      */
     boolean isNewClass = false;
 
-    /**
-     *  Is this an attribution environment for a withfield operation ?
-     */
-    boolean inWithField = false;
-
     /** Indicate if the type being visited is a service implementation
      */
     boolean visitingServiceImplementation = false;
@@ -152,7 +147,6 @@ public class AttrContext {
         info.attributionMode = attributionMode;
         info.isAnonymousDiamond = isAnonymousDiamond;
         info.isNewClass = isNewClass;
-        info.inWithField = inWithField;
         info.preferredTreeForDiagnostics = preferredTreeForDiagnostics;
         info.visitingServiceImplementation = visitingServiceImplementation;
         return info;
