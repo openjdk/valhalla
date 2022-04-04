@@ -27,7 +27,7 @@
  * @test
  * @bug 8222555 8222553
  * @summary Prove that code suspected of not compiling actually compiles fine.
- * @compile -XDallowWithFieldOperator CompilesJustFine.java
+ * @compile CompilesJustFine.java
  */
 
 class CompilesFine {
@@ -62,15 +62,12 @@ primitive final class PointBug2 {
     final int x;
     final int y;
 
-    PointBug2() {
-        x = 0;
-        y = 0;
+    PointBug2(int x, int y) {
+        this.x = x;
+        this.y = y;
     }
 
     public static PointBug2 createPoint(int x, int y) {
-        PointBug2 p = PointBug2.default;
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
+        return new PointBug2(x, y);
     }
 }

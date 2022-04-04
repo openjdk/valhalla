@@ -2479,7 +2479,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             return accessCode;
         }
 
-        /** Access codes for dereferencing, assignment, withfield
+        /** Access codes for dereferencing, assignment,
          *  and pre/post increment/decrement.
 
          *  All access codes for accesses to the current class are even.
@@ -2499,8 +2499,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             PREDEC(6, Tag.PREDEC),
             POSTINC(8, Tag.POSTINC),
             POSTDEC(10, Tag.POSTDEC),
-            WITHFIELD(12, Tag.WITHFIELD),
-            FIRSTASGOP(14, Tag.NO_TAG);
+            FIRSTASGOP(12, Tag.NO_TAG);
 
             public final int code;
             public final Tag tag;
@@ -2533,8 +2532,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                         return AccessCode.POSTINC.code;
                     case POSTDEC:
                         return AccessCode.POSTDEC.code;
-                    case WITHFIELD:
-                        return AccessCode.WITHFIELD.code;
                 }
                 if (iadd <= opcode && opcode <= lxor) {
                     return (opcode - iadd) * 2 + FIRSTASGOP.code;
