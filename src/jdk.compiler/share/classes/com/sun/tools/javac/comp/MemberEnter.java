@@ -231,9 +231,17 @@ public class MemberEnter extends JCTree.Visitor {
         }
 
         if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
-            if (tree.body.stats.size() == 0 || (m.flags() & GENERATEDCONSTR) != 0) {
-                // generated constructors do have a super() call, but these are ignored for value classes.
+            int statsSize = tree.body.stats.size();
+            if (statsSize == 0) {
                 m.flags_field |= EMPTYNOARGCONSTR;
+            } else if (statsSize == 1 && TreeInfo.isSuperCall(tree.body.stats.head)) {
+                JCExpressionStatement exec = (JCExpressionStatement) tree.body.stats.head;
+                JCMethodInvocation meth = (JCMethodInvocation)exec.expr;
+                if (meth.args.size() == 0) {
+                    // Deem a constructor "empty" even if it contains a 'super' call,
+                    // as long as it has no argument expressions (to respect common coding style).
+                    m.flags_field |= EMPTYNOARGCONSTR;
+                }
             }
         }
     }

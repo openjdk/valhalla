@@ -82,12 +82,18 @@ public class PermitsValueTest {
     }
 
     static abstract class A10 {
-        // Not ACC_PERMITS_VALUE as it defines a non empty constructor.
+        // ACC_PERMITS_VALUE as its constructor is deemed empty due to mere vacuous chaining.
         A10() {
             super();
         }
     }
-
+    static abstract class A10_Alt {
+        // Not ACC_PERMITS_VALUE as it defines a non empty constructor.
+        A10_Alt() {
+            super();
+            System.out.println("");
+        }
+    }
     static abstract class A11 { // Permits value.
         static int f; // static field is OK.
         static {
@@ -155,6 +161,9 @@ public class PermitsValueTest {
             throw new Exception("ACC_PERMITS_VALUE flag should not be set!");
 
         cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A10.class"));
+        if (!cls.access_flags.is(AccessFlags.ACC_PERMITS_VALUE))
+            throw new Exception("ACC_PERMITS_VALUE flag should be set!");
+        cls = ClassFile.read(PermitsValueTest.class.getResourceAsStream("PermitsValueTest$A10_Alt.class"));
         if (cls.access_flags.is(AccessFlags.ACC_PERMITS_VALUE))
             throw new Exception("ACC_PERMITS_VALUE flag should not be set!");
 
