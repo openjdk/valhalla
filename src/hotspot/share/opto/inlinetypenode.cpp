@@ -1039,7 +1039,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       if (res == NULL || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
       }
-      assert(!is_default(igvn) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
+      assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
       // Search for a dominating allocation of the same inline type
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
