@@ -1892,7 +1892,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
         arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
       }
       InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
-      vt->pass_fields(this, call, idx, !t->maybe_null());
+      vt->pass_fields(this, call, idx, true, !t->maybe_null());
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
@@ -1969,7 +1969,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }

@@ -675,20 +675,14 @@ void Method::compute_from_signature(Symbol* sig) {
 // InlineKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
-InlineKlass* Method::returned_inline_type(Thread* thread) const {
+InlineKlass* Method::returns_inline_type(Thread* thread) const {
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  NoSafepointVerifier nsv;
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
     ss.next();
   }
-  Handle class_loader(thread, method_holder()->class_loader());
-  Handle protection_domain(thread, method_holder()->protection_domain());
-  Klass* k = NULL;
-  {
-    NoSafepointVerifier nsv;
-    k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, JavaThread::cast(thread));
-  }
-  assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
-  return InlineKlass::cast(k);
+  return ss.as_inline_klass(method_holder());
 }
 
 bool Method::is_vanilla_constructor() const {

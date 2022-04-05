@@ -408,11 +408,11 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   }
 
   jobject value_buffer = NULL;
-  if (InlineTypeReturnedAsFields && result->get_type() == T_PRIMITIVE_OBJECT) {
+  if (InlineTypeReturnedAsFields && (result->get_type() == T_PRIMITIVE_OBJECT || result->get_type() == T_OBJECT)) {
     // Pre allocate a buffered inline type in case the result is returned
     // flattened by compiled code
-    InlineKlass* vk = method->returned_inline_type(thread);
-    if (vk->can_be_returned_as_fields()) {
+    InlineKlass* vk = method->returns_inline_type(thread);
+    if (vk != NULL && vk->can_be_returned_as_fields()) {
       oop instance = vk->allocate_instance(CHECK);
       value_buffer = JNIHandles::make_local(thread, instance);
       result->set_jobject(value_buffer);

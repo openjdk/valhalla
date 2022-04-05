@@ -5501,6 +5501,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
 }
 
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   // An inline type might be returned. If fields are in registers we
   // need to allocate an inline type instance and initialize it with
   // the value of the fields.
@@ -5751,24 +5752,16 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (done) {
       jmp(L_notNull);
       bind(L_null);
-      // Set all fields to zero
-      // TODO can we change this to only set the pivot field? Seems like uses are floating above the check.
+      // Set isInit field to 0 to signal that the argument is null
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {
-        assert(toReg->is_valid(), "destination must be valid");
-        assert(reg_state[(int)toReg->value()] == reg_written, "unexpected state");
-        if (!toReg->is_XMMRegister()) {
+        if (sig->at(stream.sig_index())._offset == -1) {
           if (toReg->is_stack()) {
             int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
             movq(Address(rsp, st_off), 0);
           } else {
             xorq(toReg->as_Register(), toReg->as_Register());
           }
-        } else if (bt == T_DOUBLE) {
-          xorpd(toReg->as_XMMRegister(), toReg->as_XMMRegister());
-        } else {
-          assert(bt == T_FLOAT, "must be float");
-          xorps(toReg->as_XMMRegister(), toReg->as_XMMRegister());
         }
       }
       bind(L_notNull);

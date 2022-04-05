@@ -198,7 +198,16 @@ RegMask* Matcher::return_values_mask(const TypeTuple* range) {
     sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();
   }
 
+  // TODO use  const RegMask *mask = C->matcher()->idealreg2spillmask[Op_RegI];
   int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
+  if (regs < 0) {
+    mask[cnt-1].Clear();
+    OptoReg::Name init_in = OptoReg::add(C->compute_old_SP(), C->out_preserve_stack_slots());
+    mask[cnt-1].Insert(init_in);
+
+    regs = 1;
+    cnt--;
+  }
   assert(regs > 0, "should have been tested during graph construction");
   for (uint i = 0; i < cnt; i++) {
     mask[i].Clear();

@@ -344,12 +344,12 @@ class StubGenerator: public StubCodeGenerator {
     // store result depending on type (everything that is not
     // T_OBJECT, T_PRIMITIVE_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     __ movptr(r13, result);
-    Label is_long, is_float, is_double, is_value, exit;
+    Label is_long, is_float, is_double, check_prim, exit;
     __ movl(rbx, result_type);
     __ cmpl(rbx, T_OBJECT);
-    __ jcc(Assembler::equal, is_long);
+    __ jcc(Assembler::equal, check_prim);
     __ cmpl(rbx, T_PRIMITIVE_OBJECT);
-    __ jcc(Assembler::equal, is_value);
+    __ jcc(Assembler::equal, check_prim);
     __ cmpl(rbx, T_LONG);
     __ jcc(Assembler::equal, is_long);
     __ cmpl(rbx, T_FLOAT);
@@ -420,9 +420,9 @@ class StubGenerator: public StubCodeGenerator {
     __ ret(0);
 
     // handle return types different from T_INT
-    __ BIND(is_value);
+    __ BIND(check_prim);
     if (InlineTypeReturnedAsFields) {
-      // Check for flattened return value
+      // Check for scalarized return value
       __ testptr(rax, 1);
       __ jcc(Assembler::zero, is_long);
       // Load pack handler address

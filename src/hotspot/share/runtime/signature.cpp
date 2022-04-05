@@ -388,11 +388,13 @@ Symbol* SignatureStream::find_symbol() {
   return name;
 }
 
+// TODO rename
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   JavaThread* THREAD = JavaThread::current();
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);
+  assert(!HAS_PENDING_EXCEPTION, "Should never throw");
   if (k != NULL && k->is_inline_klass()) {
     return InlineKlass::cast(k);
   } else {

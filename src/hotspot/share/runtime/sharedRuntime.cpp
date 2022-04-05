@@ -1181,11 +1181,9 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_inline_klass() &&
-        InlineKlass::cast(callee->method_holder())->can_be_passed_as_fields()) {
+    if (!caller_is_c1 && callee->is_scalarized_arg(0)) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
-      // TODO is this still correct? Do we need to check is_scalarized_arg?
       assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
       if (bc == Bytecodes::_invokeinterface) {
         bc = Bytecodes::_invokevirtual; // C2 optimistically replaces interface calls by virtual calls
@@ -1324,9 +1322,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
-    if (!caller_is_c1 && callee_method->has_scalarized_args() && callee_method->method_holder()->is_inline_klass() &&
-        InlineKlass::cast(callee_method->method_holder())->can_be_passed_as_fields()) {
-      // TODO is this still correct? Do we need is_scalarized_arg check?
+    if (!caller_is_c1 && callee_method->is_scalarized_arg(0)) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
@@ -3025,7 +3021,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
     if (MAX2(_args_on_stack_cc, _args_on_stack_cc_ro) <= 60) {
-      return; // Sucess
+      return; // Success
     }
   }
 
@@ -3646,19 +3642,23 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
 
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
-  allocate_receiver &= !callee->is_static() && holder->is_inline_klass();
-    // TODO
+  allocate_receiver &= !callee->is_static() && holder->is_inline_klass() && callee->is_scalarized_arg(0);
   if (allocate_receiver) {
     nb_slots++;
   }
+  int arg_num = callee->is_static() ? 0 : 1;
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    // TODO check preload attribute
-    if (ss.is_reference() && ss.as_inline_klass(holder)) {
+    BasicType bt = ss.type();
+    if ((bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) && callee->is_scalarized_arg(arg_num)) {
       nb_slots++;
+    }
+    if (bt != T_VOID) {
+      arg_num++;
     }
   }
   objArrayOop array_oop = oopFactory::new_objectArray(nb_slots, CHECK_NULL);
   objArrayHandle array(THREAD, array_oop);
+  arg_num = callee->is_static() ? 0 : 1;
   int i = 0;
   if (allocate_receiver) {
     InlineKlass* vk = InlineKlass::cast(holder);
@@ -3666,13 +3666,15 @@ oop SharedRuntime::allocate_inline_types_impl(JavaThread* current, methodHandle 
     array->obj_at_put(i++, res);
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    // TODO check preload attribute
-    if (ss.is_reference()) {
+    BasicType bt = ss.type();
+    if ((bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) && callee->is_scalarized_arg(arg_num)) {
       InlineKlass* vk = ss.as_inline_klass(holder);
-      if (vk != NULL) {
-        oop res = vk->allocate_instance(CHECK_NULL);
-        array->obj_at_put(i++, res);
-      }
+      assert(vk != NULL, "Unexpected klass");
+      oop res = vk->allocate_instance(CHECK_NULL);
+      array->obj_at_put(i++, res);
+    }
+    if (bt != T_VOID) {
+      arg_num++;
     }
   }
   return array();

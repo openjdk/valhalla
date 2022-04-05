@@ -4074,6 +4074,10 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   int unpack_fields_off = __ offset();
 
+  Label skip;
+  __ testptr(rax, rax);
+  __ jcc(Assembler::zero, skip);
+
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
@@ -4110,11 +4114,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   }
   assert(j == regs->length(), "missed a field?");
 
-  if (StressInlineTypeReturnedAsFields) {
-    __ load_klass(rax, rax, rscratch1);
-    __ orptr(rax, 1);
-  }
-
+  __ bind(skip);
   __ ret(0);
 
   __ flush();

@@ -30,6 +30,7 @@
 #include "opto/addnode.hpp"
 #include "opto/c2compiler.hpp"
 #include "opto/castnode.hpp"
+#include "opto/convertnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/locknode.hpp"
@@ -825,7 +826,7 @@ void Parse::build_exits() {
     }
     // Scalarize inline type when returning as fields or inlining non-incrementally
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        ret_type->is_inlinetypeptr() && !ret_type->maybe_null()) {
+        ret_type->is_inlinetypeptr()) {
       ret_type = TypeInlineType::make(ret_type->inline_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
@@ -930,10 +931,25 @@ void Compile::return_values(JVMState* jvms) {
       if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
       } else {
-        ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
+        // TODO
+        const TypeKlassPtr* tk = TypeKlassPtr::make(vt->bottom_type()->inline_klass());
+        intptr_t bits = tk->get_con();
+        set_nth_bit(bits, 0);
+        Node* tagged_con = kit.longcon((jlong)bits);
+
+        // rax &= (isInit & 1) - 1
+        if (!method()->signature()->returns_null_free_inline_type()) {
+          Node* conv = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
+          Node* shl =  kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
+          Node* shr =  kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
+
+          tagged_con = kit.gvn().transform(new AndLNode(tagged_con, shr));
+        }
+
+        ret->init_req(TypeFunc::Parms, tagged_con);
       }
       uint idx = TypeFunc::Parms + 1;
-      vt->pass_fields(&kit, ret, idx);
+      vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
     } else {
       if (res->is_InlineType()) {
         assert(res->as_InlineType()->is_allocated(&kit.gvn()), "must be allocated");
@@ -2384,7 +2400,7 @@ void Parse::return_current(Node* value) {
     if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flattened

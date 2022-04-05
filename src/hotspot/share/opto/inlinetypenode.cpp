@@ -557,7 +557,7 @@ InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase, bool null_free) c
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
-void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile* C) {
+void InlineTypeBaseNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free) {
   ciInlineKlass* vk = inline_klass();
   for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
     ProjNode* pn = call->fast_out(i)->as_Proj();
@@ -565,6 +565,8 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile
     Node* field = NULL;
     if (con == TypeFunc::Parms) {
       field = get_oop();
+    } else if (!null_free && con == (call->tf()->range_cc()->cnt() - 1)) {
+      field = get_is_init();
     } else if (con > TypeFunc::Parms) {
       uint field_nb = con - (TypeFunc::Parms+1);
       int extra = 0;
@@ -782,15 +784,15 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
+InlineTypeBaseNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
   if (!in) {
     // Keep track of the oop. The returned inline type might already be buffered.
     Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
     vt->set_oop(oop);
   }
-  vt->initialize_fields(kit, multi, base_input, in, null_free);
-  return kit->gvn().transform(vt)->as_InlineType();
+  Node* res = vt->initialize_fields(kit, multi, base_input, in, null_free);
+  return kit->gvn().transform(res)->as_InlineTypeBase();
 }
 
 InlineTypeNode* InlineTypeBaseNode::make_larval(GraphKit* kit, bool allocate) const {
@@ -909,15 +911,15 @@ Node* InlineTypeBaseNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool null_free) {
-  if (!null_free) {
+void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
+  if (!null_free && in) {
     n->init_req(base_input++, get_is_init());
   }
   for (uint i = 0; i < field_count(); i++) {
     Node* arg = field_value(i);
     if (field_is_flattened(i)) {
       // Flattened inline type field
-      arg->as_InlineTypeBase()->pass_fields(kit, n, base_input);
+      arg->as_InlineTypeBase()->pass_fields(kit, n, base_input, in);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field
@@ -933,33 +935,51 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
       }
     }
   }
+  // TODO hack. The last argument is used to pass isInit information to compiled code and not used here.
+  if (!null_free && !in) {
+    n->init_req(base_input++, kit->top());
+  }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free) {
+InlineTypeBaseNode* InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
-  if (!null_free) {
+  Node* is_init = NULL;
+  if (!null_free && in) {
     // Nullable inline type, set is_init field
     Node* parm = NULL;
     if (multi->is_Start()) {
-      assert(in, "return from start?");
       parm = gvn.transform(new ParmNode(multi->as_Start(), base_input));
-    } else if (in) {
-      parm = multi->as_Call()->in(base_input);
     } else {
-      parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+      parm = multi->as_Call()->in(base_input);
     }
     set_req(IsInit, parm);
+    is_init = parm;
     base_input++;
   }
+  Node* region = kit->top();
+  if (!null_free) {
+    if (is_init == NULL) {
+      is_init = new Node(1);
+      gvn.set_type_bottom(is_init);
+    }
+    Node* null_ctl = kit->top();
+    kit->null_check_common(is_init, T_INT, false, &null_ctl);
+    Node* non_null_ctrl = kit->control();
+
+    region = new RegionNode(3);
+    region->init_req(1, non_null_ctrl);
+    region->init_req(2, null_ctl);
+    kit->set_control(gvn.transform(region));
+  }
+
   for (uint i = 0; i < field_count(); ++i) {
     ciType* type = field_type(i);
-    bool null_free = field_is_null_free(i);
     Node* parm = NULL;
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass());
-      vt->initialize_fields(kit, multi, base_input, in);
-      parm = gvn.transform(vt);
+      Node* tmp = vt->initialize_fields(kit, multi, base_input, in);
+      parm = gvn.transform(tmp);
     } else {
       if (multi->is_Start()) {
         assert(in, "return from start?");
@@ -970,8 +990,16 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
       // Non-flattened inline type field
+      // TODO we can only load if we null-checked the holder as well. Current workaround is to set all fields to zero.
+      // TODO outer load could not be null free, we need tests, especially with "recursion" through flattened fields
       if (type->is_inlinetype()) {
-        parm = make_from_oop(kit, parm, type->as_inline_klass(), null_free);
+        if (!null_free) {
+          assert(!region->is_top(), "should not be top");
+          parm = PhiNode::make(region, parm, TypeInstPtr::make(TypePtr::BotPTR, type->as_inline_klass()));
+          parm->set_req(2, kit->zerocon(T_OBJECT));
+          parm = gvn.transform(parm);
+        }
+        parm = make_from_oop(kit, parm, type->as_inline_klass(), field_is_null_free(i));
       }
       BasicType bt = type->basic_type();
       base_input += type2size[bt];
@@ -981,6 +1009,17 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     set_field_value(i, parm);
     gvn.record_for_igvn(parm);
   }
+  // TODO add comment
+  if (!null_free && !in) {
+    Node* parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
+    set_req(IsInit, parm);
+    Node* cmp = is_init->raw_out(0);
+    gvn.hash_delete(cmp);
+    cmp->set_req(1, parm);
+    gvn.hash_find_insert(cmp);
+    base_input++;
+  }
+  return this;
 }
 
 // Replace a buffer allocation by a dominating allocation

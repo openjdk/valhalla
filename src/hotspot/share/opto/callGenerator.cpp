@@ -774,7 +774,7 @@ void CallGenerator::do_late_inline_helper() {
         // Inline type arguments are not passed by reference: we get an argument per
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
-        InlineTypeNode* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+        Node* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {
@@ -802,8 +802,8 @@ void CallGenerator::do_late_inline_helper() {
     Node* buffer_oop = NULL;
     ciMethod* inline_method = inline_cg()->method();
     ciType* return_type = inline_method->return_type();
-    if (is_mh_late_inline() && inline_method->signature()->returns_null_free_inline_type() &&
-        return_type->as_inline_klass()->can_be_returned_as_fields()) {
+    // TODO check tf here? and adjust DEBUG_ONLY(buffer_oop = NULL); below
+    if (is_mh_late_inline() && return_type->is_inlinetype() && return_type->as_inline_klass()->can_be_returned_as_fields()) {
       // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
       // Do this before the method handle call in case the buffer allocation triggers deoptimization and
       // we need to "re-execute" the call in the interpreter (to make sure the call is only executed once).
@@ -852,23 +852,47 @@ void CallGenerator::do_late_inline_helper() {
     InlineTypeBaseNode* vt = result->isa_InlineTypeBase();
     if (vt != NULL) {
       if (call->tf()->returns_inline_type_as_fields()) {
-        vt->replace_call_results(&kit, call, C);
+        vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
       } else if (vt->is_InlineType()) {
         // Result might still be allocated (for example, if it has been stored to a non-flattened field)
         if (!vt->is_allocated(&kit.gvn())) {
           assert(buffer_oop != NULL, "should have allocated a buffer");
+          RegionNode* region = new RegionNode(3);
+
+          // Check if result is null
+          Node* null_ctl = kit.top();
+          if (!inline_method->signature()->returns_null_free_inline_type()) {
+            kit.null_check_common(vt->get_is_init(), T_INT, false, &null_ctl);
+          }
+          region->init_req(1, null_ctl);
+          PhiNode* oop = PhiNode::make(region, kit.gvn().zerocon(T_OBJECT), TypeInstPtr::make(TypePtr::BotPTR, vt->type()->inline_klass()));
+          Node* init_mem = kit.reset_memory();
+          PhiNode* mem = PhiNode::make(region, init_mem, Type::MEMORY, TypePtr::BOTTOM);
+
+          // Not null, initialize the buffer
+          kit.set_all_memory(init_mem);
           vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
           // Do not let stores that initialize this buffer be reordered with a subsequent
           // store that would make this buffer accessible by other threads.
           AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
           assert(alloc != NULL, "must have an allocation node");
           kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+          region->init_req(2, kit.control());
+          oop->init_req(2, buffer_oop);
+          mem->init_req(2, kit.merged_memory());
+
+          // Update oop input to buffer
           kit.gvn().hash_delete(vt);
-          vt->set_oop(buffer_oop);
-          vt = kit.gvn().transform(vt)->as_InlineType();
+          vt->set_oop(kit.gvn().transform(oop));
+          vt = kit.gvn().transform(vt)->as_InlineTypeBase();
+
+          kit.set_control(kit.gvn().transform(region));
+          kit.set_all_memory(kit.gvn().transform(mem));
+          kit.record_for_igvn(region);
+          kit.record_for_igvn(oop);
+          kit.record_for_igvn(mem);
         }
-        // Convert to InlineTypePtrNode to keep track of field values
-        result = vt->as_ptr(&kit.gvn());
+        result = vt->as_ptr(&kit.gvn(), inline_method->signature()->returns_null_free_inline_type());
       }
       DEBUG_ONLY(buffer_oop = NULL);
     } else {

@@ -50,10 +50,12 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
 public class TestValueClasses {
 
     public static void main(String[] args) {
-
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
+        // Don't generate bytecodes but call through runtime for reflective calls
+        scenarios[0].addFlags("-Dsun.reflect.inflationThreshold=10000");
+        scenarios[1].addFlags("-Dsun.reflect.inflationThreshold=10000");
         scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1");
-        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck");
+        scenarios[4].addFlags("-XX:-UseTLAB", "-XX:-MonomorphicArrayCheck");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)
@@ -272,7 +274,7 @@ public class TestValueClasses {
 
     @DontInline
     public SmallNullable1 test5_compiled(boolean b1, boolean b2) {
-        return b1 ?null : new SmallNullable1(b2);
+        return b1 ? null : new SmallNullable1(b2);
     }
 
     SmallNullable1 test5_field1;
@@ -401,7 +403,6 @@ public class TestValueClasses {
     }
 
     @Run(test = "test8")
-    @Warmup(1) // Make sure we call through runtime instead of generating bytecodes for reflective call
     public void test8_verifier() throws Exception {
         Method m = getClass().getDeclaredMethod("test8", boolean.class, boolean.class);
         Asserts.assertEQ(m.invoke(this, false, true), new SmallNullable1(true));
@@ -581,7 +582,6 @@ public class TestValueClasses {
         Asserts.assertEQ(test16(3).hash(), testValue1.hash());
     }
 
-// TODO but non-flattened fields should still be scalarized!!!
-// TODO what about circularity? What about type not being loaded???
 // TODO run all tests with AbortVMOnCompilationFailure
+// TODO we need more tests with different number of return registers being used to stress test the stack slot workaround
 }

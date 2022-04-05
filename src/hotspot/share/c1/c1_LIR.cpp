@@ -1077,7 +1077,7 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
 
 bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
   if (InlineTypeReturnedAsFields &&
-      (method()->signature()->returns_null_free_inline_type() ||
+      (method()->return_type()->is_inlinetype() ||
        method()->is_method_handle_intrinsic())) {
     ciType* return_type = method()->return_type();
     if (return_type->is_inlinetype()) {

@@ -935,6 +935,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
 
     GrowableArray<Handle> return_values;
     InlineKlass* vk = NULL;
+    // TODO fix
     if (return_oop && InlineTypeReturnedAsFields && method->result_type() == T_PRIMITIVE_OBJECT) {
       // Check if inline type is returned as fields
       vk = InlineKlass::returned_inline_klass(map);
@@ -942,7 +943,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
         // We're at a safepoint at the return of a method that returns
         // multiple values. We must make sure we preserve the oop values
         // across the safepoint.
-        assert(vk == method->returned_inline_type(thread()), "bad inline klass");
+        assert(vk == method->returns_inline_type(thread()), "bad inline klass");
         vk->save_oop_fields(map, return_values);
         return_oop = false;
       }

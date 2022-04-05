@@ -2656,12 +2656,4 @@ public class TestNullableInlineTypes {
         }
         return res;
     }
-
-    @Run(test = "test96")
-    public void test96_verifier() {
-        Asserts.assertEQ(test96(0), null);
-        Asserts.assertEQ(test96(1).hash(), testValue1.hash());
-        Asserts.assertEQ(test96(2), null);
-        Asserts.assertEQ(test96(3).hash(), testValue1.hash());
-    }
 }
