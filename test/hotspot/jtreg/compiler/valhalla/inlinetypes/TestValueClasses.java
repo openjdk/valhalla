@@ -245,6 +245,8 @@ public class TestValueClasses {
     static value class SmallNullable2 {
         float f1;
         double f2;
+
+        @ForceInline
         public SmallNullable2() {
             f1 = (float)rL;
             f2 = (double)rL;
@@ -258,6 +260,7 @@ public class TestValueClasses {
         int i;
         SmallNullable2 vt;
 
+        @ForceInline
         public SmallNullable1(boolean useNull) {
             c = (char)rL;
             b = (byte)rL;
@@ -326,6 +329,8 @@ public class TestValueClasses {
         int x = 0;
         Empty1 empty1;
         Empty2 empty2 = Empty2.default;
+
+        @ForceInline
         public Container(Empty1 val) {
             empty1 = val;
         }
@@ -524,7 +529,7 @@ public class TestValueClasses {
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_G, " = 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 8"}) // 1 MyValueClass1 allocation, 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
+        counts = {ALLOC_G, " = 8"}) // 1 MyValueClass1 allocation + 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
     public MyValueClass1 test15(MyValueClass1 vt) {
         MyValueClass1 res = test15_helper1(vt);
         vt = MyValueClass1.createWithFieldsInline(rI, rL);
@@ -541,47 +546,246 @@ public class TestValueClasses {
     }
 
     @DontInline
-    public MyValueClass1 test16_helper1() {
-        return MyValueClass1.createWithFieldsInline(rI, rL);
+    public MyValueClass2 test16_helper1(boolean b) {
+        return b ? null : MyValueClass2.createWithFieldsInline(rI, rD);
     }
 
     @ForceInline
-    public MyValueClass1 test16_helper2() {
+    public MyValueClass2 test16_helper2() {
         return null;
     }
 
     @ForceInline
-    public MyValueClass1 test16_helper3() {
-        return MyValueClass1.createWithFieldsInline(rI, rL);
+    public MyValueClass2 test16_helper3(boolean b) {
+        return b ? null : MyValueClass2.createWithFieldsInline(rI, rD);
     }
 
     // Test that calling convention optimization prevents buffering of return values
     @Test
-// TODO
-//    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-//        counts = {ALLOC_G, " = 7"}) // 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
-//    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-//        counts = {ALLOC_G, " = 8"}) // 1 MyValueClass1 allocation, 6 MyValueClass2/MyValueClass2Inline allocations + 1 Integer allocation
-    public MyValueClass1 test16(int c) {
-        MyValueClass1 res = null;
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        counts = {ALLOC_G, " = 1"}) // 1 MyValueClass2Inline allocation
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+        counts = {ALLOC_G, " = 2"}) // 1 MyValueClass2 + 1 MyValueClass2Inline allocation
+    public MyValueClass2 test16(int c, boolean b) {
+        MyValueClass2 res = null;
         if (c == 1) {
-            res = test16_helper1();
+            res = test16_helper1(b);
         } else if (c == 2) {
             res = test16_helper2();
         } else if (c == 3) {
-            res = test16_helper3();
+            res = test16_helper3(b);
         }
         return res;
     }
 
     @Run(test = "test16")
     public void test16_verifier() {
-        Asserts.assertEQ(test16(0), null);
-        Asserts.assertEQ(test16(1).hash(), testValue1.hash());
-        Asserts.assertEQ(test16(2), null);
-        Asserts.assertEQ(test16(3).hash(), testValue1.hash());
+        Asserts.assertEQ(test16(0, false), null);
+        Asserts.assertEQ(test16(1, false).hash(), MyValueClass2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test16(1, true), null);
+        Asserts.assertEQ(test16(2, false), null);
+        Asserts.assertEQ(test16(3, false).hash(), MyValueClass2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test16(3, true), null);
+    }
+
+    static primitive class MyPrimitive17 {
+        MyValueClass1 nonFlattened;
+
+        public MyPrimitive17(MyValueClass1 val) {
+            this.nonFlattened = val;
+        }
+    }
+
+    static value class MyValue17 {
+        MyPrimitive17 flattened;
+
+        public MyValue17(boolean b) {
+            this.flattened = new MyPrimitive17(b ? null : testValue1);
+        }
+    }
+
+    @DontCompile
+    public MyValue17 test17_interpreted(boolean b1, boolean b2) {
+        return b1 ? null : new MyValue17(b2);
+    }
+
+    @DontInline
+    public MyValue17 test17_compiled(boolean b1, boolean b2) {
+        return b1 ? null : new MyValue17(b2);
+    }
+
+    MyValue17 test17_field1;
+    MyValue17 test17_field2;
+
+    // Test handling of null when mixing value and primitive classes
+    @Test
+    public MyValue17 test17(boolean b1, boolean b2) {
+        MyValue17 ret = test17_interpreted(b1, b2);
+        if (b1 != ((Object)ret == null)) {
+            throw new RuntimeException("test17 failed");
+        }
+        test17_field1 = ret;
+        ret = test17_compiled(b1, b2);
+        if (b1 != ((Object)ret == null)) {
+            throw new RuntimeException("test17 failed");
+        }
+        test17_field2 = ret;
+        return ret;
+    }
+
+    @Run(test = "test17")
+    public void test17_verifier() {
+        MyValue17 vt = new MyValue17(false);
+        Asserts.assertEquals(test17(true, false), null);
+        Asserts.assertEquals(test17_field1, null);
+        Asserts.assertEquals(test17_field2, null);
+        Asserts.assertEquals(test17(false, false), vt);
+        Asserts.assertEquals(test17_field1, vt);
+        Asserts.assertEquals(test17_field2, vt);
+        vt = new MyValue17(true);
+        Asserts.assertEquals(test17(true, true), null);
+        Asserts.assertEquals(test17_field1, null);
+        Asserts.assertEquals(test17_field2, null);
+        Asserts.assertEquals(test17(false, true), vt);
+        Asserts.assertEquals(test17_field1, vt);
+        Asserts.assertEquals(test17_field2, vt);
+    }
+
+    // Uses all registers available for returning values on x86_64
+    static value class UseAllRegs {
+        long l1;
+        long l2;
+        long l3;
+        long l4;
+        long l5;
+        long l6;
+        double d1;
+        double d2;
+        double d3;
+        double d4;
+        double d5;
+        double d6;
+        double d7;
+        double d8;
+
+        @ForceInline
+        public UseAllRegs(long l1, long l2, long l3, long l4, long l5, long l6,
+                          double d1, double d2, double d3, double d4, double d5, double d6, double d7, double d8) {
+            this.l1 = l1;
+            this.l2 = l2;
+            this.l3 = l3;
+            this.l4 = l4;
+            this.l5 = l5;
+            this.l6 = l6;
+            this.d1 = d1;
+            this.d2 = d2;
+            this.d3 = d3;
+            this.d4 = d4;
+            this.d5 = d5;
+            this.d6 = d6;
+            this.d7 = d7;
+            this.d8 = d8;
+        }
+    }
+
+    @DontInline
+    public UseAllRegs test18_helper1(UseAllRegs val, long a, long b, long c, long d, long e, long f, long g, long h, long i, long j) {
+        Asserts.assertEquals(a & b & c & d & e & f & g & h & i & j, 0L);
+        return val;
+    }
+
+    @DontCompile
+    public UseAllRegs test18_helper2(UseAllRegs val, long a, long b, long c, long d, long e, long f, long g, long h, long i, long j) {
+        Asserts.assertEquals(a & b & c & d & e & f & g & h & i & j, 0L);
+        return val;
+    }
+
+    static boolean test18_b;
+
+    // Methods with no arguments (no stack slots reserved for incoming args)
+    @DontInline
+    public static UseAllRegs test18_helper3() {
+        return test18_b ? null : new UseAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12, rL + 13, rL + 14);
+    }
+
+    @DontCompile
+    public static UseAllRegs test18_helper4() {
+        return test18_b ? null : test18_helper3();
+    }
+
+    // Test proper register allocation of isInit projection of call in C2
+    @Test
+    public UseAllRegs test18(boolean b, long val1, long l1, long val2, long l2, long val3, long l3, long val4, long l4, long val5, long l5, long val6, long l6,
+                             long val7, double d1, long val8, double d2, long val9, double d3, long val10, double d4, long val11, double d5, long val12, double d6, long val13, double d7, long val14, double d8, long val15) {
+        Asserts.assertEquals(val1, rL);
+        Asserts.assertEquals(val2, rL);
+        Asserts.assertEquals(val3, rL);
+        Asserts.assertEquals(val4, rL);
+        Asserts.assertEquals(val5, rL);
+        Asserts.assertEquals(val6, rL);
+        Asserts.assertEquals(val7, rL);
+        Asserts.assertEquals(val8, rL);
+        Asserts.assertEquals(val9, rL);
+        Asserts.assertEquals(val10, rL);
+        Asserts.assertEquals(val11, rL);
+        Asserts.assertEquals(val12, rL);
+        Asserts.assertEquals(val13, rL);
+        Asserts.assertEquals(val14, rL);
+        Asserts.assertEquals(val15, rL);
+        UseAllRegs val = b ? null : new UseAllRegs(l1, l2, l3, l4, l5, l6, d1, d2, d3, d4, d5, d6, d7, d8);
+        val = test18_helper1(val, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        val = test18_helper2(val, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        Asserts.assertEquals(val1, rL);
+        Asserts.assertEquals(val2, rL);
+        Asserts.assertEquals(val3, rL);
+        Asserts.assertEquals(val4, rL);
+        Asserts.assertEquals(val5, rL);
+        Asserts.assertEquals(val6, rL);
+        Asserts.assertEquals(val7, rL);
+        Asserts.assertEquals(val8, rL);
+        Asserts.assertEquals(val9, rL);
+        Asserts.assertEquals(val10, rL);
+        Asserts.assertEquals(val11, rL);
+        Asserts.assertEquals(val12, rL);
+        Asserts.assertEquals(val13, rL);
+        Asserts.assertEquals(val14, rL);
+        Asserts.assertEquals(val15, rL);
+        Asserts.assertEquals(test18_helper3(), val);
+        Asserts.assertEquals(test18_helper4(), val);
+        return val;
+    }
+
+    @Run(test = "test18")
+    public void test18_verifier() {
+        UseAllRegs val = new UseAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12, rL + 13, rL + 14);
+        test18_b = false;
+        Asserts.assertEquals(test18(false, rL, rL + 1, rL, rL + 2, rL, rL + 3, rL, rL + 4, rL, rL + 5, rL, rL + 6,
+                                    rL, rL + 7, rL, rL + 8, rL, rL + 9, rL, rL + 10, rL, rL + 11, rL, rL + 12, rL, rL + 13, rL, rL + 14, rL), val);
+        test18_b = true;
+        Asserts.assertEquals(test18(true, rL, rL + 1, rL, rL + 2, rL, rL + 3, rL, rL + 4, rL, rL + 5, rL, rL + 6,
+                                    rL, rL + 7, rL, rL + 8, rL, rL + 9, rL, rL + 10, rL, rL + 11, rL, rL + 12, rL, rL + 13, rL, rL + 14, rL), null);
+    }
+
+    @DontInline
+    static public UseAllRegs test19_helper() {
+        return new UseAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12, rL + 13, rL + 14);
+    }
+
+    // Test proper register allocation of isInit projection of call in C2
+    @Test
+    static public void test19(long a, long b, long c, long d, long e, long f) {
+        if (test19_helper() == null) {
+            throw new RuntimeException("test19 failed: Unexpected null");
+        }
+        if ((a & b & c & d & e & f) != 0) {
+            throw new RuntimeException("test19 failed: Unexpected argument values");
+        }
+    }
+
+    @Run(test = "test19")
+    public void test19_verifier() {
+        test19(0, 0, 0, 0, 0, 0);
     }
 
 // TODO run all tests with AbortVMOnCompilationFailure
-// TODO we need more tests with different number of return registers being used to stress test the stack slot workaround
 }

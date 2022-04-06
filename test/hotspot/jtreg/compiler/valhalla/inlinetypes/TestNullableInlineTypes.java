@@ -59,7 +59,9 @@ public class TestNullableInlineTypes {
                    .addScenarios(scenarios)
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
-                                     MyValue2Inline.class)
+                                     MyValue2Inline.class,
+                                     MyValue3.class,
+                                     MyValue3Inline.class)
                    .start();
     }
 
@@ -2570,7 +2572,7 @@ public class TestNullableInlineTypes {
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation, 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
     public MyValue1.ref test94(MyValue1.ref vt) {
         MyValue1.ref res = test94_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2606,7 +2608,7 @@ public class TestNullableInlineTypes {
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation, 1 MyValue2 allocation + 1 Integer allocation
+        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
     public static MyValue1.ref test95(MyValue1.ref vt) {
         MyValue1.ref res = test95_helper1(vt);
         vt = MyValue1.createWithFieldsInline(rI, rL);
@@ -2622,46 +2624,98 @@ public class TestNullableInlineTypes {
         Asserts.assertEQ(test95(null), null);
     }
 
-
     @DontInline
-    public MyValue1.ref test96_helper1() {
-        return MyValue1.createWithFieldsInline(rI, rL);
+    public MyValue2.ref test96_helper1(boolean b) {
+        return b ? null : MyValue2.createWithFieldsInline(rI, rD);
     }
 
     @ForceInline
-    public MyValue1.ref test96_helper2() {
+    public MyValue2.ref test96_helper2() {
         return null;
     }
 
     @ForceInline
-    public MyValue1.ref test96_helper3() {
-        return MyValue1.createWithFieldsInline(rI, rL);
+    public MyValue2.ref test96_helper3(boolean b) {
+        return b ? null : MyValue2.createWithFieldsInline(rI, rD);
     }
 
     // Test that calling convention optimization prevents buffering of return values
     @Test
-// TODO
-//    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
-//        counts = {ALLOC_G, " = 7"}) // 6 MyValue2/MyValue2Inline allocations + 1 Integer allocation
-//    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
-//        counts = {ALLOC_G, " = 8"}) // 1 MyValue1 allocation, 6 MyValue2/MyValue2Inline allocations + 1 Integer allocation
-    public MyValue1.ref test96(int c) {
-        MyValue1.ref res = null;
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_G})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+        counts = {ALLOC_G, " = 1"})
+    public MyValue2.ref test96(int c, boolean b) {
+        MyValue2.ref res = null;
         if (c == 1) {
-            res = test96_helper1();
+            res = test96_helper1(b);
         } else if (c == 2) {
             res = test96_helper2();
         } else if (c == 3) {
-            res = test96_helper3();
+            res = test96_helper3(b);
         }
         return res;
     }
 
     @Run(test = "test96")
     public void test96_verifier() {
-        Asserts.assertEQ(test96(0), null);
-        Asserts.assertEQ(test96(1).hash(), testValue1.hash());
-        Asserts.assertEQ(test96(2), null);
-        Asserts.assertEQ(test96(3).hash(), testValue1.hash());
+        Asserts.assertEQ(test96(0, false), null);
+        Asserts.assertEQ(test96(1, false).hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test96(1, true), null);
+        Asserts.assertEQ(test96(2, false), null);
+        Asserts.assertEQ(test96(3, false).hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test96(3, true), null);
+    }
+
+    @DontInline
+    public MyValue3.ref test97_helper1(boolean b) {
+        return b ? null: MyValue3.create();
+    }
+
+    @ForceInline
+    public MyValue3.ref test97_helper2() {
+        return null;
+    }
+
+    @ForceInline
+    public MyValue3.ref test97_helper3(boolean b) {
+        return b ? null: MyValue3.create();
+    }
+
+    MyValue3 test97_res1;
+    MyValue3 test97_res3;
+
+    // Same as test96 but with MyValue3 return
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_G})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+        counts = {ALLOC_G, " = 1"})
+    public MyValue3.ref test97(int c, boolean b) {
+        MyValue3.ref res = null;
+        if (c == 1) {
+            res = test97_helper1(b);
+            if (res != null) {
+                test97_res1 = res;
+            }
+        } else if (c == 2) {
+            res = test97_helper2();
+        } else if (c == 3) {
+            res = test97_helper3(b);
+            if (res != null) {
+                test97_res3 = res;
+            }
+        }
+        return res;
+    }
+
+    @Run(test = "test97")
+    public void test97_verifier() {
+        Asserts.assertEQ(test97(0, false), null);
+        Asserts.assertEQ(test97(1, false), test97_res1);
+        Asserts.assertEQ(test97(1, true), null);
+        Asserts.assertEQ(test97(2, false), null);
+        Asserts.assertEQ(test97(3, false), test97_res3);
+        Asserts.assertEQ(test97(3, true), null);
     }
 }

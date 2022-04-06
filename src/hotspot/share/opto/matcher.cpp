@@ -185,7 +185,8 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
 
 // Array of RegMask, one per returned values (inline type instances can
 // be returned as multiple return values, one per field)
-RegMask* Matcher::return_values_mask(const TypeTuple* range) {
+RegMask* Matcher::return_values_mask(const TypeFunc* tf) {
+  const TypeTuple* range = tf->range_cc();
   uint cnt = range->cnt() - TypeFunc::Parms;
   if (cnt == 0) {
     return NULL;
@@ -193,22 +194,17 @@ RegMask* Matcher::return_values_mask(const TypeTuple* range) {
   RegMask* mask = NEW_RESOURCE_ARRAY(RegMask, cnt);
   BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, cnt);
   VMRegPair* vm_parm_regs = NEW_RESOURCE_ARRAY(VMRegPair, cnt);
-
   for (uint i = 0; i < cnt; i++) {
     sig_bt[i] = range->field_at(i+TypeFunc::Parms)->basic_type();
   }
 
-  // TODO use  const RegMask *mask = C->matcher()->idealreg2spillmask[Op_RegI];
   int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
-  if (regs < 0) {
-    mask[cnt-1].Clear();
-    OptoReg::Name init_in = OptoReg::add(C->compute_old_SP(), C->out_preserve_stack_slots());
-    mask[cnt-1].Insert(init_in);
-
-    regs = 1;
-    cnt--;
+  if (regs <= 0) {
+    // We ran out of registers to store the isInit information for a nullable inline type return.
+    // Since it is only set in the 'call_epilog', we can simply put it on the stack.
+    assert(tf->returns_inline_type_as_fields(), "should have been tested during graph construction");
+    mask[--cnt] = STACK_ONLY_mask;
   }
-  assert(regs > 0, "should have been tested during graph construction");
   for (uint i = 0; i < cnt; i++) {
     mask[i].Clear();
 
@@ -241,8 +237,7 @@ void Matcher::match( ) {
 
   // Map Java-signature return types into return register-value
   // machine registers.
-  const TypeTuple *range = C->tf()->range_cc();
-  _return_values_mask = return_values_mask(range);
+  _return_values_mask = return_values_mask(C->tf());
 
   // ---------------
   // Frame Layout
@@ -1157,7 +1152,7 @@ Node *Matcher::xform( Node *n, int max_stack ) {
               // Convert to machine-dependent projection
               RegMask* mask = NULL;
               if (n->in(0)->is_Call() && n->in(0)->as_Call()->tf()->returns_inline_type_as_fields()) {
-                mask = return_values_mask(n->in(0)->as_Call()->tf()->range_cc());
+                mask = return_values_mask(n->in(0)->as_Call()->tf());
               }
               m = n->in(0)->as_Multi()->match(n->as_Proj(), this, mask);
               NOT_PRODUCT(record_new2old(m, n);)

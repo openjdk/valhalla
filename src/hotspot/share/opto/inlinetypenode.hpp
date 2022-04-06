@@ -152,7 +152,7 @@ public:
   static InlineTypeBaseNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  InlineTypeBaseNode* initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true, Node* null_check_region = NULL);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase);

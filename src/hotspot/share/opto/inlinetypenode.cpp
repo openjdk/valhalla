@@ -791,8 +791,8 @@ InlineTypeBaseNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* mu
     Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
     vt->set_oop(oop);
   }
-  Node* res = vt->initialize_fields(kit, multi, base_input, in, null_free);
-  return kit->gvn().transform(res)->as_InlineTypeBase();
+  vt->initialize_fields(kit, multi, base_input, in, null_free);
+  return kit->gvn().transform(vt)->as_InlineTypeBase();
 }
 
 InlineTypeNode* InlineTypeBaseNode::make_larval(GraphKit* kit, bool allocate) const {
@@ -928,9 +928,8 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
         arg = vt->buffer(kit);
       }
       // Initialize call/return arguments
-      BasicType bt = field_type(i)->basic_type();
       n->init_req(base_input++, arg);
-      if (type2size[bt] == 2) {
+      if (field_type(i)->size() == 2) {
         n->init_req(base_input++, kit->top());
       }
     }
@@ -941,35 +940,36 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
   }
 }
 
-InlineTypeBaseNode* InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region) {
   PhaseGVN& gvn = kit->gvn();
   Node* is_init = NULL;
-  if (!null_free && in) {
-    // Nullable inline type, set is_init field
-    Node* parm = NULL;
-    if (multi->is_Start()) {
-      parm = gvn.transform(new ParmNode(multi->as_Start(), base_input));
-    } else {
-      parm = multi->as_Call()->in(base_input);
-    }
-    set_req(IsInit, parm);
-    is_init = parm;
-    base_input++;
-  }
-  Node* region = kit->top();
   if (!null_free) {
+    // Nullable inline type
+    if (in) {
+      // Set isInit field
+      if (multi->is_Start()) {
+        is_init = gvn.transform(new ParmNode(multi->as_Start(), base_input));
+      } else {
+        is_init = multi->as_Call()->in(base_input);
+      }
+      set_req(IsInit, is_init);
+      base_input++;
+    }
+    // Add a null check to make subsequent loads dependent on
+    assert(null_check_region == NULL, "already set");
     if (is_init == NULL) {
+      // Will only be initialized below, use dummy node for now
       is_init = new Node(1);
       gvn.set_type_bottom(is_init);
     }
-    Node* null_ctl = kit->top();
-    kit->null_check_common(is_init, T_INT, false, &null_ctl);
+    Node* null_ctrl = kit->top();
+    kit->null_check_common(is_init, T_INT, false, &null_ctrl);
     Node* non_null_ctrl = kit->control();
-
-    region = new RegionNode(3);
-    region->init_req(1, non_null_ctrl);
-    region->init_req(2, null_ctl);
-    kit->set_control(gvn.transform(region));
+    null_check_region = new RegionNode(3);
+    null_check_region->init_req(1, non_null_ctrl);
+    null_check_region->init_req(2, null_ctrl);
+    null_check_region = gvn.transform(null_check_region);
+    kit->set_control(null_check_region);
   }
 
   for (uint i = 0; i < field_count(); ++i) {
@@ -978,8 +978,8 @@ InlineTypeBaseNode* InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* 
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass());
-      Node* tmp = vt->initialize_fields(kit, multi, base_input, in);
-      parm = gvn.transform(tmp);
+      vt->initialize_fields(kit, multi, base_input, in, true, null_check_region);
+      parm = gvn.transform(vt);
     } else {
       if (multi->is_Start()) {
         assert(in, "return from start?");
@@ -990,36 +990,32 @@ InlineTypeBaseNode* InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* 
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
       // Non-flattened inline type field
-      // TODO we can only load if we null-checked the holder as well. Current workaround is to set all fields to zero.
-      // TODO outer load could not be null free, we need tests, especially with "recursion" through flattened fields
       if (type->is_inlinetype()) {
-        if (!null_free) {
-          assert(!region->is_top(), "should not be top");
-          parm = PhiNode::make(region, parm, TypeInstPtr::make(TypePtr::BotPTR, type->as_inline_klass()));
+        if (null_check_region != NULL) {
+          // Holder is nullable, set field to NULL if holder is NULL to avoid loading from uninitialized memory
+          parm = PhiNode::make(null_check_region, parm, TypeInstPtr::make(TypePtr::BotPTR, type->as_inline_klass()));
           parm->set_req(2, kit->zerocon(T_OBJECT));
           parm = gvn.transform(parm);
         }
         parm = make_from_oop(kit, parm, type->as_inline_klass(), field_is_null_free(i));
       }
-      BasicType bt = type->basic_type();
-      base_input += type2size[bt];
+      base_input += type->size();
     }
     assert(parm != NULL, "should never be null");
     assert(field_value(i) == NULL, "already set");
     set_field_value(i, parm);
     gvn.record_for_igvn(parm);
   }
-  // TODO add comment
+  // The last argument is used to pass isInit information to compiled code
   if (!null_free && !in) {
-    Node* parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
-    set_req(IsInit, parm);
     Node* cmp = is_init->raw_out(0);
+    is_init= gvn.transform(new ProjNode(multi->as_Call(), base_input));
+    set_req(IsInit, is_init);
     gvn.hash_delete(cmp);
-    cmp->set_req(1, parm);
+    cmp->set_req(1, is_init);
     gvn.hash_find_insert(cmp);
     base_input++;
   }
-  return this;
 }
 
 // Replace a buffer allocation by a dominating allocation
