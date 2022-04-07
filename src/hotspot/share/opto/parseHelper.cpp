@@ -363,7 +363,7 @@ void Parse::do_withfield() {
     val = val->as_InlineType()->buffer(this);
   }
   if (val->is_InlineTypePtr() && field->is_null_free()) {
-    // TODO hack, remove this!!
+    // TODO 8284443 Remove this
     Node* newVal = InlineTypeNode::make_uninitialized(gvn(), field->type()->as_inline_klass());
     for (uint i = 1; i < val->req(); ++i) {
       newVal->set_req(i, val->in(i));

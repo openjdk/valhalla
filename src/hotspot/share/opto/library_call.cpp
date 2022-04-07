@@ -2327,8 +2327,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   if (base->is_InlineTypeBase()) {
     InlineTypeBaseNode* vt = base->as_InlineTypeBase();
     if (is_store) {
-
-      // TODO should check for pointer, right?
       if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->isa_inlinetype() || !_gvn.type(vt)->is_inlinetype()->larval()) {
         return false;
       }
@@ -2466,7 +2464,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       }
     } else if (adr_type->isa_aryptr()) {
       const Type* elem = adr_type->is_aryptr()->elem();
-      // TODO check for ptr?
       if (!elem->isa_inlinetype()) {
         mismatched = true;
       } else if (elem->inline_klass() != inline_klass) {

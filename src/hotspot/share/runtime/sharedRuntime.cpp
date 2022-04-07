@@ -2969,7 +2969,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       BasicType bt = ss.type();
       if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
-        // TODO Mismatch handling, we need to check parent method args, look at klassVtable::needs_new_vtable_entry
+        // TODO 8284443 Mismatch handling, we need to check parent method args (look at klassVtable::needs_new_vtable_entry)
         if (vk != NULL && (bt == T_PRIMITIVE_OBJECT || holder->is_preload_class(vk->name())) &&
             vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
           _num_inline_args++;

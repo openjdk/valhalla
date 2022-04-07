@@ -931,22 +931,16 @@ void Compile::return_values(JVMState* jvms) {
       if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
       } else {
-        // TODO
-        const TypeKlassPtr* tk = TypeKlassPtr::make(vt->bottom_type()->inline_klass());
-        intptr_t bits = tk->get_con();
-        set_nth_bit(bits, 0);
-        Node* tagged_con = kit.longcon((jlong)bits);
-
-        // rax &= (isInit & 1) - 1
+        // Return the tagged klass pointer to signal scalarization to the caller
+        Node* tagged_klass = vt->tagged_klass(kit.gvn());
         if (!method()->signature()->returns_null_free_inline_type()) {
+          // Return null if the inline type is null (isInit field is not set)
           Node* conv = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
           Node* shl =  kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
           Node* shr =  kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
-
-          tagged_con = kit.gvn().transform(new AndLNode(tagged_con, shr));
+          tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
         }
-
-        ret->init_req(TypeFunc::Parms, tagged_con);
+        ret->init_req(TypeFunc::Parms, tagged_klass);
       }
       uint idx = TypeFunc::Parms + 1;
       vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
@@ -1929,7 +1923,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
         if (vtm->is_InlineTypePtr() && vtn->is_InlineType()) {
-          // TODO hack, remove this!!
+          // TODO 8284443 Remove this
           Node* newVal = InlineTypeNode::make_uninitialized(gvn(), vtm->bottom_type()->inline_klass());
           for (uint i = 1; i < vtm->req(); ++i) {
             newVal->set_req(i, vtm->in(i));

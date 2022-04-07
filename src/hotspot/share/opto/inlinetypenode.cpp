@@ -671,7 +671,6 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* field_type = vt->field_type(i);
     Node* value = gvn.zerocon(field_type->basic_type());
-    // TODO use top for field values and adjust merge code?
     if (field_type->is_inlinetype()) {
       if (vt->field_is_null_free(i)) {
         value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
@@ -908,7 +907,7 @@ Node* InlineTypeBaseNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   const TypeKlassPtr* tk = TypeKlassPtr::make(vk);
   intptr_t bits = tk->get_con();
   set_nth_bit(bits, 0);
-  return gvn.makecon(TypeRawPtr::make((address)bits));
+  return gvn.longcon((jlong)bits);
 }
 
 void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
@@ -934,7 +933,7 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
       }
     }
   }
-  // TODO hack. The last argument is used to pass isInit information to compiled code and not used here.
+  // The last argument is used to pass isInit information to compiled code and not required here.
   if (!null_free && !in) {
     n->init_req(base_input++, kit->top());
   }

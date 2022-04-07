@@ -1260,11 +1260,10 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      // TODO inline type does not mix well with null and leads to compilation bailouts
-      // -XX:+AbortVMOnCompilationFailure
-      //vt = InlineTypeNode::make_null(_gvn, vt->type()->inline_klass());
-      //replace_in_map(value, vt);
-      //return vt;
+      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
+      // vt = InlineTypeNode::make_null(_gvn, vt->type()->inline_klass());
+      // replace_in_map(value, vt);
+      // return vt;
       return null();
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
@@ -1281,11 +1280,10 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      // TODO inline type does not mix well with null and leads to compilation bailouts
-      // -XX:+AbortVMOnCompilationFailure
-      //vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
-      //replace_in_map(value, vtptr);
-      //return vtptr;
+      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
+      // vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
+      // replace_in_map(value, vtptr);
+      // return vtptr;
       return null();
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
@@ -3592,7 +3590,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
   Node* not_null_obj = NULL;
-  // TODO this is wrong
+  // TODO 8284443 Remove this
   if (from_inline) {
     not_null_obj = obj;
   } else if (null_free) {

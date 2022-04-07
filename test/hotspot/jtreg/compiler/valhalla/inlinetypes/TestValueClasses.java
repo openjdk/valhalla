@@ -786,6 +786,4 @@ public class TestValueClasses {
     public void test19_verifier() {
         test19(0, 0, 0, 0, 0, 0);
     }
-
-// TODO run all tests with AbortVMOnCompilationFailure
 }
