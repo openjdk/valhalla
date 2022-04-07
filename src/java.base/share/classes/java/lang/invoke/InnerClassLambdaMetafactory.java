@@ -39,6 +39,7 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.PropertyPermission;
@@ -357,6 +358,16 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         else if (accidentallySerializable)
             generateSerializationHostileMethods();
 
+        // generate Preload attribute if it references any value class
+        PreloadAttributeBuilder builder = new PreloadAttributeBuilder(targetClass);
+        builder.add(factoryType)
+               .add(interfaceMethodType)
+               .add(implMethodType)
+               .add(dynamicMethodType)
+               .add(altMethods);
+        if (!builder.isEmpty())
+            cw.visitAttribute(builder.build());
+
         cw.visitEnd();
 
         // Define the generated class in this VM.
@@ -586,6 +597,72 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                 case MethodHandleInfo.REF_invokeInterface  -> INVOKEINTERFACE;
                 case MethodHandleInfo.REF_invokeSpecial    -> INVOKESPECIAL;
                 default -> throw new InternalError("Unexpected invocation kind: " + implKind);
+            };
+        }
+    }
+
+    /*
+     * Preload attribute builder
+     */
+    static class PreloadAttributeBuilder {
+        private final Set<Class<?>> preloadClasses = new HashSet<>();
+        PreloadAttributeBuilder(Class<?> targetClass) {
+            if (requiresPreload(targetClass)) {
+                preloadClasses.add(targetClass);
+            }
+        }
+
+        /*
+         * Add the value types referenced in the given MethodType.
+         */
+        PreloadAttributeBuilder add(MethodType mt) {
+            // parameter types
+            for (Class<?> paramType : mt.ptypes()) {
+                if (requiresPreload(paramType)) {
+                    preloadClasses.add(paramType);
+                }
+            }
+            // return type
+            if (requiresPreload(mt.returnType())) {
+                preloadClasses.add(mt.returnType());
+            }
+            return this;
+        }
+
+        PreloadAttributeBuilder add(MethodType... mtypes) {
+            for (MethodType mt : mtypes) {
+                add(mt);
+            }
+            return this;
+        }
+
+        boolean requiresPreload(Class<?> cls) {
+            Class<?> c = cls;
+            while (c.isArray()) {
+                c = c.getComponentType();
+            }
+            return (c.isValue() && !c.isPrimitiveClass()) || c.isPrimitiveValueType();
+        }
+
+        boolean isEmpty() {
+            return preloadClasses.isEmpty();
+        }
+
+        Attribute build() {
+            return new Attribute("Preload") {
+                @Override
+                protected ByteVector write(ClassWriter cw,
+                                           byte[] code,
+                                           int len,
+                                           int maxStack,
+                                           int maxLocals) {
+                    ByteVector attr = new ByteVector();
+                    attr.putShort(preloadClasses.size());
+                    for (Class<?> c : preloadClasses) {
+                        attr.putShort(cw.newClass(Type.getInternalName(c)));
+                    }
+                    return attr;
+                }
             };
         }
     }

@@ -625,8 +625,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isCompileConstant:
     return inline_isCompileConstant();
 
-  case vmIntrinsics::_hasNegatives:
-    return inline_hasNegatives();
+  case vmIntrinsics::_countPositives:
+    return inline_countPositives();
 
   case vmIntrinsics::_fmaD:
   case vmIntrinsics::_fmaF:
@@ -1019,13 +1019,13 @@ bool LibraryCallKit::inline_array_equals(StrIntrinsicNode::ArgEnc ae) {
   return true;
 }
 
-//------------------------------inline_hasNegatives------------------------------
-bool LibraryCallKit::inline_hasNegatives() {
+//------------------------------inline_countPositives------------------------------
+bool LibraryCallKit::inline_countPositives() {
   if (too_many_traps(Deoptimization::Reason_intrinsic)) {
     return false;
   }
 
-  assert(callee()->signature()->size() == 3, "hasNegatives has 3 parameters");
+  assert(callee()->signature()->size() == 3, "countPositives has 3 parameters");
   // no receiver since it is static method
   Node* ba         = argument(0);
   Node* offset     = argument(1);
@@ -1039,7 +1039,7 @@ bool LibraryCallKit::inline_hasNegatives() {
     return true;
   }
   Node* ba_start = array_element_address(ba, offset, T_BYTE);
-  Node* result = new HasNegativesNode(control(), memory(TypeAryPtr::BYTES), ba_start, len);
+  Node* result = new CountPositivesNode(control(), memory(TypeAryPtr::BYTES), ba_start, len);
   set_result(_gvn.transform(result));
   return true;
 }
@@ -1100,7 +1100,6 @@ bool LibraryCallKit::inline_preconditions_checkIndex(BasicType bt) {
   result = _gvn.transform(result);
   set_result(result);
   replace_in_map(index, result);
-  clear_upper_avx();
   return true;
 }
 
@@ -3002,6 +3001,21 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   kls = null_check(kls);
   if (stopped())  return true;  // argument was like int.class
 
+  bool object_check = C->env()->Object_klass()->is_abstract();
+
+  IdealKit ideal(this);
+#define __ ideal.
+  IdealVariable result(ideal); __ declarations_done();
+
+  if (object_check) {
+    __ if_then(kls, BoolTest::eq, makecon(TypeKlassPtr::make(C->env()->Object_klass())));
+    sync_kit(ideal);
+    Node* obj = new_instance(makecon(TypeKlassPtr::make(C->env()->Identity_klass())));
+    ideal.sync_kit(this);
+    ideal.set(result, obj);
+    __ else_();
+    sync_kit(ideal);
+  }
   Node* test = NULL;
   if (LibraryCallKit::klass_needs_init_guard(kls)) {
     // Note:  The argument might still be an illegal value like
@@ -3022,7 +3036,15 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   } else {
     obj = new_instance(kls, test);
   }
+  if (object_check) {
+    ideal.sync_kit(this);
+    ideal.set(result, obj);
+    __ end_if();
+    final_sync(ideal);
+    obj = ideal.value(result);
+  }
   set_result(obj);
+#undef __
   return true;
 }
 

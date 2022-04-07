@@ -4770,8 +4770,12 @@ const TypeAryPtr* TypeAryPtr::cast_to_autobox_cache() const {
   if (is_autobox_cache())  return this;
   const TypeOopPtr* etype = elem()->make_oopptr();
   if (etype == NULL)  return this;
-  // The pointers in the autobox arrays are always non-null.
-  etype = etype->cast_to_ptr_type(TypePtr::NotNull)->is_oopptr();
+  // TODO fix with JDK-8284164
+  // Ignore inline types to not confuse logic in TypeAryPtr::compute_klass
+  if (!etype->is_inlinetypeptr()) {
+    // The pointers in the autobox arrays are always non-null.
+    etype = etype->cast_to_ptr_type(TypePtr::NotNull)->is_oopptr();
+  }
   const TypeAry* new_ary = TypeAry::make(etype, size(), is_stable(), is_not_flat(), is_not_null_free());
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, /*is_autobox_cache=*/true);
 }

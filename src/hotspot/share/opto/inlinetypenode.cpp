@@ -758,9 +758,9 @@ InlineTypeBaseNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciIn
     Node* init_ctl = kit->control();
     vt->set_is_init(gvn);
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
-    // TODO re-enable
- //   assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
- //          AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
+// TODO fix with JDK-8278390
+//    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
+//           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
   assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
   kit->record_for_igvn(vt);
@@ -1103,7 +1103,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       if (res == NULL || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
       }
-      assert(!is_default(igvn) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
+      assert((!is_default(igvn) || !inline_klass()->is_initialized()) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
       // Search for a dominating allocation of the same inline type
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {

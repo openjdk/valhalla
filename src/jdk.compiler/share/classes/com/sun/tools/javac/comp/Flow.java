@@ -666,10 +666,7 @@ public class Flow {
             ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             scan(tree.selector);
-            boolean exhaustiveSwitch = tree.patternSwitch ||
-                                       tree.cases.stream()
-                                                 .flatMap(c -> c.labels.stream())
-                                                 .anyMatch(l -> TreeInfo.isNull(l));
+            boolean exhaustiveSwitch = TreeInfo.expectedExhaustive(tree);
             Set<Symbol> constants = exhaustiveSwitch ? new HashSet<>() : null;
             for (List<JCCase> l = tree.cases; l.nonEmpty(); l = l.tail) {
                 alive = Liveness.ALIVE;
@@ -691,10 +688,13 @@ public class Flow {
                                 l.tail.head.pos(),
                                 Warnings.PossibleFallThroughIntoCase);
             }
-            if (!tree.hasTotalPattern && exhaustiveSwitch &&
-                !TreeInfo.isErrorEnumSwitch(tree.selector, tree.cases) &&
-                (constants == null || !isExhaustive(tree.selector.pos(), tree.selector.type, constants))) {
-                log.error(tree, Errors.NotExhaustiveStatement);
+            tree.isExhaustive = tree.hasTotalPattern ||
+                                TreeInfo.isErrorEnumSwitch(tree.selector, tree.cases);
+            if (exhaustiveSwitch) {
+                tree.isExhaustive |= isExhaustive(tree.selector.pos(), tree.selector.type, constants);
+                if (!tree.isExhaustive) {
+                    log.error(tree, Errors.NotExhaustiveStatement);
+                }
             }
             if (!tree.hasTotalPattern) {
                 alive = Liveness.ALIVE;
@@ -727,8 +727,10 @@ public class Flow {
                     }
                 }
             }
-            if (!tree.hasTotalPattern && !TreeInfo.isErrorEnumSwitch(tree.selector, tree.cases) &&
-                !isExhaustive(tree.selector.pos(), tree.selector.type, constants)) {
+            tree.isExhaustive = tree.hasTotalPattern ||
+                                TreeInfo.isErrorEnumSwitch(tree.selector, tree.cases) ||
+                                isExhaustive(tree.selector.pos(), tree.selector.type, constants);
+            if (!tree.isExhaustive) {
                 log.error(tree, Errors.NotExhaustive);
             }
             alive = prevAlive;
@@ -2475,15 +2477,15 @@ public class Flow {
         }
 
         public void visitSwitch(JCSwitch tree) {
-            handleSwitch(tree, tree.selector, tree.cases, tree.hasTotalPattern);
+            handleSwitch(tree, tree.selector, tree.cases, tree.isExhaustive);
         }
 
         public void visitSwitchExpression(JCSwitchExpression tree) {
-            handleSwitch(tree, tree.selector, tree.cases, tree.hasTotalPattern);
+            handleSwitch(tree, tree.selector, tree.cases, tree.isExhaustive);
         }
 
         private void handleSwitch(JCTree tree, JCExpression selector,
-                                  List<JCCase> cases, boolean hasTotalPattern) {
+                                  List<JCCase> cases, boolean isExhaustive) {
             ListBuffer<PendingExit> prevPendingExits = pendingExits;
             pendingExits = new ListBuffer<>();
             int nextadrPrev = nextadr;
@@ -2521,10 +2523,10 @@ public class Flow {
                 addVars(c.stats, initsSwitch, uninitsSwitch);
                 // Warn about fall-through if lint switch fallthrough enabled.
             }
-            if (!hasTotalPattern) {
+            if (!isExhaustive) {
                 if (tree.hasTag(SWITCH_EXPRESSION)) {
                     markDead();
-                } else {
+                } else if (tree.hasTag(SWITCH) && !TreeInfo.expectedExhaustive((JCSwitch) tree)) {
                     inits.assign(initsSwitch);
                     uninits.assign(uninits.andSet(uninitsSwitch));
                 }

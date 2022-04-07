@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -682,7 +682,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
      *  It is assumed that both symbols have the same name.  The static
      *  modifier is ignored for this test.
      *
-     *  See JLS 8.4.6.1 (without transitivity) and 8.4.6.4
+     *  See JLS 8.4.8.1 (without transitivity) and 8.4.8.4
      */
     public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult) {
         return false;
@@ -2085,7 +2085,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          *  origin) don't get rejected as summarily and are put to test against the
          *  suitable criteria.
          *
-         *  See JLS 8.4.6.1 (without transitivity) and 8.4.6.4
+         *  See JLS 8.4.8.1 (without transitivity) and 8.4.8.4
          */
         public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult) {
             return overrides(_other, origin, types, checkResult, true);
@@ -2102,7 +2102,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          *  It is assumed that both symbols have the same name.  The static
          *  modifier is ignored for this test.
          *
-         *  See JLS 8.4.6.1 (without transitivity) and 8.4.6.4
+         *  See JLS 8.4.8.1 (without transitivity) and 8.4.8.4
          */
         public boolean overrides(Symbol _other, TypeSymbol origin, Types types, boolean checkResult,
                                             boolean requireConcreteIfInherited) {
@@ -2140,7 +2140,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         }
 
         private boolean isOverridableIn(TypeSymbol origin) {
-            // JLS 8.4.6.1
+            // JLS 8.4.8.1
             switch ((int)(flags_field & Flags.AccessFlags)) {
             case Flags.PRIVATE:
                 return false;
@@ -2479,7 +2479,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             return accessCode;
         }
 
-        /** Access codes for dereferencing, assignment, withfield
+        /** Access codes for dereferencing, assignment,
          *  and pre/post increment/decrement.
 
          *  All access codes for accesses to the current class are even.
@@ -2499,8 +2499,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             PREDEC(6, Tag.PREDEC),
             POSTINC(8, Tag.POSTINC),
             POSTDEC(10, Tag.POSTDEC),
-            WITHFIELD(12, Tag.WITHFIELD),
-            FIRSTASGOP(14, Tag.NO_TAG);
+            FIRSTASGOP(12, Tag.NO_TAG);
 
             public final int code;
             public final Tag tag;
@@ -2533,8 +2532,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                         return AccessCode.POSTINC.code;
                     case POSTDEC:
                         return AccessCode.POSTDEC.code;
-                    case WITHFIELD:
-                        return AccessCode.WITHFIELD.code;
                 }
                 if (iadd <= opcode && opcode <= lxor) {
                     return (opcode - iadd) * 2 + FIRSTASGOP.code;

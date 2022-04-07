@@ -69,7 +69,7 @@ public class CCE_module_msg {
             throw new RuntimeException("ClassCastException wasn't thrown, test failed.");
         } catch (ClassCastException cce) {
             System.out.println(cce.toString());
-            if (!cce.getMessage().contains("class java.util.Objects$1 cannot be cast to class Derived (java.util.Objects$1 is in module java.base of loader 'bootstrap'; Derived is in unnamed module of loader 'app')")) {
+            if (!cce.getMessage().contains("class java.lang.Identity cannot be cast to class Derived (java.lang.Identity is in module java.base of loader 'bootstrap'; Derived is in unnamed module of loader 'app')")) {
                 throw new RuntimeException("Wrong message: " + cce.getMessage());
             }
         }

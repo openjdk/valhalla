@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@ package com.sun.tools.javac.comp;
 
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
@@ -332,17 +333,7 @@ public class Attr extends JCTree.Visitor {
             if (v.isResourceVariable()) { //TWR resource
                 log.error(pos, Errors.TryResourceMayNotBeAssigned(v));
             } else {
-                boolean complain = true;
-                /* Allow updates to instance fields of primitive classes by any method in the same nest via the
-                   withfield operator -This does not result in mutation of final fields; the code generator
-                   would implement `copy on write' semantics via the opcode `withfield'.
-                */
-                if (env.info.inWithField && v.getKind() == ElementKind.FIELD && (v.flags() & STATIC) == 0 && v.owner.type.isValueClass()) {
-                    if (env.enclClass.sym.outermostClass() == v.owner.outermostClass())
-                        complain = false;
-                }
-                if (complain)
-                    log.error(pos, Errors.CantAssignValToFinalVar(v));
+                log.error(pos, Errors.CantAssignValToFinalVar(v));
             }
         }
     }
@@ -1520,39 +1511,6 @@ public class Attr extends JCTree.Visitor {
     private boolean breaksOutOf(JCTree loop, JCTree body) {
         preFlow(body);
         return flow.breaksOutOf(env, loop, body, make);
-    }
-
-    public void visitWithField(JCWithField tree) {
-        boolean inWithField = env.info.inWithField;
-        try {
-            env.info.inWithField = true;
-            Type fieldtype = attribTree(tree.field, env.dup(tree), varAssignmentInfo);
-            attribExpr(tree.value, env, fieldtype);
-            Type capturedType = syms.errType;
-            if (tree.field.type != null && !tree.field.type.isErroneous()) {
-                final Symbol sym = TreeInfo.symbol(tree.field);
-                if (sym == null || sym.kind != VAR || sym.owner.kind != TYP ||
-                        (sym.flags() & STATIC) != 0 || !sym.owner.type.isValueClass()) {
-                    log.error(tree.field.pos(), Errors.ValueClassInstanceFieldExpectedHere);
-                } else {
-                    Type ownType = sym.owner.type;
-                    switch(tree.field.getTag()) {
-                        case IDENT:
-                            JCIdent ident = (JCIdent) tree.field;
-                            ownType = ident.sym.owner.type;
-                            break;
-                        case SELECT:
-                            JCFieldAccess fieldAccess = (JCFieldAccess) tree.field;
-                            ownType = fieldAccess.selected.type;
-                            break;
-                    }
-                    capturedType = capture(ownType);
-                }
-            }
-            result = check(tree, capturedType, KindSelector.VAL, resultInfo);
-        } finally {
-            env.info.inWithField = inWithField;
-        }
     }
 
     public void visitForLoop(JCForLoop tree) {
@@ -5355,8 +5313,8 @@ public class Attr extends JCTree.Visitor {
     }
 
     void attribPackage(PackageSymbol p) {
-        Env<AttrContext> env = typeEnvs.get(p);
-        chk.checkDeprecatedAnnotation(((JCPackageDecl) env.tree).pid.pos(), p);
+        attribWithLint(p,
+                       env -> chk.checkDeprecatedAnnotation(((JCPackageDecl) env.tree).pid.pos(), p));
     }
 
     public void attribModule(DiagnosticPosition pos, ModuleSymbol m) {
@@ -5369,9 +5327,28 @@ public class Attr extends JCTree.Visitor {
     }
 
     void attribModule(ModuleSymbol m) {
-        // Get environment current at the point of module definition.
-        Env<AttrContext> env = enter.typeEnvs.get(m);
-        attribStat(env.tree, env);
+        attribWithLint(m, env -> attribStat(env.tree, env));
+    }
+
+    private void attribWithLint(TypeSymbol sym, Consumer<Env<AttrContext>> attrib) {
+        Env<AttrContext> env = typeEnvs.get(sym);
+
+        Env<AttrContext> lintEnv = env;
+        while (lintEnv.info.lint == null)
+            lintEnv = lintEnv.next;
+
+        Lint lint = lintEnv.info.lint.augment(sym);
+
+        Lint prevLint = chk.setLint(lint);
+        JavaFileObject prev = log.useSource(env.toplevel.sourcefile);
+
+        try {
+            deferredLintHandler.flush(env.tree.pos());
+            attrib.accept(env);
+        } finally {
+            log.useSource(prev);
+            chk.setLint(prevLint);
+        }
     }
 
     /** Main method: attribute class definition associated with given class symbol.
@@ -5650,7 +5627,7 @@ public class Attr extends JCTree.Visitor {
         } else {
             // Check that all extended classes and interfaces
             // are compatible (i.e. no two define methods with same arguments
-            // yet different return types).  (JLS 8.4.6.3)
+            // yet different return types).  (JLS 8.4.8.3)
             chk.checkCompatibleSupertypes(tree.pos(), c.type);
             if (allowDefaultMethods) {
                 chk.checkDefaultMethodClashes(tree.pos(), c.type);

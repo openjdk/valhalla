@@ -1148,6 +1148,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
         break;
       case Bytecodes::_ldc:
       case Bytecodes::_ldc_w:
+      case Bytecodes::_ldc2_w:
         {
           Bytecode_loadconstant cc(caller_method, bci);
           oop m = cc.resolve_constant(CHECK);
@@ -1292,7 +1293,6 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, Runtime1::StubID stub_
               assert(load_klass != NULL, "klass not set");
               n_copy->set_data((intx) (load_klass));
             } else {
-              assert(mirror() != NULL, "klass not set");
               // Don't need a G1 pre-barrier here since we assert above that data isn't an oop.
               n_copy->set_data(cast_from_oop<intx>(mirror()));
             }

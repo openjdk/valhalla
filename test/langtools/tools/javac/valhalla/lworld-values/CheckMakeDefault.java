@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check various semantic constraints on value creation via default
  *
- * @compile/fail/ref=CheckMakeDefault.out -XDallowWithFieldOperator -XDrawDiagnostics CheckMakeDefault.java
+ * @compile/fail/ref=CheckMakeDefault.out -XDrawDiagnostics CheckMakeDefault.java
  */
 primitive final class Point {
 
@@ -41,9 +41,6 @@ primitive final class Point {
        Point p = Point.default;
        String s = String.default;
        Object o = SinnerValue.default;
-       p = Point.default;
-       p = __WithField(p.x, x);
-       p = __WithField(p.y, y);
-       return p;
+       return new Point(x, y);
     }
 }

@@ -8,7 +8,7 @@ jit.t.t058.k
 jit.t.t058.k
 o instanceof k: true
 Voodoo 3
-java.util.Objects$1
+java.lang.Identity
 
 Here come the instance variables of ko:
 39.0

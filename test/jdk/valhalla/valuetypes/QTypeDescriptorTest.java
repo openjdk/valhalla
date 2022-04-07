@@ -104,25 +104,6 @@ public class QTypeDescriptorTest {
         assertEquals(test.points[1], P1);
     }
 
-    @Test
-    public void testProxy() throws Exception {
-        InvocationHandler handler = new InvocationHandler() {
-            @Override
-            public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                if (method.getName().equals("toLine")) {
-                    return toLine((Point)args[0], (NonFlattenValue)args[1]);
-                }
-                throw new UnsupportedOperationException(method.toString());
-            }
-        };
-
-        Class<?>[] intfs = new Class<?>[] { I.class };
-        I intf = (I) Proxy.newProxyInstance(QTypeDescriptorTest.class.getClassLoader(), intfs, handler);
-        Line l = intf.toLine(P0, NFV);
-        assertEquals(l.p1, P0);
-        assertEquals(l.p2, NFV.pointValue());
-    }
-
     @DataProvider
     static Object[][] descriptors() {
         return new Object[][]{
