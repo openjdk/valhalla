@@ -37,7 +37,7 @@ public class TestSafepointAtPollReturn {
     static primitive class MyPrimitive {
         Integer val = INT_VAL;
     }
-    
+
     static public MyValue testValueCallee(boolean b) {
         return b ? null : new MyValue();
     }

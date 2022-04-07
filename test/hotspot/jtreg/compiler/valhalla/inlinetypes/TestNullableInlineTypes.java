@@ -170,7 +170,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    // TODO when passing vt to test5_inline and incrementally inlining, we lose the oop
+    // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC})
     public MyValue1.ref test5(MyValue1.ref vt) {
@@ -516,7 +516,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    // TODO when passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
+    // TODO 8284443 When passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
     @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
         failOn = {ALLOC})
     public Test17Value test17(boolean b) {
@@ -761,8 +761,7 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-// TODO enable once scalarization in returns is enabled
-//    @IR(failOn = {ALLOC, STORE})
+    @IR(failOn = {ALLOC, STORE})
     public MyValue3.ref test27(MyValue3.ref vt) {
         return ((MyValue3.ref)((Object)((MyValue3)(MyValue3.ref)((MyValue3)((Object)vt)))));
     }

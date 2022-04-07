@@ -388,7 +388,6 @@ Symbol* SignatureStream::find_symbol() {
   return name;
 }
 
-// TODO rename
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   JavaThread* THREAD = JavaThread::current();
   Handle class_loader(THREAD, holder->class_loader());
