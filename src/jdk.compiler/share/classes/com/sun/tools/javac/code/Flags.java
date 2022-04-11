@@ -140,8 +140,8 @@ public class Flags {
     public static final int HASINITBLOCK         = 1<<18;
 
     /** Flag is set for a method symbol if it is an empty no-arg ctor.
-     *  i.e one that simply returns (jlO) or merely chains to a super's
-     *  EMPTYNOARGCONSTR
+     *  i.e. one that simply returns (jlO) or merely chains to a super's
+     *  no-arg ctor
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 

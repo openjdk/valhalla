@@ -183,7 +183,7 @@ public class ReflectionFactory {
 
     public ConstructorAccessor newConstructorAccessor(Constructor<?> c) {
         Class<?> declaringClass = c.getDeclaringClass();
-        if (Modifier.isAbstract(declaringClass.getModifiers())) {
+        if (Modifier.isAbstract(declaringClass.getModifiers()) && declaringClass != Object.class) {
             return new InstantiationExceptionConstructorAccessorImpl(null);
         }
         if (declaringClass == Class.class) {

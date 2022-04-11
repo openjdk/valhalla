@@ -25,22 +25,18 @@
  * @test
  * @bug 8205686 8215109
  * @summary __WithField seems to have trouble if the value type is a generic type.
- * @compile -XDrawDiagnostics -XDdev -XDallowWithFieldOperator WithFieldOfGenericType.java
- * @run main/othervm WithFieldOfGenericType
+ * @run main WithFieldOfGenericType
  */
 
 public final primitive class WithFieldOfGenericType<E> {
   private final boolean value;
 
   public static <E> WithFieldOfGenericType<E> create() {
-    WithFieldOfGenericType<E> bug = WithFieldOfGenericType.default;
-    bug = __WithField(bug.value, true);
-    return bug;
+    return new WithFieldOfGenericType<>(true);
   }
 
-  private WithFieldOfGenericType() {
-    value = false;
-    throw new AssertionError();
+  private WithFieldOfGenericType(boolean value) {
+    this.value = value;
   }
 
   public static void main(String[] args) {

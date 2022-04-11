@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,14 +21,24 @@
  * questions.
  */
 
-// options: -XDallowWithFieldOperator
-// key: compiler.err.value.class.instance.field.expected.here
+package compiler.valhalla.inlinetypes;
 
-final primitive class Blah {
-    final int x;
-    static int si;
-    Blah() {
-        x = 10;
-        Blah b = __WithField(this.si, 10);
+/**
+ * @test
+ * @bug 8282569
+ * @summary Test that uninitialized default value class is properly handled by C2.
+ * @run main/othervm -XX:CompileCommand=compileonly,*::<init> -Xcomp -XX:-TieredCompilation
+ *                   compiler.valhalla.inlinetypes.TestUninitializedValueClass
+ */
+
+value class MyValue {
+    static final MyValue EMPTY = new MyValue();
+    int value = 0;
+}
+
+public class TestUninitializedValueClass {
+
+    public static void main(String[] args) {
+        MyValue unused = new MyValue();
     }
 }
