@@ -2065,7 +2065,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   // Allocate inline type operands and re-execute on deoptimization
   if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type()) {
-      // Null checking a scalarized but nullable inline type. Check the is_init
+      // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive.
       Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
       do_if(btest, cmp);
@@ -3374,7 +3374,7 @@ void Parse::do_one_bytecode() {
     a = null();
     b = pop();
     if (b->is_InlineType()) {
-      // Null checking a scalarized but nullable inline type. Check the is_init
+      // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive
       c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
     } else {

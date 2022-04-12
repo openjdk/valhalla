@@ -934,7 +934,7 @@ void Compile::return_values(JVMState* jvms) {
         // Return the tagged klass pointer to signal scalarization to the caller
         Node* tagged_klass = vt->tagged_klass(kit.gvn());
         if (!method()->signature()->returns_null_free_inline_type()) {
-          // Return null if the inline type is null (isInit field is not set)
+          // Return null if the inline type is null (IsInit field is not set)
           Node* conv = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
           Node* shl =  kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
           Node* shr =  kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));

@@ -1269,7 +1269,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
   } else if (value->is_InlineTypePtr()) {
-    // Null checking a scalarized but nullable inline type. Check the is_init
+    // Null checking a scalarized but nullable inline type. Check the IsInit
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
     while (vtptr->get_oop()->is_InlineTypePtr()) {

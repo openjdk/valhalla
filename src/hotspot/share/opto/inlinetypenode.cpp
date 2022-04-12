@@ -260,7 +260,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Nod
 #endif
                                                                   first_ind, nfields);
   sobj->init_req(0, igvn->C->root());
-  // Nullable inline types have an is_init field that needs
+  // Nullable inline types have an IsInit field that needs
   // to be checked before using the field values.
   if (!igvn->type(get_is_init())->is_int()->is_con(1)) {
     sfpt->add_req(get_is_init());
@@ -933,7 +933,7 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
       }
     }
   }
-  // The last argument is used to pass isInit information to compiled code and not required here.
+  // The last argument is used to pass IsInit information to compiled code and not required here.
   if (!null_free && !in) {
     n->init_req(base_input++, kit->top());
   }
@@ -945,7 +945,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
   if (!null_free) {
     // Nullable inline type
     if (in) {
-      // Set isInit field
+      // Set IsInit field
       if (multi->is_Start()) {
         is_init = gvn.transform(new ParmNode(multi->as_Start(), base_input));
       } else {
@@ -1005,7 +1005,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
     set_field_value(i, parm);
     gvn.record_for_igvn(parm);
   }
-  // The last argument is used to pass isInit information to compiled code
+  // The last argument is used to pass IsInit information to compiled code
   if (!null_free && !in) {
     Node* cmp = is_init->raw_out(0);
     is_init= gvn.transform(new ProjNode(multi->as_Call(), base_input));

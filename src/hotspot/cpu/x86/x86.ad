@@ -2651,19 +2651,19 @@ encode %{
     if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
       C2_MacroAssembler _masm(&cbuf);
       if (!_method->signature()->returns_null_free_inline_type()) {
-        // The last return value is not set by the callee but used to pass isInit information to compiled code.
+        // The last return value is not set by the callee but used to pass IsInit information to compiled code.
         // Search for the corresponding projection, get the register and emit code that initialized it.
         uint con = (tf()->range_cc()->cnt() - 1);
         for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
           ProjNode* proj = fast_out(i)->as_Proj();
           if (proj->_con == con) {
-            // Set isInit if rax is non-null (a non-null value is returned buffered or scalarized)
+            // Set IsInit if rax is non-null (a non-null value is returned buffered or scalarized)
             OptoReg::Name optoReg = ra_->get_reg_first(proj);
             VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
             Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
-            __ xorptr(toReg, toReg);
-            __ testptr(rax, rax);
-            __ setne(toReg);
+            __ testq(rax, rax);
+            __ set_byte_if_not_zero(toReg);
+            __ movzbl(toReg, toReg);
             if (reg->is_stack()) {
               int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;
               __ movq(Address(rsp, st_off), toReg);

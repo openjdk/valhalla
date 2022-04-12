@@ -1076,10 +1076,8 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
 }
 
 bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
-  if (InlineTypeReturnedAsFields &&
-      (method()->return_type()->is_inlinetype() ||
-       method()->is_method_handle_intrinsic())) {
-    ciType* return_type = method()->return_type();
+  ciType* return_type = method()->return_type();
+  if (InlineTypeReturnedAsFields) {
     if (return_type->is_inlinetype()) {
       ciInlineKlass* vk = return_type->as_inline_klass();
       if (vk->can_be_returned_as_fields()) {
@@ -1088,15 +1086,17 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
         }
         return true;
       }
-    } else if (return_type->is_instance_klass()) {
-      // An inline type might be returned from the call but we don't know its
-      // type. Either we get a buffered inline type (and nothing needs to be done)
-      // or one of the inlines being returned is the klass of the inline type
-      // (RAX on x64, with LSB set to 1) and we need to allocate an inline
-      // type instance of that type and initialize it with other values being
-      // returned (in other registers).
-      assert(!return_type->as_instance_klass()->is_loaded() ||
-             method()->is_method_handle_intrinsic(), "unexpected return type");
+    } else if (return_type->is_instance_klass() &&
+               (method()->is_method_handle_intrinsic() ||
+                (!return_type->is_loaded() && !method()->holder()->is_loaded()))) {
+      // An inline type might be returned from the call but we don't know its type.
+      // This can happen with method handle intrinsics or when both the return type
+      // and the method holder are unloaded (and therefore the preload logic did not
+      // get a chance to load the return type). If an inline type is returned, we
+      // either get an oop to a buffer and nothing needs to be done or one of the
+      // values being returned is the klass of the inline type (RAX on x64, with LSB
+      // set to 1) and we need to allocate an inline type instance of that type and
+      // initialize it with other values being returned (in other registers).
       return true;
     }
   }

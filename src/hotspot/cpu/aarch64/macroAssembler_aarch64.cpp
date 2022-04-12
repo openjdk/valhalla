@@ -1370,6 +1370,7 @@ void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg
 }
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
+  assert_different_registers(tmp, rscratch1);
   cbz(object, not_inline_type);
   const int is_inline_type_mask = markWord::inline_type_pattern;
   ldr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
@@ -5611,6 +5612,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 #endif // COMPILER2
 
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   // An inline type might be returned. If fields are in registers we
   // need to allocate an inline type instance and initialize it with
   // the value of the fields.
@@ -5784,11 +5786,12 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
                                           RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
   assert(from->is_valid(), "source must be valid");
-#ifdef ASSERT
   bool progress = false;
+#ifdef ASSERT
   const int start_offset = offset();
 #endif
 
+  Label L_null, L_notNull;
   Register tmp1 = r10, tmp2 = r11;
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
@@ -5796,11 +5799,18 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
   bool mark_done = true;
   VMReg toReg;
   BasicType bt;
+  // Check if argument requires a null check
+  bool null_check = false;
+  VMReg nullCheckReg;
+  while (stream.next(nullCheckReg, bt)) {
+    if (sig->at(stream.sig_index())._offset == -1) {
+      null_check = true;
+      break;
+    }
+  }
+  stream.reset(sig_index, to_index);
   while (stream.next(toReg, bt)) {
     assert(toReg->is_valid(), "destination must be valid");
-    int off = sig->at(stream.sig_index())._offset;
-    assert(off > 0, "offset in object should be positive");
-
     int idx = (int)toReg->value();
     if (reg_state[idx] == reg_readonly) {
       if (idx != from->value()) {
@@ -5813,7 +5823,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
     assert(reg_state[idx] == reg_writable, "must be writable");
     reg_state[idx] = reg_written;
-    DEBUG_ONLY(progress = true);
+    progress = true;
 
     if (fromReg == noreg) {
       if (from->is_reg()) {
@@ -5823,7 +5833,24 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         ldr(tmp1, Address(sp, st_off));
         fromReg = tmp1;
       }
+      if (null_check) {
+        // Nullable inline type argument, emit null check
+        cbz(fromReg, L_null);
+      }
     }
+    int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      assert(null_check, "Missing null check at");
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        mov(tmp2, 1);
+        str(tmp2, Address(sp, st_off));
+      } else {
+        mov(toReg->as_Register(), 1);
+      }
+      continue;
+    }
+    assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
     if (!toReg->is_FloatRegister()) {
       Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
@@ -5844,6 +5871,28 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       ldrs(toReg->as_FloatRegister(), fromAddr);
     }
   }
+  if (progress && null_check) {
+    if (done) {
+      b(L_notNull);
+      bind(L_null);
+      // Set IsInit field to 0 to signal that the argument is null
+      stream.reset(sig_index, to_index);
+      while (stream.next(toReg, bt)) {
+        if (sig->at(stream.sig_index())._offset == -1) {
+          if (toReg->is_stack()) {
+            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+            str(zr, Address(sp, st_off));
+          } else {
+            mov(toReg->as_Register(), zr);
+          }
+        }
+      }
+      bind(L_notNull);
+    } else {
+      bind(L_null);
+    }
+  }
+
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 
@@ -5895,9 +5944,28 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
   BasicType bt;
+  Label L_null;
   while (stream.next(fromReg, bt)) {
     assert(fromReg->is_valid(), "source must be valid");
+    reg_state[fromReg->value()] = reg_writable;
+
     int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      // Nullable inline type argument, emit null check
+      Label L_notNull;
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        ldr(tmp1, Address(sp, ld_off));
+        tbnz(tmp1, 1, L_notNull);
+      } else {
+        tbnz(fromReg->as_Register(), 1, L_notNull);
+      }
+      mov(val_obj, 0);
+      b(L_null);
+      bind(L_notNull);
+      continue;
+    }
+
     assert(off > 0, "offset in object should be positive");
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
@@ -5927,6 +5995,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     }
     reg_state[fromReg->value()] = reg_writable;
   }
+  bind(L_null);
   sig_index = stream.sig_index();
   from_index = stream.regs_index();
 

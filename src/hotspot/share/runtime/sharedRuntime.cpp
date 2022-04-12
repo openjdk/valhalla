@@ -2981,7 +2981,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
           _sig_cc->appendAll(vk->extended_sig());
           _sig_cc_ro->appendAll(vk->extended_sig());
           if (bt == T_OBJECT) {
-            // Nullable inline type argument, insert is_init field right after T_PRIMITIVE_OBJECT
+            // Nullable inline type argument, insert InlineTypeBaseNode::IsInit field right after T_PRIMITIVE_OBJECT
             _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
             _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, NULL));
           }
@@ -2999,9 +2999,6 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
         arg_num++;
       }
     }
-    if (_method->is_abstract() && !has_scalarized) {
-      return;
-    }
   }
 
   // Compute the non-scalarized calling convention
@@ -3009,7 +3006,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
 
   // Compute the scalarized calling conventions if there are scalarized inline types in the signature
-  if (has_scalarized) {
+  if (has_scalarized && !_method->is_native()) {
     _regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, _sig_cc->length());
     _args_on_stack_cc = SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
 

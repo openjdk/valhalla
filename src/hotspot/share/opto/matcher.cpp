@@ -200,7 +200,7 @@ RegMask* Matcher::return_values_mask(const TypeFunc* tf) {
 
   int regs = SharedRuntime::java_return_convention(sig_bt, vm_parm_regs, cnt);
   if (regs <= 0) {
-    // We ran out of registers to store the isInit information for a nullable inline type return.
+    // We ran out of registers to store the IsInit information for a nullable inline type return.
     // Since it is only set in the 'call_epilog', we can simply put it on the stack.
     assert(tf->returns_inline_type_as_fields(), "should have been tested during graph construction");
     mask[--cnt] = STACK_ONLY_mask;

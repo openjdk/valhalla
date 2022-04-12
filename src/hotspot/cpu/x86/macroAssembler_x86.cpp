@@ -5922,7 +5922,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (done) {
       jmp(L_notNull);
       bind(L_null);
-      // Set isInit field to 0 to signal that the argument is null
+      // Set IsInit field to 0 to signal that the argument is null
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {
         if (sig->at(stream.sig_index())._offset == -1) {

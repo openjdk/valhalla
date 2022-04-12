@@ -752,6 +752,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // type delimiter for this inline type. Inline types are flattened
       // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
+      Label L_null;
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
@@ -764,6 +765,22 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           ignored++;
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
+          if (off == -1) {
+            // Nullable inline type argument, emit null check
+            VMReg reg = regs[next_arg_comp-ignored].first();
+            Label L_notNull;
+            if (reg->is_stack()) {
+              int ld_off = reg->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
+              __ ldr(tmp1, Address(sp, ld_off));
+              __ tbnz(tmp1, 1, L_notNull);
+            } else {
+              __ tbnz(reg->as_Register(), 1, L_notNull);
+            }
+            __ str(zr, Address(sp, st_off));
+            __ b(L_null);
+            __ bind(L_notNull);
+            continue;
+          }
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
           bool is_oop = is_reference_type(bt);
@@ -773,6 +790,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       } while (vt != 0);
       // pass the buffer to the interpreter
       __ str(buf_oop, Address(sp, st_off));
+      __ bind(L_null);
     }
   }
 
@@ -3304,6 +3322,9 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
 
   int unpack_fields_off = __ offset();
 
+  Label skip;
+  __ cbz(r0, skip);
+
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
@@ -3341,10 +3362,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
   }
   assert(j == regs->length(), "missed a field?");
 
-  if (StressInlineTypeReturnedAsFields) {
-    __ load_klass(r0, r0);
-    __ orr(r0, r0, 1);
-  }
+  __ bind(skip);
 
   __ ret(lr);
 

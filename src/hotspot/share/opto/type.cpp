@@ -2097,8 +2097,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   if (ret_vt_fields) {
     arg_cnt = return_type->as_inline_klass()->inline_arg_slots() + 1;
     if (!sig->returns_null_free_inline_type()) {
-      // TOOD how does this work for args?
-      // ADD asserts
+      // InlineTypeBaseNode::IsInit field used for null checking
       arg_cnt++;
     }
   }
@@ -2150,6 +2149,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
   uint arg_cnt = sig->size() + (method->is_static() ? 0 : 1);
   if (vt_fields_as_args) {
     arg_cnt = 0;
+    assert(method->get_sig_cc() != NULL, "Should have scalarized signature");
     for (ExtendedSignature sig_cc = ExtendedSignature(method->get_sig_cc(), SigEntryFilter()); !sig_cc.at_end(); ++sig_cc) {
       arg_cnt += type2size[(*sig_cc)._bt];
     }
