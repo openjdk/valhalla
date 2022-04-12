@@ -27,7 +27,7 @@
  * @test
  * @summary Test basic syntax of values
  *
- * @compile -XDallowWithFieldOperator Point.java
+ * @compile Point.java
  */
 
 primitive class Point {
@@ -35,14 +35,11 @@ primitive class Point {
     static final Point.ref origin2 = makePoint(10, 20);
     int x;
     int y;
-    Point () {
-        x = 10;
-        y = 20;
+    public Point (int x, int y) {
+        this.x = x;
+        this.y = y;
     }
     static Point makePoint(int x, int y) {
-        Point p = Point.default;
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
+        return new Point(x, y);
     }
 }
