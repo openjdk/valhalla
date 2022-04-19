@@ -3547,9 +3547,13 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineTypeBase(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
+        if (null_free) {
+          assert(safe_for_replace, "must be");
+          obj = null_check(obj);
+        }
         // It needs a null check because a null will *pass* the cast check.
         const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-        if (null_free || (objtp != NULL && !objtp->maybe_null())) {
+        if (objtp != NULL && !objtp->maybe_null()) {
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;

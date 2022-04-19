@@ -5993,7 +5993,6 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       assert(bt == T_FLOAT, "must be float");
       strs(fromReg->as_FloatRegister(), dst);
     }
-    reg_state[fromReg->value()] = reg_writable;
   }
   bind(L_null);
   sig_index = stream.sig_index();

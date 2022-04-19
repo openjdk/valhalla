@@ -786,4 +786,39 @@ public class TestValueClasses {
     public void test19_verifier() {
         test19(0, 0, 0, 0, 0, 0);
     }
+
+    static value class ManyOopsValue {
+        Integer i1 = 1;
+        Integer i2 = 2;
+        Integer i3 = 3;
+        Integer i4 = 4;
+        Integer i5 = 5;
+        Integer i6 = 6;
+        Integer i7 = 7;
+        Integer i8 = 8;
+        Integer i9 = 9;
+        Integer i10 = 10;
+        Integer i11 = 11;
+        Integer i12 = 12;
+        Integer i13 = 13;
+        Integer i14 = 14;
+        Integer i15 = 15;
+
+        @DontInline
+        public int sum() {
+            return i1 + i2 + i3 + i4 + i5 + i6 + i7 + i8 + i9 + i10 + i11 + i12 + i13 + i14 + i15;
+        }
+    }
+
+    // Verify that C2 scratch buffer size is large enough to hold many GC barriers used by the entry points
+    @Test
+    static public int test20(ManyOopsValue val) {
+        return val.sum();
+    }
+
+    @Run(test = "test20")
+    @Warmup(10_000)
+    public void test20_verifier() {
+        Asserts.assertEquals(test20(new ManyOopsValue()), 120);
+    }
 }

@@ -4350,4 +4350,28 @@ public class TestLWorld {
             }
         }
     }
+
+    // Verify that cast that with incompatible types is properly handled
+    @Test
+    public void test160(Integer arg) {
+        Object tmp = arg;
+        MyValue1 res = (MyValue1)tmp;
+    }
+
+    @Run(test = "test160")
+    @Warmup(10000)
+    public void test160_verifier(RunInfo info) {
+        try {
+            test160(42);
+            throw new RuntimeException("No CCE thrown");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            test160(null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
 }

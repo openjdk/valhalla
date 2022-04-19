@@ -25,6 +25,7 @@
  * @test
  * @summary Test scalarization in returns with unloaded return types.
  * @library /test/lib /compiler/whitebox /
+ * @build sun.hotspot.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
