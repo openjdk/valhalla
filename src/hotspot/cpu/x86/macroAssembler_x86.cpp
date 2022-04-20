@@ -5840,6 +5840,9 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 #endif
 
   Label L_null, L_notNull;
+  // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
+  Register tmp1 = r10;
+  Register tmp2 = r13;
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
@@ -5877,8 +5880,8 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
         fromReg = from->as_Register();
       } else {
         int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-        movq(r10, Address(rsp, st_off));
-        fromReg = r10;
+        movq(tmp1, Address(rsp, st_off));
+        fromReg = tmp1;
       }
       if (null_check) {
         // Nullable inline type argument, emit null check
@@ -5900,7 +5903,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
     if (!toReg->is_XMMRegister()) {
-      Register dst = toReg->is_stack() ? r13 : toReg->as_Register();
+      Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
       if (is_reference_type(bt)) {
         load_heap_oop(dst, fromAddr);
       } else {
@@ -5963,8 +5966,10 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
+  // TODO 8284443 Isn't it an issue if below code uses r14 as tmp when it contains a spilled value?
+  // Be careful with r14 because it's used for spilling (see MacroAssembler::spill_reg_for).
   Register val_obj_tmp = r11;
-  Register from_reg_tmp = r14; // Be careful with r14 because it's used for spilling
+  Register from_reg_tmp = r14;
   Register tmp1 = r10;
   Register tmp2 = r13;
   Register tmp3 = rbx;

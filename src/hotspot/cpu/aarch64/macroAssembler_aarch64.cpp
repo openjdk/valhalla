@@ -5792,7 +5792,9 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 #endif
 
   Label L_null, L_notNull;
-  Register tmp1 = r10, tmp2 = r11;
+  // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
+  Register tmp1 = r10;
+  Register tmp2 = r11;
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
@@ -5842,7 +5844,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (off == -1) {
       assert(null_check, "Missing null check at");
       if (toReg->is_stack()) {
-        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
         mov(tmp2, 1);
         str(tmp2, Address(sp, st_off));
       } else {
@@ -5880,7 +5882,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       while (stream.next(toReg, bt)) {
         if (sig->at(stream.sig_index())._offset == -1) {
           if (toReg->is_stack()) {
-            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size;
             str(zr, Address(sp, st_off));
           } else {
             mov(toReg->as_Register(), zr);
@@ -5921,6 +5923,8 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   // runtime so use callee-saved registers for any values that need to be
   // preserved. The GC barrier assembler should take care of saving the
   // Java argument registers.
+  // TODO 8284443 Isn't it an issue if below code uses r14 as tmp when it contains a spilled value?
+  // Be careful with r14 because it's used for spilling (see MacroAssembler::spill_reg_for).
   Register val_obj_tmp = r21;
   Register from_reg_tmp = r22;
   Register tmp1 = r14;
@@ -5954,9 +5958,9 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       // Nullable inline type argument, emit null check
       Label L_notNull;
       if (fromReg->is_stack()) {
-        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-        ldr(tmp1, Address(sp, ld_off));
-        tbnz(tmp1, 1, L_notNull);
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
+        ldr(tmp2, Address(sp, ld_off));
+        tbnz(tmp2, 1, L_notNull);
       } else {
         tbnz(fromReg->as_Register(), 1, L_notNull);
       }
