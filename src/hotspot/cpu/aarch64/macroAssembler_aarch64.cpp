@@ -5960,9 +5960,9 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       if (fromReg->is_stack()) {
         int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size;
         ldr(tmp2, Address(sp, ld_off));
-        tbnz(tmp2, 1, L_notNull);
+        cbnz(tmp2, L_notNull);
       } else {
-        tbnz(fromReg->as_Register(), 1, L_notNull);
+        cbnz(fromReg->as_Register(), L_notNull);
       }
       mov(val_obj, 0);
       b(L_null);
