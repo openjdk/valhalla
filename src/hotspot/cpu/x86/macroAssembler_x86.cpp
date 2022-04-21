@@ -2754,7 +2754,7 @@ void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
   testptr(object, object);
-  jcc(Assembler::equal, not_inline_type);
+  jcc(Assembler::zero, not_inline_type);
   const int is_inline_type_mask = markWord::inline_type_pattern;
   movptr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   andptr(tmp, is_inline_type_mask);
