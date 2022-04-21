@@ -3426,7 +3426,12 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
-  Node* not_null_obj = is_value ? obj : null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
+  if (is_value) {
+    // TODO 8284443 Enable this
+    safe_for_replace = false;
+    never_see_null = false;
+  }
+  Node* not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
 
   // If not_null_obj is dead, only null-path is taken
   if (stopped()) {              // Doing instance-of on a NULL?
@@ -3594,12 +3599,12 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
   Node* not_null_obj = NULL;
-  // TODO 8284443 Remove this
-  if (from_inline) {
-    not_null_obj = obj;
-  } else if (null_free) {
+  if (null_free) {
     assert(safe_for_replace, "must be");
     not_null_obj = null_check(obj);
+  } else if (from_inline) {
+    // TODO 8284443 obj can be null and null should pass
+    not_null_obj = obj;
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
   }

@@ -203,7 +203,14 @@ RegMask* Matcher::return_values_mask(const TypeFunc* tf) {
     // We ran out of registers to store the IsInit information for a nullable inline type return.
     // Since it is only set in the 'call_epilog', we can simply put it on the stack.
     assert(tf->returns_inline_type_as_fields(), "should have been tested during graph construction");
-    mask[--cnt] = STACK_ONLY_mask;
+    // TODO 8284443 Can we teach the register allocator to reserve a stack slot instead?
+    // mask[--cnt] = STACK_ONLY_mask does not work (test with -XX:+StressGCM)
+    int slot = C->fixed_slots() - 2;
+    if (C->needs_stack_repair()) {
+      slot -= 2; // Account for stack increment value
+    }
+    mask[--cnt].Clear();
+    mask[cnt].Insert(OptoReg::stack2reg(slot));
   }
   for (uint i = 0; i < cnt; i++) {
     mask[i].Clear();

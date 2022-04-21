@@ -3032,7 +3032,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* obj = NULL;
   ciKlass* klass = _gvn.type(kls)->is_klassptr()->klass();
   if (klass->is_inlinetype()) {
-    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass());
+    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }

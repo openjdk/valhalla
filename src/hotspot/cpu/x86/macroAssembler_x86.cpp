@@ -5925,10 +5925,12 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (done) {
       jmp(L_notNull);
       bind(L_null);
-      // Set IsInit field to 0 to signal that the argument is null
+      // Set IsInit field to zero to signal that the argument is null.
+      // Also set all oop fields to zero to make the GC happy.
       stream.reset(sig_index, to_index);
       while (stream.next(toReg, bt)) {
-        if (sig->at(stream.sig_index())._offset == -1) {
+        if (sig->at(stream.sig_index())._offset == -1 ||
+            bt == T_OBJECT || bt == T_ARRAY) {
           if (toReg->is_stack()) {
             int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
             movq(Address(rsp, st_off), 0);

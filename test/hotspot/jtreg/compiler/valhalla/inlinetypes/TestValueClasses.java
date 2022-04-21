@@ -713,7 +713,7 @@ public class TestValueClasses {
         return test18_b ? null : test18_helper3();
     }
 
-    // Test proper register allocation of isInit projection of call in C2
+    // Test proper register allocation of isInit projection of a call in C2
     @Test
     public UseAllRegs test18(boolean b, long val1, long l1, long val2, long l2, long val3, long l3, long val4, long l4, long val5, long l5, long val6, long l6,
                              long val7, double d1, long val8, double d2, long val9, double d3, long val10, double d4, long val11, double d5, long val12, double d6, long val13, double d7, long val14, double d8, long val15) {
@@ -771,7 +771,7 @@ public class TestValueClasses {
         return new UseAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12, rL + 13, rL + 14);
     }
 
-    // Test proper register allocation of isInit projection of call in C2
+    // Test proper register allocation of isInit projection of a call in C2
     @Test
     static public void test19(long a, long b, long c, long d, long e, long f) {
         if (test19_helper() == null) {
@@ -785,6 +785,138 @@ public class TestValueClasses {
     @Run(test = "test19")
     public void test19_verifier() {
         test19(0, 0, 0, 0, 0, 0);
+    }
+
+    // Uses almost all registers available for returning values on x86_64
+    static value class UseAlmostAllRegs {
+        long l1;
+        long l2;
+        long l3;
+        long l4;
+        long l5;
+        double d1;
+        double d2;
+        double d3;
+        double d4;
+        double d5;
+        double d6;
+        double d7;
+
+        @ForceInline
+        public UseAlmostAllRegs(long l1, long l2, long l3, long l4, long l5,
+                                double d1, double d2, double d3, double d4, double d5, double d6, double d7) {
+            this.l1 = l1;
+            this.l2 = l2;
+            this.l3 = l3;
+            this.l4 = l4;
+            this.l5 = l5;
+            this.d1 = d1;
+            this.d2 = d2;
+            this.d3 = d3;
+            this.d4 = d4;
+            this.d5 = d5;
+            this.d6 = d6;
+            this.d7 = d7;
+        }
+    }
+
+    @DontInline
+    public UseAlmostAllRegs test20_helper1(UseAlmostAllRegs val, long a, long b, long c, long d, long e, long f, long g, long h, long i, long j) {
+        Asserts.assertEquals(a & b & c & d & e & f & g & h & i & j, 0L);
+        return val;
+    }
+
+    @DontCompile
+    public UseAlmostAllRegs test20_helper2(UseAlmostAllRegs val, long a, long b, long c, long d, long e, long f, long g, long h, long i, long j) {
+        Asserts.assertEquals(a & b & c & d & e & f & g & h & i & j, 0L);
+        return val;
+    }
+
+    static boolean test20_b;
+
+    // Methods with no arguments (no stack slots reserved for incoming args)
+    @DontInline
+    public static UseAlmostAllRegs test20_helper3() {
+        return test20_b ? null : new UseAlmostAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12);
+    }
+
+    @DontCompile
+    public static UseAlmostAllRegs test20_helper4() {
+        return test20_b ? null : test20_helper3();
+    }
+
+    // Test proper register allocation of isInit projection of a call in C2
+    @Test
+    public UseAlmostAllRegs test20(boolean b, long val1, long l1, long val2, long l2, long val3, long l3, long val4, long l4, long val5, long l5, long val6,
+                                   long val7, double d1, long val8, double d2, long val9, double d3, long val10, double d4, long val11, double d5, long val12, double d6, long val13, double d7, long val14, long val15) {
+        Asserts.assertEquals(val1, rL);
+        Asserts.assertEquals(val2, rL);
+        Asserts.assertEquals(val3, rL);
+        Asserts.assertEquals(val4, rL);
+        Asserts.assertEquals(val5, rL);
+        Asserts.assertEquals(val6, rL);
+        Asserts.assertEquals(val7, rL);
+        Asserts.assertEquals(val8, rL);
+        Asserts.assertEquals(val9, rL);
+        Asserts.assertEquals(val10, rL);
+        Asserts.assertEquals(val11, rL);
+        Asserts.assertEquals(val12, rL);
+        Asserts.assertEquals(val13, rL);
+        Asserts.assertEquals(val14, rL);
+        Asserts.assertEquals(val15, rL);
+        UseAlmostAllRegs val = b ? null : new UseAlmostAllRegs(l1, l2, l3, l4, l5, d1, d2, d3, d4, d5, d6, d7);
+        val = test20_helper1(val, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        val = test20_helper2(val, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        Asserts.assertEquals(val1, rL);
+        Asserts.assertEquals(val2, rL);
+        Asserts.assertEquals(val3, rL);
+        Asserts.assertEquals(val4, rL);
+        Asserts.assertEquals(val5, rL);
+        Asserts.assertEquals(val6, rL);
+        Asserts.assertEquals(val7, rL);
+        Asserts.assertEquals(val8, rL);
+        Asserts.assertEquals(val9, rL);
+        Asserts.assertEquals(val10, rL);
+        Asserts.assertEquals(val11, rL);
+        Asserts.assertEquals(val12, rL);
+        Asserts.assertEquals(val13, rL);
+        Asserts.assertEquals(val14, rL);
+        Asserts.assertEquals(val15, rL);
+        Asserts.assertEquals(test20_helper3(), val);
+        Asserts.assertEquals(test20_helper4(), val);
+        return val;
+    }
+
+    @Run(test = "test20")
+    public void test20_verifier() {
+        UseAlmostAllRegs val = new UseAlmostAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12);
+        test20_b = false;
+        Asserts.assertEquals(test20(false, rL, rL + 1, rL, rL + 2, rL, rL + 3, rL, rL + 4, rL, rL + 5, rL,
+                                    rL, rL + 6, rL, rL + 7, rL, rL + 8, rL, rL + 9, rL, rL + 10, rL, rL + 11, rL, rL + 12, rL, rL), val);
+        test20_b = true;
+        Asserts.assertEquals(test20(true, rL, rL + 1, rL, rL + 2, rL, rL + 3, rL, rL + 4, rL, rL + 5, rL,
+                                    rL, rL + 6, rL, rL + 7, rL, rL + 8, rL, rL + 9, rL, rL + 10, rL, rL + 11, rL, rL + 12, rL, rL), null);
+    }
+
+    @DontInline
+    static public UseAlmostAllRegs test21_helper() {
+        return new UseAlmostAllRegs(rL + 1, rL + 2, rL + 3, rL + 4, rL + 5, rL + 6, rL + 7, rL + 8, rL + 9, rL + 10, rL + 11, rL + 12);
+    }
+
+    // Test proper register allocation of isInit projection of a call in C2
+    @Test
+    static public void test21(long a, long b, long c, long d, long e, long f) {
+        if (test21_helper() == null) {
+            throw new RuntimeException("test21 failed: Unexpected null");
+        }
+        if ((a & b & c & d & e & f) != 0) {
+            throw new RuntimeException("test21 failed: Unexpected argument values");
+        }
+    }
+
+    @Run(test = "test21")
+    public void test21_verifier() {
+        test21(0, 0, 0, 0, 0, 0);
     }
 
     static value class ManyOopsValue {
@@ -812,13 +944,13 @@ public class TestValueClasses {
 
     // Verify that C2 scratch buffer size is large enough to hold many GC barriers used by the entry points
     @Test
-    static public int test20(ManyOopsValue val) {
+    static public int test22(ManyOopsValue val) {
         return val.sum();
     }
 
-    @Run(test = "test20")
+    @Run(test = "test22")
     @Warmup(10_000)
-    public void test20_verifier() {
-        Asserts.assertEquals(test20(new ManyOopsValue()), 120);
+    public void test22_verifier() {
+        Asserts.assertEquals(test22(new ManyOopsValue()), 120);
     }
 }

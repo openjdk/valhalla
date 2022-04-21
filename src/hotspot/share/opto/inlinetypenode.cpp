@@ -852,7 +852,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
       assert(is_allocated(phase), "must be allocated");
       return get_oop();
     } else {
-      // TODO
+      // TODO 8284443
       return NULL;
     }
   }

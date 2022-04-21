@@ -2493,7 +2493,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
     // TODO 8284443 We need to prevent endless pushing through
     // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
-    // TestLWordl -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
+    // TestLWorld -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* n = fast_out(i);
       if (n->is_InlineTypePtr() && n->in(1) == this) {
@@ -2501,7 +2501,6 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         break;
       }
     }
-
     // TODO 8284443 We could revisit the same node over and over again, right?
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);

@@ -302,7 +302,6 @@ PhaseOutput::PhaseOutput()
     _node_bundling_base(NULL),
     _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
-    _sp_inc_slot(0),
     _buf_sizes(),
     _block(NULL),
     _index(0) {
@@ -311,7 +310,10 @@ PhaseOutput::PhaseOutput()
     int fixed_slots = C->fixed_slots();
     if (C->needs_stack_repair()) {
       fixed_slots -= 2;
-      _sp_inc_slot = fixed_slots;
+    }
+    // TODO 8284443 Only reserve extra slot if needed
+    if (InlineTypeReturnedAsFields) {
+      fixed_slots -= 2;
     }
     _orig_pc_slot = fixed_slots - (sizeof(address) / VMRegImpl::stack_slot_size);
   }

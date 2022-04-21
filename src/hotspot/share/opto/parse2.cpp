@@ -2063,14 +2063,15 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (left->is_InlineType()) {
-    if (_gvn.type(right)->is_zero_type()) {
+  if (left->is_InlineTypeBase()) {
+    if (_gvn.type(right)->is_zero_type() ||
+        (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_zero_type())) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineTypeBase()->get_is_init(), intcon(0));
       do_if(btest, cmp);
       return;
-    } else {
+    } else if (left->is_InlineType()){
       PreserveReexecuteState preexecs(this);
       inc_sp(2);
       jvms()->set_should_reexecute(true);
