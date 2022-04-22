@@ -774,7 +774,7 @@ void InterpreterMacroAssembler::remove_activation(
 
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    // Check if we are returning an inline type and load its fields into registers
+    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
     test_oop_is_not_inline_type(r0, rscratch2, skip);
 
