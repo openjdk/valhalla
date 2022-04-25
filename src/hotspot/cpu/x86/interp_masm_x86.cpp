@@ -1176,28 +1176,35 @@ void InterpreterMacroAssembler::remove_activation(
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
   if (state == atos && InlineTypeReturnedAsFields) {
+    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
-    // Test if the return type is an inline type
-    movptr(rdi, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
-    movptr(rdi, Address(rdi, Method::const_offset()));
-    load_unsigned_byte(rdi, Address(rdi, ConstMethod::result_type_offset()));
-    cmpl(rdi, T_PRIMITIVE_OBJECT);
-    jcc(Assembler::notEqual, skip);
+    test_oop_is_not_inline_type(rax, rscratch1, skip);
 
-    // We are returning an inline type, load its fields into registers
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else
     // Load fields from a buffered value with an inline class specific handler
-    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-    load_klass(rdi, rax, tmp_load_klass);
+    load_klass(rdi, rax, rscratch1);
     movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
     movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
-
+    // Unpack handler can be null if inline type is not scalarizable in returns
     testptr(rdi, rdi);
-    jcc(Assembler::equal, skip);
-
+    jcc(Assembler::zero, skip);
     call(rdi);
+#endif
+#ifdef ASSERT
+    if (StressInlineTypeReturnedAsFields) {
+      // TODO 8284443 Enable this for value class returns (L-type descriptor)
+      Label skip_stress;
+      movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
+      movptr(rscratch1, Address(rscratch1, Method::const_offset()));
+      load_unsigned_byte(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
+      cmpl(rscratch1, T_PRIMITIVE_OBJECT);
+      jcc(Assembler::notEqual, skip_stress);
+      load_klass(rax, rax, rscratch1);
+      orptr(rax, 1);
+      bind(skip_stress);
+    }
 #endif
     // call above kills the value in rbx. Reload it.
     movptr(rbx, Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));

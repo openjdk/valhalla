@@ -679,20 +679,14 @@ void Method::compute_from_signature(Symbol* sig) {
 // InlineKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
-InlineKlass* Method::returned_inline_type(Thread* thread) const {
+InlineKlass* Method::returns_inline_type(Thread* thread) const {
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
+  NoSafepointVerifier nsv;
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
     ss.next();
   }
-  Handle class_loader(thread, method_holder()->class_loader());
-  Handle protection_domain(thread, method_holder()->protection_domain());
-  Klass* k = NULL;
-  {
-    NoSafepointVerifier nsv;
-    k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, JavaThread::cast(thread));
-  }
-  assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
-  return InlineKlass::cast(k);
+  return ss.as_inline_klass(method_holder());
 }
 
 bool Method::is_vanilla_constructor() const {
@@ -2379,6 +2373,31 @@ bool Method::is_valid_method(const Method* m) {
   } else {
     return false;
   }
+}
+
+bool Method::is_scalarized_arg(int idx) const {
+  if (!has_scalarized_args()) {
+    return false;
+  }
+  // Search through signature and check if argument is wrapped in T_PRIMITIVE_OBJECT/T_VOID
+  int depth = 0;
+  const GrowableArray<SigEntry>* sig = adapter()->get_sig_cc();
+  for (int i = 0; i < sig->length(); i++) {
+    BasicType bt = sig->at(i)._bt;
+    if (bt == T_PRIMITIVE_OBJECT) {
+      depth++;
+    }
+    if (idx == 0) {
+      break; // Argument found
+    }
+    if (bt == T_VOID && (sig->at(i-1)._bt != T_LONG && sig->at(i-1)._bt != T_DOUBLE)) {
+      depth--;
+    }
+    if (depth == 0 && bt != T_LONG && bt != T_DOUBLE) {
+      idx--; // Advance to next argument
+    }
+  }
+  return depth != 0;
 }
 
 #ifndef PRODUCT

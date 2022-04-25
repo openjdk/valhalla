@@ -2473,7 +2473,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
-      if (!val_t->isa_inlinetype() || val_t->inline_klass() != inline_klass) {
+      if (!(val_t->isa_inlinetype() || val_t->is_inlinetypeptr()) || val_t->inline_klass() != inline_klass) {
         set_map(old_map);
         set_sp(old_sp);
         return false;
@@ -2591,8 +2591,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (argument(1)->is_InlineType() && is_store) {
-    Node* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
-    value = value->as_InlineType()->make_larval(this, false);
+    InlineTypeBaseNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
+    value = value->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
 
@@ -2602,7 +2602,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
-  if (!value->is_InlineType()) {
+  if (!value->is_InlineTypeBase()) {
     return false;
   }
 
@@ -2611,7 +2611,7 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineType()->make_larval(this, true));
+  set_result(value->as_InlineTypeBase()->make_larval(this, true));
   return true;
 }
 
@@ -3032,7 +3032,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* obj = NULL;
   ciKlass* klass = _gvn.type(kls)->is_klassptr()->klass();
   if (klass->is_inlinetype()) {
-    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass());
+    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }
@@ -3480,7 +3480,6 @@ bool LibraryCallKit::inline_Class_cast() {
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
   // Check for null if casting to QMyValue
-  requires_null_check &= !obj->is_InlineType();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
@@ -3533,7 +3532,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
-    if (EnableValhalla && !obj->is_InlineType() && !requires_null_check) {
+    if (EnableValhalla && !requires_null_check) {
       // Check if we are casting to QMyValue
       Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), NULL);
       if (ctrl_val_mirror != NULL) {

@@ -589,7 +589,7 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
 #endif
   {
     ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
-    _compiled_entry_signature.compute_calling_conventions();
+    _compiled_entry_signature.compute_calling_conventions(false);
   }
   compile_method();
   if (bailed_out()) {

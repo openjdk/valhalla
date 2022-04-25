@@ -98,7 +98,7 @@ public class TestBasicFunctionality {
     // Return incoming inline type without accessing fields
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {ALLOC, "= 1", STORE, "= 14"},
+        counts = {ALLOC, "= 1", STORE, "= 19"},
         failOn = {LOAD, TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, LOAD, STORE, TRAP})
@@ -153,9 +153,10 @@ public class TestBasicFunctionality {
     // the interpreter via a call.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {LOAD, TRAP, ALLOC})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, "= 1"},
+        failOn = {LOAD, TRAP})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC, "= 2"},
         failOn = {LOAD, TRAP})
     public long test6() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -172,7 +173,7 @@ public class TestBasicFunctionality {
     // Create an inline type in compiled code and pass it to
     // the interpreter by returning.
     @Test
-    @IR(counts = {ALLOC, "= 1"},
+    @IR(counts = {ALLOC, "= 2"},
         failOn = {LOAD, TRAP})
     public MyValue1 test7(int x, long y) {
         return MyValue1.createWithFieldsInline(x, y);
@@ -206,10 +207,11 @@ public class TestBasicFunctionality {
     // Merge inline types created from two branches
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        counts = {LOAD, "= 14"},
-        failOn = {TRAP, ALLOC, STORE})
+        counts = {ALLOC, "= 1", LOAD, "= 19",
+                  STORE, "= 3"}, // InitializeNode::coalesce_subword_stores merges stores
+        failOn = {TRAP})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 1", STORE, "= 13"},
+        counts = {ALLOC, "= 2", STORE, "= 19"},
         failOn = {LOAD, TRAP})
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
@@ -281,8 +283,7 @@ public class TestBasicFunctionality {
     // Test loop with uncommon trap referencing an inline type
     @Test
     @IR(applyIf = {"FlatArrayElementMaxSize", "= -1"},
-        counts = {SCOBJ, ">= 1"}, // at least 1
-        failOn = LOAD)
+        counts = {SCOBJ, ">= 1", LOAD, "<= 12"}) // TODO 8227588 (loads should be removed)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = new MyValue1[Math.abs(rI) % 10];
@@ -346,7 +347,7 @@ public class TestBasicFunctionality {
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
         failOn = {ALLOC, STORE, TRAP},
-        counts = {LOAD, "= 14"})
+        counts = {LOAD, "= 19"})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, LOAD, STORE, TRAP})
     public long test14() {
@@ -364,10 +365,11 @@ public class TestBasicFunctionality {
     // non-inlined method on that inline type.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {LOAD, TRAP, ALLOC})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {LOAD, TRAP},
         counts = {ALLOC, "= 1"})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {LOAD, TRAP},
+        counts = {ALLOC, "= 2"})
     public long test15() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         return v.hashInterpreted();
@@ -414,9 +416,10 @@ public class TestBasicFunctionality {
     // debug info should include a reference to all its fields.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC, LOAD, TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, "= 1"},
+        failOn = {LOAD, TRAP})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC, "= 2"},
         failOn = {LOAD, TRAP})
     public long test18() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -435,9 +438,10 @@ public class TestBasicFunctionality {
     // should only be allocated once.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC, LOAD, TRAP})
-    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         counts = {ALLOC, "= 1"},
+        failOn = {LOAD, TRAP})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC, "= 2"},
         failOn = {LOAD, TRAP})
     public long test19() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -461,9 +465,10 @@ public class TestBasicFunctionality {
     // correctly allocated.
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {LOAD, ALLOC, STORE})
+        counts = {ALLOC, "= 1", STORE, "= 1"},  // InitializeNode::coalesce_subword_stores merges stores
+        failOn = {LOAD})
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
-        counts = {ALLOC, "= 1"},
+        counts = {ALLOC, "= 2"},
         failOn = LOAD)
     public long test20(boolean deopt, Method m) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -493,7 +498,7 @@ public class TestBasicFunctionality {
 
     // Test inline type fields in objects
     @Test
-    @IR(counts = {ALLOC, "= 1"},
+    @IR(counts = {ALLOC, "= 2"},
         failOn = TRAP)
     public long test21(int x, long y) {
         // Compute hash of inline type fields

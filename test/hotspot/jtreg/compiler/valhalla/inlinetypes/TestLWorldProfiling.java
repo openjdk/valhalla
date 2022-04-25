@@ -411,9 +411,8 @@ public class TestLWorldProfiling {
                     deopt = true;
                 }
             }
-
-            if (deopt && !WBFlags.TieredCompilation && WBFlags.ProfileInterpreter &&
-                         (WBFlags.UseArrayLoadStoreProfile || WBFlags.TypeProfileLevel == 222)) {
+            if (deopt && TestFramework.isStableDeopt(m, CompLevel.C2) && !WBFlags.TieredCompilation && WBFlags.ProfileInterpreter &&
+                (WBFlags.UseArrayLoadStoreProfile || WBFlags.TypeProfileLevel == 222)) {
                 throw new RuntimeException("Monomorphic array check should rely on profiling and be accurate");
             }
         }

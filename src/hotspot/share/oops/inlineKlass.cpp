@@ -371,7 +371,7 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
 
 // Update oop fields in registers from handles after a safepoint
 void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
-  assert(InlineTypeReturnedAsFields, "inconsistent");
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
   assert(regs != NULL, "inconsistent");

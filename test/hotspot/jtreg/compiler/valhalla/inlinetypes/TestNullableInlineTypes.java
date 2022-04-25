@@ -25,6 +25,8 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
+import jdk.experimental.bytecode.TypeTag;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -38,8 +40,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test correct handling of nullable inline types.
- * @library /test/lib /
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
 
@@ -56,11 +59,15 @@ public class TestNullableInlineTypes {
                    .addScenarios(scenarios)
                    .addHelperClasses(MyValue1.class,
                                      MyValue2.class,
-                                     MyValue2Inline.class)
+                                     MyValue2Inline.class,
+                                     MyValue3.class,
+                                     MyValue3Inline.class)
                    .start();
     }
 
     static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
         try {
             Class<?> clazz = TestNullableInlineTypes.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
@@ -163,7 +170,9 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    // TODO 8284443 When passing vt to test5_inline and incrementally inlining, we lose the oop
+    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
+        failOn = {ALLOC})
     public MyValue1.ref test5(MyValue1.ref vt) {
         try {
             Object o = vt;
@@ -181,6 +190,7 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test5")
     public void test5_verifier() {
+        MyValue1 val = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1.ref vt = test5(nullField);
         Asserts.assertEquals(vt, null);
     }
@@ -506,12 +516,11 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    // TODO 8284443 When passing testValue1 to the constructor in scalarized form and incrementally inlining, we lose the oop
+    @IR(applyIfOr = {"InlineTypePassFieldsAsArgs", "false", "AlwaysIncrementalInline", "false"},
+        failOn = {ALLOC})
     public Test17Value test17(boolean b) {
         Test17Value vt1 = Test17Value.default;
-        if ((Object)vt1.valueField != null) {
-            throw new RuntimeException("Should be null");
-        }
         Test17Value vt2 = new Test17Value(testValue1);
         return b ? vt1 : vt2;
     }
@@ -669,7 +678,10 @@ public class TestNullableInlineTypes {
     }
 
     @Test
-    @IR(failOn = {ALLOC})
+    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= -1", "InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOC})
+    @IR(applyIfAnd = {"FlatArrayElementMaxSize", "= 0", "InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC})
     public void test23(MyValue1[] arr, MyValue1.ref b) {
         arr[0] = (MyValue1) b;
     }
@@ -2019,7 +2031,6 @@ public class TestNullableInlineTypes {
 
     @Run(test = "test75")
     public void test75_verifier() {
-        RuntimeException tmp = new RuntimeException("42"); // Make sure RuntimeException is loaded
         MyValue1.ref vt = testValue1;
         MyValue1.ref result = test75(vt, Integer.valueOf(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
@@ -2368,7 +2379,8 @@ public class TestNullableInlineTypes {
     // Test scalarization with phi referencing itself
     @Test
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
-        failOn = {ALLOC, LOAD, STORE})
+        failOn = {ALLOC, STORE},
+        counts = {LOAD, " = 4"}) // 4 loads from the non-flattened MyValue1.v4 fields
     @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
         failOn = {ALLOC, STORE})
     public long test86(MyValue1 vt) {
@@ -2492,7 +2504,8 @@ public class TestNullableInlineTypes {
 
     // Test that scalarization does not introduce redundant/unused checks
     @Test
-    @IR(failOn = {ALLOC, CMPP})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC, CMPP})
     public Object test91(MyValue1.ref vt) {
         return vt;
     }
@@ -2514,5 +2527,194 @@ public class TestNullableInlineTypes {
     @Run(test = "test92")
     public void test92_verifier() {
         Asserts.assertEQ(test92(), testValue1);
+    }
+
+    private static final MethodHandle refCheckCast = InstructionHelper.loadCode(MethodHandles.lookup(),
+        "refCheckCast",
+        MethodType.methodType(MyValue2.class.asPrimaryType(), TestNullableInlineTypes.class, MyValue1.class.asPrimaryType()),
+        CODE -> {
+            CODE.
+            aload_1().
+            checkcast(MyValue2.class.asPrimaryType()).
+            return_(TypeTag.A);
+        });
+
+    // Test checkcast that only passes with null
+    @Test
+    public Object test93(MyValue1.ref vt) throws Throwable {
+        return refCheckCast.invoke(this, vt);
+    }
+
+    @Run(test = "test93")
+    @Warmup(10000)
+    public void test93_verifier() throws Throwable {
+        Asserts.assertEQ(test93(null), null);
+    }
+
+    @DontInline
+    public MyValue1.ref test94_helper1(MyValue1.ref vt) {
+        return vt;
+    }
+
+    @ForceInline
+    public MyValue1.ref test94_helper2(MyValue1.ref vt) {
+        return test94_helper1(vt);
+    }
+
+    @ForceInline
+    public MyValue1.ref test94_helper3(Object vt) {
+        return test94_helper2((MyValue1.ref)vt);
+    }
+
+    // Test that calling convention optimization prevents buffering of arguments
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
+    public MyValue1.ref test94(MyValue1.ref vt) {
+        MyValue1.ref res = test94_helper1(vt);
+        vt = MyValue1.createWithFieldsInline(rI, rL);
+        test94_helper1(vt);
+        test94_helper2(vt);
+        test94_helper3(vt);
+        return res;
+    }
+
+    @Run(test = "test94")
+    public void test94_verifier() {
+        Asserts.assertEQ(test94(testValue1), testValue1);
+        Asserts.assertEQ(test94(null), null);
+    }
+
+    @DontInline
+    public static MyValue1.ref test95_helper1(MyValue1.ref vt) {
+        return vt;
+    }
+
+    @ForceInline
+    public static MyValue1.ref test95_helper2(MyValue1.ref vt) {
+        return test95_helper1(vt);
+    }
+
+    @ForceInline
+    public static MyValue1.ref test95_helper3(Object vt) {
+        return test95_helper2((MyValue1.ref)vt);
+    }
+
+    // Same as test94 but with static methods to trigger simple adapter logic
+    @Test
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        counts = {ALLOC_G, " = 2"}) // 1 MyValue2 allocation + 1 Integer allocation
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        counts = {ALLOC_G, " = 3"}) // 1 MyValue1 allocation + 1 MyValue2 allocation + 1 Integer allocation
+    public static MyValue1.ref test95(MyValue1.ref vt) {
+        MyValue1.ref res = test95_helper1(vt);
+        vt = MyValue1.createWithFieldsInline(rI, rL);
+        test95_helper1(vt);
+        test95_helper2(vt);
+        test95_helper3(vt);
+        return res;
+    }
+
+    @Run(test = "test95")
+    public void test95_verifier() {
+        Asserts.assertEQ(test95(testValue1), testValue1);
+        Asserts.assertEQ(test95(null), null);
+    }
+
+    @DontInline
+    public MyValue2.ref test96_helper1(boolean b) {
+        return b ? null : MyValue2.createWithFieldsInline(rI, rD);
+    }
+
+    @ForceInline
+    public MyValue2.ref test96_helper2() {
+        return null;
+    }
+
+    @ForceInline
+    public MyValue2.ref test96_helper3(boolean b) {
+        return b ? null : MyValue2.createWithFieldsInline(rI, rD);
+    }
+
+    // Test that calling convention optimization prevents buffering of return values
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_G})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+        counts = {ALLOC_G, " = 1"})
+    public MyValue2.ref test96(int c, boolean b) {
+        MyValue2.ref res = null;
+        if (c == 1) {
+            res = test96_helper1(b);
+        } else if (c == 2) {
+            res = test96_helper2();
+        } else if (c == 3) {
+            res = test96_helper3(b);
+        }
+        return res;
+    }
+
+    @Run(test = "test96")
+    public void test96_verifier() {
+        Asserts.assertEQ(test96(0, false), null);
+        Asserts.assertEQ(test96(1, false).hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test96(1, true), null);
+        Asserts.assertEQ(test96(2, false), null);
+        Asserts.assertEQ(test96(3, false).hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
+        Asserts.assertEQ(test96(3, true), null);
+    }
+
+    @DontInline
+    public MyValue3.ref test97_helper1(boolean b) {
+        return b ? null: MyValue3.create();
+    }
+
+    @ForceInline
+    public MyValue3.ref test97_helper2() {
+        return null;
+    }
+
+    @ForceInline
+    public MyValue3.ref test97_helper3(boolean b) {
+        return b ? null: MyValue3.create();
+    }
+
+    MyValue3 test97_res1;
+    MyValue3 test97_res3;
+
+    // Same as test96 but with MyValue3 return
+    @Test
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "true"},
+        failOn = {ALLOC_G})
+    @IR(applyIf = {"InlineTypeReturnedAsFields", "false"},
+        counts = {ALLOC_G, " = 1"})
+    public MyValue3.ref test97(int c, boolean b) {
+        MyValue3.ref res = null;
+        if (c == 1) {
+            res = test97_helper1(b);
+            if (res != null) {
+                test97_res1 = res;
+            }
+        } else if (c == 2) {
+            res = test97_helper2();
+        } else if (c == 3) {
+            res = test97_helper3(b);
+            if (res != null) {
+                test97_res3 = res;
+            }
+        }
+        return res;
+    }
+
+    @Run(test = "test97")
+    public void test97_verifier() {
+        Asserts.assertEQ(test97(0, false), null);
+        Asserts.assertEQ(test97(1, false), test97_res1);
+        Asserts.assertEQ(test97(1, true), null);
+        Asserts.assertEQ(test97(2, false), null);
+        Asserts.assertEQ(test97(3, false), test97_res3);
+        Asserts.assertEQ(test97(3, true), null);
     }
 }

@@ -876,7 +876,7 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   CompiledMethod* cm = _cb->as_compiled_method_or_null();
   if (cm != NULL && cm->needs_stack_repair()) {
     // The stack increment resides just below the saved FP on the stack and
-    // records the total frame size exluding the two words for saving FP and LR.
+    // records the total frame size excluding the two words for saving FP and LR.
     intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
     assert(*sp_inc_addr % StackAlignmentInBytes == 0, "sp_inc not aligned");
     int real_frame_size = (*sp_inc_addr / wordSize) + 2;

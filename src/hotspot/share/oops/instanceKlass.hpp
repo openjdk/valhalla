@@ -568,6 +568,7 @@ class InstanceKlass: public Klass {
 
   Array<u2>* preload_classes() const { return _preload_classes; }
   void set_preload_classes(Array<u2>* c) { _preload_classes = c; }
+  bool is_preload_class(Symbol* name) const;
 
   // inner classes
   Array<u2>* inner_classes() const       { return _inner_classes; }

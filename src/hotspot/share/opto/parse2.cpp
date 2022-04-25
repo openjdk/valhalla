@@ -265,19 +265,15 @@ void Parse::array_store(BasicType bt) {
         ideal.sync_kit(this);
       } ideal.else_(); {
         sync_kit(ideal);
-        Node* val = cast_val;
         // flattened
-        if (!val->is_InlineType() && tval->maybe_null()) {
-          // Add null check
-          Node* null_ctl = top();
-          val = null_check_oop(val, &null_ctl);
-          if (null_ctl != top()) {
-            PreserveJVMState pjvms(this);
-            inc_sp(3);
-            set_control(null_ctl);
-            uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-            dec_sp(3);
-          }
+        Node* null_ctl = top();
+        Node* val = null_check_oop(cast_val, &null_ctl);
+        if (null_ctl != top()) {
+          PreserveJVMState pjvms(this);
+          inc_sp(3);
+          set_control(null_ctl);
+          uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+          dec_sp(3);
         }
         // Try to determine the inline klass
         ciInlineKlass* vk = NULL;
@@ -2067,11 +2063,20 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (left->is_InlineType()) {
-    PreserveReexecuteState preexecs(this);
-    inc_sp(2);
-    jvms()->set_should_reexecute(true);
-    left = left->as_InlineType()->buffer(this)->get_oop();
+  if (left->is_InlineTypeBase()) {
+    if (_gvn.type(right)->is_zero_type() ||
+        (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_zero_type())) {
+      // Null checking a scalarized but nullable inline type. Check the IsInit
+      // input instead of the oop input to avoid keeping buffer allocations alive.
+      Node* cmp = CmpI(left->as_InlineTypeBase()->get_is_init(), intcon(0));
+      do_if(btest, cmp);
+      return;
+    } else if (left->is_InlineType()){
+      PreserveReexecuteState preexecs(this);
+      inc_sp(2);
+      jvms()->set_should_reexecute(true);
+      left = left->as_InlineType()->buffer(this)->get_oop();
+    }
   }
   if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
@@ -3370,8 +3375,9 @@ void Parse::do_one_bytecode() {
     a = null();
     b = pop();
     if (b->is_InlineType()) {
-      // Return constant false because 'b' is always non-null
-      c = _gvn.makecon(TypeInt::CC_GT);
+      // Null checking a scalarized but nullable inline type. Check the IsInit
+      // input instead of the oop input to avoid keeping buffer allocations alive
+      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {

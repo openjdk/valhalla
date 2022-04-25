@@ -61,6 +61,11 @@ public class TestNullableArrays {
                    .start();
     }
 
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
+    }
+
     // Helper methods
 
     protected long hash() {

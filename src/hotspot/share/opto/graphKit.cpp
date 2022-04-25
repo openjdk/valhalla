@@ -1253,8 +1253,23 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
-  if (value->is_InlineTypePtr()) {
-    // Null checking a scalarized but nullable inline type. Check the is_init
+  if (value->is_InlineType()) {
+    InlineTypeNode* vt = value->as_InlineType();
+    null_check_common(vt->get_is_init(), T_INT, assert_null, null_control, speculative, true);
+    if (stopped()) {
+      return top();
+    }
+    if (assert_null) {
+      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
+      // vt = InlineTypeNode::make_null(_gvn, vt->type()->inline_klass());
+      // replace_in_map(value, vt);
+      // return vt;
+      return null();
+    }
+    bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
+    return cast_not_null(value, do_replace_in_map);
+  } else if (value->is_InlineTypePtr()) {
+    // Null checking a scalarized but nullable inline type. Check the IsInit
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
     while (vtptr->get_oop()->is_InlineTypePtr()) {
@@ -1265,9 +1280,11 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
       return top();
     }
     if (assert_null) {
-      vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
-      replace_in_map(value, vtptr);
-      return vtptr;
+      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
+      // vtptr = InlineTypePtrNode::make_null(_gvn, vtptr->type()->inline_klass());
+      // replace_in_map(value, vtptr);
+      // return vtptr;
+      return null();
     }
     bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
     return cast_not_null(value, do_replace_in_map);
@@ -1454,7 +1471,13 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   if (obj->is_InlineType()) {
-    return obj;
+    InlineTypeNode* vt = obj->clone()->as_InlineType();
+    vt->set_is_init(_gvn);
+    vt = _gvn.transform(vt)->as_InlineType();
+    if (do_replace_in_map) {
+      replace_in_map(obj, vt);
+    }
+    return vt;
   } else if (obj->is_InlineTypePtr()) {
     // Cast oop input instead
     Node* cast = cast_not_null(obj->as_InlineTypePtr()->get_oop(), do_replace_in_map);
@@ -1856,17 +1879,23 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   // Add the call arguments
   const TypeTuple* domain = call->tf()->domain_sig();
   uint nargs = domain->cnt();
+  int arg_num = 0;
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
-    if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
+    if (t->is_inlinetypeptr() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
+      if (!arg->is_InlineTypeBase()) {
+        assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
+        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
+      }
       InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
-      vt->pass_fields(this, call, idx);
+      vt->pass_fields(this, call, idx, true, !t->maybe_null());
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
+      arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
       // Pass inline type argument via oop to callee
@@ -1874,6 +1903,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       if (!is_late_inline) {
         arg = arg->as_InlineTypePtr()->get_oop();
       }
+    }
+    if (t != Type::HALF) {
+      arg_num++;
     }
     call->init_req(idx++, arg);
   }
@@ -1935,7 +1967,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
@@ -3394,7 +3426,12 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
-  Node* not_null_obj = is_value ? obj : null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
+  if (is_value) {
+    // TODO 8284443 Enable this
+    safe_for_replace = false;
+    never_see_null = false;
+  }
+  Node* not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
 
   // If not_null_obj is dead, only null-path is taken
   if (stopped()) {              // Doing instance-of on a NULL?
@@ -3507,40 +3544,30 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         // to the type system as a speculative type.
         if (!from_inline) {
           obj = record_profiled_receiver_for_speculation(obj);
-          if (null_free) {
-            assert(safe_for_replace, "must be");
-            obj = null_check(obj);
-          }
-          assert(stopped() || !toop->is_inlinetypeptr() ||
-                 obj->is_InlineTypeBase(), "should have been scalarized");
         }
+        if (null_free) {
+          assert(safe_for_replace, "must be");
+          obj = null_check(obj);
+        }
+        assert(stopped() || !toop->is_inlinetypeptr() || obj->is_InlineTypeBase(), "should have been scalarized");
         return obj;
       case Compile::SSC_always_false:
-        if (from_inline || null_free) {
-          if (!from_inline) {
-            assert(safe_for_replace, "must be");
-            null_check(obj);
-          }
-          // Inline type is null-free. Always throw an exception.
+        if (null_free) {
+          assert(safe_for_replace, "must be");
+          obj = null_check(obj);
+        }
+        // It needs a null check because a null will *pass* the cast check.
+        const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
+        if (objtp != NULL && !objtp->maybe_null()) {
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
           builtin_throw(reason, makecon(TypeKlassPtr::make(klass)));
           return top();
-        } else {
-          // It needs a null check because a null will *pass* the cast check.
-          const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-          if (!objtp->maybe_null()) {
-            bool is_aastore = (java_bc() == Bytecodes::_aastore);
-            Deoptimization::DeoptReason reason = is_aastore ?
-              Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
-            builtin_throw(reason, makecon(TypeKlassPtr::make(objtp->klass())));
-            return top();
-          } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
-            return null_assert(obj);
-          }
-          break; // Fall through to full check
+        } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
+          return null_assert(obj);
         }
+        break; // Fall through to full check
       }
     }
   }
@@ -3572,11 +3599,12 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
   Node* not_null_obj = NULL;
-  if (from_inline) {
-    not_null_obj = obj;
-  } else if (null_free) {
+  if (null_free) {
     assert(safe_for_replace, "must be");
     not_null_obj = null_check(obj);
+  } else if (from_inline) {
+    // TODO 8284443 obj can be null and null should pass
+    not_null_obj = obj;
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
   }
@@ -3584,6 +3612,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // If not_null_obj is dead, only null-path is taken
   if (stopped()) {              // Doing instance-of on a NULL?
     set_control(null_ctl);
+    if (toop->is_inlinetypeptr()) {
+      return InlineTypePtrNode::make_null(_gvn, toop->inline_klass());
+    }
     return null();
   }
   region->init_req(_null_path, null_ctl);
@@ -3760,10 +3791,6 @@ Node* GraphKit::null_free_array_test(Node* klass, bool null_free) {
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
 Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace) {
-  const Type* val_t = _gvn.type(val);
-  if (val->is_InlineType() || !TypePtr::NULL_PTR->higher_equal(val_t)) {
-    return ary; // Never null
-  }
   RegionNode* region = new RegionNode(3);
   Node* null_ctl = top();
   null_check_oop(val, &null_ctl);
@@ -3782,7 +3809,7 @@ Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool sa
   region->init_req(2, control());
   set_control(_gvn.transform(region));
   record_for_igvn(region);
-  if (val_t == TypePtr::NULL_PTR) {
+  if (_gvn.type(val) == TypePtr::NULL_PTR) {
     // Since we were just successfully storing null, the array can't be null free.
     const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
     ary_t = ary_t->cast_to_not_null_free();
