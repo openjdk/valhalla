@@ -31,7 +31,7 @@ package java.lang;
  * argument, an instance of this class is allocated and a reference to it is
  * pushed on the stack.
  */
-public final class Identity implements IdentityObject {
+public final class Identity {
 
   /** Create a new instance with an identity */
   public Identity() { }

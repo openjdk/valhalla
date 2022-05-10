@@ -6,8 +6,8 @@
  */
 value final class Point {
 
-    value interface I { int x = 10; } // Error
-    value abstract class A { int x = 10; } // Error
+    value interface I { int x = 10; }
+    value abstract class A { int x = 10; }
     static final class Sinner {
         static Sinner make() {
             return Sinner.default;

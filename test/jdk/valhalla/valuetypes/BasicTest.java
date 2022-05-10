@@ -260,22 +260,23 @@ public class BasicTest {
         Object o = ctor.newInstance(params);
     }
 
-    class C implements IdentityObject { }
-    primitive class T implements ValueObject { }
+    class C { }
+    primitive class T { }
 
     @DataProvider(name="intfs")
     Object[][] intfs() {
         Point point = new Point(10, 20);
         Point[] array = new Point[] { point };
         Value value = new Value(10);
+        Class<?> [] empty_intfs = new Class<?>[0];
         return new Object[][]{
-                new Object[]{ new BasicTest(), new Class<?>[] { IdentityObject.class }},
-                new Object[]{ point, new Class<?>[] { ValueObject.class }},
-                new Object[]{ new T(), new Class<?>[] { ValueObject.class }},
-                new Object[]{ new C(), new Class<?>[] { IdentityObject.class }},
-                new Object[]{ Objects.newIdentity(), new Class<?>[] { IdentityObject.class }},
-                new Object[]{ array, new Class<?>[] { Cloneable.class, Serializable.class, IdentityObject.class }},
-                new Object[]{ value, new Class<?>[] { ValueObject.class }},
+                new Object[]{ new BasicTest(), empty_intfs },
+                new Object[]{ point, empty_intfs },
+                new Object[]{ new T(), empty_intfs },
+                new Object[]{ new C(), empty_intfs },
+                new Object[]{ Objects.newIdentity(), empty_intfs },
+                new Object[]{ array, new Class<?>[] { Cloneable.class, Serializable.class }},
+                new Object[]{ value, empty_intfs },
         };
     }
 
@@ -283,13 +284,6 @@ public class BasicTest {
     public void testGetInterfaces(Object o, Class<?>[] expectedInterfaces) {
         Class<?> type = o.getClass();
         assertEquals(type.getInterfaces(), expectedInterfaces);
-        if (type.isValue()) {
-            assertTrue(ValueObject.class.isAssignableFrom(type));
-            assertTrue(o instanceof ValueObject);
-        } else {
-            assertTrue(IdentityObject.class.isAssignableFrom(type));
-            assertTrue(o instanceof IdentityObject);
-        }
     }
 
     @Test

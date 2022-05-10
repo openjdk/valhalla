@@ -1579,7 +1579,6 @@ public class ClassWriter extends ClassFile {
             flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & AdjustedClassFlags;
-            if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
         if (dumpClassModifiers) {
@@ -1757,8 +1756,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_PRIMITIVE;
         if ((flags & VALUE_CLASS) != 0)
             result |= ACC_VALUE;
-        if ((flags & PERMITS_VALUE) != 0)
-            result |= ACC_PERMITS_VALUE;
+        if ((flags & IDENTITY_TYPE) != 0)
+            result |= ACC_IDENTITY;
         return result;
     }
 

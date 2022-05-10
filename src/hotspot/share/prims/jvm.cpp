@@ -1187,7 +1187,7 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
     size = ik->local_interfaces()->length();
   } else {
     assert(klass->is_objArray_klass() || klass->is_typeArray_klass() || klass->is_flatArray_klass(), "Illegal mirror klass");
-    size = 3;
+    size = 2;
   }
 
   // Allocate result array
@@ -1202,10 +1202,9 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
       result->obj_at_put(index, k->java_mirror());
     }
   } else {
-    // All arrays implement java.lang.Cloneable, java.io.Serializable and java.lang.IdentityObject
+    // All arrays implement java.lang.Cloneable and java.io.Serializable
     result->obj_at_put(0, vmClasses::Cloneable_klass()->java_mirror());
     result->obj_at_put(1, vmClasses::Serializable_klass()->java_mirror());
-    result->obj_at_put(2, vmClasses::IdentityObject_klass()->java_mirror());
   }
   return (jobjectArray) JNIHandles::make_local(THREAD, result());
 JVM_END

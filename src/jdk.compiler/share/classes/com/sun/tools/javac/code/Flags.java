@@ -111,13 +111,12 @@ public class Flags {
     // bit positions, we translate them when reading and writing class
     // files into unique bits positions: ACC_SYNTHETIC <-> SYNTHETIC,
     // for example.
-    public static final int ACC_SUPER    = 0x0020;
+    public static final int ACC_IDENTITY = 0x0020;
+    public static final int ACC_VALUE    = 0x0040;
     public static final int ACC_BRIDGE   = 0x0040;
     public static final int ACC_VARARGS  = 0x0080;
-    public static final int ACC_VALUE    = 0x0100;
     public static final int ACC_PRIMITIVE = 0x0800;
     public static final int ACC_MODULE   = 0x8000;
-    public static final int ACC_PERMITS_VALUE = 0x0040;
 
     /*****************************************
      * Internal compiler flags (no bits in the lower 16).
@@ -145,10 +144,13 @@ public class Flags {
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 
-    /** Flag is set for an abstract class that meets the various needs
-     *  that qualify it to be the super class of a value/primitive class
+    /** Flag is set for a class or interface whose instances have identity
+     * i.e. class/interface declarations that are expressly declared with
+     * the modifier `identity' or (b) any concrete class not declared with the
+     * modifier `value' (c) abstract class not declared `value' but meets various
+     * stipulations (d) older class files with ACC_SUPER bit set
      */
-    public static final int PERMITS_VALUE            = 1<<19;
+    public static final int IDENTITY_TYPE            = 1<<19;
 
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
@@ -422,7 +424,7 @@ public class Flags {
      */
     public static final int
         AccessFlags                       = PUBLIC | PROTECTED | PRIVATE,
-        LocalClassFlags                   = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC | ACC_PERMITS_VALUE,
+        LocalClassFlags                   = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC | ACC_IDENTITY,
         StaticLocalClassFlags             = LocalClassFlags | STATIC | INTERFACE,
         MemberClassFlags                  = LocalClassFlags | INTERFACE | AccessFlags,
         MemberStaticClassFlags            = MemberClassFlags | STATIC,
@@ -515,7 +517,12 @@ public class Flags {
         HASINIT(Flags.HASINIT),
         HASINITBLOCK(Flags.HASINITBLOCK),
         EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
-        PERMITS_VALUE(Flags.PERMITS_VALUE),
+        IDENTITY_TYPE(Flags.IDENTITY_TYPE) {
+            @Override
+            public String toString() {
+                return "identity";
+            }
+        },
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

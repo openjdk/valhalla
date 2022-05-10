@@ -1100,9 +1100,12 @@ public class TypeEnter implements Completer {
             }
 
             if (tree.sym != syms.objectType.tsym) {
+                if ((tree.sym.flags() & (ABSTRACT | INTERFACE | VALUE_CLASS)) == 0) {
+                    tree.sym.flags_field |= IDENTITY_TYPE;
+                }
                 if ((tree.sym.flags() & (ABSTRACT | INTERFACE)) == ABSTRACT) {
-                    if (types.asSuper(tree.sym.type, syms.identityObjectType.tsym) == null) {
-                        tree.sym.flags_field |= PERMITS_VALUE;
+                    if (types.isIdentityType(tree.sym.type)) {
+                        tree.sym.flags_field |= IDENTITY_TYPE;
                     }
                 }
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -280,8 +280,6 @@ public abstract class InnerClassesTestBase extends TestResult {
                     .append(toString(outerMod)).append(' ')
                     .append(outerClassType).append(' ')
                     .append(prefix).append(' ').append('\n');
-            if (outerClassType == ClassType.CLASS && outerMod.contains(Modifier.ABSTRACT))
-                sb.append("int f;\n");
             int count = 0;
             Map<String, Set<String>> class2Flags = new HashMap<>();
             List<String> syntheticClasses = new ArrayList<>();
@@ -292,10 +290,8 @@ public abstract class InnerClassesTestBase extends TestResult {
                     privateConstructor = "private A" + count + "() {}";
                     syntheticClasses.add("new A" + count + "();");
                 }
-                String instField = innerClassType == ClassType.CLASS && innerMod.contains(Modifier.ABSTRACT) ?
-                                                "int f; " : ""; // inhibit PERMITS_VALUE
                 sb.append(toString(innerMod)).append(' ');
-                sb.append(String.format("%s A%d { %s %s}\n", innerClassType, count, instField, privateConstructor));
+                sb.append(String.format("%s A%d {%s}\n", innerClassType, count, privateConstructor));
                 Set<String> flags = getFlags(innerClassType, innerMod);
                 class2Flags.put("A" + count, flags);
             }
@@ -446,7 +442,8 @@ public abstract class InnerClassesTestBase extends TestResult {
         PUBLIC("public"), PRIVATE("private"),
         PROTECTED("protected"), DEFAULT("default"),
         FINAL("final"), ABSTRACT("abstract"),
-        STATIC("static"), EMPTY("");
+        STATIC("static"), EMPTY(""),
+        IDENTITY("identity");
 
         private final String str;
 

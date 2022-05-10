@@ -766,9 +766,10 @@ public class Check {
             if (!st.tsym.isAbstract()) {
                 log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
             }
-            if ((st.tsym.flags() & PERMITS_VALUE) != 0) {
+            if ((st.tsym.flags() & IDENTITY_TYPE) == 0) {
                 return;
             }
+            // TODO: If an IDENTITY_TYPE we may not issue an error below, if older abstract class qualifies
             // We have an unsuitable abstract super class, find out why exactly and complain
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
@@ -890,12 +891,6 @@ public class Check {
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
-
-        /* Not appropriate to check
-         *     if (types.asSuper(t, syms.identityObjectType.tsym) != null)
-         * since jlO, interface types and abstract types may fail that check
-         * at compile time.
-         */
 
         return t;
     }
@@ -1477,12 +1472,10 @@ public class Check {
             if ((flags & PRIMITIVE_CLASS) != 0)
                 implicit |= VALUE_CLASS | FINAL;
 
-            // value classes are implicitly final
-            if ((flags & VALUE_CLASS) != 0)
+            // concrete value classes are implicitly final
+            if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS)
                 implicit |= FINAL;
 
-            // ACC_PERMITS_VALUE a legal class flag, but not a legal class modifier
-            mask &= ~ACC_PERMITS_VALUE;
             break;
         default:
             throw new AssertionError();
@@ -1511,7 +1504,11 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                                ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS | VALUE_CLASS)
+                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS)
+                 &&
+                 checkDisjoint(pos, flags,
+                        IDENTITY_TYPE,
+                        PRIMITIVE_CLASS | VALUE_CLASS)
                  &&
                  checkDisjoint(pos, flags,
                                PUBLIC,
@@ -2776,16 +2773,6 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
-
-        boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
-        boolean implementsValueObject = types.asSuper(c.referenceProjectionOrSelf(), syms.valueObjectType.tsym) != null;
-        if (c.isValueClass() && implementsIdentityObject) {
-            log.error(pos, Errors.ValueClassMustNotImplementIdentityObject(c));
-        } else if (implementsValueObject && !c.isValueClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
-            log.error(pos, Errors.IdentityClassMustNotImplementValueObject(c));
-        } else if (implementsValueObject && implementsIdentityObject) {
-            log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
-        }
     }
 
     /** Check that all non-override equivalent methods accessible from 'site'

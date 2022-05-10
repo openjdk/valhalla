@@ -2786,7 +2786,7 @@ public class JavacParser implements Parser {
                 }
             }
         }
-        if ((isPrimitiveModifier() && allowPrimitiveClasses) || isValueModifier() && allowValueClasses) {
+        if ((isPrimitiveModifier() && allowPrimitiveClasses) || (isValueModifier() || isIdentityModifier()) && allowValueClasses) {
             dc = token.comment(CommentStyle.JAVADOC);
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         }
@@ -3334,6 +3334,10 @@ public class JavacParser implements Parser {
                     flag = Flags.VALUE_CLASS;
                     break;
                 }
+                if (isIdentityModifier()) {
+                    flag = Flags.IDENTITY_TYPE;
+                    break;
+                }
                 break loop;
             }
             default: break loop;
@@ -3604,6 +3608,13 @@ public class JavacParser implements Parser {
         }
         if (name == names.value) {
             if (allowValueClasses) {
+                return Source.JDK18;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
+            }
+        }
+        if (name == names.identity) {
+            if (allowPrimitiveClasses) {
                 return Source.JDK18;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
@@ -4511,8 +4522,8 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isPrimitiveModifier = true;
                     break;
-                case IDENTIFIER: // primitive record R || primitive primitive || primitive value || new primitive Comparable() {}
-                    if (next.name() == names.record || next.name() == names.primitive
+                case IDENTIFIER: // primitive record R || primitive primitive || primitive identity || primitive value || new primitive Comparable() {}
+                    if (next.name() == names.record || next.name() == names.primitive || next.name() == names.identity
                             || next.name() == names.value || (mode & EXPR) != 0)
                         isPrimitiveModifier = true;
                     break;
@@ -4537,14 +4548,40 @@ public class JavacParser implements Parser {
                 case CLASS: case INTERFACE: case ENUM:
                     isValueModifier = true;
                     break;
-                case IDENTIFIER: // value record R || value value || value primitive || new value Comparable() {} ??
-                    if (next.name() == names.record || next.name() == names.value
+                case IDENTIFIER: // value record R || value value || value identity || value primitive || new value Comparable() {} ??
+                    if (next.name() == names.record || next.name() == names.value || next.name() == names.identity
                             || next.name() == names.primitive || (mode & EXPR) != 0)
                         isValueModifier = true;
                     break;
             }
             if (isValueModifier) {
                 checkSourceLevel(Feature.VALUE_CLASSES);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isIdentityModifier() {
+        if (token.kind == IDENTIFIER && token.name() == names.identity) {
+            boolean isIdentityModifier = false;
+            Token next = S.token(1);
+            switch (next.kind) {
+                case PRIVATE: case PROTECTED: case PUBLIC: case STATIC: case TRANSIENT:
+                case FINAL: case ABSTRACT: case NATIVE: case VOLATILE: case SYNCHRONIZED:
+                case STRICTFP: case MONKEYS_AT: case DEFAULT: case BYTE: case SHORT:
+                case CHAR: case INT: case LONG: case FLOAT: case DOUBLE: case BOOLEAN: case VOID:
+                case CLASS: case INTERFACE: case ENUM:
+                    isIdentityModifier = true;
+                    break;
+                case IDENTIFIER: // identity record R || identity primitive || || identity identity || identity value || new identity Comparable() {}
+                    if (next.name() == names.record || next.name() == names.primitive || next.name() == names.identity
+                            || next.name() == names.value || (mode & EXPR) != 0)
+                        isIdentityModifier = true;
+                    break;
+            }
+            if (isIdentityModifier) {
+                checkSourceLevel(Feature.PRIMITIVE_CLASSES);
                 return true;
             }
         }

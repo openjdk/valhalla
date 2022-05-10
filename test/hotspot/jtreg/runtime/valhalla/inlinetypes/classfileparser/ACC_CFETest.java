@@ -47,7 +47,7 @@ public class ACC_CFETest {
 
         // Test illegal class that has both ACC_VALUE and ACC_PERMITS_VALUE set.
         runTest("AbstractPV_ACC_VALUE",
-                "Illegal class modifiers in class AbstractPV_ACC_VALUE (a permits_value class)");
+                "Illegal class modifiers in class AbstractPV_ACC_VALUE (a value class)");
 
         // Test illegal class that has ACC_PERMITS_VALUE set and a non-static field..
         runTest("AbstractPVField", "Illegal field modifiers in class AbstractPVField");
