@@ -280,6 +280,8 @@ public abstract class InnerClassesTestBase extends TestResult {
                     .append(toString(outerMod)).append(' ')
                     .append(outerClassType).append(' ')
                     .append(prefix).append(' ').append('\n');
+            if (outerClassType == ClassType.CLASS && outerMod.contains(Modifier.ABSTRACT))
+                sb.append("int f;\n"); // impose identity to make testing predicatable
             int count = 0;
             Map<String, Set<String>> class2Flags = new HashMap<>();
             List<String> syntheticClasses = new ArrayList<>();
@@ -290,8 +292,10 @@ public abstract class InnerClassesTestBase extends TestResult {
                     privateConstructor = "private A" + count + "() {}";
                     syntheticClasses.add("new A" + count + "();");
                 }
+                String instField = innerClassType == ClassType.CLASS && innerMod.contains(Modifier.ABSTRACT) ?
+                                                "int f; " : ""; // impose identity to make testing predicatable
                 sb.append(toString(innerMod)).append(' ');
-                sb.append(String.format("%s A%d {%s}\n", innerClassType, count, privateConstructor));
+                sb.append(String.format("%s A%d { %s %s}\n", innerClassType, count, instField, privateConstructor));
                 Set<String> flags = getFlags(innerClassType, innerMod);
                 class2Flags.put("A" + count, flags);
             }
@@ -377,6 +381,7 @@ public abstract class InnerClassesTestBase extends TestResult {
         CLASS("class") {
             @Override
             public void addSpecificFlags(Set<String> flags) {
+                flags.add("ACC_IDENTITY");
             }
         },
         INTERFACE("interface") {
@@ -414,11 +419,13 @@ public abstract class InnerClassesTestBase extends TestResult {
                 flags.add("ACC_ENUM");
                 flags.add("ACC_FINAL");
                 flags.add("ACC_STATIC");
+                flags.add("ACC_IDENTITY");
             }
         },
         OTHER("") {
             @Override
             public void addSpecificFlags(Set<String> flags) {
+                flags.add("ACC_IDENTITY");
             }
         };
 
