@@ -1476,6 +1476,8 @@ public class Check {
             if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS)
                 implicit |= FINAL;
 
+            // TYPs can't be declared synchronized
+            mask &= ~SYNCHRONIZED;
             break;
         default:
             throw new AssertionError();
