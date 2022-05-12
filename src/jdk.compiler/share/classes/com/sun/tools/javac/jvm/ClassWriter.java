@@ -218,13 +218,6 @@ public class ClassWriter extends ClassFile {
     private boolean dumpInnerClassModifiers; // -XDdumpmodifiers=i
     private boolean dumpMethodModifiers; // -XDdumpmodifiers=m
 
-
-    /** Return flags as a string, separated by " ".
-     */
-    public static String classFlagNames(long flags) {
-        return flagNames(flags).replace("VOLATILE", "PERMITS_VALUE");
-    }
-
     /** Return flags as a string, separated by " ".
      */
     public static String flagNames(long flags) {
@@ -244,7 +237,7 @@ public class ClassWriter extends ClassFile {
     //where
         private static final String[] flagName = {
             "PUBLIC", "PRIVATE", "PROTECTED", "STATIC", "FINAL",
-            "SUPER", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
+            "IDENTITY", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
             "ABSTRACT", "STRICTFP"};
 
 /******************************************************************
@@ -840,7 +833,7 @@ public class ClassWriter extends ClassFile {
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
-                pw.println("---" + classFlagNames(flags));
+                pw.println("---" + flagNames(flags));
             }
             databuf.appendChar(poolWriter.putClass(inner));
             databuf.appendChar(
@@ -1585,7 +1578,7 @@ public class ClassWriter extends ClassFile {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
             pw.println();
             pw.println("CLASSFILE  " + c.getQualifiedName());
-            pw.println("---" + classFlagNames(flags));
+            pw.println("---" + flagNames(flags));
         }
         databuf.appendChar(flags);
 
