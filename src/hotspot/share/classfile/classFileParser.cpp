@@ -907,7 +907,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IncompatibleClassChangeError(),
-          "Inline type %s has an identity type as supertytype",
+          "Inline type %s has an identity type as supertype",
           _class_name->as_klass_external_name());
         return;
       }
