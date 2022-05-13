@@ -145,7 +145,6 @@
   template(java_util_Iterator,                        "java/util/Iterator")                       \
   template(java_lang_Record,                          "java/lang/Record")                         \
   template(sun_instrument_InstrumentationImpl,        "sun/instrument/InstrumentationImpl")       \
-  template(java_lang_Identity,                        "java/lang/Identity")                       \
   template(sun_invoke_util_ValueConversions,          "sun/invoke/util/ValueConversions")         \
                                                                                                   \
   template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \

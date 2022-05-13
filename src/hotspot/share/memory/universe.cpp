@@ -432,12 +432,7 @@ void Universe::genesis(TRAPS) {
     int i = 0;
     while (i < size) {
         // Allocate dummy in old generation
-      oop dummy;
-      if(vmClasses::Object_klass()->is_abstract()) {
-        dummy = vmClasses::Identity_klass()->allocate_instance(CHECK);
-      } else {
-        dummy = vmClasses::Object_klass()->allocate_instance(CHECK);
-      }
+      oop dummy = vmClasses::Object_klass()->allocate_instance(CHECK);
       dummy_array->obj_at_put(i++, dummy);
     }
     {

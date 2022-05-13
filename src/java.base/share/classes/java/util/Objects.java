@@ -533,6 +533,6 @@ public final class Objects {
      * @since 17
      */
     public static Object newIdentity() {
-        return new Identity();
+        return new Object() {};
     }
 }
