@@ -2775,6 +2775,20 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
+
+        boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
+        boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
+
+        if (cIsValue || cHasIdentity) {
+            List<Type> superTypes = types.closure(c);
+            for (Type superType : superTypes) {
+                if (cIsValue && (superType.tsym.flags() & IDENTITY_TYPE) != 0) {
+                    log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, superType));
+                } else if (cHasIdentity && (superType.tsym.flags() & VALUE_CLASS) != 0) {
+                    log.error(pos, Errors.IdentityTypeHasValueSuperType(c, superType));
+                }
+            }
+        }
     }
 
     /** Check that all non-override equivalent methods accessible from 'site'

@@ -214,7 +214,6 @@ compiler.err.cyclic.primitive.class.membership
 compiler.err.value.class.does.not.support
 compiler.err.value.class.may.not.extend
 compiler.err.this.exposed.prematurely
-compiler.err.value.class.must.not.implement.identity.object
 compiler.err.concrete.supertype.for.value.class
 compiler.err.super.class.cannot.be.inner
 compiler.err.super.class.declares.init.block
