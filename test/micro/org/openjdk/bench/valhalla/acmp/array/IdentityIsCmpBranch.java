@@ -76,19 +76,6 @@ public class IdentityIsCmpBranch extends StatesR64long {
         return s;
     }
 
-    @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    private static int cmp_Id(IdentityObject[] objects1, IdentityObject[] objects2) {
-        int s = 0;
-        for (int i = 0; i < SIZE; i++) {
-            if (objects1[i] == objects2[i]) {
-                s += 1;
-            } else {
-                s -= 1;
-            }
-        }
-        return s;
-    }
-
     @Benchmark
     @OperationsPerInvocation(SIZE)
     @CompilerControl(CompilerControl.Mode.INLINE)
@@ -157,41 +144,6 @@ public class IdentityIsCmpBranch extends StatesR64long {
     @CompilerControl(CompilerControl.Mode.INLINE)
     public int Ref_equals100(RefState100 st) {
         return cmp_Ref(st.arr1, st.arr2);
-    }
-
-    @Benchmark
-    @OperationsPerInvocation(SIZE)
-    @CompilerControl(CompilerControl.Mode.INLINE)
-    public int Id_equals000(IdState00 st) {
-        return cmp_Id(st.arr1, st.arr2);
-    }
-
-    @Benchmark
-    @OperationsPerInvocation(SIZE)
-    @CompilerControl(CompilerControl.Mode.INLINE)
-    public int Id_equals025(IdState25 st) {
-        return cmp_Id(st.arr1, st.arr2);
-    }
-
-    @Benchmark
-    @OperationsPerInvocation(SIZE)
-    @CompilerControl(CompilerControl.Mode.INLINE)
-    public int Id_equals050(IdState50 st) {
-        return cmp_Id(st.arr1, st.arr2);
-    }
-
-    @Benchmark
-    @OperationsPerInvocation(SIZE)
-    @CompilerControl(CompilerControl.Mode.INLINE)
-    public int Id_equals075(IdState75 st) {
-        return cmp_Id(st.arr1, st.arr2);
-    }
-
-    @Benchmark
-    @OperationsPerInvocation(SIZE)
-    @CompilerControl(CompilerControl.Mode.INLINE)
-    public int Id_equals100(IdState100 st) {
-        return cmp_Id(st.arr1, st.arr2);
     }
 
 }
