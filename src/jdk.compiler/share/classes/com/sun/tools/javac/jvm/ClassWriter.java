@@ -218,13 +218,6 @@ public class ClassWriter extends ClassFile {
     private boolean dumpInnerClassModifiers; // -XDdumpmodifiers=i
     private boolean dumpMethodModifiers; // -XDdumpmodifiers=m
 
-
-    /** Return flags as a string, separated by " ".
-     */
-    public static String classFlagNames(long flags) {
-        return flagNames(flags).replace("VOLATILE", "PERMITS_VALUE");
-    }
-
     /** Return flags as a string, separated by " ".
      */
     public static String flagNames(long flags) {
@@ -244,7 +237,7 @@ public class ClassWriter extends ClassFile {
     //where
         private static final String[] flagName = {
             "PUBLIC", "PRIVATE", "PROTECTED", "STATIC", "FINAL",
-            "SUPER", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
+            "IDENTITY", "VOLATILE", "TRANSIENT", "NATIVE", "INTERFACE",
             "ABSTRACT", "STRICTFP"};
 
 /******************************************************************
@@ -840,7 +833,7 @@ public class ClassWriter extends ClassFile {
             if (dumpInnerClassModifiers) {
                 PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
                 pw.println("INNERCLASS  " + inner.name);
-                pw.println("---" + classFlagNames(flags));
+                pw.println("---" + flagNames(flags));
             }
             databuf.appendChar(poolWriter.putClass(inner));
             databuf.appendChar(
@@ -1579,14 +1572,13 @@ public class ClassWriter extends ClassFile {
             flags = adjustFlags(c.flags() & ~(DEFAULT | STRICTFP));
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
             flags = flags & AdjustedClassFlags;
-            if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
         if (dumpClassModifiers) {
             PrintWriter pw = log.getWriter(Log.WriterKind.ERROR);
             pw.println();
             pw.println("CLASSFILE  " + c.getQualifiedName());
-            pw.println("---" + classFlagNames(flags));
+            pw.println("---" + flagNames(flags));
         }
         databuf.appendChar(flags);
 
@@ -1757,8 +1749,8 @@ public class ClassWriter extends ClassFile {
             result |= ACC_PRIMITIVE;
         if ((flags & VALUE_CLASS) != 0)
             result |= ACC_VALUE;
-        if ((flags & PERMITS_VALUE) != 0)
-            result |= ACC_PERMITS_VALUE;
+        if ((flags & IDENTITY_TYPE) != 0)
+            result |= ACC_IDENTITY;
         return result;
     }
 

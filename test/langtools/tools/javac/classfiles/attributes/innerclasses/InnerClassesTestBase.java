@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -281,7 +281,7 @@ public abstract class InnerClassesTestBase extends TestResult {
                     .append(outerClassType).append(' ')
                     .append(prefix).append(' ').append('\n');
             if (outerClassType == ClassType.CLASS && outerMod.contains(Modifier.ABSTRACT))
-                sb.append("int f;\n");
+                sb.append("int f;\n"); // impose identity to make testing predicatable
             int count = 0;
             Map<String, Set<String>> class2Flags = new HashMap<>();
             List<String> syntheticClasses = new ArrayList<>();
@@ -293,7 +293,7 @@ public abstract class InnerClassesTestBase extends TestResult {
                     syntheticClasses.add("new A" + count + "();");
                 }
                 String instField = innerClassType == ClassType.CLASS && innerMod.contains(Modifier.ABSTRACT) ?
-                                                "int f; " : ""; // inhibit PERMITS_VALUE
+                                                "int f; " : ""; // impose identity to make testing predicatable
                 sb.append(toString(innerMod)).append(' ');
                 sb.append(String.format("%s A%d { %s %s}\n", innerClassType, count, instField, privateConstructor));
                 Set<String> flags = getFlags(innerClassType, innerMod);
@@ -381,6 +381,7 @@ public abstract class InnerClassesTestBase extends TestResult {
         CLASS("class") {
             @Override
             public void addSpecificFlags(Set<String> flags) {
+                flags.add("ACC_IDENTITY");
             }
         },
         INTERFACE("interface") {
@@ -418,11 +419,13 @@ public abstract class InnerClassesTestBase extends TestResult {
                 flags.add("ACC_ENUM");
                 flags.add("ACC_FINAL");
                 flags.add("ACC_STATIC");
+                flags.add("ACC_IDENTITY");
             }
         },
         OTHER("") {
             @Override
             public void addSpecificFlags(Set<String> flags) {
+                flags.add("ACC_IDENTITY");
             }
         };
 
@@ -446,7 +449,8 @@ public abstract class InnerClassesTestBase extends TestResult {
         PUBLIC("public"), PRIVATE("private"),
         PROTECTED("protected"), DEFAULT("default"),
         FINAL("final"), ABSTRACT("abstract"),
-        STATIC("static"), EMPTY("");
+        STATIC("static"), EMPTY(""),
+        IDENTITY("identity");
 
         private final String str;
 

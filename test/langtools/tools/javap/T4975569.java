@@ -43,7 +43,7 @@ public class T4975569 {
 
     void run() {
         verify(Anno.class.getName(), "flags: \\(0x2600\\) ACC_INTERFACE, ACC_ABSTRACT, ACC_ANNOTATION");
-        verify(E.class.getName(),    "flags: \\(0x4030\\) ACC_FINAL, ACC_SUPER, ACC_ENUM");
+        verify(E.class.getName(),    "flags: \\(0x4030\\) ACC_FINAL, ACC_IDENTITY, ACC_ENUM");
         verify(S.class.getName(),    "flags: \\(0x1040\\) ACC_BRIDGE, ACC_SYNTHETIC",
                                      "InnerClasses:\n  static [# =\\w]+; +// ");
         verify(V.class.getName(),    "void m\\(java.lang.String...\\)",

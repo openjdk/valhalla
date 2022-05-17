@@ -85,7 +85,7 @@ class HiddenPoint {
     Utf8 "Preload"; // #39     at 0x0261
   } // Constant Pool
 
-  0x0130; // access [ ACC_SUPER ACC_FINAL ]
+  0x0050; // access [ ACC_VALUE ACC_FINAL ]
   #1;// this_cpx
   #14;// super_cpx
 

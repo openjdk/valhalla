@@ -60,10 +60,6 @@ public class IsModifiableClassAgent
                         System.err.println("Error: primitive class returned as modifiable: " + klass);
                         fail = true;
                     }
-                    if (isMod && klass == java.lang.IdentityObject.class) {
-                        System.err.println("Error: java.lang.IdentityObject class returned as modifiable: " + klass);
-                        fail = true;
-                    }
                     try {
                         instrumentation.retransformClasses(klass);
                         if (!isMod) {

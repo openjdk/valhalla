@@ -353,9 +353,6 @@ public class ClassWriter implements /* imports */ ClassConstants
         KlassArray interfaces = klass.getLocalInterfaces();
         final int len = interfaces.length();
         int nb_interfaces = len;
-        if (klass.hasInjectedIdentityObject() || klass.hasInjectedPrimitiveObject()) {
-            nb_interfaces--;
-        }
 
         if (DEBUG) debugMessage("number of interfaces = " + nb_interfaces);
 

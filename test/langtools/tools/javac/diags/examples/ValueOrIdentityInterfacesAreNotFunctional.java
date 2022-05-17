@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,9 +21,21 @@
  * questions.
  */
 
-// key: compiler.err.identity.class.must.not.implement.value.object
-// key: compiler.err.mutually.incompatible.super.interfaces
+// key: compiler.err.bad.functional.intf.anno.1
+// key: compiler.misc.not.a.functional.intf.1
+// key: compiler.misc.value.interface.nonfunctional
+// key: compiler.misc.identity.interface.nonfunctional
 
-class Identity implements ValueObject {
-    abstract class Inner implements IdentityObject, ValueObject {}
+@FunctionalInterface
+value interface I {
+    void m();
 }
+
+identity interface J {
+    void m();
+}
+
+@FunctionalInterface
+interface K extends J {
+}
+
