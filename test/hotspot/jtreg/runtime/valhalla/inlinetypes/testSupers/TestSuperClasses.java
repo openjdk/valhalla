@@ -24,7 +24,8 @@
 /*
  * @test
  * @bug 8243204
- * @summary test that the JVM detects illegal super classes for primitive value types.
+ * @summary test that the JVM detects illegal super classes for value object
+ *           and primitive value types.
  * @compile NotAbstract.java HasNonStaticFields.java CtorHasArgs.java CtorIsNotEmpty.java
  * @compile HasSynchMethod.java ValidSuper.java
  * @compile InlineClassWithBadSupers.jcod
@@ -47,24 +48,48 @@ public class TestSuperClasses {
 
     public static void main(String[] args) throws Exception {
 
+        // Value Objects...
+
+        // Test that the super class of an value type must be java.lang.Object or an abstract class.
+        runTestIncompatibleClassChangeError("ValueSuperNotAbstract",
+            "class ValueSuperNotAbstract has an invalid super class NotAbstract");
+
+        // Test that the super class of an value type cannot have instance fields.
+        runTestIncompatibleClassChangeError("ValueSuperHasNonStaticFields",
+            "ValueSuperHasNonStaticFields has an invalid super class HasNonStaticFields");
+
+        // Test that the super class of an value type cannot contain a synchronized instance method.
+        runTestIncompatibleClassChangeError("ValueSuperHasSynchMethod",
+            "ValueSuperHasSynchMethod has an invalid super class ValidSuper");
+
+        // Test that the constructor in a super class of an value type must have a signature of "()V".
+        runTestIncompatibleClassChangeError("ValueSuperCtorHasArgs",
+            "ValueSuperCtorHasArgs has an invalid super class CtorHasArgs");
+
+        // Test that the constructor in a super class of an value type must be empty.
+        runTestIncompatibleClassChangeError("ValueSuperCtorIsNotEmpty",
+            "ValueSuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
+
+        // Primitive values...
+
         // Test that the super class of an primitive value type must be java.lang.Object or an abstract class.
-        runTestIncompatibleClassChangeError("SuperNotAbstract",
-            "class SuperNotAbstract has an invalid super class NotAbstract");
+        runTestIncompatibleClassChangeError("PrimitiveSuperNotAbstract",
+            "class PrimitiveSuperNotAbstract has an invalid super class NotAbstract");
 
         // Test that the super class of an primitive value type cannot have instance fields.
-        runTestIncompatibleClassChangeError("SuperHasNonStaticFields",
-            "SuperHasNonStaticFields has an invalid super class HasNonStaticFields");
+        runTestIncompatibleClassChangeError("PrimitiveSuperHasNonStaticFields",
+            "PrimitiveSuperHasNonStaticFields has an invalid super class HasNonStaticFields");
 
         // Test that the super class of an primitive value type cannot contain a synchronized instance method.
-        runTestIncompatibleClassChangeError("SuperHasSynchMethod",
-            "SuperHasSynchMethod has an invalid super class ValidSuper");
+        runTestIncompatibleClassChangeError("PrimitiveSuperHasSynchMethod",
+            "PrimitiveSuperHasSynchMethod has an invalid super class ValidSuper");
 
         // Test that the constructor in a super class of an primitive value type must have a signature of "()V".
-        runTestIncompatibleClassChangeError("SuperCtorHasArgs",
-            "SuperCtorHasArgs has an invalid super class CtorHasArgs");
+        runTestIncompatibleClassChangeError("PrimitiveSuperCtorHasArgs",
+            "PrimitiveSuperCtorHasArgs has an invalid super class CtorHasArgs");
 
         // Test that the constructor in a super class of an primitive value type must be empty.
-        runTestIncompatibleClassChangeError("SuperCtorIsNotEmpty",
-            "SuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
+        runTestIncompatibleClassChangeError("PrimitiveSuperCtorIsNotEmpty",
+            "PrimitiveSuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
     }
 }
