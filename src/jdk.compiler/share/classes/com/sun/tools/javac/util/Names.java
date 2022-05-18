@@ -94,7 +94,6 @@ public class Names {
     public final Name init;
     public final Name iterator;
     public final Name length;
-    public final Name newIdentity;
     public final Name next;
     public final Name ordinal;
     public final Name provider;
@@ -290,7 +289,6 @@ public class Names {
         iterator = fromString("iterator");
         length = fromString("length");
         next = fromString("next");
-        newIdentity = fromString("newIdentity");
         ordinal = fromString("ordinal");
         provider = fromString("provider");
         serialVersionUID = fromString("serialVersionUID");
