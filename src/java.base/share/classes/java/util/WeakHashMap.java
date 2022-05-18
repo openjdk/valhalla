@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,9 @@
 
 package java.util;
 
+import sun.security.action.GetPropertyAction;
+
+import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.lang.ref.ReferenceQueue;
 import java.util.function.BiConsumer;
@@ -42,6 +45,24 @@ import java.util.function.Consumer;
  * When a key has been discarded its entry is effectively removed from the map,
  * so this class behaves somewhat differently from other {@code Map}
  * implementations.
+ *
+ * <p>
+ * Keys that are value objects are handled and retained differently than
+ * identity objects. Value objects do not have identity and cannot be
+ * the referent in any {@link java.lang.ref.Reference} including {@link WeakReference}.
+ * The retention of entries with keys that are value objects is selected
+ * using {@link ValuePolicy} when the {@code WeakHashMap} is created.
+ * The default is {@link ValuePolicy#SOFT SOFT}, the entries may be retained when
+ * there is memory pressure similar to handling of {@link SoftReference SoftReference}.
+ * The retention modes are:
+ * <UL>
+ *     <LI> {@linkplain ValuePolicy#STRONG STRONG} - entries are retained until explicitly removed,
+ *     <LI> {@linkplain ValuePolicy#STRONG SOFT} - entries have a lifetime similar to
+ *          {@link SoftReference},
+ *     <LI> {@linkplain ValuePolicy#STRONG DISCARD} - entries are discarded and not put in the map,
+ *     <LI> {@linkplain ValuePolicy#STRONG THROW} - entries are not inserted and throw
+ *          {@link UnsupportedOperationException}
+ * </UL>
  *
  * <p> Both null values and the null key are supported. This class has
  * performance characteristics similar to those of the {@code HashMap}
@@ -189,6 +210,9 @@ public class WeakHashMap<K,V>
      */
     int modCount;
 
+    // Current policy with regard to keys that are Value classes.
+    private final ValuePolicy valuePolicy;
+
     @SuppressWarnings("unchecked")
     private Entry<K,V>[] newTable(int n) {
         return (Entry<K,V>[]) new Entry<?,?>[n];
@@ -197,6 +221,7 @@ public class WeakHashMap<K,V>
     /**
      * Constructs a new, empty {@code WeakHashMap} with the given initial
      * capacity and the given load factor.
+     * The default {@code ValuePolicy} is {@link ValuePolicy#THROW}.
      *
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @param  loadFactor      The load factor of the {@code WeakHashMap}
@@ -204,6 +229,20 @@ public class WeakHashMap<K,V>
      *         or if the load factor is nonpositive.
      */
     public WeakHashMap(int initialCapacity, float loadFactor) {
+        this(initialCapacity, loadFactor, ValuePolicy.defaultValuePolicy());
+    }
+
+    /**
+     * Constructs a new, empty {@code WeakHashMap} with the given initial
+     * capacity and the given load factor.
+     *
+     * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
+     * @param  loadFactor      The load factor of the {@code WeakHashMap}
+     * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value Objects
+     * @throws IllegalArgumentException if the initial capacity is negative,
+     *         or if the load factor is nonpositive.
+     */
+    public WeakHashMap(int initialCapacity, float loadFactor, ValuePolicy valuePolicy) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal Initial Capacity: "+
                                                initialCapacity);
@@ -217,6 +256,7 @@ public class WeakHashMap<K,V>
         table = newTable(capacity);
         this.loadFactor = loadFactor;
         threshold = (int)(capacity * loadFactor);
+        this.valuePolicy = valuePolicy;
     }
 
     /**
@@ -239,6 +279,15 @@ public class WeakHashMap<K,V>
     }
 
     /**
+     * Constructs a new, empty {@code WeakHashMap} with the {@link ValuePolicy},
+     * the default initial capacity (16) and load factor (0.75).
+     * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value Objects
+     */
+    public WeakHashMap(ValuePolicy valuePolicy) {
+        this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, valuePolicy);
+    }
+
+    /**
      * Constructs a new {@code WeakHashMap} with the same mappings as the
      * specified map.  The {@code WeakHashMap} is created with the default
      * load factor (0.75) and an initial capacity sufficient to hold the
@@ -253,6 +302,13 @@ public class WeakHashMap<K,V>
                 DEFAULT_INITIAL_CAPACITY),
              DEFAULT_LOAD_FACTOR);
         putAll(m);
+    }
+
+    /**
+     * {@return the {@link ValuePolicy} for this WeakHashMap.}
+     */
+    public ValuePolicy valuePolicy() {
+        return valuePolicy;
     }
 
     // internal utilities
@@ -463,12 +519,48 @@ public class WeakHashMap<K,V>
             }
         }
 
-        modCount++;
         Entry<K,V> e = tab[i];
-        tab[i] = new Entry<>(k, value, queue, h, e);
+        if (key.getClass().isValue()) {
+            e = newValueEntry(k, value, queue, h, e);
+            if (e == null)
+                return null;  // ValuePolicy == DISCARD
+        } else {
+            e = new Entry<>(k, value, queue, h, e);
+        }
+        modCount++;
+        tab[i] = e;
         if (++size > threshold)
             resize(tab.length * 2);
         return null;
+    }
+
+    /**
+     * Return a new entry for keys that are value objects.
+     * The {@link ValuePolicy} for this WeakHashMap determines what entry is returned.
+     * <ul>
+     *     <li> THROW - Throws an UnsupportedOperationException</li>
+     *     <li> STRONG - a StrongEntry </li>
+     *     <li> SOFT - a SoftEntry</li>
+     *     <li> DISCARD - null</li>
+     * </ul>
+     *
+     * @param key key with which the specified value is to be associated.
+     * @param value value to be associated with the specified key.
+     * @param queue queue
+     * @param hash hash
+     * @param next next
+     * @return a new entry or null to discard
+     */
+    private Entry<K, V> newValueEntry(Object key, V value,
+                                      ReferenceQueue<Object> queue,
+                                      int hash, Entry<K,V> next) {
+        return switch (valuePolicy) {
+            case THROW -> throw new UnsupportedOperationException("Value classes not allowed as keys: " +
+                    key.getClass().getName());
+            case STRONG -> StrongEntry.newStrongEntry(key, value, queue, hash,  next);
+            case SOFT ->  SoftEntry.newSoftEntry(key, value, queue, hash,  next);
+            case DISCARD -> null;
+        };
     }
 
     /**
@@ -755,6 +847,96 @@ public class WeakHashMap<K,V>
 
         public String toString() {
             return getKey() + "=" + getValue();
+        }
+    }
+
+    /**
+     * A SoftEntry is used for value class keys in which the entries are retained
+     * until there is some memory pressure.  A anchor object is used as the referent
+     * of a SoftReference and also as the referent of the WeakReference.
+     * After the SoftReference is cleared, due to GC pressure, the WeakReference is cleared too.
+     *
+     * @param <K> key
+     * @param <V> value
+     */
+    private static class SoftEntry<K, V> extends Entry<K, V> {
+        Object realKey;
+        // SoftReference to the anchor to keep it alive until GC clears the SoftReference
+        private final SoftReference<Object> softAnchor;
+
+        static <K, V> SoftEntry<K, V> newSoftEntry(Object key, V value,
+                                      ReferenceQueue<Object> queue,
+                                      int hash, Entry<K, V> next) {
+            // Select a new anchor object; the entry will be retained until the anchor is collected
+            Object anchor = new Object();
+            return new SoftEntry<>(anchor, key, value, queue, hash, next);
+        }
+
+        private SoftEntry(Object anchor, Object key, V value,
+                    ReferenceQueue<Object> queue,
+                    int hash, Entry<K,V> next) {
+            super(anchor, value, queue, hash, next);
+            this.realKey = key;
+            this.softAnchor = new SoftReference<>(anchor);
+        }
+
+        /**
+         * The real key is not the referent.
+         * {@inheritdoc}
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        public K get() {
+            return (K) realKey;
+        }
+
+        @SuppressWarnings("unchecked")
+        public K getKey() {
+            return (K) realKey;
+        }
+    }
+
+    /**
+     * A StrongEntry is used for value class keys in which the entries are retained
+     * until removed.  A singleton instance is used as the referent of the WeakReference.
+     * Since the anchor is never reclaimed, the Entry is retained forever.
+     *
+     * @param <K> key
+     * @param <V> value
+     */
+    private static class StrongEntry<K, V> extends Entry<K, V> {
+        Object realKey;
+
+        // A permanent strong reference to an Object
+        private static final Object STRONG_ANCHOR = new Object();
+
+        static <K, V> StrongEntry<K, V> newStrongEntry(Object key, V value,
+                                      ReferenceQueue<Object> queue,
+                                      int hash, Entry<K, V> next) {
+            return new StrongEntry<>(STRONG_ANCHOR, key, value, queue, hash, next);
+        }
+
+        private StrongEntry(Object anchor, Object key, V value,
+                    ReferenceQueue<Object> queue,
+                    int hash, Entry<K,V> next) {
+            super(anchor, value, queue, hash, next);
+            this.realKey = key;
+        }
+
+        /**
+         * The real key is not the referent.
+         * {@inheritdoc}
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        public K get() {
+            return (K) realKey;
+        }
+
+
+        @SuppressWarnings("unchecked")
+        public K getKey() {
+            return (K) realKey;
         }
     }
 
@@ -1332,6 +1514,62 @@ public class WeakHashMap<K,V>
 
         public int characteristics() {
             return Spliterator.DISTINCT;
+        }
+    }
+
+    /**
+     * Enum for the ValuePolicy; when putting a key and value into a WeakHashMap
+     * determines how keys that are value objects are retained (or not).
+     */
+    public enum ValuePolicy {
+        /**
+         * Throw an exception if a Value object is supplied as a key.
+         */
+        THROW,
+        /**
+         * If the Key is a value object, retain the key and value until explicitly removed.
+         */
+        STRONG,
+        /**
+         * If the Key is a value object, retain the key and value until explicitly removed or
+         * there is some memory pressure and soft references are cleared.
+         */
+        SOFT,
+        /**
+         * If the Key is a value object, discard the key and value immediately;
+         * such keys and values are not retained.
+         */
+        DISCARD;
+
+        // System property name for the default ValuePolicy
+        private static final String JAVA_UTIL_WEAK_HASH_MAP_VALUE_KEY_RETENTION =
+                "java.util.WeakHashMap.valueKeyRetention";
+
+        // Default WeakHashMap ValuePolicy for keys that are value objects
+        // Benign racy initialization
+        private static ValuePolicy DEFAULT_VALUE_POLICY;
+
+        /**
+         * {@return the default policy for retention of keys that are value classes}
+         * If not previously initialized, check for the System property
+         * "java.util.WeakHashMap.valueKeyRetention" and use its value if it is
+         * the name of a ValuePolicy enum.
+         */
+        private static ValuePolicy defaultValuePolicy() {
+            ValuePolicy policy = DEFAULT_VALUE_POLICY;
+            if (policy == null) {
+                policy = DISCARD;         // hardcoded default if property not set
+                String p = GetPropertyAction
+                        .privilegedGetProperty(JAVA_UTIL_WEAK_HASH_MAP_VALUE_KEY_RETENTION);
+                try {
+                    if (p != null) {
+                        policy = ValuePolicy.valueOf(p);
+                    }
+                } catch (NullPointerException | IllegalArgumentException ex) {
+                }
+                DEFAULT_VALUE_POLICY = policy;
+            }
+            return policy;
         }
     }
 
