@@ -38,8 +38,8 @@ import utils.*;
 
 public class WaitNotifyThreadTest {
 
-    private Object monitor = java.util.Objects.newIdentity();
-    private final String OBJECT = "a java.lang.Identity";
+    private Object monitor = new Object();;
+    private final String OBJECT = "a java.lang.Object";
     private final String OBJECT_WAIT = "java.lang.Object.wait";
     private final String RUN_METHOD = "WaitNotifyThreadTest$WaitThread.run";
 

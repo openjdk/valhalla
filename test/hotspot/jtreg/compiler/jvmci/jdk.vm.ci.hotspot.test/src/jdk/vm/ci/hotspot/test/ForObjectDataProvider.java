@@ -30,7 +30,7 @@ public class ForObjectDataProvider {
     public static Object[][] forObjectDataProvider() {
         return new Object[][]{
                         {TestHelper.DUMMY_CLASS_INSTANCE.objectField,
-                                        "Object[Identity@" + TestHelper.DUMMY_CLASS_INSTANCE.objectField.hashCode() + "]"},
+                                        "Object[Object@" + TestHelper.DUMMY_CLASS_INSTANCE.objectField.hashCode() + "]"},
                         {TestHelper.DUMMY_CLASS_INSTANCE.stringField,
                                         "Object[String:\"" + TestHelper.DUMMY_CLASS_INSTANCE.stringField + "\"]"},
                         {TestHelper.DUMMY_CLASS_INSTANCE.booleanField,
