@@ -45,7 +45,6 @@ public class BasicObjectsTest {
         errors += testIsNull();
         errors += testNonNull();
         errors += testNonNullOf();
-        errors += testNewIdentity();
         if (errors > 0 )
             throw new RuntimeException();
     }
