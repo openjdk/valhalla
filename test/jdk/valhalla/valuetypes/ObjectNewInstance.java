@@ -40,14 +40,14 @@ public class ObjectNewInstance {
     @Test
     public void classNewInstance() throws ReflectiveOperationException {
         Object o = Object.class.newInstance();
-        assertTrue(o.getClass() == Identity.class);
+        assertTrue(o.getClass() == Object.class);
     }
 
     @Test
     public void constructorNewInstance() throws ReflectiveOperationException {
         Constructor<Object> ctor = Object.class.getDeclaredConstructor();
         Object o = ctor.newInstance();
-        assertTrue(o.getClass() == Identity.class);
+        assertTrue(o.getClass() == Object.class);
     }
 
     @Test
@@ -55,6 +55,6 @@ public class ObjectNewInstance {
         MethodHandle mh = MethodHandles.publicLookup()
                                        .findConstructor(Object.class, MethodType.methodType(void.class));
         Object o = mh.invokeExact();
-        assertTrue(o.getClass() == Identity.class);
+        assertTrue(o.getClass() == Object.class);
     }
 }
