@@ -64,7 +64,7 @@ class compiler/valhalla/inlinetypes/MyValue5 {
     Utf8 "MyValue5.java"; // #17
   } // Constant Pool
 
-  0x0930; // access
+  0x0850; // access
   #1;// this_cpx
   #7;// super_cpx
 

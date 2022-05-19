@@ -24,10 +24,11 @@
 /*
  * @test
  * @bug 8243204
- * @summary test that the JVM detects illegal super classes for inline types.
+ * @summary test that the JVM detects illegal super classes for value object
+ *           and primitive value types.
  * @compile NotAbstract.java HasNonStaticFields.java CtorHasArgs.java CtorIsNotEmpty.java
- * @compile HasSynchMethod.java ValidSuper.java ImplementsIdentityObject.java
- * @compile IntfImplementsIdentityObject.java InlineClassWithBadSupers.jcod
+ * @compile HasSynchMethod.java ValidSuper.java
+ * @compile InlineClassWithBadSupers.jcod
  * @run main/othervm -verify TestSuperClasses
  */
 
@@ -47,36 +48,48 @@ public class TestSuperClasses {
 
     public static void main(String[] args) throws Exception {
 
-        // Test that the super class of an inline type must be java.lang.Object or an abstract class.
-        runTestIncompatibleClassChangeError("SuperNotAbstract",
-            "class SuperNotAbstract has an invalid super class NotAbstract");
+        // Value Objects...
 
-        // Test that the super class of an inline type cannot have instance fields.
-        runTestIncompatibleClassChangeError("SuperHasNonStaticFields",
-            "SuperHasNonStaticFields has an invalid super class HasNonStaticFields");
+        // Test that the super class of an value type must be java.lang.Object or an abstract class.
+        runTestIncompatibleClassChangeError("ValueSuperNotAbstract",
+            "class ValueSuperNotAbstract has an invalid super class NotAbstract");
 
-        // Test that the super class of an inline type cannot contain a synchronized instance method.
-        runTestIncompatibleClassChangeError("SuperHasSynchMethod",
-            "SuperHasSynchMethod has an invalid super class ValidSuper");
+        // Test that the super class of an value type cannot have instance fields.
+        runTestIncompatibleClassChangeError("ValueSuperHasNonStaticFields",
+            "ValueSuperHasNonStaticFields has an invalid super class HasNonStaticFields");
 
-        // Test that the constructor in a super class of an inline type must have a signature of "()V".
-        runTestIncompatibleClassChangeError("SuperCtorHasArgs",
-            "SuperCtorHasArgs has an invalid super class CtorHasArgs");
+        // Test that the super class of an value type cannot contain a synchronized instance method.
+        runTestIncompatibleClassChangeError("ValueSuperHasSynchMethod",
+            "ValueSuperHasSynchMethod has an invalid super class ValidSuper");
 
-        // Test that the constructor in a super class of an inline type must be empty.
-        runTestIncompatibleClassChangeError("SuperCtorIsNotEmpty",
-            "SuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
+        // Test that the constructor in a super class of an value type must have a signature of "()V".
+        runTestIncompatibleClassChangeError("ValueSuperCtorHasArgs",
+            "ValueSuperCtorHasArgs has an invalid super class CtorHasArgs");
 
-        // Test that an inline class cannot implement java.lang.IdentityObject.
-        runTestIncompatibleClassChangeError("InlineImplementsIdentityObject",
-            "attempts to implement interface java.lang.IdentityObject");
+        // Test that the constructor in a super class of an value type must be empty.
+        runTestIncompatibleClassChangeError("ValueSuperCtorIsNotEmpty",
+            "ValueSuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
 
-        // Test that an inline class's super type cannot implement java.lang.IdentityObject.
-        runTestIncompatibleClassChangeError("SuperImplementsIdentityObject",
-            "SuperImplementsIdentityObject has an invalid super class ImplementsIdentityObject");
+        // Primitive values...
 
-        // Test that an inline class's super type's interfaces cannot implement java.lang.IdentityObject.
-        runTestIncompatibleClassChangeError("SuperIntfImplementsIdentityObject",
-            "SuperIntfImplementsIdentityObject has an invalid super class IntfImplementsIdentityObject");
+        // Test that the super class of an primitive value type must be java.lang.Object or an abstract class.
+        runTestIncompatibleClassChangeError("PrimitiveSuperNotAbstract",
+            "class PrimitiveSuperNotAbstract has an invalid super class NotAbstract");
+
+        // Test that the super class of an primitive value type cannot have instance fields.
+        runTestIncompatibleClassChangeError("PrimitiveSuperHasNonStaticFields",
+            "PrimitiveSuperHasNonStaticFields has an invalid super class HasNonStaticFields");
+
+        // Test that the super class of an primitive value type cannot contain a synchronized instance method.
+        runTestIncompatibleClassChangeError("PrimitiveSuperHasSynchMethod",
+            "PrimitiveSuperHasSynchMethod has an invalid super class ValidSuper");
+
+        // Test that the constructor in a super class of an primitive value type must have a signature of "()V".
+        runTestIncompatibleClassChangeError("PrimitiveSuperCtorHasArgs",
+            "PrimitiveSuperCtorHasArgs has an invalid super class CtorHasArgs");
+
+        // Test that the constructor in a super class of an primitive value type must be empty.
+        runTestIncompatibleClassChangeError("PrimitiveSuperCtorIsNotEmpty",
+            "PrimitiveSuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
     }
 }

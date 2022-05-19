@@ -179,13 +179,11 @@ public class BeanLinkerTest {
         this.linker = null;
     }
 
-    private static class TestObject {}
-
     @Test(dataProvider = "flags")
     public void getPropertyTest(final boolean publicLookup) throws Throwable {
         final MethodType mt = MethodType.methodType(Object.class, Object.class, String.class);
         final CallSite cs = createCallSite(publicLookup, GET_PROPERTY, mt);
-        Assert.assertEquals(cs.getTarget().invoke(new TestObject(), "class"), TestObject.class);
+        Assert.assertEquals(cs.getTarget().invoke(new Object(), "class"), Object.class);
         Assert.assertEquals(cs.getTarget().invoke(new Date(), "class"), Date.class);
     }
 
@@ -193,14 +191,14 @@ public class BeanLinkerTest {
     public void getPropertyNegativeTest(final boolean publicLookup) throws Throwable {
         final MethodType mt = MethodType.methodType(Object.class, Object.class, String.class);
         final CallSite cs = createCallSite(publicLookup, GET_PROPERTY, mt);
-        Assert.assertNull(cs.getTarget().invoke(new TestObject(), "DOES_NOT_EXIST"));
+        Assert.assertNull(cs.getTarget().invoke(new Object(), "DOES_NOT_EXIST"));
     }
 
     @Test(dataProvider = "flags")
     public void getPropertyTest2(final boolean publicLookup) throws Throwable {
         final MethodType mt = MethodType.methodType(Object.class, Object.class);
         final CallSite cs = createCallSite(publicLookup, GET_PROPERTY, "class", mt);
-        Assert.assertEquals(cs.getTarget().invoke(new TestObject()), TestObject.class);
+        Assert.assertEquals(cs.getTarget().invoke(new Object()), Object.class);
         Assert.assertEquals(cs.getTarget().invoke(new Date()), Date.class);
     }
 
@@ -210,7 +208,7 @@ public class BeanLinkerTest {
         final CallSite cs = createCallSite(publicLookup, GET_PROPERTY, "DOES_NOT_EXIST", mt);
 
         try {
-            cs.getTarget().invoke(new TestObject());
+            cs.getTarget().invoke(new Object());
             throw new RuntimeException("Expected NoSuchDynamicMethodException");
         } catch (final Throwable th) {
             Assert.assertTrue(th instanceof NoSuchDynamicMethodException);

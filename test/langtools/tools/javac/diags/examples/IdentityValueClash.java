@@ -19,9 +19,16 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-public primitive class PrimitiveWithSuper extends AbstractSpecified {
+// key: compiler.err.illegal.combination.of.modifiers
+// key: compiler.err.identity.type.has.value.super.type
+// key: compiler.err.value.type.has.identity.super.type
 
-}
+value identity class IdentityValueClass {}
+
+value interface VI {}
+class C implements VI {}
+
+identity interface II {}
+value class V implements II {}

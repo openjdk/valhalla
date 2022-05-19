@@ -926,16 +926,12 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   // JVMSpec|           u2 interfaces[interfaces_count];
   Array<InstanceKlass*>* interfaces =  ik()->local_interfaces();
   int num_interfaces = interfaces->length();
-  write_u2(num_interfaces -
-           (ik()->has_injected_identityObject() || ik()->has_injected_valueObject() ? 1 : 0));
+  write_u2(num_interfaces);
 
   for (int index = 0; index < num_interfaces; index++) {
     HandleMark hm(thread());
     InstanceKlass* iik = interfaces->at(index);
-    if ( (!ik()->has_injected_identityObject() || iik != vmClasses::IdentityObject_klass()) &&
-         (!ik()->has_injected_valueObject() || iik != vmClasses::ValueObject_klass())) {
-      write_u2(class_symbol_to_cpool_index(iik->name()));
-    }
+    write_u2(class_symbol_to_cpool_index(iik->name()));
   }
 
   // JVMSpec|           u2 fields_count;

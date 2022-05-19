@@ -36,35 +36,31 @@ public class ACC_CFETest {
         System.out.println("Testing: " + test_name);
         try {
             Class newClass = Class.forName(test_name);
+            if (message != null) {
+                throw new RuntimeException("Expected ClassFormatError with message: " + message + ", but none occurred");
+            }
         } catch (java.lang.ClassFormatError e) {
             if (!e.getMessage().contains(message)) {
-                throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
+                throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage() + " expected: " + message);
             }
         }
     }
 
     public static void main(String[] args) throws Exception {
 
-        // Test illegal class that has both ACC_VALUE and ACC_PERMITS_VALUE set.
-        runTest("AbstractPV_ACC_VALUE",
-                "Illegal class modifiers in class AbstractPV_ACC_VALUE (a permits_value class)");
+        // Test illegal class that has ACC_VALUE set and a non-static field..
+        runTest("AbstractVField", "Illegal field modifiers in class AbstractVField");
 
-        // Test illegal class that has ACC_PERMITS_VALUE set and a non-static field..
-        runTest("AbstractPVField", "Illegal field modifiers in class AbstractPVField");
+        // Test illegal class that has both ACC_FINAL and ACC_VALUE set.
+        runTest("AbstractVFinal",
+                "Illegal class modifiers in class AbstractVFinal (a value class)");
 
-        // Test illegal class that has both ACC_FINAL and ACC_PERMITS_VALUE set.
-        runTest("AbstractPVFinal",
-                "Illegal class modifiers in class AbstractPVFinal (a permits_value class)");
+        // Test illegal class that has both ACC_INTERFACE and ACC_VALUE set.
+        runTest("AbstractVintf",
+                "Illegal class modifiers in class AbstractVintf (a value class)");
 
-        // Test illegal class that has both ACC_INTERFACE and ACC_PERMITS_VALUE set.
-        runTest("AbstractPVintf",
-                "Illegal class modifiers in class AbstractPVintf (a permits_value class)");
-
-        // Test illegal class that has ACC_PERMITS_VALUE set and a non-static synchronized method.
-        runTest("AbstractPVMethod",
-                "Method meth in class AbstractPVMethod (an inline class) has illegal modifiers");
-
-        // Test illegal class that has ACC_PERMITS_VALUE set, but not ACC_ABSTRACT.
-        runTest("NoAbstract", "Illegal class modifiers in class NoAbstract (a permits_value class)");
+        // Test illegal class that has ACC_VALUE set and a non-static synchronized method.
+        runTest("AbstractVMethod",
+                "Method meth in class AbstractVMethod (an inline class) has illegal modifiers");
     }
 }

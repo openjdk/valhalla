@@ -35,9 +35,9 @@ public class SemanticsViolationsTest {
         }
     }
 
-    // The class does not implement—directly or indirectly—IdentityObject.
-    // This implies that the superclass is either Object or a stateless abstract class.
-    value class IdentityValue implements IdentityObject { // Error, can't implement this
+
+    // A value identity class is an oxymoron
+    value identity class IdentityValue { // Error, bad modifier combination.
     }
     value class IdentityValue2 extends SemanticsViolationsTest { // Error, can't extend identity class
     }

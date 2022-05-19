@@ -91,6 +91,12 @@ public enum Modifier {
      */
     VALUE,
 
+    /**
+     * The modifier {@code identity}
+     * @since 18
+     */
+    IDENTITY,
+
     /** The modifier {@code final} */           FINAL,
     /** The modifier {@code transient} */       TRANSIENT,
     /** The modifier {@code volatile} */        VOLATILE,
