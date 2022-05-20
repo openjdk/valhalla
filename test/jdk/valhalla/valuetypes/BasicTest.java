@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -274,7 +274,7 @@ public class BasicTest {
                 new Object[]{ point, empty_intfs },
                 new Object[]{ new T(), empty_intfs },
                 new Object[]{ new C(), empty_intfs },
-                new Object[]{ Objects.newIdentity(), empty_intfs },
+                new Object[]{ new Object(), empty_intfs },
                 new Object[]{ array, new Class<?>[] { Cloneable.class, Serializable.class }},
                 new Object[]{ value, empty_intfs },
         };

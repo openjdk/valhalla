@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,9 +42,6 @@ public class Object {
 
     /**
      * Constructs a new object.
-     *
-     * @apiNote {@link Objects#newIdentity java.util.Objects.newIdentity()}
-     * should be used instead of {@code new Object()}.
      */
     @IntrinsicCandidate
     public Object() {}
