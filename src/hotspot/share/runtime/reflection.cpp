@@ -1201,11 +1201,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
 
   // main branch of code creates a non-inline object:
   assert(!klass->is_inline_klass(), "classic constructors are only for non-inline classes");
-  InstanceKlass* ik = klass;
-  if (klass == vmClasses::Object_klass() && vmClasses::Object_klass()->is_abstract()) {
-    ik = vmClasses::Identity_klass();
-  }
-  Handle receiver = ik->allocate_instance_handle(CHECK_NULL);
+  Handle receiver = klass->allocate_instance_handle(CHECK_NULL);
 
   // Ignore result from call and return receiver
   invoke(klass, method, receiver, override, ptypes, T_VOID, args, false, CHECK_NULL);

@@ -225,14 +225,6 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* current, ConstantPool* pool
   Klass* k = pool->klass_at(index, CHECK);
   InstanceKlass* klass = InstanceKlass::cast(k);
 
-  if (klass->is_abstract()) {
-    if (klass == vmClasses::Object_klass()) {
-      klass = vmClasses::Identity_klass();
-    } else {
-      THROW(vmSymbols::java_lang_InstantiationError());
-    }
-  }
-
   if (klass->is_inline_klass()) {
     THROW(vmSymbols::java_lang_InstantiationError());
   }
