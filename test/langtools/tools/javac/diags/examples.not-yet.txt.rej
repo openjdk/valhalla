@@ -1,0 +1,7 @@
+--- test/langtools/tools/javac/diags/examples.not-yet.txt
++++ test/langtools/tools/javac/diags/examples.not-yet.txt
+@@ -226,4 +226,3 @@ compiler.err.generic.parameterization.with.primitive.class
+ compiler.misc.feature.primitive.classes
+ compiler.misc.feature.value.classes
+ compiler.misc.feature.universal.tvars
+-compiler.warn.primitive.value.conversion

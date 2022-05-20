@@ -600,17 +600,21 @@ public class Types {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="isConvertible">
+    enum IsConvertibleResult {
+        CONVERTIBLE,
+        CONVERTIBLE_REF_PROJECTION,
+        NOT_CONVERTIBLE
+    }
+
     /**
      * Is t a subtype of or convertible via boxing/unboxing
      * conversion to s?
      */
-    public boolean isConvertible(Type t, Type s, Warner warn) {
+    private IsConvertibleResult isConvertibleInternal(Type t, Type s, Warner warn, boolean discriminateConvertibleKind) {
         if (t.hasTag(ERROR)) {
-            return true;
+            return IsConvertibleResult.CONVERTIBLE;
         }
 
-        boolean tValue = t.isPrimitiveClass();
-        boolean sValue = s.isPrimitiveClass();
         if (allowUniversalTVars && ((s.hasTag(TYPEVAR)) && ((TypeVar)s).isValueProjection() &&
                 (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isValueProjection()))) {
             if (t.hasTag(BOT)) {
@@ -618,39 +622,72 @@ public class Types {
             } else {
                 chk.warnUniversalTVar(warn.pos(), Warnings.UniversalVariableCannotBeAssignedNull2);
             }
-            return true;
+            return IsConvertibleResult.CONVERTIBLE;
         }
 
         boolean tUndet = t.hasTag(UNDETVAR);
         boolean sUndet = s.hasTag(UNDETVAR);
 
-        if (tValue != sValue) {
-            boolean result = tValue ?
+        boolean tIsPrimitiveClass = t.isPrimitiveClass();
+        boolean sIsPrimitiveClass = s.isPrimitiveClass();
+
+        if (tIsPrimitiveClass != sIsPrimitiveClass) {
+            boolean result = tIsPrimitiveClass ?
                     isSubtype(allowUniversalTVars && (tUndet || sUndet) ? t : t.referenceProjection(), s) :
                     !t.hasTag(BOT) && isSubtype(t, allowUniversalTVars && (tUndet || sUndet) ? s : s.referenceProjection());
             if (result && (allowUniversalTVars && !t.hasTag(BOT) &&
-                    s.isPrimitiveClass() && !t.isPrimitiveClass() &&
-                    s.referenceProjectionOrSelf().tsym == t.tsym)) {
-                chk.warnUnchecked(warn.pos(), Warnings.PrimitiveValueConversion);
+                    s.isPrimitiveClass() && !t.isPrimitiveClass())) {
+                // let's check for an erroneous corner case: when the user defines an anonymous class of a primitive class
+                // we don't want to issue a warning in that case
+                boolean anonymousPrimitiveClass = !tIsPrimitiveClass ?
+                        t.hasTag(CLASS) && supertype(t).isPrimitiveClass() :
+                        s.hasTag(CLASS) && supertype(s).isPrimitiveClass();
+                if (!anonymousPrimitiveClass) {
+                    warn.warn(LintCategory.UNCHECKED);
+                }
+                if (discriminateConvertibleKind)
+                    return IsConvertibleResult.CONVERTIBLE_REF_PROJECTION;
             }
-            return result;
+            return result ? IsConvertibleResult.CONVERTIBLE : IsConvertibleResult.NOT_CONVERTIBLE;
         }
 
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
-            return isSubtypeUnchecked(t, s, warn);
+            boolean result = isSubtypeUnchecked(t, s, warn);
+            if (result) return IsConvertibleResult.CONVERTIBLE;
+            Type tRefProjection = mapToReferenceProjectionOrSelf(t);
+            Type sRefProjection = mapToReferenceProjectionOrSelf(s);
+            boolean tHasValue = t != tRefProjection;
+            boolean sHasValue = s != sRefProjection;
+
+            if (tHasValue != sHasValue) {
+                result = tHasValue ?
+                        isSubtype(allowUniversalTVars && (tUndet || sUndet) ? t : tRefProjection, s) :
+                        !t.hasTag(BOT) && isSubtype(t, allowUniversalTVars && (tUndet || sUndet) ? s : sRefProjection);
+                if (result && (allowUniversalTVars && !t.hasTag(BOT))) {
+                    warn.warn(LintCategory.UNCHECKED);
+                }
+                return result ? IsConvertibleResult.CONVERTIBLE_REF_PROJECTION : IsConvertibleResult.NOT_CONVERTIBLE;
+            }
+            return IsConvertibleResult.NOT_CONVERTIBLE;
         }
 
         if (tUndet || sUndet) {
-            return tUndet ?
+            boolean result = tUndet ?
                     isSubtype(t, boxedTypeOrType(s)) :
                     isSubtype(boxedTypeOrType(t), s);
+            return result ? IsConvertibleResult.CONVERTIBLE : IsConvertibleResult.NOT_CONVERTIBLE;
         }
 
-        return tPrimitive
+        boolean result = tPrimitive
             ? isSubtype(boxedClass(t).type, s)
             : isSubtype(unboxedType(t), s);
+        return result ? IsConvertibleResult.CONVERTIBLE : IsConvertibleResult.NOT_CONVERTIBLE;
+    }
+
+    public boolean isConvertible(Type t, Type s, Warner warn) {
+        return isConvertibleInternal(t, s, warn, false) == IsConvertibleResult.CONVERTIBLE;
     }
 
     /**
@@ -1772,10 +1809,31 @@ public class Types {
                     // ---------------------------------------------------------------------------
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
-                        || ((t.isExtendsBound() || isBoundedBy(wildLowerBound(t), wildLowerBound(s),
-                                (t1, s1, w) -> isSubtype(t1, s1, false, SubtypingRelationKind.REF_VAL_ALLOWED))) &&
-                            (t.isSuperBound() || isBoundedBy(wildUpperBound(s), wildUpperBound(t),
-                                (t1, s1, w) -> isSubtype(t1, s1, false, SubtypingRelationKind.REF_VAL_ALLOWED))));
+                        || checkIfBoundedBy(t, s);
+                }
+            }
+
+            boolean checkIfBoundedBy(WildcardType t, Type s) {
+                if (t.isUnbound()) return true;
+                if (t.isExtendsBound()) {
+                    boolean isBoundedBy = isBoundedBy(wildUpperBound(s), wildUpperBound(t),
+                            (t1, s1, w) -> isSubtype(t1, s1, false, SubtypingRelationKind.REF_VAL_ALLOWED));
+                    if (isBoundedBy) {
+                        return true;
+                    }
+                    return (allowUniversalTVars &&
+                            isConvertibleInternal(wildUpperBound(s),
+                                    wildUpperBound(t),
+                                    warnStack.head != null ? warnStack.head : noWarnings, true) == IsConvertibleResult.CONVERTIBLE_REF_PROJECTION);
+                } else {
+                    boolean isBoundedBy = isBoundedBy(wildLowerBound(t), wildLowerBound(s),
+                            (t1, s1, w) -> isSubtype(t1, s1, false, SubtypingRelationKind.REF_VAL_ALLOWED));
+                    if (isBoundedBy)
+                        return true;
+                    return (allowUniversalTVars &&
+                            isConvertibleInternal(wildLowerBound(t),
+                                    wildLowerBound(s),
+                                    warnStack.head != null ? warnStack.head : noWarnings, true) == IsConvertibleResult.CONVERTIBLE_REF_PROJECTION);
                 }
             }
 
@@ -2206,6 +2264,74 @@ public class Types {
                 return cvarLowerBound(t);
             }
         };
+    // </editor-fold>
+
+    // <editor-fold defaultstate="collapsed" desc="mapToReferenceProjectionOrSelf">
+    public Type mapToReferenceProjectionOrSelf(Type t) {
+        return t.map(new ReferenceProjectionOrSelfMapping());
+    }
+    class ReferenceProjectionOrSelfMapping extends TypeMapping<Void> {
+        Set<Type> seen = new HashSet<>();
+
+        @Override
+        public Type visitClassType(ClassType t, Void _unused) {
+            ClassType tproj = (ClassType) t.referenceProjectionOrSelf();
+            Type outer = tproj.getEnclosingType();
+            Type outer1 = visit(outer, _unused);
+            List<Type> typarams = tproj.getTypeArguments();
+            List<Type> typarams1 = visit(typarams, _unused);
+            if (t == tproj && outer1 == outer && typarams1 == typarams) return t;
+            else return new ClassType(outer1, typarams1, tproj.tsym, tproj.metadata, tproj.getFlavor());
+        }
+
+        @Override
+        public Type visitWildcardType(WildcardType wt, Void _unused) {
+            Type t = wt.type;
+            if (t != null)
+                t = visit(t, _unused);
+            if (t == wt.type)
+                return wt;
+            else
+                return new WildcardType(t, wt.kind, wt.tsym, wt.bound, wt.metadata);
+        }
+
+        @Override
+        public Type visitTypeVar(TypeVar t, Void _unused) {
+            if (!t.isUniversal()) {
+                return t;
+            }
+            if (seen.add(t)) {
+                try {
+                    TypeVar tv = (TypeVar) t.referenceProjectionOrSelf();
+                    Type ub = t.getUpperBound();
+                    Type ubProj = visit(ub);
+                    if (tv == t && ubProj == ub) {
+                        return t;
+                    } else {
+                        return new TypeVar(tv.tsym, ubProj, tv.lower, tv.metadata);
+                    }
+                } finally {
+                    seen.remove(t);
+                }
+            } else {
+                // cycle
+                return t;
+            }
+        }
+
+        @Override
+        public Type visitCapturedType(CapturedType t, Void unused) {
+            WildcardType wct = (WildcardType) visit(t.wildcard, unused);
+            //Type l = visit(t.lower);
+            //Type ub = t.getUpperBound();
+            //Type u = visit(ub);
+            if (wct == t.wildcard) {
+                return t;
+            } else {
+                return new CapturedType(t.tsym.name, t.tsym.owner, t.getUpperBound(), t.lower, wct);
+            }
+        }
+    }
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="notSoftSubtype">

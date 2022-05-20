@@ -264,6 +264,40 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                             MySet<MyMap.Entry<String, T.ref>> entries = allEntries();
                         }
                     }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
+                        void test(Box<? extends Atom> t1, Box<Atom.ref> t2) {
+                            t1 = t2;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
+                        void test(Box<? extends Atom> t1, Box<? extends Atom.ref> t2) {
+                            t1 = t2;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
+                        @SafeVarargs
+                        private <__universal Z> Z make_box_uni(Z... bs) {
+                            return bs[0];
+                        }
+                        void test(Box<Atom> bref, Box bval) {
+                            Box<? extends Atom> res = make_box_uni(bref, bval, bval);
+                        }
+                    }
                     """)
                 )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
@@ -589,7 +623,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
     public void testPrimitiveValueConversion() {
         setCompileOptions(LINT_OPTIONS);
-        assertOKWithWarning("compiler.warn.primitive.value.conversion",
+        assertOKWithWarning("compiler.warn.prob.found.req",
                 """
                 primitive class Point {}
 

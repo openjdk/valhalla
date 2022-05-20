@@ -1,2 +1,4 @@
 GetClass.java:12:69: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Class<compiler.misc.type.captureof: 1, ? extends java.lang.Class>, java.lang.Class<? extends java.lang.Class<GetClass>>)
+- compiler.note.unchecked.filename: GetClass.java
+- compiler.note.unchecked.recompile
 1 error
