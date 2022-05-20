@@ -39,28 +39,32 @@ import java.util.function.Consumer;
  * Hash table based implementation of the {@code Map} interface, with
  * <em>weak keys</em>.
  * An entry in a {@code WeakHashMap} will automatically be removed when
- * its key is no longer in ordinary use.  More precisely, the presence of a
+ * its key is no longer in ordinary use.
+ * More precisely, for keys that are identity objects, the presence of a
  * mapping for a given key will not prevent the key from being discarded by the
  * garbage collector, that is, made finalizable, finalized, and then reclaimed.
+ * For keys that are {@linkplain Class#isValue() Value objects}, the retention of the
+ * key and value depends on the {@link ValuePolicy} for the {@code WeakHashMap} and
+ * the garbage collection handling of objects that are linked by {@link SoftReference}.
  * When a key has been discarded its entry is effectively removed from the map,
  * so this class behaves somewhat differently from other {@code Map}
  * implementations.
  *
  * <p>
- * Keys that are value objects are handled and retained differently than
- * identity objects. Value objects do not have identity and cannot be
+ * Keys that are {@linkplain Class#isValue() Value objects} do not have identity and cannot be
  * the referent in any {@link java.lang.ref.Reference} including {@link WeakReference}.
- * The retention of entries with keys that are value objects is selected
+ * The retention of entries with keys that are Value objects is selected
  * using {@link ValuePolicy} when the {@code WeakHashMap} is created.
- * The default is {@link ValuePolicy#SOFT SOFT}, the entries may be retained when
+ * The default is {@link ValuePolicy#SOFT ValuePolicy.SOFT}, the entries are retained until
  * there is memory pressure similar to handling of {@link SoftReference SoftReference}.
- * The retention modes are:
+ * The retention modes implemented by {@link #put(Object, Object) WeakHashMap.put(k,v)} are:
  * <UL>
- *     <LI> {@linkplain ValuePolicy#STRONG STRONG} - entries are retained until explicitly removed,
  *     <LI> {@linkplain ValuePolicy#STRONG SOFT} - entries have a lifetime similar to
- *          {@link SoftReference},
+ *          referents of {@link SoftReference},
+ *     <LI> {@linkplain ValuePolicy#STRONG STRONG} - entries are retained until removed,
  *     <LI> {@linkplain ValuePolicy#STRONG DISCARD} - entries are discarded and not put in the map,
- *     <LI> {@linkplain ValuePolicy#STRONG THROW} - entries are not inserted and throw
+ *     <LI> {@linkplain ValuePolicy#STRONG THROW} - entries are not inserted and
+ *          {@link #put(Object, Object) put(k,v)} throws
  *          {@link UnsupportedOperationException}
  * </UL>
  *
@@ -74,7 +78,8 @@ import java.util.function.Consumer;
  * {@link Collections#synchronizedMap Collections.synchronizedMap}
  * method.
  *
- * <p> This class is intended primarily for use with key objects whose
+ * <p> <i>Update needed for Value Objects:
+ * <br>This class is intended primarily for use with key objects whose
  * {@code equals} methods test for object identity using the
  * {@code ==} operator.  Once such a key is discarded it can never be
  * recreated, so it is impossible to do a lookup of that key in a
@@ -83,7 +88,7 @@ import java.util.function.Consumer;
  * whose {@code equals} methods are not based upon object identity, such
  * as {@code String} instances.  With such recreatable key objects,
  * however, the automatic removal of {@code WeakHashMap} entries whose
- * keys have been discarded may prove to be confusing.
+ * keys have been discarded may prove to be confusing.</i>
  *
  * <p> The behavior of the {@code WeakHashMap} class depends in part upon
  * the actions of the garbage collector, so several familiar (though not
@@ -221,7 +226,9 @@ public class WeakHashMap<K,V>
     /**
      * Constructs a new, empty {@code WeakHashMap} with the given initial
      * capacity and the given load factor.
-     * The default {@code ValuePolicy} is {@link ValuePolicy#THROW}.
+     * The default {@code ValuePolicy} is {@link ValuePolicy#SOFT} unless
+     * the system property {@systemProperty java.util.WeakHashMap.valueKeyRetention}
+     * is equal to the name of a {@link ValuePolicy} enum.
      *
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @param  loadFactor      The load factor of the {@code WeakHashMap}
@@ -229,7 +236,7 @@ public class WeakHashMap<K,V>
      *         or if the load factor is nonpositive.
      */
     public WeakHashMap(int initialCapacity, float loadFactor) {
-        this(initialCapacity, loadFactor, ValuePolicy.defaultValuePolicy());
+        this(initialCapacity, loadFactor, ValuePolicy.DEFAULT_VALUE_POLICY);
     }
 
     /**
@@ -238,9 +245,10 @@ public class WeakHashMap<K,V>
      *
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @param  loadFactor      The load factor of the {@code WeakHashMap}
-     * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value Objects
+     * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value objects
      * @throws IllegalArgumentException if the initial capacity is negative,
      *         or if the load factor is nonpositive.
+     * @throws NullPointerException if {@code valuePolicy} is null
      */
     public WeakHashMap(int initialCapacity, float loadFactor, ValuePolicy valuePolicy) {
         if (initialCapacity < 0)
@@ -252,11 +260,11 @@ public class WeakHashMap<K,V>
         if (loadFactor <= 0 || Float.isNaN(loadFactor))
             throw new IllegalArgumentException("Illegal Load factor: "+
                                                loadFactor);
+        this.valuePolicy = Objects.requireNonNull(valuePolicy, "valuePolicy");
         int capacity = HashMap.tableSizeFor(initialCapacity);
         table = newTable(capacity);
         this.loadFactor = loadFactor;
         threshold = (int)(capacity * loadFactor);
-        this.valuePolicy = valuePolicy;
     }
 
     /**
@@ -281,7 +289,7 @@ public class WeakHashMap<K,V>
     /**
      * Constructs a new, empty {@code WeakHashMap} with the {@link ValuePolicy},
      * the default initial capacity (16) and load factor (0.75).
-     * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value Objects
+     * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value objects; non-null
      */
     public WeakHashMap(ValuePolicy valuePolicy) {
         this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, valuePolicy);
@@ -503,6 +511,8 @@ public class WeakHashMap<K,V>
      *         {@code null} if there was no mapping for {@code key}.
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
+     * @throws UnsupportedOperationException if {@code key} is a Value object
+     *         and the {@link #valuePolicy() valuePolicy} is {@link ValuePolicy#THROW}.
      */
     public V put(K key, V value) {
         Object k = maskNull(key);
@@ -535,7 +545,7 @@ public class WeakHashMap<K,V>
     }
 
     /**
-     * Return a new entry for keys that are value objects.
+     * Return a new entry for keys that are Value objects.
      * The {@link ValuePolicy} for this WeakHashMap determines what entry is returned.
      * <ul>
      *     <li> THROW - Throws an UnsupportedOperationException</li>
@@ -544,8 +554,8 @@ public class WeakHashMap<K,V>
      *     <li> DISCARD - null</li>
      * </ul>
      *
-     * @param key key with which the specified value is to be associated.
-     * @param value value to be associated with the specified key.
+     * @param key key with which the specified value is to be associated; non-null
+     * @param value value to be associated with the specified key
      * @param queue queue
      * @param hash hash
      * @param next next
@@ -555,7 +565,7 @@ public class WeakHashMap<K,V>
                                       ReferenceQueue<Object> queue,
                                       int hash, Entry<K,V> next) {
         return switch (valuePolicy) {
-            case THROW -> throw new UnsupportedOperationException("Value classes not allowed as keys: " +
+            case THROW -> throw new UnsupportedOperationException("Value objects not allowed as keys: " +
                     key.getClass().getName());
             case STRONG -> StrongEntry.newStrongEntry(key, value, queue, hash,  next);
             case SOFT ->  SoftEntry.newSoftEntry(key, value, queue, hash,  next);
@@ -1519,57 +1529,53 @@ public class WeakHashMap<K,V>
 
     /**
      * Enum for the ValuePolicy; when putting a key and value into a WeakHashMap
-     * determines how keys that are value objects are retained (or not).
+     * determines how keys that are Value objects are retained (or not).
      */
     public enum ValuePolicy {
         /**
-         * Throw an exception if a Value object is supplied as a key.
-         */
-        THROW,
-        /**
-         * If the Key is a value object, retain the key and value until explicitly removed.
-         */
-        STRONG,
-        /**
-         * If the Key is a value object, retain the key and value until explicitly removed or
-         * there is some memory pressure and soft references are cleared.
+         * If the key is a Value object, retain the key and value until removed or
+         * there is memory pressure that causes soft references to be cleared.
          */
         SOFT,
         /**
-         * If the Key is a value object, discard the key and value immediately;
+         * If the key is a Value object, retain the key and value until removed.
+         */
+        STRONG,
+        /**
+         * If the key is a Value object, discard the key and value immediately;
          * such keys and values are not retained.
          */
-        DISCARD;
+        DISCARD,
+        /**
+         * If the key is a Value object, throw {@link UnsupportedOperationException};
+         * such keys and values are not retained.
+         */
+        THROW;
 
         // System property name for the default ValuePolicy
-        private static final String JAVA_UTIL_WEAK_HASH_MAP_VALUE_KEY_RETENTION =
+        private static final String WEAK_HASH_MAP_VALUE_KEY_RETENTION =
                 "java.util.WeakHashMap.valueKeyRetention";
 
-        // Default WeakHashMap ValuePolicy for keys that are value objects
-        // Benign racy initialization
-        private static ValuePolicy DEFAULT_VALUE_POLICY;
+        // Default WeakHashMap ValuePolicy for keys that are Value objects
+        private static final ValuePolicy DEFAULT_VALUE_POLICY = defaultValuePolicy();
 
         /**
          * {@return the default policy for retention of keys that are value classes}
-         * If not previously initialized, check for the System property
-         * "java.util.WeakHashMap.valueKeyRetention" and use its value if it is
-         * the name of a ValuePolicy enum.
+         * If the system property "java.util.WeakHashMap.valueKeyRetention"
+         * is the name of a {@link ValuePolicy} enum return it,
+         * otherwise return {@link ValuePolicy#SOFT}.
          */
         private static ValuePolicy defaultValuePolicy() {
-            ValuePolicy policy = DEFAULT_VALUE_POLICY;
-            if (policy == null) {
-                policy = DISCARD;         // hardcoded default if property not set
+            try {
                 String p = GetPropertyAction
-                        .privilegedGetProperty(JAVA_UTIL_WEAK_HASH_MAP_VALUE_KEY_RETENTION);
-                try {
-                    if (p != null) {
-                        policy = ValuePolicy.valueOf(p);
-                    }
-                } catch (NullPointerException | IllegalArgumentException ex) {
+                        .privilegedGetProperty(WEAK_HASH_MAP_VALUE_KEY_RETENTION);
+                if (p != null) {
+                    return ValuePolicy.valueOf(p);
                 }
-                DEFAULT_VALUE_POLICY = policy;
+            } catch (IllegalArgumentException ex) {
             }
-            return policy;
+
+            return SOFT;  // hardcoded default if property not set
         }
     }
 
