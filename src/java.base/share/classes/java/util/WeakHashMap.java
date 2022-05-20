@@ -530,7 +530,7 @@ public class WeakHashMap<K,V>
         }
 
         Entry<K,V> e = tab[i];
-        if (key.getClass().isValue()) {
+        if (k.getClass().isValue()) {
             e = newValueEntry(k, value, queue, h, e);
             if (e == null)
                 return null;  // ValuePolicy == DISCARD
