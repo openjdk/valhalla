@@ -469,7 +469,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   InstanceKlass* k = UnregisteredClasses::load_class(class_name, _source, CHECK_NULL);
   const int actual_num_interfaces = k->local_interfaces()->length();
   const int specified_num_interfaces = _interfaces->length(); // specified in classlist
-  int expected_num_interfaces = actual_num_interfaces, i;
+  int expected_num_interfaces = actual_num_interfaces;
 
   if (specified_num_interfaces != expected_num_interfaces) {
     print_specified_interfaces();
