@@ -2322,9 +2322,6 @@ public class Types {
         @Override
         public Type visitCapturedType(CapturedType t, Void unused) {
             WildcardType wct = (WildcardType) visit(t.wildcard, unused);
-            //Type l = visit(t.lower);
-            //Type ub = t.getUpperBound();
-            //Type u = visit(ub);
             if (wct == t.wildcard) {
                 return t;
             } else {
