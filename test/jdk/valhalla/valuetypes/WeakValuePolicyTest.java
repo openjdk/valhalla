@@ -88,7 +88,7 @@ public class WeakValuePolicyTest {
     }
 
     private void forceGC()  {
-        Object marker = Objects.newIdentity();
+        Object marker = new Object();
         ReferenceQueue<Object> queue = new ReferenceQueue<>();
         SoftReference expected = new SoftReference(marker, queue);
         marker = null;
