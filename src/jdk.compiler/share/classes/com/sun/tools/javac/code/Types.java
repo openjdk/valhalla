@@ -2321,11 +2321,22 @@ public class Types {
 
         @Override
         public Type visitCapturedType(CapturedType t, Void unused) {
-            WildcardType wct = (WildcardType) visit(t.wildcard, unused);
-            if (wct == t.wildcard) {
-                return t;
+            if (seen.add(t)) {
+                try {
+                    WildcardType wct = (WildcardType) visit(t.wildcard, unused);
+                    Type ub = t.getUpperBound();
+                    Type ubProj = visit(ub);
+                    if (wct == t.wildcard && ubProj == ub) {
+                        return t;
+                    } else {
+                        return new CapturedType(t.tsym.name, t.tsym.owner, ubProj, t.lower, wct);
+                    }
+                } finally {
+                    seen.remove(t);
+                }
             } else {
-                return new CapturedType(t.tsym.name, t.tsym.owner, t.getUpperBound(), t.lower, wct);
+                // cycle
+                return t;
             }
         }
     }

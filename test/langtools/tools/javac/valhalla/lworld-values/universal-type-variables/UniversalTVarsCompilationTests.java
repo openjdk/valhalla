@@ -290,6 +290,16 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     class Test {
                         static primitive class Atom {}
                         static class Box<__universal X> {}
+                        void test(Box<? extends Atom> t1, Box<? extends Atom.ref> t2) {
+                            t2 = t1;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
                         @SafeVarargs
                         private <__universal Z> Z make_box_uni(Z... bs) {
                             return bs[0];
