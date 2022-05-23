@@ -55,7 +55,7 @@ import java.util.function.Consumer;
  * the referent in any {@link java.lang.ref.Reference} including {@link WeakReference}.
  * The retention of entries with keys that are Value objects is selected
  * using {@link ValuePolicy} when the {@code WeakHashMap} is created.
- * The default is {@link ValuePolicy#SOFT ValuePolicy.SOFT}, the entries are retained until
+ * The default is {@link ValuePolicy#SOFT}, the entries are retained until
  * there is memory pressure similar to handling of {@link SoftReference SoftReference}.
  * The retention modes implemented by {@link #put(Object, Object) WeakHashMap.put(k,v)} are:
  * <UL>
@@ -289,7 +289,9 @@ public class WeakHashMap<K,V>
     /**
      * Constructs a new, empty {@code WeakHashMap} with the {@link ValuePolicy},
      * the default initial capacity (16) and load factor (0.75).
+     *
      * @param  valuePolicy     The {@link ValuePolicy} for keys that are Value objects; non-null
+     * @throws NullPointerException if {@code valuePolicy} is null
      */
     public WeakHashMap(ValuePolicy valuePolicy) {
         this(DEFAULT_INITIAL_CAPACITY, DEFAULT_LOAD_FACTOR, valuePolicy);
