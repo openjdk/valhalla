@@ -212,8 +212,8 @@ public final class Objects {
      * Checks that the specified object reference is an identity object.
      *
      * @param obj the object reference to check for identity
-     * @param message detail message to be used in the event that a {@code
-     *                IdentityException} is thrown
+     * @param message detail message to be used in the event that an
+     *        {@code IdentityException} is thrown
      * @param <T> the type of the reference
      * @return {@code obj} if {@code obj} is an identity object
      * @throws NullPointerException if {@code obj} is {@code null}
@@ -225,6 +225,27 @@ public final class Objects {
         Objects.requireNonNull(obj);
         if (obj.getClass().isValue())
             throw new IdentityException(message);
+        return obj;
+    }
+
+    /**
+     * Checks that the specified object reference is an identity object.
+     *
+     * @param obj the object reference to check for identity
+     * @param messageSupplier supplier of the detail message to be
+     *        used in the event that an {@code IdentityException} is thrown
+     * @param <T> the type of the reference
+     * @return {@code obj} if {@code obj} is an identity object
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @throws IdentityException if {@code obj} is not an identity object
+     * @since Valhalla
+     */
+    @ForceInline
+    public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
+        Objects.requireNonNull(obj);
+        if (obj.getClass().isValue())
+            throw new IdentityException(messageSupplier == null ?
+                    null : messageSupplier.get());
         return obj;
     }
 
