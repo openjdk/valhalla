@@ -44,6 +44,11 @@ public class SyntheticClasses {
         File testClasses = new File(System.getProperty("test.classes"));
         for (File classFile : testClasses.listFiles(f -> f.getName().endsWith(".class"))) {
             ClassFile cf = ClassFile.read(classFile);
+            if ((cf.access_flags.flags & (AccessFlags.ACC_SYNTHETIC | AccessFlags.ACC_VALUE | AccessFlags.ACC_ABSTRACT)) == AccessFlags.ACC_SYNTHETIC) {
+                if ((cf.access_flags.flags & AccessFlags.ACC_IDENTITY) == 0) {
+                    throw new IllegalStateException("Missing ACC_IDENTITY on synthetic concrete identity class: " + cf.getName());
+                }
+            }
             if (cf.getName().matches(".*\\$[0-9]+")) {
                 EnclosingMethod_attribute encl =
                         (EnclosingMethod_attribute) cf.getAttribute(Attribute.EnclosingMethod);
