@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,21 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
-public class StaticFactoryTest {
+public final identity class StaticFactoryTest {
     // Target test class
+
+    static final identity class SimpleIdentity {
+        public final int x;
+
+        SimpleIdentity() {
+            x = -1;
+        }
+
+        public SimpleIdentity(int x) {
+            this.x = x;
+        }
+    }
+
     static primitive class SimplePrimitive {
         public final int x;
 
@@ -70,18 +83,22 @@ public class StaticFactoryTest {
     @DataProvider
     static Object[][] classes() {
         return new Object[][]{
-                new Object[] { SimplePrimitive.class, true },
-                new Object[] { SimpleValue.class, false },
+                new Object[] { SimpleIdentity.class, true, false, false },
+                new Object[] { SimplePrimitive.class, false, true, true },
+                new Object[] { SimpleValue.class, false, true, false },
         };
     }
 
     @Test(dataProvider = "classes")
-    public void testConstructor(Class<?> c, boolean isPrimitiveClass) throws ReflectiveOperationException {
+    public void testConstructor(Class<?> c, boolean isIdentityClass,
+                                boolean isValueClass, boolean isPrimitiveClass) throws ReflectiveOperationException {
         String cn = c.getName();
         Class<?> clz = Class.forName(cn);
+        System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());
 
-        assertTrue(clz.isValue());
-        assertTrue(clz.isPrimitiveClass() == isPrimitiveClass);
+        assertEquals(clz.isIdentity(), isIdentityClass, "identity class");
+        assertEquals(clz.isValue(), isValueClass, "value class");
+        assertEquals(clz.isPrimitiveClass(), isPrimitiveClass, "primitive class");
 
         Constructor<?> ctor = clz.getDeclaredConstructor();
         Object o = ctor.newInstance();
@@ -94,8 +111,8 @@ public class StaticFactoryTest {
         // Check that getDeclaredMethods does not include the static factory method
         Method[] methods = clz.getDeclaredMethods();
         for (Method m : methods) {
-            if (Modifier.isStatic(m.getModifiers())) {
-                assertFalse(m.getName().equals("<init>"));
+            if (Modifier.isStatic(m.getModifiers()) && "<init>".equals(m.getName())) {
+                assertTrue(isIdentityClass, "<init> method is not in an identity class");
             }
         }
     }
@@ -111,7 +128,7 @@ public class StaticFactoryTest {
     }
 
     // Check that the class has the expected Constructors
-    @Test(dataProvider = "ctors")
+    @Test(dataProvider = "ctors", enabled = false)
     public static void constructors(Class<?> c, Set<String> signatures) throws ReflectiveOperationException {
         Constructor<?>[] cons = c.getDeclaredConstructors();
         Set<String> actualSig = Arrays.stream(cons).map(Constructor::toString)

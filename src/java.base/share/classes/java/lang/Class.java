@@ -203,9 +203,10 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
+    private static final int IDENTITY_CLASS  = 0x00000020;
     private static final int VALUE_CLASS     = 0x00000040;
     private static final int PERMITS_VALUE   = 0x00000100;
-    private static final int PRIMITIVE_CLASS = 0x00000800;
+    private static final int PRIMITIVE_CLASS = 0x00000800;  // Not in JVMS spec
 
     private static native void registerNatives();
     static {
@@ -237,21 +238,22 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this {@code Class} object.
      */
     public String toString() {
-        String s = isPrimitive() ? "" : "class ";
-        if (isInterface()) {
-            s = "interface ";
-        }
-        if (isValue()) {
-            s = "value ";
-        }
-        if (isPrimitiveClass()) {
-            s = "primitive ";
+        String s = getName();
+        if (isPrimitive()) {
+            return s;
         }
         // Avoid invokedynamic based String concat, might be not available
-        s = s.concat(getName());
-        if (isPrimitiveClass() && isPrimaryType()) {
-            s = s.concat(".ref");
+        // Prepend type of class
+        s = (isInterface() ? "interface " : "class ").concat(s);
+        if (isValue()) {
+            // prepend value class type
+            s = (isPrimitiveClass() ? "primitive " : "value ").concat(s);
+            if (isPrimitiveClass() && isPrimaryType()) {
+                // Append .ref
+                s = s.concat(".ref");
+            }
         }
+
         return s;
     }
 
@@ -627,6 +629,17 @@ public final class Class<T> implements java.io.Serializable,
      */
     public boolean isPrimitiveClass() {
         return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
+    }
+
+    /**
+     * Returns {@code true} if this class is an identity class.
+     *
+     * @return {@code true} if this class is an identity class;
+     * otherwise {@code false}
+     * @since Valhalla
+     */
+    public boolean isIdentity() {
+        return (this.getModifiers() & IDENTITY_CLASS) != 0;
     }
 
     /**

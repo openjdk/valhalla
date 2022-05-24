@@ -3395,8 +3395,8 @@ jint InstanceKlass::compute_modifier_flags() const {
       break;
     }
   }
-  // Remember to strip ACC_SUPER bit
-  return (access & (~JVM_ACC_SUPER)) & JVM_ACC_WRITTEN_FLAGS;
+  // Do not strip ACC_SUPER, its ACC_IDENTITY now
+  return access & JVM_ACC_WRITTEN_FLAGS;
 }
 
 jint InstanceKlass::jvmti_class_status() const {

@@ -3322,7 +3322,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     }
     // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_PERMITS_VALUE are defined for class file version 62 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
+      recognized_modifiers |= JVM_ACC_IDENTITY | JVM_ACC_PRIMITIVE |  JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
     }
 
     // Access flags
@@ -6178,7 +6178,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
   // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
+    recognized_modifiers |= JVM_ACC_IDENTITY |JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
   }
 
   // Access flags
