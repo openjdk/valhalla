@@ -37,13 +37,13 @@ import static org.testng.Assert.*;
 @Test
 public class WeakReferenceTest {
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expectedExceptions = IdentityException.class)
     static void test1() {
         Point.ref p = new Point(10,20);
         WeakReference<Point.ref> r = new WeakReference<>(p);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expectedExceptions = IdentityException.class)
     static void test2() {
         ReferenceQueue<Object> q = new ReferenceQueue<>();
         Point.ref p = new Point(1,2);
