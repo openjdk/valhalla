@@ -302,7 +302,7 @@ public abstract class InnerClassesTestBase extends TestResult {
             if (hasSyntheticClass) {
                 // Source to generate synthetic classes
                 sb.append(syntheticClasses.stream().collect(Collectors.joining(" ", "{", "}")));
-                class2Flags.put("1", new HashSet<>(Arrays.asList("ACC_STATIC", "ACC_SYNTHETIC")));
+                class2Flags.put("1", new HashSet<>(Arrays.asList("ACC_STATIC", "ACC_IDENTITY", "ACC_SYNTHETIC")));
             }
             sb.append(suffix).append("\n}");
             getAdditionalFlags(class2Flags, outerClassType, outerMod.toArray(new Modifier[outerMod.size()]));
