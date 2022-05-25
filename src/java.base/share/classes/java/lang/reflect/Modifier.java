@@ -29,13 +29,24 @@ import java.util.StringJoiner;
 
 /**
  * The Modifier class provides {@code static} methods and
- * constants to decode class and member access modifiers.  The sets of
- * modifiers are represented as integers with distinct bit positions
+ * constants to decode class and member access modifiers.
+ * The {@link AccessFlag} class should be used instead of this class.
+ * The sets of modifiers are represented as integers with non-distinct bit positions
  * representing different modifiers.  The values for the constants
  * representing the modifiers are taken from the tables in sections
  * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
  * <cite>The Java Virtual Machine Specification</cite>.
+ * <p>
+ * This class cannot distinguish among modifiers for a class, method, or field.
+ * The modifier masks are not unique; it is up to the caller to use the correct
+ * mask or method with the modifier bits returned from {@link Class#getModifiers()}
+ * or {@link Member#getModifiers()}.
+ * The {@link AccessFlag} class provides a model that distinguishes between access flags
+ * for classes, methods, and field. The {@link Class#accessFlags()} and {@link Member#accessFlags()}
+ * methods provide the access flags for the respective class, method, or field.
  *
+ * @see Class#accessFlags()
+ * @see Member#accessFlags()
  * @see Class#getModifiers()
  * @see Member#getModifiers()
  *
@@ -120,18 +131,6 @@ public class Modifier {
      */
     public static boolean isSynchronized(int mod) {
         return (mod & SYNCHRONIZED) != 0;
-    }
-
-    /**
-     * Return {@code true} if the integer argument includes the
-     * {@code permitsValue} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code permitsValue} modifier; {@code false} otherwise.
-     */
-    public static boolean isPermitsValue(int mod) {
-        return (mod & PERMITS_VALUE) != 0;
     }
 
     /**
@@ -233,6 +232,9 @@ public class Modifier {
      * {@code toString} with the appropriate mask from a method like
      * {@link #constructorModifiers} or {@link #methodModifiers}.
      *
+     * @apiNote TBD: This method does not reflect the class related modifiers including
+     * {@link #IDENTITY}, {@link #VALUE}, and {@link #PRIMITIVE}.
+     *
      * @param   mod a set of modifiers
      * @return  a string representation of the set of modifiers
      * represented by {@code mod}
@@ -299,6 +301,13 @@ public class Modifier {
     public static final int FINAL            = 0x00000010;
 
     /**
+     * The {@code int} value representing the {@code ACC_IDENTITY}
+     * modifier when applied to the modifiers of a class.
+     * @see AccessFlag#IDENTITY
+     */
+    public static final int IDENTITY         = 0x00000020;
+
+    /**
      * The {@code int} value representing the {@code synchronized}
      * modifier.
      * @see AccessFlag#SYNCHRONIZED
@@ -306,10 +315,11 @@ public class Modifier {
     public static final int SYNCHRONIZED     = 0x00000020;
 
     /**
-     * The {@code int} value representing the {@code permits_value}
-     * modifier.
+     * The {@code int} value representing the {@code ACC_VALUE}
+     * modifier when applied to the modifiers of a class.
+     * @see AccessFlag#VALUE
      */
-    public static final int PERMITS_VALUE    = 0x00000040;
+    public static final int VALUE            = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code volatile}
@@ -352,16 +362,23 @@ public class Modifier {
      */
     public static final int STRICT           = 0x00000800;
 
+    /**
+     * The {@code int} value representing the {@code ACC_PRIMITIVE}
+     * modifier when applied to the modifiers of a class.
+     * @see AccessFlag#PRIMITIVE
+     */
+    public static final int PRIMITIVE        = 0x00000800;
+
     // Bits not (yet) exposed in the public API either because they
     // have different meanings for fields and methods and there is no
     // way to distinguish between the two in this class, or because
     // they are not Java programming language keywords
-    static final int BRIDGE      = 0x00000040;
-    static final int VARARGS     = 0x00000080;
-    static final int SYNTHETIC   = 0x00001000;
+    static final int BRIDGE    = 0x00000040;
+    static final int VARARGS   = 0x00000080;
+    static final int SYNTHETIC = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
-    static final int ENUM        = 0x00004000;
-    static final int MANDATED    = 0x00008000;
+    static final int ENUM      = 0x00004000;
+    static final int MANDATED  = 0x00008000;
     static boolean isSynthetic(int mod) {
       return (mod & SYNTHETIC) != 0;
     }
@@ -386,8 +403,9 @@ public class Modifier {
      */
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
+        Modifier.IDENTITY       | Modifier.VALUE        | Modifier.PRIMITIVE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.STRICT         | Modifier.PERMITS_VALUE;
+        Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.
@@ -395,6 +413,7 @@ public class Modifier {
      */
     private static final int INTERFACE_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
+        Modifier.IDENTITY       | Modifier.VALUE        |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.STRICT;
 
 

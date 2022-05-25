@@ -32,9 +32,13 @@ import java.lang.reflect.Modifier;
 public class toStringTest {
 
     static void testString(int test, String expected) {
-        if(!Modifier.toString(test).equals(expected))
-            throw new RuntimeException(test +
-                                          " yields incorrect toString result");
+        String actual = Modifier.toString(test);
+        if(!actual.equals(expected)) {
+            System.out.println("Actual:   " + actual);
+            System.out.println("Expected: " + expected);
+
+            throw new RuntimeException(Integer.toHexString(test) + " yields incorrect toString result");
+        }
     }
 
     public static void main(String [] argv) {

@@ -121,10 +121,11 @@ public enum AccessFlag {
                  Location.INNER_CLASS, Location.METHOD_PARAMETER)),
 
     /**
-     * The access flag {@code ACC_SUPER} with a mask value of {@code
-     * 0x0020}.
+     * The access flag {@code ACC_IDENTITY} corresponding to the
+     * source modifier {@link Modifier#VALUE value} with a mask
+     * value of {@code 0x0020}.
      */
-    SUPER(0x0000_0020, false, Set.of(Location.CLASS)),
+    IDENTITY(Modifier.IDENTITY, true, Set.of(Location.CLASS)),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -154,7 +155,14 @@ public enum AccessFlag {
      */
     STATIC_PHASE(0x0000_0040, false, Set.of(Location.MODULE_REQUIRES)),
 
-     /**
+    /**
+     * The access flag {@code ACC_VALUE} corresponding to the
+     * source modifier {@link Modifier#VALUE value} with a mask
+     * value of {@code 0x0040}.
+     */
+    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS)),
+
+    /**
       * The access flag {@code ACC_VOLATILE}, corresponding to the
       * source modifier {@link Modifier#VOLATILE volatile} with a mask
       * value of {@code 0x0040}.
@@ -204,6 +212,13 @@ public enum AccessFlag {
      */
     ABSTRACT(Modifier.ABSTRACT, true,
              Set.of(Location.CLASS, Location.METHOD, Location.INNER_CLASS)),
+
+    /**
+     * The access flag {@code ACC_PRIMITIVE}, corresponding to the source
+     * modifier {@link Modifier#PRIMITIVE primitive} with a mask
+     * value of {@code 0x0800}.
+     */
+    PRIMITIVE(Modifier.PRIMITIVE, true, Set.of(Location.CLASS)),
 
     /**
      * The access flag {@code ACC_STRICT}, corresponding to the source
@@ -389,7 +404,7 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, SUPER,
+                                Set.of(PUBLIC, FINAL, IDENTITY, VALUE, PRIMITIVE,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
