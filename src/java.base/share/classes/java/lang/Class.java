@@ -36,6 +36,7 @@ import java.io.InputStream;
 import java.io.ObjectStreamField;
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.AnnotatedType;
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -1458,6 +1459,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return the {@code int} representing the modifiers for this class
      * @see     java.lang.reflect.Modifier
+     * @see #accessFlags()
      * @see <a
      * href="{@docRoot}/java.base/java/lang/reflect/package-summary.html#LanguageJvmModel">Java
      * programming language and JVM modeling in core reflection</a>
@@ -1483,6 +1485,25 @@ public final class Class<T> implements java.io.Serializable,
      */
     native void setSigners(Object[] signers);
 
+    /**
+     * {@return an unmodifiable set of the {@linkplain AccessFlag access
+     * flags} for this class, possibly empty}
+     * @see #getModifiers()
+     * @jvms 4.1 The ClassFile Structure
+     * @jvms 4.7.6 The InnerClasses Attribute
+     * @since 20
+     */
+    public Set<AccessFlag> accessFlags() {
+        // This likely needs some refinement. Exploration of hidden
+        // classes, array classes.  Location.CLASS allows SUPER and
+        // AccessFlag.MODULE which INNER_CLASS forbids. INNER_CLASS
+        // allows PRIVATE, PROTECTED, and STATIC, which are not
+        // allowed on Location.CLASS.
+        return AccessFlag.maskToAccessFlags(getModifiers(),
+                                            (isMemberClass() || isLocalClass() || isAnonymousClass()) ?
+                                            AccessFlag.Location.INNER_CLASS :
+                                            AccessFlag.Location.CLASS);
+    }
 
     /**
      * If this {@code Class} object represents a local or anonymous
