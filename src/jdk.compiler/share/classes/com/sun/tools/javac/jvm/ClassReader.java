@@ -2789,7 +2789,7 @@ public class ClassReader {
     }
 
     long adjustClassFlags(long flags) {
-        if ((flags & (ABSTRACT | ACC_VALUE | ACC_MODULE)) == 0) {
+        if ((flags & (ABSTRACT | INTERFACE | ACC_VALUE | ACC_MODULE)) == 0) {
             flags |= ACC_IDENTITY;
         }
         if ((flags & ACC_MODULE) != 0) {
