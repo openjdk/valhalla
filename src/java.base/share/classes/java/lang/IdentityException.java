@@ -29,16 +29,18 @@ package java.lang;
  * Identity objects are required for synchronization and locking.
  * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">Value-based</a>
  * objects do not have identity and cannot be used for synchronization or locking.
+ *
+ * @since Valhalla
  */
 public class IdentityException extends RuntimeException {
     /**
-     * Create an IdentityException with no message.
+     * Create an {@code IdentityException} with no message.
      */
     public IdentityException() {
     }
 
     /**
-     * Create an IdentityException with the class name and default message.
+     * Create an {@code IdentityException} with the class name and default message.
      *
      * @param clazz the class of the object
      */
@@ -47,7 +49,7 @@ public class IdentityException extends RuntimeException {
     }
 
     /**
-     * Create an IdentityException with a message.
+     * Create an {@code IdentityException} with a message.
      *
      * @param  message the detail message; can be {@code null}
      */
@@ -56,7 +58,7 @@ public class IdentityException extends RuntimeException {
     }
 
     /**
-     * Create an IdentityException with a message and cause.
+     * Create an {@code IdentityException} with a message and cause.
      *
      * @param  message the detail message; can be {@code null}
      * @param  cause the cause; {@code null} is permitted, and indicates

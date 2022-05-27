@@ -213,7 +213,7 @@ public final class Objects {
      *
      * @param obj the object reference to check for identity
      * @param message detail message to be used in the event that an
-     *        {@code IdentityException} is thrown
+     *        {@code IdentityException} is thrown; may be null
      * @param <T> the type of the reference
      * @return {@code obj} if {@code obj} is an identity object
      * @throws NullPointerException if {@code obj} is {@code null}
@@ -233,7 +233,7 @@ public final class Objects {
      *
      * @param obj the object reference to check for identity
      * @param messageSupplier supplier of the detail message to be
-     *        used in the event that an {@code IdentityException} is thrown
+     *        used in the event that an {@code IdentityException} is thrown; may be null
      * @param <T> the type of the reference
      * @return {@code obj} if {@code obj} is an identity object
      * @throws NullPointerException if {@code obj} is {@code null}
