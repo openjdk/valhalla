@@ -121,6 +121,19 @@ public enum AccessFlag {
                  Location.INNER_CLASS, Location.METHOD_PARAMETER)),
 
     /**
+     * The access flag {@code ACC_SUPER} with a mask value of {@code
+     * 0x0020}.
+     * <p>
+     * NOTE: The Valhalla draft JVMS spec does not define a value for ACC_SUPER.
+     * Historically, the value 0x0020 was used to indicate ACC_SUPER, which affected the
+     * semantics of any invokespecial instructions (6.5.invokespecial) appearing in the class.
+     * In Java SE 8, the ACC_SUPER semantics became mandatory, regardless of the setting of
+     * ACC_SUPER or the class file version number, and the flag no longer had any effect.
+     * Now the flag has been repurposed as ACC_IDENTITY.
+     */
+    SUPER(0x0000_0020, false, Set.of(Location.CLASS)),
+
+    /**
      * The access flag {@code ACC_IDENTITY} corresponding to the
      * source modifier {@link Modifier#VALUE value} with a mask
      * value of {@code 0x0020}.
