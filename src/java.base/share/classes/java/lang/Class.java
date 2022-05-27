@@ -204,7 +204,6 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
     private static final int VALUE_CLASS     = 0x00000040;
-    private static final int PERMITS_VALUE   = 0x00000100;
     private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
@@ -511,8 +510,8 @@ public final class Class<T> implements java.io.Serializable,
 
     /** Called after security check for system loader access checks have been made. */
     private static native Class<?> forName0(String name, boolean initialize,
-                                    ClassLoader loader,
-                                    Class<?> caller)
+                                            ClassLoader loader,
+                                            Class<?> caller)
         throws ClassNotFoundException;
 
 
@@ -1503,6 +1502,14 @@ public final class Class<T> implements java.io.Serializable,
                                             (isMemberClass() || isLocalClass() || isAnonymousClass()) ?
                                             AccessFlag.Location.INNER_CLASS :
                                             AccessFlag.Location.CLASS);
+    }
+
+    /**
+     * {@return true if this class has the requested {@link AccessFlag}}
+     * @param flag an {@link AccessFlag}
+     */
+    public boolean is(AccessFlag flag) {
+        return (getModifiers() & flag.mask()) == flag.mask();
     }
 
     /**

@@ -131,14 +131,12 @@ public enum AccessFlag {
      * ACC_SUPER or the class file version number, and the flag no longer had any effect.
      * Now the flag has been repurposed as ACC_IDENTITY.
      */
-    SUPER(0x0000_0020, false, Set.of(Location.CLASS)),
+//    SUPER(0x0000_0020, false, Set.of(Location.CLASS)),
 
     /**
-     * The access flag {@code ACC_IDENTITY} corresponding to the
-     * source modifier {@link Modifier#VALUE value} with a mask
-     * value of {@code 0x0020}.
+     * The access flag {@code ACC_IDENTITY} with a mask value of {@code 0x0020}.
      */
-    IDENTITY(Modifier.IDENTITY, true, Set.of(Location.CLASS)),
+    IDENTITY(0x0000_0020, false, Set.of(Location.CLASS)),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -169,11 +167,9 @@ public enum AccessFlag {
     STATIC_PHASE(0x0000_0040, false, Set.of(Location.MODULE_REQUIRES)),
 
     /**
-     * The access flag {@code ACC_VALUE} corresponding to the
-     * source modifier {@link Modifier#VALUE value} with a mask
-     * value of {@code 0x0040}.
+     * The access flag {@code ACC_VALUE} with a mask value of {@code 0x0040}.
      */
-    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS)),
+    VALUE(0x0000_0040, false, Set.of(Location.CLASS)),
 
     /**
       * The access flag {@code ACC_VOLATILE}, corresponding to the
@@ -227,11 +223,9 @@ public enum AccessFlag {
              Set.of(Location.CLASS, Location.METHOD, Location.INNER_CLASS)),
 
     /**
-     * The access flag {@code ACC_PRIMITIVE}, corresponding to the source
-     * modifier {@link Modifier#PRIMITIVE primitive} with a mask
-     * value of {@code 0x0800}.
+     * The access flag {@code ACC_PRIMITIVE} with a mask value of {@code 0x0800}.
      */
-    PRIMITIVE(Modifier.PRIMITIVE, true, Set.of(Location.CLASS)),
+    PRIMITIVE(0x0000_0800, false, Set.of(Location.CLASS)),
 
     /**
      * The access flag {@code ACC_STRICT}, corresponding to the source
@@ -431,7 +425,7 @@ public enum AccessFlag {
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED,
+                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE, PRIMITIVE,
                                        STATIC, FINAL, INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,

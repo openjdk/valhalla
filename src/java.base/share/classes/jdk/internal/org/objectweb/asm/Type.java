@@ -58,6 +58,7 @@
  */
 package jdk.internal.org.objectweb.asm;
 
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -682,8 +683,7 @@ public final class Type {
     }
 
     static boolean isPrimitiveClass(Class<?> clazz) {
-        int mods = clazz.getModifiers();
-        return (mods & 0x00000100) != 0;
+        return clazz.is(AccessFlag.PRIMITIVE);
     }
 
     // -----------------------------------------------------------------------------------------------

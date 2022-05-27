@@ -232,9 +232,6 @@ public class Modifier {
      * {@code toString} with the appropriate mask from a method like
      * {@link #constructorModifiers} or {@link #methodModifiers}.
      *
-     * @apiNote TBD: This method does not reflect the class related modifiers including
-     * {@link #IDENTITY}, {@link #VALUE}, and {@link #PRIMITIVE}.
-     *
      * @param   mod a set of modifiers
      * @return  a string representation of the set of modifiers
      * represented by {@code mod}
@@ -301,25 +298,11 @@ public class Modifier {
     public static final int FINAL            = 0x00000010;
 
     /**
-     * The {@code int} value representing the {@code ACC_IDENTITY}
-     * modifier when applied to the modifiers of a class.
-     * @see AccessFlag#IDENTITY
-     */
-    public static final int IDENTITY         = 0x00000020;
-
-    /**
      * The {@code int} value representing the {@code synchronized}
      * modifier.
      * @see AccessFlag#SYNCHRONIZED
      */
     public static final int SYNCHRONIZED     = 0x00000020;
-
-    /**
-     * The {@code int} value representing the {@code ACC_VALUE}
-     * modifier when applied to the modifiers of a class.
-     * @see AccessFlag#VALUE
-     */
-    public static final int VALUE            = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code volatile}
@@ -362,13 +345,6 @@ public class Modifier {
      */
     public static final int STRICT           = 0x00000800;
 
-    /**
-     * The {@code int} value representing the {@code ACC_PRIMITIVE}
-     * modifier when applied to the modifiers of a class.
-     * @see AccessFlag#PRIMITIVE
-     */
-    public static final int PRIMITIVE        = 0x00000800;
-
     // Bits not (yet) exposed in the public API either because they
     // have different meanings for fields and methods and there is no
     // way to distinguish between the two in this class, or because
@@ -403,7 +379,6 @@ public class Modifier {
      */
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
-        Modifier.IDENTITY       | Modifier.VALUE        | Modifier.PRIMITIVE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
         Modifier.STRICT;
 
@@ -413,7 +388,6 @@ public class Modifier {
      */
     private static final int INTERFACE_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
-        Modifier.IDENTITY       | Modifier.VALUE        |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.STRICT;
 
 

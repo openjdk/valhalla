@@ -29,7 +29,8 @@
  * @run main/othervm InnerClassAttributeValuenessTest
  */
 
-import com.sun.tools.classfile.AccessFlags;
+import java.lang.reflect.AccessFlag;
+import java.util.Set;
 
 public class InnerClassAttributeValuenessTest {
 
@@ -48,7 +49,12 @@ public class InnerClassAttributeValuenessTest {
     }
 
     public static void main(String[] args) {
-        if ((Inner.class.getModifiers() & AccessFlags.ACC_PRIMITIVE) == 0)
+        Set<AccessFlag> flags = Inner.class.accessFlags();
+        System.out.println("accessFlags: " + flags);
+
+        if (!Inner.class.is(AccessFlag.VALUE))
             throw new AssertionError("Value flag missing");
+        if (!Inner.class.is(AccessFlag.PRIMITIVE))
+            throw new AssertionError("Primitive Value flag missing");
     }
 }
