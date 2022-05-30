@@ -1,3 +1,4 @@
+CheckMakeDefault.java:10:20: compiler.err.super.class.cannot.be.inner: (compiler.misc.abstract.value.class: Point.A)
 CheckMakeDefault.java:26:32: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: boolean, int)
 CheckMakeDefault.java:27:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: byte, boolean)
 CheckMakeDefault.java:28:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: char, boolean)
@@ -8,4 +9,4 @@ CheckMakeDefault.java:32:35: compiler.err.prob.found.req: (compiler.misc.inconve
 CheckMakeDefault.java:33:37: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: double, boolean)
 CheckMakeDefault.java:34:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.String, int)
 CheckMakeDefault.java:35:36: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: byte[], int)
-10 errors
+11 errors

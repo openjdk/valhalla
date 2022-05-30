@@ -12,8 +12,8 @@ public class SemanticsViolationsTest {
     class Subclass extends Base {} // Error: Base is implicitly final, cannot be extended.
 
 
-    // The class may not be declared abstract.
-    abstract value class AbsValue {}  // Error: value class cannot be abstract
+
+    abstract value class AbsValue {}  // Error: value class inner
     value interface ValueInterface {} // Error: interface cannot modified with value.
 
     // All instance fields are implicitly final, so must be assigned exactly
