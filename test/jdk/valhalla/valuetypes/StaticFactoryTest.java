@@ -128,7 +128,7 @@ public final identity class StaticFactoryTest {
     }
 
     // Check that the class has the expected Constructors
-    @Test(dataProvider = "ctors", enabled = false)
+    @Test(dataProvider = "ctors")
     public static void constructors(Class<?> c, Set<String> signatures) throws ReflectiveOperationException {
         Constructor<?>[] cons = c.getDeclaredConstructors();
         Set<String> actualSig = Arrays.stream(cons).map(Constructor::toString)
