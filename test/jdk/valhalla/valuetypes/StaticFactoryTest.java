@@ -44,7 +44,7 @@ import static org.testng.Assert.*;
 public final identity class StaticFactoryTest {
     // Target test class
 
-    static final identity class SimpleIdentity {
+    static identity class SimpleIdentity {
         public final int x;
 
         SimpleIdentity() {
@@ -117,7 +117,35 @@ public final identity class StaticFactoryTest {
         }
     }
 
+
+    interface SimpleInterface {}
+
+//    identity interface SimpleIdentityInterface {} // Illegal class modifieres from VM
+
+    value interface SimpleValueInterface {}
+
     @DataProvider
+    static Object[][] interfaces() {
+        return new Object[][]{
+                new Object[] { SimpleInterface.class, false, false, true },
+//                new Object[] { SimpleIdentityInterface.class, true, false, true },  // VM throws
+                new Object[] { SimpleValueInterface.class, false, true, true },
+        };
+    }
+
+    @Test(dataProvider = "interfaces")
+    public void testInterfaces(Class<?> c, boolean isIdentityClass,
+                                boolean isValueClass, boolean isAbstract) throws ReflectiveOperationException {
+        String cn = c.getName();
+        Class<?> clz = Class.forName(cn);
+        System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());
+
+        assertEquals(clz.isIdentity(), isIdentityClass, "identity class");
+        assertEquals(clz.isValue(), isValueClass, "value class");
+        assertEquals(Modifier.isAbstract(clz.getModifiers()), isAbstract, "abstract");
+    }
+
+        @DataProvider
     static Object[][] ctors() {
         return new Object[][]{
                 new Object[] { SimplePrimitive.class, Set.of("public StaticFactoryTest$SimplePrimitive(int)",

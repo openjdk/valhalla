@@ -124,18 +124,6 @@ public class Modifier {
 
     /**
      * Return {@code true} if the integer argument includes the
-     * {@code permitsValue} modifier, {@code false} otherwise.
-     *
-     * @param   mod a set of modifiers
-     * @return {@code true} if {@code mod} includes the
-     * {@code permitsValue} modifier; {@code false} otherwise.
-     */
-    public static boolean isPermitsValue(int mod) {
-        return (mod & PERMITS_VALUE) != 0;
-    }
-
-    /**
-     * Return {@code true} if the integer argument includes the
      * {@code volatile} modifier, {@code false} otherwise.
      *
      * @param   mod a set of modifiers
@@ -306,12 +294,6 @@ public class Modifier {
     public static final int SYNCHRONIZED     = 0x00000020;
 
     /**
-     * The {@code int} value representing the {@code permits_value}
-     * modifier.
-     */
-    public static final int PERMITS_VALUE    = 0x00000040;
-
-    /**
      * The {@code int} value representing the {@code volatile}
      * modifier.
      * @see AccessFlag#VOLATILE
@@ -387,7 +369,7 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.STRICT         | Modifier.PERMITS_VALUE;
+        Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.
