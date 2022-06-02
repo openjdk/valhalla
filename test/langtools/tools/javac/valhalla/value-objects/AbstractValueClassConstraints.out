@@ -1,0 +1,6 @@
+AbstractValueClassConstraints.java:44:27: compiler.err.mod.not.allowed.here: synchronized
+AbstractValueClassConstraints.java:35:27: compiler.err.super.field.not.allowed: f, (compiler.misc.abstract.value.class: AbstractValueClassConstraints.V1)
+AbstractValueClassConstraints.java:39:20: compiler.err.super.class.cannot.be.inner: (compiler.misc.abstract.value.class: AbstractValueClassConstraints.V2)
+AbstractValueClassConstraints.java:49:27: compiler.err.super.class.declares.init.block: (compiler.misc.abstract.value.class: AbstractValueClassConstraints.V4)
+AbstractValueClassConstraints.java:53:27: compiler.err.super.constructor.cannot.take.arguments: AbstractValueClassConstraints.V5(int), (compiler.misc.abstract.value.class: AbstractValueClassConstraints.V5)
+5 errors

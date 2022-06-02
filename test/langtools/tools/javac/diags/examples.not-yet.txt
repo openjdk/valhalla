@@ -224,3 +224,5 @@ compiler.err.super.no.arg.constructor.must.be.empty
 compiler.err.generic.parameterization.with.primitive.class
 compiler.misc.feature.primitive.classes
 compiler.misc.feature.value.classes
+compiler.misc.abstract.value.class
+compiler.misc.superclass.of.value.class

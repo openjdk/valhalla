@@ -748,46 +748,46 @@ public class Check {
                                     : t;
         }
 
-    void checkSuperConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
-        for(Type st = types.supertype(c.type); st != Type.noType; st = types.supertype(st)) {
+    void checkConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
+        for (Type st : types.closure(c.type)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
-                return;
-            if  (st.tsym == syms.objectType.tsym)
-                return;
+                continue;
+            if  (st.tsym == syms.objectType.tsym || st.isInterface())
+                continue;
             if (!st.tsym.isAbstract()) {
-                log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
+                if (c != st.tsym) {
+                    log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
+                }
+                continue;
             }
-            if ((st.tsym.flags() & IDENTITY_TYPE) == 0) {
-                return;
-            }
-            // TODO: If an IDENTITY_TYPE we may not issue an error below, if older abstract class qualifies
-            // We have an unsuitable abstract super class, find out why exactly and complain
+            // dealing with an abstract value or value super class below.
+            Fragment fragment = c.isAbstract() && c.isValueClass() && c == st.tsym ? Fragments.AbstractValueClass(c) : Fragments.SuperclassOfValueClass(c, st);
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
-                log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
+                log.error(pos, Errors.SuperClassDeclaresInitBlock(fragment));
             }
             // No instance fields and no arged constructors both mean inner classes
             // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
-                log.error(pos, Errors.SuperClassCannotBeInner(c, st));
+                log.error(pos, Errors.SuperClassCannotBeInner(fragment));
             }
             for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                 case VAR:
                     if ((s.flags() & STATIC) == 0) {
-                        log.error(pos, Errors.SuperFieldNotAllowed(s, c, st));
+                        log.error(pos, Errors.SuperFieldNotAllowed(s, fragment));
                     }
                     break;
                 case MTH:
-                    if ((s.flags() & SYNCHRONIZED) != 0) {
+                    if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                         log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
                     } else if (s.isConstructor()) {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, c, st));
+                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, fragment));
                         } else {
                             if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, c, st));
+                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
                             }
                         }
                     }
@@ -2766,12 +2766,13 @@ public class Check {
         boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
 
         if (cIsValue || cHasIdentity) {
-            List<Type> superTypes = types.closure(c);
-            for (Type superType : superTypes) {
-                if (cIsValue && (superType.tsym.flags() & IDENTITY_TYPE) != 0) {
-                    log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, superType));
-                } else if (cHasIdentity && (superType.tsym.flags() & VALUE_CLASS) != 0) {
-                    log.error(pos, Errors.IdentityTypeHasValueSuperType(c, superType));
+            for (Type t : types.closure(c)) {
+                if (t != c) {
+                    if (cIsValue && (t.tsym.flags() & IDENTITY_TYPE) != 0) {
+                        log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, t));
+                    } else if (cHasIdentity && (t.tsym.flags() & VALUE_CLASS) != 0) {
+                        log.error(pos, Errors.IdentityTypeHasValueSuperType(c, t));
+                    }
                 }
             }
         }

@@ -1,0 +1,2 @@
+ValueConcreteSuperType.java:9:27: compiler.err.concrete.supertype.for.value.class: ValueConcreteSuperType.H, ValueConcreteSuperType
+1 error
