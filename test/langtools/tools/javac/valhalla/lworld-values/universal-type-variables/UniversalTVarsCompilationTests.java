@@ -270,16 +270,6 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                     class Test {
                         static primitive class Atom {}
                         static class Box<__universal X> {}
-                        void test(Box<? extends Atom> t1, Box<Atom.ref> t2) {
-                            t1 = t2;
-                        }
-                    }
-                    """),
-                new DiagAndCode("compiler.warn.prob.found.req",
-                    """
-                    class Test {
-                        static primitive class Atom {}
-                        static class Box<__universal X> {}
                         void test(Box<? extends Atom> t1, Box<? extends Atom.ref> t2) {
                             t1 = t2;
                         }
@@ -696,6 +686,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class Test {
                     void m(MyList<? super Point> ls) {
                         ls.add(null);
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.prob.found.req",
+                """
+                class Test {
+                    static primitive class Atom {}
+                    static class Box<__universal X> {}
+                    void test(Box<? extends Atom> t1, Box<Atom.ref> t2) {
+                        t1 = t2;
                     }
                 }
                 """

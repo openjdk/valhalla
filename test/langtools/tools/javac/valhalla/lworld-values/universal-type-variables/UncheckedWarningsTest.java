@@ -8,8 +8,6 @@ class UncheckedWarningsTest {
     static primitive class Atom { }
 
     static class Box<__universal X> { }
-    static class Pair<__universal X, __universal Y> { }
-    static class Triple<__universal X, __universal Y, __universal Z> { }
 
     public static void main(String[] args) {
         Box<Box<Box<Atom>>> val = null;
