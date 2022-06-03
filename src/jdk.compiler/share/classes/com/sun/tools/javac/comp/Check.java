@@ -864,7 +864,7 @@ public class Check {
                                 t);
     }
 
-    /** Check that type is an identity type, i.e. not a primitive type
+    /** Check that type is an identity type, i.e. not a primitive/value type
      *  nor its reference projection. When not discernible statically,
      *  give it the benefit of doubt and defer to runtime.
      *
@@ -873,7 +873,7 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.isPrimitive() || t.isValueClass() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.isValueClass() || t.isValueInterface() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
