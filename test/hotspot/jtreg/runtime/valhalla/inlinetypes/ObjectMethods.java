@@ -29,6 +29,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
 /*
  * @test ObjectMethods
  * @summary Check object method implemented by the VM behave with inline types
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile ObjectMethods.java

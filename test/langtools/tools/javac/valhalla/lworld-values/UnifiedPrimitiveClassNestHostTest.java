@@ -27,10 +27,12 @@
  * @test
  * @bug 8265423
  * @summary Experimental support for generating a single class file per primitive class
+ * @modules java.base/jdk.internal.value:+open
  * @run main UnifiedPrimitiveClassNestHostTest
  */
 
 import java.util.Arrays;
+import jdk.internal.value.PrimitiveClass;
 
 public primitive class UnifiedPrimitiveClassNestHostTest implements java.io.Serializable {
 
@@ -63,7 +65,7 @@ public primitive class UnifiedPrimitiveClassNestHostTest implements java.io.Seri
         if (!members[0].equals(nestHost))
             throw new AssertionError("Wrong initial member: " + members[0]);
 
-        if (!members[1].equals(Inner.class.asPrimaryType()))
+        if (!members[1].equals(PrimitiveClass.asPrimaryType(Inner.class)))
             throw new AssertionError("Wrong initial member: " + members[1]);
 
         if (!members[1].getNestHost().equals(nestHost))

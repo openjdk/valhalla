@@ -34,6 +34,7 @@ public class InlineTypes {
 
     public static final Scenario[] DEFAULT_SCENARIOS = {
             new Scenario(0,
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -45,6 +46,7 @@ public class InlineTypes {
                          "-XX:+InlineTypeReturnedAsFields"
             ),
             new Scenario(1,
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -56,6 +58,7 @@ public class InlineTypes {
                          "-XX:-InlineTypeReturnedAsFields"
             ),
             new Scenario(2,
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -68,6 +71,7 @@ public class InlineTypes {
                          "-XX:+StressInlineTypeReturnedAsFields"
             ),
             new Scenario(3,
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:+AlwaysIncrementalInline",
@@ -78,6 +82,7 @@ public class InlineTypes {
                          "-XX:+InlineTypeReturnedAsFields"
             ),
             new Scenario(4,
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:FlatArrayElementMaxOops=-1",
@@ -88,6 +93,7 @@ public class InlineTypes {
                          "-XX:-ReduceInitialCardMarks"
             ),
             new Scenario(5,
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",

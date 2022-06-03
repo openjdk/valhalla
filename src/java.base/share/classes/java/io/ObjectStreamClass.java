@@ -62,6 +62,7 @@ import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
+import jdk.internal.value.PrimitiveClass;
 import sun.reflect.misc.ReflectUtil;
 import static java.io.ObjectStreamField.*;
 
@@ -445,7 +446,7 @@ public final class ObjectStreamClass implements Serializable {
             if (isEnum) {
                 deserializeEx = new ExceptionInfo(name, "enum type");
             } else if (cl.isValue() && writeReplaceMethod == null) {
-                deserializeEx = new ExceptionInfo(name, cl.isPrimitiveClass() ? "primitive class" : "value class");
+                deserializeEx = new ExceptionInfo(name, "value class");
             } else if (cons == null && !isRecord) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,12 +42,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static org.testng.Assert.*;
 
 import static java.lang.invoke.MethodType.*;
 
 public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
-    static final Class<?> type = Point.class.asValueType();
+    static final Class<?> type = PrimitiveClass.asValueType(Point.class);
 
     static final Point static_final_v = Point.getInstance(1,1);
 

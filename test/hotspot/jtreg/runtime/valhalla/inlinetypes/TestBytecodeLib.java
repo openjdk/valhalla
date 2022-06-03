@@ -36,6 +36,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
 /**
  * @test TestBytecodeLib
  * @summary Check bytecode test library generates the correct code for Valhalla changes to JVMS
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile Point.java TestBytecodeLib.java
