@@ -37,6 +37,8 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import jdk.internal.value.PrimitiveClass;
+
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -81,7 +83,7 @@ public class StaticFactoryTest {
         Class<?> clz = Class.forName(cn);
 
         assertTrue(clz.isValue());
-        assertTrue(clz.isPrimitiveClass() == isPrimitiveClass);
+        assertTrue(PrimitiveClass.isPrimitiveClass(clz) == isPrimitiveClass);
 
         Constructor<?> ctor = clz.getDeclaredConstructor();
         Object o = ctor.newInstance();

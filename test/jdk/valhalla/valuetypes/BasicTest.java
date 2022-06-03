@@ -42,6 +42,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static org.testng.Assert.*;
 
 public class BasicTest {
@@ -81,10 +83,10 @@ public class BasicTest {
     @DataProvider(name="constants")
     static Object[][] constants() {
         return new Object[][]{
-            new Object[] { Point.class, Point.class.asPrimaryType()},
-            new Object[] { Point.val.class, Point.class.asValueType()},
-            new Object[] { Point.ref.class, Point.class.asPrimaryType()},
-            new Object[] { Value.class, Value.class.asPrimaryType()},
+            new Object[] { Point.class, PrimitiveClass.asPrimaryType(Point.class)},
+            new Object[] { Point.val.class, PrimitiveClass.asValueType(Point.class)},
+            new Object[] { Point.ref.class, PrimitiveClass.asPrimaryType(Point.class)},
+            new Object[] { Value.class, PrimitiveClass.asPrimaryType(Value.class)},
         };
     }
 
@@ -101,14 +103,14 @@ public class BasicTest {
                 new Object[] { Object.class, true},
                 new Object[] { Point.ref.class, true},
                 new Object[] { Point.val.class, false},
-                new Object[] { Point.class.asPrimaryType(), true},
-                new Object[] { Point.class.asValueType(), false},
+                new Object[] { PrimitiveClass.asPrimaryType(Point.class), true},
+                new Object[] { PrimitiveClass.asValueType(Point.class), false},
                 new Object[] { Value.class, true},
         };
     }
     @Test(dataProvider="refTypes")
     public void isPrimaryType(Class<?> type, boolean isRefType) {
-        assertTrue(type.isPrimaryType() == isRefType);
+        assertTrue(PrimitiveClass.isPrimaryType(type) == isRefType);
     }
 
     /*
@@ -116,21 +118,21 @@ public class BasicTest {
      */
     @Test
     public void testMirrors() {
-        Class<?> refType = Point.class.asPrimaryType();
-        Class<?> valType = Point.class.asValueType();
+        Class<?> refType = PrimitiveClass.asPrimaryType(Point.class);
+        Class<?> valType = PrimitiveClass.asValueType(Point.class);
 
         assertTrue(refType == Point.ref.class);
         assertTrue(valType == Point.val.class);
         assertTrue(refType != valType);
 
-        assertTrue(refType.isPrimitiveClass());
-        assertTrue(valType.isPrimitiveClass());
+        assertTrue(PrimitiveClass.isPrimitiveClass(refType));
+        assertTrue(PrimitiveClass.isPrimitiveClass(valType));
 
-        assertTrue(refType.isPrimaryType());
-        assertFalse(refType.isPrimitiveValueType());
+        assertTrue(PrimitiveClass.isPrimaryType(refType));
+        assertFalse(PrimitiveClass.isPrimitiveValueType(refType));
 
-        assertTrue(valType.isPrimitiveValueType());
-        assertFalse(valType.isPrimaryType());
+        assertTrue(PrimitiveClass.isPrimitiveValueType(valType));
+        assertFalse(PrimitiveClass.isPrimaryType(valType));
 
         assertEquals(refType.getName(), valType.getName());
         assertEquals(refType.getName(), "BasicTest$Point");
@@ -154,28 +156,28 @@ public class BasicTest {
     @Test
     public void testSubtypes() {
         // Point <: Point.ref and Point <: Object
-        assertTrue(Point.ref.class.isAssignableFrom(Point.class.asValueType()));
-        assertTrue(Object.class.isAssignableFrom(Point.class.asValueType()));
-        assertFalse(Point.class.asValueType().isAssignableFrom(Point.ref.class));
+        assertTrue(Point.ref.class.isAssignableFrom(PrimitiveClass.asValueType(Point.class)));
+        assertTrue(Object.class.isAssignableFrom(PrimitiveClass.asValueType(Point.class)));
+        assertFalse(PrimitiveClass.asValueType(Point.class).isAssignableFrom(Point.ref.class));
         assertTrue(Object.class.isAssignableFrom(Point.ref.class));
 
-        assertTrue(Point.class.asValueType().asSubclass(Point.ref.class) == Point.class.asValueType());
+        assertTrue(PrimitiveClass.asValueType(Point.class).asSubclass(Point.ref.class) == PrimitiveClass.asValueType(Point.class));
         try {
-            Class<?> c = Point.ref.class.asSubclass(Point.class.asValueType());
+            Class<?> c = Point.ref.class.asSubclass(PrimitiveClass.asValueType(Point.class));
             fail("Point.ref cannot be cast to Point.class");
         } catch (ClassCastException e) { }
 
         Point o = new Point(10, 20);
-        assertTrue(Point.class.asValueType().isInstance(o));
+        assertTrue(PrimitiveClass.asValueType(Point.class).isInstance(o));
         assertTrue(Point.ref.class.isInstance(o));
-        assertFalse(Point.class.asValueType().isInstance(null));
+        assertFalse(PrimitiveClass.asValueType(Point.class).isInstance(null));
         assertFalse(Point.ref.class.isInstance(null));
     }
 
     @DataProvider(name="names")
     static Object[][] names() {
         return new Object[][]{
-                new Object[] { "BasicTest$Point", Point.class.asPrimaryType()},
+                new Object[] { "BasicTest$Point", PrimitiveClass.asPrimaryType(Point.class)},
                 new Object[] { "[QBasicTest$Point;", Point[].class},
                 new Object[] { "[[LBasicTest$Point;", Point.ref[][].class},
                 new Object[] { "BasicTest$Value", Value.class},
@@ -240,7 +242,7 @@ public class BasicTest {
         Method m = Point.class.getDeclaredMethod(name, paramTypes);
         System.out.print(m.toString() + "  ");
         System.out.println(m.getReturnType().descriptorString());
-        assertTrue(m.getDeclaringClass() == Point.class.asPrimaryType());
+        assertTrue(m.getDeclaringClass() == PrimitiveClass.asPrimaryType(Point.class));
         assertTrue(m.getReturnType() == returnType);
         assertEquals(m.getParameterTypes(), paramTypes);
     }
@@ -256,7 +258,7 @@ public class BasicTest {
     @Test(dataProvider = "ctors")
     public void testConstructor(Class<?> c, Class<?>[] paramTypes, Object[] params) throws ReflectiveOperationException {
         Constructor<?> ctor = c.getDeclaredConstructor(paramTypes);
-        assertTrue(ctor.getDeclaringClass() == c.asPrimaryType());
+        assertTrue(ctor.getDeclaringClass() == PrimitiveClass.asPrimaryType(c));
         Object o = ctor.newInstance(params);
     }
 
@@ -299,8 +301,8 @@ public class BasicTest {
         assertEquals(Arrays.stream(members).collect(Collectors.toSet()),
                      Set.of(BasicTest.class,
                             Value.class,
-                            Point.class.asPrimaryType(),
-                            C.class.asPrimaryType(),
-                            T.class.asPrimaryType()));
+                            PrimitiveClass.asPrimaryType(Point.class),
+                            PrimitiveClass.asPrimaryType(C.class),
+                            PrimitiveClass.asPrimaryType(T.class)));
     }
 }

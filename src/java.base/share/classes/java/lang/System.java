@@ -2492,6 +2492,21 @@ public final class System {
             public void exit(int statusCode) {
                 Shutdown.exit(statusCode);
             }
+
+            @Override
+            public Class<?> asPrimaryType(Class<?> clazz) {
+                return clazz.asPrimaryType();
+            }
+            public Class<?> asValueType(Class<?> clazz) {
+                return clazz.asValueType();
+            }
+
+            public boolean isPrimaryType(Class<?> clazz) {
+                return clazz.isPrimaryType();
+            }
+            public boolean isPrimitiveValueType(Class<?> clazz) {
+                return clazz.isPrimitiveValueType();
+            }
         });
     }
 }

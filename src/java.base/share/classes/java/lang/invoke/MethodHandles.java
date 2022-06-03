@@ -26,6 +26,7 @@
 package java.lang.invoke;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.ClassReader;
@@ -1618,7 +1619,7 @@ public class MethodHandles {
         }
 
         private Lookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
-            assert lookupClass.isPrimaryType();
+            assert PrimitiveClass.isPrimaryType(lookupClass);
             assert prevLookupClass == null || ((allowedModes & MODULE) == 0
                     && prevLookupClass.getModule() != lookupClass.getModule());
             assert !lookupClass.isArray() && !lookupClass.isPrimitive();
@@ -3842,7 +3843,7 @@ return mh1;
 
             // Step 3:
             Class<?> defc = m.getDeclaringClass();
-            if (!fullPrivilegeLookup && defc.asPrimaryType() != refc.asPrimaryType()) {
+            if (!fullPrivilegeLookup && PrimitiveClass.asPrimaryType(defc) != PrimitiveClass.asPrimaryType(refc)) {
                 ReflectUtil.checkPackageAccess(defc);
             }
         }
@@ -3925,12 +3926,12 @@ return mh1;
             int mods = m.getModifiers();
             // check the class first:
             boolean classOK = (Modifier.isPublic(defc.getModifiers()) &&
-                               (defc.asPrimaryType() == refc.asPrimaryType() ||
+                               (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
                                 Modifier.isPublic(refc.getModifiers())));
             if (!classOK && (allowedModes & PACKAGE) != 0) {
                 // ignore previous lookup class to check if default package access
                 classOK = (VerifyAccess.isClassAccessible(defc, lookupClass(), null, FULL_POWER_MODES) &&
-                           (defc.asPrimaryType() == refc.asPrimaryType() ||
+                           (PrimitiveClass.asPrimaryType(defc) == PrimitiveClass.asPrimaryType(refc) ||
                             VerifyAccess.isClassAccessible(refc, lookupClass(), null, FULL_POWER_MODES)));
             }
             if (!classOK)
@@ -5060,7 +5061,7 @@ assert((int)twice.invokeExact(21) == 42);
                 return zero(w, type);
             return insertArguments(identity(type), 0, value);
         } else {
-            if (!type.isPrimitiveValueType() && value == null)
+            if (!PrimitiveClass.isPrimitiveValueType(type) && value == null)
                 return zero(Wrapper.OBJECT, type);
             return identity(type).bindTo(value);
         }
@@ -5107,7 +5108,7 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (type.isPrimitiveValueType()) {
+        } else if (PrimitiveClass.isPrimitiveValueType(type)) {
             // singleton default value
             Object value = UNSAFE.uninitializedDefaultValue(type);
             return identity(type).bindTo(value);

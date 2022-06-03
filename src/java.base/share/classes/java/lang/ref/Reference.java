@@ -25,6 +25,7 @@
 
 package java.lang.ref;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.access.JavaLangRefAccess;
@@ -500,8 +501,7 @@ public abstract sealed class Reference<T>
     Reference(T referent, ReferenceQueue<? super T> queue) {
         if (referent != null && referent.getClass().isValue()) {
             Class<?> c = referent.getClass();
-            throw new IllegalArgumentException("cannot reference a " +
-                    (c.isPrimitiveClass() ? "primitive class " : "value class ") +
+            throw new IllegalArgumentException("cannot reference a value class " +
                     c.getName());
         }
         this.referent = referent;

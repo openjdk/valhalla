@@ -38,6 +38,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
+import jdk.internal.value.PrimitiveClass;
+
 public class ObjectMethods {
     static final int SALT = 1;
     static final Point P1 = Point.makePoint(1, 2);
@@ -167,14 +169,14 @@ public class ObjectMethods {
     Object[][] hashcodeTests() {
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return new Object[][]{
-            { P1,                   hash(Point.class.asValueType(), 1, 2) },
-            { LINE1,                hash(Line.class.asValueType(), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
+            { P1,                   hash(PrimitiveClass.asValueType(Point.class), 1, 2) },
+            { LINE1,                hash(PrimitiveClass.asValueType(Line.class), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
             { VALUE,                hash(hashCodeComponents(VALUE))},
             { VALUE1,               hash(hashCodeComponents(VALUE1))},
-            { Point.makePoint(0,0), hash(Point.class.asValueType(), 0, 0) },
-            { Point.default,        hash(Point.class.asValueType(), 0, 0) },
-            { MyValue1.default,     hash(MyValue1.class.asValueType(), Point.default, null) },
-            { new MyValue1(0, 0, null), hash(MyValue1.class.asValueType(), Point.makePoint(0,0), null) },
+            { Point.makePoint(0,0), hash(PrimitiveClass.asValueType(Point.class), 0, 0) },
+            { Point.default,        hash(PrimitiveClass.asValueType(Point.class), 0, 0) },
+            { MyValue1.default,     hash(PrimitiveClass.asValueType(MyValue1.class), Point.default, null) },
+            { new MyValue1(0, 0, null), hash(PrimitiveClass.asValueType(MyValue1.class), Point.makePoint(0,0), null) },
             { new ValueOptional(P1), hash(ValueOptional.class, P1) },
         };
     }
@@ -197,8 +199,8 @@ public class ObjectMethods {
                     throw new RuntimeException(e);
                 }
             });
-        if (type.isPrimitiveClass()) {
-            type = type.asValueType();
+        if (PrimitiveClass.isPrimitiveClass(type)) {
+            type = PrimitiveClass.asValueType(type);
         }
         return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
     }

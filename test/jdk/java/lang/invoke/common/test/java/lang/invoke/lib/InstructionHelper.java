@@ -35,6 +35,8 @@ import jdk.experimental.bytecode.TypedCodeBuilder;
 import jdk.experimental.bytecode.TypeHelper;
 import jdk.experimental.bytecode.TypeTag;
 
+import jdk.internal.value.PrimitiveClass;
+
 import java.io.FileOutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -289,7 +291,7 @@ public class InstructionHelper {
             @Override
             public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isPrimitiveValueType();
+                return aClass != null && PrimitiveClass.isPrimitiveValueType(aClass);
             }
 
             @Override
@@ -299,7 +301,7 @@ public class InstructionHelper {
                         return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
                     } else {
                         Class<?> c = Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
-                        return basicTypeHelper.isInlineClass(desc) ? c.asValueType() : c.asPrimaryType();
+                        return basicTypeHelper.isInlineClass(desc) ? PrimitiveClass.asValueType(c) : PrimitiveClass.asPrimaryType(c);
                     }
                 } catch (ReflectiveOperationException ex) {
                     throw new AssertionError(ex);

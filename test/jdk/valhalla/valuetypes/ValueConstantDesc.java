@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@ import org.testng.annotations.Test;
 import java.lang.constant.ClassDesc;
 import java.lang.invoke.MethodHandles;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static org.testng.Assert.*;
 
 public class ValueConstantDesc {
@@ -43,7 +45,7 @@ public class ValueConstantDesc {
     @DataProvider(name="descs")
     static Object[][] descs() {
         return new Object[][]{
-            new Object[] { Point.class.asValueType(),     ClassDesc.ofDescriptor("Q" + NAME + ";"), NAME},
+            new Object[] { PrimitiveClass.asValueType(Point.class),     ClassDesc.ofDescriptor("Q" + NAME + ";"), NAME},
             new Object[] { Point.ref.class, ClassDesc.ofDescriptor("L" + NAME + ";"), NAME},
             new Object[] { Point[].class,   ClassDesc.ofDescriptor("[Q" + NAME + ";"), NAME + "[]"},
             new Object[] { Point.ref[][].class, ClassDesc.ofDescriptor("[[L" + NAME + ";"), NAME + "[][]"},
@@ -71,7 +73,7 @@ public class ValueConstantDesc {
     @DataProvider(name="componentTypes")
     static Object[][] componentTypes() {
         return new Object[][]{
-            new Object[] { Point.class.asValueType() },
+            new Object[] { PrimitiveClass.asValueType(Point.class) },
             new Object[] { Point.ref.class },
             new Object[] { ValueOptional.class }
         };
@@ -92,7 +94,7 @@ public class ValueConstantDesc {
     @DataProvider(name="valueDesc")
     static Object[][] valueDesc() {
         return new Object[][]{
-                new Object[] { Point.class.asValueType(),         "Q" + NAME + ";"},
+                new Object[] { PrimitiveClass.asValueType(Point.class),         "Q" + NAME + ";"},
                 new Object[] { Point.ref.class,     "L" + NAME + ";"},
                 new Object[] { Point[].class,       "[Q" + NAME + ";"},
                 new Object[] { Point.ref[][].class, "[[L" + NAME + ";"},
@@ -108,7 +110,7 @@ public class ValueConstantDesc {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> c = (Class<?>) cd.resolveConstantDesc(lookup);
         assertTrue(c == type);
-        assertTrue(cd.isPrimitiveValueType() == type.isPrimitiveValueType());
+        assertTrue(cd.isPrimitiveValueType() == PrimitiveClass.isPrimitiveValueType(type));
     }
 
     @Test(expectedExceptions = {LinkageError.class})

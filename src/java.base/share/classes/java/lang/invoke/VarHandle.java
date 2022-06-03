@@ -31,15 +31,11 @@ import java.lang.constant.ConstantDesc;
 import java.lang.constant.ConstantDescs;
 import java.lang.constant.DirectMethodHandleDesc;
 import java.lang.constant.DynamicConstantDesc;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
-import jdk.internal.util.Preconditions;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.DontInline;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -1656,8 +1652,8 @@ public abstract class VarHandle implements Constable {
             // the field type (value) is mapped to the return type of MethodType
             // the receiver type is mapped to a parameter type of MethodType
             // So use the value type if it's a primitive class
-            if (receiver != null && receiver.isPrimitiveClass()) {
-                receiver = receiver.asValueType();
+            if (receiver != null && PrimitiveClass.isPrimitiveClass(receiver)) {
+                receiver = PrimitiveClass.asValueType(receiver);
             }
             switch (this) {
                 case GET:

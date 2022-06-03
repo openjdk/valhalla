@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,18 +35,20 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
+import jdk.internal.value.PrimitiveClass;
+
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class Reflection {
     @Test
     public static void testPointClass() throws Exception  {
-        Object o = Point.class.asValueType().newInstance();
-        assertEquals(o.getClass(), Point.class.asPrimaryType());
+        Object o = PrimitiveClass.asValueType(Point.class).newInstance();
+        assertEquals(o.getClass(), PrimitiveClass.asPrimaryType(Point.class));
 
         Constructor<?> ctor = Point.class.getDeclaredConstructor(int.class, int.class);
         o = ctor.newInstance(20, 30);
-        assertEquals(o.getClass(), Point.class.asPrimaryType());
+        assertEquals(o.getClass(), PrimitiveClass.asPrimaryType(Point.class));
 
         Field field = Point.class.getField("x");
         if (field.getInt(o) != 20) {
@@ -68,18 +70,18 @@ public class Reflection {
 
     @Test
     public static void testLineClass() throws Exception {
-        checkInstanceField(Line.class.asValueType(), "p1", Point.class.asValueType());
-        checkInstanceField(Line.class.asValueType(), "p2", Point.class.asValueType());
-        checkInstanceMethod(Line.class.asValueType(), "p1", Point.class.asValueType());
-        checkInstanceMethod(Line.class.asValueType(), "p2", Point.class.asValueType());
+        checkInstanceField(PrimitiveClass.asValueType(Line.class), "p1", PrimitiveClass.asValueType(Point.class));
+        checkInstanceField(PrimitiveClass.asValueType(Line.class), "p2", PrimitiveClass.asValueType(Point.class));
+        checkInstanceMethod(PrimitiveClass.asValueType(Line.class), "p1", PrimitiveClass.asValueType(Point.class));
+        checkInstanceMethod(PrimitiveClass.asValueType(Line.class), "p2", PrimitiveClass.asValueType(Point.class));
     }
 
     @Test
     public static void testNonFlattenValue() throws Exception {
-        checkInstanceField(NonFlattenValue.class.asValueType(), "nfp", Point.ref.class);
-        checkInstanceMethod(NonFlattenValue.class.asValueType(), "pointValue", Point.class.asValueType());
-        checkInstanceMethod(NonFlattenValue.class.asValueType(), "point", Point.ref.class);
-        checkInstanceMethod(NonFlattenValue.class.asValueType(), "has", boolean.class, Point.class.asValueType(), Point.ref.class);
+        checkInstanceField(PrimitiveClass.asValueType(NonFlattenValue.class), "nfp", Point.ref.class);
+        checkInstanceMethod(PrimitiveClass.asValueType(NonFlattenValue.class), "pointValue", PrimitiveClass.asValueType(Point.class));
+        checkInstanceMethod(PrimitiveClass.asValueType(NonFlattenValue.class), "point", Point.ref.class);
+        checkInstanceMethod(PrimitiveClass.asValueType(NonFlattenValue.class), "has", boolean.class, PrimitiveClass.asValueType(Point.class), Point.ref.class);
     }
 
     @Test

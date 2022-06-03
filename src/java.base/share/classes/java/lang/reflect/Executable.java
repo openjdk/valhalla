@@ -31,10 +31,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Objects;
 import java.util.StringJoiner;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.AnnotationSupport;
 import sun.reflect.annotation.TypeAnnotationParser;
@@ -802,8 +802,8 @@ public abstract sealed class Executable extends AccessibleObject
 
     String getDeclaringClassTypeName() {
         Class<?> c = getDeclaringClass();
-        if (c.isPrimitiveClass()) {
-            c = c.asValueType();
+        if (PrimitiveClass.isPrimitiveClass(c)) {
+            c = PrimitiveClass.asValueType(c);
         }
         return c.getTypeName();
     }

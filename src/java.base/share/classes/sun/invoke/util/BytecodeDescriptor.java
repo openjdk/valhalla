@@ -25,6 +25,8 @@
 
 package sun.invoke.util;
 
+import jdk.internal.value.PrimitiveClass;
+
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.List;
@@ -91,7 +93,7 @@ public class BytecodeDescriptor {
             String name = str.substring(begc, endc).replace('/', '.');
             try {
                 Class<?> clz = Class.forName(name, false, loader);
-                return c == 'Q' ? clz.asValueType() : clz.asPrimaryType();
+                return c == 'Q' ? PrimitiveClass.asValueType(clz) : PrimitiveClass.asPrimaryType(clz);
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }

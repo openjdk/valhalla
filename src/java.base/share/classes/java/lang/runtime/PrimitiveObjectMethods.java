@@ -34,6 +34,7 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.Wrapper;
 import sun.security.action.GetIntegerAction;
 import sun.security.action.GetPropertyAction;
@@ -120,7 +121,7 @@ final class PrimitiveObjectMethods {
          * of the given primitive class are substitutable.
          */
         static MethodHandle primitiveTypeEquals(Class<?> type) {
-            assert type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass());
+            assert PrimitiveClass.isPrimitiveValueType(type) || (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle[] getters = getters(type, TYPE_SORTER);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -142,7 +143,7 @@ final class PrimitiveObjectMethods {
         }
 
         static MethodHandle primitiveTypeHashCode(Class<?> type) {
-            assert type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass());
+            assert PrimitiveClass.isPrimitiveValueType(type) || (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
             MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
@@ -187,8 +188,8 @@ final class PrimitiveObjectMethods {
             assert a != null && b != null && isSameValueClass(a, b);
             try {
                 Class<?> type = a.getClass();
-                if (type.isPrimitiveClass()) {
-                    type = type.asValueType();
+                if (PrimitiveClass.isPrimitiveClass(type)) {
+                    type = PrimitiveClass.asValueType(type);
                 }
                 return (boolean) substitutableInvoker(type).invoke(type.cast(a), type.cast(b));
             } catch (Error|RuntimeException e) {
@@ -370,8 +371,8 @@ final class PrimitiveObjectMethods {
 
         try {
             Class<?> type = a.getClass();
-            if (type.isPrimitiveClass()) {
-                type = type.asValueType();
+            if (PrimitiveClass.isPrimitiveClass(type)) {
+                type = PrimitiveClass.asValueType(type);
             }
             return (boolean) substitutableInvoker(type).invoke(a, b);
         } catch (Error|RuntimeException e) {
@@ -416,7 +417,7 @@ final class PrimitiveObjectMethods {
         if (type.isPrimitive())
             return MethodHandleBuilder.primitiveEquals(type);
 
-        if (type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass())) {
+        if (PrimitiveClass.isPrimitiveValueType(type) || (type.isValue() && !PrimitiveClass.isPrimitiveClass(type))) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
         }
         return MethodHandleBuilder.referenceTypeEquals(type);
@@ -441,7 +442,7 @@ final class PrimitiveObjectMethods {
             // risk for recursion for experts crafting byte-code
             if (!c.isValue())
                 throw new InternalError("must be value or primitive class: " + c.getName());
-            Class<?> type = c.isPrimitiveClass() ? c.asValueType() : c;
+            Class<?> type = PrimitiveClass.isPrimitiveClass(c) ? PrimitiveClass.asValueType(c) : c;
             return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;

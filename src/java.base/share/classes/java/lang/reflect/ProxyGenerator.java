@@ -25,6 +25,7 @@
 
 package java.lang.reflect;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.Attribute;
 import jdk.internal.org.objectweb.asm.ByteVector;
@@ -848,7 +849,7 @@ final class ProxyGenerator extends ClassWriter {
             while (c.isArray()) {
                 c = c.getComponentType();
             }
-            return (c.isValue() && !c.isPrimitiveClass()) || c.isPrimitiveValueType();
+            return (c.isValue() && !PrimitiveClass.isPrimitiveClass(c)) || PrimitiveClass.isPrimitiveValueType(c);
         }
 
         /**
@@ -914,7 +915,7 @@ final class ProxyGenerator extends ClassWriter {
                 }
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isPrimitiveValueType()) {
+                if (PrimitiveClass.isPrimitiveValueType(type)) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);
@@ -979,10 +980,11 @@ final class ProxyGenerator extends ClassWriter {
             mv.visitMethodInsn(INVOKESTATIC,
                     JL_CLASS,
                     "forName", "(Ljava/lang/String;)Ljava/lang/Class;", false);
-            if (cl.isPrimitiveValueType()) {
-              mv.visitMethodInsn(INVOKEVIRTUAL,
-                                 JL_CLASS,
-                                 "asValueType", "()Ljava/lang/Class;", false);
+            if (PrimitiveClass.isPrimitiveValueType(cl)) {
+              mv.visitMethodInsn(INVOKESTATIC,
+                      "jdk/internal/value/PrimitiveClass",
+                      "asValueType", "(Ljava/lang/Class;)Ljava/lang/Class;",
+                      false);
             }
         }
 
