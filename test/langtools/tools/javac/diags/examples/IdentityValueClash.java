@@ -24,6 +24,7 @@
 // key: compiler.err.illegal.combination.of.modifiers
 // key: compiler.err.identity.type.has.value.super.type
 // key: compiler.err.value.type.has.identity.super.type
+// key: compiler.err.mutually.incompatible.supers
 
 value identity class IdentityValueClass {}
 
@@ -32,3 +33,4 @@ class C implements VI {}
 
 identity interface II {}
 value class V implements II {}
+abstract class B implements VI, II {}
