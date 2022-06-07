@@ -2764,15 +2764,19 @@ public class Check {
 
         boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
         boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
-
-        if (cIsValue || cHasIdentity) {
-            for (Type t : types.closure(c)) {
-                if (t != c) {
-                    if (cIsValue && (t.tsym.flags() & IDENTITY_TYPE) != 0) {
-                        log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, t));
-                    } else if (cHasIdentity && (t.tsym.flags() & VALUE_CLASS) != 0) {
-                        log.error(pos, Errors.IdentityTypeHasValueSuperType(c, t));
-                    }
+        Type identitySuper = null, valueSuper = null;
+        for (Type t : types.closure(c)) {
+            if (t != c) {
+                if ((t.tsym.flags() & IDENTITY_TYPE) != 0)
+                    identitySuper = t;
+                else if ((t.tsym.flags() & VALUE_CLASS) != 0)
+                    valueSuper = t;
+                if (cIsValue &&  identitySuper != null) {
+                    log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
+                } else if (cHasIdentity &&  valueSuper != null) {
+                    log.error(pos, Errors.IdentityTypeHasValueSuperType(c, valueSuper));
+                } else if (identitySuper != null && valueSuper != null) {
+                    log.error(pos, Errors.MutuallyIncompatibleSupers(c, identitySuper, valueSuper));
                 }
             }
         }
