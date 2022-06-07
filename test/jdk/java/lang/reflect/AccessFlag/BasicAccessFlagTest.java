@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8266670
+ * @bug 8266670 8281463
  * @summary Basic tests of AccessFlag
  */
 
@@ -31,6 +31,7 @@ import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
@@ -46,9 +47,11 @@ public class BasicAccessFlagTest {
 
     private static void testSourceModifiers() throws Exception {
         Class<?> modifierClass = Modifier.class;
+        List<AccessFlag> valhallaOnly =
+                List.of(AccessFlag.IDENTITY, AccessFlag.VALUE, AccessFlag.PRIMITIVE);
 
         for(AccessFlag accessFlag : AccessFlag.values()) {
-            if (accessFlag.sourceModifier()) {
+            if (accessFlag.sourceModifier()  && !valhallaOnly.contains(accessFlag)) {
                 // Check for consistency
                 Field f = modifierClass.getField(accessFlag.name());
                 if (accessFlag.mask() != f.getInt(null) ) {

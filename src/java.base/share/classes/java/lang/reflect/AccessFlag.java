@@ -73,8 +73,7 @@ import static java.util.Map.entry;
  * @see java.lang.module.ModuleDescriptor.Requires.Modifier
  * @see java.lang.module.ModuleDescriptor.Exports.Modifier
  * @see java.lang.module.ModuleDescriptor.Opens.Modifier
- * @see java.compiler/javax.lang.model.element.Modifier
- * @since 20
+ * @since Valhalla
  */
 @SuppressWarnings("doclint:reference") // cross-module link
 public enum AccessFlag {
@@ -124,6 +123,7 @@ public enum AccessFlag {
      * The access flag {@code ACC_SUPER} with a mask value of {@code
      * 0x0020}.
      * <p>
+     * @apiNote
      * NOTE: The Valhalla draft JVMS spec does not define a value for ACC_SUPER.
      * Historically, the value 0x0020 was used to indicate ACC_SUPER, which affected the
      * semantics of any invokespecial instructions (6.5.invokespecial) appearing in the class.
@@ -135,8 +135,9 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_IDENTITY} with a mask value of {@code 0x0020}.
+     * @jls 4.1-B. Class access and property modifiers
      */
-    IDENTITY(0x0000_0020, false, Set.of(Location.CLASS)),
+    IDENTITY(0x0000_0020, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -168,8 +169,9 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_VALUE} with a mask value of {@code 0x0040}.
+     * @jls 4.1-B. Class access and property modifiers
      */
-    VALUE(0x0000_0040, false, Set.of(Location.CLASS)),
+    VALUE(0x0000_0040, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
 
     /**
       * The access flag {@code ACC_VOLATILE}, corresponding to the
@@ -224,8 +226,9 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_PRIMITIVE} with a mask value of {@code 0x0800}.
+     * @jls 4.1-B. Class access and property modifiers
      */
-    PRIMITIVE(0x0000_0800, false, Set.of(Location.CLASS)),
+    PRIMITIVE(0x0000_0800, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
 
     /**
      * The access flag {@code ACC_STRICT}, corresponding to the source
