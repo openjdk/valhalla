@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,7 @@
  * @run main/othervm InnerClassAttributeValuenessTest
  */
 
-import java.lang.reflect.AccessFlag;
-import java.util.Set;
+import com.sun.tools.classfile.AccessFlags;
 
 public class InnerClassAttributeValuenessTest {
 
@@ -49,12 +48,9 @@ public class InnerClassAttributeValuenessTest {
     }
 
     public static void main(String[] args) {
-        Set<AccessFlag> flags = Inner.class.accessFlags();
-        System.out.println("accessFlags: " + flags);
-
-        if (!Inner.class.is(AccessFlag.VALUE))
+        if ((Inner.class.getModifiers() & AccessFlags.ACC_PRIMITIVE) == 0)
+            throw new AssertionError("Primitive flag missing");
+        if ((Inner.class.getModifiers() & AccessFlags.ACC_VALUE) == 0)
             throw new AssertionError("Value flag missing");
-        if (!Inner.class.is(AccessFlag.PRIMITIVE))
-            throw new AssertionError("Primitive Value flag missing");
     }
 }

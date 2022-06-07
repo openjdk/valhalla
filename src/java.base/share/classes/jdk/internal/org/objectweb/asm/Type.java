@@ -683,7 +683,7 @@ public final class Type {
     }
 
     static boolean isPrimitiveClass(Class<?> clazz) {
-        return clazz.is(AccessFlag.PRIMITIVE);
+        return (clazz.getModifiers() & AccessFlag.PRIMITIVE.mask()) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------
