@@ -1168,29 +1168,13 @@ public class Types {
 
             @Override
             public Boolean visitType(Type t, Type s) {
-                switch (t.getTag()) {
-                    case BYTE:
-                    case CHAR:
-                    case SHORT: case INT: case LONG:
-                    case FLOAT: case DOUBLE:
-                    case BOOLEAN: case VOID:
-                    case BOT: case NONE:
-                        return t.hasTag(s.getTag());
-                    case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
-                        return false;
-                    default:
-                        throw new AssertionError("isSubtype " + t.getTag());
-                }
+                return t.hasTag(s.getTag());
             }
 
             @Override
             public Boolean visitArrayType(ArrayType t, Type s) {
                 if (t == s)
                     return true;
-
-                if (s.isPartial())
-                    return visit(s, t);
-
                 return s.hasTag(ARRAY)
                         && visit(t.elemtype, elemtype(s));
             }
@@ -1198,7 +1182,7 @@ public class Types {
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
                 // If t is an intersection, sup might not be a class type
-                if (!t.hasTag(CLASS)) return visit(t, s);
+                if (!t.hasTag(CLASS)) return false;
                 return t.tsym == s.tsym
                         && (t.tsym != s.tsym || t.referenceProjectionOrSelf().tsym == s.referenceProjectionOrSelf().tsym)
                         && (!s.isParameterized() || compareTypeArgsRecursive(s, t))
@@ -1214,7 +1198,7 @@ public class Types {
                         return true;
                     }
                 }
-                return isSameType(t, s);
+                return false;
             }
 
             public boolean compareTypeArgsRecursive(Type t, Type s) {
@@ -1406,24 +1390,22 @@ public class Types {
             REF_VAL_ALLOWED
         }
 
-        public abstract static class ParameterizedTypeRelation<P> extends TypeRelation {
-            P param;
+        SubtypingRelation isSubtypeRelation = new SubtypingRelation();
+        class SubtypingRelation extends TypeRelation {
+            SubtypingRelationKind param;
 
-            public final Boolean visit(Type t, Type s, P param) {
-                P prevParam = this.param;
+            public boolean allowRefValSubtyping() {
+                return param == SubtypingRelationKind.REF_VAL_ALLOWED;
+            }
+
+            public final Boolean visit(Type t, Type s, SubtypingRelationKind param) {
+                SubtypingRelationKind prevParam = this.param;
                 try {
                     this.param = param;
-                    return visit(t, s);
+                    return super.visit(t, s);
                 } finally {
                     this.param = prevParam;
                 }
-            }
-        }
-
-        SubtypingRelation isSubtypeRelation = new SubtypingRelation();
-        class SubtypingRelation extends ParameterizedTypeRelation<SubtypingRelationKind> {
-            public boolean allowRefValSubtyping() {
-                return param == SubtypingRelationKind.REF_VAL_ALLOWED;
             }
 
             @Override
