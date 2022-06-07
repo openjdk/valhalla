@@ -5531,12 +5531,9 @@ public class Attr extends JCTree.Visitor {
                     env.info.isSerializable = true;
                 }
 
-                if ((c.flags() & (VALUE_CLASS | ABSTRACT)) == VALUE_CLASS) { // for non-intersection, concrete primitive/value classes.
+                if (c.isValueClass()) {
                     Assert.check(env.tree.hasTag(CLASSDEF));
-                    JCClassDecl classDecl = (JCClassDecl) env.tree;
-                    if (classDecl.extending != null) {
-                        chk.checkSuperConstraintsOfValueClass(env.tree.pos(), c);
-                    }
+                    chk.checkConstraintsOfValueClass(env.tree.pos(), c);
                 }
 
                 attribClassBody(env, c);

@@ -1,0 +1,6 @@
+ValueSuperClassConstraints.java:39:18: compiler.err.super.field.not.allowed: f, (compiler.misc.superclass.of.value.class: ValueSuperClassConstraints.V1, ValueSuperClassConstraints.I1)
+ValueSuperClassConstraints.java:44:18: compiler.err.super.class.cannot.be.inner: (compiler.misc.superclass.of.value.class: ValueSuperClassConstraints.V2, ValueSuperClassConstraints.I2)
+ValueSuperClassConstraints.java:51:18: compiler.err.super.method.cannot.be.synchronized: foo(), ValueSuperClassConstraints.V3, ValueSuperClassConstraints.I3
+ValueSuperClassConstraints.java:57:18: compiler.err.super.class.declares.init.block: (compiler.misc.superclass.of.value.class: ValueSuperClassConstraints.V4, ValueSuperClassConstraints.I4)
+ValueSuperClassConstraints.java:63:18: compiler.err.super.constructor.cannot.take.arguments: ValueSuperClassConstraints.I5(int), (compiler.misc.superclass.of.value.class: ValueSuperClassConstraints.V5, ValueSuperClassConstraints.I5)
+5 errors
