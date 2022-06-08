@@ -605,15 +605,6 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class C2 extends C1 {
                     <__universal T> void foo(T t) { }
                 }
-                """,
-                """
-                import java.util.function.*;
-                class Test<__universal T> {
-                    T.ref field;
-                    void foo(T t, Consumer<? super T> action) {
-                        action.accept(field = t);
-                    }
-                }
                 """
         )) {
             testHelper(LINT_OPTIONS, code);
@@ -668,6 +659,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
                 class C<T> {
                     C<Point> cp;
+                }
+                """
+        );
+        assertFail("compiler.err.prob.found.req",
+                """
+                import java.util.function.*;
+                class Test<__universal T> {
+                    T.ref field;
+                    void foo(T t, Consumer<? super T> action) {
+                        action.accept(field = t);
+                    }
                 }
                 """
         );

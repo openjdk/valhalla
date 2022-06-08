@@ -1131,10 +1131,10 @@ public class Types {
                         return false;
                     return true;
                 }
-            } else if (isSubtype(t, s, capture, SubtypingRelationKind.REF_VAL_ALLOWED)) {
+            } else if (isSubtype(t, s, capture)) {
                 return true;
             } else if (allowUniversalTVars && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
-                warn.warn(LintCategory.UNIVERSAL);
+                warn.warn(LintCategory.UNCHECKED);
                 return true;
             } else if (t.hasTag(TYPEVAR)) {
                 return isSubtypeUncheckedInternal(t.getUpperBound(), s, false, warn);
@@ -1331,24 +1331,14 @@ public class Types {
         return isSubtype(t, s, false);
     }
     public boolean isSubtype(Type t, Type s, boolean capture) {
-        return isSubtype(t, s, capture, SubtypingRelationKind.STRICT);
-    }
-
-    public boolean isSubtype(Type t, Type s, boolean capture, SubtypingRelationKind subtypingKind) {
         if (t.equalsIgnoreMetadata(s))
             return true;
-        if (subtypingKind == SubtypingRelationKind.REF_VAL_ALLOWED && t.hasTag(TYPEVAR) && s.hasTag(TYPEVAR) && t.tsym == s.tsym) {
-            if (warnStack.head != null && allowUniversalTVars && t.isReferenceProjection() != s.isReferenceProjection()) {
-                warnStack.head.warn(LintCategory.UNCHECKED);
-            }
-            return true;
-        }
         if (s.isPartial())
             return isSuperType(s, t);
 
         if (s.isCompound()) {
             for (Type s2 : interfaces(s).prepend(supertype(s))) {
-                if (!isSubtype(t, s2, capture, subtypingKind))
+                if (!isSubtype(t, s2, capture))
                     return false;
             }
             return true;
@@ -1361,36 +1351,15 @@ public class Types {
             // TODO: JDK-8039198, bounds checking sometimes passes in a wildcard as s
             Type lower = cvarLowerBound(wildLowerBound(s));
             if (s != lower && !lower.hasTag(BOT))
-                return isSubtype(capture ? capture(t) : t, lower, false, subtypingKind);
+                return isSubtype(capture ? capture(t) : t, lower, false);
         }
 
         t = capture ? capture(t) : t;
-        return isSubtypeRelation.visit(t, s, subtypingKind);
+        return isSubtypeRelation.visit(t, s);
     }
     // where
-        enum SubtypingRelationKind {
-            STRICT,
-            REF_VAL_ALLOWED
-        }
-
-        SubtypingRelation isSubtypeRelation = new SubtypingRelation();
-        class SubtypingRelation extends TypeRelation {
-            SubtypingRelationKind param;
-
-            public boolean allowRefValSubtyping() {
-                return param == SubtypingRelationKind.REF_VAL_ALLOWED;
-            }
-
-            public final Boolean visit(Type t, Type s, SubtypingRelationKind param) {
-                SubtypingRelationKind prevParam = this.param;
-                try {
-                    this.param = param;
-                    return super.visit(t, s);
-                } finally {
-                    this.param = prevParam;
-                }
-            }
-
+        private TypeRelation isSubtypeRelation = new TypeRelation()
+        {
             @Override
             public Boolean visitType(Type t, Type s) {
                 switch (t.getTag()) {
@@ -1404,11 +1373,8 @@ public class Types {
                  case BOOLEAN: case VOID:
                      return t.hasTag(s.getTag());
                  case TYPEVAR:
-                     return isSubtype(t.getUpperBound(), s, false, param);
+                     return isSubtype(t.getUpperBound(), s, false);
                  case BOT:
-                     if (allowUniversalTVars && allowRefValSubtyping() && s.hasTag(TYPEVAR) && ((TypeVar)s).isValueProjection()) {
-                         warnStack.head.warn(LintCategory.UNIVERSAL);
-                     }
                      return
                          s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
@@ -1499,7 +1465,7 @@ public class Types {
             public Boolean visitErrorType(ErrorType t, Type s) {
                 return true;
             }
-        }
+        };
 
     /**
      * Is t a subtype of every type in given list `ts'?<br>
