@@ -1151,7 +1151,7 @@ public class Types {
                     } else {
                         if (!isSameType(t2, s) &&
                                 t2.isReferenceProjection() == s.isReferenceProjection() &&
-                                structuralComparator.visit(t2, s)) {
+                                structuralComparator.visit(t2, s, true)) {
                             warn.warn(LintCategory.UNCHECKED);
                             return true;
                         }
@@ -1164,11 +1164,26 @@ public class Types {
         // where
         StructuralTypeComparator structuralComparator = new StructuralTypeComparator();
         class StructuralTypeComparator extends TypeRelation {
+            boolean topType = true;
+
             private Set<TypePair> cache = new HashSet<>();
+
+            boolean visit(Type t, Type s, boolean topType) {
+                this.topType = topType;
+                return super.visit(t, s);
+            }
 
             @Override
             public Boolean visitType(Type t, Type s) {
-                return t.hasTag(s.getTag());
+                if (topType) {
+                    return t.hasTag(s.getTag());
+                } else {
+                    boolean result = isSameType(t, s);
+                    if (!result) {
+                        result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
+                    }
+                    return result;
+                }
             }
 
             @Override
@@ -1181,12 +1196,32 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                // If t is an intersection, sup might not be a class type
                 if (!t.hasTag(CLASS)) return false;
                 return t.tsym == s.tsym
                         && (t.tsym != s.tsym || t.referenceProjectionOrSelf().tsym == s.referenceProjectionOrSelf().tsym)
                         && (!s.isParameterized() || compareTypeArgsRecursive(s, t))
                         && visit(t.getEnclosingType(), s.getEnclosingType());
+            }
+
+            @Override
+            public Boolean visitWildcardType(WildcardType t, Type s) {
+                return isSameWildcard(t, s)
+                        || isCaptureOf(s, t)
+                        || compareWildcardHelper(t, s);
+            }
+
+            boolean compareWildcardHelper(WildcardType t, Type s) {
+                // let's remove captured if any
+                if (s.hasTag(TYPEVAR)) {
+                    TypeVar v = (TypeVar) s;
+                    s = v.isCaptured() ? ((CapturedType)v).wildcard : s;
+                }
+                if (!s.hasTag(WILDCARD) || ((WildcardType)s).kind != t.kind) return false;
+                if (t.isExtendsBound()) {
+                    return visit(wildUpperBound(s), wildUpperBound(t));
+                } else {
+                    return visit(wildLowerBound(s), wildLowerBound(t));
+                }
             }
 
             @Override
@@ -1199,6 +1234,11 @@ public class Types {
                     }
                 }
                 return false;
+            }
+
+            @Override
+            public Boolean visitUndetVar(UndetVar t, Type s) {
+                return isSameType(t, s);
             }
 
             public boolean compareTypeArgsRecursive(Type t, Type s) {
@@ -1217,15 +1257,11 @@ public class Types {
 
             boolean compareTypeArgs(List<Type> ts, List<Type> ss) {
                 while (ts.nonEmpty() && ss.nonEmpty()
-                        && compareTypeArgs(ts.head, ss.head)) {
+                        && visit(ts.head, ss.head, false)) {
                     ts = ts.tail;
                     ss = ss.tail;
                 }
                 return ts.isEmpty() && ss.isEmpty();
-            }
-
-            boolean compareTypeArgs(Type t, Type s) {
-                return typeArgStructComparator.visit(t, s);
             }
         }
 
@@ -1260,59 +1296,6 @@ public class Types {
                 return subst(t.tsym.type, from.toList(), rewrite.toList());
             else
                 return t;
-        }
-
-        private TypeArgStructComparator typeArgStructComparator = new TypeArgStructComparator();
-        class TypeArgStructComparator extends TypeRelation {
-
-            public Boolean visitType(Type t, Type s) {
-                boolean result = isSameType(t, s);
-                if (!result) {
-                    result = isSameType(t.referenceProjectionOrSelf(), s.referenceProjectionOrSelf());
-                }
-                return result;
-            }
-
-            @Override
-            public Boolean visitClassType(ClassType t, Type s) {
-                return structuralComparator.visitClassType(t, s);
-            }
-
-            @Override
-            public Boolean visitWildcardType(WildcardType t, Type s) {
-                return isSameWildcard(t, s)
-                        || isCaptureOf(s, t)
-                        || compareWildcardHelper(t, s);
-            }
-
-            boolean compareWildcardHelper(WildcardType t, Type s) {
-                // let's remove captured if any
-                if (s.hasTag(TYPEVAR)) {
-                    TypeVar v = (TypeVar) s;
-                    s = v.isCaptured() ? ((CapturedType)v).wildcard : s;
-                }
-                if (!s.hasTag(WILDCARD) || ((WildcardType)s).kind != t.kind) return false;
-                if (t.isExtendsBound()) {
-                    return structuralComparator.visit(wildUpperBound(s), wildUpperBound(t));
-                } else {
-                    return structuralComparator.visit(wildLowerBound(s), wildLowerBound(t));
-                }
-            }
-
-            @Override
-            public Boolean visitUndetVar(UndetVar t, Type s) {
-                return isSameType(t, s);
-            }
-
-            @Override
-            public Boolean visitTypeVar(TypeVar t, Type s) {
-                return structuralComparator.visit(t, s);
-            }
-
-            @Override
-            public Boolean visitErrorType(ErrorType t, Type s) {
-                return true;
-            }
         }
 
         private void checkUnsafeVarargsConversion(Type t, Type s, Warner warn) {
