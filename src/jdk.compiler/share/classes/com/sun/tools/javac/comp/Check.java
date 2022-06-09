@@ -752,7 +752,7 @@ public class Check {
         for (Type st : types.closure(c.type)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 continue;
-            if  (st.tsym == syms.objectType.tsym || st.isInterface())
+            if  (st.tsym == syms.objectType.tsym || st.tsym == syms.recordType.tsym || st.isInterface())
                 continue;
             if (!st.tsym.isAbstract()) {
                 if (c != st.tsym) {
@@ -785,10 +785,14 @@ public class Check {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
                             log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, fragment));
-                        } else {
-                            if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
+                        } else if (m.getTypeParameters().size() > 0) {
+                            log.error(pos, Errors.SuperConstructorCannotBeGeneric(m, fragment));
+                        } else if (m.type.getThrownTypes().size() > 0) {
+                            log.error(pos, Errors.SuperConstructorCannotThrow(m, fragment));
+                        } else if (protection(m.flags()) > protection(m.owner.flags())) {
+                            log.error(pos, Errors.SuperConstructorAccessRestricted(m, fragment));
+                        } else if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
                                 log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
-                            }
                         }
                     }
                     break;
