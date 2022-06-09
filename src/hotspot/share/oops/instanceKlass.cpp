@@ -166,16 +166,6 @@ static inline bool is_class_loader(const Symbol* class_name,
 
 bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_PRIMITIVE_OBJECT; }
 
-bool InstanceKlass::is_preload_class(Symbol* name) const {
-  for (int i = 0; i < _preload_classes->length(); i++) {
-    Symbol* class_name = _constants->klass_at_noresolve(_preload_classes->at(i));
-    if (class_name == name) {
-      return true;
-    }
-  }
-  return false;
-}
-
 // private: called to verify that k is a static member of this nest.
 // We know that k is an instance class in the same package and hence the
 // same classloader.
