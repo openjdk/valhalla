@@ -35,7 +35,7 @@ import com.sun.tools.classfile.*;
 
 public class NontrivialCtorInducedIdentity {
 
-    public static abstract class A0 { // Trivial constructor - no induced identity. 
+    public static abstract class A0 { // Trivial constructor - no induced identity.
         public A0() {
             super();
         }
