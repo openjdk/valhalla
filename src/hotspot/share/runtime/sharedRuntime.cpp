@@ -2851,14 +2851,18 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
   if (total_args_passed == 0) {
     return _no_arg_handler;
   } else if (total_args_passed == 1) {
-    if (!method->is_static() && (!InlineTypePassFieldsAsArgs || !method->method_holder()->is_inline_klass())) {
+    if (!method->is_static()) {
+      if (InlineTypePassFieldsAsArgs && method->method_holder()->is_inline_klass()) {
+        return NULL;
+      }
       return _obj_arg_handler;
     }
     switch (method->signature()->char_at(1)) {
       case JVM_SIGNATURE_CLASS: {
         if (InlineTypePassFieldsAsArgs) {
           SignatureStream ss(method->signature());
-          if (method->method_holder()->is_preload_class(ss.as_symbol())) {
+          InlineKlass* vk = ss.as_inline_klass(method->method_holder());
+          if (vk != NULL) {
             return NULL;
           }
         }
@@ -2879,7 +2883,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_simple_adapter(const methodHandl
       case JVM_SIGNATURE_CLASS: {
         if (InlineTypePassFieldsAsArgs) {
           SignatureStream ss(method->signature());
-          if (method->method_holder()->is_preload_class(ss.as_symbol())) {
+          InlineKlass* vk = ss.as_inline_klass(method->method_holder());
+          if (vk != NULL) {
             return NULL;
           }
         }
@@ -2972,8 +2977,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
         // TODO 8284443 Mismatch handling, we need to check parent method args (look at klassVtable::needs_new_vtable_entry)
-        if (vk != NULL && (bt == T_PRIMITIVE_OBJECT || holder->is_preload_class(vk->name())) &&
-            vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
+        if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
           _num_inline_args++;
           has_scalarized = true;
           int last = _sig_cc->length();
