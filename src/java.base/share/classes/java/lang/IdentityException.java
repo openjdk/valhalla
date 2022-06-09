@@ -33,6 +33,9 @@ package java.lang;
  * @since Valhalla
  */
 public class IdentityException extends RuntimeException {
+    @java.io.Serial
+    private static final long serialVersionUID = 1L;
+
     /**
      * Create an {@code IdentityException} with no message.
      */
@@ -58,6 +61,16 @@ public class IdentityException extends RuntimeException {
     }
 
     /**
+     * Create an {@code IdentityException} with a cause.
+     *
+     * @param  cause the cause; {@code null} is permitted, and indicates
+     *               that the cause is nonexistent or unknown.
+     */
+    public IdentityException(Throwable cause) {
+        super(cause);
+    }
+
+    /**
      * Create an {@code IdentityException} with a message and cause.
      *
      * @param  message the detail message; can be {@code null}
@@ -67,7 +80,4 @@ public class IdentityException extends RuntimeException {
     public IdentityException(String message, Throwable cause) {
         super(message, cause);
     }
-
-    @java.io.Serial
-    private static final long serialVersionUID = 1L;
 }
