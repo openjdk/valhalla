@@ -1,0 +1,6 @@
+MutuallyIncompatibleSupers.java:13:21: compiler.err.mutually.incompatible.supers: MutuallyIncompatibleSupers.X, MutuallyIncompatibleSupers.II, MutuallyIncompatibleSupers.VI
+MutuallyIncompatibleSupers.java:16:11: compiler.err.value.type.has.identity.super.type: MutuallyIncompatibleSupers.BVI, MutuallyIncompatibleSupers.II
+MutuallyIncompatibleSupers.java:19:14: compiler.err.identity.type.has.value.super.type: MutuallyIncompatibleSupers.BII, MutuallyIncompatibleSupers.VI
+MutuallyIncompatibleSupers.java:21:18: compiler.err.value.type.has.identity.super.type: MutuallyIncompatibleSupers.BVC, MutuallyIncompatibleSupers.II
+MutuallyIncompatibleSupers.java:22:5: compiler.err.identity.type.has.value.super.type: MutuallyIncompatibleSupers.BIC, MutuallyIncompatibleSupers.VI
+5 errors

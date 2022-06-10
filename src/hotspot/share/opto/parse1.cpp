@@ -30,6 +30,7 @@
 #include "opto/addnode.hpp"
 #include "opto/c2compiler.hpp"
 #include "opto/castnode.hpp"
+#include "opto/convertnode.hpp"
 #include "opto/idealGraphPrinter.hpp"
 #include "opto/inlinetypenode.hpp"
 #include "opto/locknode.hpp"
@@ -155,12 +156,12 @@ Node* Parse::fetch_interpreter_state(int index,
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
                                     SafePointNode* &bad_type_exit) {
-  const TypeOopPtr* tp = type->isa_oopptr();
   if (type->isa_inlinetype() != NULL) {
     // The interpreter passes inline types as oops
-    tp = TypeOopPtr::make_from_klass(type->inline_klass());
-    tp = tp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    type = TypeOopPtr::make_from_klass(type->inline_klass());
+    type = type->join_speculative(TypePtr::NOTNULL)->is_oopptr();
   }
+  const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.
   if (type == TypePtr::NULL_PTR ||
@@ -825,7 +826,7 @@ void Parse::build_exits() {
     }
     // Scalarize inline type when returning as fields or inlining non-incrementally
     if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        ret_type->is_inlinetypeptr() && !ret_type->maybe_null()) {
+        ret_type->is_inlinetypeptr()) {
       ret_type = TypeInlineType::make(ret_type->inline_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
@@ -861,10 +862,11 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   }
   PhaseGVN& gvn = *initial_gvn();
   uint i = 0;
+  int arg_num = 0;
   for (uint j = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
-    if (has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
+    if (t->is_inlinetypeptr() && method()->is_scalarized_arg(arg_num)) {
       // Inline type arguments are not passed by reference: we get an argument per
       // field of the inline type. Build InlineTypeNodes from the inline type arguments.
       GraphKit kit(jvms, &gvn);
@@ -872,7 +874,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       Node* old_mem = map->memory();
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
-      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, true);
+      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -881,6 +883,9 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     map->init_req(i, parm);
     // Record all these guys for later GVN.
     record_for_igvn(parm);
+    if (i >= TypeFunc::Parms && t != Type::HALF) {
+      arg_num++;
+    }
   }
   for (; i < map->req(); i++) {
     map->init_req(i, top());
@@ -926,10 +931,19 @@ void Compile::return_values(JVMState* jvms) {
       if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
       } else {
-        ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
+        // Return the tagged klass pointer to signal scalarization to the caller
+        Node* tagged_klass = vt->tagged_klass(kit.gvn());
+        if (!method()->signature()->returns_null_free_inline_type()) {
+          // Return null if the inline type is null (IsInit field is not set)
+          Node* conv   = kit.gvn().transform(new ConvI2LNode(vt->get_is_init()));
+          Node* shl    = kit.gvn().transform(new LShiftLNode(conv, kit.intcon(63)));
+          Node* shr    = kit.gvn().transform(new RShiftLNode(shl, kit.intcon(63)));
+          tagged_klass = kit.gvn().transform(new AndLNode(tagged_klass, shr));
+        }
+        ret->init_req(TypeFunc::Parms, tagged_klass);
       }
       uint idx = TypeFunc::Parms + 1;
-      vt->pass_fields(&kit, ret, idx);
+      vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
     } else {
       if (res->is_InlineType()) {
         assert(res->as_InlineType()->is_allocated(&kit.gvn()), "must be allocated");
@@ -1739,7 +1753,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != NULL && t != Type::BOTTOM) {
-        if (n->is_InlineType() && !t->isa_inlinetype()) {
+        if (n->is_InlineType() && (!t->isa_inlinetype() && !t->is_inlinetypeptr())) {
           // TODO Currently, the implementation relies on the assumption that InlineTypePtrNodes
           // are always buffered. We therefore need to allocate here.
           // Allocate inline type in src block to be able to merge it with oop in target block
@@ -1908,6 +1922,16 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         }
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
+        if (vtm->is_InlineTypePtr() && vtn->is_InlineType()) {
+          // TODO 8284443 Remove this
+          Node* newVal = InlineTypeNode::make_uninitialized(gvn(), vtm->bottom_type()->inline_klass());
+          for (uint i = 1; i < vtm->req(); ++i) {
+            newVal->set_req(i, vtm->in(i));
+          }
+          _gvn.set_type(newVal, vtm->bottom_type());
+          vtm->replace_by(newVal);
+          vtm = newVal->as_InlineTypeBase();
+        }
         if (last_merge) {
           map()->set_req(j, _gvn.transform_no_reclaim(vtm));
           record_for_igvn(vtm);
@@ -2370,7 +2394,7 @@ void Parse::return_current(Node* value) {
     if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
+        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flattened
@@ -2379,7 +2403,7 @@ void Parse::return_current(Node* value) {
         assert(tf()->returns_inline_type_as_fields(), "must be returned as fields");
         jvms()->set_should_reexecute(true);
         inc_sp(1);
-        value = value->as_InlineType()->allocate_fields(this);
+        value = value->as_InlineTypeBase()->allocate_fields(this);
       }
     } else if (value->is_InlineType()) {
       // Inline type is returned as oop, make sure it is buffered and re-execute

@@ -177,8 +177,6 @@ public class TrustedDynamicLinkerFactoryTest {
         Assert.assertEquals(linkerReachCounter[0], 2);
     }
 
-    private static class TestObject {}
-
     @Test
     public void prelinkTransformerTest() throws Throwable {
         final DynamicLinkerFactory factory = newDynamicLinkerFactory(true);
@@ -195,7 +193,7 @@ public class TrustedDynamicLinkerFactoryTest {
         final CallSite cs = linker.link(new SimpleRelinkableCallSite(new CallSiteDescriptor(
                 MethodHandles.publicLookup(), GET_PROPERTY, mt)));
         Assert.assertFalse(reachedPrelinkTransformer[0]);
-        Assert.assertEquals(cs.getTarget().invoke(new TestObject(), "class"), TestObject.class);
+        Assert.assertEquals(cs.getTarget().invoke(new Object(), "class"), Object.class);
         Assert.assertTrue(reachedPrelinkTransformer[0]);
     }
 
@@ -214,13 +212,13 @@ public class TrustedDynamicLinkerFactoryTest {
         final CallSite cs = linker.link(new SimpleRelinkableCallSite(new CallSiteDescriptor(
                 MethodHandles.publicLookup(), GET_PROPERTY, mt)));
         Assert.assertFalse(reachedInternalObjectsFilter[0]);
-        Assert.assertEquals(cs.getTarget().invoke(new TestObject(), "class"), TestObject.class);
+        Assert.assertEquals(cs.getTarget().invoke(new Object(), "class"), Object.class);
         Assert.assertTrue(reachedInternalObjectsFilter[0]);
     }
 
     @Test
     public void autoLoadedLinkerTest() {
-        testAutoLoadedLinkerInvoked(new TestObject(), "toString");
+        testAutoLoadedLinkerInvoked(new Object(), "toString");
     }
 
     @Test

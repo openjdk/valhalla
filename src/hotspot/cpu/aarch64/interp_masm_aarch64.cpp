@@ -774,27 +774,35 @@ void InterpreterMacroAssembler::remove_activation(
 
 
   if (state == atos && InlineTypeReturnedAsFields) {
+    // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
-    // Test if the return type is an inline type
-    ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-    ldr(rscratch1, Address(rscratch1, Method::const_offset()));
-    ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
-    cmpw(rscratch1, (u1) T_PRIMITIVE_OBJECT);
-    br(Assembler::NE, skip);
+    test_oop_is_not_inline_type(r0, rscratch2, skip);
 
-    // We are returning an inline type, load its fields into registers
     // Load fields from a buffered value with an inline class specific handler
-
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
     ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
     ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
+    // Unpack handler can be null if inline type is not scalarizable in returns
     cbz(rscratch1, skip);
 
     blr(rscratch1);
-
-    // call above kills sender esp in rscratch2. Reload it.
-    ldr(rscratch2, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
+#ifdef ASSERT
+    if (StressInlineTypeReturnedAsFields) {
+      // TODO 8284443 Enable this for value class returns (L-type descriptor)
+      Label skip_stress;
+      ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
+      ldr(rscratch1, Address(rscratch1, Method::const_offset()));
+      ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
+      cmpw(rscratch1, (u1) T_PRIMITIVE_OBJECT);
+      br(Assembler::NE, skip_stress);
+      load_klass(r0, r0);
+      orr(r0, r0, 1);
+      bind(skip_stress);
+    }
+#endif
     bind(skip);
+    // Check above kills sender esp in rscratch2. Reload it.
+    ldr(rscratch2, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
   }
 
   // restore sender esp

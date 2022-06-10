@@ -1952,7 +1952,7 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
     while (casts.size() != 0) {
       // Push the cast(s) through the InlineTypePtrNode
       Node* cast = casts.pop()->clone();
-      cast->set_req(1, n->as_InlineTypePtr()->get_oop());
+      cast->set_req_X(1, n->as_InlineTypePtr()->get_oop(), phase);
       n = n->clone();
       n->as_InlineTypePtr()->set_oop(phase->transform(cast));
       n = phase->transform(n);
@@ -2491,6 +2491,17 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     bool is_init = true;
     Node_List casts;
 
+    // TODO 8284443 We need to prevent endless pushing through
+    // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
+    // TestLWorld -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
+    for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+      Node* n = fast_out(i);
+      if (n->is_InlineTypePtr() && n->in(1) == this) {
+        can_optimize = false;
+        break;
+      }
+    }
+    // TODO 8284443 We could revisit the same node over and over again, right?
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
       for (uint i = 1; i < phi->req() && can_optimize; i++) {
@@ -2500,6 +2511,11 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           break;
         }
         while (n->is_ConstraintCast()) {
+          if (n->in(0) != NULL && n->in(0)->is_top()) {
+            // Will die, don't optimize
+            can_optimize = false;
+            break;
+          }
           casts.push(n);
           n = n->in(1);
         }

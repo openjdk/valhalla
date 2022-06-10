@@ -814,7 +814,6 @@ public:
   int args_on_stack_cc_ro()            const { return _args_on_stack_cc_ro; }
 
   int  num_inline_args()               const { return _num_inline_args; }
-  bool has_inline_arg()                const { return _num_inline_args > 0; }
   bool has_inline_recv()               const { return _has_inline_recv; }
 
   bool has_scalarized_args()           const { return _sig != _sig_cc; }
@@ -823,10 +822,7 @@ public:
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
 
   CompiledEntrySignature(Method* method = NULL);
-  void compute_calling_conventions();
-
-private:
-  int compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
+  void compute_calling_conventions(bool init = true);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

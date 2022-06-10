@@ -59,7 +59,6 @@ import static com.sun.tools.javac.resources.CompilerProperties.Fragments.Diamond
 
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
-import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.tree.JCTree.*;
@@ -180,7 +179,7 @@ public class Attr extends JCTree.Visitor {
         allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        tolerateObjectInstantiation = options.isSet("tolerateObjectInstantiation");
+
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
         varAssignmentInfo = new ResultInfo(KindSelector.ASG, Type.noType);
         unknownExprInfo = new ResultInfo(KindSelector.VAL, Type.noType);
@@ -235,12 +234,6 @@ public class Attr extends JCTree.Visitor {
      * RFE: 6425594
      */
     boolean useBeforeDeclarationWarning;
-
-    /**
-     * Switch: warn about use of new Object() ? By default, Yes;
-     * but not if -XDtolerateObjectInstantiation is in effect
-     */
-    boolean tolerateObjectInstantiation;
 
     /**
      * Switch: name of source level; used for error reporting.
@@ -2808,9 +2801,6 @@ public class Attr extends JCTree.Visitor {
             clazztype = TreeInfo.isEnumInit(env.tree) ?
                 attribIdentAsEnumType(env, (JCIdent)clazz) :
                 attribType(clazz, env);
-            if (!tolerateObjectInstantiation && clazztype.tsym == syms.objectType.tsym && cdef == null && !tree.classDeclRemoved()) {
-                log.note(tree.pos(), Notes.CantInstantiateObjectDirectly);
-            }
         } finally {
             env.info.isNewClass = false;
         }
@@ -2867,7 +2857,7 @@ public class Attr extends JCTree.Visitor {
             }
             // Check that class is not abstract
             if (cdef == null && !isSpeculativeDiamondInferenceRound && // class body may be nulled out in speculative tree copy
-                (clazztype.tsym.flags() & (ABSTRACT | INTERFACE)) != 0 && clazztype.tsym != syms.objectType.tsym) { // tolerate abstract Object
+                (clazztype.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
                 log.error(tree.pos(),
                           Errors.AbstractCantBeInstantiated(clazztype.tsym));
                 skipNonDiamondPath = true;
@@ -5591,12 +5581,9 @@ public class Attr extends JCTree.Visitor {
                     env.info.isSerializable = true;
                 }
 
-                if ((c.flags() & (VALUE_CLASS | ABSTRACT)) == VALUE_CLASS) { // for non-intersection, concrete primitive/value classes.
+                if (c.isValueClass()) {
                     Assert.check(env.tree.hasTag(CLASSDEF));
-                    JCClassDecl classDecl = (JCClassDecl) env.tree;
-                    if (classDecl.extending != null) {
-                        chk.checkSuperConstraintsOfValueClass(env.tree.pos(), c);
-                    }
+                    chk.checkConstraintsOfValueClass(env.tree.pos(), c);
                 }
 
                 attribClassBody(env, c);

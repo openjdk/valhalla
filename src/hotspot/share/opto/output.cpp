@@ -302,7 +302,6 @@ PhaseOutput::PhaseOutput()
     _node_bundling_base(NULL),
     _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
-    _sp_inc_slot(0),
     _buf_sizes(),
     _block(NULL),
     _index(0) {
@@ -311,7 +310,10 @@ PhaseOutput::PhaseOutput()
     int fixed_slots = C->fixed_slots();
     if (C->needs_stack_repair()) {
       fixed_slots -= 2;
-      _sp_inc_slot = fixed_slots;
+    }
+    // TODO 8284443 Only reserve extra slot if needed
+    if (InlineTypeReturnedAsFields) {
+      fixed_slots -= 2;
     }
     _orig_pc_slot = fixed_slots - (sizeof(address) / VMRegImpl::stack_slot_size);
   }
@@ -3298,11 +3300,20 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
     if (C->has_scalarized_args()) {
       // Inline type entry points (MachVEPNodes) require lots of space for GC barriers and oop verification
       // when loading object fields from the buffered argument. Increase scratch buffer size accordingly.
+      ciMethod* method = C->method();
       int barrier_size = UseZGC ? 200 : (7 DEBUG_ONLY(+ 37));
-      for (ciSignatureStream str(C->method()->signature()); !str.at_return_type(); str.next()) {
-        if (str.is_null_free() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
+      int arg_num = 0;
+      if (!method->is_static()) {
+        if (method->is_scalarized_arg(arg_num)) {
+          size += method->holder()->as_inline_klass()->oop_count() * barrier_size;
+        }
+        arg_num++;
+      }
+      for (ciSignatureStream str(method->signature()); !str.at_return_type(); str.next()) {
+        if (method->is_scalarized_arg(arg_num)) {
           size += str.type()->as_inline_klass()->oop_count() * barrier_size;
         }
+        arg_num++;
       }
     }
     blob = BufferBlob::create("Compile::scratch_buffer", size);

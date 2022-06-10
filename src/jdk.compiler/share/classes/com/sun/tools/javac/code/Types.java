@@ -825,11 +825,15 @@ public class Types {
                     throw failure(incompatibleDescriptors);
                 }
             }
-            // Not functional if extending either of the top interface types.
-            Type topInterface;
-            if ((topInterface = asSuper(origin.type, syms.identityObjectType.tsym)) != null ||
-                    (topInterface = asSuper(origin.type, syms.valueObjectType.tsym)) != null) {
-                throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.MayNotExtendTopInterfaceType(topInterface)));
+            // an interface must be neither an identity interface nor a value interface to be functional.
+            List<Type> allInterfaces = closure(origin.type);
+            for (Type iface : allInterfaces) {
+                if (iface.isValueInterface()) {
+                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.ValueInterfaceNonfunctional));
+                }
+                if (iface.isIdentityInterface()) {
+                    throw failure("not.a.functional.intf.1", origin, diags.fragment(Fragments.IdentityInterfaceNonfunctional));
+                }
             }
             return descRes;
         }
@@ -1439,8 +1443,7 @@ public class Types {
                     Name sname = s.tsym.getQualifiedName();
                     return sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
-                        || sname == names.java_io_Serializable
-                        || sname == names.java_lang_IdentityObject;
+                        || sname == names.java_io_Serializable;
                 }
 
                 return false;
@@ -2462,25 +2465,6 @@ public class Types {
         if (sym.type == syms.objectType) { //optimization
             return syms.objectType;
         }
-        if (sym == syms.identityObjectType.tsym) {
-            // IdentityObject is a super interface of every concrete identity class other than jlO
-            if (t.tsym == syms.objectType.tsym)
-                return null;
-            if (t.hasTag(ARRAY))
-                return syms.identityObjectType;
-            if (t.hasTag(CLASS) && !t.isValueClass() && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
-                return syms.identityObjectType;
-            }
-            if (implicitIdentityType(t)) {
-                return syms.identityObjectType;
-            } // else fall through and look for explicit coded super interface
-        } else if (sym == syms.valueObjectType.tsym) {
-            if (t.isValueClass() || t.isReferenceProjection())
-                return syms.valueObjectType;
-            if (t.hasTag(ARRAY) || t.tsym == syms.objectType.tsym)
-                return null;
-            // else fall through and look for explicit coded super interface
-        }
         return asSuper.visit(t, sym);
     }
     // where
@@ -2541,59 +2525,6 @@ public class Types {
                 return t;
             }
         };
-
-        // where
-        private boolean implicitIdentityType(Type t) {
-            /* An abstract class can be declared to implement either IdentityObject or ValueObject;
-             * or, if it declares a field, an instance initializer, a non-empty constructor, or
-             * a synchronized instance method, it implicitly implements IdentityObject.
-             */
-            if (!t.tsym.isAbstract())
-                return false;
-
-            for (; t != Type.noType; t = supertype(t)) {
-
-                if (t == null || t.tsym == null || t.tsym.kind == ERR)
-                    return false;
-
-                if  (t.tsym == syms.objectType.tsym)
-                    return false;
-
-                if (!t.tsym.isAbstract()) {
-                    return !t.tsym.isPrimitiveClass();
-                }
-
-                if ((t.tsym.flags() & HASINITBLOCK) != 0) {
-                    return true;
-                }
-
-                // No instance fields and no arged constructors both mean inner classes cannot be primitive class supers.
-                Type encl = t.getEnclosingType();
-                if (encl != null && encl.hasTag(CLASS)) {
-                    return true;
-                }
-                for (Symbol s : t.tsym.members().getSymbols(NON_RECURSIVE)) {
-                    switch (s.kind) {
-                        case VAR:
-                            if ((s.flags() & STATIC) == 0) {
-                                return true;
-                            }
-                            break;
-                        case MTH:
-                            if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
-                                return true;
-                            } else if (s.isConstructor()) {
-                                MethodSymbol m = (MethodSymbol)s;
-                                if (m.getParameters().size() > 0 || (m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                    return true;
-                                }
-                            }
-                            break;
-                    }
-                }
-            }
-            return false;
-        }
 
     /**
      * Return the base type of t or any of its outer types that starts
@@ -4519,7 +4450,7 @@ public class Types {
             if (arraySuperType == null) {
                 // JLS 10.8: all arrays implement Cloneable and Serializable.
                 arraySuperType = makeIntersectionType(List.of(syms.serializableType,
-                        syms.cloneableType, syms.identityObjectType), true);
+                        syms.cloneableType), true);
             }
             return arraySuperType;
         }

@@ -373,7 +373,6 @@ class GraphKit : public Phase {
     return null_check_common(value, type, false, NULL, !_gvn.type(value)->speculative_maybe_null());
   }
   Node* null_check_receiver() {
-    assert(argument(0)->bottom_type()->isa_ptr(), "must be");
     return null_check(argument(0));
   }
   Node* zero_check_int(Node* value) {
@@ -697,9 +696,6 @@ class GraphKit : public Phase {
   // callee (with all arguments still on the stack).
   Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
     assert(!callee->is_static(), "must be a virtual method");
-    if (argument(0)->is_InlineType()) {
-      return argument(0);
-    }
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
     // Use callsite signature always.
     ciMethod* declared_method = method()->get_method_at_bci(bci());

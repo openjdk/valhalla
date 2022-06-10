@@ -392,9 +392,13 @@ InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   JavaThread* THREAD = JavaThread::current();
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
-  Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
-  assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved inline klass");
-  return InlineKlass::cast(k);
+  Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);
+  assert(!HAS_PENDING_EXCEPTION, "Should never throw");
+  if (k != NULL && k->is_inline_klass()) {
+    return InlineKlass::cast(k);
+  } else {
+    return NULL;
+  }
 }
 
 Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,

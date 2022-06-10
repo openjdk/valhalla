@@ -425,10 +425,9 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
     set_secondary_supers(Universe::the_array_interfaces_array());
     return NULL;
   } else {
-    GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+3);
+    GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+2);
     secondaries->push(vmClasses::Cloneable_klass());
     secondaries->push(vmClasses::Serializable_klass());
-    secondaries->push(vmClasses::IdentityObject_klass());
     for (int i = 0; i < num_elem_supers; i++) {
       Klass* elem_super = elem_supers->at(i);
       Klass* array_super = elem_super->array_klass_or_null();

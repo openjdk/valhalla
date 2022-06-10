@@ -81,11 +81,6 @@ public class StatesR64long {
         R64long[] arr1, arr2;
     }
 
-    @State(Scope.Thread)
-    public abstract static class IdState {
-        IdentityObject[] arr1, arr2;
-    }
-
     public static class ObjState00 extends ObjState {
         @Setup
         public void setup() {
@@ -176,51 +171,6 @@ public class StatesR64long {
         public void setup() {
             arr1 = new R64long[SIZE];
             arr2 = new R64long[SIZE];
-            populate(arr1, arr2, 100);
-        }
-    }
-
-    public static class IdState00 extends IdState {
-        @Setup
-        public void setup() {
-            arr1 = new IdentityObject[SIZE];
-            arr2 = new IdentityObject[SIZE];
-            populate(arr1, arr2, 0);
-        }
-    }
-
-    public static class IdState25 extends IdState {
-        @Setup
-        public void setup() {
-            arr1 = new IdentityObject[SIZE];
-            arr2 = new IdentityObject[SIZE];
-            populate(arr1, arr2, 25);
-        }
-    }
-
-    public static class IdState50 extends IdState {
-        @Setup
-        public void setup() {
-            arr1 = new IdentityObject[SIZE];
-            arr2 = new IdentityObject[SIZE];
-            populate(arr1, arr2, 50);
-        }
-    }
-
-    public static class IdState75 extends IdState {
-        @Setup
-        public void setup() {
-            arr1 = new IdentityObject[SIZE];
-            arr2 = new IdentityObject[SIZE];
-            populate(arr1, arr2, 75);
-        }
-    }
-
-    public static class IdState100 extends IdState {
-        @Setup
-        public void setup() {
-            arr1 = new IdentityObject[SIZE];
-            arr2 = new IdentityObject[SIZE];
             populate(arr1, arr2, 100);
         }
     }

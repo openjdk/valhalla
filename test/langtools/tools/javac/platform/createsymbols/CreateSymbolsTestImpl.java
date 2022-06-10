@@ -842,28 +842,28 @@ public class CreateSymbolsTestImpl {
 
                    class name api/Api
                    header extends nonapi/Impl$Nested$Exp flags 21
-                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 9
-                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 9
+                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 29
+                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 29
                    method name <init> descriptor ()V flags 1
 
                    class name nonapi/Impl
                    header extends java/lang/Object nestMembers nonapi/Impl$Nested,nonapi/Impl$Nested$Exp flags 21
-                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 9
-                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 9
+                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 29
+                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 29
                    field name C descriptor Ljava/lang/String; constantValue  flags 19
                    method name <init> descriptor ()V flags 1
                    method name test descriptor ()V flags 1
 
                    class name nonapi/Impl$Nested
                    header extends java/lang/Object nestHost nonapi/Impl flags 21 classAnnotations @Lapi/Ann;
-                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 9
-                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 9
+                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 29
+                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 29
                    method name <init> descriptor ()V flags 1
 
                    class name nonapi/Impl$Nested$Exp
                    header extends nonapi/Impl$Nested implements java/lang/Runnable nestHost nonapi/Impl flags 21
-                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 9
-                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 9
+                   innerclass innerClass nonapi/Impl$Nested outerClass nonapi/Impl innerClassName Nested flags 29
+                   innerclass innerClass nonapi/Impl$Nested$Exp outerClass nonapi/Impl$Nested innerClassName Exp flags 29
                    method name <init> descriptor ()V flags 1
                    method name run descriptor ()V flags 1
                    method name get descriptor ()Lnonapi/Impl$OtherNested; flags 1

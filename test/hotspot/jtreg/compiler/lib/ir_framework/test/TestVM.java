@@ -894,14 +894,14 @@ public class TestVM {
     }
 
     public static void assertDeoptimizedByC1(Method m) {
-        if (notUnstableDeoptAssertion(m, CompLevel.C1_SIMPLE)) {
+        if (isStableDeopt(m, CompLevel.C1_SIMPLE)) {
             TestRun.check(compiledByC1(m) != TriState.Yes || PER_METHOD_TRAP_LIMIT == 0 || !PROFILE_INTERPRETER,
                           m + " should have been deoptimized by C1");
         }
     }
 
     public static void assertDeoptimizedByC2(Method m) {
-        if (notUnstableDeoptAssertion(m, CompLevel.C2)) {
+        if (isStableDeopt(m, CompLevel.C2)) {
             TestRun.check(compiledByC2(m) != TriState.Yes || PER_METHOD_TRAP_LIMIT == 0 || !PROFILE_INTERPRETER,
                           m + " should have been deoptimized by C2");
         }
@@ -910,7 +910,7 @@ public class TestVM {
     /**
      * Some VM flags could make the deopt assertions unstable.
      */
-    private static boolean notUnstableDeoptAssertion(Method m, CompLevel level) {
+    public static boolean isStableDeopt(Method m, CompLevel level) {
         return (USE_COMPILER && !XCOMP && !IGNORE_COMPILER_CONTROLS && !TEST_C1 &&
                 (!EXCLUDE_RANDOM || WHITE_BOX.isMethodCompilable(m, level.getValue(), false)));
     }

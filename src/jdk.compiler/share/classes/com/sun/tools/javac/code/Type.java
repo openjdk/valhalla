@@ -245,6 +245,18 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         return false;
     }
 
+    public boolean isValueInterface() {
+        return false;
+    }
+
+    public boolean isIdentityClass() {
+        return false;
+    }
+
+    public boolean isIdentityInterface() {
+        return false;
+    }
+
     // Does this type need to be preloaded in the context of the referring class ??
     public boolean requiresPreload(Symbol referringClass) {
         if (this.tsym == referringClass)
@@ -1348,6 +1360,21 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public boolean isValueClass() {
             return !isReferenceProjection() && tsym != null && tsym.isValueClass();
+        }
+
+        @Override
+        public boolean isValueInterface() {
+            return tsym != null && tsym.isValueInterface();
+        }
+
+        @Override
+        public boolean isIdentityClass() {
+            return !isReferenceProjection() && tsym != null && tsym.isIdentityClass();
+        }
+
+        @Override
+        public boolean isIdentityInterface() {
+            return isInterface() && tsym.isIdentityInterface();
         }
 
         @Override

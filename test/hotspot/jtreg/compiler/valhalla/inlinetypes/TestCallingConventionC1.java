@@ -1734,7 +1734,7 @@ public class TestCallingConventionC1 {
     }
 
     //-------------------------------------------------------------------------------
-    // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns (RefPoint?)
+    // Tests for how C1 handles InlineTypeReturnedAsFields in both calls and returns (RefPoint.ref)
     //-------------------------------------------------------------------------------
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref)
@@ -1751,8 +1751,8 @@ public class TestCallingConventionC1 {
 
     @Run(test = "test87")
     public void test87_verifier() {
-        Object result = test87(null);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(test87(null), null);
+        Asserts.assertEQ(test87(refPointField1), refPointField1);
     }
 
     // C2->C1 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref with constant null)
@@ -1769,8 +1769,7 @@ public class TestCallingConventionC1 {
 
     @Run(test = "test88")
     public void test88_verifier() {
-        Object result = test88();
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(test88(), null);
     }
 
     // C1->C2 invokestatic with InlineTypeReturnedAsFields (RefPoint.ref)
@@ -1787,8 +1786,8 @@ public class TestCallingConventionC1 {
 
     @Run(test = "test89")
     public void test89_verifier() {
-        Object result = test89(null);
-        Asserts.assertEQ(result, null);
+        Asserts.assertEQ(test89(null), null);
+        Asserts.assertEQ(test89(refPointField1), refPointField1);
     }
 
     //----------------------------------------------------------------------------------

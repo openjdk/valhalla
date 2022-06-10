@@ -2473,7 +2473,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
-      if (!val_t->isa_inlinetype() || val_t->inline_klass() != inline_klass) {
+      if (!(val_t->isa_inlinetype() || val_t->is_inlinetypeptr()) || val_t->inline_klass() != inline_klass) {
         set_map(old_map);
         set_sp(old_sp);
         return false;
@@ -2591,8 +2591,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (argument(1)->is_InlineType() && is_store) {
-    Node* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
-    value = value->as_InlineType()->make_larval(this, false);
+    InlineTypeBaseNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
+    value = value->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
 
@@ -2602,7 +2602,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
-  if (!value->is_InlineType()) {
+  if (!value->is_InlineTypeBase()) {
     return false;
   }
 
@@ -2611,7 +2611,7 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineType()->make_larval(this, true));
+  set_result(value->as_InlineTypeBase()->make_larval(this, true));
   return true;
 }
 
@@ -3001,21 +3001,6 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   kls = null_check(kls);
   if (stopped())  return true;  // argument was like int.class
 
-  bool object_check = C->env()->Object_klass()->is_abstract();
-
-  IdealKit ideal(this);
-#define __ ideal.
-  IdealVariable result(ideal); __ declarations_done();
-
-  if (object_check) {
-    __ if_then(kls, BoolTest::eq, makecon(TypeKlassPtr::make(C->env()->Object_klass())));
-    sync_kit(ideal);
-    Node* obj = new_instance(makecon(TypeKlassPtr::make(C->env()->Identity_klass())));
-    ideal.sync_kit(this);
-    ideal.set(result, obj);
-    __ else_();
-    sync_kit(ideal);
-  }
   Node* test = NULL;
   if (LibraryCallKit::klass_needs_init_guard(kls)) {
     // Note:  The argument might still be an illegal value like
@@ -3032,19 +3017,11 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* obj = NULL;
   ciKlass* klass = _gvn.type(kls)->is_klassptr()->klass();
   if (klass->is_inlinetype()) {
-    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass());
+    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }
-  if (object_check) {
-    ideal.sync_kit(this);
-    ideal.set(result, obj);
-    __ end_if();
-    final_sync(ideal);
-    obj = ideal.value(result);
-  }
   set_result(obj);
-#undef __
   return true;
 }
 
@@ -3480,7 +3457,6 @@ bool LibraryCallKit::inline_Class_cast() {
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
   // Check for null if casting to QMyValue
-  requires_null_check &= !obj->is_InlineType();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
@@ -3533,7 +3509,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
-    if (EnableValhalla && !obj->is_InlineType() && !requires_null_check) {
+    if (EnableValhalla && !requires_null_check) {
       // Check if we are casting to QMyValue
       Node* ctrl_val_mirror = generate_fair_guard(is_val_mirror(mirror), NULL);
       if (ctrl_val_mirror != NULL) {
@@ -3914,28 +3890,6 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       klass_node = _gvn.transform(cast);
     }
 
-    Node* original_kls = load_object_klass(original);
-    // ArrayCopyNode:Ideal may transform the ArrayCopyNode to
-    // loads/stores but it is legal only if we're sure the
-    // Arrays.copyOf would succeed. So we need all input arguments
-    // to the copyOf to be validated, including that the copy to the
-    // new array won't trigger an ArrayStoreException. That subtype
-    // check can be optimized if we know something on the type of
-    // the input array from type speculation.
-    if (_gvn.type(klass_node)->singleton() && !stopped()) {
-      ciKlass* subk   = _gvn.type(original_kls)->is_klassptr()->klass();
-      ciKlass* superk = _gvn.type(klass_node)->is_klassptr()->klass();
-
-      int test = C->static_subtype_check(superk, subk);
-      if (test != Compile::SSC_always_true && test != Compile::SSC_always_false) {
-        const TypeOopPtr* t_original = _gvn.type(original)->is_oopptr();
-        if (t_original->speculative_type() != NULL) {
-          original = maybe_cast_profiled_obj(original, t_original->speculative_type(), true);
-          original_kls = load_object_klass(original);
-        }
-      }
-    }
-
     // Bail out if either start or end is negative.
     generate_negative_guard(start, bailout, &start);
     generate_negative_guard(end,   bailout, &end);
@@ -3969,7 +3923,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                  ((!klass->is_flat_array_klass() && klass->can_be_inline_array_klass()) || !can_validate)) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
-        generate_fair_guard(flat_array_test(original_kls), bailout);
+        generate_fair_guard(flat_array_test(load_object_klass(original)), bailout);
         if (orig_t != NULL) {
           orig_t = orig_t->cast_to_not_flat();
           original = _gvn.transform(new CheckCastPPNode(control(), original, orig_t));
@@ -4002,6 +3956,26 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       // Extreme case:  Arrays.copyOf((Integer[])x, 10, String[].class).
       // This will fail a store-check if x contains any non-nulls.
 
+      // ArrayCopyNode:Ideal may transform the ArrayCopyNode to
+      // loads/stores but it is legal only if we're sure the
+      // Arrays.copyOf would succeed. So we need all input arguments
+      // to the copyOf to be validated, including that the copy to the
+      // new array won't trigger an ArrayStoreException. That subtype
+      // check can be optimized if we know something on the type of
+      // the input array from type speculation.
+      if (_gvn.type(klass_node)->singleton()) {
+        ciKlass* subk   = _gvn.type(load_object_klass(original))->is_klassptr()->klass();
+        ciKlass* superk = _gvn.type(klass_node)->is_klassptr()->klass();
+
+        int test = C->static_subtype_check(superk, subk);
+        if (test != Compile::SSC_always_true && test != Compile::SSC_always_false) {
+          const TypeOopPtr* t_original = _gvn.type(original)->is_oopptr();
+          if (t_original->speculative_type() != NULL) {
+            original = maybe_cast_profiled_obj(original, t_original->speculative_type(), true);
+          }
+        }
+      }
+
       bool validated = false;
       // Reason_class_check rather than Reason_intrinsic because we
       // want to intrinsify even if this traps.
@@ -4022,7 +3996,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         newcopy = new_array(klass_node, length, 0);  // no arguments to push
 
         ArrayCopyNode* ac = ArrayCopyNode::make(this, true, original, start, newcopy, intcon(0), moved, true, false,
-                                                original_kls, klass_node);
+                                                load_object_klass(original), klass_node);
         if (!is_copyOfRange) {
           ac->set_copyof(validated);
         } else {

@@ -271,7 +271,7 @@ public:
   // Helper for match
   OptoReg::Name warp_incoming_stk_arg( VMReg reg );
 
-  RegMask* return_values_mask(const TypeTuple* range);
+  RegMask* return_values_mask(const TypeFunc* tf);
 
   // Transform, then walk.  Does implicit DCE while walking.
   // Name changed from "transform" to avoid it being virtual.

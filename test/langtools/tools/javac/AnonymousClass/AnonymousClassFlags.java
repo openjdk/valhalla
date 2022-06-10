@@ -47,12 +47,12 @@ public class AnonymousClassFlags {
     // ******* TEST CASES ********
 
     static Object o1 = new Object() {
-        { anonClasses.put(getClass().getName(), 0); }
+        { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
     };
 
     static void staticMethod() {
         Object o2 = new Object() {
-            { anonClasses.put(getClass().getName(), 0); }
+            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
         };
     }
 
@@ -60,17 +60,17 @@ public class AnonymousClassFlags {
         staticMethod();
 
         Object o3 = new Object() {
-            { anonClasses.put(getClass().getName(), 0); }
+            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
         };
     }
 
     Object o4 = new Object() {
-        { anonClasses.put(getClass().getName(), 0); }
+        { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
     };
 
     void instanceMethod() {
         Object o5 = new Object() {
-            { anonClasses.put(getClass().getName(), 0); }
+            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
         };
     }
 
@@ -78,7 +78,7 @@ public class AnonymousClassFlags {
         instanceMethod();
 
         Object o6 = new Object() {
-            { anonClasses.put(getClass().getName(), 0); }
+            { anonClasses.put(getClass().getName(), ACC_IDENTITY); }
         };
     }
 
@@ -103,8 +103,8 @@ public class AnonymousClassFlags {
 
     static void assertClassFlags(ClassFile classFile, String name, int expected) {
         int mask = ACC_PUBLIC | ACC_FINAL | ACC_INTERFACE | ACC_ABSTRACT |
-                   ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM;
-        int classExpected = (expected & mask) | ACC_SUPER;
+                   ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM | ACC_IDENTITY;
+        int classExpected = (expected & mask);
         int classActual = classFile.access_flags.flags;
         if (classActual != classExpected) {
             throw new AssertionError("Incorrect access_flags for class " + name +

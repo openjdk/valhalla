@@ -12,8 +12,8 @@ public class SemanticsViolationsTest {
     class Subclass extends Base {} // Error: Base is implicitly final, cannot be extended.
 
 
-    // The class may not be declared abstract.
-    abstract value class AbsValue {}  // Error: value class cannot be abstract
+
+    abstract value class AbsValue {}  // Error: value class inner
     value interface ValueInterface {} // Error: interface cannot modified with value.
 
     // All instance fields are implicitly final, so must be assigned exactly
@@ -35,9 +35,9 @@ public class SemanticsViolationsTest {
         }
     }
 
-    // The class does not implement—directly or indirectly—IdentityObject.
-    // This implies that the superclass is either Object or a stateless abstract class.
-    value class IdentityValue implements IdentityObject { // Error, can't implement this
+
+    // A value identity class is an oxymoron
+    value identity class IdentityValue { // Error, bad modifier combination.
     }
     value class IdentityValue2 extends SemanticsViolationsTest { // Error, can't extend identity class
     }

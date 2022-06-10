@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -44,6 +44,12 @@ public class JavaObject extends JavaLazyReadObject {
 
     private Object clazz;       // Number before resolve
                                 // JavaClass after resolve
+
+    public JavaObject(Object clazz, long offset) {
+        super(offset);
+        this.clazz = clazz;
+    }
+
     /**
      * Construct a new JavaObject.
      *
@@ -51,8 +57,7 @@ public class JavaObject extends JavaLazyReadObject {
      * @param offset The offset of field data
      */
     public JavaObject(long classID, long offset) {
-        super(offset);
-        this.clazz = makeId(classID);
+        this(makeId(classID), offset);
     }
 
     public void resolve(Snapshot snapshot) {
@@ -213,7 +218,7 @@ public class JavaObject extends JavaLazyReadObject {
      *     byte[length]
      */
     @Override
-    protected final long readValueLength() throws IOException {
+    protected long readValueLength() throws IOException {
         long lengthOffset = getOffset() + 2 * idSize() + 4;
         return buf().getInt(lengthOffset);
     }
@@ -223,7 +228,7 @@ public class JavaObject extends JavaLazyReadObject {
         return parseFields(false);
     }
 
-    private long dataStartOffset() {
+    protected long dataStartOffset() {
         return getOffset() + idSize() + 4 + idSize() + 4;
     }
 
@@ -257,71 +262,81 @@ public class JavaObject extends JavaLazyReadObject {
             JavaField f = fields[fieldNo];
             char sig = f.getSignature().charAt(0);
             try {
-                switch (sig) {
-                    case 'L':
-                    case '[': {
-                        long id = objectIdAt(offset);
-                        offset += idSize();
-                        JavaObjectRef ref = new JavaObjectRef(id);
-                        fieldValues[target+fieldNo] = ref.dereference(snapshot, f, verbose);
-                        break;
-                    }
-                    case 'Z': {
-                        byte value = byteAt(offset);
-                        offset++;
-                        fieldValues[target+fieldNo] = new JavaBoolean(value != 0);
-                        break;
-                    }
-                    case 'B': {
-                        byte value = byteAt(offset);
-                        offset++;
-                        fieldValues[target+fieldNo] = new JavaByte(value);
-                        break;
-                    }
-                    case 'S': {
-                        short value = shortAt(offset);
-                        offset += 2;
-                        fieldValues[target+fieldNo] = new JavaShort(value);
-                        break;
-                    }
-                    case 'C': {
-                        char value = charAt(offset);
-                        offset += 2;
-                        fieldValues[target+fieldNo] = new JavaChar(value);
-                        break;
-                    }
-                    case 'I': {
-                        int value = intAt(offset);
-                        offset += 4;
-                        fieldValues[target+fieldNo] = new JavaInt(value);
-                        break;
-                    }
-                    case 'J': {
-                        long value = longAt(offset);
-                        offset += 8;
-                        fieldValues[target+fieldNo] = new JavaLong(value);
-                        break;
-                    }
-                    case 'F': {
-                        float value = floatAt(offset);
-                        offset += 4;
-                        fieldValues[target+fieldNo] = new JavaFloat(value);
-                        break;
-                    }
-                    case 'D': {
-                        double value = doubleAt(offset);
-                        offset += 8;
-                        fieldValues[target+fieldNo] = new JavaDouble(value);
-                        break;
-                    }
-                    default:
-                        throw new RuntimeException("invalid signature: " + sig);
+                if (f instanceof InlinedJavaField inlinedField) {
+                    JavaClass fieldClass = inlinedField.getInlinedFieldClass();
+                    fieldValues[target+fieldNo] = new InlinedJavaObject(fieldClass, offset);
+                    offset += fieldClass.getInlinedInstanceSize();
+                } else {
+                    switch (sig) {
+                        case 'Q': {
+                            warn("(parseFields) field " + getClazz().getName() + "." + f.getName()
+                                    + " is not inlined, but has Q-signature: " + f.getSignature());
+                        } // continue as 'L' object
+                        case 'L':
+                        case '[': {
+                            long id = objectIdAt(offset);
+                            offset += idSize();
+                            JavaObjectRef ref = new JavaObjectRef(id);
+                            fieldValues[target + fieldNo] = ref.dereference(snapshot, f, verbose);
+                            break;
+                        }
+                        case 'Z': {
+                            byte value = byteAt(offset);
+                            offset++;
+                            fieldValues[target + fieldNo] = new JavaBoolean(value != 0);
+                            break;
+                        }
+                        case 'B': {
+                            byte value = byteAt(offset);
+                            offset++;
+                            fieldValues[target + fieldNo] = new JavaByte(value);
+                            break;
+                        }
+                        case 'S': {
+                            short value = shortAt(offset);
+                            offset += 2;
+                            fieldValues[target + fieldNo] = new JavaShort(value);
+                            break;
+                        }
+                        case 'C': {
+                            char value = charAt(offset);
+                            offset += 2;
+                            fieldValues[target + fieldNo] = new JavaChar(value);
+                            break;
+                        }
+                        case 'I': {
+                            int value = intAt(offset);
+                            offset += 4;
+                            fieldValues[target + fieldNo] = new JavaInt(value);
+                            break;
+                        }
+                        case 'J': {
+                            long value = longAt(offset);
+                            offset += 8;
+                            fieldValues[target + fieldNo] = new JavaLong(value);
+                            break;
+                        }
+                        case 'F': {
+                            float value = floatAt(offset);
+                            offset += 4;
+                            fieldValues[target + fieldNo] = new JavaFloat(value);
+                            break;
+                        }
+                        case 'D': {
+                            double value = doubleAt(offset);
+                            offset += 8;
+                            fieldValues[target + fieldNo] = new JavaDouble(value);
+                            break;
+                        }
+                        default:
+                            throw new RuntimeException("invalid signature: " + sig);
 
+                    }
                 }
-        } catch (IOException exp) {
-            System.err.println("lazy read failed at offset " + offset);
-            exp.printStackTrace();
-            return Snapshot.EMPTY_JAVATHING_ARRAY;
+            } catch (IOException exp) {
+                System.err.println("lazy read failed at offset " + offset);
+                exp.printStackTrace();
+                return Snapshot.EMPTY_JAVATHING_ARRAY;
             }
         }
         return fieldValues;

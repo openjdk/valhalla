@@ -23,9 +23,19 @@
 
 // key: compiler.err.bad.functional.intf.anno.1
 // key: compiler.misc.not.a.functional.intf.1
-// key: compiler.misc.may.not.extend.top.interface.type
+// key: compiler.misc.value.interface.nonfunctional
+// key: compiler.misc.identity.interface.nonfunctional
 
 @FunctionalInterface
-interface I extends ValueObject {
+value interface I {
     void m();
 }
+
+identity interface J {
+    void m();
+}
+
+@FunctionalInterface
+interface K extends J {
+}
+

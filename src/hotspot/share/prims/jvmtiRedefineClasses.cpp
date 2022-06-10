@@ -333,15 +333,6 @@ bool VM_RedefineClasses::is_modifiable_class(oop klass_mirror) {
     return false;
   }
 
-  // Cannot redefine or retransform interface java.lang.IdentityObject.
-  if (k->name() == vmSymbols::java_lang_IdentityObject()) {
-    return false;
-  }
-  // Cannot redefine or retransform interface java.lang.ValueObject.
-  if (k->name() == vmSymbols::java_lang_ValueObject()) {
-    return false;
-  }
-
   // Cannot redefine or retransform a hidden class.
   if (InstanceKlass::cast(k)->is_hidden()) {
     return false;

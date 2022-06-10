@@ -222,8 +222,6 @@ public class Symtab {
     public final Type previewFeatureInternalType;
     public final Type typeDescriptorType;
     public final Type recordType;
-    public final Type identityObjectType;
-    public final Type valueObjectType;
     public final Type switchBootstrapsType;
     public final Type valueBasedType;
     public final Type valueBasedInternalType;
@@ -608,8 +606,6 @@ public class Symtab {
         previewFeatureInternalType = enterSyntheticAnnotation("jdk.internal.PreviewFeature+Annotation");
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
         recordType = enterClass("java.lang.Record");
-        identityObjectType = enterClass("java.lang.IdentityObject");
-        valueObjectType = enterClass("java.lang.ValueObject");
         switchBootstrapsType = enterClass("java.lang.runtime.SwitchBootstraps");
         valueBasedType = enterClass("jdk.internal.ValueBased");
         valueBasedInternalType = enterSyntheticAnnotation("jdk.internal.ValueBased+Annotation");
@@ -627,8 +623,6 @@ public class Symtab {
         synthesizeEmptyInterfaceIfMissing(lambdaMetafactory);
         synthesizeEmptyInterfaceIfMissing(serializedLambdaType);
         synthesizeEmptyInterfaceIfMissing(stringConcatFactory);
-        synthesizeEmptyInterfaceIfMissing(identityObjectType);
-        synthesizeEmptyInterfaceIfMissing(valueObjectType);
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);
@@ -650,7 +644,7 @@ public class Symtab {
         ClassType arrayClassType = (ClassType)arrayClass.type;
         arrayClassType.supertype_field = objectType;
         arrayClassType.interfaces_field =
-                List.of(cloneableType, serializableType, identityObjectType);
+                List.of(cloneableType, serializableType);
 
         arrayClass.members_field = WriteableScope.create(arrayClass);
         lengthVar = new VarSymbol(

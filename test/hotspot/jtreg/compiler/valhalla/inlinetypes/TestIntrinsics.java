@@ -67,6 +67,11 @@ public class TestIntrinsics {
                    .start();
     }
 
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
+    }
+
     // Test correctness of the Class::isAssignableFrom intrinsic
     @Test
     public boolean test1(Class<?> supercls, Class<?> subcls) {
@@ -790,8 +795,12 @@ public class TestIntrinsics {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test41(MyValue1.class.asPrimaryType(), vt);
         Asserts.assertTrue(result);
+        result = test41(MyValue1.class.asPrimaryType(), null);
+        Asserts.assertFalse(result);
         result = test41(MyValue1.class.asValueType(), vt);
         Asserts.assertTrue(result);
+        result = test41(MyValue1.class.asValueType(), null);
+        Asserts.assertFalse(result);
     }
 
     @Test
@@ -804,7 +813,11 @@ public class TestIntrinsics {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test42(MyValue2.class.asPrimaryType(), vt);
         Asserts.assertFalse(result);
+        result = test42(MyValue2.class.asPrimaryType(), null);
+        Asserts.assertFalse(result);
         result = test42(MyValue2.class.asValueType(), vt);
+        Asserts.assertFalse(result);
+        result = test42(MyValue2.class.asValueType(), null);
         Asserts.assertFalse(result);
     }
 
@@ -818,8 +831,17 @@ public class TestIntrinsics {
     public void test43_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         Object result = test43(MyValue1.class.asPrimaryType(), vt);
-        Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
+        Asserts.assertEQ(result, vt);
         result = test43(MyValue1.class.asPrimaryType(), null);
+        Asserts.assertEQ(result, null);
+        result = test43(MyValue1.class.asValueType(), vt);
+        Asserts.assertEQ(result, vt);
+        try {
+            test43(MyValue1.class.asValueType(), null);
+            throw new RuntimeException("should have thrown");
+        } catch (NullPointerException npe) {
+        }
+        result = test43(Integer.class, null);
         Asserts.assertEQ(result, null);
     }
 
@@ -835,6 +857,18 @@ public class TestIntrinsics {
             test44(MyValue2.class.asPrimaryType(), vt);
             throw new RuntimeException("should have thrown");
         } catch (ClassCastException cce) {
+        }
+        Object res = test44(MyValue2.class.asPrimaryType(), null);
+        Asserts.assertEQ(res, null);
+        try {
+            test44(MyValue2.class.asValueType(), vt);
+            throw new RuntimeException("should have thrown");
+        } catch (ClassCastException cce) {
+        }
+        try {
+            test44(MyValue2.class.asValueType(), null);
+            throw new RuntimeException("should have thrown");
+        } catch (NullPointerException npe) {
         }
     }
 
@@ -860,7 +894,8 @@ public class TestIntrinsics {
     @Run(test = "test46")
     public void test46_verifier() {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
-        test46(null);
+        Object result = test46(null);
+        Asserts.assertEQ(result, null);
         try {
             test46(vt);
             throw new RuntimeException("should have thrown");
@@ -1038,7 +1073,7 @@ public class TestIntrinsics {
 
     // Same as test39 but Unsafe.putInt to buffer is not intrinsified/compiled
     @DontCompile
-    public void test54_callee(MyValue1.ref v) { // Use .ref here to make sure the argument is not scalarized (otherwise larval information is lost)
+    public void test54_callee(Object v) { // Use Object here to make sure the argument is not scalarized (otherwise larval information is lost)
         U.putInt(v, X_OFFSET, rI);
     }
 
@@ -1554,4 +1589,40 @@ public class TestIntrinsics {
             Asserts.assertEQ(b, ByteInline.default);
         }
     }
+
+    @Test
+    public Object test78(MyValue1.ref vt) {
+        return Integer.class.cast(vt);
+    }
+
+    @Run(test = "test78")
+    public void test78_verifier() {
+        Object result = test78(null);
+        Asserts.assertEQ(result, null);
+        try {
+            test78(MyValue1.createWithFieldsInline(rI, rL));
+            throw new RuntimeException("should have thrown");
+        } catch (ClassCastException cce) {
+        }
+    }
+
+    // TODO 8284443 Fix this in GraphKit::gen_checkcast
+    /*
+    @Test
+    public Object test79(MyValue1.ref vt) {
+        Object tmp = vt;
+        return (Integer)tmp;
+    }
+
+    @Run(test = "test79")
+    public void test79_verifier() {
+        Object result = test79(null);
+        Asserts.assertEQ(result, null);
+        try {
+            test79(MyValue1.createWithFieldsInline(rI, rL));
+            throw new RuntimeException("should have thrown");
+        } catch (ClassCastException cce) {
+        }
+    }
+    */
 }

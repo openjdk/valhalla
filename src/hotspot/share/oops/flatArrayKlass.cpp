@@ -418,14 +418,12 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
   assert(transitive_interfaces == NULL, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
-  assert(elem_supers->length() > 0, "Must at least include the PrimitiveObject interface");
   int num_elem_supers = elem_supers == NULL ? 0 : elem_supers->length();
   int num_secondaries = num_extra_slots + 2 + num_elem_supers;
-  GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+4);
+  GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+2);
 
   secondaries->push(vmClasses::Cloneable_klass());
   secondaries->push(vmClasses::Serializable_klass());
-  secondaries->push(vmClasses::IdentityObject_klass());
   for (int i = 0; i < num_elem_supers; i++) {
     Klass* elem_super = (Klass*) elem_supers->at(i);
     Klass* array_super = elem_super->array_klass_or_null();

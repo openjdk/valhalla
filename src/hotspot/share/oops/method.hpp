@@ -587,7 +587,7 @@ public:
   Symbol* klass_name() const;                    // returns the name of the method holder
   BasicType result_type() const                  { return constMethod()->result_type(); }
   bool is_returning_oop() const                  { BasicType r = result_type(); return is_reference_type(r); }
-  InlineKlass* returned_inline_type(Thread* thread) const;
+  InlineKlass* returns_inline_type(Thread* thread) const;
 
   // Checked exceptions thrown by this method (resolved to mirrors)
   objArrayHandle resolved_checked_exceptions(TRAPS) { return resolved_checked_exceptions_impl(this, THREAD); }
@@ -901,6 +901,8 @@ public:
   void set_has_scalarized_args(bool x) {
     _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
   }
+
+  bool is_scalarized_arg(int idx) const;
 
   bool c1_needs_stack_repair() {
     return (_flags & _c1_needs_stack_repair) != 0;

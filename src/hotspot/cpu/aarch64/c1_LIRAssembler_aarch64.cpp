@@ -512,7 +512,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
   ciMethod* method = compilation()->method();
-  if (InlineTypeReturnedAsFields && method->signature()->returns_null_free_inline_type()) {
+  if (InlineTypeReturnedAsFields && method->return_type()->is_inlinetype()) {
     ciInlineKlass* vk = method->return_type()->as_inline_klass();
     if (vk->can_be_returned_as_fields()) {
       address unpack_handler = vk->unpack_handler();

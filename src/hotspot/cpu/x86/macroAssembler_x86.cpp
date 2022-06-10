@@ -2754,7 +2754,7 @@ void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg
 
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
   testptr(object, object);
-  jcc(Assembler::equal, not_inline_type);
+  jcc(Assembler::zero, not_inline_type);
   const int is_inline_type_mask = markWord::inline_type_pattern;
   movptr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   andptr(tmp, is_inline_type_mask);
@@ -5671,6 +5671,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
 }
 
 int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
+  assert(InlineTypeReturnedAsFields, "Inline types should never be returned as fields");
   // An inline type might be returned. If fields are in registers we
   // need to allocate an inline type instance and initialize it with
   // the value of the fields.
@@ -5833,22 +5834,33 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
                                           RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
   assert(from->is_valid(), "source must be valid");
-#ifdef ASSERT
   bool progress = false;
+#ifdef ASSERT
   const int start_offset = offset();
 #endif
 
+  Label L_null, L_notNull;
+  // Don't use r14 as tmp because it's used for spilling (see MacroAssembler::spill_reg_for)
+  Register tmp1 = r10;
+  Register tmp2 = r13;
   Register fromReg = noreg;
   ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
   bool mark_done = true;
   VMReg toReg;
   BasicType bt;
+  // Check if argument requires a null check
+  bool null_check = false;
+  VMReg nullCheckReg;
+  while (stream.next(nullCheckReg, bt)) {
+    if (sig->at(stream.sig_index())._offset == -1) {
+      null_check = true;
+      break;
+    }
+  }
+  stream.reset(sig_index, to_index);
   while (stream.next(toReg, bt)) {
     assert(toReg->is_valid(), "destination must be valid");
-    int off = sig->at(stream.sig_index())._offset;
-    assert(off > 0, "offset in object should be positive");
-
     int idx = (int)toReg->value();
     if (reg_state[idx] == reg_readonly) {
       if (idx != from->value()) {
@@ -5861,20 +5873,37 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     }
     assert(reg_state[idx] == reg_writable, "must be writable");
     reg_state[idx] = reg_written;
-    DEBUG_ONLY(progress = true);
+    progress = true;
 
     if (fromReg == noreg) {
       if (from->is_reg()) {
         fromReg = from->as_Register();
       } else {
         int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
-        movq(r10, Address(rsp, st_off));
-        fromReg = r10;
+        movq(tmp1, Address(rsp, st_off));
+        fromReg = tmp1;
+      }
+      if (null_check) {
+        // Nullable inline type argument, emit null check
+        testptr(fromReg, fromReg);
+        jcc(Assembler::zero, L_null);
       }
     }
+    int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      assert(null_check, "Missing null check at");
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(Address(rsp, st_off), 1);
+      } else {
+        movq(toReg->as_Register(), 1);
+      }
+      continue;
+    }
+    assert(off > 0, "offset in object should be positive");
     Address fromAddr = Address(fromReg, off);
     if (!toReg->is_XMMRegister()) {
-      Register dst = toReg->is_stack() ? r13 : toReg->as_Register();
+      Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
       if (is_reference_type(bt)) {
         load_heap_oop(dst, fromAddr);
       } else {
@@ -5892,6 +5921,30 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       movflt(toReg->as_XMMRegister(), fromAddr);
     }
   }
+  if (progress && null_check) {
+    if (done) {
+      jmp(L_notNull);
+      bind(L_null);
+      // Set IsInit field to zero to signal that the argument is null.
+      // Also set all oop fields to zero to make the GC happy.
+      stream.reset(sig_index, to_index);
+      while (stream.next(toReg, bt)) {
+        if (sig->at(stream.sig_index())._offset == -1 ||
+            bt == T_OBJECT || bt == T_ARRAY) {
+          if (toReg->is_stack()) {
+            int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+            movq(Address(rsp, st_off), 0);
+          } else {
+            xorq(toReg->as_Register(), toReg->as_Register());
+          }
+        }
+      }
+      bind(L_notNull);
+    } else {
+      bind(L_null);
+    }
+  }
+
   sig_index = stream.sig_index();
   to_index = stream.regs_index();
 
@@ -5915,8 +5968,10 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
     return true; // Already written
   }
 
+  // TODO 8284443 Isn't it an issue if below code uses r14 as tmp when it contains a spilled value?
+  // Be careful with r14 because it's used for spilling (see MacroAssembler::spill_reg_for).
   Register val_obj_tmp = r11;
-  Register from_reg_tmp = r14; // Be careful with r14 because it's used for spilling
+  Register from_reg_tmp = r14;
   Register tmp1 = r10;
   Register tmp2 = r13;
   Register tmp3 = rbx;
@@ -5938,9 +5993,28 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
   BasicType bt;
+  Label L_null;
   while (stream.next(fromReg, bt)) {
     assert(fromReg->is_valid(), "source must be valid");
+    reg_state[fromReg->value()] = reg_writable;
+
     int off = sig->at(stream.sig_index())._offset;
+    if (off == -1) {
+      // Nullable inline type argument, emit null check
+      Label L_notNull;
+      if (fromReg->is_stack()) {
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        testb(Address(rsp, ld_off), 1);
+      } else {
+        testb(fromReg->as_Register(), 1);
+      }
+      jcc(Assembler::notZero, L_notNull);
+      movptr(val_obj, 0);
+      jmp(L_null);
+      bind(L_notNull);
+      continue;
+    }
+
     assert(off > 0, "offset in object should be positive");
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
@@ -5966,8 +6040,8 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       assert(bt == T_FLOAT, "must be float");
       movflt(dst, fromReg->as_XMMRegister());
     }
-    reg_state[fromReg->value()] = reg_writable;
   }
+  bind(L_null);
   sig_index = stream.sig_index();
   from_index = stream.regs_index();
 

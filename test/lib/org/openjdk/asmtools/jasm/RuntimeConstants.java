@@ -42,12 +42,12 @@ public interface RuntimeConstants {
     int ACC_STATIC_PHASE  = 0x0020; //                                      requires(module)
     int ACC_SYNCHRONIZED  = 0x0020; //                      method
     int ACC_OPEN          = 0x0020; //                              module
-    int ACC_PERMITS_VALUE = 0x0040; // class, inner
+    int ACC_VALUE         = 0x0040; // class, inner
     int ACC_VOLATILE      = 0x0040; //               field
     int ACC_BRIDGE        = 0x0040; //                      method
     int ACC_TRANSIENT     = 0x0080; //               field
     int ACC_VARARGS       = 0x0080; //                      method
-    int ACC_VALUE         = 0x0100; // class, inner
+    int ACC_PERMITS_VALUE = 0x0100; // class, inner
     int ACC_NATIVE        = 0x0100; //                      method
     int ACC_INTERFACE     = 0x0200; // class, inner
     int ACC_ABSTRACT      = 0x0400; // class, inner,        method

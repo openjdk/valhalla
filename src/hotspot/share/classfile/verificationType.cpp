@@ -69,13 +69,11 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in
     // java.lang.Object then, for arrays, we only allow assignability
-    // to interfaces java.lang.Cloneable, java.io.Serializable,
-    // and java.lang.IdentityObject.
+    // to interfaces java.lang.Cloneable and java.io.Serializable
     // Otherwise, we treat interfaces as java.lang.Object.
     return !from_is_array ||
       this_class == vmClasses::Cloneable_klass() ||
-      this_class == vmClasses::Serializable_klass() ||
-      this_class == vmClasses::IdentityObject_klass();
+      this_class == vmClasses::Serializable_klass();
   } else if (from_is_object) {
     Klass* from_class;
     if (klass->is_hidden() && klass->name() == from_name) {
