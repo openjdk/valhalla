@@ -1,6 +1,6 @@
 TypeRelationsNegativeTest.java:10:39: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, TypeRelationsNegativeTest)
-TypeRelationsNegativeTest.java:16:13: compiler.warn.primitive.value.conversion
-TypeRelationsNegativeTest.java:17:13: compiler.warn.primitive.value.conversion
+TypeRelationsNegativeTest.java:16:13: compiler.warn.prob.found.req: (compiler.misc.unchecked.assign), TypeRelationsNegativeTest.ref, TypeRelationsNegativeTest
+TypeRelationsNegativeTest.java:17:13: compiler.warn.prob.found.req: (compiler.misc.unchecked.assign), TypeRelationsNegativeTest.ref, TypeRelationsNegativeTest
 TypeRelationsNegativeTest.java:20:77: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, TypeRelationsNegativeTest)
 TypeRelationsNegativeTest.java:25:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TypeRelationsNegativeTest.ref[], TypeRelationsNegativeTest[])
 3 errors

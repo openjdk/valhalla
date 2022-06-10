@@ -264,6 +264,40 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                             MySet<MyMap.Entry<String, T.ref>> entries = allEntries();
                         }
                     }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
+                        void test(Box<? extends Atom> t1, Box<? extends Atom.ref> t2) {
+                            t1 = t2;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
+                        void test(Box<? extends Atom> t1, Box<? extends Atom.ref> t2) {
+                            t2 = t1;
+                        }
+                    }
+                    """),
+                new DiagAndCode("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        static primitive class Atom {}
+                        static class Box<__universal X> {}
+                        @SafeVarargs
+                        private <__universal Z> Z make_box_uni(Z... bs) {
+                            return bs[0];
+                        }
+                        void test(Box<Atom> bref, Box bval) {
+                            Box<? extends Atom> res = make_box_uni(bref, bval, bval);
+                        }
+                    }
                     """)
                 )) {
             testHelper(LINT_OPTIONS, diagAndCode.diag, TestResult.COMPILE_WITH_WARNING, diagAndCode.code);
@@ -571,15 +605,6 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class C2 extends C1 {
                     <__universal T> void foo(T t) { }
                 }
-                """,
-                """
-                import java.util.function.*;
-                class Test<__universal T> {
-                    T.ref field;
-                    void foo(T t, Consumer<? super T> action) {
-                        action.accept(field = t);
-                    }
-                }
                 """
         )) {
             testHelper(LINT_OPTIONS, code);
@@ -589,7 +614,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
     public void testPrimitiveValueConversion() {
         setCompileOptions(LINT_OPTIONS);
-        assertOKWithWarning("compiler.warn.primitive.value.conversion",
+        assertOKWithWarning("compiler.warn.prob.found.req",
                 """
                 primitive class Point {}
 
@@ -637,6 +662,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+        assertFail("compiler.err.prob.found.req",
+                """
+                import java.util.function.*;
+                class Test<__universal T> {
+                    T.ref field;
+                    void foo(T t, Consumer<? super T> action) {
+                        action.accept(field = t);
+                    }
+                }
+                """
+        );
     }
 
     public void testWildcards() {
@@ -652,6 +688,17 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                 class Test {
                     void m(MyList<? super Point> ls) {
                         ls.add(null);
+                    }
+                }
+                """
+        );
+        assertFail("compiler.err.prob.found.req",
+                """
+                class Test {
+                    static primitive class Atom {}
+                    static class Box<__universal X> {}
+                    void test(Box<? extends Atom> t1, Box<Atom.ref> t2) {
+                        t1 = t2;
                     }
                 }
                 """

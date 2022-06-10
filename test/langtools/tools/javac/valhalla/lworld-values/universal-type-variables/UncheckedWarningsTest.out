@@ -1,0 +1,2 @@
+UncheckedWarningsTest.java:15:15: compiler.warn.prob.found.req: (compiler.misc.unchecked.assign), UncheckedWarningsTest.Box<UncheckedWarningsTest.Box<UncheckedWarningsTest.Box<UncheckedWarningsTest.Atom.ref>>>, UncheckedWarningsTest.Box<UncheckedWarningsTest.Box<UncheckedWarningsTest.Box<UncheckedWarningsTest.Atom>>>
+1 warning

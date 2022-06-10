@@ -4947,7 +4947,7 @@ public class Attr extends JCTree.Visitor {
         // For methods, we need to compute the instance type by
         // Resolve.instantiate from the symbol's type as well as
         // any type arguments and value arguments.
-        Warner noteWarner = new Warner();
+        Warner noteWarner = new Warner(env.tree.pos());
         try {
             Type owntype = rs.checkMethod(
                     env,

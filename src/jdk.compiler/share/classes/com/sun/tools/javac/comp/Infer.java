@@ -221,8 +221,8 @@ public class Infer {
             if (!allowBoxing &&
                     resultInfo == null &&
                     inferenceContext.asUndetVars(inferenceContext.boundedVars())
-                    .stream().map(t -> ((UndetVar)t).getBounds(InferenceBound.EQ, InferenceBound.LOWER, InferenceBound.UPPER))
-                    .flatMap(Collection::stream).anyMatch(Type::isPrimitiveClass)) {
+                            .stream().map(t -> ((UndetVar) t).getBounds(InferenceBound.EQ, InferenceBound.LOWER, InferenceBound.UPPER))
+                            .flatMap(Collection::stream).anyMatch(Type::isPrimitiveClass)) {
                 throw error(null);
             }
 
@@ -491,11 +491,16 @@ public class Infer {
          * and B2 contains a bound of one of the forms alpha = S or S <: alpha,
          * where there exists no type of the form G<...> that is a
          * supertype of S, but the raw type G is a supertype of S
+         *
+         * or S is unchecked-convertible to T, but S is not a subtype of T.
          */
         if (to.isParameterized()) {
-            for (Type t : from.getBounds(InferenceBound.EQ, InferenceBound.LOWER)) {
-                Type sup = types.asSuper(t, to.tsym);
+            for (Type S : from.getBounds(InferenceBound.EQ, InferenceBound.LOWER)) {
+                Type sup = types.asSuper(S, to.tsym);
                 if (sup != null && sup.isRaw()) {
+                    return true;
+                }
+                if (types.isConvertible(S, to) && !types.isSubtype(S, to)) {
                     return true;
                 }
             }

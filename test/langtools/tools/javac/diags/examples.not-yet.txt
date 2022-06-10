@@ -226,3 +226,4 @@ compiler.err.generic.parameterization.with.primitive.class
 compiler.misc.feature.primitive.classes
 compiler.misc.feature.value.classes
 compiler.misc.feature.universal.tvars
+compiler.warn.primitive.value.conversion
