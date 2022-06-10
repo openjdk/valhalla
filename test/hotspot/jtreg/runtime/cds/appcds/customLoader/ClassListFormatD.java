@@ -54,8 +54,7 @@ public class ClassListFormatD extends ClassListFormatBase {
             appJar, classlist(
                 "Hello",
                 "java/lang/Object id: 1",
-                "java/lang/IdentityObject id: 2",
-                "CustomLoadee id: 1 super: 1 interfaces: 2 source: " + customJarPath
+                "CustomLoadee id: 1 super: 1 source: " + customJarPath
             ),
             "Duplicated ID 1 for class CustomLoadee");
 

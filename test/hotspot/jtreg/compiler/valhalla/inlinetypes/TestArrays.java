@@ -60,6 +60,11 @@ public class TestArrays {
                    .start();
     }
 
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
+    }
+
     // Helper methods and classes
 
     protected long hash() {
@@ -2049,7 +2054,11 @@ public class TestArrays {
 
     // Same as test85 but with not-flattenable inline type array
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test86(NotFlattenable.ref[] array, NotFlattenable.ref o, boolean b) {
         if (b) {
@@ -2081,7 +2090,11 @@ public class TestArrays {
 
     // Same as test85 but with inline type array
     @Test
-    @IR(failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "true"},
+        failOn = {ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
+        counts = {INLINE_ARRAY_NULL_GUARD, "= 2", ALLOC_G, "= 1"})
+    @IR(applyIf = {"InlineTypePassFieldsAsArgs", "false"},
+        failOn = {ALLOC_G, ALLOCA_G, LOAD_UNKNOWN_INLINE, STORE_UNKNOWN_INLINE},
         counts = {INLINE_ARRAY_NULL_GUARD, "= 2"})
     public void test87(MyValue1.ref[] array, MyValue1.ref o, boolean b) {
         if (b) {

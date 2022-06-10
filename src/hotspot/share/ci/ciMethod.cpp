@@ -1534,12 +1534,17 @@ bool ciMethod::is_consistent_info(ciMethod* declared_method, ciMethod* resolved_
 
 // ------------------------------------------------------------------
 
+bool ciMethod::is_scalarized_arg(int idx) const {
+  VM_ENTRY_MARK;
+  return get_Method()->is_scalarized_arg(idx);
+}
+
 bool ciMethod::has_scalarized_args() const {
   VM_ENTRY_MARK;
   return get_Method()->has_scalarized_args();
 }
 
-const GrowableArray<SigEntry>* ciMethod::get_sig_cc() {
+const GrowableArray<SigEntry>* ciMethod::get_sig_cc() const {
   VM_ENTRY_MARK;
   if (get_Method()->adapter() == NULL) {
     return NULL;

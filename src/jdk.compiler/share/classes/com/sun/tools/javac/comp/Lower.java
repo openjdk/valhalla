@@ -808,7 +808,7 @@ public class Lower extends TreeTranslator {
             if (isTranslatedClassAvailable(c))
                 continue;
             // Create class definition tree.
-            JCClassDecl cdec = makeEmptyClass(STATIC | SYNTHETIC,
+            JCClassDecl cdec = makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE,
                     c.outermostClass(), c.flatname, false);
             swapAccessConstructorTag(c, cdec.sym);
             translated.append(cdec);
@@ -1289,7 +1289,7 @@ public class Lower extends TreeTranslator {
                                             i);
             ClassSymbol ctag = chk.getCompiled(topModle, flatname);
             if (ctag == null)
-                ctag = makeEmptyClass(STATIC | SYNTHETIC, topClass).sym;
+                ctag = makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE, topClass).sym;
             else if (!ctag.isAnonymous())
                 continue;
             // keep a record of all tags, to verify that all are generated as required
@@ -1871,7 +1871,7 @@ public class Lower extends TreeTranslator {
             if (sym.kind == TYP &&
                 sym.name == names.empty &&
                 (sym.flags() & INTERFACE) == 0) return (ClassSymbol) sym;
-        return makeEmptyClass(STATIC | SYNTHETIC, clazz).sym;
+        return makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE, clazz).sym;
     }
 
     /** Create an attributed tree of the form left.name(). */
@@ -1923,7 +1923,7 @@ public class Lower extends TreeTranslator {
     private ClassSymbol assertionsDisabledClass() {
         if (assertionsDisabledClassCache != null) return assertionsDisabledClassCache;
 
-        assertionsDisabledClassCache = makeEmptyClass(STATIC | SYNTHETIC, outermostClassDef.sym).sym;
+        assertionsDisabledClassCache = makeEmptyClass(STATIC | SYNTHETIC | IDENTITY_TYPE, outermostClassDef.sym).sym;
 
         return assertionsDisabledClassCache;
     }
@@ -2876,12 +2876,7 @@ public class Lower extends TreeTranslator {
         } else {
             tree.clazz = access(c, tree.clazz, enclOp, false);
         }
-        if (tree.clazz.type.tsym == syms.objectType.tsym) {
-            Assert.check(tree.def == null && tree.encl == null);
-            result = makeCall(make.Ident(syms.objectsType.tsym), names.newIdentity, List.nil());
-        } else {
-            result = tree;
-        }
+        result = tree;
     }
 
     // Simplify conditionals with known constant controlling expressions.

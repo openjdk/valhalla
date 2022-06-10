@@ -45,7 +45,6 @@ import com.sun.tools.javac.comp.Annotate.AnnotationTypeMetadata;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
-import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.*;
 import com.sun.tools.javac.util.*;
@@ -109,13 +108,6 @@ public class Check {
     private final Preview preview;
     private final boolean warnOnAnyAccessToMembers;
 
-    /**
-     * Switch: warn about use of new Object() ? By default, Yes;
-     * but not if -XDtolerateObjectInstantiation is in effect
-     */
-    boolean tolerateObjectInstantiation;
-
-
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
     // visits all the various parts of the trees during attribution.
@@ -152,7 +144,6 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
-        tolerateObjectInstantiation = options.isSet("tolerateObjectInstantiation");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
@@ -775,46 +766,51 @@ public class Check {
                                     : t;
         }
 
-    void checkSuperConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
-        for(Type st = types.supertype(c.type); st != Type.noType; st = types.supertype(st)) {
+    void checkConstraintsOfValueClass(DiagnosticPosition pos, ClassSymbol c) {
+        for (Type st : types.closure(c.type)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
-                return;
-            if  (st.tsym == syms.objectType.tsym)
-                return;
+                continue;
+            if  (st.tsym == syms.objectType.tsym || st.tsym == syms.recordType.tsym || st.isInterface())
+                continue;
             if (!st.tsym.isAbstract()) {
-                log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
+                if (c != st.tsym) {
+                    log.error(pos, Errors.ConcreteSupertypeForValueClass(c, st));
+                }
+                continue;
             }
-            if ((st.tsym.flags() & PERMITS_VALUE) != 0) {
-                return;
-            }
-            // We have an unsuitable abstract super class, find out why exactly and complain
+            // dealing with an abstract value or value super class below.
+            Fragment fragment = c.isAbstract() && c.isValueClass() && c == st.tsym ? Fragments.AbstractValueClass(c) : Fragments.SuperclassOfValueClass(c, st);
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
-                log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
+                log.error(pos, Errors.SuperClassDeclaresInitBlock(fragment));
             }
             // No instance fields and no arged constructors both mean inner classes
             // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
-                log.error(pos, Errors.SuperClassCannotBeInner(c, st));
+                log.error(pos, Errors.SuperClassCannotBeInner(fragment));
             }
             for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                 case VAR:
                     if ((s.flags() & STATIC) == 0) {
-                        log.error(pos, Errors.SuperFieldNotAllowed(s, c, st));
+                        log.error(pos, Errors.SuperFieldNotAllowed(s, fragment));
                     }
                     break;
                 case MTH:
-                    if ((s.flags() & SYNCHRONIZED) != 0) {
+                    if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                         log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
                     } else if (s.isConstructor()) {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, c, st));
-                        } else {
-                            if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, c, st));
-                            }
+                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, fragment));
+                        } else if (m.getTypeParameters().size() > 0) {
+                            log.error(pos, Errors.SuperConstructorCannotBeGeneric(m, fragment));
+                        } else if (m.type.getThrownTypes().size() > 0) {
+                            log.error(pos, Errors.SuperConstructorCannotThrow(m, fragment));
+                        } else if (protection(m.flags()) > protection(m.owner.flags())) {
+                            log.error(pos, Errors.SuperConstructorAccessRestricted(m, fragment));
+                        } else if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
+                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
                         }
                     }
                     break;
@@ -828,12 +824,7 @@ public class Check {
     Type checkConstructorRefType(JCExpression expr, Type t) {
         t = checkClassOrArrayType(expr, t);
         if (t.hasTag(CLASS)) {
-            /* Tolerate an encounter with abstract Object, we will mutate the constructor reference
-               to an invocation of java.util.Objects.newIdentity downstream.
-            */
-            if (!tolerateObjectInstantiation && t.tsym == syms.objectType.tsym)
-                log.note(expr.pos(), Notes.CantInstantiateObjectDirectly);
-            if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0 && t.tsym != syms.objectType.tsym) {
+            if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
                 log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));
                 t = types.createErrorType(t);
             } else if ((t.tsym.flags() & ENUM) != 0) {
@@ -895,7 +886,7 @@ public class Check {
                                 t);
     }
 
-    /** Check that type is an identity type, i.e. not a primitive type
+    /** Check that type is an identity type, i.e. not a primitive/value type
      *  nor its reference projection. When not discernible statically,
      *  give it the benefit of doubt and defer to runtime.
      *
@@ -904,16 +895,10 @@ public class Check {
      */
     Type checkIdentityType(DiagnosticPosition pos, Type t) {
 
-        if (t.isPrimitive() || t.isValueClass() || t.isReferenceProjection())
+        if (t.isPrimitive() || t.isValueClass() || t.isValueInterface() || t.isReferenceProjection())
             return typeTagError(pos,
                     diags.fragment(Fragments.TypeReqIdentity),
                     t);
-
-        /* Not appropriate to check
-         *     if (types.asSuper(t, syms.identityObjectType.tsym) != null)
-         * since jlO, interface types and abstract types may fail that check
-         * at compile time.
-         */
 
         return t;
     }
@@ -1497,12 +1482,12 @@ public class Check {
             if ((flags & PRIMITIVE_CLASS) != 0)
                 implicit |= VALUE_CLASS | FINAL;
 
-            // value classes are implicitly final
-            if ((flags & VALUE_CLASS) != 0)
+            // concrete value classes are implicitly final
+            if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS)
                 implicit |= FINAL;
 
-            // ACC_PERMITS_VALUE a legal class flag, but not a legal class modifier
-            mask &= ~ACC_PERMITS_VALUE;
+            // TYPs can't be declared synchronized
+            mask &= ~SYNCHRONIZED;
             break;
         default:
             throw new AssertionError();
@@ -1531,7 +1516,11 @@ public class Check {
                  &&
                  checkDisjoint(pos, flags,
                                ABSTRACT | INTERFACE,
-                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS | VALUE_CLASS)
+                               FINAL | NATIVE | SYNCHRONIZED | PRIMITIVE_CLASS)
+                 &&
+                 checkDisjoint(pos, flags,
+                        IDENTITY_TYPE,
+                        PRIMITIVE_CLASS | VALUE_CLASS)
                  &&
                  checkDisjoint(pos, flags,
                                PUBLIC,
@@ -2797,14 +2786,23 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        boolean implementsIdentityObject = types.asSuper(c.referenceProjectionOrSelf(), syms.identityObjectType.tsym) != null;
-        boolean implementsValueObject = types.asSuper(c.referenceProjectionOrSelf(), syms.valueObjectType.tsym) != null;
-        if (c.isValueClass() && implementsIdentityObject) {
-            log.error(pos, Errors.ValueClassMustNotImplementIdentityObject(c));
-        } else if (implementsValueObject && !c.isValueClass() && !c.isReferenceProjection() && !c.tsym.isInterface() && !c.tsym.isAbstract()) {
-            log.error(pos, Errors.IdentityClassMustNotImplementValueObject(c));
-        } else if (implementsValueObject && implementsIdentityObject) {
-            log.error(pos, Errors.MutuallyIncompatibleSuperInterfaces(c));
+        boolean cIsValue = (c.tsym.flags() & VALUE_CLASS) != 0;
+        boolean cHasIdentity = (c.tsym.flags() & IDENTITY_TYPE) != 0;
+        Type identitySuper = null, valueSuper = null;
+        for (Type t : types.closure(c)) {
+            if (t != c) {
+                if ((t.tsym.flags() & IDENTITY_TYPE) != 0)
+                    identitySuper = t;
+                else if ((t.tsym.flags() & VALUE_CLASS) != 0)
+                    valueSuper = t;
+                if (cIsValue &&  identitySuper != null) {
+                    log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
+                } else if (cHasIdentity &&  valueSuper != null) {
+                    log.error(pos, Errors.IdentityTypeHasValueSuperType(c, valueSuper));
+                } else if (identitySuper != null && valueSuper != null) {
+                    log.error(pos, Errors.MutuallyIncompatibleSupers(c, identitySuper, valueSuper));
+                }
+            }
         }
     }
 

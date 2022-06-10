@@ -83,8 +83,7 @@ public class SameNameInTwoLoadersTest {
         return new String[] {
             "SameNameUnrelatedLoaders",
             "java/lang/Object id: 1",
-            "java/lang/IdentityObject id: 2",
-            "CustomLoadee id: 10 super: 1 interfaces: 2 source: " + customJar,
+            "CustomLoadee id: 10 super: 1 source: " + customJar,
         };
     }
 }

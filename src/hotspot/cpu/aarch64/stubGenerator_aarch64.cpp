@@ -319,12 +319,12 @@ class StubGenerator: public StubCodeGenerator {
     // assignment of Rresult below.
     Register Rresult = r14, Rresult_type = r15;
     __ ldr(Rresult, result);
-    Label is_long, is_float, is_double, is_value, exit;
+    Label is_long, is_float, is_double, check_prim, exit;
     __ ldr(Rresult_type, result_type);
     __ cmp(Rresult_type, (u1)T_OBJECT);
-    __ br(Assembler::EQ, is_long);
+    __ br(Assembler::EQ, check_prim);
     __ cmp(Rresult_type, (u1)T_PRIMITIVE_OBJECT);
-    __ br(Assembler::EQ, is_value);
+    __ br(Assembler::EQ, check_prim);
     __ cmp(Rresult_type, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
     __ cmp(Rresult_type, (u1)T_FLOAT);
@@ -379,9 +379,9 @@ class StubGenerator: public StubCodeGenerator {
     __ ret(lr);
 
     // handle return types different from T_INT
-    __ BIND(is_value);
+    __ BIND(check_prim);
     if (InlineTypeReturnedAsFields) {
-      // Check for flattened return value
+      // Check for scalarized return value
       __ tbz(r0, 0, is_long);
       // Load pack handler address
       __ andr(rscratch1, r0, -2);

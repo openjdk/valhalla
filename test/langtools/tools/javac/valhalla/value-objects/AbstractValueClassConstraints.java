@@ -23,16 +23,34 @@
  * questions.
  */
 
-package java.lang;
-
-/**  A class with no other purpose than providing instances with identity
- * to be used as synchronization point.
- * When the bytecode {@code new} is executed with {@code java.lang.Object} in
- * argument, an instance of this class is allocated and a reference to it is
- * pushed on the stack.
+/*
+ * @test
+ * @bug 8287136
+ * @summary [lw4] Javac tolerates abstract value classes that violate constraints for qualifying to be value super classes
+ * @compile/fail/ref=AbstractValueClassConstraints.out -XDrawDiagnostics AbstractValueClassConstraints.java
  */
-public final class Identity implements IdentityObject {
 
-  /** Create a new instance with an identity */
-  public Identity() { }
+public class AbstractValueClassConstraints {
+
+    static abstract value class V1 {
+        int f;  // Error, abstract value class may not declare an instance field.
+    }
+
+    abstract value class V2 {
+        // Error, an abstract value class may not have an enclosing instance.
+    }
+
+    static abstract value class V3 {
+        synchronized void foo() {
+         // Error, abstract value class may not declare a synchronized instance method.
+        }
+    }
+
+    static abstract value class V4 {
+        { int f = 42; } // Error, abstract value class may not declare an instance initializer.
+    }
+
+    static abstract value class V5 {
+        V5(int x) {}  // Error, abstract value class may not declare a non-trivial constructor.
+    }
 }

@@ -469,41 +469,7 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   InstanceKlass* k = UnregisteredClasses::load_class(class_name, _source, CHECK_NULL);
   const int actual_num_interfaces = k->local_interfaces()->length();
   const int specified_num_interfaces = _interfaces->length(); // specified in classlist
-  int expected_num_interfaces = actual_num_interfaces, i;
-
-  {
-    bool identity_object_implemented = false;
-    bool identity_object_specified = false;
-    bool value_object_implemented = false;
-    bool value_object_specified = false;
-    for (i = 0; i < actual_num_interfaces; i++) {
-      if (k->local_interfaces()->at(i) == vmClasses::IdentityObject_klass()) {
-        identity_object_implemented = true;
-        break;
-      }
-      if (k->local_interfaces()->at(i) == vmClasses::ValueObject_klass()) {
-        value_object_implemented = true;
-        break;
-      }
-    }
-    for (i = 0; i < specified_num_interfaces; i++) {
-      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::IdentityObject_klass()) {
-        identity_object_specified = true;
-        break;
-      }
-      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::ValueObject_klass()) {
-        value_object_specified = true;
-        break;
-      }
-    }
-
-    if ( (identity_object_implemented  && !identity_object_specified) ||
-         (value_object_implemented && !value_object_specified) ){
-      // Backwards compatibility -- older classlists do not know about
-      // java.lang.IdentityObject or java.lang.ValueObject
-      expected_num_interfaces--;
-    }
-  }
+  int expected_num_interfaces = actual_num_interfaces;
 
   if (specified_num_interfaces != expected_num_interfaces) {
     print_specified_interfaces();
@@ -731,17 +697,6 @@ InstanceKlass* ClassListParser::lookup_super_for_current_class(Symbol* super_nam
 InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* interface_name) {
   if (!is_loading_from_source()) {
     return NULL;
-  }
-
-  if (interface_name == vmSymbols::java_lang_IdentityObject()) {
-    // Backwards compatibility -- older classlists do not know about
-    // java.lang.IdentityObject.
-    return vmClasses::IdentityObject_klass();
-  }
-  if (interface_name == vmSymbols::java_lang_ValueObject()) {
-    // Backwards compatibility -- older classlists do not know about
-    // java.lang.ValueObject.
-    return vmClasses::ValueObject_klass();
   }
 
   const int n = _interfaces->length();

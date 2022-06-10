@@ -43,7 +43,7 @@ public class InnerAnnotationsInInnerClassTest extends InnerClassesInInnerClassTe
 
     @Override
     public void setProperties() {
-        setInnerOtherModifiers(Modifier.EMPTY, Modifier.ABSTRACT, Modifier.STATIC);
+        setInnerOtherModifiers(Modifier.EMPTY, Modifier.ABSTRACT, Modifier.STATIC, Modifier.IDENTITY);
         setForbiddenWithoutStaticInOuterMods(true);
         setOuterClassType(ClassType.CLASS);
         setInnerClassType(ClassType.ANNOTATION);

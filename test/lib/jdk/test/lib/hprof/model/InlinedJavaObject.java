@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,33 +23,39 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8280456
- * @summary javac should allow compilation with abstract java.lang.Object class
- * @compile/ref=ObjectInstantiationTest.out -XDrawDiagnostics ObjectInstantiationTest.java
- * @run main ObjectInstantiationTest
+package jdk.test.lib.hprof.model;
+
+import java.io.IOException;
+
+/**
+ * Represents Inlined Java object
  */
+public class InlinedJavaObject extends JavaObject {
 
-public class ObjectInstantiationTest {
-
-    interface I {
-        Object getObject();
+    /**
+     * Construct a new InlinedJavaObject.
+     *
+     * @param clazz the class object
+     * @param offset The offset of field data
+     */
+    public InlinedJavaObject(JavaClass clazz, long offset) {
+        super(clazz, offset);
     }
 
-    public static void main(String [] args) {
-
-        Object o1 = java.util.Objects.newIdentity();
-        Object o2 = new Object();
-        Object o3 = foo(Object::new);
-
-        if (o1.getClass() != o2.getClass())
-            throw new AssertionError("Unexpected class identity");
-        if (o2.getClass() != o3.getClass())
-            throw new AssertionError("Unexpected class identity");
+    @Override
+    public String toString() {
+        return "inlined " + super.toString();
     }
 
-    static Object foo(I i) {
-        return i.getObject();
+    @Override
+    protected final long readValueLength() throws IOException {
+        // TODO: revise - clazz.getInlinedInstanceSize()?
+        return 0;
     }
+
+    @Override
+    protected long dataStartOffset() {
+        return getOffset();
+    }
+
 }

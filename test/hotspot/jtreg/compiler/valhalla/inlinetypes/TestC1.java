@@ -261,7 +261,7 @@ public class TestC1 {
         MyValue1[] array = new MyValue1[23];
         MyValue2 mv2a = MyValue2.createWithFieldsInline(7, 63L, 8.9d);
         MyValue2 mv2b = MyValue2.createWithFieldsInline(11, 69L, 17.3d);
-        MyValue1 mv1 = new MyValue1(1, 2L, (short)3, 4, null, mv2a, mv2b, 'z');
+        MyValue1 mv1 = new MyValue1(1, 2L, (short)3, 4, null, mv2a, mv2b, mv2a, mv2b, 'z');
         array[19] = mv1;
         byte b = test8(array, 19);
         Asserts.assertEQ(b, (byte)11);

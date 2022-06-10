@@ -55,8 +55,6 @@
   template(java_base,                                 "java.base")                                \
   template(java_lang_System,                          "java/lang/System")                         \
   template(java_lang_Object,                          "java/lang/Object")                         \
-  template(java_lang_IdentityObject,                  "java/lang/IdentityObject")                 \
-  template(java_lang_ValueObject,                     "java/lang/ValueObject")                \
   template(java_lang_Class,                           "java/lang/Class")                          \
   template(java_lang_Package,                         "java/lang/Package")                        \
   template(java_lang_Module,                          "java/lang/Module")                         \
@@ -145,7 +143,6 @@
   template(java_util_Iterator,                        "java/util/Iterator")                       \
   template(java_lang_Record,                          "java/lang/Record")                         \
   template(sun_instrument_InstrumentationImpl,        "sun/instrument/InstrumentationImpl")       \
-  template(java_lang_Identity,                        "java/lang/Identity")                       \
   template(sun_invoke_util_ValueConversions,          "sun/invoke/util/ValueConversions")         \
                                                                                                   \
   template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \

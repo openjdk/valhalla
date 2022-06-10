@@ -1,14 +1,14 @@
 /*
  * @test /nodynamiccopyright/
  * @bug 8279901
- * @summary Javac should verify/ensure that a Functional interface implements neither IdentityObject nor ValueObject
+ * @summary Javac should verify/ensure that a Functional interface proclaims neither identity nor valueness
  * @compile/fail/ref=FunctionalInterfaceTest.out -XDrawDiagnostics -XDdev FunctionalInterfaceTest.java
  */
 
 public class FunctionalInterfaceTest {
 
     @FunctionalInterface
-    interface I extends IdentityObject  { // Error
+    identity interface I { // Error
         void m();
     }
 
@@ -16,15 +16,15 @@ public class FunctionalInterfaceTest {
     interface J extends I  {} // Error.
 
     @FunctionalInterface
-    interface K extends ValueObject  { // Error
+    value interface K { // Error
         void m();
     }
 
-    interface L extends IdentityObject {
+    identity interface L {
         void m();
     }
 
-    interface M extends ValueObject {
+    value interface M {
         void m();
     }
 

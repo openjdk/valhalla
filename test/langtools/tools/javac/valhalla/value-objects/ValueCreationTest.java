@@ -60,7 +60,7 @@ public class ValueCreationTest {
         runCheck(params, new String [] {
 
          "final value class ValueCreationTest$Point",
-         "flags: (0x0130) ACC_FINAL, ACC_SUPER, ACC_VALUE",
+         "flags: (0x0050) ACC_FINAL, ACC_VALUE",
 
          // Check that constructor invocation has been lowered into invokestatic
          // of the factory method.

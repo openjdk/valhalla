@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,16 +29,15 @@
  */
 
 import java.io.File;
+import java.lang.ref.Reference;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.hprof.model.HackJavaValue;
+import jdk.test.lib.hprof.model.InlinedJavaObject;
 import jdk.test.lib.hprof.model.JavaByte;
 import jdk.test.lib.hprof.model.JavaClass;
 import jdk.test.lib.hprof.model.JavaField;
@@ -58,75 +57,85 @@ import jdk.test.lib.hprof.parser.Reader;
 
 class TestClass {
 
+    public static primitive class MyPrimitive0 {
+        public byte prim0_fld1;
+        public MyPrimitive0(int fld1) { prim0_fld1 = (byte)fld1; }
+    }
     public static primitive class MyPrimitive {
-        public byte fld1;
-        public int fld2;
+        public MyPrimitive0 prim_prim0;
+        public byte prim_fld1;
+        public int prim_fld2;
 
-        public MyPrimitive(int v1, int v2) { fld1 = (byte)v1; fld2 = v2; }
-        public static MyPrimitive create(int v1, int v2) { return new MyPrimitive(v1, v2); }
+        public MyPrimitive(int p0, int fld1, int fld2) {
+            prim_fld1 = (byte)fld1; prim_fld2 = fld2; prim_prim0 = new MyPrimitive0(p0);
+        }
     }
 
     public static primitive class PrimitiveHolder {
-        // offset of the inlined flatObj is the same as offset of inlined PrimitiveHolder
-        public MyPrimitive flatObj = MyPrimitive.create(12, 142);
+        // offset of the inlined hld_flatObj is the same as offset of inlined PrimitiveHolder
+        public MyPrimitive hld_flatObj;
 
-        public PrimitiveHolder(int n) { }
-        public static PrimitiveHolder create(int n) { return new PrimitiveHolder(n); }
+        public PrimitiveHolder(int n) {
+            hld_flatObj = new MyPrimitive((byte)n, n+1, n+2);
+        }
     }
 
     // primitive class with reference
     public static primitive class MyPrimitiveRef {
-        public int fld1;
-        public int fld2;
-        public String strObj;
+        public byte ref_fld1;
+        public int ref_fld2;
+        public String ref_strObj;
 
-        public MyPrimitiveRef(int v1, int v2) { fld1 = v1; fld2 = v2; strObj = "#" + String.valueOf(v1); }
-        public static MyPrimitiveRef create(int v1, int v2) { return new MyPrimitiveRef(v1, v2); }
+        public MyPrimitiveRef(int v1, int v2) {
+            ref_fld1 = (byte)v1;
+            ref_fld2 = v2;
+            ref_strObj = "#" + String.valueOf(v2); }
     }
 
     public static primitive class PrimitiveHolderRef {
-        public MyPrimitiveRef[] flatArr = new MyPrimitiveRef[4];
-        public MyPrimitiveRef flatObj = MyPrimitiveRef.create(13, 143);
-
+        public MyPrimitiveRef[] flatArr = new MyPrimitiveRef[5];
+        public MyPrimitiveRef flatObj;
+        public String ref_str;
         public PrimitiveHolderRef(int n) {
+            ref_str = String.valueOf(n);
+            flatObj = new MyPrimitiveRef(n, n + 10);
             for (int i = 0; i < flatArr.length; i++) {
-                flatArr[i] = MyPrimitiveRef.create(i + n + 1, i + n + 11);
+                flatArr[i] = new MyPrimitiveRef(i + n + 1, i + n + 11);
             }
         }
-        public static PrimitiveHolderRef create(int n) { return new PrimitiveHolderRef(n); }
     }
 
-    public MyPrimitive[] flatArr = new MyPrimitive[4];
-    public MyPrimitive flatObj = MyPrimitive.create(11, 141);
-    public MyPrimitiveRef flatObjRef = MyPrimitiveRef.create(11, 144);
+    public MyPrimitive[] main_flatArr = new MyPrimitive[3];
+    public MyPrimitive main_flatObj = new MyPrimitive(10, 15, 9);
+    public MyPrimitiveRef main_flatObjRef = new MyPrimitiveRef(11, 144);
     public MyPrimitiveRef[] flatArrRef = new MyPrimitiveRef[4];
-    public String strObj = "targ.strObj";
+    public String main_strObj = "targ.strObj";
 
-    public Object nullObj;
+    public Object main_nullObj;
 
-    public final PrimitiveHolder primHolder = PrimitiveHolder.create(16);
+    public final PrimitiveHolder main_primHolder = new PrimitiveHolder(16);
     // array of compound primitive objects
     public final PrimitiveHolderRef[] primHolderArr = new PrimitiveHolderRef[4];
 
 
     // static inlined fields
-    public static MyPrimitive flatObjStatic = MyPrimitive.create(11, 241);
-    public static MyPrimitiveRef[] flatArrRefStatic = new MyPrimitiveRef[4];
+    public static MyPrimitive main_flatObjStatic = new MyPrimitive(13, 241, 24);
+    public static MyPrimitiveRef[] flatArrRefStatic = new MyPrimitiveRef[6];
     static {
         for (int i = 0; i < flatArrRefStatic.length; i++) {
-            flatArrRefStatic[i] = MyPrimitiveRef.create(i + 200, i + 225);
+            flatArrRefStatic[i] = new MyPrimitiveRef(i + 200, i + 225);
         }
     }
 
     public TestClass() {
-        for (int i = 0; i < flatArr.length; i++) {
-            flatArr[i] = MyPrimitive.create(i + 10, i + 110);
+        for (int i = 0; i < main_flatArr.length; i++) {
+            main_flatArr[i] = new MyPrimitive(i + 10, i + 110, i + 35);
         }
         for (int i = 0; i < flatArrRef.length; i++) {
-            flatArrRef[i] = MyPrimitiveRef.create(i + 100, i + 120);
+            flatArrRef[i] = new MyPrimitiveRef(i + 100, i + 120);
         }
         for (int i = 0; i < primHolderArr.length; i++) {
-            primHolderArr[i] = PrimitiveHolderRef.create(20+i);
+            primHolderArr[i] = new PrimitiveHolderRef(20 + i);
         }
     }
 }
@@ -136,36 +145,22 @@ class HeapDumpTarg extends LingeredApp {
     public static void main(String[] args) {
         TestClass testObj = new TestClass();
         LingeredApp.main(args);
-        System.out.println(testObj);
+        Reference.reachabilityFence(testObj);
     }
 
 }
 
 public class HeapDump {
-
-    public static void copyDirectory(String sourceDirectoryLocation, String destinationDirectoryLocation)
-            throws Exception {
-        Files.walk(Paths.get(sourceDirectoryLocation))
-                .forEach(source -> {
-                    Path destination = Paths.get(destinationDirectoryLocation, source.toString()
-                            .substring(sourceDirectoryLocation.length()));
-                    try {
-                        Files.copy(source, destination);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                });
-    }
-
     public static void main(String[] args) throws Throwable {
         LingeredApp theApp = null;
         String hprogFile = new File(System.getProperty("test.classes") + "/Myheapdump.hprof").getAbsolutePath();
         try {
             theApp = new HeapDumpTarg();
 
+            // -XX:+PrintInlineLayout is debug-only arg
             LingeredApp.startApp(theApp/*, "-XX:+PrintInlineLayout"*/);
 
-            //jcmd <pid> GC.heap_dump
+            // jcmd <pid> GC.heap_dump
             JDKToolLauncher launcher = JDKToolLauncher
                                         .createUsingTestJDK("jcmd")
                                         .addToolArg(Long.toString(theApp.getPid()))
@@ -185,12 +180,7 @@ public class HeapDump {
                 throw new Exception("Jcmd exited with code " + jcmd.exitValue());
             }
         } finally {
-            try {
-                copyDirectory(".", System.getProperty("test.classes") + "/scratch");
-            } finally {
-                LingeredApp.stopApp(theApp);
-            }
-
+            LingeredApp.stopApp(theApp);
         }
 
         // test object to compare
@@ -245,7 +235,6 @@ public class HeapDump {
             log(logPrefix + objDescr + ": null");
         } else if (dumpObj instanceof JavaObject obj) {
             // special handling for Strings
-            // we know testValue != null
             if (testObj instanceof String testStr) {
                 objDescr += " (String, " + obj.getIdString() + ")";
                 if (!obj.getClazz().isString()) {
@@ -277,6 +266,7 @@ public class HeapDump {
             boolean isStatic = Modifier.isStatic(testField.getModifiers());
             testField.setAccessible(true);
             objDescr = "- " + (isStatic ? "(static) " : "")
+                    + (testField.getType().isPrimitiveClass() ? "(primitive) " : "")
                     + testField.getName() + " ('" + testField.getType().descriptorString() + "')";
             try {
                 Object testValue = testField.get(testObj);
@@ -308,8 +298,8 @@ public class HeapDump {
                         if (dumpValue instanceof JavaValueArray arr) {
                             // array of primitive type
                             char testElementType = testField.getType().getComponentType().descriptorString().charAt(0);
-                            if ((char) arr.getElementType() != testElementType) {
-                                throw new Exception("wrong element type: '" + (char) arr.getElementType() + "'");
+                            if ((char)arr.getElementType() != testElementType) {
+                                throw new Exception("wrong element type: '" + (char)arr.getElementType() + "'");
                             }
                             int dumpLength = arr.getLength();
                             if (dumpLength != testLength) {
@@ -320,8 +310,12 @@ public class HeapDump {
                             for (int j = 0; j < testLength; j++) {
                                 Object elementValue = Array.get(testValue, j);
                                 objDescr = "[" + j + "]";
-                                comparePrimitiveValues(elementValue, dumpElements[j]);
-                                log(logPrefix + "  [" + j + "]: " + elementValue + " ( == " + dumpElements[j] + ")");
+                                if (arr.isFlatArray()) {
+                                    compareObjects(logPrefix + "  ", elementValue, dumpElements[j]);
+                                } else {
+                                    comparePrimitiveValues(elementValue, dumpElements[j]);
+                                    log(logPrefix + "  [" + j + "]: " + elementValue + " ( == " + dumpElements[j] + ")");
+                                }
                             }
                         } else if (dumpValue instanceof JavaObjectArray arr) {
                             int dumpLength = arr.getLength();
@@ -382,7 +376,11 @@ public class HeapDump {
         if (type == '[' || type == 'Q') {
             type = 'L';
         }
-        if (dumpField.getSignature().charAt(0) != type) {
+        char dumpType = dumpField.getSignature().charAt(0);
+        if (dumpType == 'Q') {
+            dumpType = 'L';
+        }
+        if (dumpType != type) {
             throw new Exception("type mismatch:"
                     + " expected '" + type + "' (" + sig + ")"
                     + ", found '" + dumpField.getSignature().charAt(0) + "' (" + dumpField.getSignature() + ")");
@@ -463,7 +461,7 @@ public class HeapDump {
                     String dumpStr = getStringValue(obj);
                     log(logPrefix + "\"" + dumpStr + "\"");
                 } else {
-                    log(logPrefix + "object " + obj);
+                    log(logPrefix + (value instanceof InlinedJavaObject ? "inlined " : "") + "object " + obj);
                     print(prefix + "  ", obj);
                 }
             } else if (value instanceof JavaObjectArray arr) {
@@ -475,10 +473,21 @@ public class HeapDump {
                         print(prefix + "    ", obj);
                     }
                 }
-            } else if (value instanceof JavaValueArray arr) { // array of primitive type
-                log(logPrefix + "(array of '" + (char) arr.getElementType() + "')" + ": " + arr.valueString());
+            } else if (value instanceof JavaValueArray arr) { // array of primitive type or flat array
+                if (arr.isFlatArray()) {
+                    log(logPrefix + " flat array " + arr + " length: " + arr.getLength());
+                    JavaThing[] values = arr.getElements();
+                    for (int v = 0; v < values.length; v++) {
+                        log(prefix + "  [" + v + "]: " + values[v]);
+                        if (values[v] instanceof JavaObject obj) {
+                            print(prefix + "    ", obj);
+                        }
+                    }
+                } else {
+                    log(logPrefix + "(array of '" + (char)arr.getElementType() + "')" + ": " + arr.valueString());
+                }
             } else {
-                log(logPrefix + value.toString());
+                log(logPrefix + "(" + value.getClass() +  ")" + value.toString());
             }
         }
     }

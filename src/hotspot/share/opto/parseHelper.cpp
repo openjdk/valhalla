@@ -286,10 +286,6 @@ void Parse::do_new() {
   assert(will_link, "_new: typeflow responsibility");
   assert(!klass->is_inlinetype(), "unexpected inline type");
 
-  if (klass == C->env()->Object_klass() && C->env()->Object_klass()->is_abstract()) {
-    klass = C->env()->Identity_klass();
-  }
-
   // Should throw an InstantiationError?
   if (klass->is_abstract() || klass->is_interface() ||
       klass->name() == ciSymbols::java_lang_Class() ||
@@ -345,16 +341,14 @@ void Parse::do_withfield() {
   bool will_link;
   ciField* field = iter().get_field(will_link);
   assert(will_link, "withfield: typeflow responsibility");
-  Node* val = pop_node(field->layout_type());
-  ciInlineKlass* holder_klass = field->holder()->as_inline_klass();
-  Node* holder = pop();
-  int nargs = 1 + field->type()->size();
-
-  if (!holder->is_InlineType()) {
-    // Scalarize inline type holder
-    assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
-    holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
+  int holder_depth = field->type()->size();
+  null_check(peek(holder_depth));
+  if (stopped()) {
+    return;
   }
+  Node* val = pop_node(field->layout_type());
+  Node* holder = pop();
+
   if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
     assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
@@ -364,16 +358,25 @@ void Parse::do_withfield() {
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
+    int nargs = 1 + field->type()->size();
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
   }
+  if (val->is_InlineTypePtr() && field->is_null_free()) {
+    // TODO 8284443 Remove this
+    Node* newVal = InlineTypeNode::make_uninitialized(gvn(), field->type()->as_inline_klass());
+    for (uint i = 1; i < val->req(); ++i) {
+      newVal->set_req(i, val->in(i));
+    }
+    val = gvn().transform(newVal);
+  }
 
   // Clone the inline type node and set the new field value
-  InlineTypeNode* new_vt = holder->clone()->as_InlineType();
-  new_vt->set_oop(_gvn.zerocon(T_PRIMITIVE_OBJECT));
-  gvn().set_type(new_vt, new_vt->bottom_type());
+  InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
+  for (uint i = 2; i < holder->req(); ++i) {
+    new_vt->set_req(i, holder->in(i));
+  }
   new_vt->set_field_value_by_offset(field->offset(), val);
-
   push(_gvn.transform(new_vt));
 }
 

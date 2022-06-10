@@ -58,7 +58,7 @@ public class InnerClassesInAnonymousClassTest extends InnerClassesTestBase {
     @Override
     public List<TestCase> generateTestCases() {
         currentClassType = ClassType.CLASS;
-        setPrefix("class Anonymous { int f; } {new Anonymous() {");
+        setPrefix("class Anonymous { int f; } {new Anonymous() {"); // impose identity to make testing predictable.
         List<TestCase> sources = super.generateTestCases();
 
         currentClassType = ClassType.INTERFACE;
@@ -77,6 +77,6 @@ public class InnerClassesInAnonymousClassTest extends InnerClassesTestBase {
     public void getAdditionalFlags(Map<String, Set<String>> class2Flags, ClassType type, Modifier... flags) {
         super.getAdditionalFlags(class2Flags, type, flags);
         class2Flags.put("Anonymous", getFlags(currentClassType, Arrays.asList(flags)));
-        class2Flags.put("1", new HashSet<>() {});
+        class2Flags.put("1", new HashSet<>(Arrays.asList("ACC_IDENTITY")));
     }
 }

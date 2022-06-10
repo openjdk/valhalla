@@ -62,6 +62,9 @@ public class TestCallingConvention {
 
             mt = MethodType.methodType(MyValue2.class);
             test54_mh = lookup.findVirtual(clazz, "test54_callee", mt);
+
+            mt = MethodType.methodType(MyValue2.class, boolean.class);
+            test56_mh = lookup.findVirtual(clazz, "test56_callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -1226,6 +1229,45 @@ public class TestCallingConvention {
         if (!info.isWarmUp()) {
             MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
             Asserts.assertEQ(test54(info.getTest(), true, true), v.hash());
+        }
+    }
+
+    @DontInline
+    public MyValue2.ref test55_callee() {
+        return MyValue2.createWithFieldsInline(rI, rD);
+    }
+
+    // Test scalarization of nullable return value that is unused
+    @Test
+    public void test55() {
+        test55_callee();
+    }
+
+    @Run(test = "test55")
+    public void test55_verifier() {
+        test55();
+    }
+
+    static MethodHandle test56_mh;
+
+    @DontInline
+    public MyValue2.ref test56_callee(boolean b) {
+        return b ? MyValue2.createWithFieldsInline(rI, rD) : null;
+    }
+
+    // Test that scalarization of nullable return works properly for method handle calls
+    @Test
+    public MyValue2.ref test56(boolean b) throws Throwable {
+        return (MyValue2.ref)test56_mh.invokeExact(this, b);
+    }
+
+    @Run(test = "test56")
+    @Warmup(10000)
+    public void test56_verifier(RunInfo info) throws Throwable {
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
+        Asserts.assertEQ(test56(true).hash(), vt.hash());
+        if (!info.isWarmUp()) {
+            Asserts.assertEQ(test56(false), null);
         }
     }
 }

@@ -50,8 +50,6 @@
 #define VM_CLASSES_DO(do_klass)                                                                                 \
   /* well-known classes */                                                                                      \
   do_klass(Object_klass,                                java_lang_Object                                      ) \
-  do_klass(IdentityObject_klass,                        java_lang_IdentityObject                              ) \
-  do_klass(ValueObject_klass,                           java_lang_ValueObject                             ) \
   do_klass(String_klass,                                java_lang_String                                      ) \
   do_klass(Class_klass,                                 java_lang_Class                                       ) \
   do_klass(Cloneable_klass,                             java_lang_Cloneable                                   ) \
@@ -185,8 +183,6 @@
   do_klass(vector_Vector_klass,                         jdk_internal_vm_vector_Vector                         ) \
   do_klass(vector_VectorMask_klass,                     jdk_internal_vm_vector_VectorMask                     ) \
   do_klass(vector_VectorShuffle_klass,                  jdk_internal_vm_vector_VectorShuffle                  ) \
-                                                                                                                \
-  do_klass(Identity_klass,                              java_lang_Identity                                    ) \
                                                                                                                 \
   /*end*/
 

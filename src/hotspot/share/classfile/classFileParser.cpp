@@ -907,7 +907,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
         Exceptions::fthrow(
           THREAD_AND_LOCATION,
           vmSymbols::java_lang_IncompatibleClassChangeError(),
-          "Inline type %s attempts to implement interface java.lang.IdentityObject",
+          "Inline type %s has an identity type as supertype",
           _class_name->as_klass_external_name());
         return;
       }
@@ -919,14 +919,6 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       }
       if (ik->is_declared_atomic()) {
         *is_declared_atomic = true;
-      }
-      if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
-        _implements_identityObject = true;
-      }
-      if (ik->name() == vmSymbols::java_lang_ValueObject()) {
-        // further checks for "is_invalid_super_for_inline_type()" needed later
-        // needs field parsing, delay unitl post_process_parse_stream()
-        _implements_valueObject = true;
       }
       _temp_local_interfaces->append(ik);
     }
@@ -3328,9 +3320,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_PERMITS_VALUE are defined for class file version 62 and later
+    // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 62 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
+      recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
     }
 
     // Access flags
@@ -4552,13 +4544,6 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
     const int length = result->length();
     assert(length <= max_transitive_size, "just checking");
 
-    if (length == 1 && result->at(0) == vmClasses::IdentityObject_klass()) {
-      return Universe::the_single_IdentityObject_klass_array();
-    }
-    if (length == 1 && result->at(0) == vmClasses::ValueObject_klass()) {
-      return Universe::the_single_ValueObject_klass_array();
-    }
-
     Array<InstanceKlass*>* const new_result =
       MetadataFactory::new_array<InstanceKlass*>(loader_data, length, CHECK_NULL);
     for (int i = 0; i < length; i++) {
@@ -4594,7 +4579,7 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
     // as a special case for now.
     if (this_klass->access_flags().is_value_class() &&
         super_ik->name() != vmSymbols::java_lang_Object() &&
-        !super_ik->is_permits_value_class()) {
+        super_ik->is_identity_class()) {
       classfile_icce_error("value class %s cannot inherit from class %s", super_ik, THREAD);
       return;
     }
@@ -4829,9 +4814,9 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_super || is_enum)) ||
       (!is_interface && major_gte_1_5 && is_annotation) ||
-      (is_value_class && (is_interface || is_abstract || is_enum || !is_final || is_permits_value_class)) ||
+      (is_value_class && (is_enum || is_permits_value_class)) ||
       (is_permits_value_class && (is_interface || is_final || !is_abstract)) ||
-      (is_primitive_class && !is_value_class)) {
+      (is_primitive_class && (!is_value_class || !is_final || is_interface || is_abstract))) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
     if (is_value_class)  class_note = " (a value class)";
@@ -5607,15 +5592,12 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
 
 // Return true if the specified class is not a valid super class for an inline type.
 // A valid super class for an inline type is abstract, has no instance fields,
-// does not implement interface java.lang.IdentityObject (checked elsewhere), has
+// is not declared with the identity modifier (checked elsewhere), has
 // an empty body-less no-arg constructor, and no synchronized instance methods.
 // This function doesn't check if the class's super types are invalid.  Those checks
 // are done elsewhere.  The final determination of whether or not a class is an
 // invalid super type for an inline class is done in fill_instance_klass().
 bool ClassFileParser::is_invalid_super_for_inline_type() {
-  if (class_name() == vmSymbols::java_lang_IdentityObject()) {
-    return true;
-  }
   if (is_interface() || class_name() == vmSymbols::java_lang_Object()) {
     return false;
   }
@@ -5677,13 +5659,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   if (this->_invalid_inline_super) {
     ik->set_invalid_inline_super();
-  }
-
-  if (_has_injected_identityObject) {
-    ik->set_has_injected_identityObject();
-  }
-  if (_has_injected_valueObject) {
-    ik->set_has_injected_primitiveObject();
   }
 
   assert(_fac != NULL, "invariant");
@@ -5920,16 +5895,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // it's official
   set_klass(ik);
 
-  // the common single interface arrays need setup here to provide the
-  // correct answer to "compute_transitive_interfaces()", during
-  // "SystemDictionary::initialize()"
-  if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
-    Universe::initialize_the_single_IdentityObject_klass_array(ik, CHECK);
-  }
-  if (ik->name() == vmSymbols::java_lang_ValueObject()) {
-    Universe::initialize_the_single_ValueObject_klass_array(ik, CHECK);
-  }
-
   debug_only(ik->verify();)
 }
 
@@ -6025,10 +5990,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _is_declared_atomic(false),
   _invalid_inline_super(false),
   _invalid_identity_super(false),
-  _implements_identityObject(false),
-  _has_injected_identityObject(false),
-  _implements_valueObject(false),
-  _has_injected_valueObject(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6217,7 +6178,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   }
   // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE;
+    recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
   }
 
   // Access flags
@@ -6503,30 +6464,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     set_invalid_inline_super();
   }
 
-  if (EnableValhalla && !is_inline_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
-      && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
-    _temp_local_interfaces->append(vmClasses::IdentityObject_klass());
-    _has_injected_identityObject = true;
-  }
-  // Check if declared as PrimitiveObject...else add if needed
-  if (_implements_valueObject) {
-    if (!is_inline_type() && invalid_inline_super()) {
-      classfile_icce_error("class %s can not implement %s, neither valid inline classes or valid supertype",
-                            vmClasses::ValueObject_klass(), THREAD);
-      return;
-    }
-  } else if (is_inline_type()) {
-    _temp_local_interfaces->append(vmClasses::ValueObject_klass());
-    _has_injected_valueObject = true;
-  }
-
   int itfs_len = _temp_local_interfaces->length();
   if (itfs_len == 0) {
     _local_interfaces = Universe::the_empty_instance_klass_array();
-  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::IdentityObject_klass()) {
-    _local_interfaces = Universe::the_single_IdentityObject_klass_array();
-  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::ValueObject_klass()) {
-    _local_interfaces = Universe::the_single_ValueObject_klass_array();
   } else {
     _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
     for (int i = 0; i < itfs_len; i++) {

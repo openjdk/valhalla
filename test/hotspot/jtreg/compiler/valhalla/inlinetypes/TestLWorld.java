@@ -31,6 +31,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
+import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
@@ -42,6 +43,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile MyValue5.jcod
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */
@@ -68,6 +70,11 @@ public class TestLWorld {
                                      MyValue3.class,
                                      MyValue3Inline.class)
                    .start();
+    }
+
+    static {
+        // Make sure RuntimeException is loaded to prevent uncommon traps in IR verified tests
+        RuntimeException tmp = new RuntimeException("42");
     }
 
     // Helper methods
@@ -564,7 +571,7 @@ public class TestLWorld {
 
     // Test subtype check when casting to inline type
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public MyValue1 test17(MyValue1 vt, Object obj) {
         try {
             vt = (MyValue1)obj;
@@ -1075,7 +1082,6 @@ public class TestLWorld {
         });
 
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test35(MyValue1[] va, int index) throws Throwable {
         setArrayElementNull.invoke(this, va, index);
     }
@@ -1329,9 +1335,9 @@ public class TestLWorld {
     public void test40_verifier() {
         int index = Math.abs(rI) % 3;
         long result = test40(testValue1, 0);
-        Asserts.assertEQ(result, testValue1.hash());
+        Asserts.assertEQ(result, testValue1.hashInterpreted());
         result = test40(testValue1Array, index);
-        Asserts.assertEQ(result, testValue1.hash());
+        Asserts.assertEQ(result, testValue1.hashInterpreted());
         result = test40(testValue2, index);
         Asserts.assertEQ(result, testValue2.hash());
         result = test40(testValue2Array, index);
@@ -1413,7 +1419,6 @@ public class TestLWorld {
         });
 
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test44(MyValue1[] va, int index, MyValue2 v) throws Throwable {
         setArrayElementIncompatible.invoke(this, va, index, v);
     }
@@ -1619,7 +1624,7 @@ public class TestLWorld {
 
     // Access non-flattened, uninitialized inline type field with inline type holder
     @Test
-    @IR(failOn = {ALLOC_G})
+    @IR(failOn = {ALLOC})
     public void test52(Test51Value holder) {
         if ((Object)holder.valueField5 != null) {
             throw new RuntimeException("Should be null");
@@ -3683,7 +3688,11 @@ public class TestLWorld {
     }
 
     @Test
-    @IR(failOn = {ALLOC, LOAD, STORE})
+    @IR(failOn = {LOAD},
+        // LockNode keeps MyValue1 allocation alive up until macro expansion which in turn keeps MyValue2
+        // alloc alive. Although the MyValue1 allocation is removed (unused), MyValue2 is expanded first
+        // and therefore stays.
+        counts = {ALLOC, "<= 1", STORE, "<= 1"})
     public void test130() {
         Object obj = test130_inlinee();
         synchronized (obj) {
@@ -4016,7 +4025,6 @@ public class TestLWorld {
 
     // Same as test44 but with .ref store to array
     @Test
-    @IR(failOn = {ALLOC_G})
     public void test145(MyValue1[] va, int index, MyValue2.ref v) throws Throwable {
         setArrayElementIncompatibleRef.invoke(this, va, index, v);
     }
@@ -4280,6 +4288,90 @@ public class TestLWorld {
         Asserts.assertEquals(test155(info.getTest(), null, true, false), -1);
         if (!info.isWarmUp()) {
             Asserts.assertEquals(test155(info.getTest(), val, false, true), rI);
+        }
+    }
+
+    // Test withfield directly operating on inline type arg (instead of on defaultvalue)
+    @Test
+    public MyValue5 test156(MyValue5 vt) {
+        return vt.withField(rI);
+    }
+
+    @Run(test = "test156")
+    @Warmup(10000)
+    public void test156_verifier() {
+        Asserts.assertEquals(test156(new MyValue5()).x, rI);
+    }
+
+    final static MyValue1 test157Cache = MyValue1.createWithFieldsInline(rI, 0);
+
+    // Test merging buffered inline type from field load with non-buffered inline type
+    @Test
+    public MyValue1 test157(long val) {
+        return (val == 0L) ? test157Cache : MyValue1.createWithFieldsInline(rI, val);
+    }
+
+    @Run(test = "test157")
+    public void test157_verifier() {
+        Asserts.assertEquals(test157(0), test157Cache);
+        Asserts.assertEquals(test157(rL).hash(), testValue1.hash());
+    }
+
+    static MyValue1 test158Cache = MyValue1.createWithFieldsInline(rI, 0);
+
+    // Same as test157 but with non-final field load
+    @Test
+    public MyValue1 test158(long val) {
+        return (val == 0L) ? test158Cache : MyValue1.createWithFieldsInline(rI, val);
+    }
+
+    @Run(test = "test158")
+    public void test158_verifier() {
+        Asserts.assertEquals(test158(0), test158Cache);
+        Asserts.assertEquals(test158(rL).hash(), testValue1.hash());
+    }
+
+    // Test null check on withfield receiver
+    @Test
+    public MyValue5.ref test159(MyValue5.ref vt) {
+        return MyValue5.withField(vt, rI);
+    }
+
+    @Run(test = "test159")
+    @Warmup(10000)
+    public void test159_verifier(RunInfo info) {
+        Asserts.assertEquals(test159(new MyValue5()).x, rI);
+        if (!info.isWarmUp()) {
+            try {
+                test159(null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Verify that cast that with incompatible types is properly handled
+    @Test
+    public void test160(Integer arg) {
+        Object tmp = arg;
+        MyValue1 res = (MyValue1)tmp;
+    }
+
+    @Run(test = "test160")
+    @Warmup(10000)
+    public void test160_verifier(RunInfo info) {
+        try {
+            test160(42);
+            throw new RuntimeException("No CCE thrown");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+        try {
+            test160(null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
         }
     }
 }

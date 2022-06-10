@@ -44,12 +44,12 @@ public class SuperclassCollections {
         static int x;
     }
     public static abstract class SuperWithEmptyNoArgCtor {
-        SuperWithEmptyNoArgCtor() {
+        public SuperWithEmptyNoArgCtor() {
             // Programmer supplied ctor but injected super call
         }
     }
     public static abstract class SuperWithEmptyNoArgCtor_01 extends SuperWithEmptyNoArgCtor {
-        SuperWithEmptyNoArgCtor_01() {
+        public SuperWithEmptyNoArgCtor_01() {
             super();  // programmer coded chaining no-arg constructor
         }
     }
@@ -58,15 +58,15 @@ public class SuperclassCollections {
     }
 
     public static abstract class SuperWithNonEmptyNoArgCtor {
-        SuperWithNonEmptyNoArgCtor() {
+        public SuperWithNonEmptyNoArgCtor() {
             System.out.println("Non-Empty");
         }
     }
     public static abstract class SuperWithNonEmptyNoArgCtor_01 extends SuperWithNonEmptyNoArgCtor {}
 
     public static abstract class SuperWithArgedCtor {
-        SuperWithArgedCtor() {}
-        SuperWithArgedCtor(String s) {
+        public SuperWithArgedCtor() {}
+        public SuperWithArgedCtor(String s) {
         }
     }
     public static abstract class SuperWithArgedCtor_01 extends SuperWithArgedCtor {}

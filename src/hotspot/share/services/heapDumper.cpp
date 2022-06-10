@@ -311,6 +311,28 @@
  *                          0x00000002: cpu sampling on/off
  *                u2        stack trace depth
  *
+ * HPROF_FLAT_ARRAYS        list of flat arrays
+ *
+ *               [flat array sub-records]*
+ *
+ *               HPROF_FLAT_ARRAY      flat array
+ *
+ *                          id         array object ID (dumped as HPROF_GC_PRIM_ARRAY_DUMP)
+ *                          id         element class ID (dumped by HPROF_GC_CLASS_DUMP)
+ *
+ * HPROF_INLINED_FIELDS     decribes inlined fields
+ *
+ *               [class with inlined fields sub-records]*
+ *
+ *               HPROF_CLASS_WITH_INLINED_FIELDS
+ *
+ *                          id         class ID (dumped as HPROF_GC_CLASS_DUMP)
+ *
+ *                          u2         number of instance inlined fields (not including super)
+ *                          [u2,       inlined field index,
+ *                           u2,       synthetic field count,
+ *                           id,       original field name,
+ *                           id]*      inlined field class ID (dumped by HPROF_GC_CLASS_DUMP)
  *
  * When the header is "JAVA PROFILE 1.0.2" a heap dump can optionally
  * be generated as a sequence of heap dump segments. This sequence is
@@ -348,6 +370,13 @@ enum hprofTag : u1 {
   HPROF_HEAP_DUMP_SEGMENT       = 0x1C,
   HPROF_HEAP_DUMP_END           = 0x2C,
 
+  // inlined object support
+  HPROF_FLAT_ARRAYS             = 0x12,
+  HPROF_INLINED_FIELDS          = 0x13,
+  // inlined object subrecords
+  HPROF_FLAT_ARRAY                  = 0x01,
+  HPROF_CLASS_WITH_INLINED_FIELDS   = 0x01,
+
   // field types
   HPROF_ARRAY_OBJECT            = 0x01,
   HPROF_NORMAL_OBJECT           = 0x02,
@@ -383,20 +412,69 @@ enum {
 };
 
 
-// Inlined fields of primitive classes are dumped as identity objects and require unique object ids.
-// We cannot use address of the object in container oop (as we do for identity objects)
-// because the address can be the same for inlined object which contains inlined field with offset 0.
-class InlinedObjectSupport : public StackObj {
-    friend class AbstractDumpWriter;
-    InlinedObjectSupport(int initial_value = 1) : _counter(initial_value) {}
+class AbstractDumpWriter;
 
-    int _counter;
-    int getId() { return _counter++; }
-public:
-    InlinedObjectSupport save() const {
-        return InlinedObjectSupport(_counter);
+class InlinedObjects {
+
+  struct ClassInlinedFields {
+    const Klass *klass;
+    uintx base_index;   // base index of the inlined field names (1st field has index base_index+1).
+    ClassInlinedFields(const Klass *klass = nullptr, uintx base_index = 0) : klass(klass), base_index(base_index) {}
+
+    // For GrowableArray::find_sorted().
+    static int compare(const ClassInlinedFields& a, const ClassInlinedFields& b) {
+      return a.klass - b.klass;
     }
+    // For GrowableArray::sort().
+    static int compare(ClassInlinedFields* a, ClassInlinedFields* b) {
+      return compare(*a, *b);
+    }
+  };
+
+  uintx _min_string_id;
+  uintx _max_string_id;
+
+  GrowableArray<ClassInlinedFields> *_inlined_field_map;
+
+  // counters for classes with inlined fields and for the fields
+  int _classes_count;
+  int _inlined_fields_count;
+
+  static InlinedObjects *_instance;
+
+  static void inlined_field_names_callback(InlinedObjects* _this, const Klass *klass, uintx base_index, int count);
+
+  GrowableArray<oop> *_flat_arrays;
+
+public:
+  InlinedObjects()
+    : _min_string_id(0), _max_string_id(0),
+    _inlined_field_map(nullptr),
+    _classes_count(0), _inlined_fields_count(0),
+    _flat_arrays(nullptr) {
+  }
+
+  static InlinedObjects* get_instance() {
+    return _instance;
+  }
+
+  void init();
+  void release();
+
+  void dump_inlined_field_names(AbstractDumpWriter *writer);
+
+  uintx get_base_index_for(Klass* k);
+  uintx get_next_string_id(uintx id);
+
+  void dump_classed_with_inlined_fields(AbstractDumpWriter* writer);
+
+  void add_flat_array(oop array);
+  void dump_flat_arrays(AbstractDumpWriter* writer);
+
 };
+
+InlinedObjects *InlinedObjects::_instance = nullptr;
+
 
 // Supports I/O operations for a dump
 // Base class for dump and parallel dump
@@ -428,9 +506,6 @@ class AbstractDumpWriter : public StackObj {
 
   // Returns true if we have enough room in the buffer for 'len' bytes.
   bool can_write_fast(size_t len);
-
-  InlinedObjectSupport _inlined_object_support;
-
  public:
   AbstractDumpWriter() :
     _buffer(NULL),
@@ -442,8 +517,6 @@ class AbstractDumpWriter : public StackObj {
   virtual julong bytes_written() const = 0;
   virtual char const* error() const = 0;
 
-  InlinedObjectSupport& inlined_object_support() { return _inlined_object_support; }
-
   size_t position() const                       { return _pos; }
   // writer functions
   virtual void write_raw(const void* s, size_t len);
@@ -452,7 +525,6 @@ class AbstractDumpWriter : public StackObj {
   void write_u4(u4 x);
   void write_u8(u8 x);
   void write_objectID(oop o);
-  void write_inlinedObjectID(InlinedObjectSupport &inlinedObjectSupport);
   void write_symbolID(Symbol* o);
   void write_classID(Klass* k);
   void write_id(u4 x);
@@ -541,14 +613,6 @@ void AbstractDumpWriter::write_objectID(oop o) {
   write_u8((u8)a);
 #else
   write_u4((u4)a);
-#endif
-}
-
-void AbstractDumpWriter::write_inlinedObjectID(InlinedObjectSupport& inlinedObjectSupport) {
-#ifdef _LP64
-  write_u8(inlinedObjectSupport.getId());
-#else
-  write_u4(inlinedObjectSupport.getId());
 #endif
 }
 
@@ -924,16 +988,15 @@ class DumperSupport : AllStatic {
   // Returns the size of the data to write.
   static u4 sig2size(Symbol* sig);
 
-  // returns the size of the instance of the given class
-  static u4 instance_size(Klass* k);
+  // calculates the total size of the all fields of the given class.
+  static u4 instance_size(InstanceKlass* ik);
 
   // dump a jfloat
   static void dump_float(AbstractDumpWriter* writer, jfloat f);
   // dump a jdouble
   static void dump_double(AbstractDumpWriter* writer, jdouble d);
-  // dumps the raw value of the given field; obj and offset specify the object (offset is 0 for identity objects)
-  // for inlined fields writed object id generated by writer->inlined_object_support()
-  static void dump_field_value(AbstractDumpWriter* writer, const FieldStream& fld, oop obj, int offset);
+  // dumps the raw value of the given field
+  static void dump_field_value(AbstractDumpWriter* writer, char type, oop obj, int offset);
   // returns the size of the static fields; also counts the static fields
   static u4 get_static_fields_size(InstanceKlass* ik, u2& field_count);
   // dumps static fields of the given class
@@ -941,18 +1004,15 @@ class DumperSupport : AllStatic {
   // dump the raw values of the instance fields of the given identity or inlined object;
   // for identity objects offset is 0 and 'klass' is o->klass(),
   // for inlined objects offset is the offset in the holder object, 'klass' is inlined object class
-  static void dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, Klass* klass);
-  // dump inlined instance fields of the given object (identity or inlined);
-  // o is the holder object, offset and klass specify flattened field (or field of flattened field, etc.);
-  // for identity object offset is 0 and klass is o->klass()
-  static void dump_inlined_instance_fields(AbstractDumpWriter* writer, oop o, int offset, Klass* klass, InlinedObjectSupport &ios);
+  static void dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, InstanceKlass* klass);
+  // dump the raw values of the instance fields of the given inlined object;
+  // dump_instance_fields wrapper for inlined objects
+  static void dump_inlined_object_fields(AbstractDumpWriter* writer, oop o, int offset, InlineKlass* klass);
 
   // get the count of the instance fields for a given class
   static u2 get_instance_fields_count(InstanceKlass* ik);
   // dumps the definition of the instance fields for a given class
-  static void dump_instance_field_descriptors(AbstractDumpWriter* writer, Klass* k);
-  // creates HPROF_GC_INSTANCE_DUMP record for the given inlined object
-  static void dump_inlined_object(AbstractDumpWriter* writer, oop holder, int offset, InlineKlass* klass, InlinedObjectSupport& ios);
+  static void dump_instance_field_descriptors(AbstractDumpWriter* writer, InstanceKlass* k, uintx *inlined_fields_index = nullptr);
   // creates HPROF_GC_INSTANCE_DUMP record for the given object
   static void dump_instance(AbstractDumpWriter* writer, oop o);
   // creates HPROF_GC_CLASS_DUMP record for the given instance class
@@ -961,7 +1021,9 @@ class DumperSupport : AllStatic {
   static void dump_array_class(AbstractDumpWriter* writer, Klass* k);
 
   // creates HPROF_GC_OBJ_ARRAY_DUMP record for the given object array
-  static void dump_object_array(AbstractDumpWriter* writer, arrayOop array);
+  static void dump_object_array(AbstractDumpWriter* writer, objArrayOop array);
+  // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given flat array
+  static void dump_flat_array(AbstractDumpWriter* writer, flatArrayOop array);
   // creates HPROF_GC_PRIM_ARRAY_DUMP record for the given type array
   static void dump_prim_array(AbstractDumpWriter* writer, typeArrayOop array);
   // create HPROF_FRAME record for the given method and bci
@@ -969,6 +1031,9 @@ class DumperSupport : AllStatic {
 
   // check if we need to truncate an array
   static int calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, short header_size);
+  // extended version to dump flat arrays as primitive arrays;
+  // type_size specifies size of the inlined objects.
+  static int calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, int type_size, short header_size);
 
   // fixes up the current dump record and writes HPROF_HEAP_DUMP_END record
   static void end_of_dump(AbstractDumpWriter* writer);
@@ -981,6 +1046,16 @@ class DumperSupport : AllStatic {
     } else {
       return o;
     }
+  }
+
+  // helper methods for inlined fields.
+  static bool is_inlined_field(const FieldStream& fld) {
+    return fld.field_descriptor().is_inlined();
+  }
+  static InlineKlass* get_inlined_field_klass(const FieldStream &fld) {
+    assert(is_inlined_field(fld), "must be inlined field");
+    InstanceKlass* holder_klass = fld.field_descriptor().field_holder();
+    return InlineKlass::cast(holder_klass->get_inline_type_field_klass(fld.index()));
   }
 };
 
@@ -995,7 +1070,7 @@ void DumperSupport:: write_header(AbstractDumpWriter* writer, hprofTag tag, u4 l
 hprofTag DumperSupport::sig2tag(Symbol* sig) {
   switch (sig->char_at(0)) {
     case JVM_SIGNATURE_CLASS    : return HPROF_NORMAL_OBJECT;
-    case JVM_SIGNATURE_PRIMITIVE_OBJECT: return HPROF_NORMAL_OBJECT;
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT: return HPROF_NORMAL_OBJECT; // not inlined Q-object, i.e. identity object.
     case JVM_SIGNATURE_ARRAY    : return HPROF_NORMAL_OBJECT;
     case JVM_SIGNATURE_BYTE     : return HPROF_BYTE;
     case JVM_SIGNATURE_CHAR     : return HPROF_CHAR;
@@ -1065,20 +1140,12 @@ void DumperSupport::dump_double(AbstractDumpWriter* writer, jdouble d) {
   }
 }
 
-// dumps the raw value of the given field; obj and offset specify the object (offset is 0 for identity objects)
-// for inlined fields writed object id generated by writer->inlined_object_support()
-void DumperSupport::dump_field_value(AbstractDumpWriter* writer, const FieldStream& fld, oop obj, int offset) {
-  char type = fld.signature()->char_at(0);
-  offset += fld.offset();
+
+// dumps the raw value of the given field
+void DumperSupport::dump_field_value(AbstractDumpWriter* writer, char type, oop obj, int offset) {
   switch (type) {
-    case JVM_SIGNATURE_PRIMITIVE_OBJECT: {
-      if (fld.field_descriptor().is_inlined()) {
-        writer->write_inlinedObjectID(writer->inlined_object_support());
-        break;
-      }
-    }
-    // pass through
     case JVM_SIGNATURE_CLASS :
+    case JVM_SIGNATURE_PRIMITIVE_OBJECT: // not inlined Q-object, i.e. identity object.
     case JVM_SIGNATURE_ARRAY : {
       oop o = obj->obj_field_access<ON_UNKNOWN_OOP_REF | AS_NO_KEEPALIVE>(offset);
       if (o != NULL && log_is_enabled(Debug, cds, heap) && mask_dormant_archived_object(o) == NULL) {
@@ -1139,14 +1206,17 @@ void DumperSupport::dump_field_value(AbstractDumpWriter* writer, const FieldStre
   }
 }
 
-// returns the size of the instance of the given class
-u4 DumperSupport::instance_size(Klass* k) {
-  InstanceKlass* ik = InstanceKlass::cast(k);
+// calculates the total size of the all fields of the given class.
+u4 DumperSupport::instance_size(InstanceKlass *ik) {
   u4 size = 0;
 
   for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
-      size += sig2size(fld.signature());
+      if (is_inlined_field(fld)) {
+        size += instance_size(get_inlined_field_klass(fld));
+      } else {
+        size += sig2size(fld.signature());
+      }
     }
   }
   return size;
@@ -1158,6 +1228,8 @@ u4 DumperSupport::get_static_fields_size(InstanceKlass* ik, u2& field_count) {
 
   for (FieldStream fldc(ik, true, true); !fldc.eos(); fldc.next()) {
     if (fldc.access_flags().is_static()) {
+      assert(!is_inlined_field(fldc), "static fields cannot be inlined");
+
       field_count++;
       size += sig2size(fldc.signature());
     }
@@ -1200,16 +1272,15 @@ void DumperSupport::dump_static_fields(AbstractDumpWriter* writer, Klass* k) {
   // dump the field descriptors and raw values
   for (FieldStream fld(ik, true, true); !fld.eos(); fld.next()) {
     if (fld.access_flags().is_static()) {
+      assert(!is_inlined_field(fld), "static fields cannot be inlined");
+
       Symbol* sig = fld.signature();
 
       writer->write_symbolID(fld.name());   // name
       writer->write_u1(sig2tag(sig));       // type
 
-      // if this changes, need to handle this properly (dump inlined objects after dump_static_fields)
-      assert(!fld.field_descriptor().is_inlined(), "static fields cannot be inlined");
-
       // value
-      dump_field_value(writer, fld, ik->java_mirror(), 0);
+      dump_field_value(writer, sig->char_at(0), ik->java_mirror(), fld.offset());
     }
   }
 
@@ -1239,32 +1310,28 @@ void DumperSupport::dump_static_fields(AbstractDumpWriter* writer, Klass* k) {
   }
 }
 
-
-// dump the raw values of the instance fields of the given object
-void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, Klass *klass) {
-  InstanceKlass* ik = InstanceKlass::cast(klass);
-
-  for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+// dump the raw values of the instance fields of the given identity or inlined object;
+// for identity objects offset is 0 and 'klass' is o->klass(),
+// for inlined objects offset is the offset in the holder object, 'klass' is inlined object class.
+void DumperSupport::dump_instance_fields(AbstractDumpWriter* writer, oop o, int offset, InstanceKlass *klass) {
+  for (FieldStream fld(klass, false, false); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
-      dump_field_value(writer, fld, o, offset);
+      if (is_inlined_field(fld)) {
+        InlineKlass* field_klass = get_inlined_field_klass(fld);
+        // the field is inlined, so all its fields are stored without headers.
+        int fields_offset = offset + fld.offset() - field_klass->first_field_offset();
+        dump_inlined_object_fields(writer, o, offset + fld.offset(), field_klass);
+      } else {
+        Symbol* sig = fld.signature();
+        dump_field_value(writer, sig->char_at(0), o, offset + fld.offset());
+      }
     }
   }
 }
 
-void DumperSupport::dump_inlined_instance_fields(AbstractDumpWriter *writer, oop o, int offset, Klass *klass, InlinedObjectSupport &ios) {
-  InstanceKlass* ik = InstanceKlass::cast(klass);
-
-  assert(&ios != &writer->inlined_object_support(), "must be saved copy");
-
-  for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
-    if (!fld.access_flags().is_static()) {
-      if (fld.field_descriptor().is_inlined()) {
-        InstanceKlass* holder_klass = fld.field_descriptor().field_holder();
-        InlineKlass* field_klass = InlineKlass::cast(holder_klass->get_inline_type_field_klass(fld.index()));
-        dump_inlined_object(writer, o, offset + fld.offset(), field_klass, ios);
-      }
-    }
-  }
+void DumperSupport::dump_inlined_object_fields(AbstractDumpWriter* writer, oop o, int offset, InlineKlass* klass) {
+  // the object is inlined, so all its fields are stored without headers.
+  dump_instance_fields(writer, o, offset - klass->first_field_offset(), klass);
 }
 
 // gets the count of the instance fields for a given class
@@ -1272,56 +1339,61 @@ u2 DumperSupport::get_instance_fields_count(InstanceKlass* ik) {
   u2 field_count = 0;
 
   for (FieldStream fldc(ik, true, true); !fldc.eos(); fldc.next()) {
-    if (!fldc.access_flags().is_static()) field_count++;
+    if (!fldc.access_flags().is_static()) {
+      if (is_inlined_field(fldc)) {
+        // add "synthetic" fields for inlined fields.
+        field_count += get_instance_fields_count(get_inlined_field_klass(fldc));
+      } else {
+        field_count++;
+      }
+    }
   }
 
   return field_count;
 }
 
 // dumps the definition of the instance fields for a given class
-void DumperSupport::dump_instance_field_descriptors(AbstractDumpWriter* writer, Klass* k) {
-  InstanceKlass* ik = InstanceKlass::cast(k);
+// inlined_fields_id is not-NULL for inlined fields (to get synthetic field name IDs
+// by using InlinedObjects::get_next_string_id()).
+void DumperSupport::dump_instance_field_descriptors(AbstractDumpWriter* writer, InstanceKlass* ik, uintx* inlined_fields_id) {
+  // inlined_fields_id != NULL means ik is a class of inlined field.
+  // Inlined field id pointer for this class; lazyly initialized
+  // if the class has inlined field(s) and the caller didn't provide inlined_fields_id.
+  uintx *this_klass_inlined_fields_id = inlined_fields_id;
+  uintx inlined_id = 0;
 
   // dump the field descriptors
   for (FieldStream fld(ik, true, true); !fld.eos(); fld.next()) {
     if (!fld.access_flags().is_static()) {
-      Symbol* sig = fld.signature();
+      if (is_inlined_field(fld)) {
+        // dump "synthetic" fields for inlined fields.
+        if (this_klass_inlined_fields_id == nullptr) {
+          inlined_id = InlinedObjects::get_instance()->get_base_index_for(ik);
+          this_klass_inlined_fields_id = &inlined_id;
+        }
+        dump_instance_field_descriptors(writer, get_inlined_field_klass(fld), this_klass_inlined_fields_id);
+      } else {
+        Symbol* sig = fld.signature();
+        Symbol* name = nullptr;
+        // Use inlined_fields_id provided by caller.
+        if (inlined_fields_id != nullptr) {
+          uintx name_id = InlinedObjects::get_instance()->get_next_string_id(*inlined_fields_id);
 
-      writer->write_symbolID(fld.name());   // name
-      writer->write_u1(sig2tag(sig));       // type
+          // name_id == 0 is returned on error. use original field signature.
+          if (name_id != 0) {
+            *inlined_fields_id = name_id;
+            name = reinterpret_cast<Symbol*>(name_id);
+          }
+        }
+        if (name == nullptr) {
+          name = fld.name();
+        }
+
+        writer->write_symbolID(name);         // name
+        writer->write_u1(sig2tag(sig));       // type
+      }
     }
   }
-}
-
-// creates HPROF_GC_INSTANCE_DUMP record for the given inlined object
-void DumperSupport::dump_inlined_object(AbstractDumpWriter* writer, oop holder, int offset, InlineKlass* klass, InlinedObjectSupport& ios) {
-  u4 is = instance_size(klass);
-  u4 size = 1 + sizeof(address) + 4 + sizeof(address) + 4 + is;
-
-  writer->start_sub_record(HPROF_GC_INSTANCE_DUMP, size);
-  writer->write_inlinedObjectID(ios);
-
-  writer->write_u4(STACK_TRACE_ID);
-
-  // class ID
-  writer->write_classID(klass);
-
-  // number of bytes that follow
-  writer->write_u4(is);
-
-  // the object if flattened, so all fields are stored without headers
-  // update offset here instead of handling it in both dump_instance_fields and dump_inlined_instance_fields
-  offset -= klass->first_field_offset();
-
-  InlinedObjectSupport saved_ios = writer->inlined_object_support().save();
-
-  // field values
-  dump_instance_fields(writer, holder, offset, klass);
-
-  writer->end_sub_record();
-
-  // dump flattened fields
-  dump_inlined_instance_fields(writer, holder, offset, klass, saved_ios);
 }
 
 // creates HPROF_GC_INSTANCE_DUMP record for the given object
@@ -1340,15 +1412,10 @@ void DumperSupport::dump_instance(AbstractDumpWriter* writer, oop o) {
   // number of bytes that follow
   writer->write_u4(is);
 
-  InlinedObjectSupport saved_ios = writer->inlined_object_support().save();
-
   // field values
-  dump_instance_fields(writer, o, 0, o->klass());
+  dump_instance_fields(writer, o, 0, ik);
 
   writer->end_sub_record();
-
-  // dump inlined fields
-  dump_inlined_instance_fields(writer, o, 0, o->klass(), saved_ios);
 }
 
 // creates HPROF_GC_CLASS_DUMP record for the given instance class
@@ -1391,7 +1458,7 @@ void DumperSupport::dump_instance_class(AbstractDumpWriter* writer, Klass* k) {
   writer->write_objectID(oop(NULL));
 
   // instance size
-  writer->write_u4(DumperSupport::instance_size(ik));
+  writer->write_u4(HeapWordSize * ik->size_helper());
 
   // size of constant pool - ignored by HAT 1.1
   writer->write_u2(0);
@@ -1445,18 +1512,8 @@ void DumperSupport::dump_array_class(AbstractDumpWriter* writer, Klass* k) {
 
 // Hprof uses an u4 as record length field,
 // which means we need to truncate arrays that are too long.
-int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, short header_size) {
-  BasicType type = ArrayKlass::cast(array->klass())->element_type();
-  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_PRIMITIVE_OBJECT, "invalid array element type");
-
+int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, int type_size, short header_size) {
   int length = array->length();
-
-  int type_size;
-  if (type == T_OBJECT || type == T_PRIMITIVE_OBJECT) {
-    type_size = sizeof(address);
-  } else {
-    type_size = type2aelembytes(type);
-  }
 
   size_t length_in_bytes = (size_t)length * type_size;
   uint max_bytes = max_juint - header_size;
@@ -1465,14 +1522,28 @@ int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayO
     length = max_bytes / type_size;
     length_in_bytes = (size_t)length * type_size;
 
+    BasicType type = ArrayKlass::cast(array->klass())->element_type();
     warning("cannot dump array of type %s[] with length %d; truncating to length %d",
             type2name_tab[type], array->length(), length);
   }
   return length;
 }
 
+int DumperSupport::calculate_array_max_length(AbstractDumpWriter* writer, arrayOop array, short header_size) {
+  BasicType type = ArrayKlass::cast(array->klass())->element_type();
+  assert((type >= T_BOOLEAN && type <= T_OBJECT) || type == T_PRIMITIVE_OBJECT, "invalid array element type");
+  int type_size;
+  if (type == T_OBJECT || type == T_PRIMITIVE_OBJECT) {  // TODO: FIXME
+    type_size = sizeof(address);
+  } else {
+    type_size = type2aelembytes(type);
+  }
+
+  return calculate_array_max_length(writer, array, type_size, header_size);
+}
+
 // creates HPROF_GC_OBJ_ARRAY_DUMP record for the given object array
-void DumperSupport::dump_object_array(AbstractDumpWriter* writer, arrayOop array) {
+void DumperSupport::dump_object_array(AbstractDumpWriter* writer, objArrayOop array) {
   // sizeof(u1) + 2 * sizeof(u4) + sizeof(objectID) + sizeof(classID)
   short header_size = 1 + 2 * 4 + 2 * sizeof(address);
   int length = calculate_array_max_length(writer, array, header_size);
@@ -1486,43 +1557,60 @@ void DumperSupport::dump_object_array(AbstractDumpWriter* writer, arrayOop array
   // array class ID
   writer->write_classID(array->klass());
 
-  InlinedObjectSupport ios = writer->inlined_object_support().save();
-  if (array->is_objArray()) {
-    // [id]* elements
-    objArrayOop objArray = objArrayOop(array);
-    for (int index = 0; index < length; index++) {
-      oop o = objArray->obj_at(index);
-      if (o != NULL && log_is_enabled(Debug, cds, heap) && mask_dormant_archived_object(o) == NULL) {
-        ResourceMark rm;
-        log_debug(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s) referenced by " INTPTR_FORMAT " (%s)",
-                             p2i(o), o->klass()->external_name(),
-                             p2i(array), array->klass()->external_name());
-      }
-      o = mask_dormant_archived_object(o);
-      writer->write_objectID(o);
+  // [id]* elements
+  for (int index = 0; index < length; index++) {
+    oop o = array->obj_at(index);
+    if (o != NULL && log_is_enabled(Debug, cds, heap) && mask_dormant_archived_object(o) == NULL) {
+      ResourceMark rm;
+      log_debug(cds, heap)("skipped dormant archived object " INTPTR_FORMAT " (%s) referenced by " INTPTR_FORMAT " (%s)",
+                           p2i(o), o->klass()->external_name(),
+                           p2i(array), array->klass()->external_name());
     }
-  } else { // flatArray
-    // [id]* elements
-    flatArrayOop flatArray = flatArrayOop(array);
-    for (int index = 0; index < length; index++) {
-      writer->write_inlinedObjectID(writer->inlined_object_support());
-    }
+    o = mask_dormant_archived_object(o);
+    writer->write_objectID(o);
   }
 
   writer->end_sub_record();
+}
 
-  if (array->is_flatArray()) {
-    flatArrayOop flatArray = flatArrayOop(array);
-    FlatArrayKlass* vaklass = FlatArrayKlass::cast(flatArray->klass());
-    InlineKlass* vklass = vaklass->element_klass();
-    for (int index = 0; index < length; index++) {
-      // need offset in the holder to read inlined object. calculate it from flatArrayOop::value_at_addr()
-      int offset = (int)((address)flatArray->value_at_addr(index, vaklass->layout_helper())
-                        - cast_from_oop<address>(flatArray));
+// creates HPROF_GC_PRIM_ARRAY_DUMP record for the given flat array
+void DumperSupport::dump_flat_array(AbstractDumpWriter* writer, flatArrayOop array) {
+  FlatArrayKlass* array_klass = FlatArrayKlass::cast(array->klass());
+  InlineKlass* element_klass = array_klass->element_klass();
+  int element_size = instance_size(element_klass);
+  /*                          id         array object ID
+   *                          u4         stack trace serial number
+   *                          u4         number of elements
+   *                          u1         element type
+   */
+  short header_size = 1 + sizeof(address) + 2 * 4 + 1;
 
-      dump_inlined_object(writer, flatArray, offset, vklass, ios);
-    }
+  // TODO: use T_SHORT/T_INT/T_LONG if needed to avoid truncation
+  BasicType type = T_BYTE;
+  int type_size = type2aelembytes(type);
+  int length = calculate_array_max_length(writer, array, element_size, header_size);
+  u4 length_in_bytes = (u4)(length * element_size);
+  u4 size = header_size + length_in_bytes;
+
+  writer->start_sub_record(HPROF_GC_PRIM_ARRAY_DUMP, size);
+  writer->write_objectID(array);
+  writer->write_u4(STACK_TRACE_ID);
+  // TODO: round up array length for T_SHORT/T_INT/T_LONG
+  writer->write_u4(length * element_size);
+  writer->write_u1(type2tag(type));
+
+  for (int index = 0; index < length; index++) {
+    // need offset in the holder to read inlined object. calculate it from flatArrayOop::value_at_addr()
+    int offset = (int)((address)array->value_at_addr(index, array_klass->layout_helper())
+                  - cast_from_oop<address>(array));
+    dump_inlined_object_fields(writer, array, offset, element_klass);
   }
+
+  // TODO: write padding bytes for T_SHORT/T_INT/T_LONG
+
+  InlinedObjects::get_instance()->add_flat_array(array);
+
+  writer->end_sub_record();
 }
 
 #define WRITE_ARRAY(Array, Type, Size, Length) \
@@ -1643,6 +1731,270 @@ void DumperSupport::dump_stack_frame(AbstractDumpWriter* writer,
   writer->write_symbolID(m->method_holder()->source_file_name());  // source file name
   writer->write_u4(class_serial_num);               // class serial number
   writer->write_u4((u4) line_number);               // line number
+}
+
+
+class InlinedFieldNameDumper : public LockedClassesDo {
+public:
+  typedef void (*Callback)(InlinedObjects *owner, const Klass *klass, uintx base_index, int count);
+
+private:
+  AbstractDumpWriter* _writer;
+  InlinedObjects *_owner;
+  Callback       _callback;
+  uintx _index;
+
+  void dump_inlined_field_names(GrowableArray<Symbol*>* super_names, Symbol* field_name, InlineKlass* klass) {
+    super_names->push(field_name);
+    for (FieldStream fld(klass, false, false); !fld.eos(); fld.next()) {
+      if (!fld.access_flags().is_static()) {
+        if (DumperSupport::is_inlined_field(fld)) {
+          dump_inlined_field_names(super_names, fld.name(), DumperSupport::get_inlined_field_klass(fld));
+        } else {
+          // get next string ID.
+          uintx next_index = _owner->get_next_string_id(_index);
+          if (next_index == 0) {
+            // something went wrong (overflow?)
+            // stop generation; the rest of inlined objects will have original field names.
+            return;
+          }
+          _index = next_index;
+
+          // Calculate length.
+          int len = fld.name()->utf8_length();
+          for (GrowableArrayIterator<Symbol*> it = super_names->begin(); it != super_names->end(); ++it) {
+            len += (*it)->utf8_length() + 1;    // +1 for ".".
+          }
+
+          DumperSupport::write_header(_writer, HPROF_UTF8, oopSize + len);
+          _writer->write_symbolID(reinterpret_cast<Symbol*>(_index));
+          // Write the string value.
+          // 1) super_names.
+          for (GrowableArrayIterator<Symbol*> it = super_names->begin(); it != super_names->end(); ++it) {
+            _writer->write_raw((*it)->bytes(), (*it)->utf8_length());
+            _writer->write_u1('.');
+          }
+          // 2) field name.
+          _writer->write_raw(fld.name()->bytes(), fld.name()->utf8_length());
+        }
+      }
+    }
+    super_names->pop();
+  }
+
+  void dump_inlined_field_names(Symbol* field_name, InlineKlass* field_klass) {
+    GrowableArray<Symbol*> super_names(4, mtServiceability);
+    dump_inlined_field_names(&super_names, field_name, field_klass);
+  }
+
+public:
+  InlinedFieldNameDumper(AbstractDumpWriter* writer, InlinedObjects* owner, Callback callback)
+    : _writer(writer), _owner(owner), _callback(callback), _index(0)  {
+  }
+
+  void do_klass(Klass* k) {
+    if (!k->is_instance_klass()) {
+      return;
+    }
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    // if (ik->has_inline_type_fields()) {
+    //   return;
+    // }
+
+    uintx base_index = _index;
+    int count = 0;
+
+    for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+      if (!fld.access_flags().is_static()) {
+        if (DumperSupport::is_inlined_field(fld)) {
+          dump_inlined_field_names(fld.name(), DumperSupport::get_inlined_field_klass(fld));
+          count++;
+        }
+      }
+    }
+
+    if (count != 0) {
+      _callback(_owner, k, base_index, count);
+    }
+  }
+};
+
+class InlinedFieldsDumper : public LockedClassesDo {
+private:
+  AbstractDumpWriter* _writer;
+
+public:
+  InlinedFieldsDumper(AbstractDumpWriter* writer) : _writer(writer) {}
+
+  void do_klass(Klass* k) {
+    if (!k->is_instance_klass()) {
+      return;
+    }
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    // if (ik->has_inline_type_fields()) {
+    //   return;
+    // }
+
+    // We can be at a point where java mirror does not exist yet.
+    // So we need to check that the class is at least loaded, to avoid crash from a null mirror.
+    if (!ik->is_loaded()) {
+      return;
+    }
+
+    u2 inlined_count = 0;
+    for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+      if (!fld.access_flags().is_static()) {
+        if (DumperSupport::is_inlined_field(fld)) {
+          inlined_count++;
+        }
+      }
+    }
+    if (inlined_count != 0) {
+      _writer->write_u1(HPROF_CLASS_WITH_INLINED_FIELDS);
+
+      // class ID
+      _writer->write_classID(ik);
+      // number of inlined fields
+      _writer->write_u2(inlined_count);
+      u2 index = 0;
+      for (FieldStream fld(ik, false, false); !fld.eos(); fld.next()) {
+        if (!fld.access_flags().is_static()) {
+          if (DumperSupport::is_inlined_field(fld)) {
+            // inlined field index
+            _writer->write_u2(index);
+            // synthetic field count
+            u2 field_count = DumperSupport::get_instance_fields_count(DumperSupport::get_inlined_field_klass(fld));
+            _writer->write_u2(field_count);
+            // original field name
+            _writer->write_symbolID(fld.name());
+            // inlined field class ID
+            _writer->write_classID(DumperSupport::get_inlined_field_klass(fld));
+
+            index += field_count;
+          } else {
+            index++;
+          }
+        }
+      }
+    }
+  }
+};
+
+
+void InlinedObjects::init() {
+  _instance = this;
+
+  struct Closure : public SymbolClosure {
+    uintx _min_id = max_uintx;
+    uintx _max_id = 0;
+    Closure() : _min_id(max_uintx), _max_id(0) {}
+
+    void do_symbol(Symbol** p) {
+      uintx val = reinterpret_cast<uintx>(*p);
+      if (val < _min_id) {
+        _min_id = val;
+      }
+      if (val > _max_id) {
+        _max_id = val;
+      }
+    }
+  } closure;
+
+  SymbolTable::symbols_do(&closure);
+
+  _min_string_id = closure._min_id;
+  _max_string_id = closure._max_id;
+}
+
+void InlinedObjects::release() {
+  _instance = nullptr;
+
+  if (_inlined_field_map != nullptr) {
+    delete _inlined_field_map;
+    _inlined_field_map = nullptr;
+  }
+  if (_flat_arrays != nullptr) {
+    delete _flat_arrays;
+    _flat_arrays = nullptr;
+  }
+}
+
+void InlinedObjects::inlined_field_names_callback(InlinedObjects* _this, const Klass* klass, uintx base_index, int count) {
+  if (_this->_inlined_field_map == nullptr) {
+    _this->_inlined_field_map = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<ClassInlinedFields>(100, mtServiceability);
+  }
+  _this->_inlined_field_map->append(ClassInlinedFields(klass, base_index));
+
+  // counters for dumping classes with inlined fields
+  _this->_classes_count++;
+  _this->_inlined_fields_count += count;
+}
+
+void InlinedObjects::dump_inlined_field_names(AbstractDumpWriter* writer) {
+  InlinedFieldNameDumper nameDumper(writer, this, inlined_field_names_callback);
+  ClassLoaderDataGraph::classes_do(&nameDumper);
+
+  if (_inlined_field_map != nullptr) {
+    // prepare the map for  get_base_index_for().
+    _inlined_field_map->sort(ClassInlinedFields::compare);
+  }
+}
+
+uintx InlinedObjects::get_base_index_for(Klass* k) {
+  if (_inlined_field_map != nullptr) {
+    bool found = false;
+    int idx = _inlined_field_map->find_sorted<ClassInlinedFields, ClassInlinedFields::compare>(ClassInlinedFields(k, 0), found);
+    if (found) {
+        return _inlined_field_map->at(idx).base_index;
+    }
+  }
+
+  // return max_uintx, so get_next_string_id returns 0.
+  return max_uintx;
+}
+
+uintx InlinedObjects::get_next_string_id(uintx id) {
+  if (++id == _min_string_id) {
+    return _max_string_id + 1;
+  }
+  return id;
+}
+
+void InlinedObjects::dump_classed_with_inlined_fields(AbstractDumpWriter* writer) {
+  if (_classes_count != 0) {
+    // Record for each class contains tag(u1), class ID and count(u2)
+    // for each inlined field index(u2), synthetic fields count(u2), original field name and class ID
+    int size = _classes_count * (1 + sizeof(address) + 2)
+             + _inlined_fields_count * (2 + 2 + sizeof(address) + sizeof(address));
+    DumperSupport::write_header(writer, HPROF_INLINED_FIELDS, (u4)size);
+
+    InlinedFieldsDumper dumper(writer);
+    ClassLoaderDataGraph::classes_do(&dumper);
+  }
+}
+
+void InlinedObjects::add_flat_array(oop array) {
+  if (_flat_arrays == nullptr) {
+    _flat_arrays = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<oop>(100, mtServiceability);
+  }
+  _flat_arrays->append(array);
+}
+
+void InlinedObjects::dump_flat_arrays(AbstractDumpWriter* writer) {
+  if (_flat_arrays != nullptr) {
+    // For each flat array the record contains tag (u1), object ID and class ID.
+    int size = _flat_arrays->length() * (1 + sizeof(address) + sizeof(address));
+
+    DumperSupport::write_header(writer, HPROF_FLAT_ARRAYS, (u4)size);
+    for (GrowableArrayIterator<oop> it = _flat_arrays->begin(); it != _flat_arrays->end(); ++it) {
+      flatArrayOop array = flatArrayOop(*it);
+      FlatArrayKlass* array_klass = FlatArrayKlass::cast(array->klass());
+      InlineKlass* element_klass = array_klass->element_klass();
+      writer->write_u1(HPROF_FLAT_ARRAY);
+      writer->write_objectID(array);
+      writer->write_classID(element_klass);
+    }
+  }
 }
 
 
@@ -1865,9 +2217,11 @@ void HeapObjectDumper::do_object(oop o) {
   if (o->is_instance()) {
     // create a HPROF_GC_INSTANCE record for each object
     DumperSupport::dump_instance(writer(), o);
-  } else if (o->is_objArray() || o->is_flatArray()) {
+  } else if (o->is_objArray()) {
     // create a HPROF_GC_OBJ_ARRAY_DUMP record for each object array
-    DumperSupport::dump_object_array(writer(), arrayOop(o));
+    DumperSupport::dump_object_array(writer(), objArrayOop(o));
+  } else if (o->is_flatArray()) {
+    DumperSupport::dump_flat_array(writer(), flatArrayOop(o));
   } else if (o->is_typeArray()) {
     // create a HPROF_GC_PRIM_ARRAY_DUMP record for each type array
     DumperSupport::dump_prim_array(writer(), typeArrayOop(o));
@@ -1886,6 +2240,14 @@ bool HeapObjectDumper::is_large(oop o) {
     int length = array->length();
     int type_size = sizeof(address);
     size = (size_t)length * type_size;
+  } else if (o->is_typeArray()) {
+    flatArrayOop array = flatArrayOop(o);
+    BasicType type = ArrayKlass::cast(array->klass())->element_type();
+    assert(type == T_PRIMITIVE_OBJECT, "invalid array element type");
+    int length = array->length();
+    //TODO: FIXME
+    //int type_size = type2aelembytes(type);
+    //size = (size_t)length * type_size;
   } else if (o->is_typeArray()) {
     typeArrayOop array = typeArrayOop(o);
     BasicType type = ArrayKlass::cast(array->klass())->element_type();
@@ -1958,6 +2320,11 @@ class VM_HeapDumper : public VM_GC_Operation, public WorkerTask {
   GrowableArray<Klass*>*  _klass_map;
   ThreadStackTrace**      _stack_traces;
   int                     _num_threads;
+
+  // Inlined object support.
+  InlinedObjects          _inlined_objects;
+  InlinedObjects* inlined_objects() { return &_inlined_objects; }
+
   // parallel heap dump support
   uint                    _num_dumper_threads;
   uint                    _num_writer_threads;
@@ -2367,6 +2734,13 @@ void VM_HeapDumper::work(uint worker_id) {
     SymbolTableDumper sym_dumper(writer());
     SymbolTable::symbols_do(&sym_dumper);
 
+    // HPROF_UTF8 records for inlined field names.
+    inlined_objects()->init();
+    inlined_objects()->dump_inlined_field_names(writer());
+
+    // HPROF_INLINED_FIELDS
+    inlined_objects()->dump_classed_with_inlined_fields(writer());
+
     // write HPROF_LOAD_CLASS records
     {
       LockedClassesDo locked_load_classes(&do_load_class);
@@ -2445,8 +2819,13 @@ void VM_HeapDumper::work(uint worker_id) {
   dump_large_objects(&obj_dumper);
   // Writes the HPROF_HEAP_DUMP_END record.
   DumperSupport::end_of_dump(writer());
+
+  inlined_objects()->dump_flat_arrays(writer());
+
   // We are done with writing. Release the worker threads.
   writer()->deactivate();
+
+  inlined_objects()->release();
 }
 
 void VM_HeapDumper::dump_stack_traces() {

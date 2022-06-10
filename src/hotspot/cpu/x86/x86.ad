@@ -2648,17 +2648,41 @@ encode %{
       __ int3();
       __ bind(L);
     }
-    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic() && return_value_is_used()) {
-      // An inline type is returned as fields in multiple registers.
-      // Rax either contains an oop if the inline type is buffered or a pointer
-      // to the corresponding InlineKlass with the lowest bit set to 1. Zero rax
-      // if the lowest bit is set to allow C2 to use the oop after null checking.
-      // rax &= (rax & 1) - 1
+    if (tf()->returns_inline_type_as_fields() && !_method->is_method_handle_intrinsic()) {
       C2_MacroAssembler _masm(&cbuf);
-      __ movptr(rscratch1, rax);
-      __ andptr(rscratch1, 0x1);
-      __ subptr(rscratch1, 0x1);
-      __ andptr(rax, rscratch1);
+      if (!_method->signature()->returns_null_free_inline_type()) {
+        // The last return value is not set by the callee but used to pass IsInit information to compiled code.
+        // Search for the corresponding projection, get the register and emit code that initialized it.
+        uint con = (tf()->range_cc()->cnt() - 1);
+        for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+          ProjNode* proj = fast_out(i)->as_Proj();
+          if (proj->_con == con) {
+            // Set IsInit if rax is non-null (a non-null value is returned buffered or scalarized)
+            OptoReg::Name optoReg = ra_->get_reg_first(proj);
+            VMReg reg = OptoReg::as_VMReg(optoReg, ra_->_framesize, OptoReg::reg2stack(ra_->_matcher._new_SP));
+            Register toReg = reg->is_reg() ? reg->as_Register() : rscratch1;
+            __ testq(rax, rax);
+            __ set_byte_if_not_zero(toReg);
+            __ movzbl(toReg, toReg);
+            if (reg->is_stack()) {
+              int st_off = reg->reg2stack() * VMRegImpl::stack_slot_size;
+              __ movq(Address(rsp, st_off), toReg);
+            }
+            break;
+          }
+        }
+      }
+      if (return_value_is_used()) {
+        // An inline type is returned as fields in multiple registers.
+        // Rax either contains an oop if the inline type is buffered or a pointer
+        // to the corresponding InlineKlass with the lowest bit set to 1. Zero rax
+        // if the lowest bit is set to allow C2 to use the oop after null checking.
+        // rax &= (rax & 1) - 1
+        __ movptr(rscratch1, rax);
+        __ andptr(rscratch1, 0x1);
+        __ subptr(rscratch1, 0x1);
+        __ andptr(rax, rscratch1);
+      }
     }
   %}
 
