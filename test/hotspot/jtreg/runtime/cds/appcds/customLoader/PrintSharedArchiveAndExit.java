@@ -59,8 +59,7 @@ public class PrintSharedArchiveAndExit {
         String classlist[] = new String[] {
             "HelloUnload",
             "java/lang/Object id: 1",
-            "java/lang/IdentityObject id: 2",
-            "CustomLoadee id: 3 super: 1 interfaces: 2 source: " + customJarPath
+            "CustomLoadee id: 2 super: 1 source: " + customJarPath
         };
 
         OutputAnalyzer output;
