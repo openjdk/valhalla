@@ -60,7 +60,7 @@ static size_t eventsCount = 0;
 static size_t eventsExpected = 0;
 static class_info classes[] = {
     { "Lnsk/jvmti/ClassPrepare/classprep001$TestInterface;", EXP_STATUS, 2, 1, 0 },
-    { "Lnsk/jvmti/ClassPrepare/classprep001$TestClass;", EXP_STATUS, 3, 2, 2 }
+    { "Lnsk/jvmti/ClassPrepare/classprep001$TestClass;", EXP_STATUS, 3, 2, 1 }
 };
 // These classes are loaded on a different thread.
 // We should not get ClassPrepare events for them.
