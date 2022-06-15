@@ -122,7 +122,7 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_SUPER} with a mask value of {@code
      * 0x0020}.
-     * <p>
+     *
      * @apiNote
      * NOTE: The Valhalla draft JVMS spec does not define a value for ACC_SUPER.
      * Historically, the value 0x0020 was used to indicate ACC_SUPER, which affected the
@@ -131,7 +131,7 @@ public enum AccessFlag {
      * ACC_SUPER or the class file version number, and the flag no longer had any effect.
      * Now the flag has been repurposed as ACC_IDENTITY.
      */
-//    SUPER(0x0000_0020, false, Set.of(Location.CLASS)),
+    SUPER(0x0000_0020, false, Set.of(Location.CLASS)),
 
     /**
      * The access flag {@code ACC_IDENTITY} with a mask value of {@code 0x0020}.
@@ -414,7 +414,7 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, IDENTITY, VALUE, PRIMITIVE,
+                                Set.of(PUBLIC, FINAL, SUPER, IDENTITY, VALUE, PRIMITIVE,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),

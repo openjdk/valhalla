@@ -110,6 +110,8 @@ public class BasicAccessFlagTest {
 
             Set<AccessFlag.Location> locations = new HashSet<>();
             for (var accessFlag : value) {
+                if (accessFlag.equals(AccessFlag.SUPER))
+                    continue;       // SUPER is defined to overlap with IDENTITY
                 for (var location : accessFlag.locations()) {
                     boolean added = locations.add(location);
                     if (!added) {
@@ -135,6 +137,8 @@ public class BasicAccessFlagTest {
     // of location it can apply to
     private static void testMaskToAccessFlagsPositive() {
         for (var accessFlag : AccessFlag.values()) {
+            if (accessFlag.equals(AccessFlag.SUPER))
+                continue;       // SUPER is defined to overlap with IDENTITY
             Set<AccessFlag> expectedSet = EnumSet.of(accessFlag);
             for (var location : accessFlag.locations()) {
                 Set<AccessFlag> computedSet =

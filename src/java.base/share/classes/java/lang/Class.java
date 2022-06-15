@@ -302,10 +302,8 @@ public final class Class<T> implements java.io.Serializable,
             } else {
                 // Class modifiers are a superset of interface modifiers
                 int modifiers = getModifiers() & Modifier.classModifiers();
-                if ((isValue() || isPrimitiveClass())) {
-                    // Modifier.toString() below mis-interprets IDENTITY, VALUE, and PRIMITIVE bits
-                    modifiers &= ~(AccessFlag.IDENTITY.mask() | AccessFlag.VALUE.mask() | AccessFlag.PRIMITIVE.mask());
-                }
+                // Modifier.toString() below mis-interprets IDENTITY, VALUE, and PRIMITIVE bits
+                modifiers &= ~(AccessFlag.IDENTITY.mask() | AccessFlag.VALUE.mask() | AccessFlag.PRIMITIVE.mask());
                 if (modifiers != 0) {
                     sb.append(Modifier.toString(modifiers));
                     sb.append(' ');
