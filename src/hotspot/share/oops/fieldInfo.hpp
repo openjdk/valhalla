@@ -47,9 +47,9 @@ class FieldInfo {
   // as an array of 6 shorts.
 
 #define FIELDINFO_TAG_SIZE             3
-#define FIELDINFO_TAG_OFFSET           1 << 0
-#define FIELDINFO_TAG_CONTENDED        1 << 1
-#define FIELDINFO_TAG_INLINED          1 << 2
+#define FIELDINFO_TAG_OFFSET           (1 << 0)
+#define FIELDINFO_TAG_CONTENDED        (1 << 1)
+#define FIELDINFO_TAG_INLINED          (1 << 2)
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits

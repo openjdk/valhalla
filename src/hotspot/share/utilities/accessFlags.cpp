@@ -62,7 +62,6 @@ void AccessFlags::print_on(outputStream* st) const {
   if (is_native      ()) st->print("native "      );
   if (is_interface   ()) st->print("interface "   );
   if (is_abstract    ()) st->print("abstract "    );
-  if (is_permits_value_class    ()) st->print("permits_value "    );
   if (is_synthetic   ()) st->print("synthetic "   );
   if (is_old         ()) st->print("{old} "       );
   if (is_obsolete    ()) st->print("{obsolete} "  );
