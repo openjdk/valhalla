@@ -1206,6 +1206,19 @@ public class Types {
                         && (!s.isParameterized() || compareTypeArgsRecursive(s, t))
                         && visit(t.getEnclosingType(), s.getEnclosingType());
             }
+            // where
+                boolean compareTypeArgsRecursive(Type t, Type s) {
+                    return compareTypeArgs(t.getTypeArguments(), s.getTypeArguments());
+                }
+
+                boolean compareTypeArgs(List<Type> ts, List<Type> ss) {
+                    while (ts.nonEmpty() && ss.nonEmpty()
+                            && visit(ts.head, ss.head, false)) {
+                        ts = ts.tail;
+                        ss = ss.tail;
+                    }
+                    return ts.isEmpty() && ss.isEmpty();
+                }
 
             @Override
             public Boolean visitWildcardType(WildcardType t, Type s) {
@@ -1214,19 +1227,20 @@ public class Types {
                         || compareWildcardHelper(t, s);
             }
 
-            boolean compareWildcardHelper(WildcardType t, Type s) {
-                // let's remove captured if any
-                if (s.hasTag(TYPEVAR)) {
-                    TypeVar v = (TypeVar) s;
-                    s = v.isCaptured() ? ((CapturedType)v).wildcard : s;
+            // where
+                boolean compareWildcardHelper(WildcardType t, Type s) {
+                    // let's remove captured if any
+                    if (s.hasTag(TYPEVAR)) {
+                        TypeVar v = (TypeVar) s;
+                        s = v.isCaptured() ? ((CapturedType)v).wildcard : s;
+                    }
+                    if (!s.hasTag(WILDCARD) || ((WildcardType)s).kind != t.kind) return false;
+                    if (t.isExtendsBound()) {
+                        return visit(wildUpperBound(s), wildUpperBound(t));
+                    } else {
+                        return visit(wildLowerBound(s), wildLowerBound(t));
+                    }
                 }
-                if (!s.hasTag(WILDCARD) || ((WildcardType)s).kind != t.kind) return false;
-                if (t.isExtendsBound()) {
-                    return visit(wildUpperBound(s), wildUpperBound(t));
-                } else {
-                    return visit(wildLowerBound(s), wildLowerBound(t));
-                }
-            }
 
             @Override
             public Boolean visitTypeVar(TypeVar t, Type s) {
@@ -1244,62 +1258,6 @@ public class Types {
             public Boolean visitUndetVar(UndetVar t, Type s) {
                 return isSameType(t, s);
             }
-
-            public boolean compareTypeArgsRecursive(Type t, Type s) {
-                TypePair pair = new TypePair(t, s);
-                if (cache.add(pair)) {
-                    try {
-                        return compareTypeArgs(t.getTypeArguments(), s.getTypeArguments());
-                    } finally {
-                        cache.remove(pair);
-                    }
-                } else {
-                    return compareTypeArgs(t.getTypeArguments(),
-                            rewriteSupers(s).getTypeArguments());
-                }
-            }
-
-            boolean compareTypeArgs(List<Type> ts, List<Type> ss) {
-                while (ts.nonEmpty() && ss.nonEmpty()
-                        && visit(ts.head, ss.head, false)) {
-                    ts = ts.tail;
-                    ss = ss.tail;
-                }
-                return ts.isEmpty() && ss.isEmpty();
-            }
-        }
-
-        Type rewriteSupers(Type t) {
-            if (!t.isParameterized())
-                return t;
-            ListBuffer<Type> from = new ListBuffer<>();
-            ListBuffer<Type> to = new ListBuffer<>();
-            adaptSelf(t, from, to);
-            if (from.isEmpty())
-                return t;
-            ListBuffer<Type> rewrite = new ListBuffer<>();
-            boolean changed = false;
-            for (Type orig : to.toList()) {
-                Type s = rewriteSupers(orig);
-                if (s.isSuperBound() && !s.isExtendsBound()) {
-                    s = new WildcardType(syms.objectType,
-                            BoundKind.UNBOUND,
-                            syms.boundClass,
-                            s.getMetadata());
-                    changed = true;
-                } else if (s != orig) {
-                    s = new WildcardType(wildUpperBound(s),
-                            BoundKind.EXTENDS,
-                            syms.boundClass,
-                            s.getMetadata());
-                    changed = true;
-                }
-                rewrite.append(s);
-            }
-            if (changed)
-                return subst(t.tsym.type, from.toList(), rewrite.toList());
-            else
-                return t;
         }
 
         private void checkUnsafeVarargsConversion(Type t, Type s, Warner warn) {
@@ -1405,6 +1363,39 @@ public class Types {
                     return containsType(t.getTypeArguments(),
                                         rewriteSupers(s).getTypeArguments());
                 }
+            }
+
+            Type rewriteSupers(Type t) {
+                if (!t.isParameterized())
+                    return t;
+                ListBuffer<Type> from = new ListBuffer<>();
+                ListBuffer<Type> to = new ListBuffer<>();
+                adaptSelf(t, from, to);
+                if (from.isEmpty())
+                    return t;
+                ListBuffer<Type> rewrite = new ListBuffer<>();
+                boolean changed = false;
+                for (Type orig : to.toList()) {
+                    Type s = rewriteSupers(orig);
+                    if (s.isSuperBound() && !s.isExtendsBound()) {
+                        s = new WildcardType(syms.objectType,
+                                BoundKind.UNBOUND,
+                                syms.boundClass,
+                                s.getMetadata());
+                        changed = true;
+                    } else if (s != orig) {
+                        s = new WildcardType(wildUpperBound(s),
+                                BoundKind.EXTENDS,
+                                syms.boundClass,
+                                s.getMetadata());
+                        changed = true;
+                    }
+                    rewrite.append(s);
+                }
+                if (changed)
+                    return subst(t.tsym.type, from.toList(), rewrite.toList());
+                else
+                    return t;
             }
 
             @Override
