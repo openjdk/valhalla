@@ -31,11 +31,17 @@ import jdk.internal.access.JavaLangRefAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.ref.Cleaner;
 
+import java.util.Objects;
+
 /**
  * Abstract base class for reference objects.  This class defines the
  * operations common to all reference objects.  Because reference objects are
  * implemented in close cooperation with the garbage collector, this class may
  * not be subclassed directly.
+ * <p>
+ * References can only refer to identity objects.
+ * Attempts to create a reference to a {@linkplain Class#isValue() value object}
+ * results in an {@link IdentityException}.
  *
  * @author   Mark Reinhold
  * @since    1.2
@@ -498,11 +504,8 @@ public abstract sealed class Reference<T>
     }
 
     Reference(T referent, ReferenceQueue<? super T> queue) {
-        if (referent != null && referent.getClass().isValue()) {
-            Class<?> c = referent.getClass();
-            throw new IllegalArgumentException("cannot reference a " +
-                    (c.isPrimitiveClass() ? "primitive class " : "value class ") +
-                    c.getName());
+        if (referent != null) {
+            Objects.requireIdentity(referent);
         }
         this.referent = referent;
         this.queue = (queue == null) ? ReferenceQueue.NULL : queue;

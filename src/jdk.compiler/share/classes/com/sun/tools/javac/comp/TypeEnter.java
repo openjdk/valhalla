@@ -1100,7 +1100,7 @@ public class TypeEnter implements Completer {
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
             }
 
-            if (tree.sym != syms.objectType.tsym) {
+            if (tree.sym != syms.objectType.tsym && tree.sym != syms.recordType.tsym) {
                 if ((tree.sym.flags() & (ABSTRACT | INTERFACE | VALUE_CLASS)) == 0) {
                     tree.sym.flags_field |= IDENTITY_TYPE;
                 }
@@ -1141,7 +1141,11 @@ public class TypeEnter implements Completer {
                                 return true;
                             } else if (s.isConstructor()) {
                                 MethodSymbol m = (MethodSymbol)s;
-                                if (m.getParameters().size() > 0 || (m.flags() & EMPTYNOARGCONSTR) == 0) {
+                                if (m.getParameters().size() > 0
+                                        || m.getTypeParameters().size() > 0
+                                        || m.type.getThrownTypes().nonEmpty()
+                                        || (m.flags() & EMPTYNOARGCONSTR) == 0
+                                        || (Check.protection(m.flags()) > Check.protection(m.owner.flags()))) {
                                     return true;
                                 }
                             }

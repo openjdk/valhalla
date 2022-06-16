@@ -46,12 +46,10 @@ public class interfaces001 {
 
     static final String class_interfaces [][] = {
                     { DEBUGEE_CLASS_NAME + "$" + "TestedClassInterface1", "" },
-                    { DEBUGEE_CLASS_NAME + "$" + "TestedClassInterface2", "" },
-                    { "java.lang.IdentityObject", ""}
+                    { DEBUGEE_CLASS_NAME + "$" + "TestedClassInterface2", "" }
                 };
     static final int DECLARED_INTERFACES = class_interfaces.length;
     static final long interfaceIDs[] = new long[DECLARED_INTERFACES];
-    static long identityObjectID;
 
     public static void main (String argv[]) {
         System.exit(run(argv,System.out) + JCK_STATUS_BASE);
@@ -100,7 +98,6 @@ public class interfaces001 {
                         log.display("Getting ReferenceTypeID for interface signature: " + class_interfaces[i][1]);
                         interfaceIDs[i] = debugee.getReferenceTypeID(class_interfaces[i][1]);
                     }
-                    identityObjectID = debugee.getReferenceTypeID("Ljava/lang/IdentityObject;");
 
                     // begin test of JDWP command
 
@@ -140,19 +137,12 @@ public class interfaces001 {
                         long interfaceID = reply.getReferenceTypeID();
                         log.display("    interfaceID: " + interfaceID);
 
-                        if (i < DECLARED_INTERFACES) {
-                            if (interfaceID != interfaceIDs[i]) {
-                                log.complain("Unexpected interface ID for interface #" + i + " in the reply packet: " + interfaceID
-                                             + " (expected: " + interfaceIDs[i] + ")");
-                                success = false;
-                            }
-                        } else {
-                            if (interfaceID != identityObjectID) {
-                                log.complain("Unexpected interface ID for interface #" + i + " in the reply packet: " + interfaceID
-                                             + " (expected identityObjectID: " + identityObjectID + ")");
-                                success = false;
-                            }
+                        if (interfaceID != interfaceIDs[i]) {
+                            log.complain("Unexpected interface ID for interface #" + i + " in the reply packet: " + interfaceID
+                                         + " (expected: " + interfaceIDs[i] + ")");
+                            success = false;
                         }
+
                     }
 
                     if (! reply.isParsed()) {

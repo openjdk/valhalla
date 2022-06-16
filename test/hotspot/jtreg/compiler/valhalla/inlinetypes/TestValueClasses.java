@@ -536,6 +536,7 @@ public class TestValueClasses {
         test15_helper1(vt);
         test15_helper2(vt);
         test15_helper3(vt);
+        vt.dontInline(vt);
         return res;
     }
 
