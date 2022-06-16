@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,13 +37,13 @@ import static org.testng.Assert.*;
 @Test
 public class WeakReferenceTest {
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expectedExceptions = IdentityException.class)
     static void test1() {
         Point.ref p = new Point(10,20);
         WeakReference<Point.ref> r = new WeakReference<>(p);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test(expectedExceptions = IdentityException.class)
     static void test2() {
         ReferenceQueue<Object> q = new ReferenceQueue<>();
         Point.ref p = new Point(1,2);
