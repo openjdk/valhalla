@@ -30,6 +30,7 @@ public class BasicClassBuilder extends ClassBuilder<String, String, BasicClassBu
         withMinorVersion(minorVersion);
         withMajorVersion(majorVersion);
         withThisClass(thisClass);
+        withFlags(Flag.ACC_IDENTITY);
     }
 
     public BasicClassBuilder(BytePoolHelper<String, String> poolHelper, TypeHelper<String, String> typeHelper) {

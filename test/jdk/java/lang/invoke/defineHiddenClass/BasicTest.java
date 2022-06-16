@@ -302,7 +302,7 @@ public class BasicTest {
                 throw new IllegalArgumentException("unexpected access flag: " + accessFlags);
         }
         assertTrue(hc.isHidden());
-        assertTrue(hc.getModifiers() == (ACC_PUBLIC|accessFlags));
+        assertTrue(hc.getModifiers() == (ACC_PUBLIC|ACC_IDENTITY|accessFlags));
         assertFalse(hc.isLocalClass());
         assertFalse(hc.isMemberClass());
         assertFalse(hc.isAnonymousClass());
@@ -519,7 +519,7 @@ public class BasicTest {
 
     private static byte[] classBytes(String classname, Class<?> supertType, int accessFlags) {
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V14, ACC_PUBLIC|accessFlags, classname, null, Type.getInternalName(supertType), null);
+        cw.visit(V14, ACC_PUBLIC|ACC_IDENTITY |accessFlags, classname, null, Type.getInternalName(supertType), null);
         cw.visitEnd();
 
         return cw.toByteArray();
