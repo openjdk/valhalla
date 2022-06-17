@@ -190,6 +190,66 @@ public final class Objects {
     }
 
     /**
+     * Checks that the specified object reference is an identity object.
+     *
+     * @param obj the object reference to check for identity
+     * @param <T> the type of the reference
+     * @return {@code obj} if {@code obj} is an identity object
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @throws IdentityException if {@code obj} is not an identity object
+     * @since Valhalla
+     */
+    @ForceInline
+    public static <T> T requireIdentity(T obj) {
+        Objects.requireNonNull(obj);
+        var cl = obj.getClass();
+        if (cl.isValue())
+            throw new IdentityException(cl);
+        return obj;
+    }
+
+    /**
+     * Checks that the specified object reference is an identity object.
+     *
+     * @param obj the object reference to check for identity
+     * @param message detail message to be used in the event that an
+     *        {@code IdentityException} is thrown; may be null
+     * @param <T> the type of the reference
+     * @return {@code obj} if {@code obj} is an identity object
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @throws IdentityException if {@code obj} is not an identity object
+     * @since Valhalla
+     */
+    @ForceInline
+    public static <T> T requireIdentity(T obj, String message) {
+        Objects.requireNonNull(obj);
+        if (obj.getClass().isValue())
+            throw new IdentityException(message);
+        return obj;
+    }
+
+    /**
+     * Checks that the specified object reference is an identity object.
+     *
+     * @param obj the object reference to check for identity
+     * @param messageSupplier supplier of the detail message to be
+     *        used in the event that an {@code IdentityException} is thrown; may be null
+     * @param <T> the type of the reference
+     * @return {@code obj} if {@code obj} is an identity object
+     * @throws NullPointerException if {@code obj} is {@code null}
+     * @throws IdentityException if {@code obj} is not an identity object
+     * @since Valhalla
+     */
+    @ForceInline
+    public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
+        Objects.requireNonNull(obj);
+        if (obj.getClass().isValue())
+            throw new IdentityException(messageSupplier == null ?
+                    null : messageSupplier.get());
+        return obj;
+    }
+
+    /**
      * Returns 0 if the arguments are identical and {@code
      * c.compare(a, b)} otherwise.
      * Consequently, if both arguments are {@code null} 0
