@@ -172,4 +172,9 @@ public value class MyValueClass1 extends MyAbstract {
     static MyValueClass1 setV4(MyValueClass1 v, MyValueClass2 v4) {
         return new MyValueClass1(v.x, v.y, v.z, v.o, v.oa, v.v1, v.v2, v4, v.c);
     }
+
+    @DontInline
+    void dontInline(MyValueClass1 arg) {
+
+    }
 }
