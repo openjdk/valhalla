@@ -2777,10 +2777,13 @@ public class Check {
                     valueSuper = t;
                 if (cIsValue &&  identitySuper != null) {
                     log.error(pos, Errors.ValueTypeHasIdentitySuperType(c, identitySuper));
+                    break;
                 } else if (cHasIdentity &&  valueSuper != null) {
                     log.error(pos, Errors.IdentityTypeHasValueSuperType(c, valueSuper));
+                    break;
                 } else if (identitySuper != null && valueSuper != null) {
                     log.error(pos, Errors.MutuallyIncompatibleSupers(c, identitySuper, valueSuper));
+                    break;
                 }
             }
         }

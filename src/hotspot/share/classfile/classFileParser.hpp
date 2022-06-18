@@ -289,7 +289,7 @@ class ClassFileParser {
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
                        bool is_inline_type,
-                       bool is_permits_value_class,
+                       bool is_abstract_type,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
@@ -297,7 +297,7 @@ class ClassFileParser {
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
                      bool is_inline_type,
-                     bool is_permits_value_class,
+                     bool is_abstract_type,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -510,7 +510,7 @@ class ClassFileParser {
   void verify_legal_method_modifiers(jint flags,
                                      bool is_interface,
                                      bool is_inline_type,
-                                     bool is_permits_value_class,
+                                     bool is_abstract_type,
                                      const Symbol* name,
                                      TRAPS) const;
 
@@ -599,6 +599,7 @@ class ClassFileParser {
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
   bool is_inline_type() const { return _access_flags.is_value_class(); }
+  bool is_abstract_type() const { return _access_flags.is_abstract(); }
   bool is_permits_value_class() const { return _access_flags.is_permits_value_class(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
   bool is_value_capable_class() const;

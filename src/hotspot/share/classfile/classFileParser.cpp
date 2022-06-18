@@ -2348,7 +2348,7 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
                                       bool is_inline_type,
-                                      bool is_permits_value_class,
+                                      bool is_abstract_type,
                                       const ConstantPool* cp,
                                       AccessFlags* const promoted_flags,
                                       TRAPS) {
@@ -2390,14 +2390,14 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       return NULL;
     }
   } else {
-    verify_legal_method_modifiers(flags, is_interface, is_inline_type, is_permits_value_class, name, CHECK_NULL);
+    verify_legal_method_modifiers(flags, is_interface, is_inline_type, is_abstract_type, name, CHECK_NULL);
   }
 
   if (name == vmSymbols::object_initializer_name()) {
     if (is_interface) {
       classfile_parse_error("Interface cannot have a method named <init>, class file %s", THREAD);
       return NULL;
-    } else if (!is_inline_type && signature->is_void_method_signature()) {
+    } else if ((!is_inline_type || is_abstract_type) && signature->is_void_method_signature()) {
       // OK, a constructor
     } else if (is_inline_type && !signature->is_void_method_signature()) {
       // also OK, a static factory, as long as the return value is good
@@ -3011,7 +3011,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
                                     bool is_inline_type,
-                                    bool is_permits_value_class,
+                                    bool is_abstract_type,
                                     AccessFlags* promoted_flags,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -3037,7 +3037,7 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
       Method* method = parse_method(cfs,
                                     is_interface,
                                     is_inline_type,
-                                    is_permits_value_class,
+                                    is_abstract_type,
                                     _cp,
                                     promoted_flags,
                                     CHECK);
@@ -4945,7 +4945,7 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
 void ClassFileParser::verify_legal_method_modifiers(jint flags,
                                                     bool is_interface,
                                                     bool is_inline_type,
-                                                    bool is_permits_value_class,
+                                                    bool is_abstract_type,
                                                     const Symbol* name,
                                                     TRAPS) const {
   if (!_need_verify) { return; }
@@ -5006,8 +5006,8 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
             is_abstract || (major_gte_1_5 && is_bridge)) {
           is_illegal = true;
         }
-        if (!is_static && !is_inline_type) {
-          // OK, an object constructor in a regular class
+        if (!is_static && (!is_inline_type || is_abstract_type)) {
+          // OK, an object constructor in a regular class or an abstract value class
         } else if (is_static && is_inline_type) {
           // OK, a static init factory in an inline class
         } else {
@@ -5016,7 +5016,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
           class_note = (is_inline_type ? " (an inline class)" : " (not an inline class)");
         }
       } else { // not initializer
-        if ((is_inline_type || is_permits_value_class) && is_synchronized && !is_static) {
+        if (is_inline_type && is_synchronized && !is_static) {
           is_illegal = true;
           class_note = " (an inline class)";
         } else {
@@ -6313,7 +6313,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_methods(stream,
                 is_interface(),
                 is_inline_type(),
-                is_permits_value_class(),
+                is_abstract_type(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
