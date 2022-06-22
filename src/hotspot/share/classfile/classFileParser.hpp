@@ -287,6 +287,7 @@ class ClassFileParser {
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
                        bool is_value_class,
+                       bool is_abstract_class,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
@@ -294,6 +295,7 @@ class ClassFileParser {
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
                      bool is_value_class,
+                     bool is_abstract_class,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,

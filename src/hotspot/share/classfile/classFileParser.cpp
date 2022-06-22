@@ -2326,6 +2326,7 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
                                       bool is_value_class,
+                                      bool is_abstract_class,
                                       const ConstantPool* cp,
                                       AccessFlags* const promoted_flags,
                                       TRAPS) {
@@ -2374,7 +2375,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
     if (is_interface) {
       classfile_parse_error("Interface cannot have a method named <init>, class file %s", THREAD);
       return NULL;
-    } else if (!is_value_class && signature->is_void_method_signature()) {
+    } else if ((!is_value_class || is_abstract_class) && signature->is_void_method_signature()) {
       // OK, a constructor
     } else if (is_value_class && !signature->is_void_method_signature()) {
       // also OK, a static factory, as long as the return value is good
@@ -2997,6 +2998,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
                                     bool is_value_class,
+                                    bool is_abstract_type,
                                     AccessFlags* promoted_flags,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -3022,6 +3024,7 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
       Method* method = parse_method(cfs,
                                     is_interface,
                                     is_value_class,
+                                    is_abstract_type,
                                     _cp,
                                     promoted_flags,
                                     CHECK);
@@ -5004,8 +5007,8 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
             is_abstract || (major_gte_1_5 && is_bridge)) {
           is_illegal = true;
         }
-        if (!is_static && !is_value_class) {
-          // OK, an object constructor in a regular class
+        if (!is_static && (!is_value_class || is_abstract_class)) {
+          // OK, an object constructor in a regular class or an abstract value class
         } else if (is_static && is_value_class) {
           // OK, a static init factory in an inline class
         } else {
@@ -6295,6 +6298,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_methods(stream,
                 is_interface(),
                 is_value_class(),
+                is_abstract_class(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
