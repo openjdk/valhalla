@@ -45,6 +45,10 @@ public class BasicAccessFlagTest {
         testMaskToAccessFlagsPositive();
     }
 
+    /*
+     * Verify sourceModifier() == true access flags have a
+     * corresponding constant in java.lang.reflect.Modifier.
+     */
     private static void testSourceModifiers() throws Exception {
         Class<?> modifierClass = Modifier.class;
         List<AccessFlag> valhallaOnly =
@@ -97,7 +101,7 @@ public class BasicAccessFlagTest {
             }
         }
 
-        // Then test for disjointness
+        // ...then test for disjointness
         for (var entry : maskToFlags.entrySet()) {
             var value = entry.getValue();
             if (value.size() == 0) {
@@ -137,13 +141,13 @@ public class BasicAccessFlagTest {
     // of location it can apply to
     private static void testMaskToAccessFlagsPositive() {
         for (var accessFlag : AccessFlag.values()) {
-            if (accessFlag.equals(AccessFlag.SUPER))
-                continue;       // SUPER is defined to overlap with IDENTITY
             Set<AccessFlag> expectedSet = EnumSet.of(accessFlag);
             for (var location : accessFlag.locations()) {
                 Set<AccessFlag> computedSet =
                     AccessFlag.maskToAccessFlags(accessFlag.mask(), location);
-                if (!expectedSet.equals(computedSet)) {
+                if (!computedSet.containsAll(expectedSet)) {
+                    System.out.println("expected: " + expectedSet);
+                    System.out.println("computed: " + computedSet);
                     throw new RuntimeException("Bad set computation on " +
                                                accessFlag + ", " + location);
                 }

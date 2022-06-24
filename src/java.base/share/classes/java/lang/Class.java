@@ -200,9 +200,9 @@ public final class Class<T> implements java.io.Serializable,
                               AnnotatedElement,
                               TypeDescriptor.OfField<Class<?>>,
                               Constable {
-    private static final int ANNOTATION = 0x00002000;
-    private static final int ENUM       = 0x00004000;
-    private static final int SYNTHETIC  = 0x00001000;
+    private static final int ANNOTATION= 0x00002000;
+    private static final int ENUM      = 0x00004000;
+    private static final int SYNTHETIC = 0x00001000;
 
     private static native void registerNatives();
     static {
@@ -1487,6 +1487,19 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
      * flags} for this class, possibly empty}
+     *
+     * <p> If the underlying class is an array class, then its
+     * {@code PUBLIC}, {@code PRIVATE} and {@code PROTECTED}
+     * access flags are the same as those of its component type.  If this
+     * {@code Class} object represents a primitive type or void, the
+     * {@code PUBLIC} access flag is present, and the
+     * {@code PROTECTED} and {@code PRIVATE} access flags are always
+     * absent. If this {@code Class} object represents an array class, a
+     * primitive type or void, then the {@code FINAL} access flag is always
+     * present and the interface access flag is always
+     * absent. The values of its other access flags are not determined
+     * by this specification.
+     *
      * @see #getModifiers()
      * @jvms 4.1 The ClassFile Structure
      * @jvms 4.7.6 The InnerClasses Attribute
@@ -1499,7 +1512,8 @@ public final class Class<T> implements java.io.Serializable,
         // allows PRIVATE, PROTECTED, and STATIC, which are not
         // allowed on Location.CLASS.
         return AccessFlag.maskToAccessFlags(getModifiers(),
-                                            (isMemberClass() || isLocalClass() || isAnonymousClass()) ?
+                                            (isMemberClass() || isLocalClass() ||
+                                             isAnonymousClass() || isArray()) ?
                                             AccessFlag.Location.INNER_CLASS :
                                             AccessFlag.Location.CLASS);
     }
