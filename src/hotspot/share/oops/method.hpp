@@ -92,9 +92,10 @@ class Method : public Metadata {
     _intrinsic_candidate   = 1 << 5,
     _reserved_stack_access = 1 << 6,
     _scalarized_args       = 1 << 7,
-    _c1_needs_stack_repair = 1 << 8,
-    _c2_needs_stack_repair = 1 << 9,
-    _scoped                = 1 << 10
+    _scalarized_return     = 1 << 8,
+    _c1_needs_stack_repair = 1 << 9,
+    _c2_needs_stack_repair = 1 << 10,
+    _scoped                = 1 << 11
   };
   mutable u2 _flags;
 
@@ -900,6 +901,14 @@ public:
 
   void set_has_scalarized_args(bool x) {
     _flags = x ? (_flags | _scalarized_args) : (_flags & ~_scalarized_args);
+  }
+
+  bool has_scalarized_return() const {
+    return (_flags & _scalarized_return) != 0;
+  }
+
+  void set_has_scalarized_return(bool x) {
+    _flags = x ? (_flags | _scalarized_return) : (_flags & ~_scalarized_return);
   }
 
   bool is_scalarized_arg(int idx) const;
