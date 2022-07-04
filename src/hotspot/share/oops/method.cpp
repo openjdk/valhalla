@@ -877,7 +877,7 @@ bool Method::is_getter() const {
     default:
       return false;
   }
-  if (InlineTypeReturnedAsFields && result_type() == T_PRIMITIVE_OBJECT) {
+  if (has_scalarized_return()) {
     // Don't treat this as (trivial) getter method because the
     // inline type should be returned in a scalarized form.
     return false;
@@ -918,7 +918,8 @@ bool Method::is_constant_getter() const {
   return (2 <= code_size() && code_size() <= 4 &&
           Bytecodes::is_const(java_code_at(0)) &&
           Bytecodes::length_for(java_code_at(0)) == last_index &&
-          Bytecodes::is_return(java_code_at(last_index)));
+          Bytecodes::is_return(java_code_at(last_index)) &&
+          !has_scalarized_args());
 }
 
 bool Method::is_object_constructor_or_class_initializer() const {
@@ -1265,6 +1266,9 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
     set_native_function(
       SharedRuntime::native_method_throw_unsatisfied_link_error_entry(),
       !native_bind_event_is_interesting);
+  }
+  if (InlineTypeReturnedAsFields && returns_inline_type(THREAD)) {
+    set_has_scalarized_return(true);
   }
 
   // Setup compiler entrypoint.  This is made eagerly, so we do not need
