@@ -4457,8 +4457,9 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 }
 
 bool ClassFileParser::supports_inline_types() const {
-  // Inline types are only supported by class file version 55 and later
-  return _major_version >= JAVA_11_VERSION;
+  // Inline types are only supported by class file version 61.65535 and later
+  return _major_version > JAVA_17_VERSION ||
+         (_major_version == JAVA_17_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
 }
 
 // utility methods for appending an array with check for duplicates
@@ -6469,6 +6470,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       }
 
       if (EnableValhalla) {
+        // Check modifiers and set carries_identity_modifier/carries_value_modifier flags
         check_identity_and_value_modifiers(this, InstanceKlass::cast(interf), CHECK);
       }
 
@@ -6491,22 +6493,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                   CHECK);
 
   assert(_transitive_interfaces != NULL, "invariant");
-
-  if (EnableValhalla) {
-    if (is_value_class()) {
-      for (int i = 0; i < _transitive_interfaces->length(); i++) {
-        if (_transitive_interfaces->at(i)->access_flags().is_identity_class()) {
-          classfile_icce_error("value class %s has an invalid identity super interface %s", _transitive_interfaces->at(i), THREAD);
-        }
-      }
-    } else if (is_identity_class()) {
-      for (int i = 0; i < _transitive_interfaces->length(); i++) {
-        if (_transitive_interfaces->at(i)->access_flags().is_value_class()) {
-          classfile_icce_error("identity class %s has an invalid value super interface %s", _transitive_interfaces->at(i), THREAD);
-        }
-      }
-    }
-  }
 
   // sort methods
   _method_ordering = sort_methods(_methods);
@@ -6539,15 +6525,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                    NULL,
                                                    CHECK);
     for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-      if (!fs.access_flags().is_static() && access_flags().is_abstract() && !carries_identity_modifier()) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_IncompatibleClassChangeError(),
-          "Illegal field modifiers in non identity class %s: 0x%X",
-          _class_name->as_C_string(), fs.access_flags().as_int());
-        return;
-      }
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT && !fs.access_flags().is_static()) {
         // Pre-load inline class
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,

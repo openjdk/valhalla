@@ -41,6 +41,7 @@ import java.lang.invoke.MethodHandles.Lookup;
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -246,8 +247,8 @@ public class BasicTest {
     @DataProvider(name = "emptyClasses")
     private Object[][] emptyClasses() {
         return new Object[][] {
-                new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC },
-                new Object[] { "EmptyHiddenEnum", ACC_ENUM },
+                new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC | ACC_IDENTITY },
+                new Object[] { "EmptyHiddenEnum", ACC_ENUM | ACC_IDENTITY },
                 new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT },
                 new Object[] { "EmptyHiddenInterface", ACC_ABSTRACT|ACC_INTERFACE },
                 new Object[] { "EmptyHiddenAnnotation", ACC_ANNOTATION|ACC_ABSTRACT|ACC_INTERFACE },
@@ -264,17 +265,17 @@ public class BasicTest {
      */
     @Test(dataProvider = "emptyClasses")
     public void emptyHiddenClass(String name, int accessFlags) throws Exception {
-        byte[] bytes = (accessFlags == ACC_ENUM) ? classBytes(name, Enum.class, accessFlags)
+        byte[] bytes = (accessFlags == (ACC_ENUM | ACC_IDENTITY)) ? classBytes(name, Enum.class, accessFlags)
                                                  : classBytes(name, accessFlags);
         Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
         switch (accessFlags) {
-            case ACC_SYNTHETIC:
+            case (ACC_SYNTHETIC | ACC_IDENTITY):
                 assertTrue(hc.isSynthetic());
                 assertFalse(hc.isEnum());
                 assertFalse(hc.isAnnotation());
                 assertFalse(hc.isInterface());
                 break;
-            case ACC_ENUM:
+            case (ACC_ENUM | ACC_IDENTITY):
                 assertFalse(hc.isSynthetic());
                 assertTrue(hc.isEnum());
                 assertFalse(hc.isAnnotation());
@@ -302,7 +303,7 @@ public class BasicTest {
                 throw new IllegalArgumentException("unexpected access flag: " + accessFlags);
         }
         assertTrue(hc.isHidden());
-        assertTrue(hc.getModifiers() == (ACC_PUBLIC|ACC_IDENTITY|accessFlags));
+        assertTrue(hc.getModifiers() == (ACC_PUBLIC|accessFlags));
         assertFalse(hc.isLocalClass());
         assertFalse(hc.isMemberClass());
         assertFalse(hc.isAnonymousClass());
@@ -519,7 +520,7 @@ public class BasicTest {
 
     private static byte[] classBytes(String classname, Class<?> supertType, int accessFlags) {
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
-        cw.visit(V14, ACC_PUBLIC|ACC_IDENTITY |accessFlags, classname, null, Type.getInternalName(supertType), null);
+        cw.visit(V14, ACC_PUBLIC|accessFlags, classname, null, Type.getInternalName(supertType), null);
         cw.visitEnd();
 
         return cw.toByteArray();

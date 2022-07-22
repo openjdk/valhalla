@@ -305,10 +305,9 @@ public class Modifier {
      */
     public static final int SYNCHRONIZED     = 0x00000020;
 
-/**
+    /**
      * The {@code int} value representing the {@code ACC_IDENTITY}
      * modifier.
-     * @see AccessFlag#IDENTITY
      */
     public static final int IDENTITY            = 0x00000020;
 
