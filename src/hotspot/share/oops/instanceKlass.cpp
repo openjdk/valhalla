@@ -3385,19 +3385,7 @@ jint InstanceKlass::compute_modifier_flags() const {
       break;
     }
   }
-  if (EnableValhalla) {
-    // TBD: for older class files, ACC_IDENTITY should be true for classes and false for interfaces
-    if (false) {
-      access = is_interface() ? (access & (~JVM_ACC_IDENTITY)) : (access | JVM_ACC_IDENTITY);
-      return access & JVM_ACC_WRITTEN_FLAGS;
-    } else {
-      // Do not strip ACC_SUPER, its ACC_IDENTITY now
-      return access & JVM_ACC_WRITTEN_FLAGS;
-    }
-  } else {
-    // Remember to strip ACC_SUPER bit
-    return (access & (~JVM_ACC_SUPER)) & JVM_ACC_WRITTEN_FLAGS;
-  }
+  return (access & JVM_ACC_WRITTEN_FLAGS);
 }
 
 jint InstanceKlass::jvmti_class_status() const {

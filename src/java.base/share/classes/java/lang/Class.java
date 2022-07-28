@@ -306,6 +306,8 @@ public final class Class<T> implements java.io.Serializable,
             } else {
                 // Class modifiers are a superset of interface modifiers
                 int modifiers = getModifiers() & Modifier.classModifiers();
+                // Modifier.toString() below mis-interprets SYNCHRONIZED, STRICT, and VOLATILE bits
+                modifiers &= ~(Modifier.SYNCHRONIZED | Modifier.STRICT | Modifier.VOLATILE);
                 if (modifiers != 0) {
                     sb.append(Modifier.toString(modifiers));
                     sb.append(' ');
@@ -315,7 +317,7 @@ public final class Class<T> implements java.io.Serializable,
                     sb.append('@');
                 }
                 if (isValue()) {
-                    sb.append(isPrimitiveClass() ? "primitive" : "value");
+                    sb.append(isPrimitiveClass() ? "primitive " : "value ");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");

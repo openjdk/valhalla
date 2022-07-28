@@ -58,7 +58,7 @@ public class BadInlineTypes {
 
         // Test that inline type instance methods cannot be synchronized.
         runTest("ValueMethodSynch",
-                "Method getInt in class ValueMethodSynch (an inline class) has illegal modifiers");
+                "Method getInt in class ValueMethodSynch (not an identity class) has illegal modifiers: 0x20");
 
         // Test that a class with an old class file version cannot contain a Q signature.
         runTest("OldClassWithQSig",

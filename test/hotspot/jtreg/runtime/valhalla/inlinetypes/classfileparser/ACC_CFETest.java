@@ -57,10 +57,10 @@ public class ACC_CFETest {
 
         // Test illegal class that has both ACC_INTERFACE and ACC_VALUE set.
         runTest("AbstractVintf",
-                "Illegal class modifiers in class AbstractVintf (a value class)");
+                "Illegal field modifiers in class AbstractVintf: 0x8");
 
         // Test illegal class that has ACC_VALUE set and a non-static synchronized method.
         runTest("AbstractVMethod",
-                "Method meth in class AbstractVMethod (an inline class) has illegal modifiers");
+                "Method meth in class AbstractVMethod (not an identity class) has illegal modifiers: 0x21");
     }
 }

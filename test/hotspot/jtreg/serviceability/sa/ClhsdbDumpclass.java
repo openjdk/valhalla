@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,7 +80,7 @@ public class ClhsdbDumpclass {
             System.out.println(out.getStdout());
             System.err.println(out.getStderr());
             out.shouldHaveExitValue(0);
-            out.shouldMatch("public class " + APP_DOT_CLASSNAME);
+            out.shouldMatch("public identity class " + APP_DOT_CLASSNAME);
         } catch (SkippedException se) {
             throw se;
         } catch (Exception ex) {
