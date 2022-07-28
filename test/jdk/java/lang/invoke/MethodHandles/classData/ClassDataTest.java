@@ -352,7 +352,7 @@ public class ClassDataTest {
         ClassByteBuilder(String classname) {
             this.classname = classname;
             this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-            cw.visit(V14, ACC_FINAL, classname, null, OBJECT_CLS, null);
+            cw.visit(V14, ACC_FINAL | ACC_IDENTITY, classname, null, OBJECT_CLS, null);
             MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);
@@ -506,5 +506,3 @@ public class ClassDataTest {
         assertEquals(value, v);
     }
 }
-
-
