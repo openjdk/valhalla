@@ -32,6 +32,7 @@ import static java.lang.reflect.Modifier.PUBLIC;
 import static java.lang.reflect.Modifier.STATIC;
 import static java.lang.reflect.Modifier.STRICT;
 import static java.lang.reflect.Modifier.SYNCHRONIZED;
+import static java.lang.reflect.Modifier.IDENTITY;
 import static java.lang.reflect.Modifier.TRANSIENT;
 import static java.lang.reflect.Modifier.VOLATILE;
 import static jdk.vm.ci.hotspot.HotSpotVMConfig.config;
@@ -50,11 +51,10 @@ public class HotSpotModifiers {
     public static final int VARARGS    = config().jvmAccVarargs;
     public static final int BRIDGE     = config().jvmAccBridge;
     public static final int SYNTHETIC  = config().jvmAccSynthetic;
-    public static final int PERMITS_VALUE  = 0x0000_0040;   // Temp
     // @formatter:on
 
     public static int jvmClassModifiers() {
-        return PUBLIC | FINAL | INTERFACE | ABSTRACT | ANNOTATION | ENUM | SYNTHETIC | PERMITS_VALUE;
+        return PUBLIC | FINAL | INTERFACE | ABSTRACT | ANNOTATION | ENUM | SYNTHETIC | IDENTITY;
     }
 
     public static int jvmMethodModifiers() {

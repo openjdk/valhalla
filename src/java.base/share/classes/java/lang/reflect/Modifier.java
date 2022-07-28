@@ -36,14 +36,6 @@ import java.util.StringJoiner;
  * representing the modifiers are taken from the tables in sections
  * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
  * <cite>The Java Virtual Machine Specification</cite>.
- * <p>
- * This class cannot distinguish among modifiers for a class, method, or field.
- * The modifier masks are not unique; it is up to the caller to use the correct
- * mask or method with the modifier bits returned from {@link Class#getModifiers()}
- * or {@link Member#getModifiers()}.
- * The {@link AccessFlag} class provides a model that distinguishes between access flags
- * for classes, methods, and field. The {@link Class#accessFlags()} and {@link Member#accessFlags()}
- * methods provide the access flags for the respective class, method, or field.
  *
  * @see Class#accessFlags()
  * @see Member#accessFlags()
@@ -131,6 +123,18 @@ public class Modifier {
      */
     public static boolean isSynchronized(int mod) {
         return (mod & SYNCHRONIZED) != 0;
+    }
+
+    /**
+     * Return {@code true} if the integer argument includes the
+     * {@code identity} modifier, {@code false} otherwise.
+     *
+     * @param   mod a set of modifiers
+     * @return {@code true} if {@code mod} includes the
+     * {@code identity} modifier; {@code false} otherwise.
+     */
+    public static boolean isIdentity(int mod) {
+        return (mod & IDENTITY) != 0;
     }
 
     /**
@@ -305,6 +309,12 @@ public class Modifier {
     public static final int SYNCHRONIZED     = 0x00000020;
 
     /**
+     * The {@code int} value representing the {@code ACC_IDENTITY}
+     * modifier.
+     */
+    public static final int IDENTITY            = 0x00000020;
+
+    /**
      * The {@code int} value representing the {@code volatile}
      * modifier.
      * @see AccessFlag#VOLATILE
@@ -350,12 +360,12 @@ public class Modifier {
     // have different meanings for fields and methods and there is no
     // way to distinguish between the two in this class, or because
     // they are not Java programming language keywords
-    static final int BRIDGE    = 0x00000040;
-    static final int VARARGS   = 0x00000080;
-    static final int SYNTHETIC = 0x00001000;
+    static final int BRIDGE      = 0x00000040;
+    static final int VARARGS     = 0x00000080;
+    static final int SYNTHETIC   = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
-    static final int ENUM      = 0x00004000;
-    static final int MANDATED  = 0x00008000;
+    static final int ENUM        = 0x00004000;
+    static final int MANDATED    = 0x00008000;
     static boolean isSynthetic(int mod) {
       return (mod & SYNTHETIC) != 0;
     }
@@ -381,7 +391,7 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.STRICT;
+        Modifier.STRICT         | Modifier.IDENTITY;
 
     /**
      * The Java source modifiers that can be applied to an interface.

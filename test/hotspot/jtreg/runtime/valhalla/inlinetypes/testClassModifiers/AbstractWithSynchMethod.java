@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,20 +19,10 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-/* @test
-   @bug 4109635
-   @summary VM adds ACC_SUPER bit to access flags of a class. This must
-            be stripped by the Class.getModifiers method, or else this
-            shows up as though the class is synchronized and that doesn't
-            make any sense.
-   @author Anand Palaniswamy
- */
-public class StripACC_SUPER {
-    public static void main(String[] args) throws Exception {
-        int access = StripACC_SUPER.class.getModifiers();
-        if (java.lang.reflect.Modifier.isSynchronized(access))
-            throw new Exception("ACC_SUPER bit is not being stripped");
-    }
+// abstract class with a synchronized method, must generate an identity class
+abstract class AbstractWithSynchMethod {
+    synchronized void synchMethod() { }
 }

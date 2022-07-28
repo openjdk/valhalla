@@ -350,7 +350,7 @@ class ConstantPoolCacheEntry {
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
-  bool is_inlined() const                        { return  (_flags & (1 << is_inlined_shift))       != 0; }
+  bool is_inlined() const                        { return (_flags & (1 << is_inlined_shift))        != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
   bool indy_resolution_failed() const;

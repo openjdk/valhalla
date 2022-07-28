@@ -200,9 +200,12 @@ public final class Class<T> implements java.io.Serializable,
                               AnnotatedElement,
                               TypeDescriptor.OfField<Class<?>>,
                               Constable {
-    private static final int ANNOTATION= 0x00002000;
-    private static final int ENUM      = 0x00004000;
-    private static final int SYNTHETIC = 0x00001000;
+    private static final int ANNOTATION = 0x00002000;
+    private static final int ENUM       = 0x00004000;
+    private static final int SYNTHETIC  = 0x00001000;
+    private static final int VALUE_CLASS     = 0x00000040;
+    private static final int PERMITS_VALUE   = 0x00000100;
+    private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
     static {
@@ -234,20 +237,20 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this {@code Class} object.
      */
     public String toString() {
-        String s = isPrimitive() ? "" : "class ";
-        if (isInterface()) {
-            s = "interface ";
-        }
-        if (isValue()) {
-            s = "value ";
-        }
-        if (isPrimitiveClass()) {
-            s = "primitive ";
+        String s = getName();
+        if (isPrimitive()) {
+            return s;
         }
         // Avoid invokedynamic based String concat, might be not available
-        s = s.concat(getName());
-        if (isPrimitiveClass() && isPrimaryType()) {
-            s = s.concat(".ref");
+        // Prepend type of class
+        s = (isInterface() ? "interface " : "class ").concat(s);
+        if (isValue()) {
+            // prepend value class type
+            s = (isPrimitiveClass() ? "primitive " : "value ").concat(s);
+            if (isPrimitiveClass() && isPrimaryType()) {
+                // Append .ref
+                s = s.concat(".ref");
+            }
         }
         return s;
     }
@@ -302,8 +305,8 @@ public final class Class<T> implements java.io.Serializable,
             } else {
                 // Class modifiers are a superset of interface modifiers
                 int modifiers = getModifiers() & Modifier.classModifiers();
-                // Modifier.toString() below mis-interprets IDENTITY, VALUE, and PRIMITIVE bits
-                modifiers &= ~(AccessFlag.IDENTITY.mask() | AccessFlag.VALUE.mask() | AccessFlag.PRIMITIVE.mask());
+                // Modifier.toString() below mis-interprets SYNCHRONIZED, STRICT, and VOLATILE bits
+                modifiers &= ~(Modifier.SYNCHRONIZED | Modifier.STRICT | Modifier.VOLATILE);
                 if (modifiers != 0) {
                     sb.append(Modifier.toString(modifiers));
                     sb.append(' ');
@@ -510,8 +513,8 @@ public final class Class<T> implements java.io.Serializable,
 
     /** Called after security check for system loader access checks have been made. */
     private static native Class<?> forName0(String name, boolean initialize,
-                                            ClassLoader loader,
-                                            Class<?> caller)
+                                    ClassLoader loader,
+                                    Class<?> caller)
         throws ClassNotFoundException;
 
 

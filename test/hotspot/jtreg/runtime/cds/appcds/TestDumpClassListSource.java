@@ -189,7 +189,7 @@ public class TestDumpClassListSource {
 
         checkFileExistence("ClassList", fileList);
 
-        checkMatch(listFileName, "Hello id: [0-9]+ super: [0-9]+ interfaces: [0-9]+ source: .*/test-hello.jar", EXPECT_MATCH,
+        checkMatch(listFileName, "Hello id: [0-9]+ super: [0-9]+ source: .*/test-hello.jar", EXPECT_MATCH,
                    "Class Hello should be printed in classlist");
         //      2.3.2 dump shared archive based on listFileName
         String archive = "test-hello.jsa";

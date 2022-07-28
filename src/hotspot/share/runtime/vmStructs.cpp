@@ -2289,8 +2289,8 @@
   declare_constant(InstanceKlass::_misc_is_shared_boot_class)             \
   declare_constant(InstanceKlass::_misc_is_shared_platform_class)         \
   declare_constant(InstanceKlass::_misc_is_shared_app_class)              \
-  declare_constant(InstanceKlass::_misc_invalid_inline_super)             \
-  declare_constant(InstanceKlass::_misc_invalid_identity_super)           \
+  declare_constant(InstanceKlass::_misc_carries_identity_modifier)        \
+  declare_constant(InstanceKlass::_misc_carries_value_modifier)           \
                                                                           \
   /*********************************/                                     \
   /* Symbol* - symbol max length */                                       \

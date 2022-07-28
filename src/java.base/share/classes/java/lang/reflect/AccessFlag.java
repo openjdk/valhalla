@@ -152,6 +152,12 @@ public enum AccessFlag {
     IDENTITY(0x0000_0020, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
 
     /**
+     * The access flag {@code ACC_IDENTITY} with a mask value of {@code
+     * 0x0020}.
+     */
+//    IDENTITY(0x0000_0020, false, Set.of(Location.CLASS)),
+
+    /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
      * 0x0020}.
      * @see java.lang.module.ModuleDescriptor#isOpen
