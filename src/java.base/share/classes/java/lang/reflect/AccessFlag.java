@@ -240,7 +240,7 @@ public enum AccessFlag {
      * The access flag {@code ACC_PRIMITIVE} with a mask value of {@code 0x0800}.
      * @jls 4.1-B. Class access and property modifiers
      */
-    PRIMITIVE(0x0000_0800, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
+    PRIMITIVE(0x0000_0800, true, Location.SET_CLASS_INNER_CLASS),
 
     /**
      * The access flag {@code ACC_STRICT}, corresponding to the source

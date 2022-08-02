@@ -86,6 +86,9 @@ public final identity class StaticFactoryTest {
                 new Object[] { SimpleIdentity.class, true, false, false },
                 new Object[] { SimplePrimitive.class, false, true, true },
                 new Object[] { SimpleValue.class, false, true, false },
+                new Object[] { InterfaceWithNested.IdentityClass.class, true, false, false },
+                new Object[] { InterfaceWithNested.ValueClass.class, false, true, false },
+                new Object[] { InterfaceWithNested.PrimitiveClass.class, false, true, true },
         };
     }
 
@@ -96,9 +99,9 @@ public final identity class StaticFactoryTest {
         Class<?> clz = Class.forName(cn);
         System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());
 
-        assertEquals(clz.isIdentity(), isIdentityClass, "identity class");
-        assertEquals(clz.isValue(), isValueClass, "value class");
-        assertEquals(clz.isPrimitiveClass(), isPrimitiveClass, "primitive class");
+        assertEquals(clz.isIdentity(), isIdentityClass, "identity class: " + clz);
+        assertEquals(clz.isValue(), isValueClass, "value class: " + clz);
+        assertEquals(clz.isPrimitiveClass(), isPrimitiveClass, "primitive class: " + clz);
 
         Constructor<?> ctor = clz.getDeclaredConstructor();
         Object o = ctor.newInstance();
@@ -120,15 +123,21 @@ public final identity class StaticFactoryTest {
 
     interface SimpleInterface {}
 
-//    identity interface SimpleIdentityInterface {} // Illegal class modifieres from VM
+    identity interface SimpleIdentityInterface {} // Illegal class modifiers from VM
 
     value interface SimpleValueInterface {}
+
+    interface InterfaceWithNested {
+        identity class IdentityClass {}
+        value class ValueClass {}
+        primitive class PrimitiveClass {}
+    }
 
     @DataProvider
     static Object[][] interfaces() {
         return new Object[][]{
                 new Object[] { SimpleInterface.class, false, false, true },
-//                new Object[] { SimpleIdentityInterface.class, true, false, true },  // VM throws
+                new Object[] { SimpleIdentityInterface.class, true, false, true },  // VM throws
                 new Object[] { SimpleValueInterface.class, false, true, true },
         };
     }
@@ -140,9 +149,9 @@ public final identity class StaticFactoryTest {
         Class<?> clz = Class.forName(cn);
         System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());
 
-        assertEquals(clz.isIdentity(), isIdentityClass, "identity class");
-        assertEquals(clz.isValue(), isValueClass, "value class");
-        assertEquals(Modifier.isAbstract(clz.getModifiers()), isAbstract, "abstract");
+        assertEquals(clz.isIdentity(), isIdentityClass, "identity class: " + clz);
+        assertEquals(clz.isValue(), isValueClass, "value class: " + clz);
+        assertEquals(Modifier.isAbstract(clz.getModifiers()), isAbstract, "abstract: " + clz);
     }
 
         @DataProvider

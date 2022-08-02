@@ -58,10 +58,10 @@
  */
 package jdk.internal.org.objectweb.asm;
 
-import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 /**
  * A Java field or method type. This class can be used to make it easier to manipulate type and
@@ -683,7 +683,7 @@ public final class Type {
     }
 
     static boolean isPrimitiveClass(Class<?> clazz) {
-        return (clazz.getModifiers() & AccessFlag.PRIMITIVE.mask()) != 0;
+        return (clazz.getModifiers() & Modifier.PRIMITIVE) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------
