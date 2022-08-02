@@ -203,9 +203,9 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
+    private static final int IDENTITY_CLASS  = 0x00000020;
     private static final int VALUE_CLASS     = 0x00000040;
-    private static final int PERMITS_VALUE   = 0x00000100;
-    private static final int PRIMITIVE_CLASS = 0x00000800;
+    private static final int PRIMITIVE_CLASS = 0x00000800;  // See JEP-401
 
     private static native void registerNatives();
     static {
@@ -252,6 +252,7 @@ public final class Class<T> implements java.io.Serializable,
                 s = s.concat(".ref");
             }
         }
+
         return s;
     }
 
@@ -629,6 +630,17 @@ public final class Class<T> implements java.io.Serializable,
      */
     public boolean isPrimitiveClass() {
         return (this.getModifiers() & AccessFlag.PRIMITIVE.mask()) != 0;
+    }
+
+    /**
+     * Returns {@code true} if this class is an identity class.
+     *
+     * @return {@code true} if this class is an identity class;
+     * otherwise {@code false}
+     * @since Valhalla
+     */
+    public boolean isIdentity() {
+        return (this.getModifiers() & IDENTITY_CLASS) != 0;
     }
 
     /**
