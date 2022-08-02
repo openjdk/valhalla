@@ -151,14 +151,14 @@ public class ClassAccessFlagTest {
     /*package*/ interface PackageInterface {}
 
     // Classes
-    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, ENUM]")
+    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, IDENTITY, ENUM]")
     public enum MetaSynVar {
         QUUX;
     }
 
     // Is there is at least one special enum constant, the enum class
     // itself is implicitly abstract rather than final.
-    @ExpectedClassFlags("[PROTECTED, STATIC, ABSTRACT, ENUM]")
+    @ExpectedClassFlags("[PROTECTED, STATIC, IDENTITY, ABSTRACT, ENUM]")
     protected enum MetaSynVar2 {
         WOMBAT{
             @Override
@@ -167,7 +167,7 @@ public class ClassAccessFlagTest {
         public abstract int foo();
     }
 
-    @ExpectedClassFlags("[PRIVATE, ABSTRACT]")
+    @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
     private abstract class Foo {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")

@@ -312,7 +312,7 @@ public class Modifier {
      * The {@code int} value representing the {@code ACC_IDENTITY}
      * modifier.
      */
-    public static final int IDENTITY            = 0x00000020;
+    public static final int IDENTITY         = 0x00000020;
 
     /**
      * The {@code int} value representing the {@code volatile}
