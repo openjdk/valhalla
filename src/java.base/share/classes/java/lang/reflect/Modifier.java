@@ -117,6 +117,9 @@ public class Modifier {
      * Return {@code true} if the integer argument includes the
      * {@code synchronized} modifier, {@code false} otherwise.
      *
+     * @apiNote {@code isSynchronized} should only be called with the modifiers
+     * of a {@linkplain Method#getModifiers() method}.
+     *
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
      * {@code synchronized} modifier; {@code false} otherwise.
@@ -128,6 +131,9 @@ public class Modifier {
     /**
      * Return {@code true} if the integer argument includes the
      * {@code identity} modifier, {@code false} otherwise.
+     *
+     * @apiNote {@code isIdentity} should only be called with the modifiers
+     * of a {@linkplain Class#getModifiers() class}.
      *
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
@@ -147,6 +153,21 @@ public class Modifier {
      */
     public static boolean isVolatile(int mod) {
         return (mod & VOLATILE) != 0;
+    }
+
+    /**
+     * Return {@code true} if the integer argument includes the
+     * {@code value} modifier, {@code false} otherwise.
+     *
+     * @apiNote {@code isValue} should only be called with the modifiers
+     * of a {@linkplain Class#getModifiers() class}.
+     *
+     * @param   mod a set of modifiers
+     * @return {@code true} if {@code mod} includes the
+     * {@code value} modifier; {@code false} otherwise.
+     */
+    public static boolean isValue(int mod) {
+        return (mod & VALUE) != 0;
     }
 
     /**
@@ -315,6 +336,13 @@ public class Modifier {
     public static final int IDENTITY         = 0x00000020;
 
     /**
+     * The {@code int} value representing the {@code value}
+     * modifier.
+     * @see AccessFlag#VALUE
+     */
+    public static final int VALUE            = 0x00000040;
+
+    /**
      * The {@code int} value representing the {@code volatile}
      * modifier.
      * @see AccessFlag#VOLATILE
@@ -350,6 +378,13 @@ public class Modifier {
     public static final int ABSTRACT         = 0x00000400;
 
     /**
+     * The {@code int} value representing the {@code primitive class}
+     * modifier.
+     * @see AccessFlag#PRIMITIVE
+     */
+    public static final int PRIMITIVE        = 0x00000800;
+
+    /**
      * The {@code int} value representing the {@code strictfp}
      * modifier.
      * @see AccessFlag#STRICT
@@ -360,12 +395,12 @@ public class Modifier {
     // have different meanings for fields and methods and there is no
     // way to distinguish between the two in this class, or because
     // they are not Java programming language keywords
-    static final int BRIDGE      = 0x00000040;
-    static final int VARARGS     = 0x00000080;
-    static final int SYNTHETIC   = 0x00001000;
+    static final int BRIDGE    = 0x00000040;
+    static final int VARARGS   = 0x00000080;
+    static final int SYNTHETIC = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
-    static final int ENUM        = 0x00004000;
-    static final int MANDATED    = 0x00008000;
+    static final int ENUM      = 0x00004000;
+    static final int MANDATED  = 0x00008000;
     static boolean isSynthetic(int mod) {
       return (mod & SYNTHETIC) != 0;
     }
@@ -391,7 +426,8 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.STRICT         | Modifier.IDENTITY;
+        Modifier.IDENTITY       | Modifier.VALUE        | Modifier.PRIMITIVE |
+        Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.

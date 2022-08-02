@@ -200,12 +200,9 @@ public final class Class<T> implements java.io.Serializable,
                               AnnotatedElement,
                               TypeDescriptor.OfField<Class<?>>,
                               Constable {
-    private static final int ANNOTATION = 0x00002000;
-    private static final int ENUM       = 0x00004000;
-    private static final int SYNTHETIC  = 0x00001000;
-    private static final int IDENTITY_CLASS  = 0x00000020;
-    private static final int VALUE_CLASS     = 0x00000040;
-    private static final int PRIMITIVE_CLASS = 0x00000800;  // See JEP-401
+    private static final int ANNOTATION= 0x00002000;
+    private static final int ENUM      = 0x00004000;
+    private static final int SYNTHETIC = 0x00001000;
 
     private static native void registerNatives();
     static {
@@ -252,7 +249,6 @@ public final class Class<T> implements java.io.Serializable,
                 s = s.concat(".ref");
             }
         }
-
         return s;
     }
 
@@ -514,8 +510,8 @@ public final class Class<T> implements java.io.Serializable,
 
     /** Called after security check for system loader access checks have been made. */
     private static native Class<?> forName0(String name, boolean initialize,
-                                    ClassLoader loader,
-                                    Class<?> caller)
+                                            ClassLoader loader,
+                                            Class<?> caller)
         throws ClassNotFoundException;
 
 
@@ -629,7 +625,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isPrimitiveClass() {
-        return (this.getModifiers() & AccessFlag.PRIMITIVE.mask()) != 0;
+        return (this.getModifiers() & Modifier.PRIMITIVE) != 0;
     }
 
     /**
@@ -640,7 +636,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isIdentity() {
-        return (this.getModifiers() & IDENTITY_CLASS) != 0;
+        return (this.getModifiers() & Modifier.IDENTITY) != 0;
     }
 
     /**
@@ -651,7 +647,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isValue() {
-        return (this.getModifiers() & AccessFlag.VALUE.mask()) != 0;
+        return (this.getModifiers() & Modifier.VALUE) != 0;
     }
 
     /**
@@ -1455,6 +1451,8 @@ public final class Class<T> implements java.io.Serializable,
      * {@code private}, {@code final}, {@code static},
      * {@code abstract} and {@code interface}; they should be decoded
      * using the methods of class {@code Modifier}.
+     * The modifiers also include the Java Virtual Machine's constants for
+     * {@code identity class}, {@code value class}, and {@code primitive class}.
      *
      * <p> If the underlying class is an array class, then its
      * {@code public}, {@code private} and {@code protected}
@@ -1483,21 +1481,6 @@ public final class Class<T> implements java.io.Serializable,
      */
     @IntrinsicCandidate
     public native int getModifiers();
-
-    /**
-     * Gets the signers of this class.
-     *
-     * @return  the signers of this class, or null if there are no signers.  In
-     *          particular, this method returns null if this {@code Class} object represents
-     *          a primitive type or void.
-     * @since   1.1
-     */
-    public native Object[] getSigners();
-
-    /**
-     * Set the signers of this class.
-     */
-    native void setSigners(Object[] signers);
 
     /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
@@ -1532,6 +1515,23 @@ public final class Class<T> implements java.io.Serializable,
                                             AccessFlag.Location.INNER_CLASS :
                                             AccessFlag.Location.CLASS);
     }
+
+    /**
+     * Gets the signers of this class.
+     *
+     * @return  the signers of this class, or null if there are no signers.  In
+     *          particular, this method returns null if this {@code Class} object represents
+     *          a primitive type or void.
+     * @since   1.1
+     */
+    public native Object[] getSigners();
+
+
+    /**
+     * Set the signers of this class.
+     */
+    native void setSigners(Object[] signers);
+
 
     /**
      * If this {@code Class} object represents a local or anonymous

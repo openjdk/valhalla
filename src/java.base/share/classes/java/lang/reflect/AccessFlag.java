@@ -86,7 +86,8 @@ import static java.util.Map.entry;
  * @see java.lang.module.ModuleDescriptor.Requires.Modifier
  * @see java.lang.module.ModuleDescriptor.Exports.Modifier
  * @see java.lang.module.ModuleDescriptor.Opens.Modifier
- * @since Valhalla
+ * @see java.compiler/javax.lang.model.element.Modifier
+ * @since 20
  */
 @SuppressWarnings("doclint:reference") // cross-module link
 public enum AccessFlag {
@@ -149,13 +150,7 @@ public enum AccessFlag {
      * The access flag {@code ACC_IDENTITY} with a mask value of {@code 0x0020}.
      * @jls 4.1-B. Class access and property modifiers
      */
-    IDENTITY(0x0000_0020, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
-
-    /**
-     * The access flag {@code ACC_IDENTITY} with a mask value of {@code
-     * 0x0020}.
-     */
-//    IDENTITY(0x0000_0020, false, Set.of(Location.CLASS)),
+    IDENTITY(0x0000_0020, true, Location.SET_CLASS_INNER_CLASS),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -214,7 +209,7 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_VARARGS} with a mask value of
-     <code>{@value Modifier#VARARGS}</code>.
+     * <code>{@value Modifier#VARARGS}</code>.
      * @see Executable#isVarArgs()
      */
     VARARGS(Modifier.VARARGS, false, Location.SET_METHOD),
