@@ -683,7 +683,7 @@ public final class Type {
     }
 
     static boolean isPrimitiveClass(Class<?> clazz) {
-        return (clazz.getModifiers() & Modifier.PRIMITIVE) != 0;
+        return (clazz.getModifiers() & Opcodes.ACC_PRIMITIVE) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------

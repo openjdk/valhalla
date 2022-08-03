@@ -203,6 +203,7 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION= 0x00002000;
     private static final int ENUM      = 0x00004000;
     private static final int SYNTHETIC = 0x00001000;
+    private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
     static {
@@ -625,7 +626,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isPrimitiveClass() {
-        return (this.getModifiers() & Modifier.PRIMITIVE) != 0;
+        return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
     }
 
     /**

@@ -378,13 +378,6 @@ public class Modifier {
     public static final int ABSTRACT         = 0x00000400;
 
     /**
-     * The {@code int} value representing the {@code primitive class}
-     * modifier.
-     * @see AccessFlag#PRIMITIVE
-     */
-    public static final int PRIMITIVE        = 0x00000800;
-
-    /**
      * The {@code int} value representing the {@code strictfp}
      * modifier.
      * @see AccessFlag#STRICT
@@ -426,7 +419,7 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.IDENTITY       | Modifier.VALUE        | Modifier.PRIMITIVE |
+        Modifier.IDENTITY       | Modifier.VALUE        |
         Modifier.STRICT;
 
     /**

@@ -52,7 +52,7 @@ public class BasicAccessFlagTest {
     private static void testSourceModifiers() throws Exception {
         Class<?> modifierClass = Modifier.class;
         List<AccessFlag> valhallaOnly =
-                List.of(AccessFlag.IDENTITY, AccessFlag.VALUE, AccessFlag.PRIMITIVE);
+                List.of(AccessFlag.IDENTITY, AccessFlag.VALUE);
 
         for(AccessFlag accessFlag : AccessFlag.values()) {
             if (accessFlag.sourceModifier()  && !valhallaOnly.contains(accessFlag)) {

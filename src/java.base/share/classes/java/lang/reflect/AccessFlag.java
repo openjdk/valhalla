@@ -237,12 +237,6 @@ public enum AccessFlag {
              Set.of(Location.CLASS, Location.METHOD, Location.INNER_CLASS)),
 
     /**
-     * The access flag {@code ACC_PRIMITIVE} with a mask value of {@code 0x0800}.
-     * @jls 4.1-B. Class access and property modifiers
-     */
-    PRIMITIVE(0x0000_0800, true, Location.SET_CLASS_INNER_CLASS),
-
-    /**
      * The access flag {@code ACC_STRICT}, corresponding to the source
      * modifier {@link Modifier#STRICT strictfp} with a mask value of
      * <code>{@value Modifier#STRICT}</code>.
@@ -441,7 +435,7 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, SUPER, IDENTITY, VALUE, PRIMITIVE,
+                                Set.of(PUBLIC, FINAL, SUPER, IDENTITY, VALUE,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
@@ -455,7 +449,7 @@ public enum AccessFlag {
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE, PRIMITIVE,
+                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE,
                                        STATIC, FINAL, INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,
