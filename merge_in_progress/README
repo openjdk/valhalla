@@ -1,0 +1,44 @@
+#
+# This README notes unresolved merge conflicts that were committed so that
+# others may help resolve them. Please remove entries from the list that you
+# have resolved.
+#
+# In the sub-directory "original_conflicts" you will find the original merge
+# conflict source. In case you wish to check for a badly resolved conflict.
+#
+# This entire "merge_in_progress" directory can be removed once all conflicts
+# are both merged and tested to a satisfactory level.
+#
+# List of unresolved sources...
+#
+src/hotspot/cpu/aarch64/frame_aarch64.cpp
+src/hotspot/cpu/x86/frame_x86.cpp
+src/hotspot/cpu/x86/macroAssembler_x86.cpp
+src/hotspot/cpu/x86/macroAssembler_x86.hpp
+src/hotspot/share/opto/arraycopynode.cpp
+src/hotspot/share/opto/bytecodeInfo.cpp
+src/hotspot/share/opto/callGenerator.cpp
+src/hotspot/share/opto/callnode.cpp
+src/hotspot/share/opto/callnode.hpp
+src/hotspot/share/opto/cfgnode.cpp
+src/hotspot/share/opto/compile.cpp
+src/hotspot/share/opto/compile.hpp
+src/hotspot/share/opto/convertnode.hpp
+src/hotspot/share/opto/escape.cpp
+src/hotspot/share/opto/graphKit.cpp
+src/hotspot/share/opto/idealKit.cpp
+src/hotspot/share/opto/lcm.cpp
+src/hotspot/share/opto/library_call.cpp
+src/hotspot/share/opto/library_call.hpp
+src/hotspot/share/opto/locknode.cpp
+src/hotspot/share/opto/macro.cpp
+src/hotspot/share/opto/macroArrayCopy.cpp
+src/hotspot/share/opto/memnode.cpp
+src/hotspot/share/opto/node.hpp
+src/hotspot/share/opto/output.cpp
+src/hotspot/share/opto/parse1.cpp
+src/hotspot/share/opto/parseHelper.cpp
+src/hotspot/share/opto/subnode.cpp
+src/hotspot/share/opto/subtypenode.cpp
+src/hotspot/share/opto/type.cpp
+src/hotspot/share/opto/type.hpp
