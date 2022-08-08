@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012 Red Hat, Inc.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -76,12 +76,14 @@
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
+#include "runtime/javaThread.inline.hpp"
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/reflection.hpp"
@@ -101,7 +103,7 @@
 #include "jvmci/jvmciCompiler.hpp"
 #endif
 
-static jint CurrentVersion = JNI_VERSION_10;
+static jint CurrentVersion = JNI_VERSION_19;
 
 #if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
 extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
@@ -111,10 +113,10 @@ extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
 // '-return' probe regardless of the return path is taken out of the function.
 // Methods that have multiple return paths use this to avoid having to
 // instrument each return path.  Methods that use CHECK or THROW must use this
-// since those macros can cause an immedate uninstrumented return.
+// since those macros can cause an immediate uninstrumented return.
 //
 // In order to get the return value, a reference to the variable containing
-// the return value must be passed to the contructor of the object, and
+// the return value must be passed to the constructor of the object, and
 // the return value must be set before return (since the mark object has
 // a reference to it).
 //
@@ -562,7 +564,9 @@ JNI_END
 
 static void jni_check_async_exceptions(JavaThread *thread) {
   assert(thread == Thread::current(), "must be itself");
-  thread->check_and_handle_async_exceptions();
+  if (thread->has_async_exception_condition()) {
+    SafepointMechanism::process_if_requested_with_exit_check(thread, true /* check asyncs */);
+  }
 }
 
 JNI_ENTRY_NO_PRESERVE(jthrowable, jni_ExceptionOccurred(JNIEnv *env))
@@ -2313,7 +2317,7 @@ JNI_ENTRY(const char*, jni_GetStringUTFChars(JNIEnv *env, jstring string, jboole
   if (s_value != NULL) {
     size_t length = java_lang_String::utf8_length(java_string, s_value);
     /* JNI Specification states return NULL on OOM */
-    result = AllocateHeap(length + 1, mtInternal, 0, AllocFailStrategy::RETURN_NULL);
+    result = AllocateHeap(length + 1, mtInternal, AllocFailStrategy::RETURN_NULL);
     if (result != NULL) {
       java_lang_String::as_utf8_string(java_string, s_value, result, (int) length + 1);
       if (isCopy != NULL) {
@@ -2835,8 +2839,7 @@ JNI_ENTRY(jint, jni_MonitorEnter(JNIEnv *env, jobject jobj))
 
   Handle obj(thread, JNIHandles::resolve_non_null(jobj));
   ObjectSynchronizer::jni_enter(obj, thread);
-  ret = JNI_OK;
-  return ret;
+  return JNI_OK;
 JNI_END
 
 DT_RETURN_MARK_DECL(MonitorExit, jint
@@ -2854,9 +2857,7 @@ JNI_ENTRY(jint, jni_MonitorExit(JNIEnv *env, jobject jobj))
 
   Handle obj(THREAD, JNIHandles::resolve_non_null(jobj));
   ObjectSynchronizer::jni_exit(obj(), CHECK_(JNI_ERR));
-
-  ret = JNI_OK;
-  return ret;
+  return JNI_OK;
 JNI_END
 
 //
@@ -3253,6 +3254,16 @@ JNI_ENTRY(jobject, jni_GetModule(JNIEnv* env, jclass clazz))
   return Modules::get_module(clazz, THREAD);
 JNI_END
 
+JNI_ENTRY(jboolean, jni_IsVirtualThread(JNIEnv* env, jobject obj))
+  oop thread_obj = JNIHandles::resolve_external_guard(obj);
+  if (thread_obj != NULL && thread_obj->is_a(vmClasses::BasicVirtualThread_klass())) {
+    return JNI_TRUE;
+  } else {
+    return JNI_FALSE;
+  }
+JNI_END
+
+
 // Structure containing all jni functions
 struct JNINativeInterface_ jni_NativeInterface = {
     NULL,
@@ -3538,6 +3549,9 @@ struct JNINativeInterface_ jni_NativeInterface = {
 
     jni_GetModule,
 
+    // Virtual threads
+
+    jni_IsVirtualThread
 };
 
 
@@ -3612,7 +3626,7 @@ static void post_thread_start_event(const JavaThread* jt) {
   assert(jt != NULL, "invariant");
   EventThreadStart event;
   if (event.should_commit()) {
-    event.set_thread(JFR_THREAD_ID(jt));
+    event.set_thread(JFR_JVM_THREAD_ID(jt));
     event.set_parentThread((traceid)0);
 #if INCLUDE_JFR
     if (EventThreadStart::is_stacktrace_enabled()) {
@@ -4087,6 +4101,13 @@ jint JNICALL jni_GetEnv(JavaVM *vm, void **penv, jint version) {
   if (vm_created == 0) {
     *penv = NULL;
     ret = JNI_EDETACHED;
+    return ret;
+  }
+
+  // No JVM TI with --enable-preview and no continuations support.
+  if (!VMContinuations && Arguments::enable_preview() && JvmtiExport::is_jvmti_version(version)) {
+    *penv = NULL;
+    ret = JNI_EVERSION;
     return ret;
   }
 

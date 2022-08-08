@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -124,6 +124,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   cbnz(hdr, slow_case);
   // done
   bind(done);
+  increment(Address(rthread, JavaThread::held_monitor_count_offset()));
   return null_check_offset;
 }
 
@@ -155,6 +156,7 @@ void C1_MacroAssembler::unlock_object(Register hdr, Register obj, Register disp_
   }
   // done
   bind(done);
+  decrement(Address(rthread, JavaThread::held_monitor_count_offset()));
 }
 
 
@@ -163,7 +165,7 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
   if (UseTLAB) {
     tlab_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, t2, slow_case);
   } else {
-    eden_allocate(obj, var_size_in_bytes, con_size_in_bytes, t1, slow_case);
+    b(slow_case);
   }
 }
 
@@ -327,7 +329,8 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->nmethod_entry_barrier(this);
+  bs->nmethod_entry_barrier(this, NULL /* slow_path */, NULL /* continuation */, NULL /* guard */);
+}
 
   if (needs_stack_repair && verified_inline_entry_label != NULL) {
     // Jump here from the scalarized entry points that require additional stack space
@@ -377,7 +380,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
 
   // The runtime call might safepoint, make sure nmethod entry barrier is executed
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->nmethod_entry_barrier(this);
+  bs->nmethod_entry_barrier(this, NULL /* slow_path */, NULL /* continuation */, NULL /* guard */);
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   mov(r19, (intptr_t) ces->method());
@@ -412,7 +415,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
 
 
 void C1_MacroAssembler::load_parameter(int offset_in_words, Register reg) {
-  // rbp, + 0: link
+  // rfp, + 0: link
   //     + 1: return address
   //     + 2: argument with offset 0
   //     + 3: argument with offset 1
@@ -425,7 +428,7 @@ void C1_MacroAssembler::load_parameter(int offset_in_words, Register reg) {
 
 void C1_MacroAssembler::verify_stack_oop(int stack_offset) {
   if (!VerifyOops) return;
-  verify_oop_addr(Address(sp, stack_offset), "oop");
+  verify_oop_addr(Address(sp, stack_offset));
 }
 
 void C1_MacroAssembler::verify_not_null_oop(Register r) {

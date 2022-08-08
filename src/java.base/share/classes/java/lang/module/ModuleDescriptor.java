@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,7 +127,7 @@ public class ModuleDescriptor
          */
         MANDATED(AccessFlag.MANDATED.mask());
 
-        private int mask;
+        private final int mask;
         private Modifier(int mask) {
             this.mask = mask;
         }
@@ -164,7 +164,7 @@ public class ModuleDescriptor
              * The dependence is mandatory in the static phase, during compilation,
              * but is optional in the dynamic phase, during execution.
              */
-            STATIC(AccessFlag.STATIC.mask()),
+            STATIC(AccessFlag.STATIC_PHASE.mask()),
 
             /**
              * The dependence was not explicitly or implicitly declared in the
@@ -177,7 +177,7 @@ public class ModuleDescriptor
              * declaration.
              */
             MANDATED(AccessFlag.MANDATED.mask());
-            private int mask;
+            private final int mask;
             private Modifier(int mask) {
                 this.mask = mask;
             }
@@ -408,7 +408,7 @@ public class ModuleDescriptor
              */
             MANDATED(AccessFlag.MANDATED.mask());
 
-            private int mask;
+            private final int mask;
             private Modifier(int mask) {
                 this.mask = mask;
             }
@@ -630,7 +630,7 @@ public class ModuleDescriptor
              * module declaration.
              */
             MANDATED(AccessFlag.MANDATED.mask());
-            private int mask;
+            private final int mask;
             private Modifier(int mask) {
                 this.mask = mask;
             }
@@ -1581,7 +1581,7 @@ public class ModuleDescriptor
          *
          * If {@code strict} is {@code true} then module, package, and class
          * names are checked to ensure they are legal names. In addition, the
-         * {@link #build buid} method will add "{@code requires java.base}" if
+         * {@link #build build} method will add "{@code requires java.base}" if
          * the dependency is not declared.
          */
         Builder(String name, boolean strict, Set<Modifier> modifiers) {

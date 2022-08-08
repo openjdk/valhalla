@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,8 +86,16 @@ static bool is_init_with_ea(ciMethod* callee_method,
   if (!C->do_escape_analysis() || !EliminateAllocations) {
     return false; // EA is off
   }
+<<<<<<< HEAD
   if (callee_method->is_object_constructor()) {
     return true; // constructor
+||||||| 78ef2fdef68
+  if (callee_method->is_initializer()) {
+    return true; // constuctor
+=======
+  if (callee_method->is_initializer()) {
+    return true; // constructor
+>>>>>>> jdk-20+8
   }
   if (caller_method->is_object_constructor_or_class_initializer() &&
       caller_method != C->method() &&
@@ -213,6 +221,13 @@ bool InlineTree::should_not_inline(ciMethod* callee_method, ciMethod* caller_met
     fail_msg = "native method";
   } else if (callee_method->dont_inline()) {
     fail_msg = "don't inline by annotation";
+  }
+
+  // Don't inline a method that changes Thread.currentThread() except
+  // into another method that is annotated @ChangesCurrentThread.
+  if (callee_method->changes_current_thread()
+      && ! C->method()->changes_current_thread()) {
+    fail_msg = "method changes current thread";
   }
 
   // one more inlining restriction

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -173,13 +173,15 @@ int32_t StackMapReader::chop(
   return pos+1;
 }
 
+#define CHECK_NT CHECK_(VerificationType::bogus_type())
+
 VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
-  u1 tag = _stream->get_u1(THREAD);
+  u1 tag = _stream->get_u1(CHECK_NT);
   if (tag < (u1)ITEM_UninitializedThis) {
     return VerificationType::from_tag(tag);
   }
   if (tag == ITEM_Object) {
-    u2 class_index = _stream->get_u2(THREAD);
+    u2 class_index = _stream->get_u2(CHECK_NT);
     int nconstants = _cp->length();
     if ((class_index <= 0 || class_index >= nconstants) ||
         (!_cp->tag_at(class_index).is_klass() &&
@@ -206,7 +208,7 @@ VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
     return VerificationType::uninitialized_this_type();
   }
   if (tag == ITEM_Uninitialized) {
-    u2 offset = _stream->get_u2(THREAD);
+    u2 offset = _stream->get_u2(CHECK_NT);
     if (offset >= _code_length ||
         _code_data[offset] != ClassVerifier::NEW_OFFSET) {
       _verifier->class_format_error(
@@ -224,7 +226,7 @@ StackMapFrame* StackMapReader::next(
   StackMapFrame* frame;
   int offset;
   VerificationType* locals = NULL;
-  u1 frame_type = _stream->get_u1(THREAD);
+  u1 frame_type = _stream->get_u1(CHECK_NULL);
   if (frame_type < 64) {
     // same_frame
     if (first) {
@@ -278,7 +280,7 @@ StackMapFrame* StackMapReader::next(
     return frame;
   }
 
-  u2 offset_delta = _stream->get_u2(THREAD);
+  u2 offset_delta = _stream->get_u2(CHECK_NULL);
 
   if (frame_type < SAME_LOCALS_1_STACK_ITEM_EXTENDED) {
     // reserved frame types
@@ -370,7 +372,7 @@ StackMapFrame* StackMapReader::next(
     }
     u1 flags = pre_frame->flags();
     for (i=0; i<appends; i++) {
-      locals[real_length] = parse_verification_type(&flags, THREAD);
+      locals[real_length] = parse_verification_type(&flags, CHECK_NULL);
       if (locals[real_length].is_category2()) {
         locals[real_length + 1] = locals[real_length].to_category2_2nd();
         ++real_length;
@@ -392,7 +394,7 @@ StackMapFrame* StackMapReader::next(
   if (frame_type == FULL) {
     // full_frame
     u1 flags = 0;
-    u2 locals_size = _stream->get_u2(THREAD);
+    u2 locals_size = _stream->get_u2(CHECK_NULL);
     int real_locals_size = 0;
     if (locals_size > 0) {
       locals = NEW_RESOURCE_ARRAY_IN_THREAD(
@@ -400,7 +402,7 @@ StackMapFrame* StackMapReader::next(
     }
     int i;
     for (i=0; i<locals_size; i++) {
-      locals[real_locals_size] = parse_verification_type(&flags, THREAD);
+      locals[real_locals_size] = parse_verification_type(&flags, CHECK_NULL);
       if (locals[real_locals_size].is_category2()) {
         locals[real_locals_size + 1] =
           locals[real_locals_size].to_category2_2nd();
@@ -410,7 +412,7 @@ StackMapFrame* StackMapReader::next(
     }
     check_verification_type_array_size(
       real_locals_size, max_locals, CHECK_VERIFY_(_verifier, NULL));
-    u2 stack_size = _stream->get_u2(THREAD);
+    u2 stack_size = _stream->get_u2(CHECK_NULL);
     int real_stack_size = 0;
     VerificationType* stack = NULL;
     if (stack_size > 0) {
@@ -418,7 +420,7 @@ StackMapFrame* StackMapReader::next(
         THREAD, VerificationType, stack_size*2);
     }
     for (i=0; i<stack_size; i++) {
-      stack[real_stack_size] = parse_verification_type(NULL, THREAD);
+      stack[real_stack_size] = parse_verification_type(NULL, CHECK_NULL);
       if (stack[real_stack_size].is_category2()) {
         stack[real_stack_size + 1] = stack[real_stack_size].to_category2_2nd();
         ++real_stack_size;

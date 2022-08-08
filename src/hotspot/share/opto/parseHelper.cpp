@@ -76,17 +76,24 @@ void Parse::do_checkcast() {
   // _from_ is not loaded, and value is not null.  If the value _is_ NULL,
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
+<<<<<<< HEAD
   if (!will_link || (tp && tp->klass() && !tp->klass()->is_loaded())) {
     assert(!null_free, "Inline type should be loaded");
+||||||| 78ef2fdef68
+  if (!will_link || (tp && tp->klass() && !tp->klass()->is_loaded())) {
+=======
+  if (!will_link || (tp && !tp->is_loaded())) {
+>>>>>>> jdk-20+8
     if (C->log() != NULL) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
                        C->log()->identify(klass));
       }
-      if (tp && tp->klass() && !tp->klass()->is_loaded()) {
+      if (tp && !tp->is_loaded()) {
         // %%% Cannot happen?
+        ciKlass* klass = tp->unloaded_klass();
         C->log()->elem("assert_null reason='checkcast source' klass='%d'",
-                       C->log()->identify(tp->klass()));
+                       C->log()->identify(klass));
       }
     }
     null_assert(obj);
@@ -213,6 +220,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       // 'array_klass' to be ObjArrayKlass, which can result in invalid memory accesses.
       //
       // See issue JDK-8057622 for details.
+<<<<<<< HEAD
       extak = tak->cast_to_exactness(true)->is_klassptr();
       reason = Deoptimization::Reason_array_check;
     }
@@ -245,6 +253,61 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
           log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
                     log->identify(tak->klass()));
         }
+||||||| 78ef2fdef68
+
+    always_see_exact_class = true;
+    // (If no MDO at all, hope for the best, until a trap actually occurs.)
+
+    // Make a constant out of the inexact array klass
+    const TypeKlassPtr *extak = tak->cast_to_exactness(true)->is_klassptr();
+    Node* con = makecon(extak);
+    Node* cmp = _gvn.transform(new CmpPNode( array_klass, con ));
+    Node* bol = _gvn.transform(new BoolNode( cmp, BoolTest::eq ));
+    Node* ctrl= control();
+    { BuildCutout unless(this, bol, PROB_MAX);
+      uncommon_trap(Deoptimization::Reason_array_check,
+                    Deoptimization::Action_maybe_recompile,
+                    tak->klass());
+    }
+    if (stopped()) {          // MUST uncommon-trap?
+      set_control(ctrl);      // Then Don't Do It, just fall into the normal checking
+    } else {                  // Cast array klass to exactness:
+      // Use the exact constant value we know it is.
+      replace_in_map(array_klass,con);
+      CompileLog* log = C->log();
+      if (log != NULL) {
+        log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
+                  log->identify(tak->klass()));
+=======
+
+    always_see_exact_class = true;
+    // (If no MDO at all, hope for the best, until a trap actually occurs.)
+
+    // Make a constant out of the inexact array klass
+    const TypeKlassPtr *extak = tak->cast_to_exactness(true);
+
+    if (extak->exact_klass(true) != NULL) {
+      Node* con = makecon(extak);
+      Node* cmp = _gvn.transform(new CmpPNode( array_klass, con ));
+      Node* bol = _gvn.transform(new BoolNode( cmp, BoolTest::eq ));
+      Node* ctrl= control();
+      { BuildCutout unless(this, bol, PROB_MAX);
+        uncommon_trap(Deoptimization::Reason_array_check,
+                      Deoptimization::Action_maybe_recompile,
+                      extak->exact_klass());
+      }
+      if (stopped()) {          // MUST uncommon-trap?
+        set_control(ctrl);      // Then Don't Do It, just fall into the normal checking
+      } else {                  // Cast array klass to exactness:
+        // Use the exact constant value we know it is.
+        replace_in_map(array_klass,con);
+        CompileLog* log = C->log();
+        if (log != NULL) {
+          log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
+                    log->identify(extak->exact_klass()));
+        }
+        array_klass = con;      // Use cast value moving forward
+>>>>>>> jdk-20+8
       }
     }
   }
@@ -400,4 +463,3 @@ void Parse::dump_map_adr_mem() const {
 }
 
 #endif
-

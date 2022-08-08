@@ -69,7 +69,7 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
             if (type.isPrimitiveClass()) {
                 type = type.asValueType();
             }
-            if (!field.getType().isAssignableFrom(type)) {
+            if (!field.getType().isInstance(value)) {
                 throwSetIllegalArgumentException(value);
             }
         }

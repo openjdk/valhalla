@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -214,18 +214,14 @@ public abstract sealed class Executable extends AccessibleObject
      * access flags} for the executable represented by this object,
      * possibly empty}
      *
-     * @implSpec
-     * Map this executable's {@linkplain #getModifiers() modifiers} to
-     * access flags using {@link AccessFlag#maskToAccessFlags} for a
-     * {@linkplain AccessFlag.Location#METHOD method location}
-     *
      * @see #getModifiers()
      * @jvms 4.6 Methods
      * @since 20
      */
     @Override
     public Set<AccessFlag> accessFlags() {
-        return AccessFlag.maskToAccessFlags(getModifiers(), AccessFlag.Location.METHOD);
+        return AccessFlag.maskToAccessFlags(getModifiers(),
+                                            AccessFlag.Location.METHOD);
     }
 
     /**
@@ -274,9 +270,7 @@ public abstract sealed class Executable extends AccessibleObject
      * @return The number of formal parameters for the executable this
      * object represents
      */
-    public int getParameterCount() {
-        throw new AbstractMethodError();
-    }
+    public abstract int getParameterCount();
 
     /**
      * Returns an array of {@code Type} objects that represent the

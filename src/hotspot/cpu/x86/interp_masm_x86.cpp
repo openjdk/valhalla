@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,9 +37,9 @@
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/frame.inline.hpp"
+#include "runtime/javaThread.hpp"
 #include "runtime/safepointMechanism.hpp"
 #include "runtime/sharedRuntime.hpp"
-#include "runtime/thread.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 
 // Implementation of InterpreterMacroAssembler
@@ -182,7 +182,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
 
       // If we don't profile all invoke bytecodes we must make sure
       // it's a bytecode we indeed profile. We can't go back to the
-      // begining of the ProfileData we intend to update to check its
+      // beginning of the ProfileData we intend to update to check its
       // type because we're right after it and we don't known its
       // length
       Label do_profile;
@@ -973,7 +973,7 @@ void InterpreterMacroAssembler::narrow(Register result) {
 //
 // Apply stack watermark barrier.
 // Unlock the receiver if this is a synchronized method.
-// Unlock any Java monitors from syncronized blocks.
+// Unlock any Java monitors from synchronized blocks.
 // Remove the activation from the stack.
 //
 // If there are locked Java monitors
@@ -1213,6 +1213,7 @@ void InterpreterMacroAssembler::remove_activation(
   leave();                           // remove frame anchor
   pop(ret_addr);                     // get return address
   mov(rsp, rbx);                     // set sp to sender sp
+  pop_cont_fastpath();
 }
 
 void InterpreterMacroAssembler::get_method_counters(Register method,
@@ -1352,7 +1353,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
             CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorenter),
             lock_reg);
   } else {
-    Label done;
+    Label count_locking, done, slow_case;
 
     const Register swap_reg = rax; // Must use rax for cmpxchg instruction
     const Register tmp_reg = rbx;
@@ -1363,8 +1364,6 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     const int lock_offset = BasicObjectLock::lock_offset_in_bytes ();
     const int mark_offset = lock_offset +
                             BasicLock::displaced_header_offset_in_bytes();
-
-    Label slow_case;
 
     // Load object pointer into obj_reg
     movptr(obj_reg, Address(lock_reg, obj_offset));
@@ -1394,7 +1393,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 
     lock();
     cmpxchgptr(lock_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
-    jcc(Assembler::zero, done);
+    jcc(Assembler::zero, count_locking);
 
     const int zero_bits = LP64_ONLY(7) NOT_LP64(3);
 
@@ -1430,7 +1429,11 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
 
     // Save the test result, for recursive case, the result is zero
     movptr(Address(lock_reg, mark_offset), swap_reg);
-    jcc(Assembler::zero, done);
+    jcc(Assembler::notZero, slow_case);
+
+    bind(count_locking);
+    inc_held_monitor_count();
+    jmp(done);
 
     bind(slow_case);
 
@@ -1463,7 +1466,7 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
   if (UseHeavyMonitors) {
     call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), lock_reg);
   } else {
-    Label done;
+    Label count_locking, done, slow_case;
 
     const Register swap_reg   = rax;  // Must use rax for cmpxchg instruction
     const Register header_reg = LP64_ONLY(c_rarg2) NOT_LP64(rbx);  // Will contain the old oopMark
@@ -1489,16 +1492,20 @@ void InterpreterMacroAssembler::unlock_object(Register lock_reg) {
     testptr(header_reg, header_reg);
 
     // zero for recursive case
-    jcc(Assembler::zero, done);
+    jcc(Assembler::zero, count_locking);
 
     // Atomic swap back the old header
     lock();
     cmpxchgptr(header_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
 
     // zero for simple unlock of a stack-lock case
-    jcc(Assembler::zero, done);
+    jcc(Assembler::notZero, slow_case);
 
+    bind(count_locking);
+    dec_held_monitor_count();
+    jmp(done);
 
+    bind(slow_case);
     // Call the runtime routine for slow case.
     movptr(Address(lock_reg, BasicObjectLock::obj_offset_in_bytes()), obj_reg); // restore obj
     call_VM_leaf(CAST_FROM_FN_PTR(address, InterpreterRuntime::monitorexit), lock_reg);
