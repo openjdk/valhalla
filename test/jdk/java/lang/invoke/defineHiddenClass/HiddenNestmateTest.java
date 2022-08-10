@@ -168,7 +168,7 @@ public class HiddenNestmateTest {
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
         MethodVisitor mv;
 
-        cw.visit(V12, ACC_FINAL, classname, null, "java/lang/Object", null);
+        cw.visit(V12, ACC_FINAL|ACC_IDENTITY, classname, null, "java/lang/Object", null);
 
         {
             mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);

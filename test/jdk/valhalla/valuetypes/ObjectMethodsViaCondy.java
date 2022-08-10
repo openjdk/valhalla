@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,6 +50,7 @@ import jdk.internal.org.objectweb.asm.Type;
 import org.testng.annotations.Test;
 import static java.lang.invoke.MethodType.methodType;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_FINAL;
+import static jdk.internal.org.objectweb.asm.Opcodes.ACC_IDENTITY;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_PUBLIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.ACC_STATIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.ALOAD;
@@ -58,7 +59,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.H_GETFIELD;
 import static jdk.internal.org.objectweb.asm.Opcodes.H_INVOKESTATIC;
 import static jdk.internal.org.objectweb.asm.Opcodes.INVOKESPECIAL;
 import static jdk.internal.org.objectweb.asm.Opcodes.RETURN;
-import static jdk.internal.org.objectweb.asm.Opcodes.V18;
+import static jdk.internal.org.objectweb.asm.Opcodes.V19;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
@@ -135,7 +136,7 @@ public class ObjectMethodsViaCondy {
         ClassFileBuilder(String classname) {
             this.classname = classname;
             this.cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-            cw.visit(V18, ACC_FINAL, classname, null, OBJECT_CLS, null);
+            cw.visit(V19, ACC_FINAL | ACC_IDENTITY, classname, null, OBJECT_CLS, null);
             MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);

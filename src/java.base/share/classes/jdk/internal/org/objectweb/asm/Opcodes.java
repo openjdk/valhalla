@@ -336,10 +336,12 @@ public interface Opcodes {
     int ACC_STATIC = 0x0008; // field, method
     int ACC_FINAL = 0x0010; // class, field, method, parameter
     int ACC_SUPER = 0x0020; // class
+    int ACC_IDENTITY = 0x0020; // class
     int ACC_SYNCHRONIZED = 0x0020; // method
     int ACC_OPEN = 0x0020; // module
     int ACC_TRANSITIVE = 0x0020; // module requires
     int ACC_VOLATILE = 0x0040; // field
+    int ACC_VALUE = 0x0040; // class
     int ACC_BRIDGE = 0x0040; // method
     int ACC_STATIC_PHASE = 0x0040; // module requires
     int ACC_VARARGS = 0x0080; // method
@@ -348,6 +350,7 @@ public interface Opcodes {
     int ACC_INLINE = 0x0100; // inline class
     int ACC_INTERFACE = 0x0200; // class
     int ACC_ABSTRACT = 0x0400; // class, method
+    int ACC_PRIMITIVE = 0x0800; // class
     int ACC_STRICT = 0x0800; // method
     int ACC_SYNTHETIC = 0x1000; // class, field, method, parameter, module *
     int ACC_ANNOTATION = 0x2000; // class

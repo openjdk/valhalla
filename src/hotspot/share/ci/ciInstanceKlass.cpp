@@ -709,7 +709,7 @@ bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
   if (!is_exact) {
     // Not exact, check if this is a valid super for an inline klass
     VM_ENTRY_MARK;
-    return !get_instanceKlass()->invalid_inline_super();
+    return !get_instanceKlass()->carries_identity_modifier();
   }
   return false;
 }
