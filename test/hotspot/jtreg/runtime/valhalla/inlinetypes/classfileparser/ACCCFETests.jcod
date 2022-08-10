@@ -76,7 +76,7 @@ class AbstractVField {
     Utf8 "AbstractVField.java"; // #32     at 0x011E
   } // Constant Pool
 
-  0x0461; // access [ ACC_PUBLIC ACC_ABSTRACT ACC_SUPER ACC_VALUE ]
+  0x0441; // access [ ACC_PUBLIC ACC_ABSTRACT ACC_VALUE ]
   #22;// this_cpx
   #2;// super_cpx
 
@@ -218,7 +218,7 @@ class AbstractVFinal {
     Utf8 "AbstractVFinal.java"; // #32     at 0x011E
   } // Constant Pool
 
-  0x0471; // access [ ACC_FINAL ACC_PUBLIC ACC_VALUE ACC_SUPER ACC_ABSTRACT ]
+  0x0451; // access [ ACC_FINAL ACC_PUBLIC ACC_VALUE ACC_ABSTRACT ]
   #22;// this_cpx
   #2;// super_cpx
 
@@ -360,7 +360,7 @@ class AbstractVintf {
     Utf8 "AbstractVintf.java"; // #32     at 0x011E
   } // Constant Pool
 
-  0x0661; // access [ ACC_INTERFACE ACC_PUBLIC ACC_SUPER ACC_VALUE ACC_ABSTRACT ]
+  0x0641; // access [ ACC_INTERFACE ACC_PUBLIC ACC_VALUE ACC_ABSTRACT ]
   #22;// this_cpx
   #2;// super_cpx
 
@@ -502,7 +502,7 @@ class AbstractVMethod {
     Utf8 "AbstractVMethod.java"; // #32     at 0x011E
   } // Constant Pool
 
-  0x0461; // access [ ACC_PUBLIC ACC_SUPER ACC_VALUE ACC_ABSTRACT ]
+  0x0441; // access [ ACC_PUBLIC ACC_VALUE ACC_ABSTRACT ]
   #22;// this_cpx
   #2;// super_cpx
 

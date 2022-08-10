@@ -281,8 +281,10 @@ class InstanceKlass: public Klass {
     _misc_is_empty_inline_type                = 1 << 15, // empty inline type (*)
     _misc_is_naturally_atomic                 = 1 << 16, // loaded/stored in one instruction
     _misc_is_declared_atomic                  = 1 << 17, // implements jl.NonTearable
-    _misc_invalid_inline_super                = 1 << 18, // invalid super type for an inline type
-    _misc_invalid_identity_super              = 1 << 19, // invalid super type for an identity type
+    // _misc_invalid_value_super                 = 1 << 18, // invalid super type for an value type
+    // _misc_invalid_identity_super              = 1 << 19, // invalid super type for an identity type
+    _misc_carries_value_modifier              = 1 << 20, // the class or one of its super types has the ACC_VALUE modifier
+    _misc_carries_identity_modifier           = 1 << 21, // the class or one of its super types has the ACC_IDENTITY modifier
   };
 
   // (*) An inline type is considered empty if it contains no non-static fields or
@@ -457,21 +459,22 @@ class InstanceKlass: public Klass {
     _misc_flags |= _misc_is_declared_atomic;
   }
 
-  // Query if class is an invalid super class for an inline type.
-  bool invalid_inline_super() const {
-    return (_misc_flags & _misc_invalid_inline_super) != 0;
+  bool carries_value_modifier() const {
+    return (_misc_flags &  _misc_carries_value_modifier) != 0;
   }
+
   // Initialized in the class file parser, not changed later.
-  void set_invalid_inline_super() {
-    _misc_flags |= _misc_invalid_inline_super;
+  void set_carries_value_modifier() {
+    _misc_flags |= _misc_carries_value_modifier;
   }
-  // Query if class is an invalid super class for an identity type.
-  bool invalid_identity_super() const {
-    return (_misc_flags & _misc_invalid_identity_super) != 0;
+
+  bool carries_identity_modifier() const {
+    return (_misc_flags & _misc_carries_identity_modifier) != 0;
   }
+
   // Initialized in the class file parser, not changed later.
-  void set_invalid_identity_super() {
-    _misc_flags |= _misc_invalid_identity_super;
+  void set_carries_identity_modifier() {
+    _misc_flags |= _misc_carries_identity_modifier;
   }
 
   // field sizes

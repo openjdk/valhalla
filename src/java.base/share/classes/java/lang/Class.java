@@ -237,20 +237,20 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this {@code Class} object.
      */
     public String toString() {
-        String s = isPrimitive() ? "" : "class ";
-        if (isInterface()) {
-            s = "interface ";
-        }
-        if (isValue()) {
-            s = "value ";
-        }
-        if (isPrimitiveClass()) {
-            s = "primitive ";
+        String s = getName();
+        if (isPrimitive()) {
+            return s;
         }
         // Avoid invokedynamic based String concat, might be not available
-        s = s.concat(getName());
-        if (isPrimitiveClass() && isPrimaryType()) {
-            s = s.concat(".ref");
+        // Prepend type of class
+        s = (isInterface() ? "interface " : "class ").concat(s);
+        if (isValue()) {
+            // prepend value class type
+            s = (isPrimitiveClass() ? "primitive " : "value ").concat(s);
+            if (isPrimitiveClass() && isPrimaryType()) {
+                // Append .ref
+                s = s.concat(".ref");
+            }
         }
         return s;
     }
@@ -305,6 +305,8 @@ public final class Class<T> implements java.io.Serializable,
             } else {
                 // Class modifiers are a superset of interface modifiers
                 int modifiers = getModifiers() & Modifier.classModifiers();
+                // Modifier.toString() below mis-interprets SYNCHRONIZED, STRICT, and VOLATILE bits
+                modifiers &= ~(Modifier.SYNCHRONIZED | Modifier.STRICT | Modifier.VOLATILE);
                 if (modifiers != 0) {
                     sb.append(Modifier.toString(modifiers));
                     sb.append(' ');
@@ -314,7 +316,7 @@ public final class Class<T> implements java.io.Serializable,
                     sb.append('@');
                 }
                 if (isValue()) {
-                    sb.append(isPrimitiveClass() ? "primitive" : "value");
+                    sb.append(isPrimitiveClass() ? "primitive " : "value ");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");

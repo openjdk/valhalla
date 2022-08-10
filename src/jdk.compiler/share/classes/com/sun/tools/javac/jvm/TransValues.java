@@ -59,6 +59,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static com.sun.tools.javac.code.Flags.STATIC;
+import static com.sun.tools.javac.code.Flags.ABSTRACT;
+import static com.sun.tools.javac.code.Flags.VALUE_CLASS;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
@@ -176,7 +178,7 @@ public class TransValues extends TreeTranslator {
         JCMethodDecl previousMethod = currentMethod;
         currentMethod = tree;
         try {
-            if (constructingValueObject()) {
+            if (transformToValueFactory()) {
 
                 // Mutate this value class constructor into an equivalent static factory
                 make.at(tree.pos());
@@ -241,7 +243,7 @@ public class TransValues extends TreeTranslator {
 
     @Override
     public void visitReturn(JCReturn tree) {
-        if (constructingValueObject()) {
+        if (transformToValueFactory()) {
             result = make.Return(make.Ident(currentMethod.factoryProduct));
         } else {
             super.visitReturn(tree);
@@ -253,7 +255,7 @@ public class TransValues extends TreeTranslator {
     */
     @Override
     public void visitAssign(JCAssign tree) {
-        if (constructingValueObject()) {
+        if (transformToValueFactory()) {
             Symbol symbol = null;
             switch(tree.lhs.getTag()) {
                 case IDENT:
@@ -282,7 +284,7 @@ public class TransValues extends TreeTranslator {
 
     @Override
     public void visitExec(JCExpressionStatement tree) {
-        if (constructingValueObject()) {
+        if (transformToValueFactory()) {
             tree.expr = translate(tree.expr, false);
             result = tree;
         } else {
@@ -292,7 +294,7 @@ public class TransValues extends TreeTranslator {
 
     @Override
     public void visitIdent(JCIdent ident) {
-        if (constructingValueObject()) {
+        if (transformToValueFactory()) {
             Symbol symbol = ident.sym;
             if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
@@ -308,7 +310,7 @@ public class TransValues extends TreeTranslator {
 
     @Override
     public void visitSelect(JCFieldAccess fieldAccess) {
-        if (constructingValueObject()) { // Qualified this would have been lowered already.
+        if (transformToValueFactory()) { // Qualified this would have been lowered already.
             if (fieldAccess.selected.hasTag(IDENT) && ((JCIdent)fieldAccess.selected).name == names._this) {
                 Symbol symbol = fieldAccess.sym;
                 if (isInstanceMemberAccess(symbol)) {
@@ -366,8 +368,10 @@ public class TransValues extends TreeTranslator {
     }
 
     // Utility methods ...
-    private boolean constructingValueObject() {
-        return currentClass != null && (currentClass.sym.flags() & Flags.VALUE_CLASS) != 0 && currentMethod != null && currentMethod.sym.isConstructor();
+    private boolean transformToValueFactory() {
+        // We lower any constructors in abstract value classes to <init> methods while a
+        // constructor in a concrete value class is lowered into a static value factory method
+        return currentClass != null && (currentClass.sym.flags() & (ABSTRACT | VALUE_CLASS)) == VALUE_CLASS && currentMethod != null && currentMethod.sym.isConstructor();
     }
 
     private boolean isInstanceMemberAccess(Symbol symbol) {

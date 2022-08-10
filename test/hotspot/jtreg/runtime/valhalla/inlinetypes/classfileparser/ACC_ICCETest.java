@@ -46,7 +46,9 @@ public class ACC_ICCETest {
 
     public static void main(String[] args) throws Exception {
 
+        // Test has to be re-think now that ACC_PERMITS_VALUE has been removed
+        // and the model has changed to ACC_VALUE/ACC_IDENTITY modifiers
         // Test illegal class that has both ACC_VALUE and ACC_PERMITS_VALUE set.
-        runTest("Dot", "value class Dot cannot inherit from class NonPVSuper");
+        runTest("Dot", "Value type Dot has an identity type as supertype");
     }
 }

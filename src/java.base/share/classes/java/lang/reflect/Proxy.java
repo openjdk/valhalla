@@ -497,7 +497,7 @@ public class Proxy implements java.io.Serializable {
 
         private static Class<?> defineProxyClass(Module m, List<Class<?>> interfaces) {
             String proxyPkg = null;     // package to define proxy class in
-            int accessFlags = Modifier.PUBLIC | Modifier.FINAL;
+            int accessFlags = Modifier.PUBLIC | Modifier.FINAL | Modifier.IDENTITY;
             boolean nonExported = false;
 
             /*
@@ -508,7 +508,7 @@ public class Proxy implements java.io.Serializable {
             for (Class<?> intf : interfaces) {
                 int flags = intf.getModifiers();
                 if (!Modifier.isPublic(flags)) {
-                    accessFlags = Modifier.FINAL;  // non-public, final
+                    accessFlags = Modifier.FINAL | Modifier.IDENTITY;  // non-public, final
                     String pkg = intf.getPackageName();
                     if (proxyPkg == null) {
                         proxyPkg = pkg;
