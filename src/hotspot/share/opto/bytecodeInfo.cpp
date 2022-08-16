@@ -86,16 +86,8 @@ static bool is_init_with_ea(ciMethod* callee_method,
   if (!C->do_escape_analysis() || !EliminateAllocations) {
     return false; // EA is off
   }
-<<<<<<< HEAD
   if (callee_method->is_object_constructor()) {
     return true; // constructor
-||||||| 78ef2fdef68
-  if (callee_method->is_initializer()) {
-    return true; // constuctor
-=======
-  if (callee_method->is_initializer()) {
-    return true; // constructor
->>>>>>> jdk-20+8
   }
   if (caller_method->is_object_constructor_or_class_initializer() &&
       caller_method != C->method() &&

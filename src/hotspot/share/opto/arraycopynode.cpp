@@ -278,26 +278,14 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-<<<<<<< HEAD
-    BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (src_elem == T_ARRAY || (src_elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass())) {
-      src_elem  = T_OBJECT;
-    }
-    if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && ary_dest->klass()->is_obj_array_klass())) {
-      dest_elem = T_OBJECT;
-    }
-||||||| 78ef2fdef68
-    BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (is_reference_type(src_elem))   src_elem  = T_OBJECT;
-    if (is_reference_type(dest_elem))  dest_elem = T_OBJECT;
-=======
     BasicType src_elem = ary_src->elem()->array_element_basic_type();
     BasicType dest_elem = ary_dest->elem()->array_element_basic_type();
-    if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
-    if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
->>>>>>> jdk-20+8
+    if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat())) {
+      src_elem  = T_OBJECT;
+    }
+    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && ary_dest->is_not_flat())) {
+      dest_elem = T_OBJECT;
+    }
 
     if (src_elem != dest_elem || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
@@ -352,21 +340,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     disjoint_bases = true;
 
-<<<<<<< HEAD
     if (ary_src->elem()->make_oopptr() != NULL &&
         ary_src->elem()->make_oopptr()->can_be_inline_type()) {
       return false;
     }
 
-    BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    if (elem == T_ARRAY || (elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass())) {
-||||||| 78ef2fdef68
-    BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    if (is_reference_type(elem)) {
-=======
     BasicType elem = ary_src->isa_aryptr()->elem()->array_element_basic_type();
-    if (is_reference_type(elem, true)) {
->>>>>>> jdk-20+8
+    if (elem == T_ARRAY || elem == T_NARROWOOP || (elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat())) {
       elem = T_OBJECT;
     }
 
@@ -572,10 +552,10 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       Node* src = in(ArrayCopyNode::Src);
       const Type* src_type = phase->type(src);
       const TypeAryPtr* ary_src = src_type->isa_aryptr();
-      BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
+      BasicType elem = ary_src != NULL ? ary_src->elem()->array_element_basic_type() : T_CONFLICT;
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat()), "added control for clone?");
 #endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);
@@ -843,20 +823,13 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
     return !must_modify;
   }
 
-<<<<<<< HEAD
-  ciArrayKlass* klass = ary_t->klass()->as_array_klass();
-  BasicType ary_elem = klass->element_type()->basic_type();
-||||||| 78ef2fdef68
-  BasicType ary_elem = ary_t->klass()->as_array_klass()->element_type()->basic_type();
-=======
   BasicType ary_elem = ary_t->isa_aryptr()->elem()->array_element_basic_type();
   if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
->>>>>>> jdk-20+8
   uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
   uint elemsize = type2aelembytes(ary_elem);
-  if (klass->is_flat_array_klass()) {
-    elemsize = klass->as_flat_array_klass()->element_byte_size();
+  if (ary_t->is_flat()) {
+    elemsize = ary_t->klass()->as_flat_array_klass()->element_byte_size();
   }
 
   jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elemsize + header;

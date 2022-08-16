@@ -150,18 +150,12 @@ CallNode* PhaseMacroExpand::make_slow_call(CallNode *oldcall, const TypeFunc* sl
 
 void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
   BarrierSetC2 *bs = BarrierSet::barrier_set()->barrier_set_c2();
-<<<<<<< HEAD
   bs->eliminate_gc_barrier(&_igvn, p2x);
-||||||| 78ef2fdef68
-  bs->eliminate_gc_barrier(this, p2x);
-=======
-  bs->eliminate_gc_barrier(this, p2x);
 #ifndef PRODUCT
   if (PrintOptoStatistics) {
     Atomic::inc(&PhaseMacroExpand::_GC_barriers_removed_counter);
   }
 #endif
->>>>>>> jdk-20+8
 }
 
 // Search for a memory operation for the specified memory slice.
@@ -783,33 +777,18 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
     } else {
       // find the array's elements which will be needed for safepoint debug information
       nfields = alloc->in(AllocateNode::ALength)->find_int_con(-1);
-<<<<<<< HEAD
-      assert(klass->is_array_klass() && nfields >= 0, "must be an array klass.");
-      elem_type = klass->as_array_klass()->element_type();
-      basic_elem_type = elem_type->basic_type();
-      if (elem_type->is_inlinetype() && !klass->is_flat_array_klass()) {
-        assert(basic_elem_type == T_PRIMITIVE_OBJECT, "unexpected element basic type");
-        basic_elem_type = T_OBJECT;
-      }
-||||||| 78ef2fdef68
-      assert(klass->is_array_klass() && nfields >= 0, "must be an array klass.");
-      elem_type = klass->as_array_klass()->element_type();
-      basic_elem_type = elem_type->basic_type();
-=======
       assert(nfields >= 0, "must be an array klass.");
       basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
->>>>>>> jdk-20+8
+      if (basic_elem_type == T_PRIMITIVE_OBJECT && !res_type->is_aryptr()->is_flat()) {
+        basic_elem_type = T_OBJECT;
+      }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
-<<<<<<< HEAD
-      if (klass->is_flat_array_klass()) {
-        // Flattened inline type array
-        element_size = klass->as_flat_array_klass()->element_byte_size();
-      }
-||||||| 78ef2fdef68
-=======
       field_type = res_type->is_aryptr()->elem();
->>>>>>> jdk-20+8
+      if (res_type->is_aryptr()->is_flat()) {
+        // Flattened inline type array
+        element_size = res_type->is_aryptr()->klass()->as_flat_array_klass()->element_byte_size();
+      }
     }
   }
   //
@@ -843,10 +822,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         offset = field->offset();
         ciType* elem_type = field->type();
         basic_elem_type = field->layout_type();
-<<<<<<< HEAD
         assert(!field->is_flattened(), "flattened inline type fields should not have safepoint uses");
-||||||| 78ef2fdef68
-=======
 
         // The next code is taken from Parse::do_get_xxx().
         if (is_reference_type(basic_elem_type)) {
@@ -868,76 +844,19 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         } else {
           field_type = Type::get_const_basic_type(basic_elem_type);
         }
->>>>>>> jdk-20+8
       } else {
         offset = array_base + j * (intptr_t)element_size;
       }
 
-<<<<<<< HEAD
-      const Type *field_type;
-      // The next code is taken from Parse::do_get_xxx().
-      if (is_reference_type(basic_elem_type)) {
-        if (!elem_type->is_loaded()) {
-          field_type = TypeInstPtr::BOTTOM;
-        } else if (field != NULL && field->is_static_constant()) {
-          // This can happen if the constant oop is non-perm.
-          ciObject* con = field->constant_value().as_object();
-          // Do not "join" in the previous type; it doesn't add value,
-          // and may yield a vacuous result if the field is of interface type.
-          field_type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
-          assert(field_type != NULL, "field singleton type must be consistent");
-        } else {
-          field_type = TypeOopPtr::make_from_klass(elem_type->as_klass());
-        }
-        if (UseCompressedOops) {
-          field_type = field_type->make_narrowoop();
-          basic_elem_type = T_NARROWOOP;
-        }
-      } else {
-        field_type = Type::get_const_basic_type(basic_elem_type);
-      }
-
       Node* field_val = NULL;
       const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-      if (klass->is_flat_array_klass()) {
-        ciInlineKlass* vk = elem_type->as_inline_klass();
+      if (res_type->isa_aryptr() && res_type->is_aryptr()->is_flat()) {
+        ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
         assert(vk->flatten_array(), "must be flattened");
         field_val = inline_type_from_mem(mem, ctl, vk, field_addr_type->isa_aryptr(), 0, alloc);
       } else {
         field_val = value_from_mem(mem, ctl, basic_elem_type, field_type, field_addr_type, alloc);
       }
-||||||| 78ef2fdef68
-      const Type *field_type;
-      // The next code is taken from Parse::do_get_xxx().
-      if (is_reference_type(basic_elem_type)) {
-        if (!elem_type->is_loaded()) {
-          field_type = TypeInstPtr::BOTTOM;
-        } else if (field != NULL && field->is_static_constant()) {
-          // This can happen if the constant oop is non-perm.
-          ciObject* con = field->constant_value().as_object();
-          // Do not "join" in the previous type; it doesn't add value,
-          // and may yield a vacuous result if the field is of interface type.
-          field_type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
-          assert(field_type != NULL, "field singleton type must be consistent");
-        } else {
-          field_type = TypeOopPtr::make_from_klass(elem_type->as_klass());
-        }
-        if (UseCompressedOops) {
-          field_type = field_type->make_narrowoop();
-          basic_elem_type = T_NARROWOOP;
-        }
-      } else {
-        field_type = Type::get_const_basic_type(basic_elem_type);
-      }
-
-      const TypeOopPtr *field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-
-      Node *field_val = value_from_mem(mem, ctl, basic_elem_type, field_type, field_addr_type, alloc);
-=======
-      const TypeOopPtr *field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-
-      Node *field_val = value_from_mem(mem, ctl, basic_elem_type, field_type, field_addr_type, alloc);
->>>>>>> jdk-20+8
       if (field_val == NULL) {
         // We weren't able to find a value for this field,
         // give up on eliminating this allocation.
@@ -1023,7 +942,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   // Scalarize inline types that were added to the safepoint.
   // Don't allow linking a constant oop (if available) for flat array elements
   // because Deoptimization::reassign_flat_array_elements needs field values.
-  bool allow_oop = (klass == NULL) || !klass->is_flat_array_klass();
+  bool allow_oop = res_type != NULL && (!res_type->isa_aryptr() || !res_type->is_aryptr()->is_flat());
   for (uint i = 0; i < value_worklist.size(); ++i) {
     InlineTypeBaseNode* vt = value_worklist.at(i)->as_InlineTypeBase();
     vt->make_scalar_in_safepoints(&_igvn, allow_oop);
@@ -1227,26 +1146,12 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     return false;
   }
   // Eliminate boxing allocations which are not used
-<<<<<<< HEAD
-  // regardless of scalar replaceable status.
+  // regardless scalar replaceable status.
   Node* res = alloc->result_cast();
   bool boxing_alloc = (res == NULL) && C->eliminate_boxing() &&
-                      tklass->klass()->is_instance_klass() &&
-                      tklass->klass()->as_instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && !boxing_alloc && !inline_alloc) {
-||||||| 78ef2fdef68
-  // regardless scalar replacable status.
-  bool boxing_alloc = C->eliminate_boxing() &&
-                      tklass->klass()->is_instance_klass()  &&
-                      tklass->klass()->as_instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != NULL))) {
-=======
-  // regardless scalar replaceable status.
-  bool boxing_alloc = C->eliminate_boxing() &&
                       tklass->isa_instklassptr() &&
                       tklass->is_instklassptr()->instance_klass()->is_box_klass();
   if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != NULL))) {
->>>>>>> jdk-20+8
     return false;
   }
 
@@ -2378,16 +2283,10 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   // The input to a Lock is merged memory, so extract its RawMem input
   // (unless the MergeMem has been optimized away.)
   if (alock->is_Lock()) {
-<<<<<<< HEAD
     // Deoptimize and re-execute if object is an inline type
     inline_type_guard(&ctrl, alock->as_Lock());
 
-    // Seach for MemBarAcquireLock node and delete it also.
-||||||| 78ef2fdef68
-    // Seach for MemBarAcquireLock node and delete it also.
-=======
     // Search for MemBarAcquireLock node and delete it also.
->>>>>>> jdk-20+8
     MemBarNode* membar = fallthroughproj->unique_ctrl_out()->as_MemBar();
     assert(membar != NULL && membar->Opcode() == Op_MemBarAcquireLock, "");
     Node* ctrlproj = membar->proj_out(TypeFunc::Control);
@@ -2481,14 +2380,8 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   mem_phi->init_req(1, memproj);
 
   transform_later(mem_phi);
-<<<<<<< HEAD
-  _igvn.replace_node(_callprojs->fallthrough_memproj, mem_phi);
-||||||| 78ef2fdef68
-  _igvn.replace_node(_callprojs.fallthrough_memproj, mem_phi);
-=======
 
-  _igvn.replace_node(_callprojs.fallthrough_memproj, mem_phi);
->>>>>>> jdk-20+8
+  _igvn.replace_node(_callprojs->fallthrough_memproj, mem_phi);
 }
 
 //------------------------------expand_unlock_node----------------------
@@ -2542,14 +2435,8 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   mem_phi->init_req(1, memproj );
   mem_phi->init_req(2, mem);
   transform_later(mem_phi);
-<<<<<<< HEAD
-  _igvn.replace_node(_callprojs->fallthrough_memproj, mem_phi);
-||||||| 78ef2fdef68
-  _igvn.replace_node(_callprojs.fallthrough_memproj, mem_phi);
-=======
 
-  _igvn.replace_node(_callprojs.fallthrough_memproj, mem_phi);
->>>>>>> jdk-20+8
+  _igvn.replace_node(_callprojs->fallthrough_memproj, mem_phi);
 }
 
 // An inline type might be returned from the call but we don't know its
@@ -2601,7 +2488,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   // Try to allocate a new buffered inline instance either from TLAB or eden space
   Node* needgc_ctrl = NULL; // needgc means slowcase, i.e. allocation failed
   CallLeafNoFPNode* handler_call;
-  const bool alloc_in_place = (UseTLAB || Universe::heap()->supports_inline_contig_alloc());
+  const bool alloc_in_place = UseTLAB;
   if (alloc_in_place) {
     Node* fast_oop_ctrl = NULL;
     Node* fast_oop_rawmem = NULL;

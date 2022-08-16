@@ -1203,22 +1203,6 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   const TypeInstPtr* ttip = (ttp != NULL) ? ttp->isa_instptr() : NULL;
   const TypeInstKlassPtr* ttkp = (ttp != NULL) ? ttp->isa_instklassptr() : NULL;
   bool is_intf = false;
-<<<<<<< HEAD
-  if (ttip != NULL && ttip->is_loaded() && ttip->klass()->is_interface()) {
-    is_intf = true;
-  } else if (ttkp != NULL && ttkp->is_loaded() && ttkp->klass()->is_interface()) {
-    is_intf = true;
-||||||| 78ef2fdef68
-  if (ttip != NULL) {
-    ciKlass* k = ttip->klass();
-    if (k->is_loaded() && k->is_interface())
-      is_intf = true;
-  }
-  if (ttkp != NULL) {
-    ciKlass* k = ttkp->klass();
-    if (k->is_loaded() && k->is_interface())
-      is_intf = true;
-=======
   if (ttip != NULL) {
     if (ttip->is_interface())
       is_intf = true;
@@ -1226,7 +1210,6 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
   if (ttkp != NULL) {
     if (ttkp->is_interface())
       is_intf = true;
->>>>>>> jdk-20+8
   }
 
   // Default case: merge all inputs
@@ -1282,21 +1265,9 @@ const Type* PhiNode::Value(PhaseGVN* phase) const {
     // be 'I' or 'j/l/O'.  Thus we'll pick 'j/l/O'.  If this then flows
     // into a Phi which "knows" it's an Interface type we'll have to
     // uplift the type.
-<<<<<<< HEAD
-    if (!t->empty() && ttip != NULL && ttip->is_loaded() && ttip->klass()->is_interface()) {
-||||||| 78ef2fdef68
-    if (!t->empty() && ttip && ttip->is_loaded() && ttip->klass()->is_interface()) {
-=======
     if (!t->empty() && ttip && ttip->is_interface()) {
->>>>>>> jdk-20+8
       assert(ft == _type, ""); // Uplift to interface
-<<<<<<< HEAD
-    } else if (!t->empty() && ttkp != NULL && ttkp->is_loaded() && ttkp->klass()->is_interface()) {
-||||||| 78ef2fdef68
-    } else if (!t->empty() && ttkp && ttkp->is_loaded() && ttkp->klass()->is_interface()) {
-=======
     } else if (!t->empty() && ttkp && ttkp->is_interface()) {
->>>>>>> jdk-20+8
       assert(ft == _type, ""); // Uplift to interface
     } else {
       // We also have to handle 'evil cases' of interface- vs. class-arrays

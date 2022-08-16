@@ -2178,42 +2178,24 @@ const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_
   if (adr_type->isa_aryptr()) {
     if (adr_type->offset() >= objArrayOopDesc::base_offset_in_bytes()) {
       const TypeOopPtr* elem_type = adr_type->is_aryptr()->elem()->make_oopptr();
-<<<<<<< HEAD
       null_free = adr_type->is_aryptr()->is_null_free();
-      if (elem_type != NULL) {
-        sharpened_klass = elem_type->klass();
-||||||| 78ef2fdef68
-      if (elem_type != NULL) {
-        sharpened_klass = elem_type->klass();
-=======
       if (elem_type != NULL && elem_type->is_loaded()) {
         // Sharpen the value type.
         result = elem_type;
->>>>>>> jdk-20+8
       }
     }
   }
 
   // The sharpened class might be unloaded if there is no class loader
   // contraint in place.
-<<<<<<< HEAD
-  if (sharpened_klass != NULL && sharpened_klass->is_loaded()) {
-    const TypeOopPtr* tjp = TypeOopPtr::make_from_klass(sharpened_klass);
-    if (null_free) {
-      tjp = tjp->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-    }
-
-||||||| 78ef2fdef68
-  if (sharpened_klass != NULL && sharpened_klass->is_loaded()) {
-    const TypeOopPtr* tjp = TypeOopPtr::make_from_klass(sharpened_klass);
-
-=======
   if (result == NULL && sharpened_klass != NULL && sharpened_klass->is_loaded()) {
     // Sharpen the value type.
     result = TypeOopPtr::make_from_klass(sharpened_klass);
+    if (null_free) {
+      result = result->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    }
   }
   if (result != NULL) {
->>>>>>> jdk-20+8
 #ifndef PRODUCT
     if (C->print_intrinsics() || C->print_inlining()) {
       tty->print("  from base type:  ");  adr_type->dump(); tty->cr();
@@ -3586,7 +3568,7 @@ bool LibraryCallKit::inline_native_extentLocalCache() {
   // Because we create the extentLocal cache lazily we have to make the
   // type of the result BotPTR.
   bool xk = etype->klass_is_exact();
-  const Type* objects_type = TypeAryPtr::make(TypePtr::BotPTR, arr0, objects_klass, xk, 0);
+  const Type* objects_type = TypeAryPtr::make(TypePtr::BotPTR, arr0, objects_klass, xk, TypeAryPtr::Offset(0));
   Node* cache_obj_handle = extentLocalCache_helper();
   set_result(access_load(cache_obj_handle, objects_type, T_OBJECT, IN_NATIVE));
 
@@ -3881,43 +3863,19 @@ bool LibraryCallKit::inline_Class_cast() {
   if (obj == NULL || obj->is_top()) {
     return false;  // dead path
   }
-  ciKlass* obj_klass = NULL;
-  const Type* obj_t = _gvn.type(obj);
-  if (obj->is_InlineType()) {
-    obj_klass = obj_t->inline_klass();
-  } else if (obj_t->isa_oopptr()) {
-    obj_klass = obj_t->is_oopptr()->klass();
-  }
+  const TypeOopPtr* tp = _gvn.type(obj)->isa_oopptr();
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-<<<<<<< HEAD
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
-  // Check for null if casting to QMyValue
-  if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
-    if (!obj_klass->is_loaded()) {
-||||||| 78ef2fdef68
-  ciType* tm = mirror_con->java_mirror_type();
-  if (tm != NULL && tm->is_klass() &&
-      tp != NULL && tp->klass() != NULL) {
-    if (!tp->klass()->is_loaded()) {
-=======
-  ciType* tm = mirror_con->java_mirror_type();
   if (tm != NULL && tm->is_klass() &&
       tp != NULL) {
     if (!tp->is_loaded()) {
->>>>>>> jdk-20+8
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-<<<<<<< HEAD
-      int static_res = C->static_subtype_check(tm->as_klass(), obj_klass);
-||||||| 78ef2fdef68
-      int static_res = C->static_subtype_check(tm->as_klass(), tp->klass());
-=======
       int static_res = C->static_subtype_check(TypeKlassPtr::make(tm->as_klass()), tp->as_klass_type());
->>>>>>> jdk-20+8
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
         if (requires_null_check) {
@@ -5624,7 +5582,7 @@ bool LibraryCallKit::inline_arraycopy() {
     }
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
-    const Type* toop = TypeOopPtr::make_from_klass(dest_klass_t->klass());
+    const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
@@ -5661,18 +5619,6 @@ bool LibraryCallKit::inline_arraycopy() {
                     Deoptimization::Action_make_not_entrant);
       assert(stopped(), "Should be stopped");
     }
-<<<<<<< HEAD
-||||||| 78ef2fdef68
-
-    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
-    const Type *toop = TypeOopPtr::make_from_klass(dest_klass_t->klass());
-    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
-=======
-
-    const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
-    const Type *toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
-    src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
->>>>>>> jdk-20+8
   }
 
   arraycopy_move_allocation_here(alloc, dest, saved_jvms, saved_reexecute_sp, new_idx);

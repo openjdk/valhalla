@@ -240,7 +240,7 @@ public:
   UDivModINode( Node *c, Node *dividend, Node *divisor ) : DivModNode(c, dividend, divisor) {}
   virtual int Opcode() const;
   virtual const Type *bottom_type() const { return TypeTuple::INT_PAIR; }
-  virtual Node *match( const ProjNode *proj, const Matcher *m );
+  virtual Node* match(const ProjNode* proj, const Matcher* m, const RegMask* mask);
 
   // Make a divmod and associated projections from a div or mod.
   static UDivModINode* make(Node* div_or_mod);
@@ -253,7 +253,7 @@ public:
   UDivModLNode( Node *c, Node *dividend, Node *divisor ) : DivModNode(c, dividend, divisor) {}
   virtual int Opcode() const;
   virtual const Type *bottom_type() const { return TypeTuple::LONG_PAIR; }
-  virtual Node *match( const ProjNode *proj, const Matcher *m );
+  virtual Node* match(const ProjNode* proj, const Matcher* m, const RegMask* mask);
 
   // Make a divmod and associated projections from a div or mod.
   static UDivModLNode* make(Node* div_or_mod);

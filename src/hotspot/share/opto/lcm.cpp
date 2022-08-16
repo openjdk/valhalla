@@ -276,13 +276,7 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
         // Give up if offset is not a compile-time constant.
         if (offset == Type::OffsetBot || tptr->offset() == Type::OffsetBot)
           continue;
-<<<<<<< HEAD
-        offset += tptr->offset(); // correct if base is offseted
-||||||| 78ef2fdef68
-        offset += tptr->_offset; // correct if base is offseted
-=======
-        offset += tptr->_offset; // correct if base is offsetted
->>>>>>> jdk-20+8
+        offset += tptr->offset(); // correct if base is offsetted
         // Give up if reference is beyond page size.
         if (MacroAssembler::needs_explicit_null_check(offset))
           continue;

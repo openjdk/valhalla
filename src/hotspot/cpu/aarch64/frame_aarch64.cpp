@@ -160,20 +160,16 @@ bool frame::safe_for_sender(JavaThread *thread) {
       saved_fp = *saved_fp_addr;
       sender_pc = pauth_strip_verifiable((address) *(sender_sp-1), (address)saved_fp);
 
-<<<<<<< HEAD
       // Repair the sender sp if this is a method with scalarized inline type args
       sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
       sender_unextended_sp = sender_sp;
     }
-||||||| 78ef2fdef68
-=======
     if (Continuation::is_return_barrier_entry(sender_pc)) {
       // If our sender_pc is the return barrier, then our "real" sender is the continuation entry
       frame s = Continuation::continuation_bottom_sender(thread, *this, sender_sp);
       sender_sp = s.sp();
       sender_pc = s.pc();
     }
->>>>>>> jdk-20+8
 
     // If the potential sender is the interpreter then we can do some more checking
     if (Interpreter::contains(sender_pc)) {
@@ -478,211 +474,15 @@ frame frame::sender_for_interpreter_frame(RegisterMap* map) const {
   // For ROP protection, Interpreter will have signed the sender_pc, but there is no requirement to authenticate it here.
   address sender_pc = pauth_strip_verifiable(sender_pc_maybe_signed(), (address)link());
 
-<<<<<<< HEAD
-  return frame(sender_sp, unextended_sp, link(), sender_pc);
-}
-
-//------------------------------------------------------------------------------
-// frame::sender_for_compiled_frame
-frame frame::sender_for_compiled_frame(RegisterMap* map) const {
-  // When the sp of a compiled frame is correct, we can get the correct sender sp
-  // by unextended sp + frame size.
-  // For the following two scenarios, the sp of a compiled frame is correct:
-  //  a) This compiled frame is built from the anchor.
-  //  b) This compiled frame is built from a callee frame, and the callee frame can
-  //    calculate its sp correctly.
-  //
-  // For b), if the callee frame is a native code frame (such as leaf call), the sp of
-  // the compiled frame cannot be calculated correctly. There is currently no suitable
-  // solution to solve this problem perfectly. But when PreserveFramePointer is enabled,
-  // we can get the correct sender sp by fp + 2 (that is sender_sp()).
-
-  assert(_cb->frame_size() >= 0, "must have non-zero frame size");
-  intptr_t* l_sender_sp = (!PreserveFramePointer || _sp_is_trusted) ? unextended_sp() + _cb->frame_size()
-                                                                    : sender_sp();
-
-#ifdef ASSERT
-  address sender_pc_copy = pauth_strip_verifiable((address) *(l_sender_sp-1), (address) *(l_sender_sp-2));
-#endif
-
-  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
-
-  // assert (sender_sp() == l_sender_sp, "should be");
-  // assert (*saved_fp_addr == link(), "should be");
-
-  // Repair the sender sp if the frame has been extended
-  l_sender_sp = repair_sender_sp(l_sender_sp, saved_fp_addr);
-
-  // the return_address is always the word on the stack
-
-  // For ROP protection, C1/C2 will have signed the sender_pc, but there is no requirement to authenticate it here.
-  // The return address is always the first word on the stack
-  address sender_pc = pauth_strip_verifiable((address) *(l_sender_sp-1), (address) *(l_sender_sp-2));
-
-#ifdef ASSERT
-  if (sender_pc != sender_pc_copy) {
-    // When extending the stack in the callee method entry to make room for unpacking of value
-    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
-    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
-    nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
-    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
-  }
-#endif
-
-  if (map->update_map()) {
-    // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    // For C1, the runtime stub might not have oop maps, so set this flag
-    // outside of update_register_map.
-    bool caller_args = _cb->caller_must_gc_arguments(map->thread());
-#ifdef COMPILER1
-    if (!caller_args) {
-      nmethod* nm = _cb->as_nmethod_or_null();
-      if (nm != NULL && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
-          pc() < nm->verified_inline_entry_point()) {
-        // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
-        // before doing any argument shuffling, so we need to scan the oops
-        // as the caller passes them.
-        caller_args = true;
-      }
-    }
-#endif
-    map->set_include_argument_oops(caller_args);
-    if (_cb->oop_maps() != NULL) {
-      OopMapSet::update_register_map(this, map);
-||||||| 78ef2fdef68
-  return frame(sender_sp, unextended_sp, link(), sender_pc);
-}
-
-//------------------------------------------------------------------------------
-// frame::sender_for_compiled_frame
-frame frame::sender_for_compiled_frame(RegisterMap* map) const {
-  // When the sp of a compiled frame is correct, we can get the correct sender sp
-  // by unextended sp + frame size.
-  // For the following two scenarios, the sp of a compiled frame is correct:
-  //  a) This compiled frame is built from the anchor.
-  //  b) This compiled frame is built from a callee frame, and the callee frame can
-  //    calculate its sp correctly.
-  //
-  // For b), if the callee frame is a native code frame (such as leaf call), the sp of
-  // the compiled frame cannot be calculated correctly. There is currently no suitable
-  // solution to solve this problem perfectly. But when PreserveFramePointer is enabled,
-  // we can get the correct sender sp by fp + 2 (that is sender_sp()).
-
-  assert(_cb->frame_size() >= 0, "must have non-zero frame size");
-  intptr_t* l_sender_sp = (!PreserveFramePointer || _sp_is_trusted) ? unextended_sp() + _cb->frame_size()
-                                                                    : sender_sp();
-  intptr_t* unextended_sp = l_sender_sp;
-
-  // the return_address is always the word on the stack
-
-  // For ROP protection, C1/C2 will have signed the sender_pc, but there is no requirement to authenticate it here.
-  address sender_pc = pauth_strip_verifiable((address) *(l_sender_sp-1), (address) *(l_sender_sp-2));
-
-  intptr_t** saved_fp_addr = (intptr_t**) (l_sender_sp - frame::sender_sp_offset);
-
-  // assert (sender_sp() == l_sender_sp, "should be");
-  // assert (*saved_fp_addr == link(), "should be");
-
-  if (map->update_map()) {
-    // Tell GC to use argument oopmaps for some runtime stubs that need it.
-    // For C1, the runtime stub might not have oop maps, so set this flag
-    // outside of update_register_map.
-    map->set_include_argument_oops(_cb->caller_must_gc_arguments(map->thread()));
-    if (_cb->oop_maps() != NULL) {
-      OopMapSet::update_register_map(this, map);
-=======
   if (Continuation::is_return_barrier_entry(sender_pc)) {
     if (map->walk_cont()) { // about to walk into an h-stack
       return Continuation::top_frame(*this, map);
     } else {
       return Continuation::continuation_bottom_sender(map->thread(), *this, sender_sp);
->>>>>>> jdk-20+8
     }
   }
 
-<<<<<<< HEAD
-  return frame(l_sender_sp, l_sender_sp, *saved_fp_addr, sender_pc);
-}
-
-//------------------------------------------------------------------------------
-// frame::sender_raw
-frame frame::sender_raw(RegisterMap* map) const {
-  // Default is we done have to follow them. The sender_for_xxx will
-  // update it accordingly
-   map->set_include_argument_oops(false);
-
-  if (is_entry_frame())
-    return sender_for_entry_frame(map);
-  if (is_interpreted_frame())
-    return sender_for_interpreter_frame(map);
-  assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
-
-  // This test looks odd: why is it not is_compiled_frame() ?  That's
-  // because stubs also have OOP maps.
-  if (_cb != NULL) {
-    return sender_for_compiled_frame(map);
-  }
-
-  // Must be native-compiled frame, i.e. the marshaling code for native
-  // methods that exists in the core system.
-
-  // Native code may or may not have signed the return address, we have no way to be sure or what
-  // signing methods they used. Instead, just ensure the stripped value is used.
-
-  return frame(sender_sp(), link(), sender_pc());
-}
-
-frame frame::sender(RegisterMap* map) const {
-  frame result = sender_raw(map);
-
-  if (map->process_frames()) {
-    StackWatermarkSet::on_iteration(map->thread(), result);
-  }
-
-  return result;
-||||||| 78ef2fdef68
-  return frame(l_sender_sp, unextended_sp, *saved_fp_addr, sender_pc);
-}
-
-//------------------------------------------------------------------------------
-// frame::sender_raw
-frame frame::sender_raw(RegisterMap* map) const {
-  // Default is we done have to follow them. The sender_for_xxx will
-  // update it accordingly
-   map->set_include_argument_oops(false);
-
-  if (is_entry_frame())
-    return sender_for_entry_frame(map);
-  if (is_interpreted_frame())
-    return sender_for_interpreter_frame(map);
-  assert(_cb == CodeCache::find_blob(pc()),"Must be the same");
-
-  // This test looks odd: why is it not is_compiled_frame() ?  That's
-  // because stubs also have OOP maps.
-  if (_cb != NULL) {
-    return sender_for_compiled_frame(map);
-  }
-
-  // Must be native-compiled frame, i.e. the marshaling code for native
-  // methods that exists in the core system.
-
-  // Native code may or may not have signed the return address, we have no way to be sure or what
-  // signing methods they used. Instead, just ensure the stripped value is used.
-
-  return frame(sender_sp(), link(), sender_pc());
-}
-
-frame frame::sender(RegisterMap* map) const {
-  frame result = sender_raw(map);
-
-  if (map->process_frames()) {
-    StackWatermarkSet::on_iteration(map->thread(), result);
-  }
-
-  return result;
-=======
   return frame(sender_sp, unextended_sp, sender_fp, sender_pc);
->>>>>>> jdk-20+8
 }
 
 bool frame::is_interpreted_frame_valid(JavaThread* thread) const {
@@ -980,7 +780,6 @@ frame::frame(void* sp, void* fp, void* pc) {
 
 #endif
 
-<<<<<<< HEAD
 // Check for a method with scalarized inline type arguments that needs
 // a stack repair and return the repaired sender stack pointer.
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
@@ -997,12 +796,7 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   return sender_sp;
 }
 
-void JavaFrameAnchor::make_walkable(JavaThread* thread) {
-||||||| 78ef2fdef68
-void JavaFrameAnchor::make_walkable(JavaThread* thread) {
-=======
 void JavaFrameAnchor::make_walkable() {
->>>>>>> jdk-20+8
   // last frame set?
   if (last_Java_sp() == NULL) return;
   // already walkable?

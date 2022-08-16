@@ -716,18 +716,13 @@ public:
         DEFINE_CLASS_ID(VectorUnbox, Vector, 1)
         DEFINE_CLASS_ID(VectorReinterpret, Vector, 2)
         DEFINE_CLASS_ID(ShiftV, Vector, 3)
-<<<<<<< HEAD
-      DEFINE_CLASS_ID(InlineTypeBase, Type, 8)
-        DEFINE_CLASS_ID(InlineType, InlineTypeBase, 0)
-        DEFINE_CLASS_ID(InlineTypePtr, InlineTypeBase, 1)
-||||||| 78ef2fdef68
-
-=======
         DEFINE_CLASS_ID(CompressV, Vector, 4)
         DEFINE_CLASS_ID(ExpandV, Vector, 5)
         DEFINE_CLASS_ID(CompressM, Vector, 6)
+      DEFINE_CLASS_ID(InlineTypeBase, Type, 8)
+        DEFINE_CLASS_ID(InlineType, InlineTypeBase, 0)
+        DEFINE_CLASS_ID(InlineTypePtr, InlineTypeBase, 1)
 
->>>>>>> jdk-20+8
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
       DEFINE_CLASS_ID(JumpProj,  Proj, 1)

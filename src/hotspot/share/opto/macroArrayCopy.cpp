@@ -1431,20 +1431,12 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   if (top_dest != NULL && top_dest->elem() != Type::BOTTOM) {
     dest_elem = top_dest->elem()->array_element_basic_type();
   }
-<<<<<<< HEAD
-  if (src_elem == T_ARRAY || (src_elem == T_PRIMITIVE_OBJECT && top_src->klass()->is_obj_array_klass())) {
+  if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && top_src->klass()->is_obj_array_klass())) {
     src_elem = T_OBJECT;
   }
-  if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && top_dest->klass()->is_obj_array_klass())) {
+  if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && top_dest->klass()->is_obj_array_klass())) {
     dest_elem = T_OBJECT;
   }
-||||||| 78ef2fdef68
-  if (is_reference_type(src_elem))  src_elem  = T_OBJECT;
-  if (is_reference_type(dest_elem)) dest_elem = T_OBJECT;
-=======
-  if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
-  if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
->>>>>>> jdk-20+8
 
   if (ac->is_arraycopy_validated() && dest_elem != T_CONFLICT && src_elem == T_CONFLICT) {
     src_elem = dest_elem;

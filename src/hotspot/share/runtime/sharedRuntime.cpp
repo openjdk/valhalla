@@ -3808,7 +3808,10 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
 {
   assert(res->klass()->is_inline_klass(), "only inline types here");
   ResourceMark rm;
-  RegisterMap reg_map(current);
+  RegisterMap reg_map(current,
+                      RegisterMap::UpdateMap::skip,
+                      RegisterMap::ProcessFrames::include,
+                      RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();
   frame callerFrame = stubFrame.sender(&reg_map);
   assert(callerFrame.is_interpreted_frame(), "should be coming from interpreter");
@@ -3839,7 +3842,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
     int off = sig_vk->at(i)._offset;
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
-    address loc = reg_map.location(pair.first());
+    address loc = reg_map.location(pair.first(), nullptr);
     switch(bt) {
     case T_BOOLEAN:
       *(jboolean*)loc = res->bool_field(off);
@@ -3884,7 +3887,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
 
 #ifdef ASSERT
   VMRegPair pair = regs->at(0);
-  address loc = reg_map.location(pair.first());
+  address loc = reg_map.location(pair.first(), nullptr);
   assert(*(oopDesc**)loc == res, "overwritten object");
 #endif
 
@@ -3898,7 +3901,10 @@ JRT_END
 JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* current, intptr_t res))
 {
   ResourceMark rm;
-  RegisterMap reg_map(current);
+  RegisterMap reg_map(current,
+                      RegisterMap::UpdateMap::skip,
+                      RegisterMap::ProcessFrames::include,
+                      RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();
   frame callerFrame = stubFrame.sender(&reg_map);
 

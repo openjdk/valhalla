@@ -184,19 +184,13 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   if (tp != NULL && !tp->is_same_java_type_as(TypeInstPtr::BOTTOM)) {
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = NULL;
-<<<<<<< HEAD
     if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
       // Check inline types for null here to prevent checkcast from adding an
       // exception state before the bytecode entry (use 'bad_type_ctrl' instead).
       l = null_check_oop(l, &bad_type_ctrl);
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
-    l = gen_checkcast(l, makecon(TypeKlassPtr::make(tp->klass())), &bad_type_ctrl);
-||||||| 78ef2fdef68
-    l = gen_checkcast(l, makecon(TypeKlassPtr::make(tp->klass())), &bad_type_ctrl);
-=======
     l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl);
->>>>>>> jdk-20+8
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
   assert(_gvn.type(l)->higher_equal(type), "must constrain OSR typestate");
@@ -2463,70 +2457,6 @@ void Parse::return_current(Node* value) {
     mms.memory()->add_req(mms.memory2());
   }
 
-<<<<<<< HEAD
-||||||| 78ef2fdef68
-  // frame pointer is always same, already captured
-  if (value != NULL) {
-    // If returning oops to an interface-return, there is a silent free
-    // cast from oop to interface allowed by the Verifier.  Make it explicit
-    // here.
-    Node* phi = _exits.argument(0);
-    const TypeInstPtr *tr = phi->bottom_type()->isa_instptr();
-    if (tr && tr->klass()->is_loaded() &&
-        tr->klass()->is_interface()) {
-      const TypeInstPtr *tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->klass()->is_loaded() &&
-          !tp->klass()->is_interface()) {
-        // sharpen the type eagerly; this eases certain assert checking
-        if (tp->higher_equal(TypeInstPtr::NOTNULL))
-          tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
-        value = _gvn.transform(new CheckCastPPNode(0, value, tr));
-      }
-    } else {
-      // Also handle returns of oop-arrays to an arrays-of-interface return
-      const TypeInstPtr* phi_tip;
-      const TypeInstPtr* val_tip;
-      Type::get_arrays_base_elements(phi->bottom_type(), value->bottom_type(), &phi_tip, &val_tip);
-      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->klass()->is_interface() &&
-          val_tip != NULL && val_tip->is_loaded() && !val_tip->klass()->is_interface()) {
-        value = _gvn.transform(new CheckCastPPNode(0, value, phi->bottom_type()));
-      }
-    }
-    phi->add_req(value);
-  }
-
-=======
-  // frame pointer is always same, already captured
-  if (value != NULL) {
-    // If returning oops to an interface-return, there is a silent free
-    // cast from oop to interface allowed by the Verifier.  Make it explicit
-    // here.
-    Node* phi = _exits.argument(0);
-    const TypeInstPtr *tr = phi->bottom_type()->isa_instptr();
-    if (tr && tr->is_loaded() &&
-        tr->is_interface()) {
-      const TypeInstPtr *tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->is_loaded() &&
-          !tp->is_interface()) {
-        // sharpen the type eagerly; this eases certain assert checking
-        if (tp->higher_equal(TypeInstPtr::NOTNULL))
-          tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
-        value = _gvn.transform(new CheckCastPPNode(0, value, tr));
-      }
-    } else {
-      // Also handle returns of oop-arrays to an arrays-of-interface return
-      const TypeInstPtr* phi_tip;
-      const TypeInstPtr* val_tip;
-      Type::get_arrays_base_elements(phi->bottom_type(), value->bottom_type(), &phi_tip, &val_tip);
-      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->is_interface() &&
-          val_tip != NULL && val_tip->is_loaded() && !val_tip->is_interface()) {
-        value = _gvn.transform(new CheckCastPPNode(0, value, phi->bottom_type()));
-      }
-    }
-    phi->add_req(value);
-  }
-
->>>>>>> jdk-20+8
   if (_first_return) {
     _exits.map()->transfer_replaced_nodes_from(map(), _new_idx);
     _first_return = false;

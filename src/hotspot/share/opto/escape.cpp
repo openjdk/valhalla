@@ -1153,19 +1153,11 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
           assert(aat == Type::TOP || aat == TypePtr::NULL_PTR ||
                  aat->isa_ptr() != NULL, "expecting an Ptr");
           bool arg_has_oops = aat->isa_oopptr() &&
-<<<<<<< HEAD
-                              (aat->isa_oopptr()->klass() == NULL || aat->isa_instptr() ||
-                               (aat->isa_aryptr() && aat->isa_aryptr()->klass()->is_obj_array_klass()) ||
-                               (aat->isa_aryptr() && aat->isa_aryptr()->elem() != NULL &&
-                                aat->isa_aryptr()->is_flat() &&
-                                aat->isa_aryptr()->elem()->inline_klass()->contains_oops()));
-||||||| 78ef2fdef68
-                              (aat->isa_oopptr()->klass() == NULL || aat->isa_instptr() ||
-                               (aat->isa_aryptr() && aat->isa_aryptr()->klass()->is_obj_array_klass()));
-=======
                               (aat->isa_instptr() ||
-                               (aat->isa_aryptr() && (aat->isa_aryptr()->elem() == Type::BOTTOM || aat->isa_aryptr()->elem()->make_oopptr() != NULL)));
->>>>>>> jdk-20+8
+                               (aat->isa_aryptr() && (aat->isa_aryptr()->elem() == Type::BOTTOM || aat->isa_aryptr()->elem()->make_oopptr() != NULL)) ||
+                               (aat->isa_aryptr() && aat->isa_aryptr()->elem() != NULL &&
+                                                               aat->isa_aryptr()->is_flat() &&
+                                                               aat->isa_aryptr()->elem()->inline_klass()->contains_oops()));
           if (i == TypeFunc::Parms) {
             src_has_oops = arg_has_oops;
           }
@@ -3406,8 +3398,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         } else {
           tn_t = tn_type->isa_oopptr();
         }
-<<<<<<< HEAD
-        if (tn_t != NULL && tinst->klass()->is_subtype_of(tn_t->klass())) {
+        if (tn_t != NULL && tinst->maybe_java_subtype_of(tn_t)) {
           if (tn_t->isa_aryptr()) {
             // Keep array properties (not flat/null-free)
             tinst = tinst->is_aryptr()->update_properties(tn_t->is_aryptr());
@@ -3415,11 +3406,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               continue; // Skip dead path with inconsistent properties
             }
           }
-||||||| 78ef2fdef68
-        if (tn_t != NULL && tinst->klass()->is_subtype_of(tn_t->klass())) {
-=======
-        if (tn_t != NULL && tinst->maybe_java_subtype_of(tn_t)) {
->>>>>>> jdk-20+8
           if (tn_type->isa_narrowoop()) {
             tn_type = tinst->make_narrowoop();
           } else {

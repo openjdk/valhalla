@@ -38,6 +38,7 @@
 #include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
@@ -248,6 +249,7 @@ void Fingerprinter::do_type_calling_convention(BasicType type) {
   case T_OBJECT:
   case T_ARRAY:
   case T_ADDRESS:
+  case T_PRIMITIVE_OBJECT:
     if (_int_args < Argument::n_int_register_parameters_j) {
       _int_args++;
     } else {
@@ -497,6 +499,7 @@ Symbol* SignatureStream::find_symbol() {
 }
 
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
+  ThreadInVMfromUnknown __tiv;
   JavaThread* THREAD = JavaThread::current();
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());

@@ -3883,7 +3883,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 {
   Label done, initialize_header, initialize_object, slow_case, slow_case_no_pop;
   Register layout_size = t1;
-  assert(new_obj == rax, "needs to be rax, according to barrier asm eden_allocate");
+  assert(new_obj == rax, "needs to be rax");
   assert_different_registers(klass, new_obj, t1, t2);
 
   // get instance_size in InstanceKlass (scaled to a count of bytes)
@@ -3905,13 +3905,11 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
   //    Exit.
   //
   //  Go to slow path.
-  const bool allow_shared_alloc =
-    Universe::heap()->supports_inline_contig_alloc();
 
   push(klass);
   const Register thread = LP64_ONLY(r15_thread) NOT_LP64(klass);
 #ifndef _LP64
-  if (UseTLAB || allow_shared_alloc) {
+  if (UseTLAB) {
     get_thread(thread);
   }
 #endif // _LP64
@@ -3926,14 +3924,12 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
       jmp(initialize_object);
     }
   } else {
-    // Allocation in the shared Eden, if allowed.
-    //
-    eden_allocate(thread, new_obj, layout_size, 0, t2, slow_case);
+    jmp(slow_case);
   }
 
-  // If UseTLAB or allow_shared_alloc are true, the object is created above and
-  // there is an initialize need. Otherwise, skip and go to the slow path.
-  if (UseTLAB || allow_shared_alloc) {
+  // If UseTLAB is true, the object is created above and there is an initialize need.
+  // Otherwise, skip and go to the slow path.
+  if (UseTLAB) {
     if (clear_fields) {
       // The object is initialized before the header.  If the object size is
       // zero, go directly to the header initialization.
@@ -5640,195 +5636,6 @@ void MacroAssembler::reinit_heapbase() {
 
 #endif // _LP64
 
-<<<<<<< HEAD
-#ifdef COMPILER2
-// C2 compiled method's prolog code.
-void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
-  int framesize = C->output()->frame_size_in_bytes();
-  int bangsize = C->output()->bang_size_in_bytes();
-  bool fp_mode_24b = false;
-  int stack_bang_size = C->output()->need_stack_bang(bangsize) ? bangsize : 0;
-
-  // WARNING: Initial instruction MUST be 5 bytes or longer so that
-  // NativeJump::patch_verified_entry will be able to patch out the entry
-  // code safely. The push to verify stack depth is ok at 5 bytes,
-  // the frame allocation can be either 3 or 6 bytes. So if we don't do
-  // stack bang then we must use the 6 byte frame allocation even if
-  // we have no frame. :-(
-  assert(stack_bang_size >= framesize || stack_bang_size <= 0, "stack bang size incorrect");
-
-  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
-  // Remove word for return addr
-  framesize -= wordSize;
-  stack_bang_size -= wordSize;
-
-  // Calls to C2R adapters often do not accept exceptional returns.
-  // We require that their callers must bang for them.  But be careful, because
-  // some VM calls (such as call site linkage) can use several kilobytes of
-  // stack.  But the stack safety zone should account for that.
-  // See bugs 4446381, 4468289, 4497237.
-  if (stack_bang_size > 0) {
-    generate_stack_overflow_check(stack_bang_size);
-
-    // We always push rbp, so that on return to interpreter rbp, will be
-    // restored correctly and we can correct the stack.
-    push(rbp);
-    // Save caller's stack pointer into RBP if the frame pointer is preserved.
-    if (PreserveFramePointer) {
-      mov(rbp, rsp);
-    }
-    // Remove word for ebp
-    framesize -= wordSize;
-
-    // Create frame
-    if (framesize) {
-      subptr(rsp, framesize);
-    }
-  } else {
-    // Create frame (force generation of a 4 byte immediate value)
-    subptr_imm32(rsp, framesize);
-
-    // Save RBP register now.
-    framesize -= wordSize;
-    movptr(Address(rsp, framesize), rbp);
-    // Save caller's stack pointer into RBP if the frame pointer is preserved.
-    if (PreserveFramePointer) {
-      movptr(rbp, rsp);
-      if (framesize > 0) {
-        addptr(rbp, framesize);
-      }
-    }
-  }
-
-  if (C->needs_stack_repair()) {
-    // Save stack increment just below the saved rbp (also account for fixed framesize and rbp)
-    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
-    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize + wordSize);
-  }
-
-  if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
-    framesize -= wordSize;
-    movptr(Address(rsp, framesize), (int32_t)0xbadb100d);
-  }
-
-#ifndef _LP64
-  // If method sets FPU control word do it now
-  if (fp_mode_24b) {
-    fldcw(ExternalAddress(StubRoutines::x86::addr_fpu_cntrl_wrd_24()));
-  }
-  if (UseSSE >= 2 && VerifyFPU) {
-    verify_FPU(0, "FPU stack must be clean on entry");
-  }
-#endif
-
-#ifdef ASSERT
-  if (VerifyStackAtCalls) {
-    Label L;
-    push(rax);
-    mov(rax, rsp);
-    andptr(rax, StackAlignmentInBytes-1);
-    cmpptr(rax, StackAlignmentInBytes-wordSize);
-    pop(rax);
-    jcc(Assembler::equal, L);
-    STOP("Stack is not properly aligned!");
-    bind(L);
-  }
-#endif
-}
-#endif // COMPILER2
-
-||||||| 78ef2fdef68
-// C2 compiled method's prolog code.
-void MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b, bool is_stub) {
-
-  // WARNING: Initial instruction MUST be 5 bytes or longer so that
-  // NativeJump::patch_verified_entry will be able to patch out the entry
-  // code safely. The push to verify stack depth is ok at 5 bytes,
-  // the frame allocation can be either 3 or 6 bytes. So if we don't do
-  // stack bang then we must use the 6 byte frame allocation even if
-  // we have no frame. :-(
-  assert(stack_bang_size >= framesize || stack_bang_size <= 0, "stack bang size incorrect");
-
-  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
-  // Remove word for return addr
-  framesize -= wordSize;
-  stack_bang_size -= wordSize;
-
-  // Calls to C2R adapters often do not accept exceptional returns.
-  // We require that their callers must bang for them.  But be careful, because
-  // some VM calls (such as call site linkage) can use several kilobytes of
-  // stack.  But the stack safety zone should account for that.
-  // See bugs 4446381, 4468289, 4497237.
-  if (stack_bang_size > 0) {
-    generate_stack_overflow_check(stack_bang_size);
-
-    // We always push rbp, so that on return to interpreter rbp, will be
-    // restored correctly and we can correct the stack.
-    push(rbp);
-    // Save caller's stack pointer into RBP if the frame pointer is preserved.
-    if (PreserveFramePointer) {
-      mov(rbp, rsp);
-    }
-    // Remove word for ebp
-    framesize -= wordSize;
-
-    // Create frame
-    if (framesize) {
-      subptr(rsp, framesize);
-    }
-  } else {
-    // Create frame (force generation of a 4 byte immediate value)
-    subptr_imm32(rsp, framesize);
-
-    // Save RBP register now.
-    framesize -= wordSize;
-    movptr(Address(rsp, framesize), rbp);
-    // Save caller's stack pointer into RBP if the frame pointer is preserved.
-    if (PreserveFramePointer) {
-      movptr(rbp, rsp);
-      if (framesize > 0) {
-        addptr(rbp, framesize);
-      }
-    }
-  }
-
-  if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
-    framesize -= wordSize;
-    movptr(Address(rsp, framesize), (int32_t)0xbadb100d);
-  }
-
-#ifndef _LP64
-  // If method sets FPU control word do it now
-  if (fp_mode_24b) {
-    fldcw(ExternalAddress(StubRoutines::x86::addr_fpu_cntrl_wrd_24()));
-  }
-  if (UseSSE >= 2 && VerifyFPU) {
-    verify_FPU(0, "FPU stack must be clean on entry");
-  }
-#endif
-
-#ifdef ASSERT
-  if (VerifyStackAtCalls) {
-    Label L;
-    push(rax);
-    mov(rax, rsp);
-    andptr(rax, StackAlignmentInBytes-1);
-    cmpptr(rax, StackAlignmentInBytes-wordSize);
-    pop(rax);
-    jcc(Assembler::equal, L);
-    STOP("Stack is not properly aligned!");
-    bind(L);
-  }
-#endif
-
-  if (!is_stub) {
-    BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->nmethod_entry_barrier(this);
-  }
-}
-
-=======
->>>>>>> jdk-20+8
 #if COMPILER2_OR_JVMCI
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
@@ -5926,7 +5733,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (UseTLAB) {
       tlab_allocate(r15_thread, rax, noreg, obj_size, r13, r14, slow_case);
     } else {
-      eden_allocate(r15_thread, rax, noreg, obj_size, r13, slow_case);
+      jmp(slow_case);
     }
   } else {
     // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
@@ -5936,10 +5743,10 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (UseTLAB) {
       tlab_allocate(r15_thread, rax, r14, 0, r13, r14, slow_case);
     } else {
-      eden_allocate(r15_thread, rax, r14, 0, r13, slow_case);
+      jmp(slow_case);
     }
   }
-  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+  if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = rax;
     movptr(Address(buffer_obj, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());

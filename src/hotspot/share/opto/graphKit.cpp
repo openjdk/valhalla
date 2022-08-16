@@ -2720,238 +2720,7 @@ Node* GraphKit::sign_extend_short(Node* in) {
   return _gvn.transform(new RShiftINode(tmp, _gvn.intcon(16)));
 }
 
-<<<<<<< HEAD
-//-----------------------------make_native_call-------------------------------
-Node* GraphKit::make_native_call(address call_addr, const TypeFunc* call_type, uint nargs, ciNativeEntryPoint* nep) {
-  // Select just the actual call args to pass on
-  // [MethodHandle fallback, long addr, HALF addr, ... args , NativeEntryPoint nep]
-  //                                             |          |
-  //                                             V          V
-  //                                             [ ... args ]
-  uint n_filtered_args = nargs - 4; // -fallback, -addr (2), -nep;
-  ResourceMark rm;
-  Node** argument_nodes = NEW_RESOURCE_ARRAY(Node*, n_filtered_args);
-  const Type** arg_types = TypeTuple::fields(n_filtered_args);
-  GrowableArray<VMReg> arg_regs(C->comp_arena(), n_filtered_args, n_filtered_args, VMRegImpl::Bad());
 
-  VMReg* argRegs = nep->argMoves();
-  {
-    for (uint vm_arg_pos = 0, java_arg_read_pos = 0;
-        vm_arg_pos < n_filtered_args; vm_arg_pos++) {
-      uint vm_unfiltered_arg_pos = vm_arg_pos + 3; // +3 to skip fallback handle argument and addr (2 since long)
-      Node* node = argument(vm_unfiltered_arg_pos);
-      const Type* type = call_type->domain_sig()->field_at(TypeFunc::Parms + vm_unfiltered_arg_pos);
-      VMReg reg = type == Type::HALF
-        ? VMRegImpl::Bad()
-        : argRegs[java_arg_read_pos++];
-
-      argument_nodes[vm_arg_pos] = node;
-      arg_types[TypeFunc::Parms + vm_arg_pos] = type;
-      arg_regs.at_put(vm_arg_pos, reg);
-    }
-  }
-
-  uint n_returns = call_type->range_sig()->cnt() - TypeFunc::Parms;
-  GrowableArray<VMReg> ret_regs(C->comp_arena(), n_returns, n_returns, VMRegImpl::Bad());
-  const Type** ret_types = TypeTuple::fields(n_returns);
-
-  VMReg* retRegs = nep->returnMoves();
-  {
-    for (uint vm_ret_pos = 0, java_ret_read_pos = 0;
-        vm_ret_pos < n_returns; vm_ret_pos++) { // 0 or 1
-      const Type* type = call_type->range_sig()->field_at(TypeFunc::Parms + vm_ret_pos);
-      VMReg reg = type == Type::HALF
-        ? VMRegImpl::Bad()
-        : retRegs[java_ret_read_pos++];
-
-      ret_regs.at_put(vm_ret_pos, reg);
-      ret_types[TypeFunc::Parms + vm_ret_pos] = type;
-    }
-  }
-
-  const TypeFunc* new_call_type = TypeFunc::make(
-    TypeTuple::make(TypeFunc::Parms + n_filtered_args, arg_types),
-    TypeTuple::make(TypeFunc::Parms + n_returns, ret_types)
-  );
-
-  if (nep->need_transition()) {
-    RuntimeStub* invoker = SharedRuntime::make_native_invoker(call_addr,
-                                                              nep->shadow_space(),
-                                                              arg_regs, ret_regs);
-    if (invoker == NULL) {
-      C->record_failure("native invoker not implemented on this platform");
-      return NULL;
-    }
-    C->add_native_invoker(invoker);
-    call_addr = invoker->code_begin();
-  }
-  assert(call_addr != NULL, "sanity");
-
-  CallNativeNode* call = new CallNativeNode(new_call_type, call_addr, nep->name(), TypePtr::BOTTOM,
-                                            arg_regs,
-                                            ret_regs,
-                                            nep->shadow_space(),
-                                            nep->need_transition());
-
-  if (call->_need_transition) {
-    add_safepoint_edges(call);
-  }
-
-  set_predefined_input_for_runtime_call(call);
-
-  for (uint i = 0; i < n_filtered_args; i++) {
-    call->init_req(i + TypeFunc::Parms, argument_nodes[i]);
-  }
-
-  Node* c = gvn().transform(call);
-  assert(c == call, "cannot disappear");
-
-  set_predefined_output_for_runtime_call(call);
-
-  Node* ret;
-  if (method() == NULL || method()->return_type()->basic_type() == T_VOID) {
-    ret = top();
-  } else {
-    ret =  gvn().transform(new ProjNode(call, TypeFunc::Parms));
-    // Unpack native results if needed
-    // Need this method type since it's unerased
-    switch (nep->method_type()->rtype()->basic_type()) {
-      case T_CHAR:
-        ret = _gvn.transform(new AndINode(ret, _gvn.intcon(0xFFFF)));
-        break;
-      case T_BYTE:
-        ret = sign_extend_byte(ret);
-        break;
-      case T_SHORT:
-        ret = sign_extend_short(ret);
-        break;
-      default: // do nothing
-        break;
-    }
-  }
-
-  push_node(method()->return_type()->basic_type(), ret);
-
-  return call;
-}
-
-||||||| 78ef2fdef68
-//-----------------------------make_native_call-------------------------------
-Node* GraphKit::make_native_call(address call_addr, const TypeFunc* call_type, uint nargs, ciNativeEntryPoint* nep) {
-  // Select just the actual call args to pass on
-  // [MethodHandle fallback, long addr, HALF addr, ... args , NativeEntryPoint nep]
-  //                                             |          |
-  //                                             V          V
-  //                                             [ ... args ]
-  uint n_filtered_args = nargs - 4; // -fallback, -addr (2), -nep;
-  ResourceMark rm;
-  Node** argument_nodes = NEW_RESOURCE_ARRAY(Node*, n_filtered_args);
-  const Type** arg_types = TypeTuple::fields(n_filtered_args);
-  GrowableArray<VMReg> arg_regs(C->comp_arena(), n_filtered_args, n_filtered_args, VMRegImpl::Bad());
-
-  VMReg* argRegs = nep->argMoves();
-  {
-    for (uint vm_arg_pos = 0, java_arg_read_pos = 0;
-        vm_arg_pos < n_filtered_args; vm_arg_pos++) {
-      uint vm_unfiltered_arg_pos = vm_arg_pos + 3; // +3 to skip fallback handle argument and addr (2 since long)
-      Node* node = argument(vm_unfiltered_arg_pos);
-      const Type* type = call_type->domain()->field_at(TypeFunc::Parms + vm_unfiltered_arg_pos);
-      VMReg reg = type == Type::HALF
-        ? VMRegImpl::Bad()
-        : argRegs[java_arg_read_pos++];
-
-      argument_nodes[vm_arg_pos] = node;
-      arg_types[TypeFunc::Parms + vm_arg_pos] = type;
-      arg_regs.at_put(vm_arg_pos, reg);
-    }
-  }
-
-  uint n_returns = call_type->range()->cnt() - TypeFunc::Parms;
-  GrowableArray<VMReg> ret_regs(C->comp_arena(), n_returns, n_returns, VMRegImpl::Bad());
-  const Type** ret_types = TypeTuple::fields(n_returns);
-
-  VMReg* retRegs = nep->returnMoves();
-  {
-    for (uint vm_ret_pos = 0, java_ret_read_pos = 0;
-        vm_ret_pos < n_returns; vm_ret_pos++) { // 0 or 1
-      const Type* type = call_type->range()->field_at(TypeFunc::Parms + vm_ret_pos);
-      VMReg reg = type == Type::HALF
-        ? VMRegImpl::Bad()
-        : retRegs[java_ret_read_pos++];
-
-      ret_regs.at_put(vm_ret_pos, reg);
-      ret_types[TypeFunc::Parms + vm_ret_pos] = type;
-    }
-  }
-
-  const TypeFunc* new_call_type = TypeFunc::make(
-    TypeTuple::make(TypeFunc::Parms + n_filtered_args, arg_types),
-    TypeTuple::make(TypeFunc::Parms + n_returns, ret_types)
-  );
-
-  if (nep->need_transition()) {
-    RuntimeStub* invoker = SharedRuntime::make_native_invoker(call_addr,
-                                                              nep->shadow_space(),
-                                                              arg_regs, ret_regs);
-    if (invoker == NULL) {
-      C->record_failure("native invoker not implemented on this platform");
-      return NULL;
-    }
-    C->add_native_invoker(invoker);
-    call_addr = invoker->code_begin();
-  }
-  assert(call_addr != NULL, "sanity");
-
-  CallNativeNode* call = new CallNativeNode(new_call_type, call_addr, nep->name(), TypePtr::BOTTOM,
-                                            arg_regs,
-                                            ret_regs,
-                                            nep->shadow_space(),
-                                            nep->need_transition());
-
-  if (call->_need_transition) {
-    add_safepoint_edges(call);
-  }
-
-  set_predefined_input_for_runtime_call(call);
-
-  for (uint i = 0; i < n_filtered_args; i++) {
-    call->init_req(i + TypeFunc::Parms, argument_nodes[i]);
-  }
-
-  Node* c = gvn().transform(call);
-  assert(c == call, "cannot disappear");
-
-  set_predefined_output_for_runtime_call(call);
-
-  Node* ret;
-  if (method() == NULL || method()->return_type()->basic_type() == T_VOID) {
-    ret = top();
-  } else {
-    ret =  gvn().transform(new ProjNode(call, TypeFunc::Parms));
-    // Unpack native results if needed
-    // Need this method type since it's unerased
-    switch (nep->method_type()->rtype()->basic_type()) {
-      case T_CHAR:
-        ret = _gvn.transform(new AndINode(ret, _gvn.intcon(0xFFFF)));
-        break;
-      case T_BYTE:
-        ret = sign_extend_byte(ret);
-        break;
-      case T_SHORT:
-        ret = sign_extend_short(ret);
-        break;
-      default: // do nothing
-        break;
-    }
-  }
-
-  push_node(method()->return_type()->basic_type(), ret);
-
-  return call;
-}
-
-=======
->>>>>>> jdk-20+8
 //------------------------------merge_memory-----------------------------------
 // Merge memory from one path into the current memory state.
 void GraphKit::merge_memory(Node* new_mem, Node* region, int new_path) {
@@ -3554,58 +3323,14 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   }
 
   // Do we know the type check always succeed?
-<<<<<<< HEAD
   if (!is_value) {
     bool known_statically = false;
     if (_gvn.type(superklass)->singleton()) {
-      ciKlass* superk = _gvn.type(superklass)->is_klassptr()->klass();
-      ciKlass* subk = _gvn.type(obj)->is_oopptr()->klass();
+      const TypeKlassPtr* superk = _gvn.type(superklass)->is_klassptr();
+      const TypeKlassPtr* subk = _gvn.type(obj)->is_oopptr()->as_klass_type();
       if (subk != NULL && subk->is_loaded()) {
         int static_res = C->static_subtype_check(superk, subk);
         known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
-||||||| 78ef2fdef68
-  bool known_statically = false;
-  if (_gvn.type(superklass)->singleton()) {
-    ciKlass* superk = _gvn.type(superklass)->is_klassptr()->klass();
-    ciKlass* subk = _gvn.type(obj)->is_oopptr()->klass();
-    if (subk != NULL && subk->is_loaded()) {
-      int static_res = C->static_subtype_check(superk, subk);
-      known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
-    }
-  }
-
-  if (!known_statically) {
-    const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-    // We may not have profiling here or it may not help us. If we
-    // have a speculative type use it to perform an exact cast.
-    ciKlass* spec_obj_type = obj_type->speculative_type();
-    if (spec_obj_type != NULL || (ProfileDynamicTypes && data != NULL)) {
-      Node* cast_obj = maybe_cast_profiled_receiver(not_null_obj, NULL, spec_obj_type, safe_for_replace);
-      if (stopped()) {            // Profile disagrees with this path.
-        set_control(null_ctl);    // Null is the only remaining possibility.
-        return intcon(0);
-=======
-  bool known_statically = false;
-  if (_gvn.type(superklass)->singleton()) {
-    const TypeKlassPtr* superk = _gvn.type(superklass)->is_klassptr();
-    const TypeKlassPtr* subk = _gvn.type(obj)->is_oopptr()->as_klass_type();
-    if (subk->is_loaded()) {
-      int static_res = C->static_subtype_check(superk, subk);
-      known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
-    }
-  }
-
-  if (!known_statically) {
-    const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-    // We may not have profiling here or it may not help us. If we
-    // have a speculative type use it to perform an exact cast.
-    ciKlass* spec_obj_type = obj_type->speculative_type();
-    if (spec_obj_type != NULL || (ProfileDynamicTypes && data != NULL)) {
-      Node* cast_obj = maybe_cast_profiled_receiver(not_null_obj, NULL, spec_obj_type, safe_for_replace);
-      if (stopped()) {            // Profile disagrees with this path.
-        set_control(null_ctl);    // Null is the only remaining possibility.
-        return intcon(0);
->>>>>>> jdk-20+8
       }
     }
 
@@ -3663,19 +3388,11 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // uncommon trap or exception is thrown.
 Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control, bool null_free) {
   kill_dead_locals();           // Benefit all the uncommon traps
-<<<<<<< HEAD
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
-  const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
+  const TypeOopPtr* toop = tk->cast_to_exactness(false)->as_instance_type();
   bool safe_for_replace = (failure_control == NULL);
   bool from_inline = obj->is_InlineType();
   assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
-||||||| 78ef2fdef68
-  const TypeKlassPtr *tk = _gvn.type(superklass)->is_klassptr();
-  const Type *toop = TypeOopPtr::make_from_klass(tk->klass());
-=======
-  const TypeKlassPtr *tk = _gvn.type(superklass)->is_klassptr();
-  const Type *toop = tk->cast_to_exactness(false)->as_instance_type();
->>>>>>> jdk-20+8
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit
@@ -3684,27 +3401,17 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // want a residual null check left around.  (Causes a slowdown,
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (tk->singleton()) {
-<<<<<<< HEAD
-    ciKlass* klass = NULL;
-    if (obj->is_InlineTypeBase()) {
-      klass = _gvn.type(obj)->inline_klass();
-    } else {
-      const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-      if (objtp != NULL) {
-        klass = objtp->klass();
-      }
+    // TODO Tobias
+    const TypeKlassPtr* kptr = NULL;
+    const Type* t = _gvn.type(obj);
+    if (t->isa_oop_ptr()) {
+      kptr = t->is_oopptr()->as_klass_type();
+    } else if (obj->is_InlineTypeBase()) {
+      ciInlineKlass* vk = t->inline_klass();
+      kptr = TypeInstKlassPtr::make(TypePtr::NotNull, vk, Type::Offset(0), vk->flatten_array());
     }
-    if (klass != NULL) {
-      switch (C->static_subtype_check(tk->klass(), klass)) {
-||||||| 78ef2fdef68
-    const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-    if (objtp != NULL && objtp->klass() != NULL) {
-      switch (C->static_subtype_check(tk->klass(), objtp->klass())) {
-=======
-    const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-    if (objtp != NULL) {
-      switch (C->static_subtype_check(tk, objtp->as_klass_type())) {
->>>>>>> jdk-20+8
+    if (kptr != NULL) {
+      switch (C->static_subtype_check(tk, kptr)) {
       case Compile::SSC_always_true:
         // If we know the type check always succeed then we don't use
         // the profiling data at this bytecode. Don't lose it, feed it
@@ -3724,18 +3431,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           obj = null_check(obj);
         }
         // It needs a null check because a null will *pass* the cast check.
-        const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
-        if (objtp != NULL && !objtp->maybe_null()) {
+        if (t->isa_oopptr() != NULL && !t->is_oopptr()->maybe_null()) {
           bool is_aastore = (java_bc() == Bytecodes::_aastore);
           Deoptimization::DeoptReason reason = is_aastore ?
             Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
-<<<<<<< HEAD
-          builtin_throw(reason, makecon(TypeKlassPtr::make(klass)));
-||||||| 78ef2fdef68
-          builtin_throw(reason, makecon(TypeKlassPtr::make(objtp->klass())));
-=======
           builtin_throw(reason);
->>>>>>> jdk-20+8
           return top();
         } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
           return null_assert(obj);
@@ -3843,13 +3543,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         bool is_aastore = (java_bc() == Bytecodes::_aastore);
         Deoptimization::DeoptReason reason = is_aastore ?
           Deoptimization::Reason_array_check : Deoptimization::Reason_class_check;
-<<<<<<< HEAD
-        builtin_throw(reason, obj_klass);
-||||||| 78ef2fdef68
-        builtin_throw(reason, load_object_klass(not_null_obj));
-=======
         builtin_throw(reason);
->>>>>>> jdk-20+8
       }
     } else {
       (*failure_control) = not_subtype_ctrl;
@@ -4177,26 +3871,15 @@ void GraphKit::shared_unlock(Node* box, Node* obj) {
 Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
   const TypeKlassPtr* inst_klass = _gvn.type(klass_node)->isa_klassptr();
   if (!StressReflectiveCode && inst_klass != NULL) {
-<<<<<<< HEAD
-    ciKlass* klass = inst_klass->klass();
-    assert(klass != NULL, "klass should not be NULL");
     bool xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
+    ciKlass* klass = inst_klass->klass();
     if (UseFlatArray && klass->is_obj_array_klass() && !klass->as_obj_array_klass()->is_elem_null_free()) {
       // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
       can_be_flattened = elem->can_be_inline_klass() && (!elem->is_inlinetype() || elem->flatten_array());
     }
-    if (!can_be_flattened && (xklass || klass->is_array_klass())) {
-      jint lhelper = klass->layout_helper();
-||||||| 78ef2fdef68
-    ciKlass* klass = inst_klass->klass();
-    bool    xklass = inst_klass->klass_is_exact();
-    if (xklass || klass->is_array_klass()) {
-      jint lhelper = klass->layout_helper();
-=======
-    bool    xklass = inst_klass->klass_is_exact();
-    if (xklass || inst_klass->isa_aryklassptr()) {
+    if (!can_be_flattened && (xklass || inst_klass->isa_aryklassptr())) {
       jint lhelper;
       if (inst_klass->isa_aryklassptr()) {
         BasicType elem = inst_klass->as_instance_type()->isa_aryptr()->elem()->array_element_basic_type();
@@ -4207,7 +3890,6 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
       } else {
         lhelper = inst_klass->is_instklassptr()->exact_klass()->layout_helper();
       }
->>>>>>> jdk-20+8
       if (lhelper != Klass::_lh_neutral_value) {
         constant_value = lhelper;
         return (Node*) NULL;
@@ -4308,14 +3990,8 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         hook_memory_on_init(*this, elemidx, minit_in, minit_out);
       }
     } else if (oop_type->isa_instptr()) {
-<<<<<<< HEAD
       set_memory(minit_out, C->get_alias_index(oop_type)); // mark word
-      ciInstanceKlass* ik = oop_type->klass()->as_instance_klass();
-||||||| 78ef2fdef68
-      ciInstanceKlass* ik = oop_type->klass()->as_instance_klass();
-=======
       ciInstanceKlass* ik = oop_type->is_instptr()->instance_klass();
->>>>>>> jdk-20+8
       for (int i = 0, len = ik->nof_nonstatic_fields(); i < len; i++) {
         ciField* field = ik->nonstatic_field_at(i);
         if (field->offset() >= TrackedInitializationLimit * HeapWordSize)

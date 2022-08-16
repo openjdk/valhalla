@@ -905,7 +905,6 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       ciKlass* cik = t->is_oopptr()->exact_klass();
       assert(cik->is_instance_klass() ||
              cik->is_array_klass(), "Not supported allocation.");
-<<<<<<< HEAD
       uint first_ind = spobj->first_index(sfpt->jvms());
       // Nullable, scalarized inline types have an is_init input
       // that needs to be checked before using the field values.
@@ -923,17 +922,8 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
           }
         }
       }
-      ScopeValue* klass_sv = new ConstantOopWriteValue(cik->java_mirror()->constant_encoding());
-      sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv)
-                                    : new ObjectValue(spobj->_idx, klass_sv, is_init);
-||||||| 78ef2fdef68
-      ScopeValue* klass_sv = new ConstantOopWriteValue(cik->java_mirror()->constant_encoding());
-      sv = spobj->is_auto_box() ? new AutoBoxObjectValue(spobj->_idx, klass_sv)
-                                    : new ObjectValue(spobj->_idx, klass_sv);
-=======
       sv = new ObjectValue(spobj->_idx,
                            new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()));
->>>>>>> jdk-20+8
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {
@@ -3523,7 +3513,6 @@ void PhaseOutput::install_code(ciMethod*         target,
     }
 
     C->env()->register_method(target,
-<<<<<<< HEAD
                               entry_bci,
                               &_code_offsets,
                               _orig_pc_slot_offset_in_bytes,
@@ -3531,42 +3520,13 @@ void PhaseOutput::install_code(ciMethod*         target,
                               frame_size_in_words(),
                               _oop_map_set,
                               &_handler_table,
-                              &_inc_table,
+                              inc_table(),
                               compiler,
                               has_unsafe_access,
                               SharedRuntime::is_wide_vector(C->max_vector_size()),
-                              C->rtm_state(),
-                              C->native_invokers());
-||||||| 78ef2fdef68
-                                     entry_bci,
-                                     &_code_offsets,
-                                     _orig_pc_slot_offset_in_bytes,
-                                     code_buffer(),
-                                     frame_size_in_words(),
-                                     oop_map_set(),
-                                     &_handler_table,
-                                     inc_table(),
-                                     compiler,
-                                     has_unsafe_access,
-                                     SharedRuntime::is_wide_vector(C->max_vector_size()),
-                                     C->rtm_state(),
-                                     C->native_invokers());
-=======
-                                     entry_bci,
-                                     &_code_offsets,
-                                     _orig_pc_slot_offset_in_bytes,
-                                     code_buffer(),
-                                     frame_size_in_words(),
-                                     oop_map_set(),
-                                     &_handler_table,
-                                     inc_table(),
-                                     compiler,
-                                     has_unsafe_access,
-                                     SharedRuntime::is_wide_vector(C->max_vector_size()),
-                                     C->has_monitors(),
-                                     0,
-                                     C->rtm_state());
->>>>>>> jdk-20+8
+                              C->has_monitors(),
+                              0,
+                              C->rtm_state());
 
     if (C->log() != NULL) { // Print code cache state into compiler log
       C->log()->code_cache_state();

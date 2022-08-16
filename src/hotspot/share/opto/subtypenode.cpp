@@ -37,112 +37,33 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   const TypeKlassPtr* subk = sub_t->isa_klassptr() ? sub_t->is_klassptr() : sub_t->is_oopptr()->as_klass_type();
 
   // Oop can't be a subtype of abstract type that has no subclass.
-<<<<<<< HEAD
-  if (sub_t->isa_oopptr() && superk->is_instance_klass() &&
-      !superk->is_interface() && superk->is_abstract() &&
-      !superk->as_instance_klass()->has_subklass()) {
-    Compile::current()->dependencies()->assert_leaf_type(superk);
-    return TypeInt::CC_GT;
-  }
-
-  // Similar to logic in CmpPNode::sub()
-
-  // Interfaces can't be trusted unless the subclass is an exact
-  // interface (it can then only be a constant) or the subclass is an
-  // exact array of interfaces (a newly allocated array of interfaces
-  // for instance)
-  if (superk && subk &&
-      superk->is_loaded() && !superk->is_interface() &&
-      subk->is_loaded() && (!subk->is_interface() || xsubk) &&
-      (!superk->is_obj_array_klass() ||
-       !superk->as_obj_array_klass()->base_element_klass()->is_interface()) &&
-      (!subk->is_obj_array_klass() ||
-       !subk->as_obj_array_klass()->base_element_klass()->is_interface() ||
-       xsubk)) {
-    bool unrelated_classes = false;
-    if (superk->equals(subk)) {
-      // skip
-    } else if (superk->is_subtype_of(subk)) {
-      // If the subclass is exact then the superclass is a subtype of
-      // the subclass. Given they're no equals, that subtype check can
-      // only fail.
-      unrelated_classes = xsubk;
-    } else if (subk->is_subtype_of(superk)) {
-      // skip
-    } else {
-      // Neither class subtypes the other: they are unrelated and this
-      // type check is known to fail.
-      unrelated_classes = true;
-    }
-    if (!unrelated_classes) {
-      // Handle inline type arrays
-      if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_flat() && superk->is_flat_array_klass()) {
-        // Subtype is not a flat array but supertype is. Must be unrelated.
-        unrelated_classes = true;
-      } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_null_free() &&
-                 superk->is_array_klass() && superk->as_array_klass()->is_elem_null_free()) {
-        // Subtype is not a null-free array but supertype is. Must be unrelated.
-        unrelated_classes = true;
-      } else if (sub_t->is_ptr()->flatten_array() && (!superk->can_be_inline_klass() || (superk->is_inlinetype() && !superk->flatten_array()))) {
-        // Subtype is flattened in arrays but supertype is not. Must be unrelated.
-        unrelated_classes = true;
-      }
-    }
-    if (unrelated_classes) {
-      TypePtr::PTR jp = sub_t->is_ptr()->join_ptr(super_t->is_ptr()->_ptr);
-      if (jp != TypePtr::Null && jp != TypePtr::BotPTR) {
-        return TypeInt::CC_GT;
-      }
-||||||| 78ef2fdef68
-  if (sub_t->isa_oopptr() && superk->is_instance_klass() &&
-      !superk->is_interface() && superk->is_abstract() &&
-      !superk->as_instance_klass()->has_subklass()) {
-    Compile::current()->dependencies()->assert_leaf_type(superk);
-    return TypeInt::CC_GT;
-  }
-
-  // Similar to logic in CmpPNode::sub()
-
-  // Interfaces can't be trusted unless the subclass is an exact
-  // interface (it can then only be a constant) or the subclass is an
-  // exact array of interfaces (a newly allocated array of interfaces
-  // for instance)
-  if (superk && subk &&
-      superk->is_loaded() && !superk->is_interface() &&
-      subk->is_loaded() && (!subk->is_interface() || xsubk) &&
-      (!superk->is_obj_array_klass() ||
-       !superk->as_obj_array_klass()->base_element_klass()->is_interface()) &&
-      (!subk->is_obj_array_klass() ||
-       !subk->as_obj_array_klass()->base_element_klass()->is_interface() ||
-       xsubk)) {
-    bool unrelated_classes = false;
-    if (superk->equals(subk)) {
-      // skip
-    } else if (superk->is_subtype_of(subk)) {
-      // If the subclass is exact then the superclass is a subtype of
-      // the subclass. Given they're no equals, that subtype check can
-      // only fail.
-      unrelated_classes = xsubk;
-    } else if (subk->is_subtype_of(superk)) {
-      // skip
-    } else {
-      // Neither class subtypes the other: they are unrelated and this
-      // type check is known to fail.
-      unrelated_classes = true;
-    }
-    if (unrelated_classes) {
-      TypePtr::PTR jp = sub_t->is_ptr()->join_ptr(super_t->is_ptr()->_ptr);
-      if (jp != TypePtr::Null && jp != TypePtr::BotPTR) {
-        return TypeInt::CC_GT;
-      }
-=======
   if (sub_t->isa_oopptr() && superk->isa_instklassptr() && superk->klass_is_exact()) {
     ciKlass* superklass = superk->exact_klass();
     if (!superklass->is_interface() && superklass->is_abstract() &&
         !superklass->as_instance_klass()->has_subklass()) {
       Compile::current()->dependencies()->assert_leaf_type(superklass);
       return TypeInt::CC_GT;
->>>>>>> jdk-20+8
+    }
+  }
+
+  // TODO Tobias use subk->is_not_null_free() below?
+  // Similar to logic in CmpPNode::sub()
+  bool unrelated_classes = false;
+  // Handle inline type arrays
+  if (sub_t->is_ptr()->flatten_array() && (!superk->can_be_inline_type() || (superk->klass()->is_inlinetype() && !superk->flatten_array()))) {
+    // Subtype is flattened in arrays but supertype is not. Must be unrelated.
+    unrelated_classes = true;
+  } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_flat() && superk->is_flat()) {
+    // Subtype is not a flat array but supertype is. Must be unrelated.
+    unrelated_classes = true;
+  } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_null_free() && superk->is_null_free()) {
+    // Subtype is not a null-free array but supertype is. Must be unrelated.
+    unrelated_classes = true;
+  }
+  if (unrelated_classes) {
+    TypePtr::PTR jp = sub_t->is_ptr()->join_ptr(super_t->is_ptr()->_ptr);
+    if (jp != TypePtr::Null && jp != TypePtr::BotPTR) {
+      return TypeInt::CC_GT;
     }
   }
 

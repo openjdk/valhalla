@@ -4299,7 +4299,7 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InlineKlassKind);
   __ jcc(Assembler::notEqual, is_not_value);
 
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
@@ -4348,7 +4348,7 @@ void TemplateTable::aconst_init() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InlineKlassKind);
   __ jcc(Assembler::equal, is_value);
 
   // in the future, aconst_init will just return null instead of throwing an exception

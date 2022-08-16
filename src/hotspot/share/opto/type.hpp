@@ -1046,19 +1046,10 @@ public:
 
   virtual intptr_t get_con() const;
 
-<<<<<<< HEAD
-  Offset xadd_offset(intptr_t offset) const;
-  virtual const TypePtr *add_offset( intptr_t offset ) const;
-  virtual const int flattened_offset() const { return offset(); }
-
-||||||| 78ef2fdef68
-  int xadd_offset( intptr_t offset ) const;
-  virtual const TypePtr *add_offset( intptr_t offset ) const;
-=======
-  int xadd_offset( intptr_t offset ) const;
+  Type::Offset xadd_offset(intptr_t offset) const;
   virtual const TypePtr* add_offset(intptr_t offset) const;
   virtual const TypePtr* with_offset(intptr_t offset) const;
->>>>>>> jdk-20+8
+  virtual const int flattened_offset() const { return offset(); }
   virtual bool eq(const Type *t) const;
   virtual int  hash() const;             // Type specific hashing
 
@@ -1191,9 +1182,9 @@ protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
 
   virtual ciKlass* exact_klass_helper() const { return NULL; }
-  virtual ciKlass* klass() const { return _klass;     }
-
 public:
+  // TODO Tobias
+  virtual ciKlass* klass() const { return _klass;     }
 
   bool is_java_subtype_of(const TypeOopPtr* other) const {
     return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
@@ -1296,14 +1287,8 @@ class TypeInstPtr : public TypeOopPtr {
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
 
-<<<<<<< HEAD
-  ciSymbol*  _name;        // class name
   bool _flatten_array;     // Type is flat in arrays
-||||||| 78ef2fdef68
-  ciSymbol*  _name;        // class name
-=======
   ciKlass* exact_klass_helper() const;
->>>>>>> jdk-20+8
 
 public:
 
@@ -1437,9 +1422,10 @@ class TypeAryPtr : public TypeOopPtr {
   ciKlass* compute_klass(DEBUG_ONLY(bool verify = false)) const;
 
   ciKlass* exact_klass_helper() const;
+public:
+  // TODO Tobias
   ciKlass* klass() const;
 
-public:
 
   bool is_same_java_type_as(const TypeOopPtr* other) const;
   bool is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const;
@@ -1493,14 +1479,8 @@ public:
   const TypeAryPtr* with_ary(const TypeAry* ary) const;
 
   // Speculative type helper methods.
-<<<<<<< HEAD
-  virtual const Type* remove_speculative() const;
-  virtual const Type* cleanup_speculative() const;
-||||||| 78ef2fdef68
-  virtual const Type* remove_speculative() const;
-=======
   virtual const TypeAryPtr* remove_speculative() const;
->>>>>>> jdk-20+8
+  virtual const Type* cleanup_speculative() const;
   virtual const TypePtr* with_inline_depth(int depth) const;
   virtual const TypePtr* with_instance_id(int instance_id) const;
 
@@ -1617,9 +1597,10 @@ protected:
 
   virtual bool must_be_exact() const { ShouldNotReachHere(); return false; }
   virtual ciKlass* exact_klass_helper() const;
+public:
+  // TODO Tobias
   virtual ciKlass* klass() const { return  _klass; }
 
-public:
 
   bool is_java_subtype_of(const TypeKlassPtr* other) const {
     return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
@@ -1745,16 +1726,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-<<<<<<< HEAD
   static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
-  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
-  static const TypeAryKlassPtr* make(ciKlass* klass, PTR ptr = Constant, Offset offset= Offset(0));
-||||||| 78ef2fdef68
-  static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, int offset);
-  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, int offset);
-  static const TypeAryKlassPtr* make(ciKlass* klass);
-=======
-  static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, int offset);
 
   bool is_same_java_type_as(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -1762,9 +1734,9 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, int offset);
+  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset);
   static const TypeAryKlassPtr* make(ciKlass* klass);
->>>>>>> jdk-20+8
 
   const Type *elem() const { return _elem; }
 
@@ -2240,27 +2212,13 @@ inline bool Type::is_floatingpoint() const {
   return false;
 }
 
-<<<<<<< HEAD
 inline bool Type::is_inlinetypeptr() const {
-  return isa_instptr() != NULL && is_instptr()->klass()->is_inlinetype();
+  return isa_instptr() != NULL && is_instptr()->instance_klass()->is_inlinetype();
 }
-
 
 inline ciInlineKlass* Type::inline_klass() const {
   assert(is_inlinetypeptr(), "must be an inline type ptr");
-  return is_instptr()->klass()->as_inline_klass();
-||||||| 78ef2fdef68
-inline bool Type::is_ptr_to_boxing_obj() const {
-  const TypeInstPtr* tp = isa_instptr();
-  return (tp != NULL) && (tp->offset() == 0) &&
-         tp->klass()->is_instance_klass()  &&
-         tp->klass()->as_instance_klass()->is_box_klass();
-=======
-inline bool Type::is_ptr_to_boxing_obj() const {
-  const TypeInstPtr* tp = isa_instptr();
-  return (tp != NULL) && (tp->offset() == 0) &&
-         tp->instance_klass()->is_box_klass();
->>>>>>> jdk-20+8
+  return is_instptr()->instance_klass()->as_inline_klass();
 }
 
 

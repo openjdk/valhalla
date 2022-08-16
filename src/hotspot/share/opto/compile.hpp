@@ -51,12 +51,8 @@ class AddPNode;
 class Block;
 class Bundle;
 class CallGenerator;
-<<<<<<< HEAD
 class CallNode;
-||||||| 78ef2fdef68
-=======
 class CallStaticJavaNode;
->>>>>>> jdk-20+8
 class CloneMap;
 class ConnectionGraph;
 class IdealGraphPrinter;
@@ -96,12 +92,8 @@ class TypeOopPtr;
 class TypeFunc;
 class TypeVect;
 class Unique_Node_List;
-<<<<<<< HEAD
-class InlineTypeBaseNode;
-||||||| 78ef2fdef68
-=======
 class UnstableIfTrap;
->>>>>>> jdk-20+8
+class InlineTypeBaseNode;
 class nmethod;
 class Node_Stack;
 struct Final_Reshape_Counts;
@@ -372,12 +364,8 @@ class Compile : public Phase {
   GrowableArray<Node*>  _skeleton_predicate_opaqs; // List of Opaque4 nodes for the loop skeleton predicates.
   GrowableArray<Node*>  _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>  _for_post_loop_igvn;    // List of nodes for IGVN after loop opts are over
-<<<<<<< HEAD
   GrowableArray<Node*>  _inline_type_nodes;     // List of InlineType nodes
-||||||| 78ef2fdef68
-=======
   GrowableArray<UnstableIfTrap*> _unstable_if_traps;        // List of ifnodes after IGVN
->>>>>>> jdk-20+8
   GrowableArray<Node_List*> _coarsened_locks;   // List of coarsened Lock and Unlock nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
@@ -652,7 +640,6 @@ class Compile : public Phase {
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
   bool              clinit_barrier_on_entry()       { return _clinit_barrier_on_entry; }
   void          set_clinit_barrier_on_entry(bool z) { _clinit_barrier_on_entry = z; }
-<<<<<<< HEAD
   void          set_flattened_accesses()         { _has_flattened_accesses = true; }
   bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
   void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
@@ -662,11 +649,9 @@ class Compile : public Phase {
   // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
   bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->c2_needs_stack_repair(); }
-||||||| 78ef2fdef68
-=======
+
   bool              has_monitors() const         { return _has_monitors; }
   void          set_has_monitors(bool v)         { _has_monitors = v; }
->>>>>>> jdk-20+8
 
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(enum CompileCommand option) {
@@ -766,7 +751,6 @@ class Compile : public Phase {
   void remove_from_post_loop_opts_igvn(Node* n);
   void process_for_post_loop_opts_igvn(PhaseIterGVN& igvn);
 
-<<<<<<< HEAD
   // Keep track of inline type nodes for later processing
   void add_inline_type(Node* n);
   void remove_inline_type(Node* n);
@@ -774,14 +758,11 @@ class Compile : public Phase {
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 
-||||||| 78ef2fdef68
-=======
   void record_unstable_if_trap(UnstableIfTrap* trap);
   bool remove_unstable_if_trap(CallStaticJavaNode* unc, bool yield);
   void remove_useless_unstable_if_traps(Unique_Node_List &useful);
   void process_for_unstable_if_traps(PhaseIterGVN& igvn);
 
->>>>>>> jdk-20+8
   void sort_macro_nodes();
 
   // remove the opaque nodes that protect the predicates so that the unused checks and

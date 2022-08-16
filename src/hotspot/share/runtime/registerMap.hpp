@@ -101,6 +101,7 @@ class RegisterMap : public StackObj {
   RegisterMap(oop continuation, UpdateMap update_map);
   RegisterMap(const RegisterMap* map);
 
+  // TODO Tobias sp is dead?
   address location(VMReg reg, intptr_t* sp) const {
     int index = reg->value() / location_valid_type_size;
     assert(0 <= reg->value() && reg->value() < reg_count, "range check");
@@ -120,6 +121,7 @@ class RegisterMap : public StackObj {
     }
   }
 
+  // TODO Tobias unused?
   address trusted_location(VMReg reg) const {
     return (address) _location[reg->value()];
   }

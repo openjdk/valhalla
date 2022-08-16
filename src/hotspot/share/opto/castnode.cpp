@@ -392,7 +392,7 @@ Node* CastLLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 //------------------------------Identity---------------------------------------
 // If input is already higher or equal to cast type, then this is an identity.
 Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
-  if (in(1)->is_InlineTypeBase() && _type->isa_oopptr() && phase->type(in(1))->inline_klass()->is_subtype_of(_type->is_oopptr()->klass())) {
+  if (in(1)->is_InlineTypeBase() && _type->isa_instptr() && phase->type(in(1))->inline_klass()->is_subtype_of(_type->is_instptr()->instance_klass())) {
     return in(1);
   }
   Node* dom = dominating_cast(phase, phase);

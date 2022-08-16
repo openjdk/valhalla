@@ -656,57 +656,22 @@ void CallGenerator::do_late_inline_helper() {
     C->remove_macro_node(call);
   }
 
-  // The call is marked as pure (no important side effects), but result isn't used.
-  // It's safe to remove the call.
-  bool result_not_used = (callprojs.resproj == NULL || callprojs.resproj->outcnt() == 0);
 
-<<<<<<< HEAD
-  if (is_pure_call()) {
-    // Disabled due to JDK-8276112
-    if (false && is_boxing_late_inline() && callprojs->resproj[0] != nullptr) {
-        // replace box node to scalar node only in case it is directly referenced by debug info
-        assert(call->as_CallStaticJava()->is_boxing_method(), "sanity");
-        if (!has_non_debug_usages(callprojs->resproj[0]) && is_box_cache_valid(call)) {
-          scalarize_debug_usages(call, callprojs->resproj[0]);
-        }
-    }
-
-    // The call is marked as pure (no important side effects), but result isn't used.
-    // It's safe to remove the call.
-    result_not_used = true;
-    for (uint i = 0; i < callprojs->nb_resproj; i++) {
-      if (callprojs->resproj[i] != NULL) {
-        if (callprojs->resproj[i]->outcnt() != 0) {
-          result_not_used = false;
-        }
-        if (call->find_edge(callprojs->resproj[i]) != -1) {
-          return;
-        }
+  bool result_not_used = true;
+  for (uint i = 0; i < callprojs->nb_resproj; i++) {
+    if (callprojs->resproj[i] != NULL) {
+      if (callprojs->resproj[i]->outcnt() != 0) {
+        result_not_used = false;
+      }
+      if (call->find_edge(callprojs->resproj[i]) != -1) {
+        return;
       }
     }
   }
 
-  if (result_not_used) {
-||||||| 78ef2fdef68
-  if (is_pure_call()) {
-    // Disabled due to JDK-8276112
-    if (false && is_boxing_late_inline() && callprojs.resproj != nullptr) {
-      // replace box node to scalar node only in case it is directly referenced by debug info
-      assert(call->as_CallStaticJava()->is_boxing_method(), "sanity");
-      if (!has_non_debug_usages(callprojs.resproj) && is_box_cache_valid(call)) {
-        scalarize_debug_usages(call, callprojs.resproj);
-      }
-    }
-
-    // The call is marked as pure (no important side effects), but result isn't used.
-    // It's safe to remove the call.
-    result_not_used = (callprojs.resproj == NULL || callprojs.resproj->outcnt() == 0);
-  }
-
-  if (result_not_used) {
-=======
   if (is_pure_call() && result_not_used) {
->>>>>>> jdk-20+8
+    // The call is marked as pure (no important side effects), but result isn't used.
+    // It's safe to remove the call.
     GraphKit kit(call->jvms());
     kit.replace_call(call, C->top(), true);
   } else {
@@ -1185,7 +1150,6 @@ CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* c
   }
 }
 
-<<<<<<< HEAD
 static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool null_free) {
   PhaseGVN& gvn = kit.gvn();
   Node* arg = kit.argument(arg_nb);
@@ -1205,59 +1169,6 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool 
   }
 }
 
-class NativeCallGenerator : public CallGenerator {
-private:
-  address _call_addr;
-  ciNativeEntryPoint* _nep;
-public:
-  NativeCallGenerator(ciMethod* m, address call_addr, ciNativeEntryPoint* nep)
-   : CallGenerator(m), _call_addr(call_addr), _nep(nep) {}
-
-  virtual JVMState* generate(JVMState* jvms);
-};
-
-JVMState* NativeCallGenerator::generate(JVMState* jvms) {
-  GraphKit kit(jvms);
-
-  Node* call = kit.make_native_call(_call_addr, tf(), method()->arg_size(), _nep); // -fallback, - nep
-  if (call == NULL) return NULL;
-
-  kit.C->print_inlining_update(this);
-  if (kit.C->log() != NULL) {
-    kit.C->log()->elem("l2n_intrinsification_success bci='%d' entry_point='" INTPTR_FORMAT "'", jvms->bci(), p2i(_call_addr));
-  }
-
-  return kit.transfer_exceptions_into_jvms();
-}
-
-||||||| 78ef2fdef68
-class NativeCallGenerator : public CallGenerator {
-private:
-  address _call_addr;
-  ciNativeEntryPoint* _nep;
-public:
-  NativeCallGenerator(ciMethod* m, address call_addr, ciNativeEntryPoint* nep)
-   : CallGenerator(m), _call_addr(call_addr), _nep(nep) {}
-
-  virtual JVMState* generate(JVMState* jvms);
-};
-
-JVMState* NativeCallGenerator::generate(JVMState* jvms) {
-  GraphKit kit(jvms);
-
-  Node* call = kit.make_native_call(_call_addr, tf(), method()->arg_size(), _nep); // -fallback, - nep
-  if (call == NULL) return NULL;
-
-  kit.C->print_inlining_update(this);
-  if (kit.C->log() != NULL) {
-    kit.C->log()->elem("l2n_intrinsification_success bci='%d' entry_point='" INTPTR_FORMAT "'", jvms->bci(), p2i(_call_addr));
-  }
-
-  return kit.transfer_exceptions_into_jvms();
-}
-
-=======
->>>>>>> jdk-20+8
 CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool allow_inline, bool& input_not_const) {
   GraphKit kit(jvms);
   PhaseGVN& gvn = kit.gvn();
@@ -1297,26 +1208,6 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
           print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
                                  "receiver is always null");
         }
-<<<<<<< HEAD
-
-        CallGenerator* cg = C->call_generator(target, vtable_index,
-                                              false /* call_does_dispatch */,
-                                              jvms,
-                                              allow_inline,
-                                              PROB_ALWAYS,
-                                              NULL,
-                                              true);
-        return cg;
-||||||| 78ef2fdef68
-
-        CallGenerator* cg = C->call_generator(target, vtable_index,
-                                              false /* call_does_dispatch */,
-                                              jvms,
-                                              allow_inline,
-                                              PROB_ALWAYS);
-        return cg;
-=======
->>>>>>> jdk-20+8
       } else {
         print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
                                "receiver not constant");

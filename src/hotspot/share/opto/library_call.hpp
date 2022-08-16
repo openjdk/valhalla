@@ -146,13 +146,7 @@ class LibraryCallKit : public GraphKit {
   Node* current_thread_helper(Node* &tls_output, ByteSize handle_offset,
                               bool is_immutable);
   Node* generate_current_thread(Node* &tls_output);
-<<<<<<< HEAD
-||||||| 78ef2fdef68
-  Node* load_mirror_from_klass(Node* klass);
-=======
   Node* generate_virtual_thread(Node* threadObj);
-  Node* load_mirror_from_klass(Node* klass);
->>>>>>> jdk-20+8
   Node* load_klass_from_mirror_common(Node* mirror, bool never_see_null,
                                       RegionNode* region, int null_path,
                                       int offset);
@@ -260,14 +254,10 @@ class LibraryCallKit : public GraphKit {
   bool inline_unsafe_writeback0();
   bool inline_unsafe_writebackSync0(bool is_pre);
   bool inline_unsafe_copyMemory();
-<<<<<<< HEAD
   bool inline_unsafe_make_private_buffer();
   bool inline_unsafe_finish_private_buffer();
-||||||| 78ef2fdef68
-=======
 
   bool inline_native_currentCarrierThread();
->>>>>>> jdk-20+8
   bool inline_native_currentThread();
   bool inline_native_setCurrentThread();
 

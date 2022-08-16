@@ -45,7 +45,11 @@
 #endif
 
 // C2 compiled method's prolog code.
-void C2_MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b, bool is_stub) {
+void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+  int framesize = C->output()->frame_size_in_bytes();
+  int bangsize = C->output()->bang_size_in_bytes();
+  bool fp_mode_24b = false;
+  int stack_bang_size = C->output()->need_stack_bang(bangsize) ? bangsize : 0;
 
   // WARNING: Initial instruction MUST be 5 bytes or longer so that
   // NativeJump::patch_verified_entry will be able to patch out the entry
@@ -98,6 +102,12 @@ void C2_MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool 
     }
   }
 
+  if (C->needs_stack_repair()) {
+    // Save stack increment just below the saved rbp (also account for fixed framesize and rbp)
+    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
+    movptr(Address(rsp, framesize - wordSize), sp_inc + framesize + wordSize);
+  }
+
   if (VerifyStackAtCalls) { // Majik cookie to verify stack depth
     framesize -= wordSize;
     movptr(Address(rsp, framesize), (int32_t)0xbadb100d);
@@ -127,7 +137,7 @@ void C2_MacroAssembler::verified_entry(int framesize, int stack_bang_size, bool 
   }
 #endif
 
-  if (!is_stub) {
+  if (C->stub_function() == NULL) {
     BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
  #ifdef _LP64
     if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {

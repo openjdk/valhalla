@@ -207,7 +207,7 @@ StackValue* StackValue::create_stack_value(ScopeValue* sv, address value_addr, c
     bool scalar_replaced = ov->value().is_null();
     if (ov->maybe_null()) {
       // Don't treat inline type as scalar replaced if it is null
-      intptr_t is_init_value = StackValue::create_stack_value(fr, reg_map, ov->is_init())->get_int();
+      intptr_t is_init_value = StackValue::create_stack_value(ov->is_init(), value_addr, reg_map)->get_int();
       jint is_init = (jint)*((jint*)&is_init_value);
       scalar_replaced &= (is_init != 0);
     }

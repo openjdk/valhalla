@@ -612,7 +612,6 @@ public:
   }
 
   // allocation
-<<<<<<< HEAD
 
   // Object / value buffer allocation...
   // Allocate instance of klass, assumes klass initialized by caller
@@ -622,25 +621,6 @@ public:
                          Register t1, Register t2,
                          bool clear_fields, Label& alloc_failed);
 
-  void eden_allocate(
-    Register thread,                   // Current thread
-    Register obj,                      // result: pointer to object after successful allocation
-    Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
-    int      con_size_in_bytes,        // object size in bytes if   known at compile time
-    Register t1,                       // temp register
-    Label&   slow_case                 // continuation point if fast allocation fails
-  );
-||||||| 78ef2fdef68
-  void eden_allocate(
-    Register thread,                   // Current thread
-    Register obj,                      // result: pointer to object after successful allocation
-    Register var_size_in_bytes,        // object size in bytes if unknown at compile time; invalid otherwise
-    int      con_size_in_bytes,        // object size in bytes if   known at compile time
-    Register t1,                       // temp register
-    Label&   slow_case                 // continuation point if fast allocation fails
-  );
-=======
->>>>>>> jdk-20+8
   void tlab_allocate(
     Register thread,                   // Current thread
     Register obj,                      // result: pointer to object after successful allocation
@@ -1954,10 +1934,6 @@ public:
 
 
  public:
-<<<<<<< HEAD
-  // C2 compiled method's prolog code.
-  void verified_entry(Compile* C, int sp_inc = 0);
-
   // Inline type specific methods
   #include "asm/macroAssembler_common.hpp"
 
@@ -1973,12 +1949,6 @@ public:
   void remove_frame(int initial_framesize, bool needs_stack_repair);
   VMReg spill_reg_for(VMReg reg);
 
-||||||| 78ef2fdef68
-  // C2 compiled method's prolog code.
-  void verified_entry(int framesize, int stack_bang_size, bool fp_mode_24b, bool is_stub);
-
-=======
->>>>>>> jdk-20+8
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop
   void clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool word_copy_only, KRegister mask=knoreg);

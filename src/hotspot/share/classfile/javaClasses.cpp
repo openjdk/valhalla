@@ -1083,8 +1083,6 @@ oop java_lang_Class::create_secondary_mirror(Klass* k, Handle mirror, TRAPS) {
 
   java_lang_Class::set_klass(secondary_mirror(), k);
   java_lang_Class::set_static_oop_field_count(secondary_mirror(), static_oop_field_count(mirror()));
-  // ## do we need to set init lock?
-  java_lang_Class::set_init_lock(secondary_mirror(), init_lock(mirror()));
 
   set_protection_domain(secondary_mirror(), protection_domain(mirror()));
   set_class_loader(secondary_mirror(), class_loader(mirror()));
@@ -1442,7 +1440,6 @@ oop java_lang_Class::component_mirror(oop java_class) {
   return java_class->obj_field(_component_mirror_offset);
 }
 
-<<<<<<< HEAD
 oop java_lang_Class::primary_mirror(oop java_class) {
   assert(_primary_mirror_offset != 0, "must be set");
   return java_class->obj_field(_primary_mirror_offset);
@@ -1463,27 +1460,6 @@ void java_lang_Class::set_secondary_mirror(oop java_class, oop mirror) {
   java_class->obj_field_put(_secondary_mirror_offset, mirror);
 }
 
-oop java_lang_Class::init_lock(oop java_class) {
-  assert(_init_lock_offset != 0, "must be set");
-  return java_class->obj_field(_init_lock_offset);
-}
-void java_lang_Class::set_init_lock(oop java_class, oop init_lock) {
-  assert(_init_lock_offset != 0, "must be set");
-  java_class->obj_field_put(_init_lock_offset, init_lock);
-}
-
-||||||| 78ef2fdef68
-oop java_lang_Class::init_lock(oop java_class) {
-  assert(_init_lock_offset != 0, "must be set");
-  return java_class->obj_field(_init_lock_offset);
-}
-void java_lang_Class::set_init_lock(oop java_class, oop init_lock) {
-  assert(_init_lock_offset != 0, "must be set");
-  java_class->obj_field_put(_init_lock_offset, init_lock);
-}
-
-=======
->>>>>>> jdk-20+8
 objArrayOop java_lang_Class::signers(oop java_class) {
   assert(_signers_offset != 0, "must be set");
   return (objArrayOop)java_class->obj_field(_signers_offset);
@@ -2938,16 +2914,8 @@ void java_lang_Throwable::fill_in_stack_trace(Handle throwable, const methodHand
       assert(skip_fillInStackTrace_check, "logic error in backtrace filtering");
 
       // skip <init> methods of the exception class and superclasses
-<<<<<<< HEAD
-      // This is similar to classic VM (before HotSpot).
-      if (method->is_object_constructor() &&
-||||||| 78ef2fdef68
-      // This is simlar to classic VM.
-      if (method->name() == vmSymbols::object_initializer_name() &&
-=======
       // This is similar to classic VM.
-      if (method->name() == vmSymbols::object_initializer_name() &&
->>>>>>> jdk-20+8
+      if (method->is_object_constructor() &&
           throwable->is_a(method->method_holder())) {
         continue;
       } else {

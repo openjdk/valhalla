@@ -4725,7 +4725,7 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
 {
   Label done, initialize_header, initialize_object, slow_case, slow_case_no_pop;
   Register layout_size = t1;
-  assert(new_obj == r0, "needs to be r0, according to barrier asm eden_allocate");
+  assert(new_obj == r0, "needs to be r0");
   assert_different_registers(klass, new_obj, t1, t2);
 
   // get instance_size in InstanceKlass (scaled to a count of bytes)
@@ -6007,7 +6007,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (UseTLAB) {
       tlab_allocate(r0, noreg, obj_size, tmp1, tmp2, slow_case);
     } else {
-      eden_allocate(r0, noreg, obj_size, tmp1, slow_case);
+      b(slow_case);
     }
   } else {
     // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
@@ -6016,10 +6016,10 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     if (UseTLAB) {
       tlab_allocate(r0, tmp2, 0, tmp1, tmp2, slow_case);
     } else {
-      eden_allocate(r0, tmp2, 0, tmp1, slow_case);
+      b(slow_case);
     }
   }
-  if (UseTLAB || Universe::heap()->supports_inline_contig_alloc()) {
+  if (UseTLAB) {
     // 2. Initialize buffered inline instance header
     Register buffer_obj = r0;
     mov(rscratch1, (intptr_t)markWord::inline_type_prototype().value());
@@ -6043,7 +6043,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     membar(Assembler::StoreStore);
     b(skip);
   } else {
-    // Must have already branched to slow_case in eden_allocate() above.
+    // Must have already branched to slow_case above.
     DEBUG_ONLY(should_not_reach_here());
   }
   bind(slow_case);

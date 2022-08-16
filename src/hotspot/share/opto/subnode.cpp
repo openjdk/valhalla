@@ -1019,41 +1019,6 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
       if (MemNode::detect_ptr_independence(in1, alloc1, in2, alloc2, NULL)) {
         return TypeInt::CC_GT;  // different pointers
       }
-<<<<<<< HEAD
-      if (!unrelated_classes) {
-        // Handle inline type arrays
-        if ((r0->flatten_array() && (!r1->can_be_inline_type() || (klass1->is_inlinetype() && !klass1->flatten_array()))) ||
-            (r1->flatten_array() && (!r0->can_be_inline_type() || (klass0->is_inlinetype() && !klass0->flatten_array())))) {
-          // One type is flattened in arrays but the other type is not. Must be unrelated.
-          unrelated_classes = true;
-        } else if ((r0->is_not_flat() && klass1->is_flat_array_klass()) ||
-                   (r1->is_not_flat() && klass0->is_flat_array_klass())) {
-          // One type is a non-flattened array and the other type is a flattened array. Must be unrelated.
-          unrelated_classes = true;
-        } else if ((r0->is_not_null_free() && klass1->is_array_klass() && klass1->as_array_klass()->is_elem_null_free()) ||
-                   (r1->is_not_null_free() && klass0->is_array_klass() && klass0->as_array_klass()->is_elem_null_free())) {
-          // One type is a non-null-free array and the other type is a null-free array. Must be unrelated.
-          unrelated_classes = true;
-        }
-      }
-      if (unrelated_classes) {
-        // The oops classes are known to be unrelated. If the joined PTRs of
-        // two oops is not Null and not Bottom, then we are sure that one
-        // of the two oops is non-null, and the comparison will always fail.
-        TypePtr::PTR jp = r0->join_ptr(r1->_ptr);
-        if (jp != TypePtr::Null && jp != TypePtr::BotPTR) {
-          return TypeInt::CC_GT;
-        }
-||||||| 78ef2fdef68
-      if (unrelated_classes) {
-        // The oops classes are known to be unrelated. If the joined PTRs of
-        // two oops is not Null and not Bottom, then we are sure that one
-        // of the two oops is non-null, and the comparison will always fail.
-        TypePtr::PTR jp = r0->join_ptr(r1->_ptr);
-        if (jp != TypePtr::Null && jp != TypePtr::BotPTR) {
-          return TypeInt::CC_GT;
-        }
-=======
     }
     bool    xklass0 = p0 ? p0->klass_is_exact() : k0->klass_is_exact();
     bool    xklass1 = p1 ? p1->klass_is_exact() : k1->klass_is_exact();
@@ -1071,7 +1036,23 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
                (k0 && !k0->maybe_java_subtype_of(k1))) {
       unrelated_classes = xklass0;
     }
-
+    if (!unrelated_classes) {
+      // Handle inline type arrays
+      // TODO Tobias check for inlinetype ptr here?
+      if ((r0->flatten_array() && (!r1->can_be_inline_type() || (r1->is_inlinetypeptr() && !r1->flatten_array()))) ||
+          (r1->flatten_array() && (!r0->can_be_inline_type() || (r0->is_inlinetypeptr() && !r0->flatten_array())))) {
+        // One type is flattened in arrays but the other type is not. Must be unrelated.
+        unrelated_classes = true;
+      } else if ((r0->is_not_flat() && r1->is_flat()) ||
+                 (r1->is_not_flat() && r0->is_flat())) {
+        // One type is a non-flattened array and the other type is a flattened array. Must be unrelated.
+        unrelated_classes = true;
+      } else if ((r0->is_not_null_free() && r1->is_null_free()) ||
+                 (r1->is_not_null_free() && r0->is_null_free())) {
+        // One type is a non-null-free array and the other type is a null-free array. Must be unrelated.
+        unrelated_classes = true;
+      }
+    }
     if (unrelated_classes) {
       // The oops classes are known to be unrelated. If the joined PTRs of
       // two oops is not Null and not Bottom, then we are sure that one
@@ -1079,7 +1060,6 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
       TypePtr::PTR jp = r0->join_ptr(r1->_ptr);
       if (jp != TypePtr::Null && jp != TypePtr::BotPTR) {
         return TypeInt::CC_GT;
->>>>>>> jdk-20+8
       }
     }
   }

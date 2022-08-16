@@ -398,7 +398,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaT
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   assert(klass->field_signature(index)->is_Q_signature(), "Sanity check");
-  if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
+  if (klass->is_being_initialized() && klass->is_init_thread(THREAD)) {
     int offset = klass->field_offset(index);
     Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
     if (field_k == NULL) {

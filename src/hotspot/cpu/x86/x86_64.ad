@@ -919,11 +919,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   __ verified_entry(C);
   __ bind(*_verified_entry);
 
-  if (C->stub_function() == NULL) {
-    BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->nmethod_entry_barrier(&_masm);
-  }
-
   C->output()->set_frame_complete(cbuf.insts_size());
 
   if (C->has_mach_constant_base_node()) {
@@ -1643,7 +1638,7 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 
 void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
-  MacroAssembler _masm(&cbuf);
+  C2_MacroAssembler _masm(&cbuf);
   if (!_verified) {
     uint insts_size = cbuf.insts_size();
     if (UseCompressedClassPointers) {
