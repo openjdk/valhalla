@@ -46,18 +46,17 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     }
   }
 
-  // TODO Tobias use subk->is_not_null_free() below?
   // Similar to logic in CmpPNode::sub()
   bool unrelated_classes = false;
   // Handle inline type arrays
-  if (sub_t->is_ptr()->flatten_array() && (!superk->can_be_inline_type() || (superk->klass()->is_inlinetype() && !superk->flatten_array()))) {
-    // Subtype is flattened in arrays but supertype is not. Must be unrelated.
+  if (subk->flatten_array() && (!superk->klass()->can_be_inline_klass() || (superk->klass()->is_inlinetype() && !superk->klass()->flatten_array()))) {
+    // The subtype is flattened in arrays and the supertype is not flattened in arrays. Must be unrelated.
     unrelated_classes = true;
-  } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_flat() && superk->is_flat()) {
-    // Subtype is not a flat array but supertype is. Must be unrelated.
+  } else if (subk->is_not_flat() && superk->is_flat()) {
+    // The subtype is a non-flattened array and the supertype is a flattened array. Must be unrelated.
     unrelated_classes = true;
-  } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_null_free() && superk->is_null_free()) {
-    // Subtype is not a null-free array but supertype is. Must be unrelated.
+  } else if (subk->is_not_null_free() && superk->is_null_free()) {
+    // The subtype is a nullable array and the supertype is null-free array. Must be unrelated.
     unrelated_classes = true;
   }
   if (unrelated_classes) {

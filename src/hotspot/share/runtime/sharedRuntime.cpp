@@ -3809,7 +3809,7 @@ JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* curren
   assert(res->klass()->is_inline_klass(), "only inline types here");
   ResourceMark rm;
   RegisterMap reg_map(current,
-                      RegisterMap::UpdateMap::skip,
+                      RegisterMap::UpdateMap::include,
                       RegisterMap::ProcessFrames::include,
                       RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();
@@ -3902,7 +3902,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread*
 {
   ResourceMark rm;
   RegisterMap reg_map(current,
-                      RegisterMap::UpdateMap::skip,
+                      RegisterMap::UpdateMap::include,
                       RegisterMap::ProcessFrames::include,
                       RegisterMap::WalkContinuation::skip);
   frame stubFrame = current->last_frame();

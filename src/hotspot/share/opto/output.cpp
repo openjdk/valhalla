@@ -923,7 +923,7 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
         }
       }
       sv = new ObjectValue(spobj->_idx,
-                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()));
+                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), is_init);
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {

@@ -1049,7 +1049,7 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
         unrelated_classes = true;
       } else if ((r0->is_not_null_free() && r1->is_null_free()) ||
                  (r1->is_not_null_free() && r0->is_null_free())) {
-        // One type is a non-null-free array and the other type is a null-free array. Must be unrelated.
+        // One type is a nullable array and the other type is a null-free array. Must be unrelated.
         unrelated_classes = true;
       }
     }

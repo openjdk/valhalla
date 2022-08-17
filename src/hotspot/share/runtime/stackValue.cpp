@@ -58,14 +58,7 @@ template StackValue* StackValue::create_stack_value(const frame* fr, const Small
 
 template<typename RegisterMapT>
 StackValue* StackValue::create_stack_value(const frame* fr, const RegisterMapT* reg_map, ScopeValue* sv) {
-  return create_stack_value(sv, stack_value_address(fr, reg_map, sv), reg_map);
-}
-
-template StackValue* StackValue::create_stack_value(ScopeValue*, address, const RegisterMap*);
-template StackValue* StackValue::create_stack_value(ScopeValue*, address, const SmallRegisterMap*);
-
-template<typename RegisterMapT>
-StackValue* StackValue::create_stack_value(ScopeValue* sv, address value_addr, const RegisterMapT* reg_map) {
+  address value_addr = stack_value_address(fr, reg_map, sv);
   if (sv->is_location()) {
     // Stack or register value
     Location loc = ((LocationValue *)sv)->location();
@@ -207,7 +200,7 @@ StackValue* StackValue::create_stack_value(ScopeValue* sv, address value_addr, c
     bool scalar_replaced = ov->value().is_null();
     if (ov->maybe_null()) {
       // Don't treat inline type as scalar replaced if it is null
-      intptr_t is_init_value = StackValue::create_stack_value(ov->is_init(), value_addr, reg_map)->get_int();
+      intptr_t is_init_value = StackValue::create_stack_value(fr, reg_map, ov->is_init())->get_int();
       jint is_init = (jint)*((jint*)&is_init_value);
       scalar_replaced &= (is_init != 0);
     }
