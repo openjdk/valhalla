@@ -144,6 +144,7 @@ private:
 
     Table(){
       set_init_function<InstanceKlass>();
+      set_init_function<InlineKlass>();
       set_init_function<InstanceRefKlass>();
       set_init_function<InstanceMirrorKlass>();
       set_init_function<InstanceClassLoaderKlass>();
@@ -208,6 +209,7 @@ private:
 
     Table(){
       set_init_function<InstanceKlass>();
+      set_init_function<InlineKlass>();
       set_init_function<InstanceRefKlass>();
       set_init_function<InstanceMirrorKlass>();
       set_init_function<InstanceClassLoaderKlass>();
@@ -272,6 +274,7 @@ private:
 
     Table(){
       set_init_function<InstanceKlass>();
+      set_init_function<InlineKlass>();
       set_init_function<InstanceRefKlass>();
       set_init_function<InstanceMirrorKlass>();
       set_init_function<InstanceClassLoaderKlass>();
