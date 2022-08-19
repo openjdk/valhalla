@@ -27,7 +27,7 @@
  * @summary Test inline type calling convention with compiled to compiled calls.
  * @library /test/lib /compiler/whitebox /
  * @compile TestC2CCalls.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   TestC2CCalls
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
@@ -59,7 +59,7 @@ import java.util.Collections;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestC2CCalls {
     public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();

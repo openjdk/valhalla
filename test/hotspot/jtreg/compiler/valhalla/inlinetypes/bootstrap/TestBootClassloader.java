@@ -23,7 +23,7 @@
 
 import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 /*
  * @test
@@ -33,8 +33,8 @@ import sun.hotspot.WhiteBox;
  *          holder and field were loaded by different class loaders (bootstrap + app).
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build sun.hotspot.WhiteBox TestBootClassloader InstallBootstrapClasses
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox TestBootClassloader InstallBootstrapClasses
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver InstallBootstrapClasses
  * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
