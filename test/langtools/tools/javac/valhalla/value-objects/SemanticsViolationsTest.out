@@ -11,7 +11,10 @@ SemanticsViolationsTest.java:47:11: compiler.err.super.field.not.allowed: xx, (c
 SemanticsViolationsTest.java:59:13: compiler.err.call.to.super.not.allowed.in.value.ctor
 SemanticsViolationsTest.java:67:11: compiler.err.type.found.req: SemanticsViolationsTest.BrokenValue5, (compiler.misc.type.req.identity)
 SemanticsViolationsTest.java:72:21: compiler.err.value.class.may.not.override: finalize
+SemanticsViolationsTest.java:103:13: compiler.err.type.found.req: SemanticsViolationsTest.VC, (compiler.misc.type.req.identity)
+SemanticsViolationsTest.java:107:13: compiler.err.type.found.req: SemanticsViolationsTest.VC, (compiler.misc.type.req.identity)
+SemanticsViolationsTest.java:111:13: compiler.err.type.found.req: SemanticsViolationsTest.VI, (compiler.misc.type.req.identity)
 SemanticsViolationsTest.java:32:9: compiler.err.var.might.not.have.been.initialized: z
 SemanticsViolationsTest.java:81:17: compiler.err.this.exposed.prematurely
 SemanticsViolationsTest.java:81:16: compiler.err.this.exposed.prematurely
-16 errors
+19 errors

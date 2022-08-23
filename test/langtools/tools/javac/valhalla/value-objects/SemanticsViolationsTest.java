@@ -90,4 +90,25 @@ public class SemanticsViolationsTest {
         synchronized void foo() { } // Error;
         synchronized static void soo() {} // OK.
     }
+
+    // another set of test cases considering type variables and intersections
+    interface I {}
+
+    value interface VI extends I {}
+
+    class C {}
+
+    value class VC<T extends VC> {
+        void m(T t) {
+            synchronized(t) {} // error
+        }
+
+        void foo(Object o) {
+            synchronized ((VC & I)o) {} // error
+        }
+
+        void bar(Object o) {
+            synchronized ((I & VI)o) {} // error
+        }
+    }
 }
