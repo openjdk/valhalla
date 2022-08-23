@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8279672
+ * @bug 8279672 8292753
  * @summary Implement semantic checks for value classes
  * @compile/fail/ref=SemanticsViolationsTest.out -XDrawDiagnostics --should-stop=at=FLOW -XDdev SemanticsViolationsTest.java
  */
