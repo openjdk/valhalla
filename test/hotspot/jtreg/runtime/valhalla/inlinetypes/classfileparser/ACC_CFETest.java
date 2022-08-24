@@ -25,7 +25,7 @@
 /*
  * @test ACC_CFETest
  * @bug 8281279
- * @summary test class access rules for classes that have ACC_PERMITS_VALUE set.
+ * @summary test class access rules for abstract classes that have ACC_VALUE set.
  * @compile ACCCFETests.jcod
  * @run main/othervm -XX:+EnableValhalla -Xverify:remote ACC_CFETest
  */
