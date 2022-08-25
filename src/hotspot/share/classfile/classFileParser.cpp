@@ -5206,7 +5206,9 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
     case JVM_SIGNATURE_PRIMITIVE_OBJECT:
-      if (!EnablePrimitiveClasses) {
+      // Can't enable this check fully until JDK upgrades the bytecode generators.
+      // For now, compare to class file version 51 so old verifier doesn't see Q signatures.
+      if ( (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) || (!EnablePrimitiveClasses)) {
         classfile_parse_error("Class name contains illegal Q-signature "
                               "in descriptor in class file %s, requires option -XX:+EnablePrimitiveClasses",
                               CHECK_0);
@@ -5382,7 +5384,7 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
                                                    const Symbol* signature,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
-  if (!EnablePrimitiveClasses && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
+  if ((!supports_inline_types() || !EnablePrimitiveClasses) && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
     throwIllegalSignature("Field", name, signature, CHECK);
   }
 
