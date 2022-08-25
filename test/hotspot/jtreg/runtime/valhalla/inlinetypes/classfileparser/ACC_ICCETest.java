@@ -25,8 +25,7 @@
 /*
  * @test ACC_ICCETest
  * @bug 8281279
- * @summary test that ACC_PERMITS_VALUE must be set for the super class of
- *          a value class (unless the super is java.lang.Object);
+ * @summary test that a value class cannot sub-class an identity class
  * @compile ACCICCETests.jcod
  * @run main/othervm -XX:+EnableValhalla ACC_ICCETest
  */
@@ -45,10 +44,6 @@ public class ACC_ICCETest {
     }
 
     public static void main(String[] args) throws Exception {
-
-        // Test has to be re-think now that ACC_PERMITS_VALUE has been removed
-        // and the model has changed to ACC_VALUE/ACC_IDENTITY modifiers
-        // Test illegal class that has both ACC_VALUE and ACC_PERMITS_VALUE set.
         runTest("Dot", "Value type Dot has an identity type as supertype");
     }
 }

@@ -4558,11 +4558,9 @@ void ClassFileParser::check_super_class_access(const InstanceKlass* this_klass, 
       return;
     }
 
-    // The JVMS says that super classes for value types must have the ACC_PERMITS_VALUE
-    // flag set.  However, since java.lang.Object has not yet been changed into an abstract
-    // class, it cannot have its ACC_PERMITS_VALUE flag set.  But, java.lang.Object must
-    // still be allowed to be a direct super class for a value classes.  So, it is treated
-    // as a special case for now.
+    // The JVMS says that super classes for value types must not have the ACC_IDENTITY
+    // flag set. But, java.lang.Object must still be allowed to be a direct super class
+    // for a value classes.  So, it is treated as a special case for now.
     if (this_klass->access_flags().is_value_class() &&
         super_ik->name() != vmSymbols::java_lang_Object() &&
         super_ik->is_identity_class()) {

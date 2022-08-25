@@ -43,7 +43,7 @@ public class Modifiers {
 
     public static final int MM_CLASS       = MM_ACCESS  | ACC_FINAL     |  ACC_SUPER    | ACC_ABSTRACT | ACC_ENUM |
                                              MM_ATTR    |  ACC_MODULE |
-                                             ACC_VALUE | ACC_PERMITS_VALUE | ACC_PRIMITIVE;
+                                             ACC_VALUE | ACC_PRIMITIVE;
 
     public static final int MM_FIELD       = MM_ACCESS    | ACC_STATIC | ACC_FINAL    |  ACC_VOLATILE | ACC_TRANSIENT |
                                             ACC_SYNTHETIC | ACC_ENUM   |
@@ -64,7 +64,7 @@ public class Modifiers {
 
     public static final int MM_INNERCLASS  = MM_ACCESS    | ACC_STATIC    | ACC_FINAL      | ACC_SUPER | ACC_INTERFACE |
                                              ACC_ABSTRACT | ACC_SYNTHETIC | ACC_ANNOTATION | ACC_ENUM  | MM_ATTR |
-                                             ACC_VALUE | ACC_PERMITS_VALUE | ACC_PRIMITIVE;
+                                             ACC_VALUE | ACC_PRIMITIVE;
 
     public static final int MM_REQUIRES    = ACC_TRANSITIVE | ACC_STATIC_PHASE  | ACC_SYNTHETIC | ACC_MANDATED ;
 
@@ -222,10 +222,6 @@ public class Modifiers {
 
     public static boolean isValue(int mod) {
         return (mod & ACC_VALUE) != 0;
-    }
-
-    public static boolean isPermitsValue(int mod) {
-        return (mod & ACC_PERMITS_VALUE) != 0;
     }
 
     public static boolean isPrimitive(int mod) {
@@ -427,9 +423,6 @@ public class Modifiers {
             if ((context != CF_Context.CTX_CLASS) || !isInterface(mod)) {
                 sb.append(Token.ABSTRACT.parseKey() + " ");
             }
-        }
-        if (context.isOneOf(CF_Context.CTX_CLASS, CF_Context.CTX_INNERCLASS) && isPermitsValue(mod)) {
-            sb.append(Token.PERMITS_VALUE.parseKey() + " ");
         }
         if (  context.isOneOf(CF_Context.CTX_CLASS, CF_Context.CTX_INNERCLASS, CF_Context.CTX_FIELD) && isFinal(mod)) {
             sb.append(Token.FINAL.parseKey() + " ");
