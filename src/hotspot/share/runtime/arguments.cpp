@@ -3052,10 +3052,8 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     }
   }
 
-  if (!EnableValhalla && EnablePrimitiveClasses) {
-    jio_fprintf(defaultStream::error_stream(),
-      "Cannot -XX:+EnablePrimitiveClasses with -XX:-EnableValhalla\n");
-    return JNI_EINVAL;
+  if (!EnableValhalla) {
+    EnablePrimitiveClasses = false;
   }
 
   // PrintSharedArchiveAndExit will turn on
