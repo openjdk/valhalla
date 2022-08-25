@@ -3052,22 +3052,10 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     }
   }
 
-  if (EnableValhalla) {
-    // create_property("valhalla.enableValhalla", "true", InternalProperty)
-    const char* prop_name = "valhalla.enableValhalla";
-    const char* prop_value = "true";
-    const size_t prop_len = strlen(prop_name) + strlen(prop_value) + 2;
-    char* property = AllocateHeap(prop_len, mtArguments);
-    int ret = jio_snprintf(property, prop_len, "%s=%s", prop_name, prop_value);
-    if (ret < 0 || ret >= (int)prop_len) {
-      FreeHeap(property);
-      return JNI_ENOMEM;
-    }
-    bool added = add_property(property, UnwriteableProperty, InternalProperty);
-    FreeHeap(property);
-    if (!added) {
-      return JNI_ENOMEM;
-    }
+  if (!EnableValhalla && EnablePrimitiveClasses) {
+    jio_fprintf(defaultStream::error_stream(),
+      "Cannot -XX:+EnablePrimitiveClasses with -XX:-EnableValhalla\n");
+    return JNI_EINVAL;
   }
 
   // PrintSharedArchiveAndExit will turn on

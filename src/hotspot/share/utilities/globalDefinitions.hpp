@@ -1239,7 +1239,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 // It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
-#define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
+#define UseFlatArray (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0))
 //----------------------------------------------------------------------------------------------------
 
 // Allow use of C++ thread_local when approved - see JDK-8282469.

@@ -3307,7 +3307,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_IDENTITY are defined for class file version 62 and later
+    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_IDENTITY are defined depending on version and feature flag
     if (supports_inline_types()) {
       recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_IDENTITY;
     }
@@ -4772,17 +4772,25 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     return;
   }
 
-  if (!EnableValhalla) {
-    if (is_value_class || is_primitive_class) {
-      const char* bad_flag = is_primitive_class ? "ACC_PRIMITIVE" : "ACC_VALUE";
+  if (is_value_class && !EnableValhalla) {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_ClassFormatError(),
-        "Class modifier %s in class %s requires option -XX:+EnableValhalla",
-        bad_flag, _class_name->as_C_string()
+        "Class modifier ACC_VALUE in class %s requires option -XX:+EnableValhalla",
+        _class_name->as_C_string()
       );
-    }
+    return;
+  }
+
+  if (is_primitive_class && !EnablePrimitiveClasses) {
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Class modifier ACC_PRIMITIVE in class %s requires option -XX:+EnablePrimitiveClasses",
+        _class_name->as_C_string()
+      );
     return;
   }
 
@@ -5198,11 +5206,9 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
     case JVM_SIGNATURE_PRIMITIVE_OBJECT:
-      // Can't enable this check fully until JDK upgrades the bytecode generators.
-      // For now, compare to class file version 51 so old verifier doesn't see Q signatures.
-      if (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) {
+      if (!EnablePrimitiveClasses) {
         classfile_parse_error("Class name contains illegal Q-signature "
-                              "in descriptor in class file %s",
+                              "in descriptor in class file %s, requires option -XX:+EnablePrimitiveClasses",
                               CHECK_0);
         return NULL;
       }
@@ -5376,7 +5382,7 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
                                                    const Symbol* signature,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
-  if (!supports_inline_types() && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
+  if (!EnablePrimitiveClasses && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
     throwIllegalSignature("Field", name, signature, CHECK);
   }
 
@@ -6149,7 +6155,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
+  // Are JVM_ACC_VALUE and JVM_ACC_PRIMITIVE support (version and feature check)
   if (supports_inline_types()) {
     recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
   }
@@ -6519,7 +6525,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != NULL, "invariant");
 
 
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses) {
     _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
                                                    java_fields_count(),
                                                    NULL,

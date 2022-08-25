@@ -955,7 +955,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
 
   // Could it be possible to do the following processing only if the
   // class uses inline types?
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses) {
     ResourceMark rm(THREAD);
     for (int i = 0; i < methods()->length(); i++) {
       Method* m = methods()->at(i);
@@ -1313,7 +1313,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
   // Step 8
   // Initialize classes of inline fields
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
