@@ -25,7 +25,7 @@
  * @test
  * @summary No Serialization support of primitive classes, without a proxy
  * @build Point Line NonFlattenValue Serialization
- * @run testng/othervm Serialization
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses Serialization
  */
 
 import java.io.ByteArrayInputStream;

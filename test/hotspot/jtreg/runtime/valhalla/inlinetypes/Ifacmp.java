@@ -30,7 +30,7 @@ import java.lang.ref.*;
  * @requires vm.gc == null
  * @summary if_acmpeq/ne bytecode test
  * @compile Ifacmp.java
- * @run main/othervm -Xms16m -Xmx16m -XX:+UseSerialGC
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xms16m -Xmx16m -XX:+UseSerialGC
  *                   runtime.valhalla.inlinetypes.Ifacmp
  */
 public class Ifacmp {

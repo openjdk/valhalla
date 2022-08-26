@@ -25,7 +25,7 @@
  * @test
  * @summary Test ObjectMethods::bootstrap call via condy
  * @modules java.base/jdk.internal.org.objectweb.asm
- * @run testng ObjectMethodsViaCondy
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ObjectMethodsViaCondy
  */
 
 import java.io.IOException;

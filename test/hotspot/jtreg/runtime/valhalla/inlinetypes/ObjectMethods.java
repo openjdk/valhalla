@@ -32,9 +32,9 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile ObjectMethods.java
- * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {
@@ -55,7 +55,7 @@ public class ObjectMethods {
         }
 
         // getClass()
-        checkGetClass(val, MyInt.ref.class);
+        checkGetClass(val, MyInt.class);
 
         //hashCode()/identityHashCode()
         checkHashCodes(val, sameVal.hashCode());
@@ -212,8 +212,8 @@ public class ObjectMethods {
         }
     }
 
-    static final primitive class MyInt {
-        final int value;
+    static value class MyInt {
+        int value;
         public MyInt(int v) { value = v; }
         public Object attemptClone() throws CloneNotSupportedException {
             try { // Check it is not possible to clone...

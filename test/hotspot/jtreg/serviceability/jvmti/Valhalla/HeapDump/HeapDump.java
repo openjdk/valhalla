@@ -25,7 +25,7 @@
  * @test
  * @library /test/lib
  * @requires vm.jvmti
- * @run main HeapDump
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HeapDump
  */
 
 import java.io.File;

@@ -36,7 +36,8 @@ import sun.hotspot.WhiteBox;
  * @build sun.hotspot.WhiteBox TestBootClassloader InstallBootstrapClasses
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
  * @run driver InstallBootstrapClasses
- * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
  *                   -XX:CompileCommand=inline,*::get* TestBootClassloader
  */

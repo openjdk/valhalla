@@ -30,8 +30,8 @@ import jdk.test.lib.Asserts;
  * @summary vdefault bytecode test
  * @library /test/lib
  * @compile Point.java
- * @compile -XDallowFlattenabilityModifiers VDefaultTest.java
- * @run main runtime.valhalla.inlinetypes.VDefaultTest
+ * @compile VDefaultTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.VDefaultTest
  */
 
 public class VDefaultTest {

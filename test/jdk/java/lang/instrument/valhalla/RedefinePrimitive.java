@@ -305,6 +305,7 @@ public class RedefinePrimitive {
                 log("Starting " + tests[i].name + "...");
                 ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                         "-javaagent:redefineagent.jar",
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         getPropOpt("test.jdk"),
                         getPropOpt("test.classes"),
                         getPropOpt("test.java.opts"),

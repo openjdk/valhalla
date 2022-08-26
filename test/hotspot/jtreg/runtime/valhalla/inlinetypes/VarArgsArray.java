@@ -32,7 +32,7 @@ import static jdk.test.lib.Asserts.*;
  * @summary Test if JVM API using varargs work with inline type arrays
  * @library /test/lib
  * @compile VarArgsArray.java NewInstanceFromConstructor.java IntValue.java
- * @run main runtime.valhalla.inlinetypes.VarArgsArray
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.VarArgsArray
  */
 public class VarArgsArray {
 

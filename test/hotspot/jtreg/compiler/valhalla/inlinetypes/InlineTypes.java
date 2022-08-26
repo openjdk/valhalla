@@ -34,6 +34,8 @@ public class InlineTypes {
 
     public static final Scenario[] DEFAULT_SCENARIOS = {
             new Scenario(0,
+                         "-XX:+EnableValhalla",
+                         "-XX:+EnablePrimitiveClasses",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -45,6 +47,8 @@ public class InlineTypes {
                          "-XX:+InlineTypeReturnedAsFields"
             ),
             new Scenario(1,
+                         "-XX:+EnableValhalla",
+                         "-XX:+EnablePrimitiveClasses",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -56,6 +60,8 @@ public class InlineTypes {
                          "-XX:-InlineTypeReturnedAsFields"
             ),
             new Scenario(2,
+                         "-XX:+EnableValhalla",
+                         "-XX:+EnablePrimitiveClasses",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -68,6 +74,8 @@ public class InlineTypes {
                          "-XX:+StressInlineTypeReturnedAsFields"
             ),
             new Scenario(3,
+                         "-XX:+EnableValhalla",
+                         "-XX:+EnablePrimitiveClasses",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:+AlwaysIncrementalInline",
@@ -78,6 +86,8 @@ public class InlineTypes {
                          "-XX:+InlineTypeReturnedAsFields"
             ),
             new Scenario(4,
+                         "-XX:+EnableValhalla",
+                         "-XX:+EnablePrimitiveClasses",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:FlatArrayElementMaxOops=-1",
@@ -88,6 +98,8 @@ public class InlineTypes {
                          "-XX:-ReduceInitialCardMarks"
             ),
             new Scenario(5,
+                         "-XX:+EnableValhalla",
+                         "-XX:+EnablePrimitiveClasses",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",

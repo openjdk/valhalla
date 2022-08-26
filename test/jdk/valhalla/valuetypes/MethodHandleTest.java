@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle o primitive classes
- * @run testng/othervm MethodHandleTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MethodHandleTest
  */
 
 import java.lang.invoke.*;

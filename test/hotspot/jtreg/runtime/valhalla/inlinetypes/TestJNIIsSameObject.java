@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires (os.family == "linux" | os.family == "mac")
- * @run main/othervm/native TestJNIIsSameObject
+ * @run main/othervm/native -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestJNIIsSameObject
  */
 public class TestJNIIsSameObject {
   static primitive class Value {

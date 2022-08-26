@@ -43,18 +43,23 @@ public class TestWithfieldC1 {
     public static void main(String[] args) {
         final Scenario[] scenarios = {
                 new Scenario(0, // C1 only
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:TieredStopAtLevel=1",
                         "-XX:+TieredCompilation"),
                 new Scenario(1, // C2 only. (Make sure the tests are correctly written)
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation"),
                 new Scenario(2, // interpreter only
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-Xint"),
                 new Scenario(3, // Xcomp Only C1.
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:TieredStopAtLevel=1",
                         "-XX:+TieredCompilation",
                         "-Xcomp"),
                 new Scenario(4, // Xcomp Only C2.
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation",
                         "-Xcomp")

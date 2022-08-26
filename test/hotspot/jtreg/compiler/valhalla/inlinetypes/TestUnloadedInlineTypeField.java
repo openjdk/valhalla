@@ -53,7 +53,8 @@ public class TestUnloadedInlineTypeField {
                 new Scenario(3, "-XX:InlineFieldMaxFlatSize=0",
                                 "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot")
         };
-        final String[] flags = {// Prevent IR Test Framework from loading classes
+        final String[] flags = { "-XX:+EnableValhalla" ,"-XX:+EnablePrimitiveClasses",
+                                // Prevent IR Test Framework from loading classes
                                 "-DIgnoreCompilerControls=true",
                                 // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
                                 "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};

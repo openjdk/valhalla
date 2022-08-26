@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Test lambdas with parameter types or return type of value class
- * @run testng/othervm LambdaTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LambdaTest
  */
 
 import java.util.function.Function;

@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @run main MethodReference
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MethodReference
  * @summary test method reference and primitive reference type as the parameter type
  */
 

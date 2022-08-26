@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Test basic verifier assignability of inline types.
- * @run main/othervm -Xverify:remote VTAssignability
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote VTAssignability
  */
 
 // Test that an inline type is assignable to itself, to java.lang.Object,

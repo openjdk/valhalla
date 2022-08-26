@@ -32,7 +32,7 @@ import static org.testng.Assert.*;
 /*
  * @test
  * @summary Test primitive classes with Reference types
- * @run testng/othervm WeakReferenceTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WeakReferenceTest
  */
 @Test
 public class WeakReferenceTest {

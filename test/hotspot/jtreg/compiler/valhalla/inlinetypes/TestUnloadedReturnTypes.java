@@ -27,7 +27,7 @@
  * @library /test/lib /compiler/whitebox /
  * @build sun.hotspot.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
  *                   TestUnloadedReturnTypes
  */

@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @run testng/othervm LambdaConversion
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LambdaConversion
  * @summary test lambda type conversion of primitive class
  */
 

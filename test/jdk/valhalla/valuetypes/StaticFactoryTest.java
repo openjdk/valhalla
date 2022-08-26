@@ -26,7 +26,7 @@
  * @test
  * @bug 8273360
  * @summary Test reflection of constructors for value classes
- * @run testng/othervm StaticFactoryTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;

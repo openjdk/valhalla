@@ -49,10 +49,10 @@ public class TestArrays {
 
     public static void main(String[] args) {
         Scenario[] scenarios = InlineTypes.DEFAULT_SCENARIOS;
-        scenarios[2].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
-        scenarios[3].addFlags("-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast");
-        scenarios[4].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
-        scenarios[5].addFlags("-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+        scenarios[2].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
+        scenarios[3].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast");
+        scenarios[4].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast");
+        scenarios[5].addFlags("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode");
 
         InlineTypes.getFramework()
                    .addScenarios(scenarios)

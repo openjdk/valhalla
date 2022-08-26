@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @summary checkcast bytecode test
  * @library /test/lib
  * @compile VDefaultTest.java
- * @run main runtime.valhalla.inlinetypes.CheckcastTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.CheckcastTest
  */
 
 public class CheckcastTest {

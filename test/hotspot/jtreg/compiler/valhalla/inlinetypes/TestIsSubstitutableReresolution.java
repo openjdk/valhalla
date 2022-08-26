@@ -29,7 +29,8 @@ import jdk.test.lib.Asserts;
  * @bug 8234108
  * @library /testlibrary /test/lib
  * @summary Verify that call reresolution works for C2 compiled calls to java.lang.runtime.PrimitiveObjectMethods::isSubstitutable0.
- * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution::test
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution::test
  *                   compiler.valhalla.inlinetypes.TestIsSubstitutableReresolution
  */
 final primitive class MyValue {

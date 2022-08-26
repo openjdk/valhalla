@@ -27,7 +27,7 @@
  * @bug 8281279
  * @summary test class access rules for abstract classes that have ACC_VALUE set.
  * @compile ACCCFETests.jcod
- * @run main/othervm -XX:+EnableValhalla -Xverify:remote ACC_CFETest
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -Xverify:remote ACC_CFETest
  */
 
 public class ACC_CFETest {

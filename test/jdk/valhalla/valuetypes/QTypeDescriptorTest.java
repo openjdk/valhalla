@@ -25,8 +25,8 @@
  * @test
  * @summary Test core reflection, dynamic proxy and lambdas that generates
  *          classes dynamically that reference Q-type and L-type
- * @run testng/othervm QTypeDescriptorTest
- * @run testng/othervm -Dsun.reflect.noInflation=true QTypeDescriptorTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QTypeDescriptorTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dsun.reflect.noInflation=true QTypeDescriptorTest
  */
 
 import java.lang.invoke.MethodHandle;

@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle of static init factories
- * @run testng/othervm StaticFactoryMethodHandleTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StaticFactoryMethodHandleTest
  */
 
 import java.lang.invoke.MethodHandle;
