@@ -129,12 +129,7 @@ public class TestSymtabItems {
         public Void visitModule(ModuleElement e, Void p) {
             show("module", e);
             indent(+1);
-            if (e.getQualifiedName().contentEquals("jdk.incubator.mvt")) {
-                //completion of a module with 'requires' directive will fail at this stage.
-                ((ModuleSymbol) e).completer = Completer.NULL_COMPLETER;
-            } else {
-                super.visitModule(e, p);
-            }
+            super.visitModule(e, p);
             indent(-1);
             return null;
         }
