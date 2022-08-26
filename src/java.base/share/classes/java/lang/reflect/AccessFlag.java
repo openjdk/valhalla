@@ -147,10 +147,10 @@ public enum AccessFlag {
     SUPER(0x0000_0020, false, Location.SET_CLASS),
 
     /**
-     * The access flag {@code ACC_IDENTITY} with a mask value of {@code 0x0020}.
+     * The access flag {@code ACC_IDENTITY} with a mask value of {@code {@value Modifier#IDENTITY}}.
      * @jls 4.1-B. Class access and property modifiers
      */
-    IDENTITY(0x0000_0020, true, Location.SET_CLASS_INNER_CLASS),
+    IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_INNER_CLASS),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -181,10 +181,10 @@ public enum AccessFlag {
     STATIC_PHASE(0x0000_0040, false, Location.SET_MODULE_REQUIRES),
 
     /**
-     * The access flag {@code ACC_VALUE} with a mask value of {@code 0x0040}.
+     * The access flag {@code ACC_VALUE} with a mask value of {@code {@value Modifier#VALUE}}.
      * @jls 4.1-B. Class access and property modifiers
      */
-    VALUE(0x0000_0040, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
+    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
 
     /**
       * The access flag {@code ACC_VOLATILE}, corresponding to the

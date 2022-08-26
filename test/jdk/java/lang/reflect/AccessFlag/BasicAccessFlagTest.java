@@ -51,11 +51,9 @@ public class BasicAccessFlagTest {
      */
     private static void testSourceModifiers() throws Exception {
         Class<?> modifierClass = Modifier.class;
-        List<AccessFlag> valhallaOnly =
-                List.of(AccessFlag.IDENTITY, AccessFlag.VALUE);
 
         for(AccessFlag accessFlag : AccessFlag.values()) {
-            if (accessFlag.sourceModifier()  && !valhallaOnly.contains(accessFlag)) {
+            if (accessFlag.sourceModifier()) {
                 // Check for consistency
                 Field f = modifierClass.getField(accessFlag.name());
                 if (accessFlag.mask() != f.getInt(null) ) {
