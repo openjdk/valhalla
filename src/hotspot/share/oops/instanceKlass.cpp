@@ -955,32 +955,34 @@ bool InstanceKlass::link_class_impl(TRAPS) {
 
   // Could it be possible to do the following processing only if the
   // class uses inline types?
-  if (EnablePrimitiveClasses) {
+  if (EnableValhalla) {
     ResourceMark rm(THREAD);
-    for (int i = 0; i < methods()->length(); i++) {
-      Method* m = methods()->at(i);
-      for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
-        if (ss.is_reference()) {
-          if (ss.is_array()) {
-            continue;
-          }
-          if (ss.type() == T_PRIMITIVE_OBJECT) {
-            Symbol* symb = ss.as_symbol();
-            if (symb == name()) continue;
-            oop loader = class_loader();
-            oop protection_domain = this->protection_domain();
-            Klass* klass = SystemDictionary::resolve_or_fail(symb,
-                                                             Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                             CHECK_false);
-            if (klass == NULL) {
-              THROW_(vmSymbols::java_lang_LinkageError(), false);
+    if (EnablePrimitiveClasses) {
+      for (int i = 0; i < methods()->length(); i++) {
+        Method* m = methods()->at(i);
+        for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
+          if (ss.is_reference()) {
+            if (ss.is_array()) {
+              continue;
             }
-            if (!klass->is_inline_klass()) {
-              Exceptions::fthrow(
-                THREAD_AND_LOCATION,
-                vmSymbols::java_lang_IncompatibleClassChangeError(),
-                "class %s is not an inline type",
-                klass->external_name());
+            if (ss.type() == T_PRIMITIVE_OBJECT) {
+              Symbol* symb = ss.as_symbol();
+              if (symb == name()) continue;
+              oop loader = class_loader();
+              oop protection_domain = this->protection_domain();
+              Klass* klass = SystemDictionary::resolve_or_fail(symb,
+                                                              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+                                                              CHECK_false);
+              if (klass == NULL) {
+                THROW_(vmSymbols::java_lang_LinkageError(), false);
+              }
+              if (!klass->is_inline_klass()) {
+                Exceptions::fthrow(
+                  THREAD_AND_LOCATION,
+                  vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  "class %s is not an inline type",
+                  klass->external_name());
+              }
             }
           }
         }
