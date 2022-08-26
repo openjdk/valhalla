@@ -1453,7 +1453,7 @@ public final class Class<T> implements java.io.Serializable,
      * {@code abstract} and {@code interface}; they should be decoded
      * using the methods of class {@code Modifier}.
      * The modifiers also include the Java Virtual Machine's constants for
-     * {@code identity class}, {@code value class}, and {@code primitive class}.
+     * {@code identity class} and {@code value class}.
      *
      * <p> If the underlying class is an array class, then its
      * {@code public}, {@code private} and {@code protected}
