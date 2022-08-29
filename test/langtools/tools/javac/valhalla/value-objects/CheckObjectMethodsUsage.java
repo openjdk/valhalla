@@ -7,6 +7,7 @@
 
 public value class CheckObjectMethodsUsage {
 
+    // what is being tested here is not in the spec, it was probably an experimental feature, we should remove the code checking for this in the compiler
 
     public void finalize() {}
     public Object clone() {}
