@@ -3867,7 +3867,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  // TODO check this merge again!!
+  // TODO Tobias
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
   if (tm != NULL && tm->is_klass() &&
@@ -4294,7 +4294,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         klass->can_be_inline_array_klass() && (!klass->is_flat_array_klass() || klass->as_flat_array_klass()->element_klass()->as_inline_klass()->contains_oops());
-    // TODO shouldn't we check for flat here?
+    // TODO Tobias shouldn't we check for flat here?
     // Look at this again https://github.com/openjdk/valhalla/commit/31412b9f
     Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
@@ -5081,7 +5081,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
       if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
-          ary_ptr->klass()->can_be_inline_array_klass() &&
+          obj_type->klass()->can_be_inline_array_klass() &&
           (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.

@@ -1101,6 +1101,12 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
   methodHandle caller(current, vfst.method());
   int          bci   = vfst.bci();
 
+  if (caller->is_continuation_enter_intrinsic()) {
+    bc = Bytecodes::_invokestatic;
+    LinkResolver::resolve_continuation_enter(callinfo, CHECK_NH);
+    return receiver;
+  }
+
   // Substitutability test implementation piggy backs on static call resolution
   Bytecodes::Code code = caller->java_code_at(bci);
   if (code == Bytecodes::_if_acmpeq || code == Bytecodes::_if_acmpne) {
@@ -1113,12 +1119,6 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     Method* is_subst = vmClasses::PrimitiveObjectMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
 #endif
-    return receiver;
-  }
-
-  if (caller->is_continuation_enter_intrinsic()) {
-    bc = Bytecodes::_invokestatic;
-    LinkResolver::resolve_continuation_enter(callinfo, CHECK_NH);
     return receiver;
   }
 

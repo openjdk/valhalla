@@ -1183,9 +1183,10 @@ protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
 
   virtual ciKlass* exact_klass_helper() const { return NULL; }
-  virtual ciKlass* klass() const { return _klass; }
 
 public:
+  // TODO Tobias
+  virtual ciKlass* klass() const { return _klass; }
 
   bool is_java_subtype_of(const TypeOopPtr* other) const {
     return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
