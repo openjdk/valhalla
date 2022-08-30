@@ -4615,7 +4615,10 @@ public class JavacParser implements Parser {
                     yield afterNext.kind != INTERFACE || currentIsNonSealed;
                 }
                 case PUBLIC, PROTECTED, PRIVATE, ABSTRACT, STATIC, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
-                case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) || next.name() == names.sealed;
+                case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) ||
+                        next.name() == names.sealed ||
+                        next.name() == names.value ||
+                        next.name() == names.identity;
                 default -> false;
             };
     }
