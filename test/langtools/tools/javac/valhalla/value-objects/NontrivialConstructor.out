@@ -1,6 +1,0 @@
-NontrivialConstructor.java:15:27: compiler.err.super.constructor.access.restricted: NontrivialConstructor.I1(), (compiler.misc.abstract.value.class: NontrivialConstructor.I1)
-NontrivialConstructor.java:19:27: compiler.err.super.constructor.cannot.take.arguments: NontrivialConstructor.I2(int), (compiler.misc.abstract.value.class: NontrivialConstructor.I2)
-NontrivialConstructor.java:23:27: compiler.err.super.constructor.cannot.be.generic: <T>NontrivialConstructor.I3(), (compiler.misc.abstract.value.class: NontrivialConstructor.I3)
-NontrivialConstructor.java:28:27: compiler.err.super.constructor.cannot.throw: NontrivialConstructor.I4(), (compiler.misc.abstract.value.class: NontrivialConstructor.I4)
-NontrivialConstructor.java:32:27: compiler.err.super.no.arg.constructor.must.be.empty: NontrivialConstructor.I5(), (compiler.misc.abstract.value.class: NontrivialConstructor.I5)
-5 errors
