@@ -1,6 +1,6 @@
 /*
  * @test /nodynamiccopyright/
- * @bug 8279672
+ * @bug 8279672 8292753
  * @summary Implement semantic checks for value classes
  * @compile/fail/ref=SemanticsViolationsTest.out -XDrawDiagnostics --should-stop=at=FLOW -XDdev SemanticsViolationsTest.java
  */
@@ -89,5 +89,26 @@ public class SemanticsViolationsTest {
     value record BrokenValue8(int x, int y) {
         synchronized void foo() { } // Error;
         synchronized static void soo() {} // OK.
+    }
+
+    // another set of test cases considering type variables and intersections
+    interface I {}
+
+    value interface VI extends I {}
+
+    class C {}
+
+    value class VC<T extends VC> {
+        void m(T t) {
+            synchronized(t) {} // error
+        }
+
+        void foo(Object o) {
+            synchronized ((VC & I)o) {} // error
+        }
+
+        void bar(Object o) {
+            synchronized ((I & VI)o) {} // error
+        }
     }
 }
