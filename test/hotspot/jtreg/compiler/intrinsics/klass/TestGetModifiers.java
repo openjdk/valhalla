@@ -84,11 +84,11 @@ public class TestGetModifiers {
     }
 
     public static void main(String... args) {
-        test(T1.class,                                      PUBLIC | STATIC);
-        test(T2.class,                                      PUBLIC | FINAL | STATIC);
-        test(T3.class,                                      PRIVATE | STATIC);
-        test(T4.class,                                      PROTECTED | STATIC);
-        test(new TestGetModifiers().new T5().getClass(),    0);
+        test(T1.class,                                      PUBLIC | STATIC | IDENTITY);
+        test(T2.class,                                      PUBLIC | FINAL | STATIC | IDENTITY);
+        test(T3.class,                                      PRIVATE | STATIC | IDENTITY);
+        test(T4.class,                                      PROTECTED | STATIC | IDENTITY);
+        test(new TestGetModifiers().new T5().getClass(),    IDENTITY);
         test(T6.class,                                      ABSTRACT | STATIC | INTERFACE);
 
         test(int.class,                                     PUBLIC | ABSTRACT | FINAL);
@@ -109,10 +109,10 @@ public class TestGetModifiers {
         test(Object[].class,                                PUBLIC | ABSTRACT | FINAL);
         test(TestGetModifiers[].class,                      PUBLIC | ABSTRACT | FINAL);
 
-        test(new TestGetModifiers().getClass(),             PUBLIC);
-        test(new T1().getClass(),                           PUBLIC | STATIC);
-        test(new T2().getClass(),                           PUBLIC | FINAL | STATIC);
-        test(new T3().getClass(),                           PRIVATE | STATIC);
-        test(new T4().getClass(),                           PROTECTED | STATIC);
+        test(new TestGetModifiers().getClass(),             PUBLIC | IDENTITY);
+        test(new T1().getClass(),                           PUBLIC | STATIC | IDENTITY);
+        test(new T2().getClass(),                           PUBLIC | FINAL | STATIC | IDENTITY);
+        test(new T3().getClass(),                           PRIVATE | STATIC | IDENTITY);
+        test(new T4().getClass(),                           PROTECTED | STATIC | IDENTITY);
     }
 }
