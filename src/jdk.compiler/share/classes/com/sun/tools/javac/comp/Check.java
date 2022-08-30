@@ -2043,15 +2043,6 @@ public class Check {
             return;
         }
 
-        if (origin.isValueClass() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
-            if (m.name == names.finalize) {
-                log.error(TreeInfo.diagnosticPositionFor(m, tree),
-                        Errors.ValueClassMayNotOverride(m.name));
-                m.flags_field |= BAD_OVERRIDE;
-                return;
-            }
-        }
-
         Type mt = types.memberType(origin.type, m);
         Type ot = types.memberType(origin.type, other);
         // Error if overriding result type is different

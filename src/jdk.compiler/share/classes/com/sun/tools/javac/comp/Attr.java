@@ -2606,35 +2606,6 @@ public class Attr extends JCTree.Visitor {
 
             chk.checkRefTypes(tree.typeargs, typeargtypes);
 
-            final Symbol symbol = TreeInfo.symbol(tree.meth);
-            if (symbol != null) {
-                /* Is this an ill-conceived attempt to invoke jlO methods not available on value class types ??
-                 */
-                boolean superCallOnValueReceiver = env.enclClass.sym.type.isValueClass()
-                        && (tree.meth.hasTag(SELECT))
-                        && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
-                        && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
-                if (qualifier.isValueClass() || superCallOnValueReceiver) {
-                    int argSize = argtypes.size();
-                    Name name = symbol.name;
-                    switch (name.toString()) {
-                        case "wait":
-                            if (argSize == 0
-                                    || (types.isConvertible(argtypes.head, syms.longType) &&
-                                    (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
-                                log.error(tree.pos(), Errors.ValueClassDoesNotSupport(name));
-                            }
-                            break;
-                        case "notify":
-                        case "notifyAll":
-                        case "finalize":
-                            if (argSize == 0)
-                                log.error(tree.pos(), Errors.ValueClassDoesNotSupport(name));
-                            break;
-                    }
-                }
-            }
-
             // Check that value of resulting type is admissible in the
             // current context.  Also, capture the return type
             Type capturedRes = resultInfo.checkContext.inferenceContext().cachedCapture(tree, restype, true);
