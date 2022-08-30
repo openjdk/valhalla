@@ -217,7 +217,6 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       extak = tak->cast_to_exactness(true);
       reason = Deoptimization::Reason_array_check;
     }
-    // TODO Tobias
     if (extak != NULL && extak->exact_klass(true) != NULL) {
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));

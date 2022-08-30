@@ -1512,8 +1512,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       if (!k || !k->is_loaded()) {                  // Only fails for some -Xcomp runs
         tj = tk = TypeInstKlassPtr::make(TypePtr::NotNull, env()->Object_klass(), Type::Offset(offset));
       } else {
-        // TODO Tobias
-        tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), true, true, false);
+        tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_null_free());
       }
     }
 
@@ -4856,19 +4855,20 @@ Compile::SubTypeCheckResult Compile::static_subtype_check(const TypeKlassPtr* su
     return SSC_always_false; // (2) true path dead; no dynamic test needed
   }
 
+  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
+  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
+  // the klass for [LMyValue. Perform a full test.
+  if (superk->isa_aryklassptr() && !superk->is_aryklassptr()->is_null_free() &&
+      superk->is_aryklassptr()->elem()->isa_klassptr() && superk->is_aryklassptr()->elem()->is_klassptr()->klass()->is_inlinetype()) {
+    return SSC_full_test;
+  }
+
   const Type* superelem = superk;
   if (superk->isa_aryklassptr()) {
     int ignored;
     superelem = superk->is_aryklassptr()->base_element_type(ignored);
   }
 
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [QMyValue is a subtype of [LMyValue but the klass for [QMyValue is not equal to
-  // the klass for [LMyValue. Perform a full test.
-  if (superk->isa_aryklassptr() && superk->is_aryklassptr()->is_not_null_free() &&
-      superk->is_aryklassptr()->elem()->is_inlinetypeptr()) {
-    return SSC_full_test;
-  }
   if (superelem->isa_instklassptr()) {
     ciInstanceKlass* ik = superelem->is_instklassptr()->instance_klass();
     if (!ik->has_subklass()) {

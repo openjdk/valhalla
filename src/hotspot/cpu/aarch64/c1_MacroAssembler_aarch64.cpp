@@ -330,7 +330,6 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this, NULL /* slow_path */, NULL /* continuation */, NULL /* guard */);
-}
 
   if (needs_stack_repair && verified_inline_entry_label != NULL) {
     // Jump here from the scalarized entry points that require additional stack space

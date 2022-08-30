@@ -280,10 +280,10 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BasicType src_elem = ary_src->elem()->array_element_basic_type();
     BasicType dest_elem = ary_dest->elem()->array_element_basic_type();
-    if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat())) {
+    if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
       src_elem  = T_OBJECT;
     }
-    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && ary_dest->is_not_flat())) {
+    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && !ary_dest->is_flat())) {
       dest_elem = T_OBJECT;
     }
 
@@ -346,7 +346,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BasicType elem = ary_src->isa_aryptr()->elem()->array_element_basic_type();
-    if (elem == T_ARRAY || elem == T_NARROWOOP || (elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat())) {
+    if (elem == T_ARRAY || elem == T_NARROWOOP || (elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
       elem = T_OBJECT;
     }
 
@@ -828,7 +828,7 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
 
   uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
   uint elemsize = type2aelembytes(ary_elem);
-  if (ary_t->is_flat()) {
+  if (ary_t->klass()->is_flat_array_klass()) {
     elemsize = ary_t->klass()->as_flat_array_klass()->element_byte_size();
   }
 

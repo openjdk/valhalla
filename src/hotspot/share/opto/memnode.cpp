@@ -1984,11 +1984,12 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       }
     }
   } else if (tp->base() == Type::InstPtr) {
-    // TODO Tobias
-    assert( true || off != Type::OffsetBot ||
+    assert( off != Type::OffsetBot ||
             // arrays can be cast to Objects
             !tp->isa_instptr() ||
             tp->is_instptr()->instance_klass()->is_java_lang_Object() ||
+            // Default value load
+            tp->is_instptr()->instance_klass() == ciEnv::current()->Class_klass() ||
             // unsafe field access may not have a constant offset
             C->has_unsafe_access(),
             "Field accesses must be precise" );
@@ -2410,7 +2411,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
   }
 
   // Check for loading klass from an array
-  const TypeAryPtr *tary = tp->isa_aryptr();
+  const TypeAryPtr* tary = tp->isa_aryptr();
   if (tary != NULL && tary->elem() != Type::BOTTOM &&
       tary->offset() == oopDesc::klass_offset_in_bytes()) {
     return tary->as_klass_type(true);

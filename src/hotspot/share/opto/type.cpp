@@ -5777,14 +5777,18 @@ const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
   bool xk = klass_is_exact();
   if (elem->make_oopptr() != NULL) {
     elem = elem->make_oopptr()->as_klass_type(try_for_exact);
-    if (elem->is_klassptr()->klass_is_exact()) {
+    if (elem->is_klassptr()->klass_is_exact() &&
+        // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+        (is_null_free() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
       xk = true;
     }
+  } else if (elem->isa_inlinetype() != NULL) {
+    elem = TypeKlassPtr::make(elem->inline_klass());
   }
   return TypeAryKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, elem, klass(), Offset(0), is_not_flat(), is_not_null_free(), is_null_free());
 }
 
-const TypeKlassPtr* TypeKlassPtr::make(ciKlass *klass) {
+const TypeKlassPtr* TypeKlassPtr::make(ciKlass* klass) {
   if (klass->is_instance_klass()) {
     return TypeInstKlassPtr::make(klass);
   }
@@ -6238,15 +6242,15 @@ bool TypeInstKlassPtr::maybe_java_subtype_of_helper(const TypeKlassPtr* other, b
   return true;
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, null_free))->hashcons();
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     ciKlass* eklass = klass->as_obj_array_klass()->element_klass();
-    const TypeKlassPtr *etype = TypeKlassPtr::make(eklass)->cast_to_exactness(false);
+    const TypeKlassPtr* etype = TypeKlassPtr::make(eklass)->cast_to_exactness(false);
 
     // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
     if (etype->klass_is_exact() && etype->isa_instklassptr() && etype->is_instklassptr()->klass()->is_inlinetype() && !null_free) {
@@ -6261,8 +6265,9 @@ const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset off
     const Type* etype = get_const_basic_type(klass->as_type_array_klass()->element_type());
     return TypeAryKlassPtr::make(ptr, etype, klass, offset, not_flat, not_null_free, null_free);
   } else if (klass->is_flat_array_klass()) {
-    ciInlineKlass* vk = klass->as_array_klass()->element_klass()->as_inline_klass();
-    return TypeAryKlassPtr::make(ptr, TypeInlineType::make(vk), klass, offset, not_flat, not_null_free, null_free);
+    ciKlass* eklass = klass->as_flat_array_klass()->element_klass();
+    const TypeKlassPtr* etype = TypeKlassPtr::make(eklass);
+    return TypeAryKlassPtr::make(ptr, etype, klass, offset, not_flat, not_null_free, null_free);
   } else {
     ShouldNotReachHere();
     return NULL;
@@ -6271,7 +6276,7 @@ const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset off
 
 const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset) {
   bool null_free = k->as_array_klass()->is_elem_null_free();
-  bool not_null_free = ptr == Constant ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
+  bool not_null_free = (ptr == Constant) ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
 
   bool not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != NULL &&
                                                      k->as_array_klass()->element_klass()->is_inlinetype() &&
@@ -6401,7 +6406,7 @@ ciKlass* TypeAryPtr::exact_klass_helper() const {
     if (k == NULL) {
       return NULL;
     }
-    k = ciObjArrayKlass::make(k);
+    k = ciArrayKlass::make(k, is_null_free());
     return k;
   }
 
@@ -6454,10 +6459,18 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   }
   bool not_flat = is_not_flat();
   bool not_null_free = is_not_null_free();
-  if (klass() != NULL && klass()->is_obj_array_klass() && klass_is_exact) {
-    // An object array can't be flat or null-free if the klass is exact
-    not_flat = true;
-    not_null_free = true;
+  if (k != NULL && k->is_obj_array_klass()) {
+    if (klass_is_exact) {
+      // An object array can't be flat or null-free if the klass is exact
+      not_flat = true;
+      not_null_free = true;
+    } else {
+      // Klass is not exact (anymore), re-compute null-free/flat properties
+      not_null_free = !k->as_array_klass()->element_klass()->can_be_inline_klass(false);
+      not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != NULL &&
+                                                    k->as_array_klass()->element_klass()->is_inlinetype() &&
+                                                    !k->as_array_klass()->element_klass()->flatten_array());
+    }
   }
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _null_free);
 }
@@ -6483,6 +6496,9 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
   }
   bool not_flat = is_not_flat();
   bool not_null_free = is_not_null_free();
+  if (is_flat()) {
+    el = TypeInlineType::make(el->inline_klass());
+  }
   return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, not_flat, not_null_free), k, xk, Offset(0));
 }
 
@@ -6658,6 +6674,9 @@ bool TypeAryKlassPtr::is_java_subtype_of_helper(const TypeKlassPtr* other, bool 
   assert(other->isa_aryklassptr(), "");
   const TypeAryKlassPtr* other_ary = other->isa_aryklassptr();
   if (other_ary->_elem->isa_klassptr() && _elem->isa_klassptr()) {
+    if (other->is_null_free() && !is_null_free()) {
+      return false; // [LMyValue is not a subtype of [QMyValue
+    }
     return _elem->is_klassptr()->is_java_subtype_of_helper(other_ary->_elem->is_klassptr(), this_exact, other_exact);
   }
   if (!other_ary->_elem->isa_klassptr() && !_elem->isa_klassptr()) {
@@ -6720,7 +6739,7 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
     if (k == NULL) {
       return NULL;
     }
-    k = ciObjArrayKlass::make(k);
+    k = ciArrayKlass::make(k, _null_free);
     return k;
   }
 
@@ -6788,9 +6807,10 @@ void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
     break;
   }
   if (Verbose) {
+    if (is_flat()) st->print(":flat");
     if (_not_flat) st->print(":not flat");
     if (_not_null_free) st->print(":not null free");
-    if (_null_free != 0) st->print(":null free(%d)", _null_free);
+    if (_null_free) st->print(":null free");
   }
 
   _offset.dump2(st);

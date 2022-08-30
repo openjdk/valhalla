@@ -1038,9 +1038,8 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
     }
     if (!unrelated_classes) {
       // Handle inline type arrays
-      // TODO Tobias check for inlinetype ptr here?
-      if ((r0->flatten_array() && (!r1->can_be_inline_type() || (r1->is_inlinetypeptr() && !r1->flatten_array()))) ||
-          (r1->flatten_array() && (!r0->can_be_inline_type() || (r0->is_inlinetypeptr() && !r0->flatten_array())))) {
+      if ((r0->flatten_array() && r1->not_flatten_array()) ||
+          (r1->flatten_array() && r0->not_flatten_array())) {
         // One type is flattened in arrays but the other type is not. Must be unrelated.
         unrelated_classes = true;
       } else if ((r0->is_not_flat() && r1->is_flat()) ||

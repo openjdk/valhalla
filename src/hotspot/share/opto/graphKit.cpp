@@ -3401,7 +3401,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // want a residual null check left around.  (Causes a slowdown,
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (tk->singleton()) {
-    // TODO Tobias
     const TypeKlassPtr* kptr = NULL;
     const Type* t = _gvn.type(obj);
     if (t->isa_oop_ptr()) {
@@ -3874,14 +3873,16 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
     ciKlass* klass = inst_klass->klass();
-    if (UseFlatArray && klass->is_obj_array_klass() && !klass->as_obj_array_klass()->is_elem_null_free()) {
-      // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue.
+    if (UseFlatArray && !xklass && klass->is_obj_array_klass() && !klass->as_obj_array_klass()->is_elem_null_free()) {
+      // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
       can_be_flattened = elem->can_be_inline_klass() && (!elem->is_inlinetype() || elem->flatten_array());
     }
-    if (!can_be_flattened && (xklass || inst_klass->isa_aryklassptr())) {
+    if (!can_be_flattened && (xklass || klass->is_array_klass())) {
       jint lhelper;
-      if (inst_klass->isa_aryklassptr()) {
+      if (klass->is_flat_array_klass()) {
+        lhelper = klass->layout_helper();
+      } else if (inst_klass->isa_aryklassptr()) {
         BasicType elem = inst_klass->as_instance_type()->isa_aryptr()->elem()->array_element_basic_type();
         if (is_reference_type(elem, true)) {
           elem = T_OBJECT;
@@ -4314,7 +4315,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* default_value_offset = make_load(control(), default_value_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
     Node* elem_mirror = load_mirror_from_klass(eklass);
     Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
-    Node* val = access_load_at(elem_mirror, default_value_addr, _gvn.type(default_value_addr)->is_ptr(), TypeInstPtr::BOTTOM, T_OBJECT, IN_HEAP);
+    Node* val = access_load_at(elem_mirror, default_value_addr, TypeInstPtr::MIRROR, TypeInstPtr::NOTNULL, T_OBJECT, IN_HEAP);
     r->init_req(1, control());
     default_value->init_req(1, val);
 

@@ -2393,7 +2393,7 @@ void Parse::return_current(Node* value) {
   if (value != NULL) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
-    const TypeOopPtr* tr = return_type->isa_oopptr();
+    const TypeInstPtr* tr = return_type->isa_instptr();
     // The return_type is set in Parse::build_exits().
     if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
@@ -2416,11 +2416,11 @@ void Parse::return_current(Node* value) {
       jvms()->set_should_reexecute(true);
       inc_sp(1);
       value = value->as_InlineType()->buffer(this);
-    } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
+    } else if (tr && tr->isa_instptr() && tr->is_loaded() && tr->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.
       const TypeInstPtr* tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->klass()->is_loaded() && !tp->klass()->is_interface()) {
+      if (tp && tp->is_loaded() && !tp->is_interface()) {
         // sharpen the type eagerly; this eases certain assert checking
         if (tp->higher_equal(TypeInstPtr::NOTNULL)) {
           tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
@@ -2432,8 +2432,8 @@ void Parse::return_current(Node* value) {
       const TypeInstPtr* phi_tip;
       const TypeInstPtr* val_tip;
       Type::get_arrays_base_elements(return_type, value->bottom_type(), &phi_tip, &val_tip);
-      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->klass()->is_interface() &&
-          val_tip != NULL && val_tip->is_loaded() && !val_tip->klass()->is_interface()) {
+      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->is_interface() &&
+          val_tip != NULL && val_tip->is_loaded() && !val_tip->is_interface()) {
         value = _gvn.transform(new CheckCastPPNode(0, value, return_type));
       }
     }

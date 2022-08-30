@@ -2385,11 +2385,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   ciField* field = NULL;
   if (adr_type->isa_instptr()) {
     const TypeInstPtr* instptr = adr_type->is_instptr();
-    ciInstanceKlass* k = instptr->klass()->as_instance_klass();
+    ciInstanceKlass* k = instptr->instance_klass();
     int off = instptr->offset();
     if (instptr->const_oop() != NULL &&
-        instptr->klass() == ciEnv::current()->Class_klass() &&
-        instptr->offset() >= (instptr->klass()->as_instance_klass()->size_helper() * wordSize)) {
+        k == ciEnv::current()->Class_klass() &&
+        instptr->offset() >= (k->size_helper() * wordSize)) {
       k = instptr->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
       field = k->get_field_by_offset(off, true);
     } else {
@@ -2413,7 +2413,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       // Use address type to get the element type.
       bt = adr_type->is_aryptr()->elem()->array_element_basic_type();
     }
-    if (is_reference_type(bt, true)) {
+    if (bt != T_PRIMITIVE_OBJECT && is_reference_type(bt, true)) {
       // accessing an array field with getReference is not a mismatch
       bt = T_OBJECT;
     }
@@ -2498,7 +2498,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (p == NULL) { // Could not constant fold the load
       if (type == T_PRIMITIVE_OBJECT) {
         if (adr_type->isa_instptr() && !mismatched) {
-          ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
+          ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
           int offset = adr_type->is_instptr()->offset();
           p = InlineTypeNode::make_from_flattened(this, inline_klass, base, base, holder, offset, decorators);
         } else {
@@ -2551,7 +2551,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     if (type == T_PRIMITIVE_OBJECT) {
       if (adr_type->isa_instptr() && !mismatched) {
-        ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
+        ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
         val->as_InlineTypeBase()->store_flattened(this, base, base, holder, offset, decorators);
       } else {
@@ -3867,6 +3867,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
+  // TODO check this merge again!!
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
   if (tm != NULL && tm->is_klass() &&
@@ -4293,6 +4294,8 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         klass->can_be_inline_array_klass() && (!klass->is_flat_array_klass() || klass->as_flat_array_klass()->element_klass()->as_inline_klass()->contains_oops());
+    // TODO shouldn't we check for flat here?
+    // Look at this again https://github.com/openjdk/valhalla/commit/31412b9f
     Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
@@ -5078,7 +5081,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
       if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
-          obj_type->klass()->can_be_inline_array_klass() &&
+          ary_ptr->klass()->can_be_inline_array_klass() &&
           (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
@@ -5583,6 +5586,9 @@ bool LibraryCallKit::inline_arraycopy() {
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
+    if (toop->isa_aryptr() != NULL) {
+      toop = toop->is_aryptr()->cast_to_not_flat(false)->cast_to_not_null_free(false);
+    }
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();

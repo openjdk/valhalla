@@ -1088,6 +1088,7 @@ public:
 
   virtual bool can_be_inline_type() const { return false; }
   virtual bool flatten_array()      const { return false; }
+  virtual bool not_flatten_array()  const { return false; }
   virtual bool is_flat()            const { return false; }
   virtual bool is_not_flat()        const { return false; }
   virtual bool is_null_free()       const { return false; }
@@ -1182,9 +1183,9 @@ protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
 
   virtual ciKlass* exact_klass_helper() const { return NULL; }
+  virtual ciKlass* klass() const { return _klass; }
+
 public:
-  // TODO Tobias
-  virtual ciKlass* klass() const { return _klass;     }
 
   bool is_java_subtype_of(const TypeOopPtr* other) const {
     return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
@@ -1242,7 +1243,7 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
-  virtual bool can_be_inline_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_inline_klass(_klass_is_exact)); }
+  virtual bool can_be_inline_type() const { return (_klass == NULL || _klass->can_be_inline_klass(_klass_is_exact)); }
 
   virtual intptr_t get_con() const;
 
@@ -1359,6 +1360,7 @@ public:
 
   virtual const TypeInstPtr* cast_to_flatten_array() const;
   virtual bool flatten_array() const { return _flatten_array; }
+  virtual bool not_flatten_array() const { return !can_be_inline_type() || (_klass->is_inlinetype() && !flatten_array()); }
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -1618,7 +1620,7 @@ public:
   bool klass_is_exact()    const { return _ptr == Constant; }
 
   static const TypeKlassPtr* make(ciKlass* klass);
-  static const TypeKlassPtr *make(PTR ptr, ciKlass* klass, Offset offset);
+  static const TypeKlassPtr* make(PTR ptr, ciKlass* klass, Offset offset);
 
   virtual bool  is_loaded() const { return _klass->is_loaded(); }
 
@@ -1662,7 +1664,7 @@ public:
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
   bool maybe_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
 
-  virtual bool can_be_inline_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_inline_klass(klass_is_exact())); }
+  virtual bool can_be_inline_type() const { return (_klass == NULL || _klass->can_be_inline_klass(klass_is_exact())); }
 
   static const TypeInstKlassPtr *make(ciKlass* k) {
     return make(TypePtr::Constant, k, Offset(0), false);
@@ -1686,6 +1688,7 @@ public:
   bool is_interface() const { return klass()->is_interface(); }
 
   virtual bool flatten_array() const { return _flatten_array; }
+  virtual bool not_flatten_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flatten_array()); }
 
   // Convenience common pre-built types.
   static const TypeInstKlassPtr* OBJECT; // Not-null object klass or below
@@ -1726,7 +1729,7 @@ public:
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
 
   bool is_same_java_type_as(const TypeKlassPtr* other) const;
   bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
@@ -1734,7 +1737,7 @@ public:
 
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
-  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
   static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset);
   static const TypeAryKlassPtr* make(ciKlass* klass);
 

@@ -389,7 +389,7 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
 
       // If inline types are passed as fields, use the extended signature
       // which contains the types of all (oop) fields of the inline type.
-      if (this->is_compiled_by_c2() && callee->has_scalarized_args()) {
+      if (is_compiled_by_c2() && callee->has_scalarized_args()) {
         const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
         assert(sig != NULL, "sig should never be null");
         TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
