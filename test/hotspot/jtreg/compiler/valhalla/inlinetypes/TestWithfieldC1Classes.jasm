@@ -25,7 +25,7 @@
 package compiler/valhalla/inlinetypes;
 
 public final primitive value class FooValue
-    version 63:0
+    version 64:0
 {
     public final Field x:I;
     public final Field y:I;
@@ -36,12 +36,12 @@ public final primitive value class FooValue
         aconst_init FooValue; astore_0;
         aload_0; iconst_1; withfield x:I; astore_0;
         aload_0; iconst_1; withfield y:I; astore_0;
-        
+
         aload_0; putstatic TestWithfieldC1.foo_static:"Lcompiler/valhalla/inlinetypes/FooValue;";
-        
+
         aload_0; iconst_2; withfield x:I; astore_0;
         aload_0; iconst_2; withfield y:I; astore_0;
-        
+
         aload_0; areturn;
     }
 
@@ -51,12 +51,12 @@ public final primitive value class FooValue
         aconst_init FooValue; astore_1;
         aload_1; iconst_1; withfield FooValue.x:I; astore_1;
         aload_1; iconst_1; withfield FooValue.y:I; astore_1;
-        
+
         aload_0; aload_1; putfield TestWithfieldC1.foo_instance:"Lcompiler/valhalla/inlinetypes/FooValue;";
-        
+
         aload_1; iconst_2; withfield x:I; astore_1;
         aload_1; iconst_2; withfield y:I; astore_1;
-        
+
         aload_1; areturn;
     }
 
@@ -66,12 +66,12 @@ public final primitive value class FooValue
         aconst_init FooValue; astore_0;
         aload_0; iconst_1; withfield x:I; astore_0;
         aload_0; iconst_1; withfield y:I; astore_0;
-        
+
         aload_0; invokestatic TestWithfieldC1.set_foo_static_if_null:"(Qcompiler/valhalla/inlinetypes/FooValue;)V";
-        
+
         aload_0; iconst_2; withfield x:I; astore_0;
         aload_0; iconst_2; withfield y:I; astore_0;
-        
+
         aload_0; areturn;
     }
 
@@ -80,18 +80,18 @@ public final primitive value class FooValue
     static Method test4:"()Qcompiler/valhalla/inlinetypes/FooValue;" stack 2 locals 2 {
         aconst_init FooValue; astore_0;
         iconst_1; istore_1;
-        
+
         loop: stack_frame_type append; locals_map class "Qcompiler/valhalla/inlinetypes/FooValue;", int;
             // iterate two times
             iload_1; iconst_2; if_icmpgt end;
-            
+
             aload_0; iload_1; withfield x:I; astore_0;
             aload_0; iload_1; withfield y:I; astore_0;
-            
+
             aload_0; invokestatic TestWithfieldC1.set_foo_static_if_null:"(Qcompiler/valhalla/inlinetypes/FooValue;)V";
-            
+
             iinc 1,1; goto loop;
-        
+
         end: stack_frame_type same;
             aload_0; areturn;
     }
@@ -102,31 +102,31 @@ public final primitive value class FooValue
         aconst_init FooValue; astore_0;
         aconst_init FooValue; astore_1;
         aload_0; astore_1;
-        
+
         aload_0; iconst_1; withfield x:I; astore_0;
         aload_0; iconst_1; withfield y:I; astore_0;
-        
+
         aload_0; invokestatic TestWithfieldC1.set_foo_static_if_null:"(Qcompiler/valhalla/inlinetypes/FooValue;)V";
-        
+
         aload_1; iconst_2; withfield x:I; astore_1;
         aload_1; iconst_2; withfield y:I; astore_1;
-        
+
         aload_1; areturn;
     }
-    
+
     // escape using aastore
     @+compiler/lib/ir_framework/ForceInline{}
     static Method test6:"()Qcompiler/valhalla/inlinetypes/FooValue;" stack 3 locals 1 {
         aconst_init FooValue; astore_0;
         aload_0; iconst_1; withfield x:I; astore_0;
         aload_0; iconst_1; withfield y:I; astore_0;
-        
+
         getstatic TestWithfieldC1.foo_static_arr:"[Lcompiler/valhalla/inlinetypes/FooValue;";
         iconst_0; aload_0; aastore;
-        
+
         aload_0; iconst_2; withfield x:I; astore_0;
         aload_0; iconst_2; withfield y:I; astore_0;
-        
+
         aload_0; areturn;
     }
 
@@ -136,13 +136,13 @@ public final primitive value class FooValue
         aconst_init FooValue; astore_0;
         aconst_init FooValue; astore_1;
         aload_0; astore_1;
-        
+
         aload_0; iconst_1; withfield x:I; astore_0;
         aload_0; iconst_1; withfield y:I; astore_0;
-        
+
         aload_1; iconst_2; withfield x:I; astore_1;
         aload_1; iconst_2; withfield y:I; astore_1;
-        
+
         aload_0; areturn;
     }
 
@@ -152,37 +152,37 @@ public final primitive value class FooValue
         aconst_init FooValue; astore_0;
         aload_0; iconst_1; withfield x:I; astore_0;
         aload_0; iconst_1; withfield y:I; astore_0;
-        
+
         aload_0; invokevirtual non_static_method:"()V";
-        
+
         aload_0; iconst_2; withfield x:I; astore_0;
         aload_0; iconst_2; withfield y:I; astore_0;
-        
+
         aload_0; areturn;
     }
-    
+
     @+compiler/lib/ir_framework/DontInline{}
     private Method non_static_method:"()V" stack 1 {
         aload_0;
         invokestatic TestWithfieldC1.set_foo_static_if_null:"(Qcompiler/valhalla/inlinetypes/FooValue;)V";
         return;
     }
-    
+
     // duplicate reference with local variables
     @+compiler/lib/ir_framework/ForceInline{}
     static Method test9:"(Lcompiler/valhalla/inlinetypes/TestWithfieldC1;)Qcompiler/valhalla/inlinetypes/FooValue;" stack 2 locals 3 {
         aconst_init FooValue; astore_1;
         aload_1; iconst_1; withfield x:I; astore_1;
         aload_1; iconst_1; withfield y:I; astore_1;
-        
+
         aload_1; astore_2;
-        
+
         aload_1; iconst_2; withfield x:I; astore_1;
         aload_1; iconst_2; withfield y:I; astore_1;
-        
+
         aload_2; iconst_3; withfield x:I; astore_2;
         aload_2; iconst_3; withfield y:I; astore_2;
-        
+
         aload_0; aload_2; putfield TestWithfieldC1.foo_instance:"Lcompiler/valhalla/inlinetypes/FooValue;";
 
         aload_1; areturn;

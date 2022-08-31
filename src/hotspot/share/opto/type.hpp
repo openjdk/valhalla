@@ -582,13 +582,16 @@ public:
 
 class TypeInteger : public Type {
 protected:
-  TypeInteger(TYPES t) : Type(t) {}
+  TypeInteger(TYPES t, int w) : Type(t), _widen(w) {}
 
 public:
+  const short _widen;           // Limit on times we widen this sucker
+
   virtual jlong hi_as_long() const = 0;
   virtual jlong lo_as_long() const = 0;
   jlong get_con_as_long(BasicType bt) const;
   bool is_con() const { return lo_as_long() == hi_as_long(); }
+  virtual short widen_limit() const { return _widen; }
 
   static const TypeInteger* make(jlong lo, jlong hi, int w, BasicType bt);
 
@@ -615,7 +618,6 @@ public:
   virtual bool singleton(void) const;    // TRUE if type is a singleton
   virtual bool empty(void) const;        // TRUE if type is vacuous
   const jint _lo, _hi;          // Lower bound, upper bound
-  const short _widen;           // Limit on times we widen this sucker
 
   static const TypeInt *make(jint lo);
   // must always specify w
@@ -683,7 +685,6 @@ public:
   virtual bool empty(void) const;        // TRUE if type is vacuous
 public:
   const jlong _lo, _hi;         // Lower bound, upper bound
-  const short _widen;           // Limit on times we widen this sucker
 
   static const TypeLong *make(jlong lo);
   // must always specify w
@@ -810,7 +811,7 @@ public:
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
   bool ary_must_be_exact() const;  // true if arrays of such are never generic
-  virtual const Type* remove_speculative() const;
+  virtual const TypeAry* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
 
 #ifdef ASSERT
@@ -995,6 +996,7 @@ protected:
   bool eq_speculative(const TypePtr* other) const;
   int hash_speculative() const;
   const TypePtr* add_offset_speculative(intptr_t offset) const;
+  const TypePtr* with_offset_speculative(intptr_t offset) const;
 #ifndef PRODUCT
   void dump_speculative(outputStream *st) const;
 #endif
@@ -1040,14 +1042,14 @@ public:
                              int inline_depth = InlineDepthBottom);
 
   // Return a 'ptr' version of this type
-  virtual const Type *cast_to_ptr_type(PTR ptr) const;
+  virtual const TypePtr* cast_to_ptr_type(PTR ptr) const;
 
   virtual intptr_t get_con() const;
 
-  Offset xadd_offset(intptr_t offset) const;
-  virtual const TypePtr *add_offset( intptr_t offset ) const;
+  Type::Offset xadd_offset(intptr_t offset) const;
+  virtual const TypePtr* add_offset(intptr_t offset) const;
+  virtual const TypePtr* with_offset(intptr_t offset) const;
   virtual const int flattened_offset() const { return offset(); }
-
   virtual bool eq(const Type *t) const;
   virtual int  hash() const;             // Type specific hashing
 
@@ -1076,7 +1078,7 @@ public:
   virtual ciKlass* speculative_type_not_null() const;
   virtual bool speculative_maybe_null() const;
   virtual bool speculative_always_null() const;
-  virtual const Type* remove_speculative() const;
+  virtual const TypePtr* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
   virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const;
   virtual bool would_improve_ptr(ProfilePtrKind maybe_null) const;
@@ -1086,6 +1088,7 @@ public:
 
   virtual bool can_be_inline_type() const { return false; }
   virtual bool flatten_array()      const { return false; }
+  virtual bool not_flatten_array()  const { return false; }
   virtual bool is_flat()            const { return false; }
   virtual bool is_not_flat()        const { return false; }
   virtual bool is_null_free()       const { return false; }
@@ -1123,7 +1126,8 @@ public:
 
   virtual intptr_t get_con() const;
 
-  virtual const TypePtr *add_offset( intptr_t offset ) const;
+  virtual const TypePtr* add_offset(intptr_t offset) const;
+  virtual const TypeRawPtr* with_offset(intptr_t offset) const { ShouldNotReachHere(); return NULL;}
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -1138,6 +1142,10 @@ public:
 //------------------------------TypeOopPtr-------------------------------------
 // Some kind of oop (Java pointer), either instance or array.
 class TypeOopPtr : public TypePtr {
+  friend class TypeAry;
+  friend class TypePtr;
+  friend class TypeInstPtr;
+  friend class TypeAryPtr;
 protected:
   TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, Offset field_offset,
              int instance_id, const TypePtr* speculative, int inline_depth);
@@ -1174,7 +1182,23 @@ protected:
   // Do not allow interface-vs.-noninterface joins to collapse to top.
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
 
+  virtual ciKlass* exact_klass_helper() const { return NULL; }
+
 public:
+  // TODO Tobias
+  virtual ciKlass* klass() const { return _klass; }
+
+  bool is_java_subtype_of(const TypeOopPtr* other) const {
+    return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
+  }
+  virtual bool is_same_java_type_as(const TypeOopPtr* other) const { ShouldNotReachHere(); return false; }
+  bool maybe_java_subtype_of(const TypeOopPtr* other) const {
+    return maybe_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
+  }
+  virtual bool is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const { ShouldNotReachHere(); return false; }
+  virtual bool maybe_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const { ShouldNotReachHere(); return false; }
+
+
   // Creates a type given a klass. Correctly handles multi-dimensional arrays
   // Respects UseUniqueSubclasses.
   // If the klass is final, the resulting type will be exact.
@@ -1204,7 +1228,11 @@ public:
                                 int inline_depth = InlineDepthBottom);
 
   ciObject* const_oop()    const { return _const_oop; }
-  virtual ciKlass* klass() const { return _klass;     }
+  // Exact klass, possibly an interface or an array of interface
+  ciKlass* exact_klass(bool maybe_null = false) const { assert(klass_is_exact(), ""); ciKlass* k = exact_klass_helper(); assert(k != NULL || maybe_null, ""); return k;  }
+  ciKlass* unloaded_klass() const { assert(!is_loaded(), "only for unloaded types"); return klass(); }
+
+  virtual bool  is_loaded() const { return klass()->is_loaded(); }
   bool klass_is_exact()    const { return _klass_is_exact; }
 
   // Returns true if this pointer points at memory which contains a
@@ -1216,23 +1244,24 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
-  virtual bool can_be_inline_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_inline_klass(_klass_is_exact)); }
+  virtual bool can_be_inline_type() const { return (_klass == NULL || _klass->can_be_inline_klass(_klass_is_exact)); }
 
   virtual intptr_t get_con() const;
 
   virtual const TypeOopPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const Type *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeOopPtr* cast_to_exactness(bool klass_is_exact) const;
 
   virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
 
   // corresponding pointer to klass, for a given instance
   virtual const TypeKlassPtr* as_klass_type(bool try_for_exact = false) const;
 
-  virtual const TypePtr *add_offset( intptr_t offset ) const;
+  virtual const TypeOopPtr* with_offset(intptr_t offset) const;
+  virtual const TypePtr* add_offset(intptr_t offset) const;
 
   // Speculative type helper methods.
-  virtual const Type* remove_speculative() const;
+  virtual const TypeOopPtr* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
   virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const;
   virtual const TypePtr* with_inline_depth(int depth) const;
@@ -1260,13 +1289,22 @@ class TypeInstPtr : public TypeOopPtr {
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
 
-  ciSymbol*  _name;        // class name
   bool _flatten_array;     // Type is flat in arrays
+  ciKlass* exact_klass_helper() const;
 
- public:
-  ciSymbol* name()         const { return _name; }
+public:
 
-  bool  is_loaded() const { return _klass->is_loaded(); }
+  // Instance klass, ignoring any interface
+  ciInstanceKlass* instance_klass() const {
+    if (klass()->is_loaded() && klass()->is_interface()) {
+      return Compile::current()->env()->Object_klass();
+    }
+    return klass()->as_instance_klass();
+  }
+
+  bool is_same_java_type_as(const TypeOopPtr* other) const;
+  bool is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const;
+  bool maybe_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const;
 
   // Make a pointer to a constant oop.
   static const TypeInstPtr *make(ciObject* o) {
@@ -1309,19 +1347,21 @@ class TypeInstPtr : public TypeOopPtr {
 
   virtual const TypeInstPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const Type *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeInstPtr* cast_to_exactness(bool klass_is_exact) const;
 
-  virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
+  virtual const TypeInstPtr* cast_to_instance_id(int instance_id) const;
 
-  virtual const TypePtr *add_offset( intptr_t offset ) const;
+  virtual const TypePtr* add_offset(intptr_t offset) const;
+  virtual const TypeInstPtr* with_offset(intptr_t offset) const;
 
   // Speculative type helper methods.
-  virtual const Type* remove_speculative() const;
+  virtual const TypeInstPtr* remove_speculative() const;
   virtual const TypePtr* with_inline_depth(int depth) const;
   virtual const TypePtr* with_instance_id(int instance_id) const;
 
   virtual const TypeInstPtr* cast_to_flatten_array() const;
   virtual bool flatten_array() const { return _flatten_array; }
+  virtual bool not_flatten_array() const { return !can_be_inline_type() || (_klass->is_inlinetype() && !flatten_array()); }
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -1329,6 +1369,8 @@ class TypeInstPtr : public TypeOopPtr {
   virtual const Type *xdual() const;    // Compute dual right now.
 
   const TypeKlassPtr* as_klass_type(bool try_for_exact = false) const;
+
+  bool is_interface() const { return is_loaded() && klass()->is_interface(); }
 
   // Convenience common pre-built types.
   static const TypeInstPtr *NOTNULL;
@@ -1382,9 +1424,22 @@ class TypeAryPtr : public TypeOopPtr {
 
   ciKlass* compute_klass(DEBUG_ONLY(bool verify = false)) const;
 
+  ciKlass* exact_klass_helper() const;
 public:
-  // Accessors
+  // TODO Tobias
   ciKlass* klass() const;
+
+
+  bool is_same_java_type_as(const TypeOopPtr* other) const;
+  bool is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const;
+  bool maybe_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const;
+
+  // returns base element type, an instance klass (and not interface) for object arrays
+  const Type* base_element_type(int& dims) const;
+
+  // Accessors
+  bool  is_loaded() const { return (_ary->_elem->make_oopptr() ? _ary->_elem->make_oopptr()->is_loaded() : true); }
+
   const TypeAry* ary() const  { return _ary; }
   const Type*    elem() const { return _ary->_elem; }
   const TypeInt* size() const { return _ary->_size; }
@@ -1414,18 +1469,20 @@ public:
   // Return a 'ptr' version of this type
   virtual const TypeAryPtr* cast_to_ptr_type(PTR ptr) const;
 
-  virtual const Type *cast_to_exactness(bool klass_is_exact) const;
+  virtual const TypeAryPtr* cast_to_exactness(bool klass_is_exact) const;
 
-  virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
+  virtual const TypeAryPtr* cast_to_instance_id(int instance_id) const;
 
   virtual const TypeAryPtr* cast_to_size(const TypeInt* size) const;
   virtual const TypeInt* narrow_size_type(const TypeInt* size) const;
 
   virtual bool empty(void) const;        // TRUE if type is vacuous
   virtual const TypePtr *add_offset( intptr_t offset ) const;
+  virtual const TypeAryPtr *with_offset( intptr_t offset ) const;
+  const TypeAryPtr* with_ary(const TypeAry* ary) const;
 
   // Speculative type helper methods.
-  virtual const Type* remove_speculative() const;
+  virtual const TypeAryPtr* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
   virtual const TypePtr* with_inline_depth(int depth) const;
   virtual const TypePtr* with_instance_id(int instance_id) const;
@@ -1525,6 +1582,8 @@ public:
 //------------------------------TypeKlassPtr-----------------------------------
 // Class of Java Klass pointers
 class TypeKlassPtr : public TypePtr {
+  friend class TypeInstKlassPtr;
+  friend class TypeAryKlassPtr;
 protected:
   TypeKlassPtr(TYPES t, PTR ptr, ciKlass* klass, Offset offset);
 
@@ -1534,28 +1593,44 @@ public:
   virtual bool eq( const Type *t ) const;
   virtual int hash() const;
   virtual bool singleton(void) const;    // TRUE if type is a singleton
-  virtual bool must_be_exact() const { ShouldNotReachHere(); return false; }
 
 protected:
 
   ciKlass* _klass;
 
+  virtual bool must_be_exact() const { ShouldNotReachHere(); return false; }
+  virtual ciKlass* exact_klass_helper() const;
 public:
-
+  // TODO Tobias
   virtual ciKlass* klass() const { return  _klass; }
+
+
+  bool is_java_subtype_of(const TypeKlassPtr* other) const {
+    return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
+  }
+  bool maybe_java_subtype_of(const TypeKlassPtr* other) const {
+    return maybe_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
+  }
+  virtual bool is_same_java_type_as(const TypeKlassPtr* other) const { ShouldNotReachHere(); return false; }
+  virtual bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const { ShouldNotReachHere(); return false; }
+  virtual bool maybe_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const { ShouldNotReachHere(); return false; }
+
+  // Exact klass, possibly an interface or an array of interface
+  ciKlass* exact_klass(bool maybe_null = false) const { assert(klass_is_exact(), ""); ciKlass* k = exact_klass_helper(); assert(k != NULL || maybe_null, ""); return k;  }
+
   bool klass_is_exact()    const { return _ptr == Constant; }
-  bool  is_loaded() const { return klass()->is_loaded(); }
 
   static const TypeKlassPtr* make(ciKlass* klass);
-  static const TypeKlassPtr *make(PTR ptr, ciKlass* klass, Offset offset);
+  static const TypeKlassPtr* make(PTR ptr, ciKlass* klass, Offset offset);
 
+  virtual bool  is_loaded() const { return _klass->is_loaded(); }
 
-  virtual const TypePtr* cast_to_ptr_type(PTR ptr) const { ShouldNotReachHere(); return NULL; }
+  virtual const TypeKlassPtr* cast_to_ptr_type(PTR ptr) const { ShouldNotReachHere(); return NULL; }
 
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const { ShouldNotReachHere(); return NULL; }
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type() const { ShouldNotReachHere(); return NULL; }
+  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const { ShouldNotReachHere(); return NULL; }
 
   virtual const TypePtr *add_offset( intptr_t offset ) const { ShouldNotReachHere(); return NULL; }
   virtual const Type    *xmeet( const Type *t ) const { ShouldNotReachHere(); return NULL; }
@@ -1579,30 +1654,42 @@ class TypeInstKlassPtr : public TypeKlassPtr {
 
 public:
   // Instance klass ignoring any interface
-  ciInstanceKlass* instance_klass() const { return klass()->as_instance_klass();     }
+  ciInstanceKlass* instance_klass() const {
+    if (klass()->is_interface()) {
+      return Compile::current()->env()->Object_klass();
+    }
+    return klass()->as_instance_klass();
+  }
 
-  virtual bool can_be_inline_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_inline_klass(klass_is_exact())); }
+  bool is_same_java_type_as(const TypeKlassPtr* other) const;
+  bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
+  bool maybe_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
+
+  virtual bool can_be_inline_type() const { return (_klass == NULL || _klass->can_be_inline_klass(klass_is_exact())); }
 
   static const TypeInstKlassPtr *make(ciKlass* k) {
     return make(TypePtr::Constant, k, Offset(0), false);
   }
   static const TypeInstKlassPtr *make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array = false);
 
-  virtual const TypePtr* cast_to_ptr_type(PTR ptr) const;
+  virtual const TypeInstKlassPtr* cast_to_ptr_type(PTR ptr) const;
 
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type() const;
+  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
   virtual int hash() const;
   virtual bool eq(const Type *t) const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
   virtual const Type    *xmeet( const Type *t ) const;
   virtual const Type    *xdual() const;
-  virtual const TypeKlassPtr* with_offset(intptr_t offset) const;
+  virtual const TypeInstKlassPtr* with_offset(intptr_t offset) const;
+
+  bool is_interface() const { return klass()->is_interface(); }
 
   virtual bool flatten_array() const { return _flatten_array; }
+  virtual bool not_flatten_array() const { return !_klass->can_be_inline_klass() || (_klass->is_inlinetype() && !flatten_array()); }
 
   // Convenience common pre-built types.
   static const TypeInstKlassPtr* OBJECT; // Not-null object klass or below
@@ -1615,6 +1702,7 @@ public:
 
 // Array klass pointer, mirrors TypeAryPtr
 class TypeAryKlassPtr : public TypeKlassPtr {
+  friend class TypeInstKlassPtr;
   const Type *_elem;
   const bool _not_flat;      // Array is never flattened
   const bool _not_null_free; // Array is never null-free
@@ -1623,6 +1711,9 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool null_free)
     : TypeKlassPtr(AryKlassPtr, ptr, klass, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _null_free(null_free) {
   }
+
+  virtual ciKlass* exact_klass_helper() const;
+  virtual ciKlass* klass() const;
 
   virtual bool must_be_exact() const;
 
@@ -1635,38 +1726,45 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   }
 
 public:
-  virtual ciKlass* klass() const;
 
   // returns base element type, an instance klass (and not interface) for object arrays
   const Type* base_element_type(int& dims) const;
 
-  static const TypeAryKlassPtr *make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
-  static const TypeAryKlassPtr *make(PTR ptr, const Type *elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
-  static const TypeAryKlassPtr* make(ciKlass* klass, PTR ptr = Constant, Offset offset= Offset(0));
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+
+  bool is_same_java_type_as(const TypeKlassPtr* other) const;
+  bool is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
+  bool maybe_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const;
+
+  bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
+
+  static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset);
+  static const TypeAryKlassPtr* make(ciKlass* klass);
 
   const Type *elem() const { return _elem; }
 
   virtual bool eq(const Type *t) const;
   virtual int hash() const;             // Type specific hashing
 
-  virtual const TypePtr* cast_to_ptr_type(PTR ptr) const;
+  virtual const TypeAryKlassPtr* cast_to_ptr_type(PTR ptr) const;
 
   virtual const TypeKlassPtr *cast_to_exactness(bool klass_is_exact) const;
 
   // corresponding pointer to instance, for a given class
-  virtual const TypeOopPtr* as_instance_type() const;
+  virtual const TypeOopPtr* as_instance_type(bool klass_change = true) const;
 
   virtual const TypePtr *add_offset( intptr_t offset ) const;
   virtual const Type    *xmeet( const Type *t ) const;
   virtual const Type    *xdual() const;      // Compute dual right now.
 
-  virtual const TypeKlassPtr* with_offset(intptr_t offset) const;
+  virtual const TypeAryKlassPtr* with_offset(intptr_t offset) const;
 
   virtual bool empty(void) const {
     return TypeKlassPtr::empty() || _elem->empty();
   }
 
-  bool is_flat()          const { return klass()->is_flat_array_klass(); }
+  bool is_flat()          const { return klass() != NULL && klass()->is_flat_array_klass(); }
   bool is_not_flat()      const { return _not_flat; }
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }
@@ -1757,7 +1855,7 @@ public:
   static const TypeNarrowOop *BOTTOM;
   static const TypeNarrowOop *NULL_PTR;
 
-  virtual const Type* remove_speculative() const;
+  virtual const TypeNarrowOop* remove_speculative() const;
   virtual const Type* cleanup_speculative() const;
 
 #ifndef PRODUCT
@@ -2119,13 +2217,12 @@ inline bool Type::is_floatingpoint() const {
 }
 
 inline bool Type::is_inlinetypeptr() const {
-  return isa_instptr() != NULL && is_instptr()->klass()->is_inlinetype();
+  return isa_instptr() != NULL && is_instptr()->instance_klass()->is_inlinetype();
 }
-
 
 inline ciInlineKlass* Type::inline_klass() const {
   assert(is_inlinetypeptr(), "must be an inline type ptr");
-  return is_instptr()->klass()->as_inline_klass();
+  return is_instptr()->instance_klass()->as_inline_klass();
 }
 
 

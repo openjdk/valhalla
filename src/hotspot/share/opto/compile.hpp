@@ -52,6 +52,7 @@ class Block;
 class Bundle;
 class CallGenerator;
 class CallNode;
+class CallStaticJavaNode;
 class CloneMap;
 class ConnectionGraph;
 class IdealGraphPrinter;
@@ -85,11 +86,13 @@ class Type;
 class TypeData;
 class TypeInt;
 class TypeInteger;
+class TypeKlassPtr;
 class TypePtr;
 class TypeOopPtr;
 class TypeFunc;
 class TypeVect;
 class Unique_Node_List;
+class UnstableIfTrap;
 class InlineTypeBaseNode;
 class nmethod;
 class Node_Stack;
@@ -105,7 +108,12 @@ enum LoopOptsMode {
   LoopOptsVerify
 };
 
+// The type of all node counts and indexes.
+// It must hold at least 16 bits, but must also be fast to load and store.
+// This type, if less than 32 bits, could limit the number of possible nodes.
+// (To make this type platform-specific, move to globalDefinitions_xxx.hpp.)
 typedef unsigned int node_idx_t;
+
 class NodeCloneInfo {
  private:
   uint64_t _idx_clone_orig;
@@ -334,6 +342,7 @@ class Compile : public Phase {
   bool                  _has_irreducible_loop;  // Found irreducible loops
   // JSR 292
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
+  bool                  _has_monitors;          // Metadata transfered to nmethod to enable Continuations lock-detection fastpath
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
   bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
@@ -356,6 +365,7 @@ class Compile : public Phase {
   GrowableArray<Node*>  _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>  _for_post_loop_igvn;    // List of nodes for IGVN after loop opts are over
   GrowableArray<Node*>  _inline_type_nodes;     // List of InlineType nodes
+  GrowableArray<UnstableIfTrap*> _unstable_if_traps;        // List of ifnodes after IGVN
   GrowableArray<Node_List*> _coarsened_locks;   // List of coarsened Lock and Unlock nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
@@ -425,8 +435,6 @@ class Compile : public Phase {
 
   int                           _late_inlines_pos;    // Where in the queue should the next late inlining candidate go (emulate depth first inlining)
   uint                          _number_of_mh_late_inlines; // number of method handle late inlining still pending
-
-  GrowableArray<RuntimeStub*>   _native_invokers;
 
   // Inlining may not happen in parse order which would make
   // PrintInlining output confusing. Keep track of PrintInlining
@@ -642,6 +650,9 @@ class Compile : public Phase {
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
   bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->c2_needs_stack_repair(); }
 
+  bool              has_monitors() const         { return _has_monitors; }
+  void          set_has_monitors(bool v)         { _has_monitors = v; }
+
   // check the CompilerOracle for special behaviours for this compile
   bool          method_has_option(enum CompileCommand option) {
     return method() != NULL && method()->has_option(option);
@@ -746,6 +757,11 @@ class Compile : public Phase {
   void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
+
+  void record_unstable_if_trap(UnstableIfTrap* trap);
+  bool remove_unstable_if_trap(CallStaticJavaNode* unc, bool yield);
+  void remove_useless_unstable_if_traps(Unique_Node_List &useful);
+  void process_for_unstable_if_traps(PhaseIterGVN& igvn);
 
   void sort_macro_nodes();
 
@@ -986,10 +1002,6 @@ class Compile : public Phase {
     _vector_reboxing_late_inlines.push(cg);
   }
 
-  void add_native_invoker(RuntimeStub* stub);
-
-  const GrowableArray<RuntimeStub*> native_invokers() const { return _native_invokers; }
-
   void remove_useless_nodes       (GrowableArray<Node*>&        node_list, Unique_Node_List &useful);
 
   void remove_useless_late_inlines(GrowableArray<CallGenerator*>* inlines, Unique_Node_List &useful);
@@ -1186,8 +1198,8 @@ class Compile : public Phase {
   static void pd_compiler2_init();
 
   // Static parse-time type checking logic for gen_subtype_check:
-  enum { SSC_always_false, SSC_always_true, SSC_easy_test, SSC_full_test };
-  int static_subtype_check(ciKlass* superk, ciKlass* subk);
+  enum SubTypeCheckResult { SSC_always_false, SSC_always_true, SSC_easy_test, SSC_full_test };
+  SubTypeCheckResult static_subtype_check(const TypeKlassPtr* superk, const TypeKlassPtr* subk);
 
   static Node* conv_I2X_index(PhaseGVN* phase, Node* offset, const TypeInt* sizetype,
                               // Optional control dependency (for example, on range check)
@@ -1232,7 +1244,7 @@ class Compile : public Phase {
 #endif
 
   static bool push_thru_add(PhaseGVN* phase, Node* z, const TypeInteger* tz, const TypeInteger*& rx, const TypeInteger*& ry,
-                            BasicType bt);
+                            BasicType out_bt, BasicType in_bt);
 
   static Node* narrow_value(BasicType bt, Node* value, const Type* type, PhaseGVN* phase, bool transform_res);
 };

@@ -26,7 +26,7 @@
  * @summary Verifies correctness of the new acmp bytecode.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile TestNewAcmp.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.TestNewAcmp
  */
@@ -47,7 +47,7 @@ import java.util.regex.Matcher;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 
 interface MyInterface {

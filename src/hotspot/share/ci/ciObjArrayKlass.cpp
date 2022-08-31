@@ -169,6 +169,14 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
   GUARDED_VM_ENTRY(return make_impl(element_klass);)
 }
 
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, int dims) {
+  ciKlass* klass = element_klass;
+  for (int i = 0; i < dims; i++) {
+    klass = ciObjArrayKlass::make(klass);
+  }
+  return klass->as_obj_array_klass();
+}
+
 ciKlass* ciObjArrayKlass::exact_klass() {
   // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
   if (!is_elem_null_free() && (!is_loaded() || element_klass()->is_inlinetype())) {

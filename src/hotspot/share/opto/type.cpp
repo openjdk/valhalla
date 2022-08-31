@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -860,8 +860,8 @@ bool Type::interface_vs_oop_helper(const Type *t) const {
   const TypeInstPtr* this_inst = this_ptr->isa_instptr();
   const TypeInstPtr*    t_inst =    t_ptr->isa_instptr();
   if( this_inst && this_inst->is_loaded() && t_inst && t_inst->is_loaded() ) {
-    bool this_interface = this_inst->klass()->is_interface();
-    bool    t_interface =    t_inst->klass()->is_interface();
+    bool this_interface = this_inst->is_interface();
+    bool    t_interface =    t_inst->is_interface();
     result = this_interface ^ t_interface;
   }
 
@@ -1511,7 +1511,7 @@ const TypeInteger* TypeInteger::minus_1(BasicType bt) {
 }
 
 //=============================================================================
-// Convience common pre-built types.
+// Convenience common pre-built types.
 const TypeInt *TypeInt::MAX;    // INT_MAX
 const TypeInt *TypeInt::MIN;    // INT_MIN
 const TypeInt *TypeInt::MINUS_1;// -1
@@ -1535,7 +1535,7 @@ const TypeInt *TypeInt::SYMINT; // symmetric range [-max_jint..max_jint]
 const TypeInt *TypeInt::TYPE_DOMAIN; // alias for TypeInt::INT
 
 //------------------------------TypeInt----------------------------------------
-TypeInt::TypeInt( jint lo, jint hi, int w ) : TypeInteger(Int), _lo(lo), _hi(hi), _widen(w) {
+TypeInt::TypeInt( jint lo, jint hi, int w ) : TypeInteger(Int, w), _lo(lo), _hi(hi) {
 }
 
 //------------------------------make-------------------------------------------
@@ -1683,7 +1683,7 @@ const Type *TypeInt::narrow( const Type *old ) const {
   if (olo == min_jint && ohi == max_jint)  return this;
 
   if (_lo < olo || _hi > ohi)
-    return this;                // doesn't narrow; pretty wierd
+    return this;                // doesn't narrow; pretty weird
 
   // The new type narrows the old type, so look for a "death march".
   // See comments on PhaseTransform::saturate.
@@ -1798,7 +1798,7 @@ const TypeLong *TypeLong::UINT; // 32-bit unsigned subrange
 const TypeLong *TypeLong::TYPE_DOMAIN; // alias for TypeLong::LONG
 
 //------------------------------TypeLong---------------------------------------
-TypeLong::TypeLong(jlong lo, jlong hi, int w) : TypeInteger(Long), _lo(lo), _hi(hi), _widen(w) {
+TypeLong::TypeLong(jlong lo, jlong hi, int w) : TypeInteger(Long, w), _lo(lo), _hi(hi) {
 }
 
 //------------------------------make-------------------------------------------
@@ -1949,7 +1949,7 @@ const Type *TypeLong::narrow( const Type *old ) const {
   if (olo == min_jlong && ohi == max_jlong)  return this;
 
   if (_lo < olo || _hi > ohi)
-    return this;                // doesn't narrow; pretty wierd
+    return this;                // doesn't narrow; pretty weird
 
   // The new type narrows the old type, so look for a "death march".
   // See comments on PhaseTransform::saturate.
@@ -2411,7 +2411,7 @@ int TypeAry::hash(void) const {
 /**
  * Return same type without a speculative part in the element
  */
-const Type* TypeAry::remove_speculative() const {
+const TypeAry* TypeAry::remove_speculative() const {
   return make(_elem->remove_speculative(), _size, _stable, _not_flat, _not_null_free);
 }
 
@@ -2835,7 +2835,7 @@ const TypePtr* TypePtr::make(TYPES t, enum PTR ptr, Offset offset, const TypePtr
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
-const Type *TypePtr::cast_to_ptr_type(PTR ptr) const {
+const TypePtr* TypePtr::cast_to_ptr_type(PTR ptr) const {
   assert(_base == AnyPtr, "subclass must override cast_to_ptr_type");
   if( ptr == _ptr ) return this;
   return make(_base, ptr, _offset, _speculative, _inline_depth);
@@ -2944,6 +2944,10 @@ const TypePtr *TypePtr::add_offset( intptr_t offset ) const {
   return make(AnyPtr, _ptr, xadd_offset(offset), _speculative, _inline_depth);
 }
 
+const TypePtr *TypePtr::with_offset(intptr_t offset) const {
+  return make(AnyPtr, _ptr, Offset(offset), _speculative, _inline_depth);
+}
+
 //------------------------------eq---------------------------------------------
 // Structural equality check for Type representations
 bool TypePtr::eq( const Type *t ) const {
@@ -2961,7 +2965,7 @@ int TypePtr::hash(void) const {
 /**
  * Return same type without a speculative part
  */
-const Type* TypePtr::remove_speculative() const {
+const TypePtr* TypePtr::remove_speculative() const {
   if (_speculative == NULL) {
     return this;
   }
@@ -3094,6 +3098,13 @@ const TypePtr* TypePtr::add_offset_speculative(intptr_t offset) const {
     return NULL;
   }
   return _speculative->add_offset(offset)->is_ptr();
+}
+
+const TypePtr* TypePtr::with_offset_speculative(intptr_t offset) const {
+  if (_speculative == NULL) {
+    return NULL;
+  }
+  return _speculative->with_offset(offset)->is_ptr();
 }
 
 /**
@@ -3349,7 +3360,7 @@ const Type *TypeRawPtr::xdual() const {
 }
 
 //------------------------------add_offset-------------------------------------
-const TypePtr *TypeRawPtr::add_offset( intptr_t offset ) const {
+const TypePtr* TypeRawPtr::add_offset(intptr_t offset) const {
   if( offset == OffsetTop ) return BOTTOM; // Undefined offset-> undefined pointer
   if( offset == OffsetBot ) return BOTTOM; // Unknown offset-> unknown pointer
   if( offset == 0 ) return this; // No change
@@ -3513,7 +3524,7 @@ const TypeOopPtr *TypeOopPtr::cast_to_instance_id(int instance_id) const {
 }
 
 //-----------------------------cast_to_exactness-------------------------------
-const Type *TypeOopPtr::cast_to_exactness(bool klass_is_exact) const {
+const TypeOopPtr* TypeOopPtr::cast_to_exactness(bool klass_is_exact) const {
   // There is no such thing as an exact general oop.
   // Return self unchanged.
   return this;
@@ -3757,7 +3768,7 @@ intptr_t TypeOopPtr::get_con() const {
     // code and dereferenced at the time the nmethod is made.  Until that time,
     // it is not reasonable to do arithmetic with the addresses of oops (we don't
     // have access to the addresses!).  This does not seem to currently happen,
-    // but this assertion here is to help prevent its occurence.
+    // but this assertion here is to help prevent its occurrence.
     tty->print_cr("Found oop constant with non-zero offset");
     ShouldNotReachHere();
   }
@@ -3868,10 +3879,14 @@ const TypePtr *TypeOopPtr::add_offset(intptr_t offset) const {
   return make(_ptr, xadd_offset(offset), _instance_id, add_offset_speculative(offset), _inline_depth);
 }
 
+const TypeOopPtr* TypeOopPtr::with_offset(intptr_t offset) const {
+  return make(_ptr, Offset(offset), _instance_id, with_offset_speculative(offset), _inline_depth);
+}
+
 /**
  * Return same type without a speculative part
  */
-const Type* TypeOopPtr::remove_speculative() const {
+const TypeOopPtr* TypeOopPtr::remove_speculative() const {
   if (_speculative == NULL) {
     return this;
   }
@@ -3951,17 +3966,20 @@ const TypeInstPtr *TypeInstPtr::MIRROR;
 const TypeInstPtr *TypeInstPtr::MARK;
 const TypeInstPtr *TypeInstPtr::KLASS;
 
+ciKlass* TypeInstPtr::exact_klass_helper() const {
+  return _klass;
+}
+
 //------------------------------TypeInstPtr-------------------------------------
 TypeInstPtr::TypeInstPtr(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset off,
-                         bool flatten_array, int instance_id, const TypePtr* speculative,
-                         int inline_depth)
+                         bool flatten_array, int instance_id, const TypePtr* speculative, int inline_depth)
   : TypeOopPtr(InstPtr, ptr, k, xk, o, off, Offset::bottom, instance_id, speculative, inline_depth),
-    _name(k->name()), _flatten_array(flatten_array) {
-  assert(k != NULL &&
-         (k->is_loaded() || o == NULL),
-         "cannot have constants with non-loaded klass");
-  assert(!klass()->flatten_array() || flatten_array, "Should be flat in array");
-  assert(!flatten_array || can_be_inline_type(), "Only inline types can be flat in array");
+    _flatten_array(flatten_array) {
+   assert(k != NULL &&
+          (k->is_loaded() || o == NULL),
+          "cannot have constants with non-loaded klass");
+   assert(!klass()->flatten_array() || flatten_array, "Should be flat in array");
+   assert(!flatten_array || can_be_inline_type(), "Only inline types can be flat in array");
 };
 
 //------------------------------make-------------------------------------------
@@ -4025,16 +4043,16 @@ const Type* TypeInstPtr::get_const_boxed_value() const {
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
-const TypeInstPtr *TypeInstPtr::cast_to_ptr_type(PTR ptr) const {
+const TypeInstPtr* TypeInstPtr::cast_to_ptr_type(PTR ptr) const {
   if( ptr == _ptr ) return this;
   // Reconstruct _sig info here since not a problem with later lazy
   // construction, _sig will show up on demand.
-  return make(ptr, klass(), klass_is_exact(), const_oop(), _offset, _flatten_array, _instance_id, _speculative, _inline_depth);
+  return make(ptr, klass(), klass_is_exact(), ptr == Constant ? const_oop() : NULL, _offset, _flatten_array, _instance_id, _speculative, _inline_depth);
 }
 
 
 //-----------------------------cast_to_exactness-------------------------------
-const Type *TypeInstPtr::cast_to_exactness(bool klass_is_exact) const {
+const TypeInstPtr* TypeInstPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
   if (!_klass->is_loaded())  return this;
   ciInstanceKlass* ik = _klass->as_instance_klass();
@@ -4044,7 +4062,7 @@ const Type *TypeInstPtr::cast_to_exactness(bool klass_is_exact) const {
 }
 
 //-----------------------------cast_to_instance_id----------------------------
-const TypeOopPtr *TypeInstPtr::cast_to_instance_id(int instance_id) const {
+const TypeInstPtr* TypeInstPtr::cast_to_instance_id(int instance_id) const {
   if( instance_id == _instance_id ) return this;
   return make(_ptr, klass(), _klass_is_exact, const_oop(), _offset, _flatten_array, instance_id, _speculative, _inline_depth);
 }
@@ -4487,6 +4505,70 @@ int TypeInstPtr::hash(void) const {
   return hash;
 }
 
+bool TypeInstPtr::is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const {
+  if (!is_loaded() || !other->is_loaded()) {
+    return false;
+  }
+  if (!other->isa_instptr()) {
+    return false;
+  }
+
+  if (!other_exact) {
+    return false;
+  }
+
+  if (other->klass()->equals(ciEnv::current()->Object_klass())) {
+    return true;
+  }
+
+  if (!this_exact && klass()->is_interface()) {
+    return false;
+  }
+
+  return _klass->is_subtype_of(other->klass());
+}
+
+bool TypeInstPtr::is_same_java_type_as(const TypeOopPtr* other) const {
+  if (!is_loaded() || !other->is_loaded()) {
+    return false;
+  }
+  if (!other->isa_instptr()) {
+    return false;
+  }
+  return _klass->equals(other->_klass);
+}
+
+bool TypeInstPtr::maybe_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const {
+  if (!is_loaded() || !other->is_loaded()) {
+    return true;
+  }
+
+  if (other->isa_aryptr()) {
+    return !this_exact && (_klass->equals(ciEnv::current()->Object_klass()) || _klass->is_interface());
+  }
+
+  if ((_klass->is_interface() && !this_exact) || (other->klass()->is_interface() /*&& !other_exact*/)) {
+    return true;
+  }
+
+  assert(other->isa_instptr(), "unsupported");
+
+  if (this_exact && other_exact) {
+    return is_java_subtype_of(other);
+  }
+
+  if (!_klass->is_subtype_of(other->_klass) && !other->_klass->is_subtype_of(_klass)) {
+    return false;
+  }
+
+  if (this_exact) {
+    return _klass->is_subtype_of(other->_klass);
+  }
+
+  return true;
+}
+
+
 //------------------------------dump2------------------------------------------
 // Dump oop Type
 #ifndef PRODUCT
@@ -4542,12 +4624,17 @@ void TypeInstPtr::dump2(Dict &d, uint depth, outputStream* st) const {
 #endif
 
 //------------------------------add_offset-------------------------------------
-const TypePtr *TypeInstPtr::add_offset(intptr_t offset) const {
+const TypePtr* TypeInstPtr::add_offset(intptr_t offset) const {
   return make(_ptr, klass(), klass_is_exact(), const_oop(), xadd_offset(offset), flatten_array(),
               _instance_id, add_offset_speculative(offset), _inline_depth);
 }
 
-const Type *TypeInstPtr::remove_speculative() const {
+const TypeInstPtr* TypeInstPtr::with_offset(intptr_t offset) const {
+  return make(_ptr, klass(), klass_is_exact(), const_oop(), Offset(offset), flatten_array(),
+              _instance_id, with_offset_speculative(offset), _inline_depth);
+}
+
+const TypeInstPtr* TypeInstPtr::remove_speculative() const {
   if (_speculative == NULL) {
     return this;
   }
@@ -4623,12 +4710,12 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
 //------------------------------cast_to_ptr_type-------------------------------
 const TypeAryPtr* TypeAryPtr::cast_to_ptr_type(PTR ptr) const {
   if( ptr == _ptr ) return this;
-  return make(ptr, const_oop(), _ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  return make(ptr, ptr == Constant ? const_oop() : NULL, _ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
 
 //-----------------------------cast_to_exactness-------------------------------
-const Type *TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
+const TypeAryPtr* TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
   if (_ary->ary_must_be_exact())  return this;  // cannot clear xk
 
@@ -4641,7 +4728,7 @@ const Type *TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
 }
 
 //-----------------------------cast_to_instance_id----------------------------
-const TypeOopPtr *TypeAryPtr::cast_to_instance_id(int instance_id) const {
+const TypeAryPtr* TypeAryPtr::cast_to_instance_id(int instance_id) const {
   if( instance_id == _instance_id ) return this;
   return make(_ptr, const_oop(), _ary, klass(), _klass_is_exact, _offset, _field_offset, instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
@@ -4796,6 +4883,73 @@ int TypeAryPtr::hash(void) const {
   return (intptr_t)_ary + TypeOopPtr::hash() + _field_offset.get();
 }
 
+bool TypeAryPtr::is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const {
+  if (other->klass() == ciEnv::current()->Object_klass() && other_exact) {
+    return true;
+  }
+
+  if (!is_loaded() || !other->is_loaded() || other->klass() == NULL || klass() == NULL) {
+    return false;
+  }
+  if (other->isa_instptr()) {
+    return _klass->is_subtype_of(other->_klass) && other_exact;
+  }
+  if (klass() == NULL) {
+    return false;
+  }
+  assert(other->isa_aryptr(), "");
+  const TypeAryPtr* other_ary = other->isa_aryptr();
+  if (other_ary->elem()->make_oopptr() && elem()->make_oopptr()) {
+    return elem()->make_oopptr()->is_java_subtype_of_helper(other_ary->elem()->make_oopptr(), this_exact, other_exact);
+  }
+  if (!other_ary->elem()->make_oopptr() && !elem()->make_oopptr()) {
+    return _klass->is_subtype_of(other->_klass);
+  }
+  return false;
+}
+
+bool TypeAryPtr::is_same_java_type_as(const TypeOopPtr* other) const {
+  if (!other->isa_aryptr() ||
+      !is_loaded() || !other->is_loaded() || klass() == NULL || other->klass() == NULL) {
+    return false;
+  }
+  const TypeAryPtr* other_ary = other->isa_aryptr();
+  if (other_ary->elem()->make_oopptr() && elem()->make_oopptr()) {
+    return elem()->make_oopptr()->is_same_java_type_as(other_ary->elem()->make_oopptr());
+  }
+  if (!other_ary->elem()->make_oopptr() && !elem()->make_oopptr()) {
+    return _klass->equals(other->_klass);
+  }
+  return false;
+}
+
+bool TypeAryPtr::maybe_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const {
+  if (other->klass() == ciEnv::current()->Object_klass()) {
+    return true;
+  }
+
+  if (!is_loaded() || !other->is_loaded() || klass() == NULL || other->klass() == NULL) {
+    return true;
+  }
+  if (other->isa_instptr()) {
+    return (!other_exact && other->_klass->is_interface()) || _klass->is_subtype_of(other->_klass);
+  }
+  assert(other->isa_aryptr(), "");
+
+  if (this_exact && other_exact) {
+    return is_java_subtype_of(other);
+  }
+
+  const TypeAryPtr* other_ary = other->isa_aryptr();
+  if (other_ary->elem()->make_oopptr() && elem()->make_oopptr()) {
+    return elem()->make_oopptr()->maybe_java_subtype_of_helper(other_ary->elem()->make_oopptr(), this_exact,
+                                                               other_exact);
+  }
+  if (!other_ary->elem()->make_oopptr() && !elem()->make_oopptr()) {
+    return _klass->is_subtype_of(other->_klass);
+  }
+  return false;
+}
 //------------------------------meet-------------------------------------------
 // Compute the MEET of two types.  It returns a new Type object.
 const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
@@ -5154,9 +5308,13 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
     else if( offset() < header_size ) st->print("+%d", offset());
     else {
       BasicType basic_elem_type = elem()->basic_type();
-      int array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
-      int elem_size = type2aelembytes(basic_elem_type);
-      st->print("[%d]", (offset() - array_base)/elem_size);
+      if (basic_elem_type == T_ILLEGAL) {
+        st->print("+any");
+      } else {
+        int array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
+        int elem_size = type2aelembytes(basic_elem_type);
+        st->print("[%d]", (offset() - array_base)/elem_size);
+      }
     }
   }
   st->print(" *");
@@ -5180,7 +5338,15 @@ const TypePtr *TypeAryPtr::add_offset(intptr_t offset) const {
   return make(_ptr, _const_oop, _ary, _klass, _klass_is_exact, xadd_offset(offset), _field_offset, _instance_id, add_offset_speculative(offset), _inline_depth, _is_autobox_cache);
 }
 
-const Type *TypeAryPtr::remove_speculative() const {
+const TypeAryPtr* TypeAryPtr::with_offset(intptr_t offset) const {
+  return make(_ptr, _const_oop, _ary, _klass, _klass_is_exact, Offset(offset), _field_offset, _instance_id, with_offset_speculative(offset), _inline_depth, _is_autobox_cache);
+}
+
+const TypeAryPtr* TypeAryPtr::with_ary(const TypeAry* ary) const {
+  return make(_ptr, _const_oop, ary, _klass, _klass_is_exact, _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+}
+
+const TypeAryPtr* TypeAryPtr::remove_speculative() const {
   if (_speculative == NULL) {
     return this;
   }
@@ -5383,7 +5549,7 @@ const TypeNarrowOop* TypeNarrowOop::make(const TypePtr* type) {
   return (const TypeNarrowOop*)(new TypeNarrowOop(type))->hashcons();
 }
 
-const Type* TypeNarrowOop::remove_speculative() const {
+const TypeNarrowOop* TypeNarrowOop::remove_speculative() const {
   return make(_ptrtype->remove_speculative()->is_ptr());
 }
 
@@ -5468,7 +5634,7 @@ intptr_t TypeMetadataPtr::get_con() const {
     // code and dereferenced at the time the nmethod is made.  Until that time,
     // it is not reasonable to do arithmetic with the addresses of oops (we don't
     // have access to the addresses!).  This does not seem to currently happen,
-    // but this assertion here is to help prevent its occurence.
+    // but this assertion here is to help prevent its occurrence.
     tty->print_cr("Found oop constant with non-zero offset");
     ShouldNotReachHere();
   }
@@ -5611,14 +5777,18 @@ const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
   bool xk = klass_is_exact();
   if (elem->make_oopptr() != NULL) {
     elem = elem->make_oopptr()->as_klass_type(try_for_exact);
-    if (elem->is_klassptr()->klass_is_exact()) {
+    if (elem->is_klassptr()->klass_is_exact() &&
+        // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+        (is_null_free() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
       xk = true;
     }
+  } else if (elem->isa_inlinetype() != NULL) {
+    elem = TypeKlassPtr::make(elem->inline_klass());
   }
   return TypeAryKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, elem, klass(), Offset(0), is_not_flat(), is_not_null_free(), is_null_free());
 }
 
-const TypeKlassPtr* TypeKlassPtr::make(ciKlass *klass) {
+const TypeKlassPtr* TypeKlassPtr::make(ciKlass* klass) {
   if (klass->is_instance_klass()) {
     return TypeInstKlassPtr::make(klass);
   }
@@ -5629,12 +5799,16 @@ const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset) {
   if (klass->is_instance_klass()) {
     return TypeInstKlassPtr::make(ptr, klass, offset);
   }
-  return TypeAryKlassPtr::make(klass, ptr, offset);
+  return TypeAryKlassPtr::make(ptr, klass, offset);
 }
 
 //------------------------------TypeKlassPtr-----------------------------------
 TypeKlassPtr::TypeKlassPtr(TYPES t, PTR ptr, ciKlass* klass, Offset offset)
   : TypePtr(t, ptr, offset), _klass(klass) {
+}
+
+ciKlass* TypeKlassPtr::exact_klass_helper() const {
+  return _klass;
 }
 
 //------------------------------eq---------------------------------------------
@@ -5699,12 +5873,14 @@ intptr_t TypeKlassPtr::get_con() const {
     // code and dereferenced at the time the nmethod is made.  Until that time,
     // it is not reasonable to do arithmetic with the addresses of oops (we don't
     // have access to the addresses!).  This does not seem to currently happen,
-    // but this assertion here is to help prevent its occurence.
+    // but this assertion here is to help prevent its occurrence.
     tty->print_cr("Found oop constant with non-zero offset");
     ShouldNotReachHere();
   }
 
-  return (intptr_t)klass()->constant_encoding();
+  ciKlass* k = exact_klass();
+
+  return (intptr_t)k->constant_encoding();
 }
 
 //------------------------------dump2------------------------------------------
@@ -5775,12 +5951,12 @@ const TypePtr *TypeInstKlassPtr::add_offset( intptr_t offset ) const {
   return make(_ptr, klass(), xadd_offset(offset), flatten_array());
 }
 
-const TypeKlassPtr *TypeInstKlassPtr::with_offset(intptr_t offset) const {
+const TypeInstKlassPtr* TypeInstKlassPtr::with_offset(intptr_t offset) const {
   return make(_ptr, klass(), Offset(offset), flatten_array());
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
-const TypePtr* TypeInstKlassPtr::cast_to_ptr_type(PTR ptr) const {
+const TypeInstKlassPtr* TypeInstKlassPtr::cast_to_ptr_type(PTR ptr) const {
   assert(_base == InstKlassPtr, "subclass must override cast_to_ptr_type");
   if( ptr == _ptr ) return this;
   return make(ptr, _klass, _offset, flatten_array());
@@ -5806,9 +5982,28 @@ const TypeKlassPtr* TypeInstKlassPtr::cast_to_exactness(bool klass_is_exact) con
 //-----------------------------as_instance_type--------------------------------
 // Corresponding type for an instance of the given class.
 // It will be NotNull, and exact if and only if the klass type is exact.
-const TypeOopPtr* TypeInstKlassPtr::as_instance_type() const {
+const TypeOopPtr* TypeInstKlassPtr::as_instance_type(bool klass_change) const {
   ciKlass* k = klass();
-  bool    xk = klass_is_exact();
+  bool xk = klass_is_exact();
+  Compile* C = Compile::current();
+  Dependencies* deps = C->dependencies();
+  assert((deps != NULL) == (C->method() != NULL && C->method()->code_size() > 0), "sanity");
+  // Element is an instance
+  bool klass_is_exact = false;
+  if (k->is_loaded()) {
+    // Try to set klass_is_exact.
+    ciInstanceKlass* ik = k->as_instance_klass();
+    klass_is_exact = ik->is_final();
+    if (!klass_is_exact && klass_change
+        && deps != NULL && UseUniqueSubclasses) {
+      ciInstanceKlass* sub = ik->unique_concrete_subklass();
+      if (sub != NULL) {
+        deps->assert_abstract_with_unique_concrete_subtype(ik, sub);
+        k = ik = sub;
+        xk = sub->is_final();
+      }
+    }
+  }
   return TypeInstPtr::make(TypePtr::BotPTR, k, xk, NULL, Offset(0), flatten_array() && !klass()->is_inlinetype());
 }
 
@@ -5984,15 +6179,78 @@ const Type    *TypeInstKlassPtr::xdual() const {
   return new TypeInstKlassPtr(dual_ptr(), klass(), dual_offset(), flatten_array());
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
+bool TypeInstKlassPtr::is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const {
+  if (!is_loaded() || !other->is_loaded()) {
+    return false;
+  }
+  if (!other->isa_instklassptr()) {
+    return false;
+  }
+
+  if (!other_exact) {
+    return false;
+  }
+
+  if (other->_klass->equals(ciEnv::current()->Object_klass())) {
+    return true;
+  }
+
+  if (!this_exact && klass()->is_interface()) {
+    return false;
+  }
+
+  return _klass->is_subtype_of(other->_klass);
+}
+
+bool TypeInstKlassPtr::is_same_java_type_as(const TypeKlassPtr* other) const {
+  if (!is_loaded() || !other->is_loaded()) {
+    return false;
+  }
+  if (!other->isa_instklassptr()) {
+    return false;
+  }
+  return _klass->equals(other->_klass);
+}
+
+bool TypeInstKlassPtr::maybe_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const {
+  if (!is_loaded() || !other->is_loaded()) {
+    return true;
+  }
+
+  if (other->isa_aryklassptr()) {
+    return !this_exact && (_klass->equals(ciEnv::current()->Object_klass()) || _klass->is_interface());
+  }
+
+  if ((_klass->is_interface() && !this_exact) || (other->klass()->is_interface() /*&& !other_exact*/)) {
+    return true;
+  }
+
+  assert(other->isa_instklassptr(), "unsupported");
+
+  if (this_exact && other_exact) {
+    return is_java_subtype_of(other);
+  }
+
+  if (!_klass->is_subtype_of(other->_klass) && !other->_klass->is_subtype_of(_klass)) {
+    return false;
+  }
+
+  if (this_exact) {
+    return _klass->is_subtype_of(other->_klass);
+  }
+
+  return true;
+}
+
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, null_free))->hashcons();
 }
 
-const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     ciKlass* eklass = klass->as_obj_array_klass()->element_klass();
-    const TypeKlassPtr *etype = TypeKlassPtr::make(eklass)->cast_to_exactness(false);
+    const TypeKlassPtr* etype = TypeKlassPtr::make(eklass)->cast_to_exactness(false);
 
     // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
     if (etype->klass_is_exact() && etype->isa_instklassptr() && etype->is_instklassptr()->klass()->is_inlinetype() && !null_free) {
@@ -6007,23 +6265,28 @@ const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, ciKlass* klass, Offset off
     const Type* etype = get_const_basic_type(klass->as_type_array_klass()->element_type());
     return TypeAryKlassPtr::make(ptr, etype, klass, offset, not_flat, not_null_free, null_free);
   } else if (klass->is_flat_array_klass()) {
-    ciInlineKlass* vk = klass->as_array_klass()->element_klass()->as_inline_klass();
-    return TypeAryKlassPtr::make(ptr, TypeInlineType::make(vk), klass, offset, not_flat, not_null_free, null_free);
+    ciKlass* eklass = klass->as_flat_array_klass()->element_klass();
+    const TypeKlassPtr* etype = TypeKlassPtr::make(eklass);
+    return TypeAryKlassPtr::make(ptr, etype, klass, offset, not_flat, not_null_free, null_free);
   } else {
     ShouldNotReachHere();
     return NULL;
   }
 }
 
-const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* k, PTR ptr, Offset offset) {
+const TypeAryKlassPtr* TypeAryKlassPtr::make(PTR ptr, ciKlass* k, Offset offset) {
   bool null_free = k->as_array_klass()->is_elem_null_free();
-  bool not_null_free = ptr == Constant ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
+  bool not_null_free = (ptr == Constant) ? !null_free : !k->is_flat_array_klass() && (k->is_type_array_klass() || !k->as_array_klass()->element_klass()->can_be_inline_klass(false));
 
   bool not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != NULL &&
                                                      k->as_array_klass()->element_klass()->is_inlinetype() &&
                                                      !k->as_array_klass()->element_klass()->flatten_array());
 
   return TypeAryKlassPtr::make(ptr, k, offset, not_flat, not_null_free, null_free);
+}
+
+const TypeAryKlassPtr* TypeAryKlassPtr::make(ciKlass* klass) {
+  return TypeAryKlassPtr::make(Constant, klass, Offset(0));
 }
 
 //------------------------------eq---------------------------------------------
@@ -6129,13 +6392,36 @@ ciKlass* TypeAryPtr::klass() const {
     // TypeAryPtr::OOPS->klass() are not common enough to matter.
     ((TypeAryPtr*)this)->_klass = k_ary;
     if (UseCompressedOops && k_ary != NULL && k_ary->is_obj_array_klass() &&
-        offset() != 0 && offset() != arrayOopDesc::length_offset_in_bytes()) {
+        offset() != 0 && offset() != arrayOopDesc::length_offset_in_bytes() &&
+        offset() != arrayOopDesc::klass_offset_in_bytes()) {
       ((TypeAryPtr*)this)->_is_ptr_to_narrowoop = true;
     }
   }
   return k_ary;
 }
 
+ciKlass* TypeAryPtr::exact_klass_helper() const {
+  if (_ary->_elem->make_ptr() && _ary->_elem->make_ptr()->isa_oopptr()) {
+    ciKlass* k = _ary->_elem->make_ptr()->is_oopptr()->exact_klass_helper();
+    if (k == NULL) {
+      return NULL;
+    }
+    k = ciArrayKlass::make(k, is_null_free());
+    return k;
+  }
+
+  return klass();
+}
+
+const Type* TypeAryPtr::base_element_type(int& dims) const {
+  const Type* elem = this->elem();
+  dims = 1;
+  while (elem->make_ptr() && elem->make_ptr()->isa_aryptr()) {
+    elem = elem->make_ptr()->is_aryptr()->elem();
+    dims++;
+  }
+  return elem;
+}
 
 //------------------------------add_offset-------------------------------------
 // Access internals of klass object
@@ -6143,12 +6429,12 @@ const TypePtr *TypeAryKlassPtr::add_offset(intptr_t offset) const {
   return make(_ptr, elem(), klass(), xadd_offset(offset), is_not_flat(), is_not_null_free(), _null_free);
 }
 
-const TypeKlassPtr *TypeAryKlassPtr::with_offset(intptr_t offset) const {
+const TypeAryKlassPtr* TypeAryKlassPtr::with_offset(intptr_t offset) const {
   return make(_ptr, elem(), klass(), Offset(offset), is_not_flat(), is_not_null_free(), _null_free);
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
-const TypePtr* TypeAryKlassPtr::cast_to_ptr_type(PTR ptr) const {
+const TypeAryKlassPtr* TypeAryKlassPtr::cast_to_ptr_type(PTR ptr) const {
   assert(_base == AryKlassPtr, "subclass must override cast_to_ptr_type");
   if (ptr == _ptr) return this;
   return make(ptr, elem(), _klass, _offset, is_not_flat(), is_not_null_free(), _null_free);
@@ -6173,10 +6459,18 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   }
   bool not_flat = is_not_flat();
   bool not_null_free = is_not_null_free();
-  if (klass() != NULL && klass()->is_obj_array_klass() && klass_is_exact) {
-    // An object array can't be flat or null-free if the klass is exact
-    not_flat = true;
-    not_null_free = true;
+  if (k != NULL && k->is_obj_array_klass()) {
+    if (klass_is_exact) {
+      // An object array can't be flat or null-free if the klass is exact
+      not_flat = true;
+      not_null_free = true;
+    } else {
+      // Klass is not exact (anymore), re-compute null-free/flat properties
+      not_null_free = !k->as_array_klass()->element_klass()->can_be_inline_klass(false);
+      not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != NULL &&
+                                                    k->as_array_klass()->element_klass()->is_inlinetype() &&
+                                                    !k->as_array_klass()->element_klass()->flatten_array());
+    }
   }
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _null_free);
 }
@@ -6184,18 +6478,27 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
 
 //-----------------------------as_instance_type--------------------------------
 // Corresponding type for an instance of the given class.
-// It will be exact if and only if the klass type is exact.
-const TypeOopPtr* TypeAryKlassPtr::as_instance_type() const {
+// It will be NotNull, and exact if and only if the klass type is exact.
+const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
   ciKlass* k = klass();
   assert(k != NULL, "klass should not be NULL");
   bool    xk = klass_is_exact();
-  const Type* el = elem()->isa_klassptr() ? elem()->is_klassptr()->as_instance_type()->is_oopptr()->cast_to_exactness(false) : elem();
+  const Type* el = NULL;
+  if (elem()->isa_klassptr()) {
+    el = elem()->is_klassptr()->as_instance_type(false)->cast_to_exactness(false);
+    k = NULL;
+  } else {
+    el = elem();
+  }
   bool null_free = _null_free;
   if (null_free && el->isa_ptr()) {
     el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
   }
   bool not_flat = is_not_flat();
   bool not_null_free = is_not_null_free();
+  if (is_flat()) {
+    el = TypeInlineType::make(el->inline_klass());
+  }
   return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, not_flat, not_null_free), k, xk, Offset(0));
 }
 
@@ -6354,6 +6657,75 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
   return this;                  // Return the double constant
 }
 
+bool TypeAryKlassPtr::is_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const {
+  if (other->klass() == ciEnv::current()->Object_klass() && other_exact) {
+    return true;
+  }
+
+  if (!is_loaded() || !other->is_loaded() || other->klass() == NULL || klass() == NULL) {
+    return false;
+  }
+  if (other->isa_instklassptr()) {
+    return _klass->is_subtype_of(other->_klass) && other_exact;
+  }
+  if (klass() == NULL) {
+    return false;
+  }
+  assert(other->isa_aryklassptr(), "");
+  const TypeAryKlassPtr* other_ary = other->isa_aryklassptr();
+  if (other_ary->_elem->isa_klassptr() && _elem->isa_klassptr()) {
+    if (other->is_null_free() && !is_null_free()) {
+      return false; // [LMyValue is not a subtype of [QMyValue
+    }
+    return _elem->is_klassptr()->is_java_subtype_of_helper(other_ary->_elem->is_klassptr(), this_exact, other_exact);
+  }
+  if (!other_ary->_elem->isa_klassptr() && !_elem->isa_klassptr()) {
+    return _klass->is_subtype_of(other->_klass);
+  }
+  return false;
+}
+
+bool TypeAryKlassPtr::is_same_java_type_as(const TypeKlassPtr* other) const {
+  if (!other->isa_aryklassptr() ||
+      !is_loaded() || !other->is_loaded() || klass() == NULL || other->klass() == NULL) {
+    return false;
+  }
+  const TypeAryKlassPtr* other_ary = other->isa_aryklassptr();
+  if (other_ary->_elem->isa_klassptr() && _elem->isa_klassptr()) {
+    return _elem->is_klassptr()->is_same_java_type_as(other_ary->_elem->is_klassptr());
+  }
+  if (!other_ary->_elem->isa_klassptr() && !_elem->isa_klassptr()) {
+    return _klass->equals(other->_klass);
+  }
+  return false;
+}
+
+bool TypeAryKlassPtr::maybe_java_subtype_of_helper(const TypeKlassPtr* other, bool this_exact, bool other_exact) const {
+  if (other->klass() == ciEnv::current()->Object_klass()) {
+    return true;
+  }
+  if (!is_loaded() || !other->is_loaded() || klass() == NULL || other->klass() == NULL) {
+    return true;
+  }
+  if (other->isa_instklassptr()) {
+    return (!other_exact && other->_klass->is_interface()) || _klass->is_subtype_of(other->_klass);
+  }
+  assert(other->isa_aryklassptr(), "");
+
+  if (this_exact && other_exact) {
+    return is_java_subtype_of(other);
+  }
+
+  const TypeAryKlassPtr* other_ary = other->isa_aryklassptr();
+  if (other_ary->_elem->isa_klassptr() && _elem->isa_klassptr()) {
+    return _elem->is_klassptr()->maybe_java_subtype_of_helper(other_ary->_elem->is_klassptr(), this_exact, other_exact);
+  }
+  if (!other_ary->_elem->isa_klassptr() && !_elem->isa_klassptr()) {
+    return _klass->is_subtype_of(other->_klass);
+  }
+  return false;
+}
+
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
 const Type    *TypeAryKlassPtr::xdual() const {
@@ -6361,8 +6733,21 @@ const Type    *TypeAryKlassPtr::xdual() const {
 }
 
 //------------------------------get_con----------------------------------------
+ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
+  if (elem()->isa_klassptr()) {
+    ciKlass* k = elem()->is_klassptr()->exact_klass_helper();
+    if (k == NULL) {
+      return NULL;
+    }
+    k = ciArrayKlass::make(k, _null_free);
+    return k;
+  }
+
+  return klass();
+}
+
 ciKlass* TypeAryKlassPtr::klass() const {
-    if (_klass != NULL) {
+  if (_klass != NULL) {
     return _klass;
   }
   ciKlass* k = NULL;
@@ -6422,9 +6807,10 @@ void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
     break;
   }
   if (Verbose) {
+    if (is_flat()) st->print(":flat");
     if (_not_flat) st->print(":not flat");
     if (_not_null_free) st->print(":not null free");
-    if (_null_free != 0) st->print(":null free(%d)", _null_free);
+    if (_null_free) st->print(":null free");
   }
 
   _offset.dump2(st);

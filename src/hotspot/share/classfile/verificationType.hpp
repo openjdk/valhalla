@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@
 #include "runtime/signature.hpp"
 
 enum {
-  // As specifed in the JVM spec
+  // As specified in the JVM spec
   ITEM_Top = 0,
   ITEM_Integer = 1,
   ITEM_Float = 2,
@@ -210,7 +210,7 @@ class VerificationType {
     // Though the 'query' types should technically return 'false' here, if we
     // allow this to return true, we can perform the test using only
     // 2 operations rather than 8 (3 masks, 3 compares and 2 logical 'ands').
-    // Since noone should call this on a query type anyway, this is ok.
+    // Since no one should call this on a query type anyway, this is ok.
     assert(!is_check(), "Must not be a check type (wrong value returned)");
     return ((_u._data & Category1) != Primitive);
     // should only return false if it's a primitive, and the category1 flag

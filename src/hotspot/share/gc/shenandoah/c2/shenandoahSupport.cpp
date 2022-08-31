@@ -298,7 +298,7 @@ void ShenandoahBarrierC2Support::verify(RootNode* root) {
         if (adr_type->isa_oopptr() && adr_type->is_oopptr()->offset() == oopDesc::mark_offset_in_bytes()) {
           if (trace) {tty->print_cr("Mark load");}
         } else if (adr_type->isa_instptr() &&
-                   adr_type->is_instptr()->klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+                   adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
                    adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset()) {
           if (trace) {tty->print_cr("Reference.get()");}
         } else if (!verify_helper(n->in(MemNode::Address), phis, visited, ShenandoahLoad, trace, barriers_used)) {
@@ -1332,6 +1332,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     Node* orig_ctrl = ctrl;
 
     Node* raw_mem = fixer.find_mem(ctrl, lrb);
+    Node* raw_mem_for_ctrl = fixer.find_mem(ctrl, NULL);
 
     IdealLoopTree *loop = phase->get_loop(ctrl);
 
@@ -1358,7 +1359,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     val_phi->init_req(_heap_stable, val);
 
     // Test for in-cset, unless it's a native-LRB. Native LRBs need to return NULL
-    // even for non-cset objects to prevent ressurrection of such objects.
+    // even for non-cset objects to prevent resurrection of such objects.
     // Wires !in_cset(obj) to slot 2 of region and phis
     Node* not_cset_ctrl = NULL;
     if (ShenandoahBarrierSet::is_strong_access(lrb->decorators())) {
@@ -1433,6 +1434,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
       phase->set_ctrl(n, region);
       follow_barrier_uses(n, ctrl, uses, phase);
     }
+    fixer.record_new_ctrl(ctrl, region, raw_mem, raw_mem_for_ctrl);
   }
   // Done expanding load-reference-barriers.
   assert(ShenandoahBarrierSetC2::bsc2()->state()->load_reference_barriers_count() == 0, "all load reference barrier nodes should have been replaced");
@@ -2665,6 +2667,13 @@ void MemoryGraphFixer::fix_mem(Node* ctrl, Node* new_ctrl, Node* mem, Node* mem_
     assert(n->outcnt() > 0, "new phi must have uses now");
   }
 #endif
+}
+
+void MemoryGraphFixer::record_new_ctrl(Node* ctrl, Node* new_ctrl, Node* mem, Node* mem_for_ctrl) {
+  if (mem_for_ctrl != mem && new_ctrl != ctrl) {
+    _memory_nodes.map(ctrl->_idx, mem);
+    _memory_nodes.map(new_ctrl->_idx, mem_for_ctrl);
+  }
 }
 
 MergeMemNode* MemoryGraphFixer::allocate_merge_mem(Node* mem, Node* rep_proj, Node* rep_ctrl) const {

@@ -25,6 +25,7 @@
 #ifndef SHARE_OOPS_METHOD_HPP
 #define SHARE_OOPS_METHOD_HPP
 
+#include "classfile/vmSymbols.hpp"
 #include "code/compressedStream.hpp"
 #include "compiler/compilerDefinitions.hpp"
 #include "interpreter/invocationCounter.hpp"
@@ -84,18 +85,20 @@ class Method : public Metadata {
 
   // Flags
   enum Flags {
-    _caller_sensitive      = 1 << 0,
-    _force_inline          = 1 << 1,
-    _dont_inline           = 1 << 2,
-    _hidden                = 1 << 3,
-    _has_injected_profile  = 1 << 4,
-    _intrinsic_candidate   = 1 << 5,
-    _reserved_stack_access = 1 << 6,
-    _scalarized_args       = 1 << 7,
-    _scalarized_return     = 1 << 8,
-    _c1_needs_stack_repair = 1 << 9,
-    _c2_needs_stack_repair = 1 << 10,
-    _scoped                = 1 << 11
+    _caller_sensitive       = 1 << 0,
+    _force_inline           = 1 << 1,
+    _dont_inline            = 1 << 2,
+    _hidden                 = 1 << 3,
+    _has_injected_profile   = 1 << 4,
+    _intrinsic_candidate    = 1 << 5,
+    _reserved_stack_access  = 1 << 6,
+    _scalarized_args        = 1 << 7,
+    _scalarized_return      = 1 << 8,
+    _c1_needs_stack_repair  = 1 << 9,
+    _c2_needs_stack_repair  = 1 << 10,
+    _scoped                 = 1 << 11,
+    _changes_current_thread = 1 << 12,
+    _jvmti_mount_transition = 1 << 13,
   };
   mutable u2 _flags;
 
@@ -424,7 +427,7 @@ class Method : public Metadata {
   bool was_executed_more_than(int n);
   bool was_never_executed()                     { return !was_executed_more_than(0);  }
 
-  static void build_interpreter_method_data(const methodHandle& method, TRAPS);
+  static void build_profiling_method_data(const methodHandle& method, TRAPS);
 
   static MethodCounters* build_method_counters(Thread* current, Method* m);
 
@@ -486,6 +489,9 @@ public:
   void link_method(const methodHandle& method, TRAPS);
   // clear entry points. Used by sharing code during dump time
   void unlink_method() NOT_CDS_RETURN;
+
+  // the number of argument reg slots that the compiled method uses on the stack.
+  int num_stack_arg_slots() const { return constMethod()->num_stack_arg_slots(); }
 
   virtual void metaspace_pointers_do(MetaspaceClosure* iter);
   virtual MetaspaceObj::Type type() const { return MethodType; }
@@ -749,6 +755,13 @@ public:
   static methodHandle make_method_handle_intrinsic(vmIntrinsicID iid, // _invokeBasic, _linkToVirtual
                                                    Symbol* signature, //anything at all
                                                    TRAPS);
+
+
+  // Continuation
+  bool is_continuation_enter_intrinsic() const { return intrinsic_id() == vmIntrinsics::_Continuation_enterSpecial; }
+
+  bool is_special_native_intrinsic() const { return is_method_handle_intrinsic() || is_continuation_enter_intrinsic(); }
+
   static Klass* check_non_bcp_klass(Klass* klass);
 
   enum {
@@ -772,6 +785,8 @@ public:
 
   bool on_stack() const                             { return access_flags().on_stack(); }
   void set_on_stack(const bool value);
+
+  void record_gc_epoch();
 
   // see the definition in Method*.cpp for the gory details
   bool should_not_be_cached() const;
@@ -855,6 +870,20 @@ public:
   }
   void set_dont_inline(bool x) {
     _flags = x ? (_flags | _dont_inline) : (_flags & ~_dont_inline);
+  }
+
+  bool changes_current_thread() {
+    return (_flags & _changes_current_thread) != 0;
+  }
+  void set_changes_current_thread(bool x) {
+    _flags = x ? (_flags | _changes_current_thread) : (_flags & ~_changes_current_thread);
+  }
+
+  bool jvmti_mount_transition() {
+    return (_flags & _jvmti_mount_transition) != 0;
+  }
+  void set_jvmti_mount_transition(bool x) {
+    _flags = x ? (_flags | _jvmti_mount_transition) : (_flags & ~_jvmti_mount_transition);
   }
 
   bool is_hidden() const {
@@ -1005,11 +1034,11 @@ public:
   static bool has_unloaded_classes_in_signature(const methodHandle& m, TRAPS);
 
   // Printing
-  void print_short_name(outputStream* st = tty); // prints as klassname::methodname; Exposed so field engineers can debug VM
+  void print_short_name(outputStream* st = tty) const; // prints as klassname::methodname; Exposed so field engineers can debug VM
 #if INCLUDE_JVMTI
-  void print_name(outputStream* st = tty); // prints as "virtual void foo(int)"; exposed for -Xlog:redefine+class
+  void print_name(outputStream* st = tty) const; // prints as "virtual void foo(int)"; exposed for -Xlog:redefine+class
 #else
-  void print_name(outputStream* st = tty)        PRODUCT_RETURN; // prints as "virtual void foo(int)"
+  void print_name(outputStream* st = tty) const  PRODUCT_RETURN; // prints as "virtual void foo(int)"
 #endif
 
   typedef int (*method_comparator_func)(Method* a, Method* b);
@@ -1053,6 +1082,8 @@ public:
   // Inlined elements
   address* native_function_addr() const          { assert(is_native(), "must be native"); return (address*) (this+1); }
   address* signature_handler_addr() const        { return native_function_addr() + 1; }
+
+  void set_num_stack_arg_slots(int n) { constMethod()->set_num_stack_arg_slots(n); }
 };
 
 

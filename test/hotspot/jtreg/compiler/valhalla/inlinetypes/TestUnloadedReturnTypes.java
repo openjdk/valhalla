@@ -25,8 +25,8 @@
  * @test
  * @summary Test scalarization in returns with unloaded return types.
  * @library /test/lib /compiler/whitebox /
- * @build sun.hotspot.WhiteBox
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
  *                   TestUnloadedReturnTypes
@@ -34,7 +34,7 @@
 
 import java.lang.reflect.Method;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 primitive class MyPrimitive {
     int x;
