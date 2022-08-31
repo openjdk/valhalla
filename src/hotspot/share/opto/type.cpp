@@ -6747,7 +6747,7 @@ ciKlass* TypeAryKlassPtr::exact_klass_helper() const {
 }
 
 ciKlass* TypeAryKlassPtr::klass() const {
-    if (_klass != NULL) {
+  if (_klass != NULL) {
     return _klass;
   }
   ciKlass* k = NULL;
