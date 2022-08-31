@@ -457,9 +457,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        // currently failing but should be accepted
-        /*
-        assertOK(
+        assertFail("compiler.err.bad.functional.intf.anno.1",
                 """
                 identity interface I {
                     void m();
@@ -468,7 +466,41 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 @FunctionalInterface
                 interface J extends I  {}
                 """);
-        */
+        assertFail("compiler.err.bad.functional.intf.anno.1",
+                """
+                value interface I {
+                    void m();
+                }
+
+                @FunctionalInterface
+                interface J extends I  {}
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                identity interface I {}
+                interface K extends I {}
+                interface J {
+                    void m();
+                }
+                class Test {
+                    void foo() {
+                        J j = (J&K)() -> {};
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                value interface I {}
+                interface K extends I {}
+                interface J {
+                    void m();
+                }
+                class Test {
+                    void foo() {
+                        J j = (J&K)() -> {};
+                    }
+                }
+                """);
     }
 
     public void testMutuallyIncompatibleSupers() {
