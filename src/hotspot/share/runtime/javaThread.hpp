@@ -135,7 +135,7 @@ class JavaThread: public Thread {
   // Used to pass back results to the interpreter or generated code running Java code.
   oop           _vm_result;    // oop result is GC-preserved
   Metadata*     _vm_result_2;  // non-oop result
-  oop           _return_buffered_value; // buffered value being returned  
+  oop           _return_buffered_value; // buffered value being returned
 
   // See ReduceInitialCardMarks: this holds the precise space interval of
   // the most recent slow path allocation for which compiled code has

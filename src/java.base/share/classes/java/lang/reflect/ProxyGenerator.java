@@ -954,7 +954,7 @@ final class ProxyGenerator extends ClassWriter {
          *
          * The code is written to the supplied stream.  Note that the code generated
          * by this method may caused the checked ClassNotFoundException to be thrown.
-         * A class loader is anticipated at local variable index 0.         
+         * A class loader is anticipated at local variable index 0.
          */
         private void codeClassForName(MethodVisitor mv, Class<?> cl) {
             mv.visitLdcInsn(cl.getName());
