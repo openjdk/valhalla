@@ -462,12 +462,6 @@ inline frame frame::sender_for_compiled_frame(RegisterMap* map) const {
       // before doing any argument shuffling, so we need to scan the oops
       // as the caller passes them.
       c1_buffering = true;
-#ifdef ASSERT
-      NativeCall* call = nativeCall_before(pc());
-      address dest = call->destination();
-      assert(dest == Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id) ||
-             dest == Runtime1::entry_for(Runtime1::buffer_inline_args_id), "unexpected safepoint in entry point");
-#endif
     }
 #endif
     if (!_cb->is_compiled() || c1_buffering) { // compiled frames do not use callee-saved registers
