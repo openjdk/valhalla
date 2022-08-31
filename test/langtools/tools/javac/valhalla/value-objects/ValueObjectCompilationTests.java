@@ -451,7 +451,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value interface M {
                     void m();
                 }
-                class Test {            
+                class Test {
                     void foo() {
                         var u = (M) () -> {}; // Error
                     }
@@ -466,7 +466,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 }
 
                 @FunctionalInterface
-                interface J extends I  {}        
+                interface J extends I  {}
                 """);
         */
     }
