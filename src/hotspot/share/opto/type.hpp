@@ -1764,7 +1764,7 @@ public:
     return TypeKlassPtr::empty() || _elem->empty();
   }
 
-  bool is_flat()          const { return klass()->is_flat_array_klass(); }
+  bool is_flat()          const { return klass() != NULL && klass()->is_flat_array_klass(); }
   bool is_not_flat()      const { return _not_flat; }
   bool is_null_free()     const { return _null_free; }
   bool is_not_null_free() const { return _not_null_free; }
