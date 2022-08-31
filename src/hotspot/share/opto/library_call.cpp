@@ -3867,7 +3867,6 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  // TODO Tobias
   bool requires_null_check = false;
   ciType* tm = mirror_con->java_mirror_type(&requires_null_check);
   if (tm != NULL && tm->is_klass() &&
@@ -4294,8 +4293,6 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
                         (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         klass->can_be_inline_array_klass() && (!klass->is_flat_array_klass() || klass->as_flat_array_klass()->element_klass()->as_inline_klass()->contains_oops());
-    // TODO Tobias shouldn't we check for flat here?
-    // Look at this again https://github.com/openjdk/valhalla/commit/31412b9f
     Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
