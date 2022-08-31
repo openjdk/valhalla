@@ -100,7 +100,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     synchronized void foo() {
                      // Error, abstract value class may not declare a synchronized instance method.
                     }
-                }    
+                }
                 """);
         assertFail("compiler.err.super.class.declares.init.block",
                 """
@@ -144,7 +144,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 abstract class I { // identity class since it declares an instance field.
                     int f;
                 }
-                        
                 value class V extends I {}
                 """);
 
@@ -161,7 +160,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 abstract class I { // has identity since it declared a synchronized instance method.
                     synchronized void foo() {}
                 }
-                            
                 value class V extends I {}
                 """);
 
@@ -170,7 +168,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 abstract class I { // has identity since it declares an instance initializer
                     { int f = 42; }
                 }
-                                
                 value class V extends I {}
                 """);
 
@@ -179,7 +176,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 abstract class I { // has identity since it declares a non-trivial constructor
                     I(int x) {}
                 }
-                            
                 value class V extends I {}
                 """);
     }
@@ -214,32 +210,32 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     private String str;
                     private int start;
                     private int end;
-                                
+
                     public Substring(String str, int start, int end) {
                         checkBounds(start, end, str.length());
                         this.str = str;
                         this.start = start;
                         this.end = end;
                     }
-                                
+
                     public int length() {
                         return end - start;
                     }
-                                
+
                     public char charAt(int i) {
                         checkBounds(0, i, length());
                         return str.charAt(start + i);
                     }
-                                
+
                     public Substring subSequence(int s, int e) {
                         checkBounds(s, e, length());
                         return new Substring(str, start + s, start + e);
                     }
-                                
+
                     public String toString() {
                         return str.substring(start, end);
                     }
-                                
+
                     private static void checkBounds(int start, int end, int length) {
                         if (start < 0 || end < start || length < end)
                             throw new IndexOutOfBoundsException();
@@ -281,7 +277,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                         this.x = x;
                         this.y = y;
                     }
-                    
+
                     void foo(Point p) {
                         this.y = p.y; // Error, y is final and can't be written outside of ctor.
                     }
@@ -350,11 +346,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.type.found.req",
                 """
                 interface I {}
-                                
                 value interface VI extends I {}
-                            
                 class C {}
-                            
                 value class VC<T extends VC> {
                     void m(T t) {
                         synchronized(t) {} // error
@@ -364,11 +357,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.type.found.req",
                 """
                 interface I {}
-                                
                 value interface VI extends I {}
-                            
                 class C {}
-                            
                 value class VC<T extends VC> {
                     void foo(Object o) {
                         synchronized ((VC & I)o) {} // error
@@ -378,11 +368,8 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.type.found.req",
                 """
                 interface I {}
-                                
                 value interface VI extends I {}
-                            
                 class C {}
-                            
                 value class VC<T extends VC> {
                     void bar(Object o) {
                         synchronized ((I & VI)o) {} // error
@@ -439,22 +426,21 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 @FunctionalInterface
                 identity interface I { // Error
                     void m();
-                }        
+                }
                 """);
         assertFail("compiler.err.bad.functional.intf.anno.1",
                 """
                 @FunctionalInterface
                 value interface K { // Error
                     void m();
-                }        
+                }
                 """);
         assertFail("compiler.err.prob.found.req",
                 """
                 identity interface L {
                     void m();
                 }
-                      
-                class Test {            
+                class Test {
                     void foo() {
                         var t = (L) () -> {}; // Error
                     }
@@ -465,7 +451,6 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value interface M {
                     void m();
                 }
-                
                 class Test {            
                     void foo() {
                         var u = (M) () -> {}; // Error
