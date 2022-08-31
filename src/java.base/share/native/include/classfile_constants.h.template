@@ -70,7 +70,6 @@ enum {
 #define JVM_ACC_SUPER_BIT         5
 #define JVM_ACC_VOLATILE_BIT      6
 #define JVM_ACC_BRIDGE_BIT        6
-#define JVM_ACC_PERMITS_VALUE_BIT 6
 #define JVM_ACC_TRANSIENT_BIT     7
 #define JVM_ACC_VARARGS_BIT       7
 #define JVM_ACC_NATIVE_BIT        8

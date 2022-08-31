@@ -404,7 +404,6 @@ public class JasmTokens {
 
         // Valhalla
         VALUE              (200, "VALUE",     "value",     EnumSet.of(TokenType.MODIFIER, TokenType.MODULE_NAME ), KeywordType.KEYWORD),
-        PERMITS_VALUE      (201, "PERMITS_VALUE", "permits_value", EnumSet.of(TokenType.MODIFIER, TokenType.MODULE_NAME ), KeywordType.KEYWORD),
         PRIMITIVE          (202, "PRIMITIVE", "primitive", EnumSet.of(TokenType.MODIFIER, TokenType.MODULE_NAME ), KeywordType.KEYWORD),
         PRELOAD            (203, "PRELOAD",    "Preload",  EnumSet.of(TokenType.DECLARATION, TokenType.JASM_IDENT, TokenType.MODULE_NAME ), KeywordType.KEYWORD);
 

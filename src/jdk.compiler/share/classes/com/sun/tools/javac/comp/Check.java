@@ -875,14 +875,19 @@ public class Check {
      *  @param pos           Position to be used for error reporting.
      *  @param t             The type to be checked.
      */
-    Type checkIdentityType(DiagnosticPosition pos, Type t) {
-
+    void checkIdentityType(DiagnosticPosition pos, Type t) {
+        if (t.hasTag(TYPEVAR)) {
+            t = types.skipTypeVars(t, false);
+        }
+        if (t.isIntersection()) {
+            IntersectionClassType ict = (IntersectionClassType)t;
+            for (Type component : ict.getExplicitComponents()) {
+                checkIdentityType(pos, component);
+            }
+            return;
+        }
         if (t.isPrimitive() || t.isValueClass() || t.isValueInterface() || t.isReferenceProjection())
-            return typeTagError(pos,
-                    diags.fragment(Fragments.TypeReqIdentity),
-                    t);
-
-        return t;
+            typeTagError(pos, diags.fragment(Fragments.TypeReqIdentity), t);
     }
 
     /** Check that type is a reference type, i.e. a class, interface or array type
@@ -1526,7 +1531,13 @@ public class Check {
                            FINAL | NON_SEALED)
                  && checkDisjoint(pos, flags,
                                 SEALED,
-                                ANNOTATION)) {
+                                ANNOTATION)
+                 && checkDisjoint(pos, flags,
+                                IDENTITY_TYPE,
+                                ANNOTATION)
+                && checkDisjoint(pos, flags,
+                                VALUE_CLASS,
+                                ANNOTATION) ) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
@@ -2030,19 +2041,6 @@ public class Check {
                                                           asFlagSet(other.flags() & AccessFlags)));
             m.flags_field |= BAD_OVERRIDE;
             return;
-        }
-
-        if (shouldCheckPreview(m, other, origin)) {
-            checkPreview(tree.pos(), m, other);
-        }
-
-        if (origin.isValueClass() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
-            if (m.name == names.finalize) {
-                log.error(TreeInfo.diagnosticPositionFor(m, tree),
-                        Errors.ValueClassMayNotOverride(m.name));
-                m.flags_field |= BAD_OVERRIDE;
-                return;
-            }
         }
 
         Type mt = types.memberType(origin.type, m);

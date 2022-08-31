@@ -1,5 +1,0 @@
-ModifiersTest.java:10:12: compiler.err.repeated.modifier
-ModifiersTest.java:13:12: compiler.err.repeated.modifier
-ModifiersTest.java:16:11: compiler.err.repeated.modifier
-ModifiersTest.java:19:15: compiler.err.repeated.modifier
-4 errors

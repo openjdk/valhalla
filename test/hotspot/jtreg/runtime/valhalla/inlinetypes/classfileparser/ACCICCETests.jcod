@@ -23,7 +23,7 @@
  */
 
 // This is an abstract class that cannot be a super class for value classes
-// because ACC_PERMITS_VALUE was removed from its class access flags.
+// because ACC_IDENTITY is set in its class access flags.
 // It's based on the following source:
 /*
 public abstract class NonPVSuper {
@@ -75,7 +75,7 @@ class NonPVSuper {
     Utf8 "NonPVSuper.java"; // #32     at 0x011E
   } // Constant Pool
 
-  0x0421; // access [ ACC_PUBLIC ACC_SUPER ACC_ABSTRACT ]
+  0x0421; // access [ ACC_PUBLIC ACC_IDENTITY ACC_ABSTRACT ]
   #22;// this_cpx
   #2;// super_cpx
 
@@ -177,7 +177,7 @@ class NonPVSuper {
 
 
 // Dot is a value class that tries to inherit from a super class (NonPVSuper)
-// that does not have access flag ACC_PERMIT_VALUES set.
+// that has access flag ACC_IDENTITY set.
 // Dot is based on the following source:
 /*
 public value final class Dot extends NonPVSuper {
