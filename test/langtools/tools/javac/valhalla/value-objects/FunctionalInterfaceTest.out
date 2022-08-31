@@ -1,6 +1,0 @@
-FunctionalInterfaceTest.java:10:5: compiler.err.bad.functional.intf.anno.1: (compiler.misc.not.a.functional.intf.1: FunctionalInterfaceTest.I, (compiler.misc.identity.interface.nonfunctional))
-FunctionalInterfaceTest.java:15:5: compiler.err.bad.functional.intf.anno.1: (compiler.misc.not.a.functional.intf.1: FunctionalInterfaceTest.J, (compiler.misc.identity.interface.nonfunctional))
-FunctionalInterfaceTest.java:18:5: compiler.err.bad.functional.intf.anno.1: (compiler.misc.not.a.functional.intf.1: FunctionalInterfaceTest.K, (compiler.misc.value.interface.nonfunctional))
-FunctionalInterfaceTest.java:32:21: compiler.err.prob.found.req: (compiler.misc.not.a.functional.intf.1: FunctionalInterfaceTest.L, (compiler.misc.identity.interface.nonfunctional))
-FunctionalInterfaceTest.java:33:21: compiler.err.prob.found.req: (compiler.misc.not.a.functional.intf.1: FunctionalInterfaceTest.M, (compiler.misc.value.interface.nonfunctional))
-5 errors
