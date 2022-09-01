@@ -1468,8 +1468,14 @@ public class Check {
                 implicit |= VALUE_CLASS | FINAL;
 
             // concrete value classes are implicitly final
-            if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS)
+            if ((flags & (ABSTRACT | INTERFACE | VALUE_CLASS)) == VALUE_CLASS) {
                 implicit |= FINAL;
+                if ((flags & NON_SEALED) != 0) {
+                    // cant declare a final value class non-sealed
+                    log.error(pos,
+                            Errors.ModNotAllowedHere(asFlagSet(NON_SEALED)));
+                }
+            }
 
             // TYPs can't be declared synchronized
             mask &= ~SYNCHRONIZED;
