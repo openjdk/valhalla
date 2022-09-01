@@ -2987,9 +2987,9 @@ bool LibraryCallKit::inline_unsafe_allocate() {
     // The 'test' is non-zero if we need to take a slow path.
   }
   Node* obj = NULL;
-  ciKlass* klass = _gvn.type(kls)->is_klassptr()->klass();
-  if (klass->is_inlinetype()) {
-    obj = InlineTypeNode::make_default(_gvn, klass->as_inline_klass())->buffer(this);
+  const TypeInstKlassPtr* tkls = _gvn.type(kls)->isa_instklassptr();
+  if (tkls != NULL && tkls->instance_klass()->is_inlinetype()) {
+    obj = InlineTypeNode::make_default(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }
@@ -4287,12 +4287,12 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // to not contain oops (i.e., move this check to the macro expansion phase).
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
-    ciKlass* klass = _gvn.type(klass_node)->is_klassptr()->klass();
+    const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();
     bool exclude_flat = UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
                         // Can src array be flat and contain oops?
                         (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
-                        klass->can_be_inline_array_klass() && (!klass->is_flat_array_klass() || klass->as_flat_array_klass()->element_klass()->as_inline_klass()->contains_oops());
+                        tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
     Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
@@ -4333,7 +4333,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         }
       } else if (UseFlatArray && (orig_t == NULL || !orig_t->is_not_flat()) &&
                  // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
-                 ((!klass->is_flat_array_klass() && klass->can_be_inline_array_klass()) || !can_validate)) {
+                 ((!tklass->is_flat() && tklass->can_be_inline_array()) || !can_validate)) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
         generate_fair_guard(flat_array_test(load_object_klass(original)), bailout);
@@ -5078,7 +5078,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
       if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
-          obj_type->klass()->can_be_inline_array_klass() &&
+          obj_type->can_be_inline_array() &&
           (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
@@ -5599,7 +5599,7 @@ bool LibraryCallKit::inline_arraycopy() {
         if (top_dest != NULL && !top_dest->is_flat()) {
           generate_fair_guard(flat_array_test(dest_klass, /* flat = */ false), slow_region);
           // Since dest is flat and src <: dest, dest must have the same type as src.
-          top_dest = TypeOopPtr::make_from_klass(top_src->klass())->isa_aryptr();
+          top_dest = top_src->cast_to_exactness(false);
           assert(top_dest->is_flat(), "dest must be flat");
           dest = _gvn.transform(new CheckCastPPNode(control(), dest, top_dest));
         }
