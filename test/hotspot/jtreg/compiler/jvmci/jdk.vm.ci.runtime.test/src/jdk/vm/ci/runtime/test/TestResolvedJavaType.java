@@ -187,8 +187,7 @@ public class TestResolvedJavaType extends TypeUniverse {
         assertEquals(javaName, internalNameToJava(typeName, true, true));
     }
 
-    // TODO Re-enable once JDK-8291719 is fixed.
-    // @Test
+    @Test
     public void getModifiersTest() {
         for (Class<?> c : classes) {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
