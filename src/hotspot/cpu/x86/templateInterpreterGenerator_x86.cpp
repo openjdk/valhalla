@@ -207,7 +207,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // Restore stack bottom in case i2c adjusted stack
   __ movptr(rsp, Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize));
   // and NULL it as marker that esp is now tos until next java call
-  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
+  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), NULL_WORD);
 
   if (state == atos && InlineTypeReturnedAsFields) {
     __ store_inline_type_fields_to_buf(NULL);
@@ -259,7 +259,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
 #endif // _LP64
 
   // NULL last_sp until next java call
-  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
+  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), NULL_WORD);
   __ restore_bcp();
   __ restore_locals();
   const Register thread = NOT_LP64(rcx) LP64_ONLY(r15_thread);
@@ -293,7 +293,7 @@ address TemplateInterpreterGenerator::generate_deopt_entry_for(TosState state, i
   // handle exceptions
   {
     Label L;
-    __ cmpptr(Address(thread, Thread::pending_exception_offset()), (int32_t) NULL_WORD);
+    __ cmpptr(Address(thread, Thread::pending_exception_offset()), NULL_WORD);
     __ jcc(Assembler::zero, L);
     __ call_VM(noreg,
                CAST_FROM_FN_PTR(address,
@@ -515,7 +515,7 @@ void TemplateInterpreterGenerator::generate_stack_overflow_check(void) {
 #ifdef ASSERT
   Label limit_okay;
   // Verify that thread stack overflow limit is non-zero.
-  __ cmpptr(stack_limit, (int32_t)NULL_WORD);
+  __ cmpptr(stack_limit, NULL_WORD);
   __ jcc(Assembler::notEqual, limit_okay);
   __ stop("stack overflow limit is zero");
   __ bind(limit_okay);
@@ -626,7 +626,7 @@ void TemplateInterpreterGenerator::generate_fixed_frame(bool native_call) {
   __ push(rax);        // save return address
   __ enter();          // save old & set new rbp
   __ push(rbcp);        // set sender sp
-  __ push((int)NULL_WORD); // leave last_sp as null
+  __ push(NULL_WORD); // leave last_sp as null
   __ movptr(rbcp, Address(rbx, Method::const_offset()));      // get ConstMethod*
   __ lea(rbcp, Address(rbcp, ConstMethod::codes_offset())); // get codebase
   __ push(rbx);        // save Method*
@@ -757,13 +757,13 @@ void TemplateInterpreterGenerator::bang_stack_shadow_pages(bool native_call) {
 
 #ifdef ASSERT
   Label L_good_limit;
-  __ cmpptr(Address(thread, JavaThread::shadow_zone_safe_limit()), (int32_t)NULL_WORD);
+  __ cmpptr(Address(thread, JavaThread::shadow_zone_safe_limit()), NULL_WORD);
   __ jcc(Assembler::notEqual, L_good_limit);
   __ stop("shadow zone safe limit is not initialized");
   __ bind(L_good_limit);
 
   Label L_good_watermark;
-  __ cmpptr(Address(thread, JavaThread::shadow_zone_growth_watermark()), (int32_t)NULL_WORD);
+  __ cmpptr(Address(thread, JavaThread::shadow_zone_growth_watermark()), NULL_WORD);
   __ jcc(Assembler::notEqual, L_good_watermark);
   __ stop("shadow zone growth watermark is not initialized");
   __ bind(L_good_watermark);
@@ -829,10 +829,10 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // add 2 zero-initialized slots for native calls
   // initialize result_handler slot
-  __ push((int) NULL_WORD);
+  __ push(NULL_WORD);
   // slot for oop temp
   // (static native method holder mirror/jni oop result)
-  __ push((int) NULL_WORD);
+  __ push(NULL_WORD);
 
   // initialize fixed part of activation frame
   generate_fixed_frame(true);
@@ -1162,7 +1162,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
 
   // reset handle block
   __ movptr(t, Address(thread, JavaThread::active_handles_offset()));
-  __ movl(Address(t, JNIHandleBlock::top_offset_in_bytes()), (int32_t)NULL_WORD);
+  __ movl(Address(t, JNIHandleBlock::top_offset_in_bytes()), NULL_WORD);
 
   // If result is an oop unbox and store it in frame where gc will see it
   // and result handler will pick it up
@@ -1221,7 +1221,7 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   // handle exceptions (exception handling will handle unlocking!)
   {
     Label L;
-    __ cmpptr(Address(thread, Thread::pending_exception_offset()), (int32_t) NULL_WORD);
+    __ cmpptr(Address(thread, Thread::pending_exception_offset()), NULL_WORD);
     __ jcc(Assembler::zero, L);
     // Note: At some point we may want to unify this with the code
     // used in call_VM_base(); i.e., we should use the
@@ -1378,7 +1378,7 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
     __ testl(rdx, rdx);
     __ jcc(Assembler::lessEqual, exit); // do nothing if rdx <= 0
     __ bind(loop);
-    __ push((int) NULL_WORD); // initialize local variables
+    __ push(NULL_WORD); // initialize local variables
     __ decrementl(rdx); // until everything initialized
     __ jcc(Assembler::greater, loop);
     __ bind(exit);
@@ -1493,7 +1493,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
   Interpreter::_rethrow_exception_entry = __ pc();
   // Restore sp to interpreter_frame_last_sp even though we are going
   // to empty the expression stack for the exception processing.
-  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
+  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), NULL_WORD);
   // rax: exception
   // rdx: return address/pc that threw exception
   __ restore_bcp();    // r13/rsi points to call/send
@@ -1639,7 +1639,7 @@ void TemplateInterpreterGenerator::generate_throw_exception() {
 
   // Restore the last_sp and null it out
   __ movptr(rsp, Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize));
-  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
+  __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), NULL_WORD);
 
   __ restore_bcp();
   __ restore_locals();

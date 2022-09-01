@@ -321,7 +321,7 @@ void LIR_Assembler::osr_entry() {
       // verify the interpreter's monitor has a non-null object
       {
         Label L;
-        __ cmpptr(Address(OSR_buf, slot_offset + 1*BytesPerWord), (int32_t)NULL_WORD);
+        __ cmpptr(Address(OSR_buf, slot_offset + 1*BytesPerWord), NULL_WORD);
         __ jcc(Assembler::notZero, L);
         __ stop("locked object is NULL");
         __ bind(L);
@@ -442,8 +442,8 @@ int LIR_Assembler::emit_unwind_handler() {
   Register thread = NOT_LP64(rsi) LP64_ONLY(r15_thread);
   NOT_LP64(__ get_thread(thread));
   __ movptr(rax, Address(thread, JavaThread::exception_oop_offset()));
-  __ movptr(Address(thread, JavaThread::exception_oop_offset()), (intptr_t)NULL_WORD);
-  __ movptr(Address(thread, JavaThread::exception_pc_offset()), (intptr_t)NULL_WORD);
+  __ movptr(Address(thread, JavaThread::exception_oop_offset()), NULL_WORD);
+  __ movptr(Address(thread, JavaThread::exception_pc_offset()), NULL_WORD);
 
   __ bind(_unwind_handler_entry);
   __ verify_not_null_oop(rax);
@@ -758,7 +758,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     case T_ARRAY:
       if (c->as_jobject() == NULL) {
         if (UseCompressedOops && !wide) {
-          __ movl(as_Address(addr), (int32_t)NULL_WORD);
+          __ movl(as_Address(addr), NULL_WORD);
         } else {
 #ifdef _LP64
           __ xorptr(rscratch1, rscratch1);
@@ -1686,7 +1686,7 @@ void LIR_Assembler::type_profile_helper(Register mdo,
   for (uint i = 0; i < ReceiverTypeData::row_limit(); i++) {
     Label next_test;
     Address recv_addr(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_offset(i)));
-    __ cmpptr(recv_addr, (intptr_t)NULL_WORD);
+    __ cmpptr(recv_addr, NULL_WORD);
     __ jccb(Assembler::notEqual, next_test);
     __ movptr(recv_addr, recv);
     __ movptr(Address(mdo, md->byte_offset_of_slot(data, ReceiverTypeData::receiver_count_offset(i))), DataLayout::counter_increment);
@@ -1739,7 +1739,7 @@ void LIR_Assembler::emit_typecheck_helper(LIR_OpTypeCheck *op, Label* success, L
   assert_different_registers(obj, k_RInfo, klass_RInfo);
 
   if (op->need_null_check()) {
-    __ cmpptr(obj, (int32_t)NULL_WORD);
+    __ cmpptr(obj, NULL_WORD);
     if (op->should_profile()) {
       Label not_null;
       __ jccb(Assembler::notEqual, not_null);
@@ -1886,7 +1886,7 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
     Label *success_target = op->should_profile() ? &profile_cast_success : &done;
     Label *failure_target = op->should_profile() ? &profile_cast_failure : stub->entry();
 
-    __ cmpptr(value, (int32_t)NULL_WORD);
+    __ cmpptr(value, NULL_WORD);
     if (op->should_profile()) {
       Label not_null;
       __ jccb(Assembler::notEqual, not_null);
@@ -1983,7 +1983,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
     // The array is not flattened, but it might be null-free. If we are storing
     // a null into a null-free array, take the slow path (which will throw NPE).
     Label skip;
-    __ cmpptr(op->value()->as_register(), (int32_t)NULL_WORD);
+    __ cmpptr(op->value()->as_register(), NULL_WORD);
     __ jcc(Assembler::notEqual, skip);
     if (UseArrayMarkWordCheck) {
       __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
@@ -2106,7 +2106,7 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
     Register newval = op->new_value()->as_register();
     Register cmpval = op->cmp_value()->as_register();
     assert(cmpval == rax, "wrong register");
-    assert(newval != NULL, "new val must be register");
+    assert(newval != noreg, "new val must be register");
     assert(cmpval != newval, "cmp and new values must be in different registers");
     assert(cmpval != addr, "cmp and addr must be in different registers");
     assert(newval != addr, "new value and addr must be in different registers");
@@ -2137,7 +2137,7 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
     Register newval = op->new_value()->as_register_lo();
     Register cmpval = op->cmp_value()->as_register_lo();
     assert(cmpval == rax, "wrong register");
-    assert(newval != NULL, "new val must be register");
+    assert(newval != noreg, "new val must be register");
     assert(cmpval != newval, "cmp and new values must be in different registers");
     assert(cmpval != addr, "cmp and addr must be in different registers");
     assert(newval != addr, "new value and addr must be in different registers");
@@ -2831,7 +2831,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
         assert(condition == lir_cond_equal || condition == lir_cond_notEqual, "oops");
         Metadata* m = c->as_metadata();
         if (m == NULL) {
-          __ cmpptr(reg1, (int32_t)0);
+          __ cmpptr(reg1, NULL_WORD);
         } else {
           ShouldNotReachHere();
         }
@@ -2839,7 +2839,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
         // In 64bit oops are single register
         jobject o = c->as_jobject();
         if (o == NULL) {
-          __ cmpptr(reg1, (int32_t)NULL_WORD);
+          __ cmpptr(reg1, NULL_WORD);
         } else {
           __ cmpoop(reg1, o);
         }
@@ -4252,7 +4252,7 @@ void LIR_Assembler::get_thread(LIR_Opr result_reg) {
 }
 
 void LIR_Assembler::check_orig_pc() {
-  __ cmpptr(frame_map()->address_for_orig_pc_addr(), (int32_t)NULL_WORD);
+  __ cmpptr(frame_map()->address_for_orig_pc_addr(), NULL_WORD);
 }
 
 void LIR_Assembler::peephole(LIR_List*) {

@@ -72,10 +72,15 @@ class nmethod : public CompiledMethod {
   friend class JVMCINMethodData;
 
  private:
-  // Shared fields for all nmethod's
-  int       _entry_bci;        // != InvocationEntryBci if this nmethod is an on-stack replacement method
 
   uint64_t  _gc_epoch;
+
+  // not_entrant method removal. Each mark_sweep pass will update
+  // this mark to current sweep invocation count if it is seen on the
+  // stack.  An not_entrant method can be removed when there are no
+  // more activations, i.e., when the _stack_traversal_mark is less than
+  // current sweep traversal index.
+  volatile int64_t _stack_traversal_mark;
 
   // To support simple linked-list chaining of nmethods:
   nmethod*  _osr_link;         // from InstanceKlass::osr_nmethods_head
@@ -202,6 +207,9 @@ class nmethod : public CompiledMethod {
   address _verified_inline_ro_entry_point;   // inline type entry point (unpack receiver only) without class check
   address _osr_entry_point;                  // entry point for on stack replacement
 
+  // Shared fields for all nmethod's
+  int _entry_bci;      // != InvocationEntryBci if this nmethod is an on-stack replacement method
+
   // Offsets for different nmethod parts
   int  _exception_offset;
   // Offset of the unwind handler if it exists
@@ -229,21 +237,6 @@ class nmethod : public CompiledMethod {
   int _orig_pc_offset;
 
   int _compile_id;                           // which compilation made this nmethod
-  int _comp_level;                           // compilation level
-
-  // protected by CodeCache_lock
-  bool _has_flushed_dependencies;            // Used for maintenance of dependencies (CodeCache_lock)
-
-  // used by jvmti to track if an event has been posted for this nmethod.
-  bool _unload_reported;
-  bool _load_reported;
-
-  // Protected by CompiledMethod_lock
-  volatile signed char _state;               // {not_installed, in_use, not_entrant, zombie, unloaded}
-
-#ifdef ASSERT
-  bool _oops_are_stale;  // indicates that it's no longer safe to access oops section
-#endif
 
 #if INCLUDE_RTM_OPT
   // RTM state at compile time. Used during deoptimization to decide
@@ -257,22 +250,12 @@ class nmethod : public CompiledMethod {
   // event processing needs to be done.
   volatile jint _lock_count;
 
-  // not_entrant method removal. Each mark_sweep pass will update
-  // this mark to current sweep invocation count if it is seen on the
-  // stack.  An not_entrant method can be removed when there are no
-  // more activations, i.e., when the _stack_traversal_mark is less than
-  // current sweep traversal index.
-  volatile int64_t _stack_traversal_mark;
-
   // The _hotness_counter indicates the hotness of a method. The higher
   // the value the hotter the method. The hotness counter of a nmethod is
   // set to [(ReservedCodeCacheSize / (1024 * 1024)) * 2] each time the method
   // is active while stack scanning (do_stack_scanning()). The hotness
   // counter is decreased (by 1) while sweeping.
   int _hotness_counter;
-
-  // Local state used to keep track of whether unloading is happening or not
-  volatile uint8_t _is_unloading_state;
 
   // These are used for compiled synchronized native methods to
   // locate the owner and stack slot for the BasicLock. They are
@@ -284,6 +267,25 @@ class nmethod : public CompiledMethod {
   // offsets to find the receiver for non-static native wrapper frames.
   ByteSize _native_receiver_sp_offset;
   ByteSize _native_basic_lock_sp_offset;
+
+  CompLevel _comp_level;               // compilation level
+
+  // Local state used to keep track of whether unloading is happening or not
+  volatile uint8_t _is_unloading_state;
+
+  // protected by CodeCache_lock
+  bool _has_flushed_dependencies;      // Used for maintenance of dependencies (CodeCache_lock)
+
+  // used by jvmti to track if an event has been posted for this nmethod.
+  bool _unload_reported;
+  bool _load_reported;
+
+  // Protected by CompiledMethod_lock
+  volatile signed char _state;         // {not_installed, in_use, not_entrant, zombie, unloaded}
+
+#ifdef ASSERT
+  bool _oops_are_stale;  // indicates that it's no longer safe to access oops section
+#endif
 
   friend class nmethodLocker;
 
@@ -315,7 +317,7 @@ class nmethod : public CompiledMethod {
           ExceptionHandlerTable* handler_table,
           ImplicitExceptionTable* nul_chk_table,
           AbstractCompiler* compiler,
-          int comp_level
+          CompLevel comp_level
 #if INCLUDE_JVMCI
           , char* speculations,
           int speculations_len,
@@ -363,7 +365,7 @@ class nmethod : public CompiledMethod {
                               ExceptionHandlerTable* handler_table,
                               ImplicitExceptionTable* nul_chk_table,
                               AbstractCompiler* compiler,
-                              int comp_level
+                              CompLevel comp_level
 #if INCLUDE_JVMCI
                               , char* speculations = NULL,
                               int speculations_len = 0,
@@ -376,9 +378,9 @@ class nmethod : public CompiledMethod {
   // Only used for unit tests.
   nmethod()
     : CompiledMethod(),
-      _is_unloading_state(0),
       _native_receiver_sp_offset(in_ByteSize(-1)),
-      _native_basic_lock_sp_offset(in_ByteSize(-1)) {}
+      _native_basic_lock_sp_offset(in_ByteSize(-1)),
+      _is_unloading_state(0) {}
 
 
   static nmethod* new_native_nmethod(const methodHandle& method,

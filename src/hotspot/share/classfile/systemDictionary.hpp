@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,6 @@ class ProtectionDomainCacheEntry;
 class GCTimer;
 class EventClassLoad;
 class Symbol;
-class TableStatistics;
 
 class SystemDictionary : AllStatic {
   friend class BootstrapInfo;
@@ -133,6 +132,9 @@ class SystemDictionary : AllStatic {
                                                   Handle class_loader,
                                                   const ClassLoadInfo& cl_info,
                                                   TRAPS);
+
+  static oop get_system_class_loader_impl(TRAPS);
+  static oop get_platform_class_loader_impl(TRAPS);
 
  public:
   static Klass* resolve_inline_type_field_or_fail(AllFieldStream* fs,
@@ -224,6 +226,9 @@ public:
 
   // Register a new class loader
   static ClassLoaderData* register_loader(Handle class_loader, bool create_mirror_cld = false);
+
+  static void set_system_loader(ClassLoaderData *cld);
+  static void set_platform_loader(ClassLoaderData *cld);
 
   static Symbol* check_signature_loaders(Symbol* signature, Klass* klass_being_linked,
                                          Handle loader1, Handle loader2, bool is_method);
@@ -407,11 +412,6 @@ protected:
                                 bool defining, TRAPS);
   static void update_dictionary(unsigned int hash,
                                 InstanceKlass* k, Handle loader);
-
-public:
-  static TableStatistics placeholders_statistics();
-  static TableStatistics loader_constraints_statistics();
-  static TableStatistics protection_domain_cache_statistics();
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

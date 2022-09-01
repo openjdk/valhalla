@@ -386,9 +386,6 @@ WB_ENTRY(jboolean, WB_isObjectInOldGen(JNIEnv* env, jobject o, jobject obj))
   if (UseG1GC) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     const HeapRegion* hr = g1h->heap_region_containing(p);
-    if (hr == NULL) {
-      return false;
-    }
     return !(hr->is_young());
   }
 #endif
@@ -607,7 +604,6 @@ class OldRegionsLivenessClosure: public HeapRegionClosure {
 
   bool do_heap_region(HeapRegion* r) {
     if (r->is_old()) {
-      size_t prev_live = r->marked_bytes();
       size_t live = r->live_bytes();
       size_t size = r->used();
       size_t reg_size = HeapRegion::GrainBytes;
@@ -615,9 +611,9 @@ class OldRegionsLivenessClosure: public HeapRegionClosure {
         _total_memory += size;
         ++_total_count;
         if (size == reg_size) {
-        // we don't include non-full regions since they are unlikely included in mixed gc
-        // for testing purposes it's enough to have lowest estimation of total memory that is expected to be freed
-          _total_memory_to_free += size - prev_live;
+          // We don't include non-full regions since they are unlikely included in mixed gc
+          // for testing purposes it's enough to have lowest estimation of total memory that is expected to be freed
+          _total_memory_to_free += size - live;
         }
       }
     }
@@ -1478,12 +1474,12 @@ WB_ENTRY(jstring, WB_GetCPUFeatures(JNIEnv* env, jobject o))
   return features_string;
 WB_END
 
-int WhiteBox::get_blob_type(const CodeBlob* code) {
+CodeBlobType WhiteBox::get_blob_type(const CodeBlob* code) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
   return CodeCache::get_code_heap(code)->code_blob_type();
 }
 
-CodeHeap* WhiteBox::get_code_heap(int blob_type) {
+CodeHeap* WhiteBox::get_code_heap(CodeBlobType blob_type) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
   return CodeCache::get_code_heap(blob_type);
 }
@@ -1492,7 +1488,7 @@ struct CodeBlobStub {
   CodeBlobStub(const CodeBlob* blob) :
       name(os::strdup(blob->name())),
       size(blob->size()),
-      blob_type(WhiteBox::get_blob_type(blob)),
+      blob_type(static_cast<jint>(WhiteBox::get_blob_type(blob))),
       address((jlong) blob) { }
   ~CodeBlobStub() { os::free((void*) name); }
   const char* const name;
@@ -1572,7 +1568,7 @@ WB_ENTRY(jobjectArray, WB_GetNMethod(JNIEnv* env, jobject o, jobject method, jbo
   return result;
 WB_END
 
-CodeBlob* WhiteBox::allocate_code_blob(int size, int blob_type) {
+CodeBlob* WhiteBox::allocate_code_blob(int size, CodeBlobType blob_type) {
   guarantee(WhiteBoxAPI, "internal testing API :: WhiteBox has to be enabled");
   BufferBlob* blob;
   int full_size = CodeBlob::align_code_offset(sizeof(BufferBlob));
@@ -1596,7 +1592,7 @@ WB_ENTRY(jlong, WB_AllocateCodeBlob(JNIEnv* env, jobject o, jint size, jint blob
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
       err_msg("WB_AllocateCodeBlob: size is negative: " INT32_FORMAT, size));
   }
-  return (jlong) WhiteBox::allocate_code_blob(size, blob_type);
+  return (jlong) WhiteBox::allocate_code_blob(size, static_cast<CodeBlobType>(blob_type));
 WB_END
 
 WB_ENTRY(void, WB_FreeCodeBlob(JNIEnv* env, jobject o, jlong addr))
@@ -1611,7 +1607,7 @@ WB_ENTRY(jobjectArray, WB_GetCodeHeapEntries(JNIEnv* env, jobject o, jint blob_t
   GrowableArray<CodeBlobStub*> blobs;
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    CodeHeap* heap = WhiteBox::get_code_heap(blob_type);
+    CodeHeap* heap = WhiteBox::get_code_heap(static_cast<CodeBlobType>(blob_type));
     if (heap == NULL) {
       return NULL;
     }

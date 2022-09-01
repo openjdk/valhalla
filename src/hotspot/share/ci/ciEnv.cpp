@@ -666,12 +666,10 @@ ciKlass* ciEnv::get_klass_by_index_impl(const constantPoolHandle& cpool,
   // It is known to be accessible, since it was found in the constant pool.
   ciKlass* ciKlass = get_klass(klass);
   is_accessible = true;
-#ifndef PRODUCT
   if (ReplayCompiles && ciKlass == _unloaded_ciinstance_klass) {
     // Klass was unresolved at replay dump time and therefore not accessible.
     is_accessible = false;
   }
-#endif
   return ciKlass;
 }
 
@@ -974,11 +972,9 @@ ciMethod* ciEnv::get_method_by_index_impl(const constantPoolHandle& cpool,
            : !m->method_holder()->is_loaded())) {
         m = NULL;
       }
-#ifdef ASSERT
       if (m != NULL && ReplayCompiles && !ciReplay::is_loaded(m)) {
         m = NULL;
       }
-#endif
       if (m != NULL) {
         // We found the method.
         return get_method(m);
@@ -1179,7 +1175,7 @@ void ciEnv::register_method(ciMethod* target,
                                debug_info(), dependencies(), code_buffer,
                                frame_words, oop_map_set,
                                handler_table, inc_table,
-                               compiler, task()->comp_level());
+                               compiler, CompLevel(task()->comp_level()));
 
     // Free codeBlobs
     code_buffer->free_blob();
