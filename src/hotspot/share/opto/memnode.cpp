@@ -2055,15 +2055,12 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
       if (base != NULL && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
         const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
-        // TODO fix with JDK-8293172
-        /*
-        if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->isa_inlinetype() &&
+        if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->exact_klass()->is_inlinetype() &&
             tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
           assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
           assert(Opcode() == Op_LoadI, "must load an int from fixed block");
-          return TypeInt::make(tkls->klass()->as_inline_klass()->default_value_offset());
+          return TypeInt::make(tkls->exact_klass()->as_inline_klass()->default_value_offset());
         }
-        */
       }
     }
   }
