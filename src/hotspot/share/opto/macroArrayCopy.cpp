@@ -360,25 +360,6 @@ address PhaseMacroExpand::basictype2arraycopy(BasicType t,
   return StubRoutines::select_arraycopy_function(t, aligned, disjoint, name, dest_uninitialized);
 }
 
-bool PhaseMacroExpand::can_try_zeroing_elimination(AllocateArrayNode* alloc,
-                                                   Node* src,
-                                                   Node* dest) const {
-  const TypeAryPtr* top_dest = _igvn.type(dest)->isa_aryptr();
-
-  if (top_dest != NULL) {
-    if (top_dest->klass() == NULL) {
-      return false;
-    }
-  }
-
-  return ReduceBulkZeroing
-    && !(UseTLAB && ZeroTLAB) // pointless if already zeroed
-    && !src->eqv_uncast(dest)
-    && alloc != NULL
-    && _igvn.find_int_con(alloc->in(AllocateNode::ALength), 1) > 0
-    && alloc->maybe_set_complete(&_igvn);
-}
-
 #define XTOP LP64_ONLY(COMMA top())
 
 // Generate an optimized call to arraycopy.
@@ -1307,7 +1288,7 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
     bs->array_copy_requires_gc_barriers(dest_length != NULL, T_OBJECT, false, false, BarrierSetC2::Optimization);
   assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
 #endif
-  int elem_size = top_dest->klass()->as_flat_array_klass()->element_byte_size();
+  int elem_size = top_dest->flat_elem_size();
   if (elem_size >= 8) {
     if (elem_size > 8) {
       // treat as array of long but scale length, src offset and dest offset
@@ -1356,10 +1337,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     const TypeAryPtr* top_src = src_type->isa_aryptr();
     const TypeAryPtr* top_dest = dest_type->isa_aryptr();
     BasicType dest_elem = T_OBJECT;
-    if (top_dest != NULL && top_dest->klass() != NULL) {
-      dest_elem = top_dest->klass()->as_array_klass()->element_type()->basic_type();
+    if (top_dest != NULL && top_dest->elem() != Type::BOTTOM) {
+      dest_elem = top_dest->elem()->array_element_basic_type();
     }
-    if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && top_dest->klass()->is_obj_array_klass())) {
+    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && !top_dest->is_flat())) {
       dest_elem = T_OBJECT;
     }
     if (top_src != NULL && top_src->is_flat()) {
@@ -1431,10 +1412,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   if (top_dest != NULL && top_dest->elem() != Type::BOTTOM) {
     dest_elem = top_dest->elem()->array_element_basic_type();
   }
-  if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && top_src->klass()->is_obj_array_klass())) {
+  if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && !top_src->is_flat())) {
     src_elem = T_OBJECT;
   }
-  if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && top_dest->klass()->is_obj_array_klass())) {
+  if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && !top_dest->is_flat())) {
     dest_elem = T_OBJECT;
   }
 

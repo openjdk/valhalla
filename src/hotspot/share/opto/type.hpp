@@ -1183,10 +1183,9 @@ protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
 
   virtual ciKlass* exact_klass_helper() const { return NULL; }
+  virtual ciKlass* klass() const { return _klass; }
 
 public:
-  // TODO Tobias
-  virtual ciKlass* klass() const { return _klass; }
 
   bool is_java_subtype_of(const TypeOopPtr* other) const {
     return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
@@ -1245,6 +1244,7 @@ public:
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
   virtual bool can_be_inline_type() const { return (_klass == NULL || _klass->can_be_inline_klass(_klass_is_exact)); }
+  bool can_be_inline_array() const { return (_klass == NULL || _klass->can_be_inline_array_klass()); }
 
   virtual intptr_t get_con() const;
 
@@ -1425,10 +1425,9 @@ class TypeAryPtr : public TypeOopPtr {
   ciKlass* compute_klass(DEBUG_ONLY(bool verify = false)) const;
 
   ciKlass* exact_klass_helper() const;
-public:
-  // TODO Tobias
   ciKlass* klass() const;
 
+public:
 
   bool is_same_java_type_as(const TypeOopPtr* other) const;
   bool is_java_subtype_of_helper(const TypeOopPtr* other, bool this_exact, bool other_exact) const;
@@ -1495,6 +1494,9 @@ public:
   const TypeAryPtr* cast_to_not_flat(bool not_flat = true) const;
   const TypeAryPtr* cast_to_not_null_free(bool not_null_free = true) const;
   const TypeAryPtr* update_properties(const TypeAryPtr* new_type) const;
+  jint flat_layout_helper() const;
+  int flat_elem_size() const;
+  int flat_log_elem_size() const;
 
   const TypeAryPtr* cast_to_stable(bool stable, int stable_dimension = 1) const;
   int stable_dimension() const;
@@ -1600,10 +1602,9 @@ protected:
 
   virtual bool must_be_exact() const { ShouldNotReachHere(); return false; }
   virtual ciKlass* exact_klass_helper() const;
-public:
-  // TODO Tobias
   virtual ciKlass* klass() const { return  _klass; }
 
+public:
 
   bool is_java_subtype_of(const TypeKlassPtr* other) const {
     return is_java_subtype_of_helper(other, klass_is_exact(), other->klass_is_exact());
@@ -1639,6 +1640,8 @@ public:
   virtual intptr_t get_con() const;
 
   virtual const TypeKlassPtr* with_offset(intptr_t offset) const { ShouldNotReachHere(); return NULL; }
+
+  bool can_be_inline_array() const { return (_klass == NULL || _klass->can_be_inline_array_klass()); }
 };
 
 // Instance klass pointer, mirrors TypeInstPtr

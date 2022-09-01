@@ -4824,6 +4824,18 @@ const TypeAryPtr* TypeAryPtr::update_properties(const TypeAryPtr* from) const {
   return this;
 }
 
+jint TypeAryPtr::flat_layout_helper() const {
+  return klass()->as_flat_array_klass()->layout_helper();
+}
+
+int TypeAryPtr::flat_elem_size() const {
+  return klass()->as_flat_array_klass()->element_byte_size();
+}
+
+int TypeAryPtr::flat_log_elem_size() const {
+  return klass()->as_flat_array_klass()->log2_element_size();
+}
+
 //------------------------------cast_to_stable---------------------------------
 const TypeAryPtr* TypeAryPtr::cast_to_stable(bool stable, int stable_dimension) const {
   if (stable_dimension <= 0 || (stable_dimension == 1 && stable == this->is_stable()))

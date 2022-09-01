@@ -1815,12 +1815,8 @@ void GraphKit::access_clone(Node* src, Node* dst, Node* size, bool is_array) {
 //-------------------------array_element_address-------------------------
 Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
                                       const TypeInt* sizetype, Node* ctrl) {
-  uint shift  = exact_log2(type2aelembytes(elembt));
-  ciKlass* arytype_klass = _gvn.type(ary)->is_aryptr()->klass();
-  if (arytype_klass != NULL && arytype_klass->is_flat_array_klass()) {
-    ciFlatArrayKlass* vak = arytype_klass->as_flat_array_klass();
-    shift = vak->log2_element_size();
-  }
+  const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
+  uint shift = arytype->is_flat() ? arytype->flat_log_elem_size() : exact_log2(type2aelembytes(elembt));
   uint header = arrayOopDesc::base_offset_in_bytes(elembt);
 
   // short-circuit a common case (saves lots of confusing waste motion)
@@ -3872,18 +3868,18 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
   if (!StressReflectiveCode && inst_klass != NULL) {
     bool xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
-    ciKlass* klass = inst_klass->klass();
-    if (UseFlatArray && !xklass && klass->is_obj_array_klass() && !klass->as_obj_array_klass()->is_elem_null_free()) {
+    const TypeAryPtr* ary_type = inst_klass->as_instance_type()->isa_aryptr();
+    if (UseFlatArray && !xklass && ary_type != NULL && !ary_type->is_null_free()) {
       // The runtime type of [LMyValue might be [QMyValue due to [QMyValue <: [LMyValue. Don't constant fold.
-      ciKlass* elem = klass->as_obj_array_klass()->element_klass();
-      can_be_flattened = elem->can_be_inline_klass() && (!elem->is_inlinetype() || elem->flatten_array());
+      const TypeOopPtr* elem = ary_type->elem()->make_oopptr();
+      can_be_flattened = ary_type->can_be_inline_array() && (!elem->is_inlinetypeptr() || elem->inline_klass()->flatten_array());
     }
-    if (!can_be_flattened && (xklass || klass->is_array_klass())) {
+    if (!can_be_flattened && (xklass || inst_klass->isa_aryklassptr())) {
       jint lhelper;
-      if (klass->is_flat_array_klass()) {
-        lhelper = klass->layout_helper();
+      if (inst_klass->is_flat()) {
+        lhelper = ary_type->flat_layout_helper();
       } else if (inst_klass->isa_aryklassptr()) {
-        BasicType elem = inst_klass->as_instance_type()->isa_aryptr()->elem()->array_element_basic_type();
+        BasicType elem = ary_type->elem()->array_element_basic_type();
         if (is_reference_type(elem, true)) {
           elem = T_OBJECT;
         }
@@ -3962,15 +3958,14 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     set_memory(minit_out, C->get_alias_index(oop_type->add_offset(oopDesc::klass_offset_in_bytes())));
     if (oop_type->isa_aryptr()) {
       const TypeAryPtr* arytype = oop_type->is_aryptr();
-      if (arytype->klass()->is_flat_array_klass()) {
+      if (arytype->is_flat()) {
         // Initially all flattened array accesses share a single slice
         // but that changes after parsing. Prepare the memory graph so
         // it can optimize flattened array accesses properly once they
         // don't share a single slice.
         assert(C->flattened_accesses_share_alias(), "should be set at parse time");
         C->set_flattened_accesses_share_alias(false);
-        ciFlatArrayKlass* vak = arytype->klass()->as_flat_array_klass();
-        ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
+        ciInlineKlass* vk = arytype->elem()->inline_klass();
         for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
           ciField* field = vk->nonstatic_field_at(i);
           if (field->offset() >= TrackedInitializationLimit * HeapWordSize)
@@ -4290,13 +4285,11 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   Node* raw_default_value = NULL;
   if (ary_ptr != NULL && ary_ptr->klass_is_exact()) {
     // Array type is known
-    if (ary_ptr->klass()->as_array_klass()->is_elem_null_free()) {
-      ciInlineKlass* vk = ary_ptr->klass()->as_array_klass()->element_klass()->as_inline_klass();
-      if (!vk->flatten_array()) {
-        default_value = InlineTypeNode::default_oop(gvn(), vk);
-      }
+    if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
+      ciInlineKlass* vk = ary_ptr->elem()->make_oopptr()->inline_klass();
+      default_value = InlineTypeNode::default_oop(gvn(), vk);
     }
-  } else if (ary_klass->klass()->can_be_inline_array_klass()) {
+  } else if (ary_type->can_be_inline_array()) {
     // Array type is not known, add runtime checks
     assert(!ary_klass->klass_is_exact(), "unexpected exact type");
     Node* r = new RegionNode(3);
