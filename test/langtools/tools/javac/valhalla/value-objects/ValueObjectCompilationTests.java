@@ -25,7 +25,7 @@
  * ValueObjectCompilationTests
  *
  * @test
- * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767
+ * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
@@ -532,5 +532,47 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value interface VI {}
                 class BIC implements VI {} // Error
                 """);
+    }
+
+    public void testInteractionWithSealedClasses() {
+        assertOK(
+                """
+                abstract sealed value class SC {}
+                value class VC extends SC {}
+                """
+        );assertOK(
+                """
+                abstract sealed value interface SI {}
+                value class VC implements SI {}
+                """
+        );
+        assertOK(
+                """
+                abstract sealed identity class SC {}
+                final identity class IC extends SC {}
+                non-sealed identity class IC2 extends SC {}
+                final identity class IC3 extends IC2 {}
+                """
+        );
+        assertOK(
+                """
+                abstract sealed identity interface SI {}
+                final identity class IC implements SI {}
+                non-sealed identity class IC2 implements SI {}
+                final identity class IC3 extends IC2 {}
+                """
+        );
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                abstract sealed value class SC {}
+                non-sealed value class VC extends SC {}
+                """
+        );
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                sealed value interface SI {}
+                non-sealed value class VC implements SI {}
+                """
+        );
     }
 }
