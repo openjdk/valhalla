@@ -331,7 +331,7 @@ issues.
  ------------------ -------------------------------------------------------
  Linux              gcc 11.2.0
  macOS              Apple Xcode 10.1 (using clang 10.0.0)
- Windows            Microsoft Visual Studio 2019 update 16.7.2
+ Windows            Microsoft Visual Studio 2022 update 17.1.0
 
 All compilers are expected to be able to compile to the C99 language standard,
 as some C99 features are used in the source code. Microsoft Visual Studio
@@ -1296,8 +1296,10 @@ run `configure` using `--enable-icecc`.
 
 ### Using sjavac
 
-To speed up Java compilation, especially incremental compilations, you can try
-the experimental sjavac compiler by using `--enable-sjavac`.
+To speed up compilation of Java code, especially during incremental compilations,
+the sjavac server is automatically enabled in the configuration step by default.
+To explicitly enable or disable sjavac, use either `--enable-javac-server`
+or `--disable-javac-server`.
 
 ### Building the Right Target
 

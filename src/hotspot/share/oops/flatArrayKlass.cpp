@@ -55,7 +55,7 @@
 
 // Allocation...
 
-FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, Kind) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
 
   set_element_klass(InlineKlass::cast(element_klass));

@@ -94,7 +94,7 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_PUBLIC}, corresponding to the source
      * modifier {@link Modifier#PUBLIC public} with a mask value of
-     * <code>{@value Modifier#PUBLIC}</code>.
+     * <code>{@value "0x%04x" Modifier#PUBLIC}</code>.
      */
     PUBLIC(Modifier.PUBLIC, true,
            Set.of(Location.CLASS, Location.FIELD, Location.METHOD,
@@ -103,28 +103,28 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_PRIVATE}, corresponding to the
      * source modifier {@link Modifier#PRIVATE private} with a mask
-     * value of <code>{@value Modifier#PRIVATE}</code>.
+     * value of <code>{@value "0x%04x" Modifier#PRIVATE}</code>.
      */
     PRIVATE(Modifier.PRIVATE, true, Location.SET_FIELD_METHOD_INNER_CLASS),
 
     /**
      * The access flag {@code ACC_PROTECTED}, corresponding to the
      * source modifier {@link Modifier#PROTECTED protected} with a mask
-     * value of <code>{@value Modifier#PROTECTED}</code>.
+     * value of <code>{@value "0x%04x" Modifier#PROTECTED}</code>.
      */
     PROTECTED(Modifier.PROTECTED, true, Location.SET_FIELD_METHOD_INNER_CLASS),
 
     /**
      * The access flag {@code ACC_STATIC}, corresponding to the source
      * modifier {@link Modifier#STATIC static} with a mask value of
-     * <code>{@value Modifier#STATIC}</code>.
+     * <code>{@value "0x%04x" Modifier#STATIC}</code>.
      */
     STATIC(Modifier.STATIC, true, Location.SET_FIELD_METHOD_INNER_CLASS),
 
     /**
      * The access flag {@code ACC_FINAL}, corresponding to the source
      * modifier {@link Modifier#FINAL final} with a mask
-     * value of <code>{@value Modifier#FINAL}</code>.
+     * value of <code>{@value "0x%04x" Modifier#FINAL}</code>.
      */
     FINAL(Modifier.FINAL, true,
           Set.of(Location.CLASS, Location.FIELD, Location.METHOD,
@@ -137,12 +137,6 @@ public enum AccessFlag {
      * @apiNote
      * In Java SE 8 and above, the JVM treats the {@code ACC_SUPER}
      * flag as set in every class file (JVMS {@jvms 4.1}).
-     * NOTE: The Valhalla draft JVMS spec does not define a value for ACC_SUPER.
-     * Historically, the value 0x0020 was used to indicate ACC_SUPER, which affected the
-     * semantics of any invokespecial instructions (6.5.invokespecial) appearing in the class.
-     * In Java SE 8, the ACC_SUPER semantics became mandatory, regardless of the setting of
-     * ACC_SUPER or the class file version number, and the flag no longer had any effect.
-     * Now the flag has been repurposed as ACC_IDENTITY.
      */
     SUPER(0x0000_0020, false, Location.SET_CLASS),
 
@@ -169,7 +163,7 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_SYNCHRONIZED}, corresponding to the
      * source modifier {@link Modifier#SYNCHRONIZED synchronized} with
-     * a mask value of <code>{@value Modifier#SYNCHRONIZED}</code>.
+     * a mask value of <code>{@value "0x%04x" Modifier#SYNCHRONIZED}</code>.
      */
     SYNCHRONIZED(Modifier.SYNCHRONIZED, true, Location.SET_METHOD),
 
@@ -186,16 +180,16 @@ public enum AccessFlag {
      */
     VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS)),
 
-    /**
+     /**
       * The access flag {@code ACC_VOLATILE}, corresponding to the
       * source modifier {@link Modifier#VOLATILE volatile} with a mask
-      * value of <code>{@value Modifier#VOLATILE}</code>.
+      * value of <code>{@value "0x%04x" Modifier#VOLATILE}</code>.
       */
     VOLATILE(Modifier.VOLATILE, true, Location.SET_FIELD),
 
     /**
      * The access flag {@code ACC_BRIDGE} with a mask value of
-     * <code>{@value Modifier#BRIDGE}</code>
+     * <code>{@value "0x%04x" Modifier#BRIDGE}</code>
      * @see Method#isBridge()
      */
     BRIDGE(Modifier.BRIDGE, false, Location.SET_METHOD),
@@ -203,13 +197,13 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_TRANSIENT}, corresponding to the
      * source modifier {@link Modifier#TRANSIENT transient} with a
-     * mask value of <code>{@value Modifier#TRANSIENT}</code>.
+     * mask value of <code>{@value "0x%04x" Modifier#TRANSIENT}</code>.
      */
     TRANSIENT(Modifier.TRANSIENT, true, Location.SET_FIELD),
 
     /**
      * The access flag {@code ACC_VARARGS} with a mask value of
-     * <code>{@value Modifier#VARARGS}</code>.
+     <code>{@value "0x%04x" Modifier#VARARGS}</code>.
      * @see Executable#isVarArgs()
      */
     VARARGS(Modifier.VARARGS, false, Location.SET_METHOD),
@@ -217,7 +211,7 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_NATIVE}, corresponding to the source
      * modifier {@link Modifier#NATIVE native} with a mask value of
-     * <code>{@value Modifier#NATIVE}</code>.
+     * <code>{@value "0x%04x" Modifier#NATIVE}</code>.
      */
     NATIVE(Modifier.NATIVE, true, Location.SET_METHOD),
 
@@ -231,7 +225,7 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_ABSTRACT}, corresponding to the
      * source modifier {@link Modifier#ABSTRACT abstract} with a mask
-     * value of <code>{@value Modifier#ABSTRACT}</code>.
+     * value of <code>{@value "0x%04x" Modifier#ABSTRACT}</code>.
      */
     ABSTRACT(Modifier.ABSTRACT, true,
              Set.of(Location.CLASS, Location.METHOD, Location.INNER_CLASS)),
@@ -239,7 +233,7 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_STRICT}, corresponding to the source
      * modifier {@link Modifier#STRICT strictfp} with a mask value of
-     * <code>{@value Modifier#STRICT}</code>.
+     * <code>{@value "0x%04x" Modifier#STRICT}</code>.
      *
      * @apiNote
      * The {@code ACC_STRICT} access flag is defined for class file
@@ -250,7 +244,7 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_SYNTHETIC} with a mask value of
-     * <code>{@value Modifier#SYNTHETIC}</code>.
+     * <code>{@value "0x%04x" Modifier#SYNTHETIC}</code>.
      * @see Class#isSynthetic()
      * @see Executable#isSynthetic()
      * @see java.lang.module.ModuleDescriptor.Modifier#SYNTHETIC
@@ -263,14 +257,14 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_ANNOTATION} with a mask value of
-     * <code>{@value Modifier#ANNOTATION}</code>.
+     * <code>{@value "0x%04x" Modifier#ANNOTATION}</code>.
      * @see Class#isAnnotation()
      */
     ANNOTATION(Modifier.ANNOTATION, false, Location.SET_CLASS_INNER_CLASS),
 
     /**
      * The access flag {@code ACC_ENUM} with a mask value of
-     * <code>{@value Modifier#ENUM}</code>.
+     * <code>{@value "0x%04x" Modifier#ENUM}</code>.
      * @see Class#isEnum()
      */
     ENUM(Modifier.ENUM, false,
@@ -278,7 +272,7 @@ public enum AccessFlag {
 
     /**
      * The access flag {@code ACC_MANDATED} with a mask value of
-     * <code>{@value Modifier#MANDATED}</code>.
+     * <code>{@value "0x%04x" Modifier#MANDATED}</code>.
      */
     MANDATED(Modifier.MANDATED, false,
              Set.of(Location.METHOD_PARAMETER,

@@ -39,6 +39,8 @@ class InlineKlass: public InstanceKlass {
   friend class InstanceKlass;
 
  public:
+  static const KlassKind Kind = InlineKlassKind;
+
   InlineKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
 
  private:

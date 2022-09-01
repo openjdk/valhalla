@@ -37,7 +37,7 @@ class FlatArrayKlass : public ArrayKlass {
   friend class VMStructs;
 
  public:
-  static const KlassID ID = FlatArrayKlassID;
+  static const KlassKind Kind = FlatArrayKlassKind;
 
  private:
   // Constructor

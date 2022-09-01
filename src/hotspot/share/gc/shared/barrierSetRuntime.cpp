@@ -29,11 +29,11 @@
 #include "utilities/macros.hpp"
 
 JRT_LEAF(void, BarrierSetRuntime::value_copy(void* src, void* dst, InlineKlass* md))
-  assert(md->is_inline_type_klass(), "invariant");
+  assert(md->is_inline_klass(), "invariant");
   HeapAccess<>::value_copy(src, dst, md);
 JRT_END
 
 JRT_LEAF(void, BarrierSetRuntime::value_copy_is_dest_uninitialized(void* src, void* dst, InlineKlass* md))
-  assert(md->is_inline_type_klass(), "invariant");
+  assert(md->is_inline_klass(), "invariant");
   HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, dst, md);
 JRT_END

@@ -892,7 +892,7 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
         // Set base and check if pointer type matches
         base = lbase;
         const TypeInstPtr* vtptr = phase->type(base)->isa_instptr();
-        if (vtptr == NULL || !vtptr->klass()->equals(vk)) {
+        if (vtptr == NULL || !vtptr->instance_klass()->equals(vk)) {
           return NULL;
         }
       }
