@@ -29,6 +29,7 @@
 #include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "utilities/devirtualizer.inline.hpp"
 #include "utilities/macros.hpp"
 
 inline InlineKlassFixedBlock* InlineKlass::inlineklass_static_block() const {

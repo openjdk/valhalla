@@ -91,6 +91,17 @@ public class TestResolvedJavaType extends TypeUniverse {
     public TestResolvedJavaType() {
     }
 
+    @Test
+    public void equalsTest() {
+        for (ResolvedJavaType t : javaTypes) {
+            for (ResolvedJavaType that : javaTypes) {
+                boolean expect = t == that;
+                boolean actual = t.equals(that);
+                assertEquals(expect, actual);
+            }
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private static Class<? extends Annotation> findPolymorphicSignatureClass() {
         Class<? extends Annotation> signaturePolyAnnotation = null;
@@ -176,7 +187,8 @@ public class TestResolvedJavaType extends TypeUniverse {
         assertEquals(javaName, internalNameToJava(typeName, true, true));
     }
 
-    @Test
+    // TODO Re-enable once JDK-8291719 is fixed.
+    // @Test
     public void getModifiersTest() {
         for (Class<?> c : classes) {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);

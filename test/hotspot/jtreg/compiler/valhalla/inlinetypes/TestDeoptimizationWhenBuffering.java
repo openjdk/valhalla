@@ -28,16 +28,16 @@ import java.lang.reflect.Method;
 
 import jdk.test.lib.Asserts;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 /**
  * @test TestDeoptimizationWhenBuffering
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
- * @build sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestDeoptimizationWhenBufferingClasses.jasm
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*
  *                   compiler.valhalla.inlinetypes.TestDeoptimizationWhenBuffering C1

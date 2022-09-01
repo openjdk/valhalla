@@ -468,6 +468,7 @@ public class TestIntrinsics {
     }
 
     @Test
+    @IR(failOn = IRNode.LOAD_I) // Load of the default value should be folded
     public Object test26() {
         Class<?>[] ca = new Class<?>[1];
         for (int i = 0; i < 1; ++i) {

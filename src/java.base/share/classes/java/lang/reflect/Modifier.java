@@ -349,6 +349,7 @@ public class Modifier {
     /**
      * The {@code int} value representing the {@code strictfp}
      * modifier.
+     * @see AccessFlag#STRICT
      */
     public static final int STRICT           = 0x00000800;
 

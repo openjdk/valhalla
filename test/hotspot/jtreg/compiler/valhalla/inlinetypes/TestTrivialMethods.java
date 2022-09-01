@@ -29,7 +29,7 @@
  * @requires vm.compiler2.enabled
  * @library /test/lib /compiler/whitebox /
  * @compile TestTrivialMethods.java
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:CompileCommand=dontinline,*::getter* -XX:CompileCommand=dontinline,*::setter*
@@ -45,7 +45,7 @@ import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class TestTrivialMethods {
     public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
