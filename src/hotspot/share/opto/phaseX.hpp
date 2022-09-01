@@ -570,6 +570,7 @@ protected:
 class PhaseCCP : public PhaseIterGVN {
   GrowableArray<Node*> _trstack; // Stack for transform operation
   Unique_Node_List _useful;      // Nodes reachable from the bottom
+  Unique_Node_List _safepoints;
 
   // Non-recursive.  Use analysis to transform single Node.
   virtual Node* transform_once(Node* n);

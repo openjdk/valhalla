@@ -311,6 +311,8 @@ AdapterBlob::AdapterBlob(int size, CodeBuffer* cb, int frame_complete, int frame
 AdapterBlob* AdapterBlob::create(CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
+  CodeCache::gc_on_allocation();
+
   AdapterBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(AdapterBlob));
   {

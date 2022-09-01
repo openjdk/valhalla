@@ -291,10 +291,10 @@ void TemplateTable::fconst(int value) {
       __ xorps(xmm0, xmm0);
       break;
     case 1:
-      __ movflt(xmm0, ExternalAddress((address) &one));
+      __ movflt(xmm0, ExternalAddress((address) &one), rscratch1);
       break;
     case 2:
-      __ movflt(xmm0, ExternalAddress((address) &two));
+      __ movflt(xmm0, ExternalAddress((address) &two), rscratch1);
       break;
     default:
       ShouldNotReachHere();
@@ -322,7 +322,7 @@ void TemplateTable::dconst(int value) {
       __ xorpd(xmm0, xmm0);
       break;
     case 1:
-      __ movdbl(xmm0, ExternalAddress((address) &one));
+      __ movdbl(xmm0, ExternalAddress((address) &one), rscratch1);
       break;
     default:
       ShouldNotReachHere();
@@ -449,7 +449,7 @@ void TemplateTable::fast_aldc(bool wide) {
     Label notNull;
     ExternalAddress null_sentinel((address)Universe::the_null_sentinel_addr());
     __ movptr(tmp, null_sentinel);
-    __ resolve_oop_handle(tmp);
+    __ resolve_oop_handle(tmp, rscratch2);
     __ cmpoop(tmp, result);
     __ jccb(Assembler::notEqual, notNull);
     __ xorptr(result, result);  // NULL object reference
@@ -1153,15 +1153,14 @@ void TemplateTable::aastore() {
   __ jcc(Assembler::zero, is_null);
 
   // Move array class to rdi
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(rdi, rdx, tmp_load_klass);
+  __ load_klass(rdi, rdx, rscratch1);
   if (UseFlatArray) {
     __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
     __ test_flattened_array_layout(rbx, is_flat_array);
   }
 
   // Move subklass into rbx
-  __ load_klass(rbx, rax, tmp_load_klass);
+  __ load_klass(rbx, rax, rscratch1);
   // Move array element superklass into rax
   __ movptr(rax, Address(rdi,
                          ObjArrayKlass::element_klass_offset()));
@@ -1210,7 +1209,7 @@ void TemplateTable::aastore() {
     // Simplistic type check...
 
     // Profile the not-null value's klass.
-    __ load_klass(rbx, rax, tmp_load_klass);
+    __ load_klass(rbx, rax, rscratch1);
     // Move element klass into rax
     __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
     // flat value array needs exact type match
@@ -1250,8 +1249,7 @@ void TemplateTable::bastore() {
   index_check(rdx, rbx); // prefer index in rbx
   // Need to check whether array is boolean or byte
   // since both types share the bastore bytecode.
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(rcx, rdx, tmp_load_klass);
+  __ load_klass(rcx, rdx, rscratch1);
   __ movl(rcx, Address(rcx, Klass::layout_helper_offset()));
   int diffbit = Klass::layout_helper_boolean_diffbit();
   __ testl(rcx, diffbit);
@@ -1622,7 +1620,7 @@ void TemplateTable::fop2(Operation op) {
       __ movflt(xmm1, xmm0);
       __ pop_f(xmm0);
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::frem), 2);
-#else
+#else // !_LP64
       __ push_f(xmm0);
       __ pop_f();
       __ fld_s(at_rsp());
@@ -1631,7 +1629,7 @@ void TemplateTable::fop2(Operation op) {
       __ pop(rax);  // pop second operand off the stack
       __ push_f();
       __ pop_f(xmm0);
-#endif
+#endif // _LP64
       break;
     default:
       ShouldNotReachHere();
@@ -1640,7 +1638,7 @@ void TemplateTable::fop2(Operation op) {
   } else {
 #ifdef _LP64
     ShouldNotReachHere();
-#else
+#else // !_LP64
     switch (op) {
     case add: __ fadd_s (at_rsp());                break;
     case sub: __ fsubr_s(at_rsp());                break;
@@ -1685,7 +1683,7 @@ void TemplateTable::dop2(Operation op) {
       __ movdbl(xmm1, xmm0);
       __ pop_d(xmm0);
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::drem), 2);
-#else
+#else // !_LP64
       __ push_d(xmm0);
       __ pop_d();
       __ fld_d(at_rsp());
@@ -1695,7 +1693,7 @@ void TemplateTable::dop2(Operation op) {
       __ pop(rdx);
       __ push_d();
       __ pop_d(xmm0);
-#endif
+#endif // _LP64
       break;
     default:
       ShouldNotReachHere();
@@ -1704,7 +1702,7 @@ void TemplateTable::dop2(Operation op) {
   } else {
 #ifdef _LP64
     ShouldNotReachHere();
-#else
+#else // !_LP64
     switch (op) {
     case add: __ fadd_d (at_rsp());                break;
     case sub: __ fsubr_d(at_rsp());                break;
@@ -1733,7 +1731,7 @@ void TemplateTable::dop2(Operation op) {
     // Pop double precision number from rsp.
     __ pop(rax);
     __ pop(rdx);
-#endif
+#endif // _LP64
   }
 }
 
@@ -1767,7 +1765,7 @@ void TemplateTable::fneg() {
   transition(ftos, ftos);
   if (UseSSE >= 1) {
     static jlong *float_signflip  = double_quadword(&float_signflip_pool[1],  CONST64(0x8000000080000000),  CONST64(0x8000000080000000));
-    __ xorps(xmm0, ExternalAddress((address) float_signflip));
+    __ xorps(xmm0, ExternalAddress((address) float_signflip), rscratch1);
   } else {
     LP64_ONLY(ShouldNotReachHere());
     NOT_LP64(__ fchs());
@@ -1779,7 +1777,7 @@ void TemplateTable::dneg() {
   if (UseSSE >= 2) {
     static jlong *double_signflip =
       double_quadword(&double_signflip_pool[1], CONST64(0x8000000000000000), CONST64(0x8000000000000000));
-    __ xorpd(xmm0, ExternalAddress((address) double_signflip));
+    __ xorpd(xmm0, ExternalAddress((address) double_signflip), rscratch1);
   } else {
 #ifdef _LP64
     ShouldNotReachHere();
@@ -1900,7 +1898,7 @@ void TemplateTable::convert() {
     Label L;
     __ cvttss2siq(rax, xmm0);
     // NaN or overflow/underflow?
-    __ cmp64(rax, ExternalAddress((address) &is_nan));
+    __ cmp64(rax, ExternalAddress((address) &is_nan), rscratch1);
     __ jcc(Assembler::notEqual, L);
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::f2l), 1);
     __ bind(L);
@@ -1924,7 +1922,7 @@ void TemplateTable::convert() {
     Label L;
     __ cvttsd2siq(rax, xmm0);
     // NaN or overflow/underflow?
-    __ cmp64(rax, ExternalAddress((address) &is_nan));
+    __ cmp64(rax, ExternalAddress((address) &is_nan), rscratch1);
     __ jcc(Assembler::notEqual, L);
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::d2l), 1);
     __ bind(L);
@@ -1936,7 +1934,7 @@ void TemplateTable::convert() {
   default:
     ShouldNotReachHere();
   }
-#else
+#else // !_LP64
   // Checking
 #ifdef ASSERT
   { TosState tos_in  = ilgl;
@@ -2127,7 +2125,7 @@ void TemplateTable::convert() {
     default             :
       ShouldNotReachHere();
   }
-#endif
+#endif // _LP64
 }
 
 void TemplateTable::lcmp() {
@@ -2181,7 +2179,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result) {
   } else {
 #ifdef _LP64
     ShouldNotReachHere();
-#else
+#else // !_LP64
     if (is_float) {
       __ fld_s(at_rsp());
     } else {
@@ -2690,8 +2688,7 @@ void TemplateTable::_return(TosState state) {
     assert(state == vtos, "only valid state");
     Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
     __ movptr(robj, aaddress(0));
-    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-    __ load_klass(rdi, robj, tmp_load_klass);
+    __ load_klass(rdi, robj, rscratch1);
     __ movl(rdi, Address(rdi, Klass::access_flags_offset()));
     __ testl(rdi, JVM_ACC_HAS_FINALIZER);
     Label skip_register_finalizer;
@@ -2840,7 +2837,7 @@ void TemplateTable::load_field_cp_cache_entry(Register obj,
                                     ConstantPoolCacheEntry::f1_offset())));
     const int mirror_offset = in_bytes(Klass::java_mirror_offset());
     __ movptr(obj, Address(obj, mirror_offset));
-    __ resolve_oop_handle(obj);
+    __ resolve_oop_handle(obj, rscratch2);
   }
 }
 
@@ -3974,9 +3971,12 @@ void TemplateTable::prepare_invoke(int byte_no,
   {
     const address table_addr = (address) Interpreter::invoke_return_entry_table_for(code);
     ExternalAddress table(table_addr);
-    LP64_ONLY(__ lea(rscratch1, table));
-    LP64_ONLY(__ movptr(flags, Address(rscratch1, flags, Address::times_ptr)));
-    NOT_LP64(__ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr))));
+#ifdef _LP64
+    __ lea(rscratch1, table);
+    __ movptr(flags, Address(rscratch1, flags, Address::times_ptr));
+#else
+    __ movptr(flags, ArrayAddress(table, Address(noreg, flags, Address::times_ptr)));
+#endif // _LP64
   }
 
   // push return address
@@ -4024,8 +4024,7 @@ void TemplateTable::invokevirtual_helper(Register index,
 
   // get receiver klass
   __ null_check(recv, oopDesc::klass_offset_in_bytes());
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(rax, recv, tmp_load_klass);
+  __ load_klass(rax, recv, rscratch1);
 
   // profile this call
   __ profile_virtual_call(rax, rlocals, rdx);
@@ -4117,8 +4116,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   // Get receiver klass into rlocals - also a null check
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(rlocals, rcx, tmp_load_klass);
+  __ load_klass(rlocals, rcx, rscratch1);
 
   Label subtype;
   __ check_klass_subtype(rlocals, rax, rbcp, subtype);
@@ -4141,7 +4139,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // Get receiver klass into rdx - also a null check
   __ restore_locals();  // restore r14
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rdx, rcx, tmp_load_klass);
+  __ load_klass(rdx, rcx, rscratch1);
 
   Label no_such_method;
 
@@ -4443,8 +4441,7 @@ void TemplateTable::checkcast() {
   __ load_resolved_klass_at_index(rax, rcx, rbx);
 
   __ bind(resolved);
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(rbx, rdx, tmp_load_klass);
+  __ load_klass(rbx, rdx, rscratch1);
 
   // Generate subtype check.  Blows rcx, rdi.  Object in rdx.
   // Superklass in rax.  Subklass in rbx.
@@ -4516,13 +4513,12 @@ void TemplateTable::instanceof() {
 
   __ pop_ptr(rdx); // restore receiver
   __ verify_oop(rdx);
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(rdx, rdx, tmp_load_klass);
+  __ load_klass(rdx, rdx, rscratch1);
   __ jmpb(resolved);
 
   // Get superklass in rax and subklass in rdx
   __ bind(quicked);
-  __ load_klass(rdx, rax, tmp_load_klass);
+  __ load_klass(rdx, rax, rscratch1);
   __ load_resolved_klass_at_index(rax, rcx, rbx);
 
   __ bind(resolved);
@@ -4780,7 +4776,7 @@ void TemplateTable::wide() {
   transition(vtos, vtos);
   __ load_unsigned_byte(rbx, at_bcp(1));
   ExternalAddress wtable((address)Interpreter::_wentry_point);
-  __ jump(ArrayAddress(wtable, Address(noreg, rbx, Address::times_ptr)));
+  __ jump(ArrayAddress(wtable, Address(noreg, rbx, Address::times_ptr)), rscratch1);
   // Note: the rbcp increment step is part of the individual wide bytecode implementations
 }
 

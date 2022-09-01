@@ -127,7 +127,6 @@ void DCmdRegistrant::register_dcmds(){
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PerfMapDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<TrimCLibcHeapDCmd>(full_export, true, false));
 #endif // LINUX
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<TouchedMethodsDCmd>(full_export, true, false));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CodeHeapAnalyticsDCmd>(full_export, true, false));
 
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<CompilerDirectivesPrintDCmd>(full_export, true, false));
@@ -956,30 +955,6 @@ int PrintClassLayoutDCmd::num_arguments() {
 }
 
 #endif // INCLUDE_SERVICES
-
-class VM_DumpTouchedMethods : public VM_Operation {
-private:
-  outputStream* _out;
-public:
-  VM_DumpTouchedMethods(outputStream* out) {
-    _out = out;
-  }
-
-  virtual VMOp_Type type() const { return VMOp_DumpTouchedMethods; }
-
-  virtual void doit() {
-    Method::print_touched_methods(_out);
-  }
-};
-
-void TouchedMethodsDCmd::execute(DCmdSource source, TRAPS) {
-  if (!LogTouchedMethods) {
-    output()->print_cr("VM.print_touched_methods command requires -XX:+LogTouchedMethods");
-    return;
-  }
-  VM_DumpTouchedMethods dumper(output());
-  VMThread::execute(&dumper);
-}
 
 ClassesDCmd::ClassesDCmd(outputStream* output, bool heap) :
                                      DCmdWithParser(output, heap),
