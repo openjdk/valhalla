@@ -3339,7 +3339,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     }
 
     if (EnableValhalla) {
-      if(!supports_inline_types()) {
+      if (!supports_inline_types()) {
         const bool is_module = (flags & JVM_ACC_MODULE) != 0;
         const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
         if (!is_module && !is_interface) {
