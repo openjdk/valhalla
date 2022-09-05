@@ -158,7 +158,7 @@ public class Flags {
     public static final int BLOCK            = 1<<20;
 
     /** Marks a type as a value class */
-    public static final int VALUE_CLASS      = 1<<59;
+    public static final int VALUE_CLASS      = 1<<20;
 
     /** Flag is set for ClassSymbols that are being compiled from source.
      */
