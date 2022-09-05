@@ -295,20 +295,18 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
 
       Node* adr = NULL;
       Node* base = ac->in(ArrayCopyNode::Src);
-      const TypePtr* adr_type = _igvn.type(base)->is_ptr();
-      assert(adr_type->isa_aryptr(), "only arrays here");
+      const TypeAryPtr* adr_type = _igvn.type(base)->is_aryptr();
       if (adr_type->is_aryptr()->is_flat()) {
-        ciFlatArrayKlass* vak = adr_type->is_aryptr()->klass()->as_flat_array_klass();
-        shift = vak->log2_element_size();
+        shift = adr_type->flat_log_elem_size();
       }
       if (src_pos_t->is_con() && dest_pos_t->is_con()) {
         intptr_t off = ((src_pos_t->get_con() - dest_pos_t->get_con()) << shift) + offset;
         adr = _igvn.transform(new AddPNode(base, base, MakeConX(off)));
-        adr_type = _igvn.type(adr)->is_ptr();
+        adr_type = _igvn.type(adr)->is_aryptr();
         assert(adr_type == _igvn.type(base)->is_aryptr()->add_field_offset_and_offset(off), "incorrect address type");
         if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
           // Don't emit a new load from src if src == dst but try to get the value from memory instead
-          return value_from_mem(ac->in(TypeFunc::Memory), ctl, ft, ftype, adr_type->isa_oopptr(), alloc);
+          return value_from_mem(ac->in(TypeFunc::Memory), ctl, ft, ftype, adr_type, alloc);
         }
       } else {
         if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
@@ -327,7 +325,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
         // In the case of a flattened inline type array, each field has its
         // own slice so we need to extract the field being accessed from
         // the address computation
-        adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot);
+        adr_type = adr_type->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot)->is_aryptr();
         adr = _igvn.transform(new CastPPNode(adr, adr_type));
       }
       MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
@@ -787,7 +785,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       field_type = res_type->is_aryptr()->elem();
       if (res_type->is_aryptr()->is_flat()) {
         // Flattened inline type array
-        element_size = res_type->is_aryptr()->klass()->as_flat_array_klass()->element_byte_size();
+        element_size = res_type->is_aryptr()->flat_elem_size();
       }
     }
   }
@@ -1141,7 +1139,8 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
 
   // Attempt to eliminate inline type buffer allocations
   // regardless of usage and escape/replaceable status.
-  bool inline_alloc = tklass->klass()->is_inlinetype();
+  bool inline_alloc = tklass->isa_instklassptr() &&
+                      tklass->is_instklassptr()->instance_klass()->is_inlinetype();
   if (!alloc->_is_non_escaping && !inline_alloc) {
     return false;
   }

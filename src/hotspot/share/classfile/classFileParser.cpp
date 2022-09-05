@@ -3338,6 +3338,16 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       flags |= JVM_ACC_ABSTRACT;
     }
 
+    if (EnableValhalla) {
+      if (!supports_inline_types()) {
+        const bool is_module = (flags & JVM_ACC_MODULE) != 0;
+        const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
+        if (!is_module && !is_interface) {
+          flags |= JVM_ACC_IDENTITY;
+        }
+      }
+    }
+
     const char* name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
     verify_legal_class_modifiers(flags, name, false, CHECK_0);
     AccessFlags inner_access_flags(flags);
@@ -6177,8 +6187,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     flags |= JVM_ACC_ABSTRACT;
   }
 
-  _access_flags.set_flags(flags);
-
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
   check_property(
@@ -6202,6 +6210,11 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
         flags |= JVM_ACC_IDENTITY;
       }
     }
+  }
+
+  _access_flags.set_flags(flags);
+
+  if (EnableValhalla) {
     if (_access_flags.is_identity_class()) set_carries_identity_modifier();
     if (_access_flags.is_value_class()) set_carries_value_modifier();
     if (carries_identity_modifier() && carries_value_modifier()) {

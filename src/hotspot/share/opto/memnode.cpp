@@ -1000,11 +1000,7 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
       uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
-      uint shift  = exact_log2(type2aelembytes(ary_elem));
-      if (ary_t->klass()->is_flat_array_klass()) {
-        ciFlatArrayKlass* vak = ary_t->klass()->as_flat_array_klass();
-        shift = vak->log2_element_size();
-      }
+      uint shift  = ary_t->is_flat() ? ary_t->flat_log_elem_size() : exact_log2(type2aelembytes(ary_elem));
 
       Node* diff = phase->transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
 #ifdef _LP64
@@ -2059,11 +2055,11 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
       if (base != NULL && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
         const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
-        if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->isa_inlinetype() &&
+        if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->exact_klass()->is_inlinetype() &&
             tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
           assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
           assert(Opcode() == Op_LoadI, "must load an int from fixed block");
-          return TypeInt::make(tkls->klass()->as_inline_klass()->default_value_offset());
+          return TypeInt::make(tkls->exact_klass()->as_inline_klass()->default_value_offset());
         }
       }
     }
@@ -2176,9 +2172,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       // The mark word may contain property bits (inline, flat, null-free)
       Node* klass_node = alloc->in(AllocateNode::KlassNode);
       const TypeKlassPtr* tkls = phase->type(klass_node)->is_klassptr();
-      ciKlass* klass = tkls->klass();
-      if (klass != NULL && klass->is_loaded() && tkls->klass_is_exact()) {
-        return TypeX::make(klass->prototype_header().value());
+      if (tkls->is_loaded() && tkls->klass_is_exact()) {
+        return TypeX::make(tkls->exact_klass()->prototype_header().value());
       }
     } else {
       return TypeX::make(markWord::prototype().value());

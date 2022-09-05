@@ -304,8 +304,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
     if (dest_elem == T_PRIMITIVE_OBJECT) {
-      ciFlatArrayKlass* vak = ary_src->klass()->as_flat_array_klass();
-      shift = vak->log2_element_size();
+      shift = ary_src->flat_log_elem_size();
     }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
 
@@ -417,12 +416,11 @@ void ArrayCopyNode::copy(GraphKit& kit,
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
   if (copy_type == T_PRIMITIVE_OBJECT) {
-    ciFlatArrayKlass* vak = atp_src->klass()->as_flat_array_klass();
-    ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
+    ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
       int off_in_vt = field->offset() - vk->first_field_offset();
-      Node* off  = kit.MakeConX(off_in_vt + i * vak->element_byte_size());
+      Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
       assert(!field->is_flattened(), "flattened field encountered");
@@ -827,10 +825,7 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
   if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
 
   uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
-  uint elemsize = type2aelembytes(ary_elem);
-  if (ary_t->klass()->is_flat_array_klass()) {
-    elemsize = ary_t->klass()->as_flat_array_klass()->element_byte_size();
-  }
+  uint elemsize = ary_t->is_flat() ? ary_t->flat_elem_size() : type2aelembytes(ary_elem);
 
   jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elemsize + header;
   jlong dest_pos_plus_len_hi = (((jlong)dest_pos_t->_hi) + len_t->_hi) * elemsize + header;

@@ -25,50 +25,32 @@
  * ValueObjectCompilationTests
  *
  * @test
- * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767
+ * @bug 8287136 8292630 8279368 8287136 8287770 8279840 8279672 8292753 8287763 8279901 8287767 8293183 8293120
  * @summary Negative compilation tests, and positive compilation (smoke) tests for Value Objects
  * @library /lib/combo /tools/lib
  * @modules
  *     jdk.compiler/com.sun.tools.javac.util
  *     jdk.compiler/com.sun.tools.javac.api
  *     jdk.compiler/com.sun.tools.javac.main
+ *     jdk.compiler/com.sun.tools.javac.code
+ *     jdk.jdeps/com.sun.tools.classfile
  * @build toolbox.ToolBox toolbox.JavacTask
  * @run testng ValueObjectCompilationTests
  */
 
-import java.lang.constant.ClassDesc;
-
 import java.io.File;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
-import javax.annotation.processing.AbstractProcessor;
-import javax.annotation.processing.RoundEnvironment;
-import javax.annotation.processing.SupportedAnnotationTypes;
+import com.sun.tools.classfile.ClassFile;
+import com.sun.tools.javac.code.Flags;
 
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.SourceVersion;
-
-import com.sun.tools.javac.util.Assert;
-
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import org.testng.annotations.Test;
+
 import tools.javac.combo.CompilationTestCase;
 
 import toolbox.ToolBox;
-import toolbox.JavacTask;
-import toolbox.Task;
-import toolbox.Task.OutputKind;
 
 @Test
 public class ValueObjectCompilationTests extends CompilationTestCase {
@@ -503,7 +485,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
     }
 
-    public void testMutuallyIncompatibleSupers() {
+    public void testSupers() {
         assertFail("compiler.err.mutually.incompatible.supers",
                 """
                 identity interface II {}
@@ -532,5 +514,84 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value interface VI {}
                 class BIC implements VI {} // Error
                 """);
+        assertFail("compiler.err.identity.type.has.value.super.type",
+                """
+                value interface I {}
+                class Test {
+                    I i = new I() {};
+                }
+                """);
+    }
+
+    public void testInteractionWithSealedClasses() {
+        assertOK(
+                """
+                abstract sealed value class SC {}
+                value class VC extends SC {}
+                """
+        );assertOK(
+                """
+                abstract sealed value interface SI {}
+                value class VC implements SI {}
+                """
+        );
+        assertOK(
+                """
+                abstract sealed identity class SC {}
+                final identity class IC extends SC {}
+                non-sealed identity class IC2 extends SC {}
+                final identity class IC3 extends IC2 {}
+                """
+        );
+        assertOK(
+                """
+                abstract sealed identity interface SI {}
+                final identity class IC implements SI {}
+                non-sealed identity class IC2 implements SI {}
+                final identity class IC3 extends IC2 {}
+                """
+        );
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                abstract sealed value class SC {}
+                non-sealed value class VC extends SC {}
+                """
+        );
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                sealed value interface SI {}
+                non-sealed value class VC implements SI {}
+                """
+        );
+    }
+
+    public void testCheckThatAnonymousIsIdentity() throws Exception {
+        for (String source : List.of(
+                """
+                interface I {}
+                class Test {
+                    I i = new I() {};
+                }
+                """,
+                """
+                class C {}
+                class Test {
+                    C c = new C() {};
+                }
+                """,
+                """
+                class Test {
+                    Object o = new Object() {};
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                if (fileEntry.getName().contains("$")) {
+                    ClassFile classFile = ClassFile.read(fileEntry);
+                    assertTrue(classFile.access_flags.flags == Flags.ACC_IDENTITY);
+                }
+            }
+        }
     }
 }

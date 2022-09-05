@@ -4824,6 +4824,18 @@ const TypeAryPtr* TypeAryPtr::update_properties(const TypeAryPtr* from) const {
   return this;
 }
 
+jint TypeAryPtr::flat_layout_helper() const {
+  return klass()->as_flat_array_klass()->layout_helper();
+}
+
+int TypeAryPtr::flat_elem_size() const {
+  return klass()->as_flat_array_klass()->element_byte_size();
+}
+
+int TypeAryPtr::flat_log_elem_size() const {
+  return klass()->as_flat_array_klass()->log2_element_size();
+}
+
 //------------------------------cast_to_stable---------------------------------
 const TypeAryPtr* TypeAryPtr::cast_to_stable(bool stable, int stable_dimension) const {
   if (stable_dimension <= 0 || (stable_dimension == 1 && stable == this->is_stable()))
@@ -6466,10 +6478,9 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
       not_null_free = true;
     } else {
       // Klass is not exact (anymore), re-compute null-free/flat properties
-      not_null_free = !k->as_array_klass()->element_klass()->can_be_inline_klass(false);
-      not_flat = !UseFlatArray || not_null_free || (k->as_array_klass()->element_klass() != NULL &&
-                                                    k->as_array_klass()->element_klass()->is_inlinetype() &&
-                                                    !k->as_array_klass()->element_klass()->flatten_array());
+      const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(k->as_array_klass()->element_klass());
+      not_null_free = !exact_etype->can_be_inline_type();
+      not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flatten_array());
     }
   }
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _null_free);
