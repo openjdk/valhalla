@@ -581,17 +581,17 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
   }
 
   if (!r_1->is_FloatRegister()) {
-    Register val = tmp3;
+    Register val = r25;
     if (r_1->is_stack()) {
-      // memory to memory use tmp3 (scratch registers are used by store_heap_oop)
+      // memory to memory use r25 (scratch registers is used by store_heap_oop)
       int ld_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
       __ load_sized_value(val, Address(sp, ld_off), size_in_bytes, /* is_signed */ false);
     } else {
       val = r_1->as_Register();
     }
-    assert_different_registers(to.base(), val, rscratch2, tmp1, tmp2);
+    assert_different_registers(to.base(), val, tmp1, tmp2, tmp3);
     if (is_oop) {
-      __ store_heap_oop(to, val, rscratch2, tmp1, tmp2, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      __ store_heap_oop(to, val, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
     } else {
       __ store_sized_value(to, val, size_in_bytes);
     }
