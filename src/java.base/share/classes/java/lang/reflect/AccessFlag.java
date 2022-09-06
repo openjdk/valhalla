@@ -190,8 +190,8 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_IDENTITY}, corresponding to the
      * source modifier {@link Modifier#IDENTITY identity}, with a mask
-     * value of {@code {@value "0x%04x" Modifier#IDENTITY}}.
-     * @jls 4.1-B. Class access and property modifiers
+     * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
+     * @jvms 4.1 -B. Class access and property modifiers
      */
     IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_INNER_CLASS, null),
 
@@ -247,8 +247,8 @@ public enum AccessFlag {
     /**
      * The access flag {@code ACC_VALUE}, corresponding to the
      * source modifier {@link Modifier#VALUE value}, with a mask
-     * value of {@code {@value "0x%04x" Modifier#VALUE}}.
-     * @jls 4.1-B. Class access and property modifiers
+     * value of <code>{@value "0x%04x" Modifier#VALUE}</code>.
+     * @jvms 4.1 -B. Class access and property modifiers
      */
     VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS), null),
 
