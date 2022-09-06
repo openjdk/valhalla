@@ -26,7 +26,7 @@
 class SUPERset {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  63; // version should be the last version that does not override ACC_SUPER with ACC_IDENTITY
   [14] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -116,7 +116,7 @@ class SUPERset {
 class SUPERnotset {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  63; // version should be the last version that does not override ACC_SUPER with ACC_IDENTITY
   [14] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
