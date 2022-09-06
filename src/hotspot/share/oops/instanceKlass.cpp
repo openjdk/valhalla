@@ -625,7 +625,6 @@ void InstanceKlass::deallocate_record_components(ClassLoaderData* loader_data,
 // This function deallocates the metadata and C heap pointers that the
 // InstanceKlass points to.
 void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
-
   // Orphan the mirror first, CMS thinks it's still live.
   if (java_mirror() != NULL) {
     java_lang_Class::set_klass(java_mirror(), NULL);
@@ -2540,10 +2539,6 @@ void InstanceKlass::add_dependent_nmethod(nmethod* nm) {
   dependencies().add_dependent_nmethod(nm);
 }
 
-void InstanceKlass::remove_dependent_nmethod(nmethod* nm) {
-  dependencies().remove_dependent_nmethod(nm);
-}
-
 void InstanceKlass::clean_dependency_context() {
   dependencies().clean_unloading_dependents();
 }
@@ -2661,6 +2656,7 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   }
 }
 
+#if INCLUDE_CDS
 void InstanceKlass::remove_unshareable_info() {
 
   if (is_linked()) {
@@ -2873,6 +2869,7 @@ void InstanceKlass::assign_class_loader_type() {
     set_shared_class_loader_type(ClassLoader::APP_LOADER);
   }
 }
+#endif // INCLUDE_CDS
 
 #if INCLUDE_JVMTI
 static void clear_all_breakpoints(Method* m) {
@@ -3101,11 +3098,10 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, PackageEntry* pkg_
         // in the java.base module it will be caught later when java.base
         // is defined by ModuleEntryTable::verify_javabase_packages check.
         assert(ModuleEntryTable::javabase_moduleEntry() != NULL, JAVA_BASE_NAME " module is NULL");
-        _package_entry = loader_data->packages()->lookup(pkg_name, ModuleEntryTable::javabase_moduleEntry());
+        _package_entry = loader_data->packages()->create_entry_if_absent(pkg_name, ModuleEntryTable::javabase_moduleEntry());
       } else {
         assert(loader_data->unnamed_module() != NULL, "unnamed module is NULL");
-        _package_entry = loader_data->packages()->lookup(pkg_name,
-                                                         loader_data->unnamed_module());
+        _package_entry = loader_data->packages()->create_entry_if_absent(pkg_name, loader_data->unnamed_module());
       }
 
       // A package should have been successfully created

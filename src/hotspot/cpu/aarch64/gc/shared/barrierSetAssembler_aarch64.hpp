@@ -51,7 +51,7 @@ public:
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                        Address dst, Register val, Register tmp1, Register tmp2, Register tmp3 = noreg);
+                        Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
 
   virtual void value_copy(MacroAssembler* masm, DecoratorSet decorators,
                           Register src, Register dst, Register value_klass);
@@ -74,6 +74,12 @@ public:
 
   virtual void nmethod_entry_barrier(MacroAssembler* masm, Label* slow_path, Label* continuation, Label* guard);
   virtual void c2i_entry_barrier(MacroAssembler* masm);
+
+  virtual bool supports_instruction_patching() {
+    NMethodPatchingType patching_type = nmethod_patching_type();
+    return patching_type == NMethodPatchingType::conc_instruction_and_data_patch ||
+            patching_type == NMethodPatchingType::stw_instruction_and_data_patch;
+  }
 
   static address patching_epoch_addr();
   static void clear_patching_epoch();

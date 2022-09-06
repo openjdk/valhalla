@@ -76,7 +76,6 @@
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/continuation.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/java.hpp"
 #include "runtime/safepoint.hpp"
@@ -963,8 +962,8 @@ void PSParallelCompact::pre_compact()
   // Increment the invocation count
   heap->increment_total_collections(true);
 
-  Continuations::on_gc_marking_cycle_start();
-  Continuations::arm_all_nmethods();
+  CodeCache::on_gc_marking_cycle_start();
+  CodeCache::arm_all_nmethods();
 
   // We need to track unique mark sweep invocations as well.
   _total_invocations++;
@@ -996,8 +995,8 @@ void PSParallelCompact::post_compact()
   GCTraceTime(Info, gc, phases) tm("Post Compact", &_gc_timer);
   ParCompactionManager::remove_all_shadow_regions();
 
-  Continuations::on_gc_marking_cycle_finish();
-  Continuations::arm_all_nmethods();
+  CodeCache::on_gc_marking_cycle_finish();
+  CodeCache::arm_all_nmethods();
 
   for (unsigned int id = old_space_id; id < last_space_id; ++id) {
     // Clear the marking bitmap, summary data and split info.
@@ -2057,12 +2056,13 @@ void PSParallelCompact::marking_phase(ParallelOldTracer *gc_tracer) {
 
   {
     GCTraceTime(Debug, gc, phases) tm_m("Class Unloading", &_gc_timer);
+    CodeCache::UnloadingScope scope(is_alive_closure());
 
     // Follow system dictionary roots and unload classes.
     bool purged_class = SystemDictionary::do_unloading(&_gc_timer);
 
     // Unload nmethods.
-    CodeCache::do_unloading(is_alive_closure(), purged_class);
+    CodeCache::do_unloading(purged_class);
 
     // Prune dead klasses from subklass/sibling/implementor lists.
     Klass::clean_weak_klass_links(purged_class);

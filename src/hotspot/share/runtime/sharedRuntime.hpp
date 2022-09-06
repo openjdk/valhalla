@@ -33,11 +33,9 @@
 #include "memory/allStatic.hpp"
 #include "memory/resourceArea.hpp"
 #include "runtime/signature.hpp"
-#include "utilities/hashtable.hpp"
 #include "utilities/macros.hpp"
 
 class AdapterHandlerEntry;
-class AdapterHandlerTable;
 class AdapterFingerPrint;
 class vframeStream;
 class SigEntry;
@@ -529,7 +527,7 @@ class SharedRuntime: AllStatic {
                                jint length, JavaThread* thread);
 
   // handle ic miss with caller being compiled code
-  // wrong method handling (inline cache misses, zombie methods)
+  // wrong method handling (inline cache misses)
   static address handle_wrong_method(JavaThread* current);
   static address handle_wrong_method_abstract(JavaThread* current);
   static address handle_wrong_method_ic_miss(JavaThread* current);
@@ -643,8 +641,7 @@ class SharedRuntime: AllStatic {
 // used by the adapters.  The code generation happens here because it's very
 // similar to what the adapters have to do.
 
-class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
-  friend class AdapterHandlerTable;
+class AdapterHandlerEntry : public CHeapObj<mtCode> {
   friend class AdapterHandlerLibrary;
 
  private:
@@ -667,26 +664,24 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_inline_entry,
-            address c2i_inline_ro_entry, address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry) {
-    _fingerprint = fingerprint;
-    _i2c_entry = i2c_entry;
-    _c2i_entry = c2i_entry;
-    _c2i_inline_entry = c2i_inline_entry;
-    _c2i_inline_ro_entry = c2i_inline_ro_entry;
-    _c2i_unverified_entry = c2i_unverified_entry;
-    _c2i_unverified_inline_entry = c2i_unverified_inline_entry;
-    _c2i_no_clinit_check_entry = c2i_no_clinit_check_entry;
-    _sig_cc = NULL;
+  AdapterHandlerEntry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry,
+                      address c2i_inline_entry, address c2i_inline_ro_entry,
+                      address c2i_unverified_entry, address c2i_unverified_inline_entry,
+                      address c2i_no_clinit_check_entry) :
+    _fingerprint(fingerprint),
+    _i2c_entry(i2c_entry),
+    _c2i_entry(c2i_entry),
+    _c2i_inline_entry(c2i_inline_entry),
+    _c2i_inline_ro_entry(c2i_inline_ro_entry),
+    _c2i_unverified_entry(c2i_unverified_entry),
+    _c2i_unverified_inline_entry(c2i_unverified_inline_entry),
+    _c2i_no_clinit_check_entry(c2i_no_clinit_check_entry)
 #ifdef ASSERT
-    _saved_code_length = 0;
+    , _saved_code_length(0)
 #endif
-  }
+  { }
 
-  void deallocate();
-
-  // should never be used
-  AdapterHandlerEntry();
+  ~AdapterHandlerEntry();
 
  public:
   address get_i2c_entry()                   const { return _i2c_entry; }
@@ -706,10 +701,6 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 
   AdapterFingerPrint* fingerprint() const { return _fingerprint; }
 
-  AdapterHandlerEntry* next() {
-    return (AdapterHandlerEntry*)BasicHashtableEntry<mtCode>::next();
-  }
-
 #ifdef ASSERT
   // Used to verify that code generated for shared adapters is equivalent
   void save_code   (unsigned char* code, int length);
@@ -726,7 +717,6 @@ class AdapterHandlerLibrary: public AllStatic {
   friend class SharedRuntime;
  private:
   static BufferBlob* _buffer; // the temporary code buffer in CodeCache
-  static AdapterHandlerTable* _adapters;
   static AdapterHandlerEntry* _abstract_method_handler;
   static AdapterHandlerEntry* _no_arg_handler;
   static AdapterHandlerEntry* _int_arg_handler;

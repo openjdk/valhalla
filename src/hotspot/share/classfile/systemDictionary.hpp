@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,6 @@ class ProtectionDomainCacheEntry;
 class GCTimer;
 class EventClassLoad;
 class Symbol;
-class TableStatistics;
 
 class SystemDictionary : AllStatic {
   friend class BootstrapInfo;
@@ -134,6 +133,9 @@ class SystemDictionary : AllStatic {
                                                   const ClassLoadInfo& cl_info,
                                                   TRAPS);
 
+  static oop get_system_class_loader_impl(TRAPS);
+  static oop get_platform_class_loader_impl(TRAPS);
+
  public:
   static Klass* resolve_inline_type_field_or_fail(AllFieldStream* fs,
                                                   Handle class_loader,
@@ -149,12 +151,13 @@ class SystemDictionary : AllStatic {
                                             TRAPS);
 
   // Lookup an already loaded class. If not found NULL is returned.
-  static InstanceKlass* find_instance_klass(Symbol* class_name, Handle class_loader, Handle protection_domain);
+  static InstanceKlass* find_instance_klass(Thread* current, Symbol* class_name,
+                                            Handle class_loader, Handle protection_domain);
 
   // Lookup an already loaded instance or array class.
   // Do not make any queries to class loaders; consult only the cache.
   // If not found NULL is returned.
-  static Klass* find_instance_or_array_klass(Symbol* class_name,
+  static Klass* find_instance_or_array_klass(Thread* current, Symbol* class_name,
                                              Handle class_loader,
                                              Handle protection_domain);
 
@@ -224,6 +227,9 @@ public:
 
   // Register a new class loader
   static ClassLoaderData* register_loader(Handle class_loader, bool create_mirror_cld = false);
+
+  static void set_system_loader(ClassLoaderData *cld);
+  static void set_platform_loader(ClassLoaderData *cld);
 
   static Symbol* check_signature_loaders(Symbol* signature, Klass* klass_being_linked,
                                          Handle loader1, Handle loader2, bool is_method);
@@ -326,7 +332,6 @@ private:
                                             Handle class_loader,
                                             Handle protection_domain, TRAPS);
   static InstanceKlass* handle_parallel_loading(JavaThread* current,
-                                                unsigned int name_hash,
                                                 Symbol* name,
                                                 ClassLoaderData* loader_data,
                                                 Handle lockObject,
@@ -337,8 +342,7 @@ private:
                                               Handle class_loader,
                                               InstanceKlass* k, TRAPS);
   static InstanceKlass* load_instance_class_impl(Symbol* class_name, Handle class_loader, TRAPS);
-  static InstanceKlass* load_instance_class(unsigned int name_hash,
-                                            Symbol* class_name,
+  static InstanceKlass* load_instance_class(Symbol* class_name,
                                             Handle class_loader, TRAPS);
 
   static bool is_shared_class_visible(Symbol* class_name, InstanceKlass* ik,
@@ -402,16 +406,9 @@ protected:
   static Symbol* find_placeholder(Symbol* name, ClassLoaderData* loader_data);
 
   // Class loader constraints
-  static void check_constraints(unsigned int hash,
-                                InstanceKlass* k, Handle loader,
+  static void check_constraints(InstanceKlass* k, Handle loader,
                                 bool defining, TRAPS);
-  static void update_dictionary(unsigned int hash,
-                                InstanceKlass* k, Handle loader);
-
-public:
-  static TableStatistics placeholders_statistics();
-  static TableStatistics loader_constraints_statistics();
-  static TableStatistics protection_domain_cache_statistics();
+  static void update_dictionary(JavaThread* current, InstanceKlass* k, Handle loader);
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

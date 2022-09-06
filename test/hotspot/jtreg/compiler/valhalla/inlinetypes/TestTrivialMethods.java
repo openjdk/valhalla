@@ -33,6 +33,7 @@
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields
  *                   -XX:CompileCommand=dontinline,*::getter* -XX:CompileCommand=dontinline,*::setter*
+ *                   -XX:CompileCommand=dontinline,*::constantGetter*
  *                   compiler.valhalla.inlinetypes.TestTrivialMethods
  */
 

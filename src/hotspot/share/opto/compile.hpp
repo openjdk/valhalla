@@ -329,7 +329,6 @@ class Compile : public Phase {
   bool                  _do_freq_based_layout;  // True if we intend to do frequency based block layout
   bool                  _do_vector_loop;        // True if allowed to execute loop in parallel iterations
   bool                  _use_cmove;             // True if CMove should be used without profitability analysis
-  bool                  _age_code;              // True if we need to profile code age (decrement the aging counter)
   int                   _AliasLevel;            // Locally-adjusted version of AliasLevel flag.
   bool                  _print_assembly;        // True if we should dump assembly code for this compilation
   bool                  _print_inlining;        // True if we should print inlining for this compilation
@@ -623,8 +622,6 @@ class Compile : public Phase {
   void          set_do_vector_loop(bool z)      { _do_vector_loop = z; }
   bool              use_cmove() const           { return _use_cmove; }
   void          set_use_cmove(bool z)           { _use_cmove = z; }
-  bool              age_code() const             { return _age_code; }
-  void          set_age_code(bool z)             { _age_code = z; }
   int               AliasLevel() const           { return _AliasLevel; }
   bool              print_assembly() const       { return _print_assembly; }
   void          set_print_assembly(bool z)       { _print_assembly = z; }
@@ -976,7 +973,7 @@ class Compile : public Phase {
 
   void              identify_useful_nodes(Unique_Node_List &useful);
   void              update_dead_node_list(Unique_Node_List &useful);
-  void              disconnect_useless_nodes(Unique_Node_List &useful, Unique_Node_List* worklist);
+  void              remove_useless_nodes(Unique_Node_List &useful);
 
   void              remove_useless_node(Node* dead);
 

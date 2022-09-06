@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8266670
+ * @bug 8266670 8291734
  * @summary Test expected AccessFlag's on classes.
  */
 
@@ -46,16 +46,11 @@ import java.util.*;
  * return the Class object created from a module-info.class
  * file. Therefore, this test does not attempt to probe the setting of
  * that access flag.
- *
- * For a class, the VM must treat the class as if the ACC_SUPER bit
- * were set, but that bit is cleared by HotSpot when it is passed out
- * to the core reflection libraries. Therefore, this test does not
- * attempt to check whether or not AccessFlag.SUPER is set.
  */
 @ExpectedClassFlags("[PUBLIC, FINAL, SUPER, IDENTITY]")
 public final class ClassAccessFlagTest {
     public static void main(String... args) {
-        // Top-level and axuillary classes; i.e. non-inner classes
+        // Top-level and auxiliary classes; i.e. non-inner classes
         Class<?>[] testClasses = {
             ClassAccessFlagTest.class,
             TestInterface.class,

@@ -117,7 +117,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
     if (val != noreg) {
       Label done;
 
-      // tmp1 and tmp2 are often set to noreg.
+      // tmp1, tmp2 and tmp3 are often set to noreg.
       RegSet savedRegs = RegSet::of(rscratch1);
       __ push(savedRegs, sp);
 
@@ -132,7 +132,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
   }
 
   // Store value
-  BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2);
+  BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2, noreg);
 }
 
 #endif // ASSERT
