@@ -373,7 +373,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
                             new_val /* new_val */,
                             rthread /* thread */,
                             tmp1 /* tmp */,
-                            tmp3 /* tmp2 */);
+                            tmp2 /* tmp2 */);
     }
   }
 
