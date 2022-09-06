@@ -143,7 +143,8 @@ public interface ExecutableElement extends Element, Parameterizable {
 
     /**
      * Returns the simple name of a constructor, method, or
-     * initializer.  For a constructor, the name {@code "<init>"} is
+     * initializer.  For a constructor, the name {@code "<init>"} or
+     * {@code "<new>"} is
      * returned, for a static initializer, the name {@code "<clinit>"}
      * is returned, and for an anonymous class or instance
      * initializer, an empty name is returned.

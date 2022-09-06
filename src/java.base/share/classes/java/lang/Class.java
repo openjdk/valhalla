@@ -1500,7 +1500,7 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isConstructor() { return !isPartial() && "<init>".equals(name); }
+        boolean isConstructor() { return !isPartial() && ("<init>".equals(name) || "<new>".equals(name)); }
 
         boolean isMethod() { return !isPartial() && !isConstructor() && !"<clinit>".equals(name); }
 
@@ -3358,6 +3358,7 @@ public final class Class<T> implements java.io.Serializable,
             Constructor<T>[] temporaryRes = (Constructor<T>[]) new Constructor<?>[0];
             res = temporaryRes;
         } else {
+            // TODO - make sure JVM returns "<new>" methods for inline classes.
             res = getDeclaredConstructors0(publicOnly);
         }
         if (rd != null) {
@@ -3570,7 +3571,7 @@ public final class Class<T> implements java.io.Serializable,
                 return constructor;
             }
         }
-        throw new NoSuchMethodException(methodToString("<init>", parameterTypes));
+        throw new NoSuchMethodException(methodToString(isInlineClass() ? "<new>" : "<init>", parameterTypes));
     }
 
     //

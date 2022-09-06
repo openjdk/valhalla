@@ -259,6 +259,15 @@ public interface ClassDesc
     }
 
     /**
+     * Returns whether this {@linkplain java.lang.constant.ClassDesc} describes an inline class type.
+     *
+     * @return whether this {@linkplain java.lang.constant.ClassDesc} describes an inline class type.
+     */
+    default boolean isInlineClass() {
+        return descriptorString().startsWith("Q");
+    }
+
+    /**
      * Returns the component type of this {@linkplain ClassDesc}, if it describes
      * an array type, or {@code null} otherwise.
      *

@@ -822,12 +822,12 @@ bool Method::is_class_initializer() const {
 
 // A method named <init>, if non-static, is a classic object constructor.
 bool Method::is_object_constructor() const {
-   return name() == vmSymbols::object_initializer_name() && !is_static();
+  return name() == vmSymbols::object_initializer_name() && !is_static(); //TBD is the static check needed?
 }
 
-// A static method named <init> is a factory for an inline class.
-bool Method::is_static_init_factory() const {
-   return name() == vmSymbols::object_initializer_name() && is_static();
+// A static method named <new> is a factory for an inline class.
+bool Method::is_static_new_factory() const {
+  return name() == vmSymbols::inline_factory_name() && is_static(); //TBD is the static check needed?
 }
 
 bool Method::needs_clinit_barrier() const {

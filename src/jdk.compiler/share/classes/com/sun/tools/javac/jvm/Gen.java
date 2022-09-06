@@ -326,7 +326,7 @@ public class Gen extends JCTree.Visitor {
         Symbol msym = rs.
             resolveInternalMethod(pos, attrEnv, site, name, argtypes, null);
         if (isStatic) items.makeStaticItem(msym).invoke();
-        else items.makeMemberItem(msym, name == names.init).invoke();
+        else items.makeMemberItem(msym, names.isInitOrNew(name)).invoke();
     }
 
     /** Is the given method definition an access method
@@ -549,7 +549,7 @@ public class Gen extends JCTree.Visitor {
      *  @param initTAs  Type annotations from the initializer expression.
      */
     void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<TypeCompound> initTAs) {
-        if (md.name == names.init && TreeInfo.isInitialConstructor(md)) {
+        if (names.isInitOrNew(md.name) && TreeInfo.isInitialConstructor(md)) {
             // We are seeing a constructor that does not call another
             // constructor of the same class.
             List<JCStatement> stats = md.body.stats;

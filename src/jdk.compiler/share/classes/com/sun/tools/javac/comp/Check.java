@@ -1158,6 +1158,7 @@ public class Check {
         List<Type> nonInferred = sym.type.getParameterTypes();
         if (nonInferred.length() != formals.length()) nonInferred = formals;
         Type last = useVarargs ? formals.last() : null;
+        // TODO - is enum so <init>
         if (sym.name == names.init && sym.owner == syms.enumSym) {
             formals = formals.tail.tail;
             nonInferred = nonInferred.tail.tail;
@@ -1341,7 +1342,7 @@ public class Check {
             }
             break;
         case MTH:
-            if (sym.name == names.init) {
+            if (names.isInitOrNew(sym.name)) {
                 if ((sym.owner.flags_field & ENUM) != 0) {
                     // enum constructors cannot be declared public or
                     // protected and must be implicitly or explicitly
@@ -1697,7 +1698,7 @@ public class Check {
     //where
         private boolean withinAnonConstr(Env<AttrContext> env) {
             return env.enclClass.name.isEmpty() &&
-                    env.enclMethod != null && env.enclMethod.name == names.init;
+                    env.enclMethod != null && names.isInitOrNew(env.enclMethod.name);
         }
 
 /* *************************************************************************

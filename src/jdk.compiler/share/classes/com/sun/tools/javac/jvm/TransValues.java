@@ -61,6 +61,7 @@ import com.sun.tools.javac.util.Names;
 import java.util.HashMap;
 import java.util.Map;
 
+import static com.sun.tools.javac.code.Flags.RECORD;
 import static com.sun.tools.javac.code.Flags.STATIC;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
 import static com.sun.tools.javac.code.Kinds.Kind.TYP;
@@ -385,7 +386,7 @@ public class TransValues extends TreeTranslator {
 
     // Utility methods ...
     private boolean constructingValue() {
-        return currentClass != null && (currentClass.sym.flags() & Flags.VALUE) != 0 && currentMethod != null && currentMethod.sym.isConstructor();
+        return currentClass != null && (currentClass.sym.flags() & Flags.VALUE) != 0 && currentMethod != null && currentMethod.sym.isValueFactory();
     }
 
     private boolean isInstanceMemberAccess(Symbol symbol) {
@@ -396,7 +397,7 @@ public class TransValues extends TreeTranslator {
     }
 
     private MethodSymbol getValueFactory(MethodSymbol init) {
-        Assert.check(init.name.equals(names.init));
+        Assert.check(init.name.equals(names.inew));
         Assert.check(types.isValue(init.owner.type));
         MethodSymbol factory = init2factory.get(init);
         if (factory != null)
@@ -407,7 +408,7 @@ public class TransValues extends TreeTranslator {
                                                 init.type.getThrownTypes(),
                                                 init.owner.type.tsym);
         factory = new MethodSymbol(init.flags_field | STATIC,
-                                        names.init,
+                                        names.inew,
                                         factoryType,
                                         init.owner);
         factory.setAttributes(init);
@@ -420,7 +421,7 @@ public class TransValues extends TreeTranslator {
      *  under synthetic initializations.
      */
     private JCExpressionStatement chainedConstructorCall(JCMethodDecl md) {
-        if (md.name == names.init && md.body != null) {
+        if (names.isInitOrNew(md.name) && md.body != null) {
             for (JCStatement statement : md.body.stats) {
                 if (statement.hasTag(EXEC)) {
                     JCExpressionStatement exec = (JCExpressionStatement)statement;
@@ -437,7 +438,8 @@ public class TransValues extends TreeTranslator {
     }
 
     private MethodSymbol getDefaultConstructor(Symbol klass) {
-        for (Symbol method : klass.members().getSymbolsByName(names.init, s->s.kind == MTH && s.type.getParameterTypes().size() == 0, LookupKind.NON_RECURSIVE)) {
+        Name constructorName = klass.isValue() ? names.inew : names.init;
+        for (Symbol method : klass.members().getSymbolsByName(constructorName, s->s.kind == MTH && s.type.getParameterTypes().size() == 0, LookupKind.NON_RECURSIVE)) {
             return (MethodSymbol) method;
         }
         // class defines a non-nullary but no nullary constructor, fabricate a symbol.
@@ -446,7 +448,7 @@ public class TransValues extends TreeTranslator {
                 List.nil(),
                 klass.type.tsym);
         return new MethodSymbol(Flags.PUBLIC,
-                names.init,
+                constructorName,
                 dctorType,
                 klass);
     }

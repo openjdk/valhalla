@@ -1341,7 +1341,7 @@ public class ClassReader {
                 return (MethodSymbol)sym;
         }
 
-        if (nt.name != names.init)
+        if (!names.isInitOrNew(nt.name))
             // not a constructor
             return null;
         if ((flags & INTERFACE) != 0)
@@ -2254,14 +2254,14 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
-        if (name == names.init && ((flags & STATIC) != 0)) {
+        if (names.isInitOrNew(name) && ((flags & STATIC) != 0)) {
             flags &= ~STATIC;
             type = new MethodType(type.getParameterTypes(),
-                    syms.voidType,
+                    type.getReturnType(),
                     type.getThrownTypes(),
                     syms.methodClass);
         }
-        if (name == names.init && currentOwner.hasOuterInstance()) {
+        if (names.isInitOrNew(name) && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2366,7 +2366,7 @@ public class ClassReader {
             // the first parameter.  Note that this assumes the
             // skipped parameter has a width of 1 -- i.e. it is not
             // a double width type (long or double.)
-            if (sym.name == names.init && currentOwner.hasOuterInstance()) {
+            if (names.isInitOrNew(sym.name) && currentOwner.hasOuterInstance()) {
                 // Sometimes anonymous classes don't have an outer
                 // instance, however, there is no reliable way to tell so
                 // we never strip this$n

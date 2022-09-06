@@ -89,10 +89,11 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                                    Class<?>[] checkedExceptions,
                                                    int modifiers)
     {
+        boolean isInlineClass = declaringClass.isInlineClass();
         return (ConstructorAccessor) generate(declaringClass,
-                                              "<init>",
+                                              isInlineClass ? "<new>" : "<init>",
                                               parameterTypes,
-                                              Void.TYPE,
+                                              isInlineClass ? declaringClass : Void.TYPE,
                                               checkedExceptions,
                                               modifiers,
                                               true,
@@ -108,11 +109,12 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                      int modifiers,
                                      Class<?> targetConstructorClass)
     {
+        boolean isInlineClass = declaringClass.isInlineClass();
         return (SerializationConstructorAccessorImpl)
             generate(declaringClass,
-                     "<init>",
+                     isInlineClass ? "<new>" : "<init>",
                      parameterTypes,
-                     Void.TYPE,
+                     isInlineClass ? declaringClass : Void.TYPE,
                      checkedExceptions,
                      modifiers,
                      true,
@@ -175,7 +177,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         // +   [CONSTANT_Class_info] for above
         // +   [UTF-8] "java/lang/InvocationTargetException"
         // +   [CONSTANT_Class_info] for above
-        // +   [UTF-8] "<init>"
+        // +   [UTF-8] "<init>" or "<new>"
         // +   [UTF-8] "()V"
         // +   [CONSTANT_NameAndType_info] for above
         // +   [CONSTANT_Methodref_info] for NullPointerException's constructor

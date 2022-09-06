@@ -743,12 +743,13 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
               throwIllegalSignature("Method", name, signature, CHECK);
             }
           }
-          // 4509014: If a class method name begins with '<', it must be "<init>"
+          // If a class method name begins with '<', it must be "<init>" or "<new>"
           const unsigned int name_len = name->utf8_length();
           if (tag == JVM_CONSTANT_Methodref &&
               name_len != 0 &&
               name->char_at(0) == JVM_SIGNATURE_SPECIAL &&
-              name != vmSymbols::object_initializer_name()) {
+              (name != vmSymbols::inline_factory_name() &&
+               name != vmSymbols::object_initializer_name())) {
             classfile_parse_error(
               "Bad method name at constant pool index %u in class file %s",
               name_ref_index, CHECK);
@@ -769,13 +770,24 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
             const int name_ref_index =
               cp->name_ref_index_at(name_and_type_ref_index);
             const Symbol* const name = cp->symbol_at(name_ref_index);
-            if (name != vmSymbols::object_initializer_name()) {
+
+            if (supports_inline_types() && name == vmSymbols::inline_factory_name()) { // <new>
+              // <new> factory methods must be non-void return and invokeStatic.
+              const int signature_ref_index =
+                cp->signature_ref_index_at(name_and_type_ref_index);
+              const Symbol* const signature = cp->symbol_at(signature_ref_index);
+              if (signature->is_void_method_signature() || ref_kind != JVM_REF_invokeStatic) {
+                classfile_parse_error(
+                  "Bad factory method name at constant pool index %u in class file %s",
+                  name_ref_index, CHECK);
+              }
+           } else if (name != vmSymbols::object_initializer_name()) {
               if (ref_kind == JVM_REF_newInvokeSpecial) {
                 classfile_parse_error(
                   "Bad constructor name at constant pool index %u in class file %s",
                     name_ref_index, CHECK);
               }
-            } else {
+            } else { // init
               // The allowed invocation mode of <init> depends on its signature.
               // This test corresponds to verify_invoke_instructions in the verifier.
               const int signature_ref_index =
@@ -784,9 +796,6 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
               if (signature->is_void_method_signature()
                   && ref_kind == JVM_REF_newInvokeSpecial) {
                 // OK, could be a constructor call
-              } else if (!signature->is_void_method_signature()
-                         && ref_kind == JVM_REF_invokeStatic) {
-                // also OK, could be a static factory call
               } else {
                 classfile_parse_error(
                   "Bad method name at constant pool index %u in class file %s",
@@ -2466,25 +2475,25 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
     verify_legal_method_modifiers(flags, is_interface, is_inline_type, name, CHECK_NULL);
   }
 
-  if (name == vmSymbols::object_initializer_name()) {
+  if (supports_inline_types() && name == vmSymbols::inline_factory_name()) {
     if (is_interface) {
-      classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
-    } else if (!is_inline_type && signature->is_void_method_signature()) {
-      // OK, a constructor
-    } else if (is_inline_type && !signature->is_void_method_signature()) {
-      // also OK, a static factory, as long as the return value is good
+      classfile_parse_error("Interface cannot have a method named <new>, class file %s", CHECK_NULL);
+    } else if (!is_inline_type) {
+       classfile_parse_error("Identity class cannot have a method <new>, class file %s", CHECK_NULL);
+    } else if (signature->is_void_method_signature()) {
+       classfile_parse_error("Factory method <new> must have a non-void return type, class file %s", CHECK_NULL);
+
+       // also OK, a static factory, as long as the return value is good
+    } else {
       bool ok = false;
       SignatureStream ss((Symbol*) signature, true);
       while (!ss.at_return_type())  ss.next();
       if (ss.is_reference()) {
         Symbol* ret = ss.as_symbol();
         const Symbol* required = class_name();
-        if (is_hidden()) {
-          // The original class name in hidden classes gets changed.  So using
-          // the original name in the return type is no longer valid.
-          // Note that expecting the return type for inline hidden class factory
-          // methods to be java.lang.Object works around a JVM Spec issue for
-          // hidden classes.
+        if (is_hidden() || is_unsafe_anonymous()) {
+          // The original class name for hidden classes and in the UAC byte stream gets
+          // changed.  So using the original name in the return type is no longer valid.
           required = vmSymbols::java_lang_Object();
         }
         ok = (ret == required);
@@ -2492,27 +2501,30 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       if (!ok) {
         throwIllegalSignature("Method", name, signature, CHECK_0);
       }
+      // factory method, with a non-void return.  No other
+      // definition of <new> is possible.
+      //
+      // The verifier (in verify_invoke_instructions) will inspect the
+      // signature of any attempt to invoke <new>, and ensure that it
+      // returns non-void.
+    }
+  }
+
+  if (name == vmSymbols::object_initializer_name()) {
+    if (is_interface) {
+      classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
+    } else if (!is_inline_type && signature->is_void_method_signature()) {
+      // OK, a constructor
     } else {
       // not OK, so throw the same error as in verify_legal_method_signature.
       throwIllegalSignature("Method", name, signature, CHECK_0);
     }
-    // A declared <init> method must always be either a non-static
-    // object constructor, with a void return, or else it must be a
-    // static factory method, with a non-void return.  No other
-    // definition of <init> is possible.
+    // A declared <init> method must always be a non-static
+    // object constructor, with a void return.
     //
     // The verifier (in verify_invoke_instructions) will inspect the
-    // signature of any attempt to invoke <init>, and ensures that it
-    // returns non-void if and only if it is being invoked by
-    // invokestatic, and void if and only if it is being invoked by
-    // invokespecial.
-    //
-    // When a symbolic reference to <init> is resolved for a
-    // particular invocation mode (special or static), the mode is
-    // matched to the JVM_ACC_STATIC modifier of the <init> method.
-    // Thus, it is impossible to statically invoke a constructor, and
-    // impossible to "new + invokespecial" a static factory, either
-    // through bytecode or through reflection.
+    // signature of any attempt to invoke <init>, and ensure that it
+    // returns void.
   }
 
   int args_size = -1;  // only used when _need_verify is true
@@ -5541,10 +5553,9 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
   const bool major_gte_1_5   = _major_version >= JAVA_1_5_VERSION;
   const bool major_gte_8     = _major_version >= JAVA_8_VERSION;
   const bool is_initializer  = (name == vmSymbols::object_initializer_name());
+  const bool is_factory  = (name == vmSymbols::inline_factory_name() && supports_inline_types());
 
   bool is_illegal = false;
-
-  const char* class_note = "";
 
   if (is_interface) {
     if (major_gte_8) {
@@ -5579,24 +5590,19 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
     if (has_illegal_visibility(flags)) {
       is_illegal = true;
     } else {
-      if (is_initializer) {
-        if (is_final || is_synchronized || is_native ||
-            is_abstract || (major_gte_1_5 && is_bridge)) {
+      if (is_factory) { // <new> factory method
+        if (is_final || is_synchronized || is_native || !is_static ||
+            is_abstract || is_bridge) {
           is_illegal = true;
         }
-        if (!is_static && !is_inline_type) {
-          // OK, an object constructor in a regular class
-        } else if (is_static && is_inline_type) {
-          // OK, a static init factory in an inline class
-        } else {
-          // but no other combinations are allowed
+      } else if (is_initializer) {
+        if (is_static || is_final || is_synchronized || is_native ||
+            is_abstract || (major_gte_1_5 && is_bridge)) {
           is_illegal = true;
-          class_note = (is_inline_type ? " (an inline class)" : " (not an inline class)");
         }
       } else { // not initializer
         if (is_inline_type && is_synchronized && !is_static) {
           is_illegal = true;
-          class_note = " (an inline class)";
         } else {
           if (is_abstract) {
             if ((is_final || is_native || is_private || is_static ||
@@ -5611,11 +5617,20 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
 
   if (is_illegal) {
     ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_ClassFormatError(),
-      "Method %s in class %s%s has illegal modifiers: 0x%X",
-      name->as_C_string(), _class_name->as_C_string(), class_note, flags);
+    if (is_inline_type && is_initializer) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Method <init> is not allowed in inline class %s",
+        _class_name->as_C_string());
+    } else {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Method %s in %sclass %s has illegal modifiers: 0x%X",
+        name->as_C_string(), is_inline_type ? "inline " : "",
+	_class_name->as_C_string(), flags);
+    }
     return;
   }
 }
@@ -5916,7 +5931,9 @@ void ClassFileParser::verify_legal_method_name(const Symbol* name, TRAPS) const 
 
   if (length > 0) {
     if (bytes[0] == JVM_SIGNATURE_SPECIAL) {
-      if (name == vmSymbols::object_initializer_name() || name == vmSymbols::class_initializer_name()) {
+      if (name == vmSymbols::object_initializer_name() ||
+          name == vmSymbols::class_initializer_name() ||
+          name == vmSymbols::inline_factory_name()) {
         legal = true;
       }
     } else if (_major_version < JAVA_1_5_VERSION) {
@@ -6002,11 +6019,13 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
       if (name->utf8_length() > 0 && name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
         // All constructor methods must return void
         if ((length == 1) && (p[0] == JVM_SIGNATURE_VOID)) {
+          assert(name != vmSymbols::inline_factory_name(), "unexpected <new> method");
           return args_size;
         }
-        // All static init methods must return the current class
-        if ((length >= 3) && (p[length-1] == JVM_SIGNATURE_ENDCLASS)
-            && name == vmSymbols::object_initializer_name()) {
+        // All static factory methods must return the current class or
+        // java.lang.Object for hidden and unsafe anonymous classes..
+        if ((length >= 3) && (p[length-1] == JVM_SIGNATURE_ENDCLASS) &&
+            name == vmSymbols::inline_factory_name()) {
           nextp = skip_over_field_signature(p, true, length, CHECK_0);
           if (nextp && ((int)length == (nextp - p))) {
             // The actual class will be checked against current class
@@ -6017,8 +6036,9 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
           }
         }
         // The distinction between static factory methods and
-        // constructors depends on the JVM_ACC_STATIC modifier.
-        // This distinction must be reflected in a void or non-void
+        // constructors depends on the JVM_ACC_STATIC modifier and
+        // and their names, <new> vs. <init>.
+        // This distinction must also be reflected in a void or non-void
         // return. For declared methods, the check is in parse_method.
       } else {
         // Now we better just have a return value

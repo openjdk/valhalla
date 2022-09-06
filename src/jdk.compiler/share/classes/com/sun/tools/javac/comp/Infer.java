@@ -361,7 +361,7 @@ public class Infer {
         try {
             for (String graph : pendingGraphs.reverse()) {
                 Assert.checkNonNull(dependenciesFolder);
-                Name name = msym.name == msym.name.table.names.init ?
+                Name name = msym.name.table.names.isInitOrNew(msym.name) ?
                         msym.owner.name : msym.name;
                 String filename = String.format("%s@%s[mode=%s,step=%s]_%d.dot",
                         name,

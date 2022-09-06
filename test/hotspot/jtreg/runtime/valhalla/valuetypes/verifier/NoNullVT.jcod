@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -102,7 +102,7 @@ class NoNullVT {
     Utf8 "hashCode"; // #29     at 0x0108
     Utf8 "toString"; // #30     at 0x0113
     Utf8 "()Ljava/lang/String;"; // #31     at 0x011E
-    Utf8 "<init>"; // #32     at 0x0135
+    Utf8 "<new>"; // #32     at 0x0135
     Utf8 "()QNoNullVT;"; // #33     at 0x013E
     Utf8 "SourceFile"; // #34     at 0x014D
     Utf8 "NoNullVT.java"; // #35     at 0x015A

@@ -242,7 +242,7 @@ public interface DirectMethodHandleDesc extends MethodHandleDesc {
 
     /**
      * Returns the name of the method or field described by this nominal descriptor.
-     * For constructors, returns the reserved name {@code "<init>"}.
+     * For constructors, returns the reserved name {@code "<init>"} or {@code "<new>"}.
      *
      * @return the name of the method or field
      */

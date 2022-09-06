@@ -960,7 +960,7 @@ public class Types {
         private Filter<Symbol> bridgeFilter = new Filter<Symbol>() {
             public boolean accepts(Symbol t) {
                 return t.kind == MTH &&
-                        t.name != names.init &&
+                        names.isInitOrNew(t.name) &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }

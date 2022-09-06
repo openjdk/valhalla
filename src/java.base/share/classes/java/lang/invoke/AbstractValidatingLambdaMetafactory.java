@@ -154,7 +154,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                 // The lambda proxy class will be defined as a nestmate of targetClass.
                 // If the method to be invoked is an instance method of targetClass, then
                 // convert to use invokevirtual or invokeinterface.
-                if (targetClass == implClass && !implInfo.getName().equals("<init>")) {
+                if (targetClass == implClass && !implInfo.getName().equals("<init>") && !implInfo.getName().equals("<new>")) {
                     this.implKind = implClass.isInterface() ? REF_invokeInterface : REF_invokeVirtual;
                 } else {
                     this.implKind = REF_invokeSpecial;

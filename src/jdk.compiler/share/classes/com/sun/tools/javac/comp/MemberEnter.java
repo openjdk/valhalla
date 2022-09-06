@@ -178,6 +178,9 @@ public class MemberEnter extends JCTree.Visitor {
 
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
+        if (tree.name == tree.name.table.names.init && enclScope.owner.isValue()) {
+            tree.name = tree.name.table.names.inew;
+        }
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
         m.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, m, tree);
         tree.sym = m;

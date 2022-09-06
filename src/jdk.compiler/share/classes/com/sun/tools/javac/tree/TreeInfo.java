@@ -82,13 +82,26 @@ public class TreeInfo {
         }
     }
 
+    /** Is tree a value factory declaration?
+     */
+    public static boolean isValueFactory(JCTree tree) {
+        if (tree.hasTag(METHODDEF)) {
+            Name name = ((JCMethodDecl) tree).name;
+            return name == name.table.names.inew;
+        } else {
+            return false;
+        }
+    }
+
     public static boolean isCanonicalConstructor(JCTree tree) {
         // the record flag is only set to the canonical constructor
+        // TODO - inline allowed here.
         return isConstructor(tree) && (((JCMethodDecl)tree).sym.flags_field & RECORD) != 0;
     }
 
     public static boolean isCompactConstructor(JCTree tree) {
         // the record flag is only set to the canonical constructor
+        // TODO - inline allowed here.
         return isCanonicalConstructor(tree) && (((JCMethodDecl)tree).sym.flags_field & COMPACT_RECORD_CONSTRUCTOR) != 0;
     }
 
@@ -104,7 +117,7 @@ public class TreeInfo {
      */
     public static boolean hasConstructors(List<JCTree> trees) {
         for (List<JCTree> l = trees; l.nonEmpty(); l = l.tail)
-            if (isConstructor(l.head)) return true;
+            if (isConstructor(l.head) || isValueFactory(l.head)) return true;
         return false;
     }
 
@@ -250,8 +263,7 @@ public class TreeInfo {
     public static JCMethodInvocation firstConstructorCall(JCTree tree) {
         if (!tree.hasTag(METHODDEF)) return null;
         JCMethodDecl md = (JCMethodDecl) tree;
-        Names names = md.name.table.names;
-        if (md.name != names.init) return null;
+        if (!md.isInitOrNew()) return null;
         if (md.body == null) return null;
         List<JCStatement> stats = md.body.stats;
         // Synthetic initializations can appear before the super call.

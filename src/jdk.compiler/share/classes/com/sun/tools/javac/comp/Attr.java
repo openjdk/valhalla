@@ -293,7 +293,7 @@ public class Attr extends JCTree.Visitor {
         boolean isAssignable =
             v.owner == owner
             ||
-            ((owner.name == names.init ||    // i.e. we are in a constructor
+            ((names.isInitOrNew(owner.name) ||    // i.e. we are in a constructor
               owner.kind == VAR ||           // i.e. we are in a variable initializer
               (owner.flags() & BLOCK) != 0)  // i.e. we are in an initializer block
              &&
@@ -1097,7 +1097,7 @@ public class Attr extends JCTree.Visitor {
                     }
                 }
 
-                if (tree.name == names.init) {
+                if (names.isInitOrNew(tree.name)) {
                     // if this a constructor other than the canonical one
                     if ((tree.sym.flags_field & RECORD) == 0) {
                         JCMethodInvocation app = TreeInfo.firstConstructorCall(tree);
@@ -1211,7 +1211,7 @@ public class Attr extends JCTree.Visitor {
                 // Add an implicit super() call unless an explicit call to
                 // super(...) or this(...) is given
                 // or we are compiling class java.lang.Object.
-                if (tree.name == names.init && owner.type != syms.objectType) {
+                if (names.isInitOrNew(tree.name) && owner.type != syms.objectType) {
                     JCBlock body = tree.body;
                     if (body.stats.isEmpty() ||
                             TreeInfo.getConstructorInvocationName(body.stats, names, true) == names.empty) {
@@ -2572,7 +2572,7 @@ public class Attr extends JCTree.Visitor {
          *  @param error         Should an error be issued?
          */
         boolean checkFirstConstructorStat(JCMethodInvocation tree, JCMethodDecl enclMethod, boolean error) {
-            if (enclMethod != null && enclMethod.name == names.init) {
+            if (enclMethod != null && names.isInitOrNew(enclMethod.name)) {
                 JCBlock body = enclMethod.body;
                 if (body.stats.head.hasTag(EXEC) &&
                     ((JCExpressionStatement) body.stats.head).expr == tree)
@@ -3458,7 +3458,8 @@ public class Attr extends JCTree.Visitor {
                  * LTM code is doing to look for type annotations so we are fine.
                  */
                 if ((owner.flags() & STATIC) == 0) {
-                    for (Symbol s : enclClass.members_field.getSymbolsByName(names.init)) {
+                    Name constructorName = owner.isValue() ? names.inew : names.init;
+                    for (Symbol s : enclClass.members_field.getSymbolsByName(constructorName)) {
                         newScopeOwner = s;
                         break;
                     }
@@ -3520,13 +3521,17 @@ public class Attr extends JCTree.Visitor {
                 return;
             }
 
+            Symbol lhsSym = TreeInfo.symbol(that.expr);
             if (TreeInfo.isStaticSelector(that.expr, names)) {
+                // TODO - a bit hacky but...
+                if (lhsSym != null && lhsSym.isValue() && that.name == names.init) {
+                    that.name = names.inew;
+                }
                 //if the qualifier is a type, validate it; raw warning check is
                 //omitted as we don't know at this stage as to whether this is a
                 //raw selector (because of inference)
                 chk.validate(that.expr, env, false);
             } else {
-                Symbol lhsSym = TreeInfo.symbol(that.expr);
                 localEnv.info.selectSuper = lhsSym != null && lhsSym.name == names._super;
             }
             //attrib type-arguments
@@ -4573,7 +4578,7 @@ public class Attr extends JCTree.Visitor {
             // (for constructors (but not for constructor references), the error
             // was given when the constructor was resolved)
 
-            if (sym.name != names.init || tree.hasTag(REFERENCE)) {
+            if (!names.isInitOrNew(sym.name) || tree.hasTag(REFERENCE)) {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
                 chk.checkProfile(tree.pos(), sym);
@@ -5881,6 +5886,7 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitNewClass(JCNewClass that) {
             if (that.constructor == null) {
+                // TODO - since this is a dummy constructor no concern for inline classes.
                 that.constructor = new MethodSymbol(0, names.init,
                         dummyMethodType(), syms.noSymbol);
             }

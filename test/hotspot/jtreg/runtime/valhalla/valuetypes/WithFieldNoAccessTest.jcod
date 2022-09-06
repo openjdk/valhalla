@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -122,7 +122,7 @@ class WithFieldNoAccessTest$V {
     Utf8 "(Ljava/lang/Object;)Z"; // #24     at 0xB4
     Utf8 "toString"; // #25     at 0xCC
     Utf8 "()Ljava/lang/String;"; // #26     at 0xD7
-    Utf8 "<init>"; // #27     at 0xEE
+    Utf8 "<new>"; // #27     at 0xEE
     Utf8 "()QWithFieldNoAccessTest$V;"; // #28     at 0xF7
     Utf8 "SourceFile"; // #29     at 0x0115
     Utf8 "WithFieldNoAccessTest.java"; // #30     at 0x0122

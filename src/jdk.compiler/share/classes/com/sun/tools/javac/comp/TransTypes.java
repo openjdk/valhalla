@@ -341,7 +341,7 @@ public class TransTypes extends TreeTranslator {
                            ClassSymbol origin,
                            ListBuffer<JCTree> bridges) {
         if (sym.kind == MTH &&
-                sym.name != names.init &&
+                !names.isInitOrNew(sym.name) &&
                 (sym.flags() & (PRIVATE | STATIC)) == 0 &&
                 (sym.flags() & SYNTHETIC) != SYNTHETIC &&
                 sym.isMemberOf(origin, types)) {
@@ -673,6 +673,7 @@ public class TransTypes extends TreeTranslator {
         List<Type> argtypes = useInstantiatedPtArgs ?
                 tree.meth.type.getParameterTypes() :
                 mt.getParameterTypes();
+        // TODO - is enum so <init>
         if (meth.name == names.init && meth.owner == syms.enumSym)
             argtypes = argtypes.tail.tail;
         if (tree.varargsElement != null)

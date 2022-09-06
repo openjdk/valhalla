@@ -1014,10 +1014,10 @@ bool ciMethod::is_object_constructor() const {
 }
 
 // ------------------------------------------------------------------
-// ciMethod::is_static_init_factory
+// ciMethod::is_static_new_factory
 //
-bool ciMethod::is_static_init_factory() const {
-   return (name() == ciSymbol::object_initializer_name()
+bool ciMethod::is_static_new_factory() const {
+   return (name() == ciSymbol::inline_factory_name()
            && !signature()->return_type()->is_void());
    // Note:  We can't test is_static, because that would
    // require the method to be loaded.  Sometimes it isn't.

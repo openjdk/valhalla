@@ -628,7 +628,8 @@ Method* AOTCodeHeap::find_method(Klass* klass, Thread* thread, const char* metho
   if (name == NULL || signature == NULL) {
     m = NULL;
   } else if (name == vmSymbols::object_initializer_name() ||
-             name == vmSymbols::class_initializer_name()) {
+             name == vmSymbols::class_initializer_name() ||
+             name == vmSymbols::inline_factory_name()) {
     // Never search superclasses for constructors
     if (klass->is_instance_klass()) {
       m = InstanceKlass::cast(klass)->find_method(name, signature);

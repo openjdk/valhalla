@@ -355,7 +355,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
      */
     public Type externalType(Types types) {
         Type t = erasure(types);
-        if (name == name.table.names.init && owner.hasOuterInstance()) {
+        if ((isConstructor() || isValueFactory()) && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
@@ -482,13 +482,22 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     /** Is this symbol a constructor?
      */
     public boolean isConstructor() {
+        // TODO - is static check necessary?
         return name == name.table.names.init && (flags() & STATIC) == 0;
     }
 
     /** Is this symbol a value factory?
      */
     public boolean isValueFactory() {
-        return ((name == name.table.names.init && this.type.getReturnType().tsym == this.owner));
+        // TODO - is static check necessary?
+        return name == name.table.names.inew && (flags() & STATIC) == 0;
+    }
+
+    /** Is this symbol a constructor or value factory?
+     */
+    public boolean isInitOrNew() {
+        // TODO - is static check necessary?
+        return name.table.names.isInitOrNew(name) && (flags() & STATIC) == 0;
     }
 
     public boolean isDynamic() {
@@ -2046,7 +2055,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if ((flags() & BLOCK) != 0) {
                 return owner.name.toString();
             } else {
-                String s = (name == name.table.names.init)
+                String s = (isConstructor() || isValueFactory())
                     ? owner.name.toString()
                     : name.toString();
                 if (type != null) {
@@ -2332,7 +2341,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public ElementKind getKind() {
-            if (name == name.table.names.init)
+            if (isConstructor() || isValueFactory())
                 return ElementKind.CONSTRUCTOR;
             else if (name == name.table.names.clinit)
                 return ElementKind.STATIC_INIT;

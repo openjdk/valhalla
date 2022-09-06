@@ -853,6 +853,9 @@ protected:
 // Inline implementation of Thread::current()
 inline Thread* Thread::current() {
   Thread* current = current_or_null();
+if (IgnoreUnrecognizedVMOptions) {
+  if (current == NULL) printf("current is null\n");
+}
   assert(current != NULL, "Thread::current() called on detached thread");
   return current;
 }
