@@ -24,7 +24,7 @@
 
 import java.io.File;
 import java.lang.invoke.MethodHandles;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 public class RewriteBytecodesInline {
   public static void main(String args[]) throws Throwable {

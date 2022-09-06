@@ -25,7 +25,7 @@ package compiler.valhalla.inlinetypes;
 
 import compiler.lib.ir_framework.*;
 import jdk.test.lib.Asserts;
-import sun.hotspot.WhiteBox;
+import jdk.test.whitebox.WhiteBox;
 
 import static compiler.valhalla.inlinetypes.InlineTypes.rI;
 import static compiler.valhalla.inlinetypes.InlineTypes.rL;

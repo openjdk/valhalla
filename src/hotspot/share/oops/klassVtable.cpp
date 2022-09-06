@@ -1147,7 +1147,7 @@ void klassItable::initialize_itable(GrowableArray<Method*>* supers) {
       _klass->is_interface() ||
       _klass->itable_length() == itableOffsetEntry::size()) return;
 
-  // There's alway an extra itable entry so we can null-terminate it.
+  // There's always an extra itable entry so we can null-terminate it.
   guarantee(size_offset_table() >= 1, "too small");
   int num_interfaces = size_offset_table() - 1;
   if (num_interfaces > 0) {

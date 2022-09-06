@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,8 +85,8 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
-ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
-  Klass(id),
+ArrayKlass::ArrayKlass(Symbol* name, KlassKind kind) :
+  Klass(kind),
   _dimension(1),
   _higher_dimension(NULL),
   _lower_dimension(NULL) {
@@ -124,7 +124,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, bool q
   return SymbolTable::new_symbol(new_str);
 }
 
-// Initialization of vtables and mirror object is done separatly from base_create_array_klass,
+// Initialization of vtables and mirror object is done separately from base_create_array_klass,
 // since a GC can happen. At this point all instance variables of the ArrayKlass must be setup.
 void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module_entry, TRAPS) {
   k->initialize_supers(super_klass, NULL, CHECK);
@@ -185,6 +185,7 @@ void ArrayKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push((Klass**)&_lower_dimension);
 }
 
+#if INCLUDE_CDS
 void ArrayKlass::remove_unshareable_info() {
   Klass::remove_unshareable_info();
   if (_higher_dimension != NULL) {
@@ -211,6 +212,7 @@ void ArrayKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle p
     ak->restore_unshareable_info(loader_data, protection_domain, CHECK);
   }
 }
+#endif // INCLUDE_CDS
 
 // Printing
 

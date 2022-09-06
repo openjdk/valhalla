@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -120,19 +120,8 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
     }
 
     if (useCache) {
-      // Cache portion of the remote process's address space.
-      // Fetching data over the socket connection to dbx is slow.
-      // Might be faster if we were using a binary protocol to talk to
-      // dbx, but would have to test. For now, this cache works best
-      // if it covers the entire heap of the remote process. FIXME: at
-      // least should make this tunable from the outside, i.e., via
-      // the UI. This is a cache of 4096 4K pages, or 16 MB. The page
-      // size must be adjusted to be the hardware's page size.
-      // (FIXME: should pick this up from the debugger.)
-      initCache(4096, 4096);
+      initCache(4096, parseCacheNumPagesProperty(1024 * 64));
     }
-    // FIXME: add instantiation of thread factory
-
   }
 
   /** From the Debugger interface via JVMDebugger */
@@ -412,7 +401,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
   /** From the Debugger interface */
   public long getAddressValue(Address addr) {
     if (addr == null) return 0;
-    return ((WindbgAddress) addr).getValue();
+    return addr.asLongValue();
   }
 
   /** From the WindbgDebugger interface */
@@ -473,7 +462,7 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
     if (dll != null) {
       WindbgAddress addr = (WindbgAddress) dll.lookupSymbol(symbol);
       if (addr != null) {
-        return addr.getValue();
+        return addr.asLongValue();
       }
     }
     return 0L;
@@ -499,12 +488,6 @@ public class WindbgDebuggerLocal extends DebuggerBase implements WindbgDebugger 
       }
     }
     return null;
-  }
-
-  public void writeBytesToProcess(long address, long numBytes, byte[] data)
-    throws UnmappedAddressException, DebuggerException {
-    // FIXME
-    throw new DebuggerException("Unimplemented");
   }
 
   private static String  imagePath;

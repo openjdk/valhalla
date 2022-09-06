@@ -1,3 +1,0 @@
-AnnotationsConstraints.java:10:15: compiler.err.illegal.combination.of.modifiers: identity, annotation
-AnnotationsConstraints.java:12:12: compiler.err.illegal.combination.of.modifiers: value, annotation
-2 errors

@@ -144,7 +144,9 @@
 
 #define JAVA_19_VERSION                   63
 
-#define CONSTANT_CLASS_DESCRIPTORS        63
+#define JAVA_20_VERSION                   64
+
+#define CONSTANT_CLASS_DESCRIPTORS        64
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -997,6 +999,8 @@ public:
     _method_CallerSensitive,
     _method_ForceInline,
     _method_DontInline,
+    _method_ChangesCurrentThread,
+    _method_JvmtiMountTransition,
     _method_InjectedProfile,
     _method_LambdaForm_Compiled,
     _method_Hidden,
@@ -1718,7 +1722,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    CHECK);
   // Sometimes injected fields already exist in the Java source so
   // the fields array could be too long.  In that case the
-  // fields array is trimed. Also unused slots that were reserved
+  // fields array is trimmed. Also unused slots that were reserved
   // for generic signature indexes are discarded.
   {
     int i = 0;
@@ -2064,6 +2068,16 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (!privileged)              break;  // only allow in privileged code
       return _method_DontInline;
     }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_ChangesCurrentThread_signature): {
+      if (_location != _in_method)  break;  // only allow for methods
+      if (!privileged)              break;  // only allow in privileged code
+      return _method_ChangesCurrentThread;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_JvmtiMountTransition_signature): {
+      if (_location != _in_method)  break;  // only allow for methods
+      if (!privileged)              break;  // only allow in privileged code
+      return _method_JvmtiMountTransition;
+    }
     case VM_SYMBOL_ENUM_NAME(java_lang_invoke_InjectedProfile_signature): {
       if (_location != _in_method)  break;  // only allow for methods
       if (!privileged)              break;  // only allow in privileged code
@@ -2110,7 +2124,7 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
     }
     case VM_SYMBOL_ENUM_NAME(jdk_internal_ValueBased_signature): {
       if (_location != _in_class)   break;  // only allow for classes
-      if (!privileged)              break;  // only allow in priviledged code
+      if (!privileged)              break;  // only allow in privileged code
       return _jdk_internal_ValueBased;
     }
     default: {
@@ -2140,6 +2154,10 @@ void MethodAnnotationCollector::apply_to(const methodHandle& m) {
     m->set_force_inline(true);
   if (has_annotation(_method_DontInline))
     m->set_dont_inline(true);
+  if (has_annotation(_method_ChangesCurrentThread))
+    m->set_changes_current_thread(true);
+  if (has_annotation(_method_JvmtiMountTransition))
+    m->set_jvmti_mount_transition(true);
   if (has_annotation(_method_InjectedProfile))
     m->set_has_injected_profile(true);
   if (has_annotation(_method_LambdaForm_Compiled) && m->intrinsic_id() == vmIntrinsics::_none)
@@ -3320,6 +3338,16 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       flags |= JVM_ACC_ABSTRACT;
     }
 
+    if (EnableValhalla) {
+      if (!supports_inline_types()) {
+        const bool is_module = (flags & JVM_ACC_MODULE) != 0;
+        const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
+        if (!is_module && !is_interface) {
+          flags |= JVM_ACC_IDENTITY;
+        }
+      }
+    }
+
     const char* name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
     verify_legal_class_modifiers(flags, name, false, CHECK_0);
     AccessFlags inner_access_flags(flags);
@@ -4148,7 +4176,7 @@ void ClassFileParser::create_combined_annotations(TRAPS) {
     // assigned to InstanceKlass being constructed.
     _combined_annotations = annotations;
 
-    // The annotations arrays below has been transfered the
+    // The annotations arrays below has been transferred the
     // _combined_annotations so these fields can now be cleared.
     _class_annotations       = NULL;
     _class_type_annotations  = NULL;
@@ -4301,7 +4329,7 @@ void OopMapBlocksBuilder::compact() {
     return;
   }
   /*
-   * Since field layout sneeks in oops before values, we will be able to condense
+   * Since field layout sneaks in oops before values, we will be able to condense
    * blocks. There is potential to compact between super, own refs and values
    * containing refs.
    *
@@ -4458,8 +4486,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 
 bool ClassFileParser::supports_inline_types() const {
   // Inline types are only supported by class file version 61.65535 and later
-  return _major_version > JAVA_17_VERSION ||
-         (_major_version == JAVA_17_VERSION && _minor_version == JAVA_PREVIEW_MINOR_VERSION);
+  return _major_version > JAVA_20_VERSION ||
+         (_major_version == JAVA_20_VERSION /*&& _minor_version == JAVA_PREVIEW_MINOR_VERSION*/); // JAVA_PREVIEW_MINOR_VERSION not yet implemented by javac, check JVMS draft
 }
 
 // utility methods for appending an array with check for duplicates
@@ -5940,7 +5968,6 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _vtable_size(0),
   _itable_size(0),
   _num_miranda_methods(0),
-  _rt(REF_NONE),
   _protection_domain(cl_info->protection_domain()),
   _access_flags(),
   _pub_level(pub_level),
@@ -6168,8 +6195,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     flags |= JVM_ACC_ABSTRACT;
   }
 
-  _access_flags.set_flags(flags);
-
   // This class and superclass
   _this_class_index = stream->get_u2_fast();
   check_property(
@@ -6193,6 +6218,11 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
         flags |= JVM_ACC_IDENTITY;
       }
     }
+  }
+
+  _access_flags.set_flags(flags);
+
+  if (EnableValhalla) {
     if (_access_flags.is_identity_class()) set_carries_identity_modifier();
     if (_access_flags.is_value_class()) set_carries_value_modifier();
     if (carries_identity_modifier() && carries_value_modifier()) {
@@ -6242,8 +6272,8 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
         Exceptions::fthrow(THREAD_AND_LOCATION,
                            vmSymbols::java_lang_NoClassDefFoundError(),
                            "%s (wrong name: %s)",
-                           class_name_in_cp->as_C_string(),
-                           _class_name->as_C_string()
+                           _class_name->as_C_string(),
+                           class_name_in_cp->as_C_string()
                            );
         return;
       } else {
@@ -6561,9 +6591,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     _exact_size_in_bytes = lb.get_exact_size_in_byte();
   }
   _has_inline_type_fields = _field_info->_has_inline_fields;
-
-  // Compute reference type
-  _rt = (NULL ==_super_klass) ? REF_NONE : _super_klass->reference_type();
 }
 
 void ClassFileParser::set_klass(InstanceKlass* klass) {
@@ -6594,6 +6621,32 @@ const ClassFileStream* ClassFileParser::clone_stream() const {
   assert(_stream != NULL, "invariant");
 
   return _stream->clone();
+}
+
+ReferenceType ClassFileParser::super_reference_type() const {
+  return _super_klass == NULL ? REF_NONE : _super_klass->reference_type();
+}
+
+bool ClassFileParser::is_instance_ref_klass() const {
+  // Only the subclasses of j.l.r.Reference are InstanceRefKlass.
+  // j.l.r.Reference itself is InstanceKlass because InstanceRefKlass denotes a
+  // klass requiring special treatment in ref-processing. The abstract
+  // j.l.r.Reference cannot be instantiated so doesn't partake in
+  // ref-processing.
+  return is_java_lang_ref_Reference_subclass();
+}
+
+bool ClassFileParser::is_java_lang_ref_Reference_subclass() const {
+  if (_super_klass == NULL) {
+    return false;
+  }
+
+  if (_super_klass->name() == vmSymbols::java_lang_ref_Reference()) {
+    // Direct subclass of j.l.r.Reference: Soft|Weak|Final|Phantom
+    return true;
+  }
+
+  return _super_klass->reference_type() != REF_NONE;
 }
 
 // ----------------------------------------------------------------------------
