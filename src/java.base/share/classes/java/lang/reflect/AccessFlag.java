@@ -188,7 +188,9 @@ public enum AccessFlag {
     SUPER(0x0000_0020, false, Location.SET_CLASS, null),
 
     /**
-     * The access flag {@code ACC_IDENTITY} with a mask value of {@code {@value Modifier#IDENTITY}}.
+     * The access flag {@code ACC_IDENTITY}, corresponding to the
+     * source modifier {@link Modifier#IDENTITY identity}, with a mask
+     * value of {@code {@value "0x%04x" Modifier#IDENTITY}}.
      * @jls 4.1-B. Class access and property modifiers
      */
     IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_INNER_CLASS, null),
@@ -198,14 +200,14 @@ public enum AccessFlag {
      * 0x0020}.
      * @see java.lang.module.ModuleDescriptor#isOpen
      */
-        OPEN(0x0000_0020, false, Location.SET_MODULE,
-             new Function<ClassFileFormatVersion, Set<Location>>() {
-                 @Override
-                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                     return (cffv.compareTo(ClassFileFormatVersion.RELEASE_9) >= 0 ) ?
-                         Location.SET_MODULE:
-                         Location.EMPTY_SET;}
-             }),
+    OPEN(0x0000_0020, false, Location.SET_MODULE,
+         new Function<ClassFileFormatVersion, Set<Location>>() {
+             @Override
+             public Set<Location> apply(ClassFileFormatVersion cffv) {
+                 return (cffv.compareTo(ClassFileFormatVersion.RELEASE_9) >= 0 ) ?
+                     Location.SET_MODULE:
+                     Location.EMPTY_SET;}
+         }),
 
     /**
      * The module requires flag {@code ACC_TRANSITIVE} with a mask
@@ -243,7 +245,9 @@ public enum AccessFlag {
                  }),
 
     /**
-     * The access flag {@code ACC_VALUE} with a mask value of {@code {@value Modifier#VALUE}}.
+     * The access flag {@code ACC_VALUE}, corresponding to the
+     * source modifier {@link Modifier#VALUE value}, with a mask
+     * value of {@code {@value "0x%04x" Modifier#VALUE}}.
      * @jls 4.1-B. Class access and property modifiers
      */
     VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS), null),
