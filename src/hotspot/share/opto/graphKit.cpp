@@ -2755,9 +2755,7 @@ void GraphKit::make_slow_call_ex(Node* call, ciInstanceKlass* ex_klass, bool sep
   // Make a catch node with just two handlers:  fall-through and catch-all
   Node* i_o  = _gvn.transform( new ProjNode(call, TypeFunc::I_O, separate_io_proj) );
   Node* catc = _gvn.transform( new CatchNode(control(), i_o, 2) );
-  Node* norm = new CatchProjNode(catc, CatchProjNode::fall_through_index, CatchProjNode::no_handler_bci);
-  _gvn.set_type_bottom(norm);
-  C->record_for_igvn(norm);
+  Node* norm = _gvn.transform( new CatchProjNode(catc, CatchProjNode::fall_through_index, CatchProjNode::no_handler_bci) );
   Node* excp = _gvn.transform( new CatchProjNode(catc, CatchProjNode::catch_all_index,    CatchProjNode::no_handler_bci) );
 
   { PreserveJVMState pjvms(this);
@@ -4265,14 +4263,6 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
   const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
   const TypeOopPtr* ary_type = ary_klass->as_instance_type();
-  Node* valid_length_test = _gvn.intcon(1);
-  if (ary_type->isa_aryptr()) {
-    BasicType bt = ary_type->isa_aryptr()->elem()->array_element_basic_type();
-    jint max = TypeAryPtr::max_array_length(bt);
-    Node* valid_length_cmp  = _gvn.transform(new CmpUNode(length, intcon(max)));
-    valid_length_test = _gvn.transform(new BoolNode(valid_length_cmp, BoolTest::le));
-  }
-
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
 
   // Inline type array variants:
@@ -4332,13 +4322,13 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   }
 
   // Create the AllocateArrayNode and its result projections
-  AllocateArrayNode* alloc = new AllocateArrayNode(C, AllocateArrayNode::alloc_type(TypeInt::INT),
-                                                   control(), mem, i_o(),
-                                                   size, klass_node,
-                                                   initial_slow_test,
-                                                   length, valid_length_test,
-                                                   default_value, raw_default_value);
-
+  AllocateArrayNode* alloc
+    = new AllocateArrayNode(C, AllocateArrayNode::alloc_type(TypeInt::INT),
+                            control(), mem, i_o(),
+                            size, klass_node,
+                            initial_slow_test,
+                            length,
+                            default_value, raw_default_value);
   // Cast to correct type.  Note that the klass_node may be constant or not,
   // and in the latter case the actual array type will be inexact also.
   // (This happens via a non-constant argument to inline_native_newArray.)

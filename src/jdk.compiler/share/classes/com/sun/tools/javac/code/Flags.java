@@ -158,7 +158,11 @@ public class Flags {
     public static final int BLOCK            = 1<<20;
 
     /** Marks a type as a value class */
-    public static final int VALUE_CLASS  = 1<<21;
+    public static final int VALUE_CLASS      = 1<<20;
+
+    /** Flag is set for ClassSymbols that are being compiled from source.
+     */
+    public static final int FROM_SOURCE      = 1<<21; //ClassSymbols
 
     /** Flag is set for nested classes that do not access instance members
      *  or `this' of an outer class and therefore don't need to be passed
@@ -524,6 +528,7 @@ public class Flags {
             }
         },
         BLOCK(Flags.BLOCK),
+        FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
         PRIMITIVE(Flags.PRIMITIVE_CLASS),
