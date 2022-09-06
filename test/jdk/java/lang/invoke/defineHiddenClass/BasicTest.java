@@ -249,7 +249,7 @@ public class BasicTest {
         return new Object[][] {
                 new Object[] { "EmptyHiddenSynthetic", ACC_SYNTHETIC | ACC_IDENTITY },
                 new Object[] { "EmptyHiddenEnum", ACC_ENUM | ACC_IDENTITY },
-                new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT },
+                new Object[] { "EmptyHiddenAbstractClass", ACC_ABSTRACT | ACC_IDENTITY },
                 new Object[] { "EmptyHiddenInterface", ACC_ABSTRACT|ACC_INTERFACE },
                 new Object[] { "EmptyHiddenAnnotation", ACC_ANNOTATION|ACC_ABSTRACT|ACC_INTERFACE },
         };
@@ -281,7 +281,7 @@ public class BasicTest {
                 assertFalse(hc.isAnnotation());
                 assertFalse(hc.isInterface());
                 break;
-            case ACC_ABSTRACT:
+            case ACC_ABSTRACT | ACC_IDENTITY:
                 assertFalse(hc.isSynthetic());
                 assertFalse(hc.isEnum());
                 assertFalse(hc.isAnnotation());
@@ -303,7 +303,7 @@ public class BasicTest {
                 throw new IllegalArgumentException("unexpected access flag: " + accessFlags);
         }
         assertTrue(hc.isHidden());
-        assertTrue(hc.getModifiers() == (ACC_PUBLIC|accessFlags));
+        assertEquals(hc.getModifiers(), (ACC_PUBLIC|accessFlags));
         assertFalse(hc.isLocalClass());
         assertFalse(hc.isMemberClass());
         assertFalse(hc.isAnonymousClass());

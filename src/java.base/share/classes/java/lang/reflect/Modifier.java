@@ -29,13 +29,16 @@ import java.util.StringJoiner;
 
 /**
  * The Modifier class provides {@code static} methods and
- * constants to decode class and member access modifiers.  The sets of
- * modifiers are represented as integers with distinct bit positions
+ * constants to decode class and member access modifiers.
+ * The {@link AccessFlag} class should be used instead of this class.
+ * The sets of modifiers are represented as integers with non-distinct bit positions
  * representing different modifiers.  The values for the constants
  * representing the modifiers are taken from the tables in sections
  * {@jvms 4.1}, {@jvms 4.4}, {@jvms 4.5}, and {@jvms 4.7} of
  * <cite>The Java Virtual Machine Specification</cite>.
  *
+ * @see Class#accessFlags()
+ * @see Member#accessFlags()
  * @see Class#getModifiers()
  * @see Member#getModifiers()
  *
@@ -114,6 +117,9 @@ public class Modifier {
      * Return {@code true} if the integer argument includes the
      * {@code synchronized} modifier, {@code false} otherwise.
      *
+     * @apiNote {@code isSynchronized} should only be called with the modifiers
+     * of a {@linkplain Method#getModifiers() method}.
+     *
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
      * {@code synchronized} modifier; {@code false} otherwise.
@@ -125,6 +131,9 @@ public class Modifier {
     /**
      * Return {@code true} if the integer argument includes the
      * {@code identity} modifier, {@code false} otherwise.
+     *
+     * @apiNote {@code isIdentity} should only be called with the modifiers
+     * of a {@linkplain Class#getModifiers() class}.
      *
      * @param   mod a set of modifiers
      * @return {@code true} if {@code mod} includes the
@@ -144,6 +153,21 @@ public class Modifier {
      */
     public static boolean isVolatile(int mod) {
         return (mod & VOLATILE) != 0;
+    }
+
+    /**
+     * Return {@code true} if the integer argument includes the
+     * {@code value} modifier, {@code false} otherwise.
+     *
+     * @apiNote {@code isValue} should only be called with the modifiers
+     * of a {@linkplain Class#getModifiers() class}.
+     *
+     * @param   mod a set of modifiers
+     * @return {@code true} if {@code mod} includes the
+     * {@code value} modifier; {@code false} otherwise.
+     */
+    public static boolean isValue(int mod) {
+        return (mod & VALUE) != 0;
     }
 
     /**
@@ -309,7 +333,14 @@ public class Modifier {
      * The {@code int} value representing the {@code ACC_IDENTITY}
      * modifier.
      */
-    public static final int IDENTITY            = 0x00000020;
+    public static final int IDENTITY         = 0x00000020;
+
+    /**
+     * The {@code int} value representing the {@code value}
+     * modifier.
+     * @see AccessFlag#VALUE
+     */
+    public static final int VALUE            = 0x00000040;
 
     /**
      * The {@code int} value representing the {@code volatile}
@@ -357,12 +388,12 @@ public class Modifier {
     // have different meanings for fields and methods and there is no
     // way to distinguish between the two in this class, or because
     // they are not Java programming language keywords
-    static final int BRIDGE      = 0x00000040;
-    static final int VARARGS     = 0x00000080;
-    static final int SYNTHETIC   = 0x00001000;
+    static final int BRIDGE    = 0x00000040;
+    static final int VARARGS   = 0x00000080;
+    static final int SYNTHETIC = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
-    static final int ENUM        = 0x00004000;
-    static final int MANDATED    = 0x00008000;
+    static final int ENUM      = 0x00004000;
+    static final int MANDATED  = 0x00008000;
     static boolean isSynthetic(int mod) {
       return (mod & SYNTHETIC) != 0;
     }
@@ -388,7 +419,8 @@ public class Modifier {
     private static final int CLASS_MODIFIERS =
         Modifier.PUBLIC         | Modifier.PROTECTED    | Modifier.PRIVATE |
         Modifier.ABSTRACT       | Modifier.STATIC       | Modifier.FINAL   |
-        Modifier.STRICT         | Modifier.IDENTITY;
+        Modifier.IDENTITY       | Modifier.VALUE        |
+        Modifier.STRICT;
 
     /**
      * The Java source modifiers that can be applied to an interface.
