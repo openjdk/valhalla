@@ -49,9 +49,6 @@ static const Register robj     = r9;
 static const Register roffset  = r10;
 static const Register rcounter = r11;
 
-// Warning: do not use rip relative addressing after the first counter load
-// since that may scratch r10!
-
 address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   const char *name = NULL;
   switch (type) {
@@ -78,10 +75,9 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
   __ jcc (Assembler::notZero, slow);
 
   if (JvmtiExport::can_post_field_access()) {
-    // Check to see if a field access watch has been set before we
-    // take the fast path.
-    assert_different_registers(rscratch1, robj, rcounter); // cmp32 clobbers rscratch1!
-    __ cmp32(ExternalAddress((address) JvmtiExport::get_field_access_count_addr()), 0);
+    // Check to see if a field access watch has been set before we take the fast path.
+    assert_different_registers(rscratch1, robj, rcounter);
+    __ cmp32(ExternalAddress(JvmtiExport::get_field_access_count_addr()), 0, rscratch1);
     __ jcc(Assembler::notZero, slow);
   }
 
@@ -105,7 +101,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
     default:        ShouldNotReachHere();
   }
 
-  __ cmp32 (rcounter, counter);
+  __ cmp32 (rcounter, counter, rscratch1);
   __ jcc (Assembler::notEqual, slow);
 
   __ ret (0);
@@ -123,7 +119,7 @@ address JNI_FastGetField::generate_fast_get_int_field0(BasicType type) {
     default:                                                     break;
   }
   // tail call
-  __ jump (ExternalAddress(slow_case_addr));
+  __ jump (ExternalAddress(slow_case_addr), rscratch1);
 
   __ flush ();
 
@@ -178,7 +174,7 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
   if (JvmtiExport::can_post_field_access()) {
     // Check to see if a field access watch has been set before we
     // take the fast path.
-    __ cmp32(ExternalAddress((address) JvmtiExport::get_field_access_count_addr()), 0);
+    __ cmp32(ExternalAddress(JvmtiExport::get_field_access_count_addr()), 0, rscratch1);
     __ jcc(Assembler::notZero, slow);
   }
 
@@ -197,7 +193,7 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
     case T_DOUBLE: __ movdbl (xmm0, Address(robj, roffset, Address::times_1)); break;
     default:        ShouldNotReachHere();
   }
-  __ cmp32 (rcounter, counter);
+  __ cmp32 (rcounter, counter, rscratch1);
   __ jcc (Assembler::notEqual, slow);
 
   __ ret (0);
@@ -211,7 +207,7 @@ address JNI_FastGetField::generate_fast_get_float_field0(BasicType type) {
     default:                                                      break;
   }
   // tail call
-  __ jump (ExternalAddress(slow_case_addr));
+  __ jump (ExternalAddress(slow_case_addr), rscratch1);
 
   __ flush ();
 

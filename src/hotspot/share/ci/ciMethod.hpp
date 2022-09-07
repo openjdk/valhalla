@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,7 +81,6 @@ class ciMethod : public ciMetadata {
   int _max_locals;
   vmIntrinsicID _intrinsic_id;
   int _handler_count;
-  int _nmethod_age;
   int _interpreter_invocation_count;
   int _interpreter_throwout_count;
   int _instructions_size;
@@ -192,19 +191,16 @@ class ciMethod : public ciMetadata {
   int interpreter_invocation_count() const       { check_is_loaded(); return _interpreter_invocation_count; }
   int interpreter_throwout_count() const         { check_is_loaded(); return _interpreter_throwout_count; }
   int size_of_parameters() const                 { check_is_loaded(); return _size_of_parameters; }
-  int nmethod_age() const                        { check_is_loaded(); return _nmethod_age; }
-
-  // Should the method be compiled with an age counter?
-  bool profile_aging() const;
 
   // Code size for inlining decisions.
   int code_size_for_inlining();
 
-  bool caller_sensitive()      const { return get_Method()->caller_sensitive();      }
-  bool force_inline()          const { return get_Method()->force_inline();          }
-  bool dont_inline()           const { return get_Method()->dont_inline();           }
-  bool intrinsic_candidate()   const { return get_Method()->intrinsic_candidate();   }
-  bool is_class_initializer()  const { return get_Method()->is_class_initializer(); }
+  bool caller_sensitive()       const { return get_Method()->caller_sensitive();       }
+  bool force_inline()           const { return get_Method()->force_inline();           }
+  bool dont_inline()            const { return get_Method()->dont_inline();            }
+  bool intrinsic_candidate()    const { return get_Method()->intrinsic_candidate();    }
+  bool is_class_initializer()   const { return get_Method()->is_class_initializer();   }
+  bool changes_current_thread() const { return get_Method()->changes_current_thread(); }
 
   bool check_intrinsic_candidate() const {
     if (intrinsic_id() == vmIntrinsics::_blackhole) {

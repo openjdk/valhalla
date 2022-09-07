@@ -47,7 +47,6 @@ public interface RuntimeConstants {
     int ACC_BRIDGE        = 0x0040; //                      method
     int ACC_TRANSIENT     = 0x0080; //               field
     int ACC_VARARGS       = 0x0080; //                      method
-    int ACC_PERMITS_VALUE = 0x0100; // class, inner
     int ACC_NATIVE        = 0x0100; //                      method
     int ACC_INTERFACE     = 0x0200; // class, inner
     int ACC_ABSTRACT      = 0x0400; // class, inner,        method
@@ -71,7 +70,6 @@ public interface RuntimeConstants {
                         put(ACC_FINAL        ,"final");
                         put(ACC_SUPER        ,"super");
                         put(ACC_SYNCHRONIZED ,"synchronized");
-                        put(ACC_PERMITS_VALUE,"permits_value");
                         put(ACC_VOLATILE     ,"volatile");
                         put(ACC_BRIDGE       ,"bridge");
                         put(ACC_TRANSIENT    ,"transient");

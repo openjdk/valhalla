@@ -3522,4 +3522,39 @@ public class TestArrays {
     public void test148_verifier() {
         test148(MyValue1.createWithFieldsInline(rI, rL));
     }
+
+    // Abstract class without any primitive class implementers
+    static abstract class MyAbstract149 {
+        public abstract int get();
+    }
+
+    static class TestClass149 extends MyAbstract149 {
+        final int x;
+
+        public int get() { return x; };
+
+        public TestClass149(int x) {
+            this.x = x;
+        }
+    }
+
+    // Test OSR compilation with array known to be not null-free/flat
+    @Test
+    public int test149(MyAbstract149[] array) {
+        int res = 0;
+        // Trigger OSR compilation
+        for (int i = 0; i < 10_000; ++i) {
+            res += array[i % 10].get();
+        }
+        return res;
+    }
+
+    @Run(test = "test149")
+    public void test149_verifier() {
+        TestClass149[] array = new TestClass149[10];
+        for (int i = 0; i < 10; ++i) {
+            array[i] = new TestClass149(i);
+        }
+        Asserts.assertEquals(test149(array), 45000);
+    }
 }

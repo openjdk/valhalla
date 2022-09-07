@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -590,19 +590,37 @@ void PhaseCFG::convert_NeverBranch_to_Goto(Block *b) {
   b->_num_succs = 1;
   // remap successor's predecessors if necessary
   uint j;
-  for( j = 1; j < succ->num_preds(); j++)
-    if( succ->pred(j)->in(0) == bp )
+  for (j = 1; j < succ->num_preds(); j++) {
+    if (succ->pred(j)->in(0) == bp) {
       succ->head()->set_req(j, gto);
+    }
+  }
   // Kill alternate exit path
-  Block *dead = b->_succs[1-idx];
-  for( j = 1; j < dead->num_preds(); j++)
-    if( dead->pred(j)->in(0) == bp )
+  Block* dead = b->_succs[1 - idx];
+  for (j = 1; j < dead->num_preds(); j++) {
+    if (dead->pred(j)->in(0) == bp) {
       break;
+    }
+  }
   // Scan through block, yanking dead path from
   // all regions and phis.
   dead->head()->del_req(j);
-  for( int k = 1; dead->get_node(k)->is_Phi(); k++ )
+  for (int k = 1; dead->get_node(k)->is_Phi(); k++) {
     dead->get_node(k)->del_req(j);
+  }
+  // If the fake exit block becomes unreachable, remove it from the block list.
+  if (dead->num_preds() == 1) {
+    for (uint i = 0; i < number_of_blocks(); i++) {
+      Block* block = get_block(i);
+      if (block == dead) {
+        _blocks.remove(i);
+      } else if (block->_pre_order > dead->_pre_order) {
+        // Enforce contiguous pre-order indices (assumed by PhaseBlockLayout).
+        block->_pre_order--;
+      }
+    }
+    _number_of_blocks--;
+  }
 }
 
 // Helper function to move block bx to the slot following b_index. Return
@@ -1083,7 +1101,7 @@ void PhaseCFG::postalloc_expand(PhaseRegAlloc* _ra) {
         // Collect succs of old node in remove (for projections) and in succs (for
         // all other nodes) do _not_ collect projections in remove (but in succs)
         // in case the node is a call. We need the projections for calls as they are
-        // associated with registes (i.e. they are defs).
+        // associated with registers (i.e. they are defs).
         succs.clear();
         for (DUIterator k = n->outs(); n->has_out(k); k++) {
           if (n->out(k)->is_Proj() && !n->is_MachCall() && !n->is_MachBranch()) {
@@ -1755,7 +1773,7 @@ bool Trace::backedge(CFGEdge *e) {
 
     // Backbranch to the top of a trace
     // Scroll forward through the trace from the targ_block. If we find
-    // a loop head before another loop top, use the the loop head alignment.
+    // a loop head before another loop top, use the loop head alignment.
     for (Block *b = targ_block; b != NULL; b = next(b)) {
       if (b->has_loop_alignment()) {
         break;

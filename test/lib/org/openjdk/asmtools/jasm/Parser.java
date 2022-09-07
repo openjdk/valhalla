@@ -350,7 +350,6 @@ class Parser extends ParseBase {
             case IDENT:
             case BRIDGE:
             case VALUE:
-            case PERMITS_VALUE:
             case PRIMITIVE:
                 v = scanner.idValue;
                 scanner.scan();
@@ -527,7 +526,6 @@ class Parser extends ParseBase {
             case BRIDGE:
             case IDENT:
             case VALUE:
-            case PERMITS_VALUE:
             case PRIMITIVE:
                 v = scanner.idValue;
                 scanner.scan();
@@ -719,9 +717,6 @@ class Parser extends ParseBase {
                     break;
                 case VALUE:
                     nextmod = ACC_VALUE;
-                    break;
-                case PERMITS_VALUE:
-                    nextmod = ACC_PERMITS_VALUE;
                     break;
                 case PRIMITIVE:
                     nextmod = ACC_PRIMITIVE;

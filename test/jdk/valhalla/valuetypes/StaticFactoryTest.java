@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,8 +41,21 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
-public class StaticFactoryTest {
+public final identity class StaticFactoryTest {
     // Target test class
+
+    static identity class SimpleIdentity {
+        public final int x;
+
+        SimpleIdentity() {
+            x = -1;
+        }
+
+        public SimpleIdentity(int x) {
+            this.x = x;
+        }
+    }
+
     static primitive class SimplePrimitive {
         public final int x;
 
@@ -70,18 +83,25 @@ public class StaticFactoryTest {
     @DataProvider
     static Object[][] classes() {
         return new Object[][]{
-                new Object[] { SimplePrimitive.class, true },
-                new Object[] { SimpleValue.class, false },
+                new Object[] { SimpleIdentity.class, true, false, false },
+                new Object[] { SimplePrimitive.class, false, true, true },
+                new Object[] { SimpleValue.class, false, true, false },
+                new Object[] { InterfaceWithNested.IdentityClass.class, true, false, false },
+                new Object[] { InterfaceWithNested.ValueClass.class, false, true, false },
+                new Object[] { InterfaceWithNested.PrimitiveClass.class, false, true, true },
         };
     }
 
     @Test(dataProvider = "classes")
-    public void testConstructor(Class<?> c, boolean isPrimitiveClass) throws ReflectiveOperationException {
+    public void testConstructor(Class<?> c, boolean isIdentityClass,
+                                boolean isValueClass, boolean isPrimitiveClass) throws ReflectiveOperationException {
         String cn = c.getName();
         Class<?> clz = Class.forName(cn);
+        System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());
 
-        assertTrue(clz.isValue());
-        assertTrue(clz.isPrimitiveClass() == isPrimitiveClass);
+        assertEquals(clz.isIdentity(), isIdentityClass, "identity class: " + clz);
+        assertEquals(clz.isValue(), isValueClass, "value class: " + clz);
+        assertEquals(clz.isPrimitiveClass(), isPrimitiveClass, "primitive class: " + clz);
 
         Constructor<?> ctor = clz.getDeclaredConstructor();
         Object o = ctor.newInstance();
@@ -94,13 +114,47 @@ public class StaticFactoryTest {
         // Check that getDeclaredMethods does not include the static factory method
         Method[] methods = clz.getDeclaredMethods();
         for (Method m : methods) {
-            if (Modifier.isStatic(m.getModifiers())) {
-                assertFalse(m.getName().equals("<init>"));
+            if (Modifier.isStatic(m.getModifiers()) && "<init>".equals(m.getName())) {
+                assertTrue(isIdentityClass, "<init> method is not in an identity class");
             }
         }
     }
 
+
+    interface SimpleInterface {}
+
+    identity interface SimpleIdentityInterface {} // Illegal class modifiers from VM
+
+    value interface SimpleValueInterface {}
+
+    interface InterfaceWithNested {
+        identity class IdentityClass {}
+        value class ValueClass {}
+        primitive class PrimitiveClass {}
+    }
+
     @DataProvider
+    static Object[][] interfaces() {
+        return new Object[][]{
+                new Object[] { SimpleInterface.class, false, false, true },
+                new Object[] { SimpleIdentityInterface.class, true, false, true },  // VM throws
+                new Object[] { SimpleValueInterface.class, false, true, true },
+        };
+    }
+
+    @Test(dataProvider = "interfaces")
+    public void testInterfaces(Class<?> c, boolean isIdentityClass,
+                                boolean isValueClass, boolean isAbstract) throws ReflectiveOperationException {
+        String cn = c.getName();
+        Class<?> clz = Class.forName(cn);
+        System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());
+
+        assertEquals(clz.isIdentity(), isIdentityClass, "identity class: " + clz);
+        assertEquals(clz.isValue(), isValueClass, "value class: " + clz);
+        assertEquals(Modifier.isAbstract(clz.getModifiers()), isAbstract, "abstract: " + clz);
+    }
+
+        @DataProvider
     static Object[][] ctors() {
         return new Object[][]{
                 new Object[] { SimplePrimitive.class, Set.of("public StaticFactoryTest$SimplePrimitive(int)",
