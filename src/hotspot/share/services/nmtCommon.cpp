@@ -34,7 +34,6 @@ STATIC_ASSERT(NMT_detail > NMT_summary);
 
 NMTUtil::S NMTUtil::_strings[] = {
   MEMORY_TYPES_DO(MEMORY_TYPE_DECLARE_NAME)
-  "Value Types",
 };
 
 const char* NMTUtil::scale_name(size_t scale) {
