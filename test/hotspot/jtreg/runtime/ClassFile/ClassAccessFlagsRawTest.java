@@ -28,7 +28,7 @@
  * @summary Test getting a class's raw access flags using java.lang.Class API
  * @modules java.base/java.lang:open
  * @compile classAccessFlagsRaw.jcod
- * @run main/othervm ClassAccessFlagsRawTest
+ * @run main/othervm -XX:-EnableValhalla ClassAccessFlagsRawTest
  */
 
 import java.lang.reflect.*;
@@ -51,8 +51,8 @@ public class ClassAccessFlagsRawTest {
         m = cl.getDeclaredMethod("getClassAccessFlagsRaw", new Class[0]);
         m.setAccessible(true);
 
-        testIt("SUPERset", Modifier.PUBLIC | Modifier.IDENTITY);
-        testIt("SUPERnotset", Modifier.PUBLIC | Modifier.IDENTITY);
+        testIt("SUPERset", 0x21);  // ACC_SUPER 0x20 + ACC_PUBLIC 0x1
+        testIt("SUPERnotset", Modifier.PUBLIC);
 
         // test primitive array.  should return ACC_ABSTRACT | ACC_FINAL | ACC_PUBLIC.
         int flags = (int)m.invoke((new int[3]).getClass());
@@ -63,16 +63,16 @@ public class ClassAccessFlagsRawTest {
 
         // test object array.  should return flags of component.
         flags = (int)m.invoke((new SUPERnotset[2]).getClass());
-        if (flags != (Modifier.PUBLIC | Modifier.IDENTITY)) {
+        if (flags != Modifier.PUBLIC) {
             throw new RuntimeException(
-                "expected 0x21, got 0x" + Integer.toHexString(flags) + " for object array");
+                "expected 0x1, got 0x" + Integer.toHexString(flags) + " for object array");
         }
 
         // test multi-dimensional object array.  should return flags of component.
         flags = (int)m.invoke((new SUPERnotset[4][2]).getClass());
-        if (flags != (Modifier.PUBLIC | Modifier.IDENTITY)) {
+        if (flags != Modifier.PUBLIC) {
             throw new RuntimeException(
-                "expected 0x21, got 0x" + Integer.toHexString(flags) + " for object array");
+                "expected 0x1, got 0x" + Integer.toHexString(flags) + " for object array");
         }
     }
 }
