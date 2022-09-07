@@ -675,7 +675,8 @@ class AdapterHandlerEntry : public CHeapObj<mtCode> {
     _c2i_inline_ro_entry(c2i_inline_ro_entry),
     _c2i_unverified_entry(c2i_unverified_entry),
     _c2i_unverified_inline_entry(c2i_unverified_inline_entry),
-    _c2i_no_clinit_check_entry(c2i_no_clinit_check_entry)
+    _c2i_no_clinit_check_entry(c2i_no_clinit_check_entry),
+    _sig_cc(NULL)
 #ifdef ASSERT
     , _saved_code_length(0)
 #endif
