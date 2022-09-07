@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -45,7 +45,7 @@
 class withfieldObject {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [26] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -184,7 +184,7 @@ class withfieldObject {
 class putfieldObject {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [24] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -341,7 +341,7 @@ public primitive final class putfieldPrimitive {
 class putfieldPrimitive {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -365,7 +365,7 @@ class putfieldPrimitive {
     Utf8 "putfieldPrimitive.java"; // #19     at 0x9D
   } // Constant Pool
 
-  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0851; // access [ ACC_PRIMITIVE ACC_VALUE ACC_FINAL ACC_PUBLIC ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -482,7 +482,7 @@ public primitive final class withfieldPrimitive {
 class withfieldPrimitive {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -506,7 +506,7 @@ class withfieldPrimitive {
     Utf8 "withfieldPrimitive.java"; // #19     at 0x9D
   } // Constant Pool
 
-  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0851; // access [ ACC_PRIMITIVE ACC_VALUE ACC_FINAL ACC_PUBLIC ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -610,7 +610,7 @@ public primitive final class withfieldNull {
 class withfieldNull {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [15] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -629,7 +629,7 @@ class withfieldNull {
     Utf8 "withfieldNull.java"; // #14     at 0x80
   } // Constant Pool
 
-  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0851; // access [ ACC_PRIMITIVE ACC_VALUE ACC_FINAL ACC_PUBLIC ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -715,7 +715,7 @@ public class WrongPrimWF {
 class WrongPrimWF$Dot {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -739,7 +739,7 @@ class WrongPrimWF$Dot {
     Utf8 "Dot"; // #19     at 0xE8
   } // Constant Pool
 
-  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0851; // access [ ACC_PRIMITIVE ACC_VALUE ACC_FINAL ACC_PUBLIC ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -804,7 +804,7 @@ class WrongPrimWF$Dot {
 class WrongPrimWF$Loc {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -828,7 +828,7 @@ class WrongPrimWF$Loc {
     Utf8 "Loc"; // #19     at 0xE8
   } // Constant Pool
 
-  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0851; // access [ ACC_PRIMITIVE ACC_VALUE ACC_FINAL ACC_PUBLIC ]
   #1;// this_cpx
   #7;// super_cpx
 
@@ -893,7 +893,7 @@ class WrongPrimWF$Loc {
 class WrongPrimWF$Both {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [34] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -931,7 +931,7 @@ class WrongPrimWF$Both {
     Utf8 "Loc"; // #33     at 0x018B
   } // Constant Pool
 
-  0x0931; // access [ ACC_PRIMITIVE ACC_VALUE ACC_PUBLIC ACC_SUPER ACC_FINAL ]
+  0x0851; // access [ ACC_PRIMITIVE ACC_VALUE ACC_FINAL ACC_PUBLIC ]
   #1;// this_cpx
   #15;// super_cpx
 
@@ -1019,7 +1019,7 @@ class WrongPrimWF$Both {
 class WrongPrimWF {
   0xCAFEBABE;
   0; // minor version
-  63; // version
+  64; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A

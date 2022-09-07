@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -165,7 +165,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
 
   // TypeFlow may assert null-ness if a type appears unloaded.
   if (type == TypePtr::NULL_PTR ||
-      (tp != NULL && !tp->klass()->is_loaded())) {
+      (tp != NULL && !tp->is_loaded())) {
     // Value must be null, not a real oop.
     Node* chk = _gvn.transform( new CmpPNode(l, null()) );
     Node* tst = _gvn.transform( new BoolNode(chk, BoolTest::eq) );
@@ -181,7 +181,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
   // When paths are cut off, values at later merge points can rise
   // toward more specific classes.  Make sure these specific classes
   // are still in effect.
-  if (tp != NULL && tp->klass() != C->env()->Object_klass()) {
+  if (tp != NULL && !tp->is_same_java_type_as(TypeInstPtr::BOTTOM)) {
     // TypeFlow asserted a specific object type.  Value must have that type.
     Node* bad_type_ctrl = NULL;
     if (tp->is_inlinetypeptr() && !tp->maybe_null()) {
@@ -190,7 +190,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
       l = null_check_oop(l, &bad_type_ctrl);
       bad_type_exit->control()->add_req(bad_type_ctrl);
     }
-    l = gen_checkcast(l, makecon(TypeKlassPtr::make(tp->klass())), &bad_type_ctrl);
+    l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
   assert(_gvn.type(l)->higher_equal(type), "must constrain OSR typestate");
@@ -358,7 +358,7 @@ void Parse::load_interpreter_state(Node* osr_buf) {
       // case and aborts the compile if addresses are live into an OSR
       // entry point.  Because of that we can assume that any address
       // locals at the OSR entry point are dead.  Method liveness
-      // isn't precise enought to figure out that they are dead in all
+      // isn't precise enough to figure out that they are dead in all
       // cases so simply skip checking address locals all
       // together. Any type check is guaranteed to fail since the
       // interpreter type is the result of a load which might have any
@@ -428,6 +428,10 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
 
   if (parse_method->has_reserved_stack_access()) {
     C->set_has_reserved_stack_access(true);
+  }
+
+  if (parse_method->is_synchronized()) {
+    C->set_has_monitors(true);
   }
 
   _tf = TypeFunc::make(method());
@@ -580,9 +584,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   } else {
     set_map(entry_map);
     do_method_entry();
-    if (depth() == 1 && C->age_code()) {
-      decrement_age();
-    }
   }
 
   if (depth() == 1 && !failing()) {
@@ -821,7 +822,7 @@ void Parse::build_exits() {
     // becomes loaded during the subsequent parsing, the loaded and unloaded
     // types will not join when we transform and push in do_exits().
     const TypeOopPtr* ret_oop_type = ret_type->isa_oopptr();
-    if (ret_oop_type && !ret_oop_type->klass()->is_loaded()) {
+    if (ret_oop_type && !ret_oop_type->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
     // Scalarize inline type when returning as fields or inlining non-incrementally
@@ -1525,7 +1526,7 @@ void Parse::BytecodeParseHistogram::print(float cutoff) {
   tty->print_cr("relative:  percentage contribution to compiled nodes");
   tty->print_cr("nodes   :  Average number of nodes constructed per bytecode");
   tty->print_cr("rnodes  :  Significance towards total nodes constructed, (nodes*relative)");
-  tty->print_cr("transforms: Average amount of tranform progress per bytecode compiled");
+  tty->print_cr("transforms: Average amount of transform progress per bytecode compiled");
   tty->print_cr("values  :  Average number of node values improved per bytecode");
   tty->print_cr("name    :  Bytecode name");
   tty->cr();
@@ -2231,9 +2232,9 @@ void Parse::call_register_finalizer() {
          "must have non-null instance type");
 
   const TypeInstPtr *tinst = receiver->bottom_type()->isa_instptr();
-  if (tinst != NULL && tinst->klass()->is_loaded() && !tinst->klass_is_exact()) {
+  if (tinst != NULL && tinst->is_loaded() && !tinst->klass_is_exact()) {
     // The type isn't known exactly so see if CHA tells us anything.
-    ciInstanceKlass* ik = tinst->klass()->as_instance_klass();
+    ciInstanceKlass* ik = tinst->instance_klass();
     if (!Dependencies::has_finalizable_subclass(ik)) {
       // No finalizable subclasses so skip the dynamic check.
       C->dependencies()->assert_has_no_finalizable_subclasses(ik);
@@ -2341,31 +2342,6 @@ void Parse::rtm_deopt() {
 #endif
 }
 
-void Parse::decrement_age() {
-  MethodCounters* mc = method()->ensure_method_counters();
-  if (mc == NULL) {
-    C->record_failure("Must have MCs");
-    return;
-  }
-  assert(!is_osr_parse(), "Not doing this for OSRs");
-
-  // Set starting bci for uncommon trap.
-  set_parse_bci(0);
-
-  const TypePtr* adr_type = TypeRawPtr::make((address)mc);
-  Node* mc_adr = makecon(adr_type);
-  Node* cnt_adr = basic_plus_adr(mc_adr, mc_adr, in_bytes(MethodCounters::nmethod_age_offset()));
-  Node* cnt = make_load(control(), cnt_adr, TypeInt::INT, T_INT, adr_type, MemNode::unordered);
-  Node* decr = _gvn.transform(new SubINode(cnt, makecon(TypeInt::ONE)));
-  store_to_memory(control(), cnt_adr, decr, T_INT, adr_type, MemNode::unordered);
-  Node *chk   = _gvn.transform(new CmpINode(decr, makecon(TypeInt::ZERO)));
-  Node* tst   = _gvn.transform(new BoolNode(chk, BoolTest::gt));
-  { BuildCutout unless(this, tst, PROB_ALWAYS);
-    uncommon_trap(Deoptimization::Reason_tenured,
-                  Deoptimization::Action_make_not_entrant);
-  }
-}
-
 //------------------------------return_current---------------------------------
 // Append current _map to _exit_return
 void Parse::return_current(Node* value) {
@@ -2389,7 +2365,7 @@ void Parse::return_current(Node* value) {
   if (value != NULL) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
-    const TypeOopPtr* tr = return_type->isa_oopptr();
+    const TypeInstPtr* tr = return_type->isa_instptr();
     // The return_type is set in Parse::build_exits().
     if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
@@ -2412,11 +2388,11 @@ void Parse::return_current(Node* value) {
       jvms()->set_should_reexecute(true);
       inc_sp(1);
       value = value->as_InlineType()->buffer(this);
-    } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
+    } else if (tr && tr->isa_instptr() && tr->is_loaded() && tr->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.
       const TypeInstPtr* tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->klass()->is_loaded() && !tp->klass()->is_interface()) {
+      if (tp && tp->is_loaded() && !tp->is_interface()) {
         // sharpen the type eagerly; this eases certain assert checking
         if (tp->higher_equal(TypeInstPtr::NOTNULL)) {
           tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
@@ -2428,8 +2404,8 @@ void Parse::return_current(Node* value) {
       const TypeInstPtr* phi_tip;
       const TypeInstPtr* val_tip;
       Type::get_arrays_base_elements(return_type, value->bottom_type(), &phi_tip, &val_tip);
-      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->klass()->is_interface() &&
-          val_tip != NULL && val_tip->is_loaded() && !val_tip->klass()->is_interface()) {
+      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->is_interface() &&
+          val_tip != NULL && val_tip->is_loaded() && !val_tip->is_interface()) {
         value = _gvn.transform(new CheckCastPPNode(0, value, return_type));
       }
     }

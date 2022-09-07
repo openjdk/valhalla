@@ -50,7 +50,7 @@
 
   // Constructor
 InlineKlass::InlineKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_kind_inline_type, InstanceKlass::ID) {
+    : InstanceKlass(parser, InlineKlass::Kind) {
   _adr_inlineklass_fixed_block = inlineklass_static_block();
   // Addresses used for inline type calling convention
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
@@ -62,7 +62,7 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   *((int*)adr_default_value_offset()) = 0;
   *((address*)adr_value_array_klasses()) = NULL;
   set_prototype_header(markWord::inline_type_prototype());
-  assert(is_inline_type_klass(), "sanity");
+  assert(is_inline_klass(), "sanity");
   assert(prototype_header().is_inline_type(), "sanity");
 }
 
@@ -350,7 +350,7 @@ void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Hand
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
-      address loc = reg_map.location(pair.first());
+      address loc = reg_map.location(pair.first(), nullptr);
       oop v = *(oop*)loc;
       assert(v == NULL || oopDesc::is_oop(v), "not an oop?");
       assert(Universe::heap()->is_in_or_null(v), "must be heap pointer");
@@ -381,7 +381,7 @@ void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle
     BasicType bt = sig_vk->at(i)._bt;
     if (bt == T_OBJECT || bt == T_ARRAY) {
       VMRegPair pair = regs->at(j);
-      address loc = reg_map.location(pair.first());
+      address loc = reg_map.location(pair.first(), nullptr);
       *(oop*)loc = handles.at(k++)();
     }
     if (bt == T_PRIMITIVE_OBJECT) {
@@ -421,7 +421,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
     int off = sig_vk->at(i)._offset;
     assert(off > 0, "offset in object should be positive");
     VMRegPair pair = regs->at(j);
-    address loc = reg_map.location(pair.first());
+    address loc = reg_map.location(pair.first(), nullptr);
     switch(bt) {
     case T_BOOLEAN: {
       new_vt->bool_field_put(off, *(jboolean*)loc);
@@ -483,7 +483,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
   assert(nb == 1, "broken");
 
-  address loc = map.location(pair.first());
+  address loc = map.location(pair.first(), nullptr);
   intptr_t ptr = *(intptr_t*)loc;
   if (is_set_nth_bit(ptr, 0)) {
     // Oop is tagged, must be an InlineKlass oop

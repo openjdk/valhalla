@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,6 +70,7 @@ public class Names {
     public final Name transitive;
     public final Name uses;
     public final Name open;
+    public final Name when;
     public final Name with;
     public final Name yield;
 
@@ -106,6 +107,7 @@ public class Names {
     public final Name values;
     public final Name readResolve;
     public final Name readObject;
+    public final Name isValueObject;
 
     // class names
     public final Name java_io_Serializable;
@@ -127,6 +129,7 @@ public class Names {
     // package names
     public final Name java;
     public final Name java_lang;
+    public final Name jdk_internal_javac;
 
     // module names
     public final Name java_base;
@@ -264,6 +267,7 @@ public class Names {
         transitive = fromString("transitive");
         uses = fromString("uses");
         open = fromString("open");
+        when = fromString("when");
         with = fromString("with");
         yield = fromString("yield");
 
@@ -300,6 +304,7 @@ public class Names {
         values = fromString("values");
         readResolve = fromString("readResolve");
         readObject = fromString("readObject");
+        isValueObject = fromString("isValueObject");
         dollarThis = fromString("$this");
 
         // class names
@@ -322,6 +327,7 @@ public class Names {
         // package names
         java = fromString("java");
         java_lang = fromString("java.lang");
+        jdk_internal_javac = fromString("jdk.internal.javac");
 
         // module names
         java_base = fromString("java.base");

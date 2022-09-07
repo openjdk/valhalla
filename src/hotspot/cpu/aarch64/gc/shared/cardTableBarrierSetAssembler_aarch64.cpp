@@ -99,8 +99,8 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
       }
 
     } else {
-      __ lea(r3, dst);
-      store_check(masm, r3, dst);
+      __ lea(tmp3, dst);
+      store_check(masm, tmp3, dst);
     }
   }
 

@@ -486,39 +486,6 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testForbiddenMethods() {
-        setCompileOptions(EMPTY_OPTIONS);
-        assertFail("compiler.err.value.class.does.not.support",
-                """
-                primitive class Point {}
-
-                class Test {
-                    static <__universal Z> Z id(Z z) {
-                        return z;
-                    }
-
-                    static void main(String... args) throws Throwable {
-                        Point p = new Point();
-                        id(p).wait();
-                    }
-                }
-                """
-        );
-        // this one will probably be a lint warning
-
-        //assertOKWithWarning("compiler.warn.method.should.not.be.invoked.on.universal.tvars",
-        //        """
-        //        primitive class Point {}
-
-        //        class Test<__universal T> {
-        //            void m(T t) throws Throwable {
-        //                t.wait();
-        //            }
-        //        }
-        //        """
-        //);
-    }
-
     public void testPosCompilations2() {
         for (String code : java.util.List.of(
                 """

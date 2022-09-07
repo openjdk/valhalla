@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -204,18 +204,8 @@ public class BsdDebuggerLocal extends DebuggerBase implements BsdDebugger {
         };
 
         if (useCache) {
-            // FIXME: re-test necessity of cache on Bsd, where data
-            // fetching is faster
-            // Cache portion of the remote process's address space.
-            // Fetching data over the socket connection to dbx is slow.
-            // Might be faster if we were using a binary protocol to talk to
-            // dbx, but would have to test. For now, this cache works best
-            // if it covers the entire heap of the remote process. FIXME: at
-            // least should make this tunable from the outside, i.e., via
-            // the UI. This is a cache of 4096 4K pages, or 16 MB. The page
-            // size must be adjusted to be the hardware's page size.
-            // (FIXME: should pick this up from the debugger.)
-            initCache(4096, parseCacheNumPagesProperty(4096));
+            // This is a cache of 64k of 4K pages, or 256 MB.
+            initCache(4096, parseCacheNumPagesProperty(1024 * 64));
         }
 
         isDarwin = getOS().equals("darwin");
@@ -525,7 +515,7 @@ public class BsdDebuggerLocal extends DebuggerBase implements BsdDebugger {
     /** From the BsdDebugger interface */
     public long getAddressValue(Address addr) {
       if (addr == null) return 0;
-      return ((BsdAddress) addr).getValue();
+      return addr.asLongValue();
     }
 
     /** From the BsdDebugger interface */
@@ -601,12 +591,6 @@ public class BsdDebuggerLocal extends DebuggerBase implements BsdDebugger {
             workerThread.execute(task);
             return task.result;
         }
-    }
-
-    public void writeBytesToProcess(long address, long numBytes, byte[] data)
-        throws UnmappedAddressException, DebuggerException {
-        // FIXME
-        throw new DebuggerException("Unimplemented");
     }
 
     /** this functions used for core file reading and called from native attach0,
