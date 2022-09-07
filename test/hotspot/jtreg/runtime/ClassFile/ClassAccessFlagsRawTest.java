@@ -24,11 +24,11 @@
 
 /**
  * @test
- * @bug 8291360
+ * @bug 8291360 8293448
  * @summary Test getting a class's raw access flags using java.lang.Class API
  * @modules java.base/java.lang:open
  * @compile classAccessFlagsRaw.jcod
- * @run main/othervm ClassAccessFlagsRawTest
+ * @run main/othervm -XX:-EnableValhalla ClassAccessFlagsRawTest
  */
 
 import java.lang.reflect.*;
