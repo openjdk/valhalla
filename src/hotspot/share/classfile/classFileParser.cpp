@@ -6206,7 +6206,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     if(!supports_inline_types()) {
       const bool is_module = (flags & JVM_ACC_MODULE) != 0;
       const bool is_interface = (flags & JVM_ACC_INTERFACE) != 0;
-      if (!is_module && !is_interface) {
+      if (!is_module && !is_interface && !is_java_lang_Object) {
         flags |= JVM_ACC_IDENTITY;
       }
     }
