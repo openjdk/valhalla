@@ -84,7 +84,7 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (ary_t->is_flat()) {
     // Load from flattened inline type array
-    Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
+    Node* vt = InlineTypeBaseNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
     push(vt);
     return;
   } else if (ary_t->is_null_free()) {
@@ -106,7 +106,7 @@ void Parse::array_load(BasicType bt) {
                                 IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
       if (elemptr->is_inlinetypeptr()) {
         assert(elemptr->maybe_null(), "null free array should be handled above");
-        ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
+        ld = InlineTypeBaseNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
       }
       ideal.sync_kit(this);
       ideal.set(res, ld);
@@ -125,7 +125,7 @@ void Parse::array_load(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
         inc_sp(2);
-        Node* vt = InlineTypeNode::make_from_flattened(this, vk, cast, casted_adr)->buffer(this, false);
+        Node* vt = InlineTypeBaseNode::make_from_flattened(this, vk, cast, casted_adr)->buffer(this, false);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -179,7 +179,7 @@ void Parse::array_load(BasicType bt) {
   // Loading a non-flattened inline type
   if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
     assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
-    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
+    ld = InlineTypeBaseNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
   }
   push_node(bt, ld);
 }
@@ -292,9 +292,9 @@ void Parse::array_store(BasicType bt) {
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));
           Node* casted_adr = array_element_address(casted_ary, idx, T_OBJECT, arytype->size(), control());
-          if (!val->is_InlineType()) {
+          if (!val->is_InlineTypeBase()) {
             assert(!gvn().type(val)->maybe_null(), "inline type array elements should never be null");
-            val = InlineTypeNode::make_from_oop(this, val, vk);
+            val = InlineTypeBaseNode::make_from_oop(this, val, vk);
           }
           // Re-execute flattened array store if buffering triggers deoptimization
           PreserveReexecuteState preexecs(this);
@@ -1939,9 +1939,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
   assert(!stopped(), "null input should have been caught earlier");
-  if (cast->is_InlineType()) {
-    cast = cast->as_InlineType()->get_oop();
-  }
   return cast;
 }
 
@@ -2072,18 +2069,18 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
       Node* cmp = CmpI(left->as_InlineTypeBase()->get_is_init(), intcon(0));
       do_if(btest, cmp);
       return;
-    } else if (left->is_InlineType()){
+    } else {
       PreserveReexecuteState preexecs(this);
       inc_sp(2);
       jvms()->set_should_reexecute(true);
-      left = left->as_InlineType()->buffer(this)->get_oop();
+      left = left->as_InlineTypeBase()->buffer(this)->get_oop();
     }
   }
-  if (right->is_InlineType()) {
+  if (right->is_InlineTypeBase()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    right = right->as_InlineType()->buffer(this)->get_oop();
+    right = right->as_InlineTypeBase()->buffer(this)->get_oop();
   }
 
   // First, do a normal pointer comparison
@@ -2530,9 +2527,9 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
         inc_sp(2);
         obj = maybe_cast_profiled_obj(obj, k);
         dec_sp(2);
-        if (obj->is_InlineType()) {
-          assert(obj->as_InlineType()->is_allocated(&_gvn), "must be allocated");
-          obj = obj->as_InlineType()->get_oop();
+        if (obj->is_InlineTypeBase()) {
+          assert(obj->as_InlineTypeBase()->is_allocated(&_gvn), "must be allocated");
+          obj = obj->as_InlineTypeBase()->get_oop();
         }
         // Make the CmpP use the casted obj
         addp = basic_plus_adr(obj, addp->in(AddPNode::Offset));
@@ -3379,10 +3376,10 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = null();
     b = pop();
-    if (b->is_InlineType()) {
+    if (b->is_InlineTypeBase()) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive
-      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
+      c = _gvn.transform(new CmpINode(b->as_InlineTypeBase()->get_is_init(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {

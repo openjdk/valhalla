@@ -1964,12 +1964,7 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
 InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
-  InlineTypeBaseNode* vt = NULL;
-  if (_type->isa_ptr()) {
-    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
-  } else {
-    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
-  }
+  InlineTypeBaseNode* vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -1980,6 +1975,7 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       imax -= u->replace_edge(this, vt);
       --i;
     }
+    igvn->rehash_node_delayed(this);
     assert(outcnt() == 0, "should be dead now");
   }
   ResourceMark rm;
@@ -2539,16 +2535,23 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     Node_List casts;
 
     // TODO 8284443 We need to prevent endless pushing through
+    // TODO 8284443 We could revisit the same node over and over again, right?
     // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
     // TestLWorld -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
+    bool only_phi = (outcnt() != 0);
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* n = fast_out(i);
       if (n->is_InlineTypePtr() && n->in(1) == this) {
         can_optimize = false;
         break;
       }
+      if (!n->is_Phi()) {
+        only_phi = false;
+      }
     }
-    // TODO 8284443 We could revisit the same node over and over again, right?
+    if (only_phi) {
+      can_optimize = false;
+    }
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
       for (uint i = 1; i < phi->req() && can_optimize; i++) {

@@ -31,10 +31,17 @@
 
 class GraphKit;
 
+//------------------------------InlineTypeNode-------------------------------------
+// Node representing an inline type in C2 IR
 class InlineTypeBaseNode : public TypeNode {
 protected:
-  InlineTypeBaseNode(const Type* t, int nb_fields)
-    : TypeNode(t, nb_fields) {
+  virtual uint hash() const;
+  virtual bool cmp(const Node &n) const;
+  virtual uint size_of() const;
+  bool _is_buffered;
+
+  InlineTypeBaseNode(const Type* t, int nb_fields, bool is_buffered)
+    : TypeNode(t, nb_fields), _is_buffered(is_buffered) {
     init_class_id(Class_InlineTypeBase);
     Compile::current()->add_inline_type(this);
   }
@@ -57,7 +64,22 @@ protected:
   // Checks if the inline type fields are all set to default values
   bool is_default(PhaseGVN* gvn) const;
 
+  void set_is_buffered(bool is_buffered) { _is_buffered = is_buffered; }
+
 public:
+  // Create with default field values
+  static InlineTypePtrNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
+  // Create uninitialized
+  static InlineTypePtrNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free = true);
+  // Create and initialize by loading the field values from an oop
+  static InlineTypeBaseNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
+  // Create and initialize by loading the field values from a flattened field or array
+  static InlineTypePtrNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
+  // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
+  static InlineTypePtrNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
+
+  // Initialize the inline type fields with the inputs or outputs of a MultiNode
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true, Node* null_check_region = NULL);
 
   // Returns the constant oop of the default inline type allocation
   static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);
@@ -114,51 +136,16 @@ public:
   // Pass inline type as fields at a call or return
   void pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free = true);
 
-  InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
-  InlineTypeNode* finish_larval(GraphKit* kit) const;
-
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
-};
-
-//------------------------------InlineTypeNode-------------------------------------
-// Node representing an inline type in C2 IR
-class InlineTypeNode : public InlineTypeBaseNode {
-  friend class InlineTypeBaseNode;
-  friend class InlineTypePtrNode;
-private:
-  InlineTypeNode(ciInlineKlass* vk, Node* oop)
-    : InlineTypeBaseNode(TypeInlineType::make(vk), Values + vk->nof_declared_nonstatic_fields()) {
-    init_class_id(Class_InlineType);
-    init_req(Oop, oop);
-  }
+  InlineTypePtrNode* make_larval(GraphKit* kit, bool allocate) const;
+  InlineTypePtrNode* finish_larval(GraphKit* kit) const;
 
   // Checks if the inline type is loaded from memory and if so returns the oop
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
 
-  const TypeInstPtr* inline_ptr() const { return TypeInstPtr::make(TypePtr::BotPTR, inline_klass()); }
-
-public:
-  // Create uninitialized
-  static InlineTypeNode* make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk);
-  // Create with default field values
-  static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
-  // Create with null field values
-  static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
-  // Create and initialize by loading the field values from an oop
-  static InlineTypeBaseNode* make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free = true);
-  // Create and initialize by loading the field values from a flattened field or array
-  static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
-  // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
-  static InlineTypeBaseNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
-
-  // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true, Node* null_check_region = NULL);
-
   // Allocation optimizations
-  void remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase);
+  void remove_redundant_allocations(PhaseIdealLoop* phase);
 
   virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
-  virtual int Opcode() const;
 };
 
 //------------------------------InlineTypePtrNode-------------------------------------
@@ -169,8 +156,8 @@ private:
   const TypeInstPtr* inline_ptr() const { return type()->isa_instptr(); }
 
 public:
-  InlineTypePtrNode(const InlineTypeBaseNode* vt, bool null_free = true)
-    : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vt->type()->inline_klass()), vt->req()) {
+  InlineTypePtrNode(const InlineTypeBaseNode* vt, bool null_free, bool is_buffered)
+    : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vt->type()->inline_klass()), vt->req(), is_buffered) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, vt->get_oop());
     init_req(IsInit, vt->get_is_init());
@@ -179,8 +166,8 @@ public:
     }
   }
 
-  InlineTypePtrNode(ciInlineKlass* vk, Node* oop, bool null_free = true)
-      : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
+  InlineTypePtrNode(ciInlineKlass* vk, Node* oop, bool null_free, bool is_buffered)
+      : InlineTypeBaseNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields(), is_buffered) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, oop);
   }

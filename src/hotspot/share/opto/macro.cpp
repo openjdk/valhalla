@@ -387,7 +387,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     Node *in = mem->in(j);
     if (in == NULL || in->is_top()) {
       values.at_put(j, in);
-    } else  {
+    } else {
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
         // hit a sentinel, return appropriate 0 value
@@ -572,7 +572,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   // Subtract the offset of the first field to account for the missing oop header
   offset -= vk->first_field_offset();
   // Create a new InlineTypeNode and retrieve the field values from memory
-  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk)->as_InlineType();
+  InlineTypePtrNode* vt = InlineTypeBaseNode::make_uninitialized(_igvn, vk);
   transform_later(vt);
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
@@ -691,11 +691,23 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         } else {
           safepoints.append_if_missing(sfpt);
         }
-      } else if (use->is_InlineType() && use->isa_InlineType()->get_oop() == res) {
-        // ok to eliminate
-      } else if (use->is_InlineTypePtr() && use->isa_InlineTypePtr()->get_oop() == res) {
+      } else if (use->is_InlineTypePtr() && use->as_InlineTypePtr()->get_oop() == res) {
         // Process users
-        worklist.push(use);
+        // TODO only process users if they are not a flat field of an InlineTypePtrNode (i.e. do we need to process a non-flat field?)
+        for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
+          Node* u = use->fast_out(k);
+          if (!u->is_InlineTypePtr()) {
+            worklist.push(u);
+          } else {
+            InlineTypeBaseNode* vt = u->as_InlineTypeBase();
+            for (uint i = 0; i < vt->field_count(); ++i) {
+              if (vt->field_value(i) == use && !vt->field_is_flattened(i)) {
+                can_eliminate = false;
+                break;
+              }
+            }
+          }
+        }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
@@ -1029,16 +1041,28 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           }
         }
         _igvn._worklist.push(ac);
-      } else if (use->is_InlineType()) {
-        assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
-        _igvn.rehash_node_delayed(use);
-        use->isa_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+// TODO this made sure that we did not keep allocations alive for flat field vals but isn't this an issue for not-flat fields as well? Probably not .. draw examples
+// For InlineTypeNodes we knew that oop was optional but for ptr users we don't know that
+/*
+-      } else if (use->is_InlineType()) {
+-        assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
+-        _igvn.rehash_node_delayed(use);
+-        use->isa_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+*/
       } else if (use->is_InlineTypePtr()) {
-        assert(use->isa_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
+        assert(use->as_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
         _igvn.rehash_node_delayed(use);
-        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        use->as_InlineTypePtr()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        // TODO refactor + comment
+        _igvn.set_type(use, _igvn.type(use)->isa_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot));
+        use->as_InlineTypeBase()->set_type(_igvn.type(use)->isa_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot));
         // Process users
-        worklist.push(use);
+        for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
+          Node* u = use->fast_out(k);
+          if (!u->is_InlineTypePtr()) {
+            worklist.push(u);
+          }
+        }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(inline_alloc, "Unexpected store to mark word");
@@ -1167,7 +1191,8 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
+      // TODO
+      // assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
       return false;
     }
   }

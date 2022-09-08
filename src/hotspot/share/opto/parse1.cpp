@@ -610,7 +610,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     const Type* t = _gvn.type(parm);
     if (t->is_inlinetypeptr()) {
       // Create InlineTypeNode from the oop and replace the parameter
-      Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
+      Node* vt = InlineTypeBaseNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
       set_local(i, vt);
     } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() &&
                method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
@@ -875,7 +875,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       Node* old_mem = map->memory();
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
-      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
+      parm = InlineTypeBaseNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -946,10 +946,6 @@ void Compile::return_values(JVMState* jvms) {
       uint idx = TypeFunc::Parms + 1;
       vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
     } else {
-      if (res->is_InlineType()) {
-        assert(res->as_InlineType()->is_allocated(&kit.gvn()), "must be allocated");
-        res = res->as_InlineType()->get_oop();
-      }
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
     }
@@ -1754,11 +1750,12 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != NULL && t != Type::BOTTOM) {
-        if (n->is_InlineType() && (!t->isa_inlinetype() && !t->is_inlinetypeptr())) {
+        if (n->is_InlineTypeBase() && !t->is_inlinetypeptr()) {
           // TODO Currently, the implementation relies on the assumption that InlineTypePtrNodes
+          // TODO
           // are always buffered. We therefore need to allocate here.
           // Allocate inline type in src block to be able to merge it with oop in target block
-          map()->set_req(j, n->as_InlineType()->buffer(this));
+          map()->set_req(j, n->as_InlineTypeBase()->buffer(this));
         } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {
           // Scalarize null in src block to be able to merge it with inline type in target block
           assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
@@ -1923,16 +1920,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         }
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
-        if (vtm->is_InlineTypePtr() && vtn->is_InlineType()) {
-          // TODO 8284443 Remove this
-          Node* newVal = InlineTypeNode::make_uninitialized(gvn(), vtm->bottom_type()->inline_klass());
-          for (uint i = 1; i < vtm->req(); ++i) {
-            newVal->set_req(i, vtm->in(i));
-          }
-          _gvn.set_type(newVal, vtm->bottom_type());
-          vtm->replace_by(newVal);
-          vtm = newVal->as_InlineTypeBase();
-        }
         if (last_merge) {
           map()->set_req(j, _gvn.transform_no_reclaim(vtm));
           record_for_igvn(vtm);
@@ -2170,7 +2157,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     return NULL;
   }
 
-  if (vt != NULL && (t->is_inlinetypeptr() || t->isa_inlinetype())) {
+  if (vt != NULL && t->is_inlinetypeptr()) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
@@ -2369,8 +2356,8 @@ void Parse::return_current(Node* value) {
     // The return_type is set in Parse::build_exits().
     if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
-      if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
+      if (!value->is_InlineTypeBase()) {
+        value = InlineTypeBaseNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
       if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flattened
@@ -2381,13 +2368,13 @@ void Parse::return_current(Node* value) {
         inc_sp(1);
         value = value->as_InlineTypeBase()->allocate_fields(this);
       }
-    } else if (value->is_InlineType()) {
+    } else if (value->is_InlineTypeBase()) {
       // Inline type is returned as oop, make sure it is buffered and re-execute
       // if allocation triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
       inc_sp(1);
-      value = value->as_InlineType()->buffer(this);
+      value = value->as_InlineTypeBase()->buffer(this);
     } else if (tr && tr->isa_instptr() && tr->is_loaded() && tr->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.

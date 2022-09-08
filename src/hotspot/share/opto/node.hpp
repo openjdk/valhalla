@@ -167,7 +167,6 @@ class Type;
 class TypeNode;
 class UnlockNode;
 class InlineTypeBaseNode;
-class InlineTypeNode;
 class InlineTypePtrNode;
 class VectorNode;
 class LoadVectorNode;
@@ -954,7 +953,6 @@ public:
   DEFINE_CLASS_QUERY(Sub)
   DEFINE_CLASS_QUERY(SubTypeCheck)
   DEFINE_CLASS_QUERY(Type)
-  DEFINE_CLASS_QUERY(InlineType)
   DEFINE_CLASS_QUERY(InlineTypeBase)
   DEFINE_CLASS_QUERY(InlineTypePtr)
   DEFINE_CLASS_QUERY(Vector)

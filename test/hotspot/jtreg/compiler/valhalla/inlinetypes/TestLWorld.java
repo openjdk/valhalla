@@ -3139,7 +3139,7 @@ public class TestLWorld {
     }
 
     @Test
-// TODO Tobias
+// TODO 8293541
 //    @IR(failOn = {ALLOC_G, MEMBAR},
 //        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
@@ -3178,7 +3178,7 @@ public class TestLWorld {
     }
 
     @Test
-// TODO Tobias
+// TODO 8293541
 //    @IR(failOn = {ALLOC_G, MEMBAR},
 //        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})

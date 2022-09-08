@@ -698,23 +698,7 @@ class GraphKit : public Phase {
     const int nargs = declared_method->arg_size();
     inc_sp(nargs);
     Node* n = null_check_receiver();
-    // TODO Remove this code once InlineTypeNodes are replaced by InlineTypePtrNodes
-    set_argument(0, n);
     dec_sp(nargs);
-    // Scalarize inline type receiver
-    const Type* recv_type = gvn().type(n);
-    if (recv_type->is_inlinetypeptr()) {
-      assert(!recv_type->maybe_null(), "should never be null");
-      Node* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
-      set_argument(0, vt);
-      if (replace_value && is_Parse()) {
-        // Only replace in map if we are not incrementally inlining because we
-        // share a map with the caller which might expect the inline type as oop.
-        assert(!Compile::current()->inlining_incrementally(), "sanity");
-        replace_in_map(n, vt);
-      }
-      n = vt;
-    }
     return n;
   }
 

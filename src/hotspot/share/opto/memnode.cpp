@@ -1219,16 +1219,6 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
   if (base != NULL && base->is_InlineTypePtr() && offset > oopDesc::klass_offset_in_bytes()) {
     Node* value = base->as_InlineTypePtr()->field_value_by_offset((int)offset, true);
-    if (value->is_InlineType()) {
-      // Non-flattened inline type field
-      InlineTypeNode* vt = value->as_InlineType();
-      if (vt->is_allocated(phase)) {
-        value = vt->get_oop();
-      } else {
-        // Not yet allocated, bail out
-        value = NULL;
-      }
-    }
     if (value != NULL) {
       if (Opcode() == Op_LoadN) {
         // Encode oop value if we are loading a narrow oop

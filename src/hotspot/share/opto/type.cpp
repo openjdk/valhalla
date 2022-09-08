@@ -270,13 +270,8 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_PRIMITIVE_OBJECT: {
-    bool is_null_free = type->is_null_free();
     ciInlineKlass* vk = type->unwrap()->as_inline_klass();
-    if (is_null_free) {
-      return TypeInlineType::make(vk);
-    } else {
-      return TypeOopPtr::make_from_klass(vk)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);
-    }
+    return TypeOopPtr::make_from_klass(vk)->join_speculative(type->is_null_free() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
   }
 
   default:

@@ -64,7 +64,7 @@ Node* PhaseIdealLoop::split_thru_phi(Node* n, Node* region, int policy) {
 
   // Inline types should not be split through Phis because they cannot be merged
   // through Phi nodes but each value input needs to be merged individually.
-  if (n->is_InlineType()) {
+  if (n->is_InlineTypeBase()) {
     return NULL;
   }
 
@@ -1590,8 +1590,8 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
   try_move_store_after_loop(n);
 
   // Remove multiple allocations of the same inline type
-  if (n->is_InlineType()) {
-    n->as_InlineType()->remove_redundant_allocations(&_igvn, this);
+  if (n->is_InlineTypeBase()) {
+    n->as_InlineTypeBase()->remove_redundant_allocations(this);
   }
 
   // Check for Opaque2's who's loop has disappeared - who's input is in the

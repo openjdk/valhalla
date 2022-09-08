@@ -1948,7 +1948,7 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(!n->is_InlineType(), "chain of inline type nodes");
+    assert(n == ret_val || !n->is_InlineTypeBase(), "chain of inline type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
@@ -1984,7 +1984,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
       Node* ret_val = ret->in(TypeFunc::Parms);
       if (igvn.type(ret_val)->isa_oopptr() &&
           return_val_keeps_allocations_alive(ret_val)) {
-        igvn.replace_input_of(ret, TypeFunc::Parms, InlineTypeNode::tagged_klass(igvn.type(ret_val)->inline_klass(), igvn));
+        igvn.replace_input_of(ret, TypeFunc::Parms, InlineTypeBaseNode::tagged_klass(igvn.type(ret_val)->inline_klass(), igvn));
         assert(ret_val->outcnt() == 0, "should be dead now");
         igvn.remove_dead_node(ret_val);
       }
@@ -4343,8 +4343,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #ifdef ASSERT
-  case Op_InlineTypePtr:
-  case Op_InlineType: {
+  case Op_InlineTypePtr: {
     n->dump(-1);
     assert(false, "inline type node was not removed");
     break;

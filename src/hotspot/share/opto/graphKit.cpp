@@ -1252,22 +1252,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   if (stopped())  return top();
   NOT_PRODUCT(explicit_null_checks_inserted++);
 
-  if (value->is_InlineType()) {
-    InlineTypeNode* vt = value->as_InlineType();
-    null_check_common(vt->get_is_init(), T_INT, assert_null, null_control, speculative, true);
-    if (stopped()) {
-      return top();
-    }
-    if (assert_null) {
-      // TODO 8284443 Scalarize here (this currently leads to compilation bailouts)
-      // vt = InlineTypeNode::make_null(_gvn, vt->type()->inline_klass());
-      // replace_in_map(value, vt);
-      // return vt;
-      return null();
-    }
-    bool do_replace_in_map = (null_control == NULL || (*null_control) == top());
-    return cast_not_null(value, do_replace_in_map);
-  } else if (value->is_InlineTypePtr()) {
+  if (value->is_InlineTypePtr()) {
     // Null checking a scalarized but nullable inline type. Check the IsInit
     // input instead of the oop input to avoid keeping buffer allocations alive.
     InlineTypePtrNode* vtptr = value->as_InlineTypePtr();
@@ -1470,26 +1455,10 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
-  if (obj->is_InlineType()) {
-    InlineTypeNode* vt = obj->clone()->as_InlineType();
-    vt->set_is_init(_gvn);
-    vt = _gvn.transform(vt)->as_InlineType();
-    if (do_replace_in_map) {
-      replace_in_map(obj, vt);
-    }
-    return vt;
-  } else if (obj->is_InlineTypePtr()) {
-    // Cast oop input instead
-    Node* cast = cast_not_null(obj->as_InlineTypePtr()->get_oop(), do_replace_in_map);
-    if (cast->is_top()) {
-      // Always null
-      return top();
-    }
-    // Create a new node with the casted oop input and is_init set
-    InlineTypeBaseNode* vt = obj->clone()->as_InlineTypePtr();
-    vt->set_oop(cast);
-    vt->set_is_init(_gvn);
-    vt = _gvn.transform(vt)->as_InlineTypePtr();
+  if (obj->is_InlineTypeBase()) {
+    Node* vt = obj->clone();
+    vt->as_InlineTypeBase()->set_is_init(_gvn);
+    vt = _gvn.transform(vt);
     if (do_replace_in_map) {
       replace_in_map(obj, vt);
     }
@@ -1680,12 +1649,12 @@ Node* GraphKit::access_store_at(Node* obj,
   }
 
   assert(val != NULL, "not dead path");
-  if (val->is_InlineType()) {
+  if (val->is_InlineTypeBase()) {
     // Store to non-flattened field. Buffer the inline type and make sure
     // the store is re-executed if the allocation triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
-    val = val->as_InlineType()->buffer(this, safe_for_replace);
+    val = val->as_InlineTypeBase()->buffer(this, safe_for_replace);
   }
 
   C2AccessValuePtr addr(adr, adr_type);
@@ -1869,7 +1838,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineTypeBase()) {
         assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
-        arg = InlineTypeNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
+        arg = InlineTypeBaseNode::make_from_oop(this, arg, t->inline_klass(), t->inline_klass()->is_null_free());
       }
       InlineTypeBaseNode* vt = arg->as_InlineTypeBase();
       vt->pass_fields(this, call, idx, true, !t->maybe_null());
@@ -1879,9 +1848,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       call->set_override_symbolic_info(true);
       arg_num++;
       continue;
-    } else if (arg->is_InlineType()) {
+    } else if (arg->is_InlineTypeBase()) {
       // Pass inline type argument via oop to callee
-      arg = arg->as_InlineType()->buffer(this);
+      arg = arg->as_InlineTypeBase()->buffer(this);
       if (!is_late_inline) {
         arg = arg->as_InlineTypePtr()->get_oop();
       }
@@ -1949,7 +1918,7 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
-    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
+    ret = InlineTypeBaseNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
@@ -3025,7 +2994,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
       Node* res = _gvn.transform(cast);
       if (recv_xtype->is_inlinetypeptr()) {
         assert(!gvn().type(res)->maybe_null(), "receiver should never be null");
-        res = InlineTypeNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_InlineTypeBase()->as_ptr(&gvn());
+        res = InlineTypeBaseNode::make_from_oop(this, res, recv_xtype->inline_klass())->as_InlineTypeBase()->as_ptr(&gvn());
       }
       (*casted_receiver) = res;
       // (User must make the replace_in_map call.)
@@ -3059,8 +3028,11 @@ Node* GraphKit::subtype_check_receiver(Node* receiver, ciKlass* klass,
     const TypeOopPtr* receiver_type = _gvn.type(receiver)->isa_oopptr();
     const TypeOopPtr* recv_type = tklass->cast_to_exactness(false)->is_klassptr()->as_instance_type();
     if (receiver_type != NULL && !receiver_type->higher_equal(recv_type)) { // ignore redundant casts
-      Node* cast = new CheckCastPPNode(control(), receiver, recv_type);
-      (*casted_receiver) = _gvn.transform(cast);
+      Node* cast = _gvn.transform(new CheckCastPPNode(control(), receiver, recv_type));
+      if (recv_type->is_inlinetypeptr()) {
+        cast = InlineTypeBaseNode::make_from_oop(this, cast, recv_type->inline_klass());
+      }
+      (*casted_receiver) = cast;
     }
   }
 
@@ -3290,15 +3262,9 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   bool speculative_not_null = false;
   bool never_see_null = (ProfileDynamicTypes  // aggressive use of profile
                          && seems_never_null(obj, data, speculative_not_null));
-  bool is_value = obj->is_InlineType();
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
-  if (is_value) {
-    // TODO 8284443 Enable this
-    safe_for_replace = false;
-    never_see_null = false;
-  }
   Node* not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
 
   // If not_null_obj is dead, only null-path is taken
@@ -3317,32 +3283,29 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   }
 
   // Do we know the type check always succeed?
-  if (!is_value) {
-    bool known_statically = false;
-    if (_gvn.type(superklass)->singleton()) {
-      const TypeKlassPtr* superk = _gvn.type(superklass)->is_klassptr();
-      const TypeKlassPtr* subk = _gvn.type(obj)->is_oopptr()->as_klass_type();
-      if (subk != NULL && subk->is_loaded()) {
-        int static_res = C->static_subtype_check(superk, subk);
-        known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
-      }
+  bool known_statically = false;
+  if (_gvn.type(superklass)->singleton()) {
+    const TypeKlassPtr* superk = _gvn.type(superklass)->is_klassptr();
+    const TypeKlassPtr* subk = _gvn.type(obj)->is_oopptr()->as_klass_type();
+    if (subk != NULL && subk->is_loaded()) {
+      int static_res = C->static_subtype_check(superk, subk);
+      known_statically = (static_res == Compile::SSC_always_true || static_res == Compile::SSC_always_false);
     }
+  }
 
-    if (!known_statically) {
-      const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-      // We may not have profiling here or it may not help us. If we
-      // have a speculative type use it to perform an exact cast.
-      ciKlass* spec_obj_type = obj_type->speculative_type();
-      if (spec_obj_type != NULL || (ProfileDynamicTypes && data != NULL)) {
-        Node* cast_obj = maybe_cast_profiled_receiver(not_null_obj, NULL, spec_obj_type, safe_for_replace);
-        if (stopped()) {            // Profile disagrees with this path.
-          set_control(null_ctl);    // Null is the only remaining possibility.
-          return intcon(0);
-        }
-        if (cast_obj != NULL) {
-          not_null_obj = cast_obj;
-          is_value = not_null_obj->is_InlineType();
-        }
+  if (!known_statically) {
+    const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
+    // We may not have profiling here or it may not help us. If we
+    // have a speculative type use it to perform an exact cast.
+    ciKlass* spec_obj_type = obj_type->speculative_type();
+    if (spec_obj_type != NULL || (ProfileDynamicTypes && data != NULL)) {
+      Node* cast_obj = maybe_cast_profiled_receiver(not_null_obj, NULL, spec_obj_type, safe_for_replace);
+      if (stopped()) {            // Profile disagrees with this path.
+        set_control(null_ctl);    // Null is the only remaining possibility.
+        return intcon(0);
+      }
+      if (cast_obj != NULL) {
+        not_null_obj = cast_obj;
       }
     }
   }
@@ -3365,7 +3328,7 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
   // If we know the type check always succeeds then we don't use the
   // profiling data at this bytecode. Don't lose it, feed it to the
   // type system as a speculative type.
-  if (safe_for_replace && !is_value) {
+  if (safe_for_replace) {
     Node* casted_obj = record_profiled_receiver_for_speculation(obj);
     replace_in_map(obj, casted_obj);
   }
@@ -3385,7 +3348,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = tk->cast_to_exactness(false)->as_instance_type();
   bool safe_for_replace = (failure_control == NULL);
-  bool from_inline = obj->is_InlineType();
   assert(!null_free || toop->is_inlinetypeptr(), "must be an inline type pointer");
 
   // Fast cutout:  Check the case that the cast is vacuously true.
@@ -3409,9 +3371,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         // If we know the type check always succeed then we don't use
         // the profiling data at this bytecode. Don't lose it, feed it
         // to the type system as a speculative type.
-        if (!from_inline) {
-          obj = record_profiled_receiver_for_speculation(obj);
-        }
+        obj = record_profiled_receiver_for_speculation(obj);
         if (null_free) {
           assert(safe_for_replace, "must be");
           obj = null_check(obj);
@@ -3470,9 +3430,6 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (null_free) {
     assert(safe_for_replace, "must be");
     not_null_obj = null_check(obj);
-  } else if (from_inline) {
-    // TODO 8284443 obj can be null and null should pass
-    not_null_obj = obj;
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
   }
@@ -3496,7 +3453,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   }
 
   Node* cast_obj = NULL;
-  if (!from_inline && tk->klass_is_exact()) {
+  if (tk->klass_is_exact()) {
     // The following optimization tries to statically cast the speculative type of the object
     // (for example obtained during profiling) to the type of the superklass and then do a
     // dynamic check that the type of the object is what we expect. To work correctly
@@ -3521,7 +3478,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     Node* not_subtype_ctrl = gen_subtype_check(not_null_obj, superklass);
 
     // Plug in success path into the merge
-    cast_obj = from_inline ? not_null_obj : _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
+    cast_obj = _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
     // Failure path ends in uncommon trap (or may be dead - failure impossible)
     if (failure_control == NULL) {
       if (not_subtype_ctrl != top()) { // If failure is possible
@@ -3603,12 +3560,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   if (!stopped() && !res->is_InlineTypeBase()) {
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_inlinetypeptr()) {
-      Node* vt = InlineTypeNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
+      Node* vt = InlineTypeBaseNode::make_from_oop(this, res, toop->inline_klass(), !gvn().type(res)->maybe_null());
       res = vt;
       if (safe_for_replace) {
-        if (vt->is_InlineType() && C->inlining_incrementally()) {
-          vt = vt->as_InlineType()->as_ptr(&_gvn);
-        }
         replace_in_map(obj, vt);
         replace_in_map(not_null_obj, vt);
         replace_in_map(res, vt);
@@ -4277,7 +4231,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     // Array type is known
     if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
       ciInlineKlass* vk = ary_ptr->elem()->make_oopptr()->inline_klass();
-      default_value = InlineTypeNode::default_oop(gvn(), vk);
+      default_value = InlineTypeBaseNode::default_oop(gvn(), vk);
     }
   } else if (ary_type->can_be_inline_array()) {
     // Array type is not known, add runtime checks
@@ -4636,9 +4590,9 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != NULL) {
     Node* con = makecon(con_type);
     if (field->type()->is_inlinetype()) {
-      con = InlineTypeNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
+      con = InlineTypeBaseNode::make_from_oop(this, con, field->type()->as_inline_klass(), field->is_null_free());
     } else if (con_type->is_inlinetypeptr()) {
-      con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());
+      con = InlineTypeBaseNode::make_from_oop(this, con, con_type->inline_klass(), field->is_null_free());
     }
     return con;
   }
