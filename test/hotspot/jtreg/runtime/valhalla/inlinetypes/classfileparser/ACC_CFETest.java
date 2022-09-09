@@ -25,7 +25,7 @@
 /*
  * @test ACC_CFETest
  * @bug 8281279
- * @summary test class access rules for classes that have ACC_PERMITS_VALUE set.
+ * @summary test class access rules for abstract classes that have ACC_VALUE set.
  * @compile ACCCFETests.jcod
  * @run main/othervm -XX:+EnableValhalla -Xverify:remote ACC_CFETest
  */
@@ -57,10 +57,10 @@ public class ACC_CFETest {
 
         // Test illegal class that has both ACC_INTERFACE and ACC_VALUE set.
         runTest("AbstractVintf",
-                "Illegal class modifiers in class AbstractVintf (a value class)");
+                "Illegal field modifiers in class AbstractVintf: 0x8");
 
         // Test illegal class that has ACC_VALUE set and a non-static synchronized method.
         runTest("AbstractVMethod",
-                "Method meth in class AbstractVMethod (an inline class) has illegal modifiers");
+                "Method meth in class AbstractVMethod (not an identity class) has illegal modifiers: 0x21");
     }
 }

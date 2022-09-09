@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -59,6 +59,7 @@ private:
   bool                   _has_nonstatic_concrete_methods;
   bool                   _is_hidden;
   bool                   _is_record;
+  bool                   _has_trusted_loader;
 
   ciFlags                _flags;
 
@@ -108,6 +109,7 @@ protected:
   bool compute_shared_has_subklass();
   virtual int compute_nonstatic_fields();
   GrowableArray<ciField*>* compute_nonstatic_fields_impl(GrowableArray<ciField*>* super_fields, bool flatten = true);
+  bool compute_has_trusted_loader();
 
   // Update the init_state for shared klasses
   void update_if_shared(InstanceKlass::ClassState expected) {
@@ -244,7 +246,6 @@ public:
   // Java access flags
   bool is_public      () { return flags().is_public(); }
   bool is_final       () { return flags().is_final(); }
-  bool is_super       () { return flags().is_super(); }
   bool is_interface   () { return flags().is_interface(); }
   bool is_abstract    () { return flags().is_abstract(); }
 
@@ -271,7 +272,6 @@ public:
   BasicType box_klass_type() const;
   bool is_box_klass() const;
   bool is_boxed_value_offset(int offset) const;
-  bool is_box_cache_valid() const;
 
   // Is this klass in the given package?
   bool is_in_package(const char* packagename) {
@@ -292,6 +292,10 @@ public:
   bool can_be_instantiated() {
     assert(is_loaded(), "must be loaded");
     return !is_interface() && !is_abstract();
+  }
+
+  bool has_trusted_loader() const {
+    return _has_trusted_loader;
   }
 
   // Replay support

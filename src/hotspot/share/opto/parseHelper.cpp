@@ -76,17 +76,18 @@ void Parse::do_checkcast() {
   // _from_ is not loaded, and value is not null.  If the value _is_ NULL,
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
-  if (!will_link || (tp && tp->klass() && !tp->klass()->is_loaded())) {
+  if (!will_link || (tp && !tp->is_loaded())) {
     assert(!null_free, "Inline type should be loaded");
     if (C->log() != NULL) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
                        C->log()->identify(klass));
       }
-      if (tp && tp->klass() && !tp->klass()->is_loaded()) {
+      if (tp && !tp->is_loaded()) {
         // %%% Cannot happen?
+        ciKlass* klass = tp->unloaded_klass();
         C->log()->elem("assert_null reason='checkcast source' klass='%d'",
-                       C->log()->identify(tp->klass()));
+                       C->log()->identify(klass));
       }
     }
     null_assert(obj);
@@ -213,10 +214,10 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
       // 'array_klass' to be ObjArrayKlass, which can result in invalid memory accesses.
       //
       // See issue JDK-8057622 for details.
-      extak = tak->cast_to_exactness(true)->is_klassptr();
+      extak = tak->cast_to_exactness(true);
       reason = Deoptimization::Reason_array_check;
     }
-    if (extak != NULL) {
+    if (extak != NULL && extak->exact_klass(true) != NULL) {
       Node* con = makecon(extak);
       Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -226,7 +227,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
         { BuildCutout unless(this, bol, PROB_MAX);
           uncommon_trap(reason,
                         Deoptimization::Action_maybe_recompile,
-                        tak->klass());
+                        extak->exact_klass());
         }
         // Cast array klass to exactness
         replace_in_map(array_klass, con);
@@ -243,7 +244,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
         CompileLog* log = C->log();
         if (log != NULL) {
           log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
-                    log->identify(tak->klass()));
+                    log->identify(extak->exact_klass()));
         }
       }
     }
@@ -400,4 +401,3 @@ void Parse::dump_map_adr_mem() const {
 }
 
 #endif
-

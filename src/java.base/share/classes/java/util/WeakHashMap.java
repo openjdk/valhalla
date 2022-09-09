@@ -228,6 +228,10 @@ public class WeakHashMap<K,V>
      * The {@code WeakHashMap} is created using the {@linkplain ValuePolicy#defaultValuePolicy()
      * default policy for value objects}.
      *
+     * @apiNote
+     * To create a {@code WeakHashMap} with an initial capacity that accommodates
+     * an expected number of mappings, use {@link #newWeakHashMap(int) newWeakHashMap}.
+     *
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @param  loadFactor      The load factor of the {@code WeakHashMap}
      * @throws IllegalArgumentException if the initial capacity is negative,
@@ -270,6 +274,10 @@ public class WeakHashMap<K,V>
      * capacity and the default load factor (0.75).
      * The {@code WeakHashMap} is created using the {@linkplain ValuePolicy#defaultValuePolicy()
      * default policy for value objects}.
+     *
+     * @apiNote
+     * To create a {@code WeakHashMap} with an initial capacity that accommodates
+     * an expected number of mappings, use {@link #newWeakHashMap(int) newWeakHashMap}.
      *
      * @param  initialCapacity The initial capacity of the {@code WeakHashMap}
      * @throws IllegalArgumentException if the initial capacity is negative
@@ -1552,6 +1560,26 @@ public class WeakHashMap<K,V>
         public int characteristics() {
             return Spliterator.DISTINCT;
         }
+    }
+
+    /**
+     * Creates a new, empty WeakHashMap suitable for the expected number of mappings.
+     * The returned map uses the default load factor of 0.75, and its initial capacity is
+     * generally large enough so that the expected number of mappings can be added
+     * without resizing the map.
+     *
+     * @param numMappings the expected number of mappings
+     * @param <K>         the type of keys maintained by the new map
+     * @param <V>         the type of mapped values
+     * @return the newly created map
+     * @throws IllegalArgumentException if numMappings is negative
+     * @since 19
+     */
+    public static <K, V> WeakHashMap<K, V> newWeakHashMap(int numMappings) {
+        if (numMappings < 0) {
+            throw new IllegalArgumentException("Negative number of mappings: " + numMappings);
+        }
+        return new WeakHashMap<>(HashMap.calculateHashMapCapacity(numMappings));
     }
 
     /**

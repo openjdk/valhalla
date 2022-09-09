@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,9 +47,9 @@ class FieldInfo {
   // as an array of 6 shorts.
 
 #define FIELDINFO_TAG_SIZE             3
-#define FIELDINFO_TAG_OFFSET           1 << 0
-#define FIELDINFO_TAG_CONTENDED        1 << 1
-#define FIELDINFO_TAG_INLINED          1 << 2
+#define FIELDINFO_TAG_OFFSET           (1 << 0)
+#define FIELDINFO_TAG_CONTENDED        (1 << 1)
+#define FIELDINFO_TAG_INLINED          (1 << 2)
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits
@@ -165,7 +165,7 @@ class FieldInfo {
 
   void set_contended_group(u2 val) {
     assert((_shorts[low_packed_offset] & FIELDINFO_TAG_OFFSET) == 0, "Offset must not have been set");
-    assert((_shorts[low_packed_offset] & FIELDINFO_TAG_CONTENDED) == 0, "Overwritting contended group");
+    assert((_shorts[low_packed_offset] & FIELDINFO_TAG_CONTENDED) == 0, "Overwriting contended group");
     _shorts[low_packed_offset] |= FIELDINFO_TAG_CONTENDED;
     _shorts[high_packed_offset] = val;
   }

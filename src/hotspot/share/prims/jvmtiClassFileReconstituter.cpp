@@ -42,8 +42,8 @@ JvmtiConstantPoolReconstituter::JvmtiConstantPoolReconstituter(InstanceKlass* ik
   set_error(JVMTI_ERROR_NONE);
   _ik = ik;
   _cpool = constantPoolHandle(Thread::current(), ik->constants());
-  _symmap = new SymbolHashMap();
-  _classmap = new SymbolHashMap();
+  _symmap = new ConstantPool::SymbolHash();
+  _classmap = new ConstantPool::SymbolHash();
   _cpool_size = _cpool->hash_entries_to(_symmap, _classmap);
   if (_cpool_size == 0) {
     set_error(JVMTI_ERROR_OUT_OF_MEMORY);
@@ -364,7 +364,7 @@ u2 JvmtiClassFileReconstituter::inner_classes_attribute_length() {
 }
 
 // Write an annotation attribute.  The VM stores them in raw form, so all we need
-// to do is add the attrubute name and fill in the length.
+// to do is add the attribute name and fill in the length.
 // JSR202|   *Annotations_attribute {
 // JSR202|     u2 attribute_name_index;
 // JSR202|     u4 attribute_length;
@@ -914,7 +914,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   copy_cpool_bytes(writeable_address(cpool_size()));
 
   // JVMSpec|           u2 access_flags;
-  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_PERMITS_VALUE));
+  write_u2(ik()->access_flags().get_flags() & (JVM_RECOGNIZED_CLASS_MODIFIERS | JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_IDENTITY));
   // JVMSpec|           u2 this_class;
   // JVMSpec|           u2 super_class;
   write_u2(class_symbol_to_cpool_index(ik()->name()));

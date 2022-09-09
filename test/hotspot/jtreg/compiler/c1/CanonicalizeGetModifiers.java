@@ -57,6 +57,7 @@
 package compiler.c1;
 
 import java.lang.reflect.Modifier;
+import java.lang.reflect.AccessFlag;
 
 import jdk.test.lib.Asserts;
 
@@ -80,12 +81,12 @@ public class CanonicalizeGetModifiers {
     }
 
     static void test(Class poison) {
-        Asserts.assertEQ(CanonicalizeGetModifiers.class.getModifiers(), Modifier.PUBLIC);
-        Asserts.assertEQ(T1.class.getModifiers(), Modifier.PUBLIC | Modifier.STATIC);
-        Asserts.assertEQ(T2.class.getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC);
-        Asserts.assertEQ(T3.class.getModifiers(), Modifier.PRIVATE | Modifier.STATIC);
-        Asserts.assertEQ(T4.class.getModifiers(), Modifier.PROTECTED | Modifier.STATIC);
-        Asserts.assertEQ(new CanonicalizeGetModifiers().new T5().getClass().getModifiers(), 0/* NONE */);
+        Asserts.assertEQ(CanonicalizeGetModifiers.class.getModifiers(), Modifier.PUBLIC | Modifier.IDENTITY);
+        Asserts.assertEQ(T1.class.getModifiers(), Modifier.PUBLIC | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(T2.class.getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(T3.class.getModifiers(), Modifier.PRIVATE | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(T4.class.getModifiers(), Modifier.PROTECTED | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(new CanonicalizeGetModifiers().new T5().getClass().getModifiers(), 0/* NONE */ | Modifier.IDENTITY);
         Asserts.assertEQ(T6.class.getModifiers(), Modifier.ABSTRACT | Modifier.STATIC | Modifier.INTERFACE);
 
         Asserts.assertEQ(int.class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
@@ -106,11 +107,11 @@ public class CanonicalizeGetModifiers {
         Asserts.assertEQ(Object[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
         Asserts.assertEQ(CanonicalizeGetModifiers[].class.getModifiers(), Modifier.PUBLIC | Modifier.ABSTRACT | Modifier.FINAL);
 
-        Asserts.assertEQ(new CanonicalizeGetModifiers().getClass().getModifiers(), Modifier.PUBLIC);
-        Asserts.assertEQ(new T1().getClass().getModifiers(), Modifier.PUBLIC | Modifier.STATIC);
-        Asserts.assertEQ(new T2().getClass().getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC);
-        Asserts.assertEQ(new T3().getClass().getModifiers(), Modifier.PRIVATE | Modifier.STATIC);
-        Asserts.assertEQ(new T4().getClass().getModifiers(), Modifier.PROTECTED | Modifier.STATIC);
+        Asserts.assertEQ(new CanonicalizeGetModifiers().getClass().getModifiers(), Modifier.PUBLIC | Modifier.IDENTITY);
+        Asserts.assertEQ(new T1().getClass().getModifiers(), Modifier.PUBLIC | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(new T2().getClass().getModifiers(), Modifier.PUBLIC | Modifier.FINAL | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(new T3().getClass().getModifiers(), Modifier.PRIVATE | Modifier.STATIC | Modifier.IDENTITY);
+        Asserts.assertEQ(new T4().getClass().getModifiers(), Modifier.PROTECTED | Modifier.STATIC | Modifier.IDENTITY);
         try {
             // null_check
             poison.getModifiers();

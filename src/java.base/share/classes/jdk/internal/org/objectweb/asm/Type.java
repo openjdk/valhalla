@@ -56,11 +56,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 package jdk.internal.org.objectweb.asm;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 /**
  * A Java field or method type. This class can be used to make it easier to manipulate type and
@@ -476,7 +478,7 @@ public final class Type {
             case '(':
                 return new Type(METHOD, descriptorBuffer, descriptorBegin, descriptorEnd);
             default:
-                throw new IllegalArgumentException();
+                throw new IllegalArgumentException("Invalid descriptor: " + descriptorBuffer);
         }
     }
 
@@ -682,8 +684,7 @@ public final class Type {
     }
 
     static boolean isPrimitiveClass(Class<?> clazz) {
-        int mods = clazz.getModifiers();
-        return (mods & 0x00000100) != 0;
+        return (clazz.getModifiers() & Opcodes.ACC_PRIMITIVE) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------
@@ -935,3 +936,4 @@ public final class Type {
         return getDescriptor();
     }
 }
+

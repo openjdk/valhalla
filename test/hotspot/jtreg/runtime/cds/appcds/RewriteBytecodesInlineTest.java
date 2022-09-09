@@ -29,8 +29,8 @@
  * @requires vm.cds
  * @library /test/lib
  * @compile test-classes/RewriteBytecodesInline.java test-classes/Util.java test-classes/Point.java test-classes/WithInlinedField.java
- * @build sun.hotspot.WhiteBox
- * @run driver jdk.test.lib.helpers.ClassFileInstaller sun.hotspot.WhiteBox
+ * @build jdk.test.whitebox.WhiteBox
+ * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run driver RewriteBytecodesInlineTest
  */
 
@@ -39,7 +39,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 
 public class RewriteBytecodesInlineTest {
   public static void main(String[] args) throws Exception {
-    String wbJar = JarBuilder.build(true, "WhiteBox", "sun/hotspot/WhiteBox");
+    String wbJar = JarBuilder.build(true, "WhiteBox", "jdk/test/whitebox/WhiteBox");
     String use_whitebox_jar = "-Xbootclasspath/a:" + wbJar;
 
     String appJar = JarBuilder.build("dynamic_define", "RewriteBytecodesInline", "Util", "Point", "WithInlinedField");

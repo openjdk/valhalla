@@ -132,8 +132,8 @@ class ClassFileParser {
   Array<u2>* _permitted_subclasses;
   Array<u2>* _preload_classes;
   Array<RecordComponent*>* _record_components;
-  GrowableArray<InstanceKlass*>* _temp_local_interfaces;
   Array<InstanceKlass*>* _local_interfaces;
+  GrowableArray<u2>* _local_interface_indexes;
   Array<InstanceKlass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
   AnnotationArray* _class_annotations;
@@ -163,7 +163,6 @@ class ClassFileParser {
   int _first_field_offset;
   int _exact_size_in_bytes;
 
-  ReferenceType _rt;
   Handle _protection_domain;
   AccessFlags _access_flags;
 
@@ -206,8 +205,8 @@ class ClassFileParser {
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;
   bool _is_declared_atomic;
-  bool _invalid_inline_super;   // if true, invalid super type for an inline type.
-  bool _invalid_identity_super; // if true, invalid super type for an identity type.
+  bool _carries_value_modifier;      // Has ACC_VALUE mddifier or one of its super types has
+  bool _carries_identity_modifier;   // Has ACC_IDENTITY modifier or one of its super types has
 
   // precomputed flags
   bool _has_finalizer;
@@ -276,9 +275,7 @@ class ClassFileParser {
                               TRAPS);
 
   void parse_fields(const ClassFileStream* const cfs,
-                    bool is_interface,
-                    bool is_inline_type,
-                    bool is_permits_value_class,
+                    AccessFlags class_access_flags,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
@@ -288,16 +285,16 @@ class ClassFileParser {
   // Method parsing
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
-                       bool is_inline_type,
-                       bool is_permits_value_class,
+                       bool is_value_class,
+                       bool is_abstract_class,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
 
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
-                     bool is_inline_type,
-                     bool is_permits_value_class,
+                     bool is_value_class,
+                     bool is_abstract_class,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -501,16 +498,12 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
-                                    bool is_interface,
-                                    bool is_inline_type,
-                                    bool is_permits_value_class,
+                                    AccessFlags class_access_flags,
                                     TRAPS) const;
   void verify_legal_method_modifiers(jint flags,
-                                     bool is_interface,
-                                     bool is_inline_type,
-                                     bool is_permits_value_class,
+                                     AccessFlags class_access_flags,
                                      const Symbol* name,
                                      TRAPS) const;
 
@@ -598,16 +591,16 @@ class ClassFileParser {
 
   bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_inline_type() const { return _access_flags.is_value_class(); }
-  bool is_permits_value_class() const { return _access_flags.is_permits_value_class(); }
+  bool is_inline_type() const { return _access_flags.is_value_class() && !_access_flags.is_interface() && !_access_flags.is_abstract(); }
+  bool is_value_class() const { return _access_flags.is_value_class(); }
+  bool is_abstract_class() const { return _access_flags.is_abstract(); }
   bool is_identity_class() const { return _access_flags.is_identity_class(); }
   bool is_value_capable_class() const;
   bool has_inline_fields() const { return _has_inline_type_fields; }
-  bool invalid_inline_super() const { return _invalid_inline_super; }
-  void set_invalid_inline_super() { _invalid_inline_super = true; }
-  bool invalid_identity_super() const { return _invalid_identity_super; }
-  void set_invalid_identity_super() { _invalid_identity_super = true; }
-  bool is_invalid_super_for_inline_type();
+  bool carries_identity_modifier() const { return _carries_identity_modifier; }
+  void set_carries_identity_modifier() { _carries_identity_modifier = true; }
+  bool carries_value_modifier() const { return _carries_value_modifier; }
+  void set_carries_value_modifier() { _carries_value_modifier = true; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 
@@ -615,7 +608,10 @@ class ClassFileParser {
   const Symbol* class_name() const { return _class_name; }
   const InstanceKlass* super_klass() const { return _super_klass; }
 
-  ReferenceType reference_type() const { return _rt; }
+  ReferenceType super_reference_type() const;
+  bool is_instance_ref_klass() const;
+  bool is_java_lang_ref_Reference_subclass() const;
+
   AccessFlags access_flags() const { return _access_flags; }
 
   bool is_internal() const { return INTERNAL == _pub_level; }

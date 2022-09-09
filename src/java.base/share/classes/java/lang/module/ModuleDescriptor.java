@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -127,7 +127,7 @@ public class ModuleDescriptor
          */
         MANDATED(AccessFlag.MANDATED.mask());
 
-        private int mask;
+        private final int mask;
         private Modifier(int mask) {
             this.mask = mask;
         }
@@ -164,7 +164,7 @@ public class ModuleDescriptor
              * The dependence is mandatory in the static phase, during compilation,
              * but is optional in the dynamic phase, during execution.
              */
-            STATIC(AccessFlag.STATIC.mask()),
+            STATIC(AccessFlag.STATIC_PHASE.mask()),
 
             /**
              * The dependence was not explicitly or implicitly declared in the
@@ -177,7 +177,7 @@ public class ModuleDescriptor
              * declaration.
              */
             MANDATED(AccessFlag.MANDATED.mask());
-            private int mask;
+            private final int mask;
             private Modifier(int mask) {
                 this.mask = mask;
             }
@@ -213,8 +213,10 @@ public class ModuleDescriptor
         }
 
         /**
-         * {@return an unmodifiable set of the module {@linkplain AccessFlag
-         * requires flags, possibly empty}}
+         * Returns the set of the module {@linkplain AccessFlag
+         * requires flags}.
+         *
+         * @return A possibly-empty unmodifiable set of requires flags
          * @see #modifiers()
          * @jvms 4.7.25 The Module Attribute
          * @since 20
@@ -408,7 +410,7 @@ public class ModuleDescriptor
              */
             MANDATED(AccessFlag.MANDATED.mask());
 
-            private int mask;
+            private final int mask;
             private Modifier(int mask) {
                 this.mask = mask;
             }
@@ -447,8 +449,10 @@ public class ModuleDescriptor
         }
 
         /**
-         * {@return an unmodifiable set of the module {@linkplain AccessFlag
-         * export flags} for this module descriptor, possibly empty}
+         * Returns the set of the module {@linkplain AccessFlag
+         * export flags} for this module descriptor.
+         *
+         * @return A possibly-empty unmodifiable set of export flags
          * @see #modifiers()
          * @jvms 4.7.25 The Module Attribute
          * @since 20
@@ -630,7 +634,7 @@ public class ModuleDescriptor
              * module declaration.
              */
             MANDATED(AccessFlag.MANDATED.mask());
-            private int mask;
+            private final int mask;
             private Modifier(int mask) {
                 this.mask = mask;
             }
@@ -669,8 +673,10 @@ public class ModuleDescriptor
         }
 
         /**
-         * {@return an unmodifiable set of the module {@linkplain AccessFlag
-         * opens flags}, possibly empty}
+         * Returns the set of the module {@linkplain AccessFlag opens
+         * flags}.
+         *
+         * @return A possibly-empty unmodifiable set of opens flags
          * @see #modifiers()
          * @jvms 4.7.25 The Module Attribute
          * @since 20
@@ -1354,8 +1360,9 @@ public class ModuleDescriptor
     }
 
     /**
-     * {@return an unmodifiable set of the {@linkplain AccessFlag
-     * module flags}, possibly empty}
+     * Returns the set of the {@linkplain AccessFlag module flags}.
+     *
+     * @return A possibly-empty unmodifiable set of module flags
      * @see #modifiers()
      * @jvms 4.7.25 The Module Attribute
      * @since 20
@@ -1545,13 +1552,14 @@ public class ModuleDescriptor
      * <cite>The Java Language Specification</cite>. </p>
      *
      * <p> Example usage: </p>
-     * <pre>{@code    ModuleDescriptor descriptor = ModuleDescriptor.newModule("stats.core")
+     * {@snippet :
+     *     ModuleDescriptor descriptor = ModuleDescriptor.newModule("stats.core")
      *         .requires("java.base")
      *         .exports("org.acme.stats.core.clustering")
      *         .exports("org.acme.stats.core.regression")
      *         .packages(Set.of("org.acme.stats.core.internal"))
      *         .build();
-     * }</pre>
+     * }
      *
      * @apiNote A {@code Builder} checks the components and invariants as
      * components are added to the builder. The rationale for this is to detect
@@ -1581,7 +1589,7 @@ public class ModuleDescriptor
          *
          * If {@code strict} is {@code true} then module, package, and class
          * names are checked to ensure they are legal names. In addition, the
-         * {@link #build buid} method will add "{@code requires java.base}" if
+         * {@link #build build} method will add "{@code requires java.base}" if
          * the dependency is not declared.
          */
         Builder(String name, boolean strict, Set<Modifier> modifiers) {
@@ -2626,7 +2634,7 @@ public class ModuleDescriptor
     private static int modsHashCode(Iterable<? extends Enum<?>> enums) {
         int h = 0;
         for (Enum<?> e : enums) {
-            h = h * 43 + Objects.hashCode(e.name());
+            h += e.name().hashCode();
         }
         return h;
     }

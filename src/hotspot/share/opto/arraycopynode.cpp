@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,7 +126,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
 
     if (src_type->isa_instptr()) {
       const TypeInstPtr* inst_src = src_type->is_instptr();
-      ciInstanceKlass* ik = inst_src->klass()->as_instance_klass();
+      ciInstanceKlass* ik = inst_src->instance_klass();
       // ciInstanceKlass::nof_nonstatic_fields() doesn't take injected
       // fields into account. They are rare anyway so easier to simply
       // skip instances with injected fields.
@@ -201,8 +201,10 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     phase->is_IterGVN()->_worklist.push(mem);
   }
 
+
+  ciInstanceKlass* ik = inst_src->instance_klass();
+
   if (!inst_src->klass_is_exact()) {
-    ciInstanceKlass* ik = inst_src->klass()->as_instance_klass();
     assert(!ik->is_interface(), "inconsistent klass hierarchy");
     if (ik->has_subklass()) {
       // Concurrent class loading.
@@ -213,7 +215,6 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     }
   }
 
-  ciInstanceKlass* ik = inst_src->klass()->as_instance_klass();
   assert(ik->nof_nonstatic_fields() <= ArrayCopyLoadStoreMaxElem, "too many fields");
 
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -271,19 +272,18 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     // newly allocated object is guaranteed to not overlap with source object
     disjoint_bases = is_alloc_tightly_coupled();
-
-    if (ary_src  == NULL || ary_src->klass()  == NULL ||
-        ary_dest == NULL || ary_dest->klass() == NULL) {
+    if (ary_src  == NULL || ary_src->elem()  == Type::BOTTOM ||
+        ary_dest == NULL || ary_dest->elem() == Type::BOTTOM) {
       // We don't know if arguments are arrays
       return false;
     }
 
-    BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (src_elem == T_ARRAY || (src_elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass())) {
+    BasicType src_elem = ary_src->elem()->array_element_basic_type();
+    BasicType dest_elem = ary_dest->elem()->array_element_basic_type();
+    if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
       src_elem  = T_OBJECT;
     }
-    if (dest_elem == T_ARRAY || (dest_elem == T_PRIMITIVE_OBJECT && ary_dest->klass()->is_obj_array_klass())) {
+    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && !ary_dest->is_flat())) {
       dest_elem = T_OBJECT;
     }
 
@@ -304,8 +304,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
     if (dest_elem == T_PRIMITIVE_OBJECT) {
-      ciFlatArrayKlass* vak = ary_src->klass()->as_flat_array_klass();
-      shift = vak->log2_element_size();
+      shift = ary_src->flat_log_elem_size();
     }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
 
@@ -345,8 +344,8 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-    BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    if (elem == T_ARRAY || (elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass())) {
+    BasicType elem = ary_src->isa_aryptr()->elem()->array_element_basic_type();
+    if (elem == T_ARRAY || elem == T_NARROWOOP || (elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
       elem = T_OBJECT;
     }
 
@@ -361,7 +360,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     adr_src  = phase->transform(new AddPNode(base_src, base_src, src_offset));
     adr_dest = phase->transform(new AddPNode(base_dest, base_dest, dest_offset));
 
-    // The address is offseted to an aligned address where a raw copy would start.
+    // The address is offsetted to an aligned address where a raw copy would start.
     // If the clone copy is decomposed into load-stores - the address is adjusted to
     // point at where the array starts.
     const Type* toff = phase->type(src_offset);
@@ -417,12 +416,11 @@ void ArrayCopyNode::copy(GraphKit& kit,
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
   if (copy_type == T_PRIMITIVE_OBJECT) {
-    ciFlatArrayKlass* vak = atp_src->klass()->as_flat_array_klass();
-    ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
+    ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
       int off_in_vt = field->offset() - vk->first_field_offset();
-      Node* off  = kit.MakeConX(off_in_vt + i * vak->element_byte_size());
+      Node* off  = kit.MakeConX(off_in_vt + i * atp_src->flat_elem_size());
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
       assert(!field->is_flattened(), "flattened field encountered");
@@ -552,10 +550,10 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       Node* src = in(ArrayCopyNode::Src);
       const Type* src_type = phase->type(src);
       const TypeAryPtr* ary_src = src_type->isa_aryptr();
-      BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
+      BasicType elem = ary_src != NULL ? ary_src->elem()->array_element_basic_type() : T_CONFLICT;
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat()), "added control for clone?");
 #endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);
@@ -823,13 +821,11 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
     return !must_modify;
   }
 
-  ciArrayKlass* klass = ary_t->klass()->as_array_klass();
-  BasicType ary_elem = klass->element_type()->basic_type();
+  BasicType ary_elem = ary_t->isa_aryptr()->elem()->array_element_basic_type();
+  if (is_reference_type(ary_elem, true)) ary_elem = T_OBJECT;
+
   uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
-  uint elemsize = type2aelembytes(ary_elem);
-  if (klass->is_flat_array_klass()) {
-    elemsize = klass->as_flat_array_klass()->element_byte_size();
-  }
+  uint elemsize = ary_t->is_flat() ? ary_t->flat_elem_size() : type2aelembytes(ary_elem);
 
   jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elemsize + header;
   jlong dest_pos_plus_len_hi = (((jlong)dest_pos_t->_hi) + len_t->_hi) * elemsize + header;

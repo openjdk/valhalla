@@ -27,7 +27,6 @@ package jdk.javadoc.internal.doclets.formats.html;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +43,6 @@ import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 
-import com.sun.source.util.DocTreePath;
 import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.doclet.Reporter;
@@ -76,11 +74,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.PreviewAPIListBuilder;
  * Also do the error checking on the options used. For example it is illegal to
  * use "-helpfile" option when already "-nohelp" option is used.
  * </p>
- *
- *  <p><b>This is NOT part of any supported API.
- *  If you write code that depends on this, you do so at your own risk.
- *  This code and its internal interfaces are subject to change or
- *  deletion without notice.</b>
  */
 public class HtmlConfiguration extends BaseConfiguration {
 
@@ -406,16 +399,6 @@ public class HtmlConfiguration extends BaseConfiguration {
     @Override
     public JavaFileManager getFileManager() {
         return docEnv.getJavaFileManager();
-    }
-
-    @Override
-    public boolean showMessage(DocTreePath path, String key) {
-        return (path == null || !haveDocLint());
-    }
-
-    @Override
-    public boolean showMessage(Element e, String key) {
-        return (e == null || !haveDocLint());
     }
 
     @Override

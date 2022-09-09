@@ -155,7 +155,12 @@ public class InflaterInputStream extends FilterInputStream {
                     reachEOF = true;
                     return -1;
                 }
-                if (inf.needsInput()) {
+                if (inf.needsInput() && !inf.hasPendingOutput()) {
+                    // Even if needsInput() is true, the native inflater may have some
+                    // buffered data which couldn't fit in to the output buffer during the
+                    // last call to inflate. Consume that buffered data first before calling
+                    // fill() to avoid an EOF error if no more input is available and the
+                    // next call to inflate will finish the inflation.
                     fill();
                 }
             } while ((n = inf.inflate(b, off, len)) == 0);
@@ -264,21 +269,22 @@ public class InflaterInputStream extends FilterInputStream {
     /**
      * Marks the current position in this input stream.
      *
-     * <p> The {@code mark} method of {@code InflaterInputStream}
+     * @implSpec The {@code mark} method of {@code InflaterInputStream}
      * does nothing.
      *
      * @param   readlimit   the maximum limit of bytes that can be read before
      *                      the mark position becomes invalid.
      * @see     java.io.InputStream#reset()
      */
-    public synchronized void mark(int readlimit) {
+    @Override
+    public void mark(int readlimit) {
     }
 
     /**
      * Repositions this stream to the position at the time the
      * {@code mark} method was last called on this input stream.
      *
-     * <p> The method {@code reset} for class
+     * @implSpec The method {@code reset} for class
      * {@code InflaterInputStream} does nothing except throw an
      * {@code IOException}.
      *
@@ -286,7 +292,8 @@ public class InflaterInputStream extends FilterInputStream {
      * @see     java.io.InputStream#mark(int)
      * @see     java.io.IOException
      */
-    public synchronized void reset() throws IOException {
+    @Override
+    public void reset() throws IOException {
         throw new IOException("mark/reset not supported");
     }
 }

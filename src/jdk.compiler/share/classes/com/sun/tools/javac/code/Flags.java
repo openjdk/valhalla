@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -158,7 +158,11 @@ public class Flags {
     public static final int BLOCK            = 1<<20;
 
     /** Marks a type as a value class */
-    public static final int VALUE_CLASS  = 1<<21;
+    public static final int VALUE_CLASS      = 1<<20;
+
+    /** Flag is set for ClassSymbols that are being compiled from source.
+     */
+    public static final int FROM_SOURCE      = 1<<21; //ClassSymbols
 
     /** Flag is set for nested classes that do not access instance members
      *  or `this' of an outer class and therefore don't need to be passed
@@ -208,7 +212,7 @@ public class Flags {
     public static final int ANONCONSTR   = 1<<29; //non-class members
 
     /**
-     * Flag to indicate the super classes of this ClassSymbol has been attributed.
+     * Flag to indicate the superclasses of this ClassSymbol has been attributed.
      */
     public static final int SUPER_OWNER_ATTRIBUTED = 1<<29; //ClassSymbols
 
@@ -524,6 +528,7 @@ public class Flags {
             }
         },
         BLOCK(Flags.BLOCK),
+        FROM_SOURCE(Flags.FROM_SOURCE),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
         PRIMITIVE(Flags.PRIMITIVE_CLASS),

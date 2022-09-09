@@ -37,18 +37,20 @@
 #include "jfr/support/jfrTraceIdExtension.hpp"
 #endif
 
-// Klass IDs for all subclasses of Klass
-enum KlassID {
-  InstanceKlassID,
-  InstanceRefKlassID,
-  InstanceMirrorKlassID,
-  InstanceClassLoaderKlassID,
-  TypeArrayKlassID,
-  FlatArrayKlassID,
-  ObjArrayKlassID
+// Klass Kinds for all subclasses of Klass
+enum KlassKind {
+  InstanceKlassKind,
+  InlineKlassKind,
+  InstanceRefKlassKind,
+  InstanceMirrorKlassKind,
+  InstanceClassLoaderKlassKind,
+  InstanceStackChunkKlassKind,
+  TypeArrayKlassKind,
+  FlatArrayKlassKind,
+  ObjArrayKlassKind
 };
 
-const uint KLASS_ID_COUNT = 7;
+const uint KLASS_KIND_COUNT = ObjArrayKlassKind + 1;
 
 //
 // A Klass provides:
@@ -115,8 +117,10 @@ class Klass : public Metadata {
   // because it is frequently queried.
   jint        _layout_helper;
 
-  // Klass identifier used to implement devirtualized oop closure dispatching.
-  const KlassID _id;
+  // Klass kind used to resolve the runtime type of the instance.
+  //  - Used to implement devirtualized oop closure dispatching.
+  //  - Various type checking in the JVM
+  const KlassKind _kind;
 
   // Processed access flags, for use by Class.getModifiers.
   jint        _modifier_flags;
@@ -172,14 +176,16 @@ private:
   jshort _shared_class_path_index;
 
 #if INCLUDE_CDS
-  // Flags of the current shared class.
+  // Various attributes for shared classes. Should be zero for a non-shared class.
   u2     _shared_class_flags;
-  enum {
+  enum CDSSharedClassFlags {
     _archived_lambda_proxy_is_available    = 1 << 1,
     _has_value_based_class_annotation      = 1 << 2,
     _verified_at_dump_time                 = 1 << 3,
     _has_archived_enum_objs                = 1 << 4,
-    _regenerated                           = 1 << 5
+    // This class was not loaded from a classfile in the module image
+    // or classpath.
+    _is_generated_shared_class             = 1 << 5
   };
 #endif
 
@@ -188,13 +194,13 @@ private:
 protected:
 
   // Constructor
-  Klass(KlassID id);
-  Klass() : _id(KlassID(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
+  Klass(KlassKind kind);
+  Klass() : _kind(KlassKind(-1)) { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
   void* operator new(size_t size, ClassLoaderData* loader_data, size_t word_size, TRAPS) throw();
 
  public:
-  int id() { return _id; }
+  int kind() { return _kind; }
 
   enum class DefaultsLookupMode { find, skip };
   enum class OverpassLookupMode { find, skip };
@@ -351,11 +357,11 @@ protected:
     NOT_CDS(return false;)
   }
 
-  void set_regenerated() {
-    CDS_ONLY(_shared_class_flags |= _regenerated;)
+  void set_is_generated_shared_class() {
+    CDS_ONLY(_shared_class_flags |= _is_generated_shared_class;)
   }
-  bool is_regenerated() const {
-    CDS_ONLY(return (_shared_class_flags & _regenerated) != 0;)
+  bool is_generated_shared_class() const {
+    CDS_ONLY(return (_shared_class_flags & _is_generated_shared_class) != 0;)
     NOT_CDS(return false;)
   }
 
@@ -561,7 +567,9 @@ protected:
   void set_vtable_length(int len) { _vtable_len= len; }
 
   vtableEntry* start_of_vtable() const;
+#if INCLUDE_CDS
   void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+#endif
  public:
   Method* method_at_vtable(int index);
 
@@ -570,6 +578,7 @@ protected:
     return byte_offset_of(Klass, _vtable_len);
   }
 
+#if INCLUDE_CDS
   // CDS support - remove and restore oops from metadata. Oops are not shared.
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
@@ -585,6 +594,7 @@ protected:
       return true;
     }
   }
+#endif // INCLUDE_CDS
 
  public:
   // ALL FUNCTIONS BELOW THIS POINT ARE DISPATCHED FROM AN OOP
@@ -638,23 +648,19 @@ protected:
   }
  public:
   #endif
-  inline  bool is_instance_klass()            const { return assert_same_query(
-                                                      layout_helper_is_instance(layout_helper()),
-                                                      is_instance_klass_slow()); }
-  inline  bool is_array_klass()               const { return assert_same_query(
-                                                    layout_helper_is_array(layout_helper()),
-                                                    is_array_klass_slow()); }
-  inline  bool is_objArray_klass()            const { return assert_same_query(
-                                                    layout_helper_is_objArray(layout_helper()),
-                                                    is_objArray_klass_slow()); }
-  inline  bool is_typeArray_klass()           const { return assert_same_query(
-                                                    layout_helper_is_typeArray(layout_helper()),
-                                                    is_typeArray_klass_slow()); }
-  inline  bool is_inline_klass()              const { return is_inline_klass_slow(); } //temporary hack
-  inline  bool is_flatArray_klass()           const { return assert_same_query(
-                                                    layout_helper_is_flatArray(layout_helper()),
-                                                    is_flatArray_klass_slow()); }
 
+  bool is_instance_klass()              const { return assert_same_query(_kind <= InstanceStackChunkKlassKind, is_instance_klass_slow()); }
+  bool is_inline_klass()                const { return is_inline_klass_slow(); } //temporary hack
+  // Other is anything that is not one of the more specialized kinds of InstanceKlass.
+  bool is_other_instance_klass()        const { return _kind <= InlineKlassKind; }
+  bool is_reference_instance_klass()    const { return _kind == InstanceRefKlassKind; }
+  bool is_mirror_instance_klass()       const { return _kind == InstanceMirrorKlassKind; }
+  bool is_class_loader_instance_klass() const { return _kind == InstanceClassLoaderKlassKind; }
+  bool is_array_klass()                 const { return assert_same_query( _kind >= TypeArrayKlassKind, is_array_klass_slow()); }
+  bool is_stack_chunk_instance_klass()  const { return _kind == InstanceStackChunkKlassKind; }
+  bool is_flatArray_klass()             const { return assert_same_query( _kind == FlatArrayKlassKind, is_flatArray_klass_slow()); }
+  bool is_objArray_klass()              const { return assert_same_query( _kind == ObjArrayKlassKind,  is_objArray_klass_slow()); }
+  bool is_typeArray_klass()             const { return assert_same_query( _kind == TypeArrayKlassKind, is_typeArray_klass_slow()); }
   #undef assert_same_query
 
   inline bool is_null_free_array_klass()      const { return layout_helper_is_null_free(layout_helper()); }
@@ -667,9 +673,8 @@ protected:
   bool is_final() const                 { return _access_flags.is_final(); }
   bool is_interface() const             { return _access_flags.is_interface(); }
   bool is_abstract() const              { return _access_flags.is_abstract(); }
-  bool is_super() const                 { return _access_flags.is_super(); }
   bool is_synthetic() const             { return _access_flags.is_synthetic(); }
-  bool is_permits_value_class() const   { return _access_flags.is_permits_value_class(); }
+  bool is_value_class() const           { return _access_flags.is_value_class(); }
   bool is_identity_class() const        { return _access_flags.is_identity_class(); }
   void set_is_synthetic()               { _access_flags.set_is_synthetic(); }
   bool has_finalizer() const            { return _access_flags.has_finalizer(); }
