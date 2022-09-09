@@ -64,7 +64,13 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     }
   }
 
-  if (this_class->access_flags().is_primitive_class()) return false;
+  // Need to do this check when called from CDS.
+  if (this_class->access_flags().is_primitive_class()) {
+    Klass* from_class = SystemDictionary::resolve_or_fail(
+      from_name, Handle(THREAD, klass->class_loader()),
+      Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+    return from_class == this_class;
+  }
   if (this_class->is_interface() && (!from_field_is_protected ||
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in
