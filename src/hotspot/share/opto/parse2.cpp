@@ -84,7 +84,7 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (ary_t->is_flat()) {
     // Load from flattened inline type array
-    Node* vt = InlineTypeBaseNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
+    Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
     push(vt);
     return;
   } else if (ary_t->is_null_free()) {
@@ -106,7 +106,7 @@ void Parse::array_load(BasicType bt) {
                                 IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
       if (elemptr->is_inlinetypeptr()) {
         assert(elemptr->maybe_null(), "null free array should be handled above");
-        ld = InlineTypeBaseNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
+        ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), false);
       }
       ideal.sync_kit(this);
       ideal.set(res, ld);
@@ -125,7 +125,7 @@ void Parse::array_load(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
         inc_sp(2);
-        Node* vt = InlineTypeBaseNode::make_from_flattened(this, vk, cast, casted_adr)->buffer(this, false);
+        Node* vt = InlineTypeNode::make_from_flattened(this, vk, cast, casted_adr)->buffer(this, false);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -179,7 +179,7 @@ void Parse::array_load(BasicType bt) {
   // Loading a non-flattened inline type
   if (elemptr != NULL && elemptr->is_inlinetypeptr()) {
     assert(!ary_t->is_null_free() || !elemptr->maybe_null(), "inline type array elements should never be null");
-    ld = InlineTypeBaseNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
+    ld = InlineTypeNode::make_from_oop(this, ld, elemptr->inline_klass(), !elemptr->maybe_null());
   }
   push_node(bt, ld);
 }
@@ -240,7 +240,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineTypeBase()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
@@ -292,15 +292,15 @@ void Parse::array_store(BasicType bt) {
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));
           Node* casted_adr = array_element_address(casted_ary, idx, T_OBJECT, arytype->size(), control());
-          if (!val->is_InlineTypeBase()) {
+          if (!val->is_InlineType()) {
             assert(!gvn().type(val)->maybe_null(), "inline type array elements should never be null");
-            val = InlineTypeBaseNode::make_from_oop(this, val, vk);
+            val = InlineTypeNode::make_from_oop(this, val, vk);
           }
           // Re-execute flattened array store if buffering triggers deoptimization
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         } else if (!stopped()) {
           // Element type is unknown, emit runtime call
 
@@ -2061,26 +2061,26 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (left->is_InlineTypeBase()) {
+  if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_zero_type())) {
+        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_is_init())->is_zero_type())) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineTypeBase()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
       do_if(btest, cmp);
       return;
     } else {
       PreserveReexecuteState preexecs(this);
       inc_sp(2);
       jvms()->set_should_reexecute(true);
-      left = left->as_InlineTypeBase()->buffer(this)->get_oop();
+      left = left->as_InlineType()->buffer(this)->get_oop();
     }
   }
-  if (right->is_InlineTypeBase()) {
+  if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    right = right->as_InlineTypeBase()->buffer(this)->get_oop();
+    right = right->as_InlineType()->buffer(this)->get_oop();
   }
 
   // First, do a normal pointer comparison
@@ -2527,9 +2527,9 @@ Node* Parse::optimize_cmp_with_klass(Node* c) {
         inc_sp(2);
         obj = maybe_cast_profiled_obj(obj, k);
         dec_sp(2);
-        if (obj->is_InlineTypeBase()) {
-          assert(obj->as_InlineTypeBase()->is_allocated(&_gvn), "must be allocated");
-          obj = obj->as_InlineTypeBase()->get_oop();
+        if (obj->is_InlineType()) {
+          assert(obj->as_InlineType()->is_allocated(&_gvn), "must be allocated");
+          obj = obj->as_InlineType()->get_oop();
         }
         // Make the CmpP use the casted obj
         addp = basic_plus_adr(obj, addp->in(AddPNode::Offset));
@@ -3376,10 +3376,10 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = null();
     b = pop();
-    if (b->is_InlineTypeBase()) {
+    if (b->is_InlineType()) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive
-      c = _gvn.transform(new CmpINode(b->as_InlineTypeBase()->get_is_init(), zerocon(T_INT)));
+      c = _gvn.transform(new CmpINode(b->as_InlineType()->get_is_init(), zerocon(T_INT)));
     } else {
       if (!_gvn.type(b)->speculative_maybe_null() &&
           !too_many_traps(Deoptimization::Reason_speculate_null_check)) {

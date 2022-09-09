@@ -875,7 +875,7 @@ class GraphKit : public Phase {
                      Node* slow_test = NULL,
                      Node* *return_size_val = NULL,
                      bool deoptimize_on_exception = false,
-                     InlineTypeBaseNode* inline_type_node = NULL);
+                     InlineTypeNode* inline_type_node = NULL);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);

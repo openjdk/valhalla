@@ -572,7 +572,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   // Subtract the offset of the first field to account for the missing oop header
   offset -= vk->first_field_offset();
   // Create a new InlineTypeNode and retrieve the field values from memory
-  InlineTypePtrNode* vt = InlineTypeBaseNode::make_uninitialized(_igvn, vk);
+  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk);
   transform_later(vt);
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
@@ -691,21 +691,22 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         } else {
           safepoints.append_if_missing(sfpt);
         }
-      } else if (use->is_InlineTypePtr() && use->as_InlineTypePtr()->get_oop() == res) {
-        // Process users
-        // TODO only process users if they are not a flat field of an InlineTypePtrNode (i.e. do we need to process a non-flat field?)
+      } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
+        // Look at uses
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
           Node* u = use->fast_out(k);
-          if (!u->is_InlineTypePtr()) {
-            worklist.push(u);
-          } else {
-            InlineTypeBaseNode* vt = u->as_InlineTypeBase();
+          if (u->is_InlineType()) {
+            // Use in flat field can be eliminated
+            InlineTypeNode* vt = u->as_InlineType();
             for (uint i = 0; i < vt->field_count(); ++i) {
               if (vt->field_value(i) == use && !vt->field_is_flattened(i)) {
-                can_eliminate = false;
+                can_eliminate = false; // Use in non-flattened field
                 break;
               }
             }
+          } else {
+            // Add other uses to the worklist to process individually
+            worklist.push(u);
           }
         }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
@@ -929,11 +930,11 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         // to be able scalar replace the allocation.
         if (field_val->is_EncodeP()) {
           field_val = field_val->in(1);
-        } else if (!field_val->is_InlineTypeBase()) {
+        } else if (!field_val->is_InlineType()) {
           field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
         }
       }
-      if (field_val->is_InlineTypeBase()) {
+      if (field_val->is_InlineType()) {
         // Keep track of inline types to scalarize them later
         value_worklist.push(field_val);
       }
@@ -954,7 +955,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   // because Deoptimization::reassign_flat_array_elements needs field values.
   bool allow_oop = res_type != NULL && (!res_type->isa_aryptr() || !res_type->is_aryptr()->is_flat());
   for (uint i = 0; i < value_worklist.size(); ++i) {
-    InlineTypeBaseNode* vt = value_worklist.at(i)->as_InlineTypeBase();
+    InlineTypeNode* vt = value_worklist.at(i)->as_InlineType();
     vt->make_scalar_in_safepoints(&_igvn, allow_oop);
   }
   return true;
@@ -1041,25 +1042,18 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           }
         }
         _igvn._worklist.push(ac);
-// TODO this made sure that we did not keep allocations alive for flat field vals but isn't this an issue for not-flat fields as well? Probably not .. draw examples
-// For InlineTypeNodes we knew that oop was optional but for ptr users we don't know that
-/*
--      } else if (use->is_InlineType()) {
--        assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
--        _igvn.rehash_node_delayed(use);
--        use->isa_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
-*/
-      } else if (use->is_InlineTypePtr()) {
-        assert(use->as_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
+      } else if (use->is_InlineType()) {
+        assert(use->as_InlineType()->get_oop() == res, "unexpected inline type ptr use");
+        // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
-        use->as_InlineTypePtr()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
-        // TODO refactor + comment
-        _igvn.set_type(use, _igvn.type(use)->isa_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot));
-        use->as_InlineTypeBase()->set_type(_igvn.type(use)->isa_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot));
+        use->as_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
+        _igvn.set_type(use, toop);
+        use->as_InlineType()->set_type(toop);
         // Process users
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
           Node* u = use->fast_out(k);
-          if (!u->is_InlineTypePtr()) {
+          if (!u->is_InlineType()) {
             worklist.push(u);
           }
         }
@@ -1191,8 +1185,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      // TODO
-      // assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
+      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
       return false;
     }
   }
@@ -2239,7 +2232,7 @@ void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
 
   assert(unc->peek_monitor_box() == lock->box_node(), "wrong monitor");
   assert((obj_type->is_inlinetypeptr() && unc->peek_monitor_obj()->is_SafePointScalarObject()) ||
-         (obj->is_InlineTypePtr() && obj->in(1) == unc->peek_monitor_obj()) ||
+         (obj->is_InlineType() && obj->in(1) == unc->peek_monitor_obj()) ||
          (obj == unc->peek_monitor_obj()), "wrong monitor");
 
   // pop monitor and push obj back on stack: we trap before the monitorenter

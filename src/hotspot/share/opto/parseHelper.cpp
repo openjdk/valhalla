@@ -333,7 +333,7 @@ void Parse::do_aconst_init() {
     if (stopped())  return;
   }
 
-  push(InlineTypeBaseNode::make_default(_gvn, vk));
+  push(InlineTypeNode::make_default(_gvn, vk));
 }
 
 //------------------------------do_withfield------------------------------------
@@ -349,22 +349,22 @@ void Parse::do_withfield() {
   Node* val = pop_node(field->layout_type());
   Node* holder = pop();
 
-  if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
+  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
     assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
-    val = InlineTypeBaseNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
-  } else if (val->is_InlineTypeBase() && !field->is_null_free()) {
+    val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
+  } else if (val->is_InlineType() && !field->is_null_free()) {
     // Field value needs to be allocated because it can be merged with an oop.
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     int nargs = 1 + field->type()->size();
     inc_sp(nargs);
-    val = val->as_InlineTypeBase()->buffer(this);
+    val = val->as_InlineType()->buffer(this);
   }
 
   // Clone the inline type node and set the new field value
-  InlineTypePtrNode* new_vt = InlineTypeBaseNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
+  InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
   for (uint i = 2; i < holder->req(); ++i) {
     new_vt->set_req(i, holder->in(i));
   }

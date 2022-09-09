@@ -776,9 +776,9 @@ void Parse::do_call() {
     if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
     }
-    if (rtype->basic_type() == T_PRIMITIVE_OBJECT && !peek()->is_InlineTypeBase()) {
+    if (rtype->basic_type() == T_PRIMITIVE_OBJECT && !peek()->is_InlineType()) {
       Node* retnode = pop();
-      retnode = InlineTypeBaseNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
+      retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_PRIMITIVE_OBJECT, retnode);
     }
   }

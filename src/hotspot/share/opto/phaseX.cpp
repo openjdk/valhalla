@@ -1614,10 +1614,10 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
 
     // Inline type nodes can have other inline types as users. If an input gets
     // updated, make sure that inline type users get a chance for optimization.
-    if (use->is_InlineTypeBase()) {
+    if (use->is_InlineType()) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
         Node* u = use->fast_out(i2);
-        if (u->is_InlineTypeBase())
+        if (u->is_InlineType())
           _worklist.push(u);
       }
     }

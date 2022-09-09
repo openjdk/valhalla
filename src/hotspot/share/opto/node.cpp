@@ -580,7 +580,7 @@ Node *Node::clone() const {
     n->as_SafePoint()->clone_jvms(C);
     n->as_SafePoint()->clone_replaced_nodes();
   }
-  if (n->is_InlineTypeBase()) {
+  if (n->is_InlineType()) {
     C->add_inline_type(n);
   }
   return n;                     // Return the clone
@@ -665,7 +665,7 @@ void Node::destruct(PhaseValues* phase) {
   if (for_post_loop_opts_igvn()) {
     compile->remove_from_post_loop_opts_igvn(this);
   }
-  if (is_InlineTypeBase()) {
+  if (is_InlineType()) {
     compile->remove_inline_type(this);
   }
 
@@ -2984,7 +2984,7 @@ void Node::verify_edges(Unique_Node_List &visited) {
       assert( cnt == 0,"Mismatched edge count.");
     } else if (n == NULL) {
       assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy() ||
-             (is_Allocate() && i >= AllocateNode::InlineTypeNode) ||
+             (is_Allocate() && i >= AllocateNode::InlineType) ||
              (is_Unlock() && i == req()-1)
               || (is_MemBar() && i == 5), // the precedence edge to a membar can be removed during macro node expansion
              "only region, phi, arraycopy, allocate or unlock nodes have null data edges");

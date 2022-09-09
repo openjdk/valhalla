@@ -910,7 +910,7 @@ public:
     KlassNode,                        // type (maybe dynamic) of the obj.
     InitialTest,                      // slow-path test (may be constant)
     ALength,                          // array length (or TOP if none)
-    InlineTypeNode,                   // InlineTypeNode if this is an inline type allocation
+    InlineType,                   // InlineTypeNode if this is an inline type allocation
     DefaultValue,                     // default value in case of non-flattened inline type array
     RawDefaultValue,                  // same as above but as raw machine word
     ParmLimit
@@ -922,7 +922,7 @@ public:
     fields[KlassNode]   = TypeInstPtr::NOTNULL;
     fields[InitialTest] = TypeInt::BOOL;
     fields[ALength]     = t;  // length (can be a bad length)
-    fields[InlineTypeNode] = Type::BOTTOM;
+    fields[InlineType] = Type::BOTTOM;
     fields[DefaultValue] = TypeInstPtr::NOTNULL;
     fields[RawDefaultValue] = TypeX_X;
 
@@ -947,7 +947,7 @@ public:
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
                Node *size, Node *klass_node, Node *initial_test,
-               InlineTypeBaseNode* inline_type_node = NULL);
+               InlineTypeNode* inline_type_node = NULL);
   // Expansion modifies the JVMState, so we need to deep clone it
   virtual bool needs_deep_clone_jvms(Compile* C) { return true; }
   virtual int Opcode() const;

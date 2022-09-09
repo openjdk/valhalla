@@ -2299,8 +2299,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     inline_klass = mirror_type->as_inline_klass();
   }
 
-  if (base->is_InlineTypeBase()) {
-    InlineTypeBaseNode* vt = base->as_InlineTypeBase();
+  if (base->is_InlineType()) {
+    InlineTypeNode* vt = base->as_InlineType();
     if (is_store) {
       if (!vt->is_allocated(&_gvn)) {
         return false;
@@ -2504,16 +2504,16 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
           int offset = adr_type->is_instptr()->offset();
-          p = InlineTypeBaseNode::make_from_flattened(this, inline_klass, base, base, holder, offset, decorators);
+          p = InlineTypeNode::make_from_flattened(this, inline_klass, base, base, holder, offset, decorators);
         } else {
-          p = InlineTypeBaseNode::make_from_flattened(this, inline_klass, base, adr, NULL, 0, decorators);
+          p = InlineTypeNode::make_from_flattened(this, inline_klass, base, adr, NULL, 0, decorators);
         }
       } else {
         p = access_load_at(heap_base_oop, adr, adr_type, value_type, type, decorators);
         const TypeOopPtr* ptr = value_type->make_oopptr();
         if (ptr != NULL && ptr->is_inlinetypeptr()) {
           // Load a non-flattened inline type from memory
-          p = InlineTypeBaseNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
+          p = InlineTypeNode::make_from_oop(this, p, ptr->inline_klass(), !ptr->maybe_null());
         }
       }
       // Normalize the value returned by getBoolean in the following cases
@@ -2557,18 +2557,17 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineTypeBase()->store_flattened(this, base, base, holder, offset, decorators);
+        val->as_InlineType()->store_flattened(this, base, base, holder, offset, decorators);
       } else {
-        val->as_InlineTypeBase()->store_flattened(this, base, adr, NULL, 0, decorators);
+        val->as_InlineType()->store_flattened(this, base, adr, NULL, 0, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
     }
   }
 
-  // TODO
-  if (argument(1)->is_InlineTypeBase() && is_store) {
-    InlineTypeBaseNode* value = InlineTypeBaseNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
+  if (argument(1)->is_InlineType() && is_store) {
+    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
     value = value->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
@@ -2579,7 +2578,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
-  if (!value->is_InlineTypeBase()) {
+  if (!value->is_InlineType()) {
     return false;
   }
 
@@ -2588,18 +2587,17 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineTypeBase()->make_larval(this, true));
+  set_result(value->as_InlineType()->make_larval(this, true));
   return true;
 }
 
 bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   Node* receiver = argument(0);
   Node* buffer = argument(1);
-  // TODO fix this
-  if (!buffer->is_InlineTypeBase()) {
+  if (!buffer->is_InlineType()) {
     return false;
   }
-  InlineTypeBaseNode* vt = buffer->as_InlineTypeBase();
+  InlineTypeNode* vt = buffer->as_InlineType();
   if (!vt->is_allocated(&_gvn)) {
     return false;
   }
@@ -2818,17 +2816,17 @@ bool LibraryCallKit::inline_unsafe_load_store(const BasicType type, const LoadSt
   if (is_reference_type(type)) {
     decorators |= IN_HEAP | ON_UNKNOWN_OOP_REF;
 
-    if (oldval != NULL && oldval->is_InlineTypeBase()) {
+    if (oldval != NULL && oldval->is_InlineType()) {
       // Re-execute the unsafe access if allocation triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      oldval = oldval->as_InlineTypeBase()->buffer(this)->get_oop();
+      oldval = oldval->as_InlineType()->buffer(this)->get_oop();
     }
-    if (newval != NULL && newval->is_InlineTypeBase()) {
+    if (newval != NULL && newval->is_InlineType()) {
       // Re-execute the unsafe access if allocation triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      newval = newval->as_InlineTypeBase()->buffer(this)->get_oop();
+      newval = newval->as_InlineType()->buffer(this)->get_oop();
     }
 
     // Transformation of a value which could be NULL pointer (CastPP #NULL)
@@ -2995,7 +2993,7 @@ bool LibraryCallKit::inline_unsafe_allocate() {
   Node* obj = NULL;
   const TypeInstKlassPtr* tkls = _gvn.type(kls)->isa_instklassptr();
   if (tkls != NULL && tkls->instance_klass()->is_inlinetype()) {
-    obj = InlineTypeBaseNode::make_default(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
+    obj = InlineTypeNode::make_default(_gvn, tkls->instance_klass()->as_inline_klass())->buffer(this);
   } else {
     obj = new_instance(kls, test);
   }
@@ -4539,7 +4537,6 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
   Node* obj = argument(0);
 
-  // TODO
   if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
   }
@@ -4660,7 +4657,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 // Build special case code for calls to getClass on an object.
 bool LibraryCallKit::inline_native_getClass() {
   Node* obj = argument(0);
-  if (obj->is_InlineTypeBase()) {
+  if (obj->is_InlineType()) {
     const Type* t = _gvn.type(obj);
     if (t->maybe_null()) {
       null_check(obj);

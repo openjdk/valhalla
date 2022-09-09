@@ -50,9 +50,9 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineTypeBase()) {
+  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
     assert(is_get, "inline type field store not supported");
-    InlineTypeBaseNode* vt = peek()->as_InlineTypeBase();
+    InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
     pop();
     Node* value = vt->field_value_by_offset(field->offset());
@@ -145,10 +145,10 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   Node* ld = NULL;
   if (field->is_null_free() && field_klass->as_inline_klass()->is_empty()) {
     // Loading from a field of an empty inline type. Just return the default instance.
-    ld = InlineTypeBaseNode::make_default(_gvn, field_klass->as_inline_klass());
+    ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
   } else if (field->is_flattened()) {
     // Loading from a flattened inline type field.
-    ld = InlineTypeBaseNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
+    ld = InlineTypeNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
   } else {
     // Build the resultant type of the load
     const Type* type;
@@ -188,7 +188,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
     if (field_klass->is_inlinetype()) {
       // Load a non-flattened inline type from memory
-      ld = InlineTypeBaseNode::make_from_oop(this, ld, field_klass->as_inline_klass(), field->is_null_free());
+      ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass(), field->is_null_free());
     }
   }
 
@@ -235,11 +235,11 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     return;
   } else if (field->is_flattened()) {
     // Storing to a flattened inline type field.
-    if (!val->is_InlineTypeBase()) {
-      val = InlineTypeBaseNode::make_from_oop(this, val, field->type()->as_inline_klass());
+    if (!val->is_InlineType()) {
+      val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineTypeBase()->store_flattened(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset);
     dec_sp(1);
   } else {
     // Store the value.

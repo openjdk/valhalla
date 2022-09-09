@@ -1963,8 +1963,8 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
-  InlineTypeBaseNode* vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
+InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -1987,21 +1987,21 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       n = n->in(1);
     }
     if (phase->type(n)->is_zero_type()) {
-      n = InlineTypePtrNode::make_null(*phase, vk);
+      n = InlineTypeNode::make_null(*phase, vk);
     } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle phis during IGVN");
       n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, is_init));
     }
     while (casts.size() != 0) {
-      // Push the cast(s) through the InlineTypePtrNode
+      // Push the cast(s) through the InlineTypeNode
       Node* cast = casts.pop()->clone();
-      cast->set_req_X(1, n->as_InlineTypePtr()->get_oop(), phase);
+      cast->set_req_X(1, n->as_InlineType()->get_oop(), phase);
       n = n->clone();
-      n->as_InlineTypePtr()->set_oop(phase->transform(cast));
+      n->as_InlineType()->set_oop(phase->transform(cast));
       n = phase->transform(n);
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, n->as_InlineTypeBase(), i, transform);
+    vt->merge_with(phase, n->as_InlineType(), i, transform);
   }
   return vt;
 }
@@ -2541,7 +2541,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     bool only_phi = (outcnt() != 0);
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* n = fast_out(i);
-      if (n->is_InlineTypePtr() && n->in(1) == this) {
+      if (n->is_InlineType() && n->in(1) == this) {
         can_optimize = false;
         break;
       }
@@ -2570,10 +2570,10 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           n = n->in(1);
         }
         const Type* t = phase->type(n);
-        if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->can_merge() &&
+        if (n->is_InlineType() && n->as_InlineType()->can_merge() &&
             (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
-          if (phase->find_int_con(n->as_InlineTypeBase()->get_is_init(), 0) != 1) {
+          if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
             is_init = false;
           }
         } else if (n->is_Phi() && can_reshape && (n->bottom_type()->isa_ptr() || n->bottom_type()->isa_inlinetype())) {

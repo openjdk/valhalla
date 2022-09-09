@@ -166,8 +166,7 @@ class SubTypeCheckNode;
 class Type;
 class TypeNode;
 class UnlockNode;
-class InlineTypeBaseNode;
-class InlineTypePtrNode;
+class InlineTypeNode;
 class VectorNode;
 class LoadVectorNode;
 class LoadVectorMaskedNode;
@@ -718,9 +717,7 @@ public:
         DEFINE_CLASS_ID(CompressV, Vector, 4)
         DEFINE_CLASS_ID(ExpandV, Vector, 5)
         DEFINE_CLASS_ID(CompressM, Vector, 6)
-      DEFINE_CLASS_ID(InlineTypeBase, Type, 8)
-        DEFINE_CLASS_ID(InlineType, InlineTypeBase, 0)
-        DEFINE_CLASS_ID(InlineTypePtr, InlineTypeBase, 1)
+      DEFINE_CLASS_ID(InlineType, Type, 8)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -953,8 +950,7 @@ public:
   DEFINE_CLASS_QUERY(Sub)
   DEFINE_CLASS_QUERY(SubTypeCheck)
   DEFINE_CLASS_QUERY(Type)
-  DEFINE_CLASS_QUERY(InlineTypeBase)
-  DEFINE_CLASS_QUERY(InlineTypePtr)
+  DEFINE_CLASS_QUERY(InlineType)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(VectorMaskCmp)
   DEFINE_CLASS_QUERY(VectorUnbox)
