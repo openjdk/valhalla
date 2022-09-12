@@ -60,7 +60,7 @@ public class PrimitiveClass {
      *         this class or interface
      * @since Valhalla
      */
-    public static <T> Class<?> asPrimaryType(Class<T> aClass) {
+    public static Class<?> asPrimaryType(Class<?> aClass) {
         return javaLangAccess.asPrimaryType(aClass);
     }
 
@@ -78,7 +78,8 @@ public class PrimitiveClass {
      *         is not a primitive class
      * @since Valhalla
      */
-    public static <T> Class<?> asValueType(Class<T> aClass) {
+    @SuppressWarnings("unchecked")
+    public static Class<?> asValueType(Class<?> aClass) {
         return javaLangAccess.asValueType(aClass);
     }
 
@@ -102,7 +103,7 @@ public class PrimitiveClass {
      * the primary type of this class or interface
      * @since Valhalla
      */
-    public static <T> boolean isPrimaryType(Class<T> aClass) {
+    public static boolean isPrimaryType(Class<?> aClass) {
         return javaLangAccess.isPrimaryType(aClass);
 
     }
@@ -115,7 +116,7 @@ public class PrimitiveClass {
      * the value type of a primitive class
      * @since Valhalla
      */
-    public static <T> boolean isPrimitiveValueType(Class<T> aClass) {
+    public static boolean isPrimitiveValueType(Class<?> aClass) {
         return javaLangAccess.isPrimitiveValueType(aClass);
     }
 
@@ -139,7 +140,7 @@ public class PrimitiveClass {
      * @see #asValueType(Class)
      * @since Valhalla
      */
-    public static <T> boolean isPrimitiveClass(Class<T> aClass) {
+    public static boolean isPrimitiveClass(Class<?> aClass) {
         return javaLangAccess.isPrimitiveClass(aClass);
 
     }
