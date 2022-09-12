@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test value bootstrap methods
- * @modules java.base/jdk.internal.value:+open
+ * @modules java.base/jdk.internal.value
  * @run main/othervm -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
  */
 

@@ -28,15 +28,15 @@ package jdk.internal.value;
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 
-import java.lang.reflect.Method;
-
 /**
  * Utilities to access Primitive Classes as described in JEP 401.
  */
 public class PrimitiveClass {
 
-    // ACC_PRIMITIVE from JEP 401
-    private static final int PRIMITIVE_CLASS = 0x00000800;
+    /**
+     * ACC_PRIMITIVE modifier defined by JEP 401. Subject to change.
+     */
+    public static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static final JavaLangAccess javaLangAccess = SharedSecrets.getJavaLangAccess();
 

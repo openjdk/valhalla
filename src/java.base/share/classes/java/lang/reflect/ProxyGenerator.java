@@ -968,7 +968,7 @@ final class ProxyGenerator extends ClassWriter {
                     "(Ljava/lang/String;Z" + LJL_CLASSLOADER + ")Ljava/lang/Class;",
                     false);
             if (PrimitiveClass.isPrimitiveValueType(cl)) {
-              mv.visitMethodInsn(INVOKESTATIC,
+                mv.visitMethodInsn(INVOKESTATIC,
                       "jdk/internal/value/PrimitiveClass",
                       "asValueType", "(Ljava/lang/Class;)Ljava/lang/Class;",
                       false);

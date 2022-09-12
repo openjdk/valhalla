@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Test ObjectMethods::bootstrap call via condy
- * @modules java.base/jdk.internal.value:+open
+ * @modules java.base/jdk.internal.value
  * @modules java.base/jdk.internal.org.objectweb.asm
  * @run testng/othervm ObjectMethodsViaCondy
  */

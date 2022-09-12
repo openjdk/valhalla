@@ -538,7 +538,9 @@ public interface JavaLangAccess {
     /**
      * Creates a new StackWalker
      */
-    StackWalker newStackWalkerInstance(Set<StackWalker.Option> options, ContinuationScope contScope, Continuation continuation);
+    StackWalker newStackWalkerInstance(Set<StackWalker.Option> options,
+                                       ContinuationScope contScope,
+                                       Continuation continuation);
 
     /**
      * {@return the primary class for a primitive class}

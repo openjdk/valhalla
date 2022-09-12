@@ -27,7 +27,7 @@
  * @test
  * @bug 8265423
  * @summary Experimental support for generating a single class file per primitive class
- * @modules java.base/jdk.internal.value:+open
+ * @modules java.base/jdk.internal.value
  * @run main UnifiedPrimitiveClassNestHostTest
  */
 

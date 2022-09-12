@@ -78,6 +78,7 @@ import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.invoke.util.Wrapper;
@@ -203,8 +204,6 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int VALUE_CLASS     = 0x00000040;
-    private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
     static {
@@ -634,7 +633,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     /* package */ boolean isPrimitiveClass() {
-        return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
+        return (this.getModifiers() & PrimitiveClass.PRIMITIVE_CLASS) != 0;
     }
 
     /**
