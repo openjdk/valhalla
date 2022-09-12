@@ -117,19 +117,20 @@ public interface JavaLangAccess {
 
     /**
      * Registers a shutdown hook.
-     * <p>
+     *
      * It is expected that this method with registerShutdownInProgress=true
      * is only used to register DeleteOnExitHook since the first file
      * may be added to the delete on exit list by the application shutdown
      * hooks.
      *
-     * @param slot                       the slot in the shutdown hook array, whose element
-     *                                   will be invoked in order during shutdown
+     * @param slot  the slot in the shutdown hook array, whose element
+     *              will be invoked in order during shutdown
      * @param registerShutdownInProgress true to allow the hook
-     *                                   to be registered even if the shutdown is in progress.
-     * @param hook                       the hook to be registered
+     *        to be registered even if the shutdown is in progress.
+     * @param hook  the hook to be registered
+     *
      * @throws IllegalStateException if shutdown is in progress and
-     *                               the slot is not valid to register.
+     *         the slot is not valid to register.
      */
     void registerShutdownHook(int slot, boolean registerShutdownInProgress, Runnable hook);
 
@@ -191,7 +192,7 @@ public interface JavaLangAccess {
     /**
      * Defines a new module to the Java virtual machine. The module
      * is defined to the given class loader.
-     * <p>
+     *
      * The URI is for information purposes only, it can be {@code null}.
      */
     Module defineModule(ClassLoader loader, ModuleDescriptor descriptor, URI uri);
@@ -204,7 +205,7 @@ public interface JavaLangAccess {
     /**
      * Updates the readability so that module m1 reads m2. The new read edge
      * does not result in a strong reference to m2 (m2 can be GC'ed).
-     * <p>
+     *
      * This method is the same as m1.addReads(m2) but without a permission check.
      */
     void addReads(Module m1, Module m2);
@@ -302,12 +303,12 @@ public interface JavaLangAccess {
     /**
      * Constructs a new {@code String} by decoding the specified subarray of
      * bytes using the specified {@linkplain java.nio.charset.Charset charset}.
-     * <p>
+     *
      * The caller of this method shall relinquish and transfer the ownership of
      * the byte array to the callee since the later will not make a copy.
      *
      * @param bytes the byte array source
-     * @param cs    the Charset
+     * @param cs the Charset
      * @return the newly created string
      * @throws CharacterCodingException for malformed or unmappable bytes
      */
@@ -315,14 +316,14 @@ public interface JavaLangAccess {
 
     /**
      * Encode the given string into a sequence of bytes using the specified Charset.
-     * <p>
+     *
      * This method avoids copying the String's internal representation if the input
      * is ASCII.
-     * <p>
+     *
      * This method throws CharacterCodingException instead of replacing when
      * malformed input or unmappable characters are encountered.
      *
-     * @param s  the string to encode
+     * @param s the string to encode
      * @param cs the charset
      * @return the encoded bytes
      * @throws CharacterCodingException for malformed input or unmappable characters
@@ -372,7 +373,6 @@ public interface JavaLangAccess {
 
     /**
      * Set the cause of Throwable
-     *
      * @param cause set t's cause to new value
      */
     void setCause(Throwable t, Throwable cause);
@@ -413,7 +413,6 @@ public interface JavaLangAccess {
 
     /**
      * Direct access to Shutdown.exit to avoid security manager checks
-     *
      * @param statusCode the status code
      */
     void exit(int statusCode);
@@ -512,14 +511,12 @@ public interface JavaLangAccess {
 
     /**
      * Parks the current virtual thread.
-     *
      * @throws WrongThreadException if the current thread is not a virtual thread
      */
     void parkVirtualThread();
 
     /**
      * Parks the current virtual thread for up to the given waiting time.
-     *
      * @param nanos the maximum number of nanoseconds to wait
      * @throws WrongThreadException if the current thread is not a virtual thread
      */
@@ -528,9 +525,8 @@ public interface JavaLangAccess {
     /**
      * Re-enables a virtual thread for scheduling. If the thread was parked then
      * it will be unblocked, otherwise its next attempt to park will not block
-     *
      * @param thread the virtual thread to unpark
-     * @throws IllegalArgumentException   if the thread is not a virtual thread
+     * @throws IllegalArgumentException if the thread is not a virtual thread
      * @throws RejectedExecutionException if the scheduler cannot accept a task
      */
     void unparkVirtualThread(Thread thread);
