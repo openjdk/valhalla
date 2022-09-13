@@ -264,7 +264,7 @@ public class HeapDump {
         Field[] fields = testObj.getClass().getDeclaredFields();
         for (Field testField : fields) {
             boolean isStatic = Modifier.isStatic(testField.getModifiers());
-            boolean isPrimitive = (testField.getModifiers() & 0x0800) != 0; // TBD: until the modifiers settle down
+            boolean isPrimitive = (testField.getModifiers() & PrimitiveClass.PRIMITIVE_CLASS) != 0;
             testField.setAccessible(true);
             objDescr = "- " + (isStatic ? "(static) " : "")
                     + (isPrimitive ? "(primitive) " : "")
