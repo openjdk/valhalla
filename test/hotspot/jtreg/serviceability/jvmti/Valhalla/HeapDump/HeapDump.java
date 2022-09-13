@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @requires vm.jvmti
  * @run main HeapDump
@@ -34,6 +35,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
+import jdk.internal.value.PrimitiveClass;
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.hprof.model.HackJavaValue;
