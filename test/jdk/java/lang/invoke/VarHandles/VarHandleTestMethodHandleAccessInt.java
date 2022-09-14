@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
@@ -222,9 +223,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, 0x01234567, 0x89ABCDEF);
+                success = (boolean) mh.invokeExact(recv, 0x01234567, 0x89ABCDEF);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -239,9 +242,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, 0x89ABCDEF, 0x01234567);
+                success = (boolean) mh.invokeExact(recv, 0x89ABCDEF, 0x01234567);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -256,9 +261,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, 0x01234567, 0x89ABCDEF);
+                success = (boolean) mh.invokeExact(recv, 0x01234567, 0x89ABCDEF);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -274,8 +281,10 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
 
         {
             boolean success = false;
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, 0x89ABCDEF, 0x01234567);
+                success = (boolean) mh.invokeExact(recv, 0x89ABCDEF, 0x01234567);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -524,9 +533,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(0x01234567, 0x89ABCDEF);
+                success = (boolean) mh.invokeExact(0x01234567, 0x89ABCDEF);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact();
@@ -541,9 +552,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(0x89ABCDEF, 0x01234567);
+                success = (boolean) mh.invokeExact(0x89ABCDEF, 0x01234567);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact();
@@ -551,16 +564,19 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(0x89ABCDEF, 0xCAFEBABE);
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
+            boolean success = (boolean) mh.invokeExact(0x89ABCDEF, 0xCAFEBABE);
             assertEquals(success, false, "failing weakCompareAndSetAcquire int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact();
             assertEquals(x, 0x01234567, "failing weakCompareAndSetAcquire int value");
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(0x01234567, 0x89ABCDEF);
+                success = (boolean) mh.invokeExact(0x01234567, 0x89ABCDEF);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact();
@@ -575,9 +591,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(0x89ABCDEF, 0x01234567);
+                success = (boolean) mh.invokeExact(0x89ABCDEF, 0x01234567);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet int");
             int x = (int) hs.get(TestAccessMode.GET).invokeExact();
@@ -833,9 +851,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, 0x01234567, 0x89ABCDEF);
+                    success = (boolean) mh.invokeExact(array, i, 0x01234567, 0x89ABCDEF);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain int");
                 int x = (int) hs.get(TestAccessMode.GET).invokeExact(array, i);
@@ -850,9 +870,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, 0x89ABCDEF, 0x01234567);
+                    success = (boolean) mh.invokeExact(array, i, 0x89ABCDEF, 0x01234567);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire int");
                 int x = (int) hs.get(TestAccessMode.GET).invokeExact(array, i);
@@ -867,9 +889,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(array, i, 0x01234567, 0x89ABCDEF);
+                    success = (boolean) mh.invokeExact(array, i, 0x01234567, 0x89ABCDEF);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease int");
                 int x = (int) hs.get(TestAccessMode.GET).invokeExact(array, i);
@@ -884,9 +908,11 @@ public class VarHandleTestMethodHandleAccessInt extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, 0x89ABCDEF, 0x01234567);
+                    success = (boolean) mh.invokeExact(array, i, 0x89ABCDEF, 0x01234567);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet int");
                 int x = (int) hs.get(TestAccessMode.GET).invokeExact(array, i);
