@@ -105,7 +105,6 @@ public class PrimitiveClass {
      */
     public static boolean isPrimaryType(Class<?> aClass) {
         return javaLangAccess.isPrimaryType(aClass);
-
     }
 
     /**
@@ -142,6 +141,5 @@ public class PrimitiveClass {
      */
     public static boolean isPrimitiveClass(Class<?> aClass) {
         return javaLangAccess.isPrimitiveClass(aClass);
-
     }
 }
