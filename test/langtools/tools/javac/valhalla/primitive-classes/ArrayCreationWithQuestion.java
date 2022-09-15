@@ -26,7 +26,7 @@
  * @bug 8222634
  * @summary Check array creation with V and V.ref
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile ArrayCreationWithQuestion.java
+ * @compile -XDenablePrimitiveClasses ArrayCreationWithQuestion.java
  * @run main/othervm -Xverify:none ArrayCreationWithQuestion
  * @modules jdk.compiler
  */

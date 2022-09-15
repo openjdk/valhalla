@@ -7,9 +7,9 @@
 
 class ValueAnnotationOnAnonymousClass {
     interface I {}
-    @__primitive__
+    primitive
     public static void main(String args []) {
-        new @__primitive__ I() {
+        new primitive I() {
         };
     }
 }

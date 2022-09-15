@@ -2,8 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8242900
  * @summary Verify various constraints for an inline class's BINARY super types.
- * @compile -XDrawDiagnostics -XDdev SuperclassCollections.java
- * @compile/fail/ref=BinarySuperclassConstraints.out -XDrawDiagnostics -XDdev BinarySuperclassConstraints.java
+ * @compile/fail/ref=BinarySuperclassConstraints.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses BinarySuperclassConstraints.java
  */
 
 public class BinarySuperclassConstraints {

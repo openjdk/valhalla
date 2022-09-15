@@ -5,15 +5,15 @@
  * @compile/fail/ref=ValueAnnotationTest.out -XDrawDiagnostics ValueAnnotationTest.java
  */
 
-@__primitive__
+primitive
 class ValueAnnotationTest01 extends Object { 
 }
 
-@__primitive__
+primitive
 class ValueAnnotationTest02 { 
 }
 
-@java.lang.__primitive__
+primitive
 class ValueAnnotationTest03  { 
     int x = 10;
     ValueAnnotationTest03() {
@@ -21,6 +21,6 @@ class ValueAnnotationTest03  {
     }
 }
 
-@__primitive__
+primitive
 interface ValueAnnotationTest04 { 
 }

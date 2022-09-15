@@ -284,12 +284,9 @@ public class ClassReader {
         verbose         = options.isSet(Option.VERBOSE);
 
         Source source = Source.instance(context);
-        preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
-                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
-        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
 
@@ -489,6 +486,10 @@ public class ClassReader {
         case 'L':
             {
                 // int oldsigp = sigp;
+                if ((char) signature[sigp] == 'Q' && !allowPrimitiveClasses) {
+                    throw badClassFile("bad.class.signature",
+                            Convert.utf2string(signature, sigp, 10));
+                }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
                     throw badClassFile("deprecated inner class signature syntax " +
@@ -548,7 +549,7 @@ public class ClassReader {
      */
     Type classSigToType() {
         byte prefix = signature[sigp];
-        if (prefix != 'L' && prefix != 'Q')
+        if (prefix != 'L' && (!allowPrimitiveClasses || prefix != 'Q'))
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
