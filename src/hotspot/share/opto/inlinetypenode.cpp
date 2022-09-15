@@ -95,8 +95,8 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
   return vt;
 }
 
-// Checks if the inputs of the InlineTypeTypeNode were replaced by PhiNodes
-// for the given region (see InlineTypeTypeNode::clone_with_phis).
+// Checks if the inputs of the InlineTypeNode were replaced by PhiNodes
+// for the given region (see InlineTypeNode::clone_with_phis).
 bool InlineTypeNode::has_phi_inputs(Node* region) {
   // Check oop input
   bool result = get_oop()->is_Phi() && get_oop()->as_Phi()->region() == region;
@@ -114,20 +114,6 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
   }
 #endif
   return result;
-}
-
-// Check if all inline type fields have inline type node values
-bool InlineTypeNode::can_merge() {
-  // TODO is this still needed??
-  for (uint i = 0; i < field_count(); ++i) {
-    ciType* type = field_type(i);
-    Node* val = field_value(i);
-    if (type->is_inlinetype() &&
-        (!val->is_InlineType() || !val->as_InlineType()->can_merge())) {
-      return false;
-    }
-  }
-  return true;
 }
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
@@ -475,8 +461,13 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   Node* not_null_oop = kit->null_check_oop(get_oop(), &not_buffered_ctl, /* never_see_null = */ false, safe_for_replace);
   if (not_buffered_ctl->is_top()) {
     // Already buffered
-    // TODO set buffered?
-    return this;
+    InlineTypeNode* vt = clone()->as_InlineType();
+    vt->_is_buffered = true;
+    vt = kit->gvn().transform(vt)->as_InlineType();
+    if (safe_for_replace) {
+      kit->replace_in_map(this, vt);
+    }
+    return vt;
   }
   Node* buffered_ctl = kit->control();
   kit->set_control(not_buffered_ctl);
@@ -744,11 +735,11 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
     ciType* ft = field_type(i);
     Node* value = field_value(i);
     if (field_is_null_free(i)) {
-      if (!value->as_InlineType()->is_default(gvn)) {
+      if (!value->is_InlineType() || !value->as_InlineType()->is_default(gvn)) {
         return false;
       }
       continue;
-    } else if (ft->is_inlinetype()) {
+    } else if (value->is_InlineType()) {
       value = value->as_InlineType()->get_oop();
     }
     if (!gvn->type(value)->is_zero_type()) {
@@ -807,8 +798,6 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
       if (!null_free) {
         vt->set_oop(oop);
       }
-      // TODO is this correct?
-      vt->_is_buffered = true;
       kit->set_control(gvn.transform(region));
     }
   } else {
@@ -838,8 +827,7 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   // offset of the first field to account for the missing header when loading the values.
   holder_offset -= vk->first_field_offset();
   vt->load(kit, obj, ptr, holder, holder_offset, decorators);
-  // TODO
-  //assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
+  assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
@@ -1080,9 +1068,9 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
 }
 
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
+// Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
 void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
   PhaseIterGVN* igvn = &phase->igvn();
-  // TODO explain that this works by InlineTypeNodes that are inputs to allocate nodes gvn'ing up and that allows detection of redundant allocations
   // Search for allocations of this inline type. Ignore scalar replaceable ones, they
   // will be removed anyway and changing the memory chain will confuse other optimizations.
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {

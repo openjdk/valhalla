@@ -850,9 +850,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   }
 
   // Since all args are passed on the stack, total_args_passed *
+  // Interpreter::stackElementSize is the space we need.
   int total_args_passed = compute_total_args_passed_int(sig_extended);
   assert(total_args_passed >= 0, "total_args_passed is %d", total_args_passed);
-  // Interpreter::stackElementSize is the space we need.
 
   int extraspace = (total_args_passed * Interpreter::stackElementSize);
 

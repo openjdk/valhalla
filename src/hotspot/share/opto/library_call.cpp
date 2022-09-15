@@ -2567,7 +2567,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
+    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
     value = value->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
@@ -2599,6 +2599,10 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
   }
   InlineTypeNode* vt = buffer->as_InlineType();
   if (!vt->is_allocated(&_gvn)) {
+    return false;
+  }
+  // TODO 8239003 Why is this needed?
+  if (AllocateNode::Ideal_allocation(vt->get_oop(), &_gvn) == NULL) {
     return false;
   }
 

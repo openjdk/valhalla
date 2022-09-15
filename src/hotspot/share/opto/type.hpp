@@ -823,7 +823,7 @@ public:
 #endif
 };
 
-// TODO remove
+// TODO 8293800 Remove
 //------------------------------TypeValue---------------------------------------
 // Class of Inline Type Types
 class TypeInlineType : public Type {

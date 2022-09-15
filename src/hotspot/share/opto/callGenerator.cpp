@@ -1069,12 +1069,13 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     Node* m = kit.map()->in(i);
     Node* n = slow_map->in(i);
     const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
-    if (m->is_InlineType() && !t->isa_inlinetype()) {
+    // TODO is this still needed? Always allocate here for stress testing and also in merge?
+    if (m->is_InlineType() && !t->is_inlinetypeptr()) {
       // Allocate inline type in fast path
       m = m->as_InlineType()->buffer(&kit);
       kit.map()->set_req(i, m);
     }
-    if (n->is_InlineType() && !t->isa_inlinetype()) {
+    if (n->is_InlineType() && !t->is_inlinetypeptr()) {
       // Allocate inline type in slow path
       PreserveJVMState pjvms(&kit);
       kit.set_map(slow_map);

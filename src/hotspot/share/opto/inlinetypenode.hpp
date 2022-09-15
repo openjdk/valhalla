@@ -91,7 +91,6 @@ public:
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
   InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init = false);
-  bool can_merge();
   InlineTypeNode* merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform);
   void add_new_path(Node* region);
 
