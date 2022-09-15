@@ -5,15 +5,15 @@
  * @compile/fail/ref=InlineAnnotationTest.out -XDrawDiagnostics InlineAnnotationTest.java
  */
 
-@__primitive__
+primitive
 class InlineAnnotationTest01 extends Object { 
 }
 
-@__primitive__
+primitive
 class InlineAnnotationTest02 { 
 }
 
-@java.lang.__primitive__
+primitive
 class InlineAnnotationTest03  { 
     int x = 10;
     InlineAnnotationTest03() {
@@ -21,6 +21,6 @@ class InlineAnnotationTest03  {
     }
 }
 
-@__primitive__
+primitive
 interface InlineAnnotationTest04 { 
 }
