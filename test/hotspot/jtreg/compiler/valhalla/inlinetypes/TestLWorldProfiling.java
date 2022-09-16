@@ -38,6 +38,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline type specific profiling
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile -XDenablePrimitiveClasses TestLWorldProfiling.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
 

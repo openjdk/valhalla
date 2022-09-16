@@ -25,6 +25,7 @@
  * @test
  * @library /test/lib
  * @requires vm.jvmti
+ * @compile -XDenablePrimitiveClasses HeapDump.java
  * @run main HeapDump
  */
 
