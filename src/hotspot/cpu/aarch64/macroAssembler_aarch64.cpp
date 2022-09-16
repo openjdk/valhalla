@@ -1131,7 +1131,7 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
 
   // Getting the mirror
   ldr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, inline_klass);
+  resolve_oop_handle(obj, inline_klass, temp_reg);
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
