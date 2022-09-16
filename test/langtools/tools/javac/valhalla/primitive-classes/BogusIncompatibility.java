@@ -26,6 +26,7 @@
  * @bug 8214299
  * @summary Strange errors from javac when mixing box and val types.
  * @compile -XDenablePrimitiveClasses BogusIncompatibility.java
+ * @compile -XDenablePrimitiveClasses BogusIncompatibility.java
  */
 
 public class BogusIncompatibility {

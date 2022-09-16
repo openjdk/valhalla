@@ -4630,7 +4630,7 @@ public class JavacParser implements Parser {
                     break;
             }
             if (isIdentityModifier) {
-                checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
         }

@@ -284,6 +284,7 @@ public class ClassReader {
         verbose         = options.isSet(Option.VERBOSE);
 
         Source source = Source.instance(context);
+        preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
         allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
         allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
@@ -817,15 +818,13 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (allowPrimitiveClasses) {
-                        if (sym.isConstructor()  && ((MethodSymbol) sym).type.getParameterTypes().size() == 0) {
-                            int code_length = buf.getInt(bp + 4);
-                            if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
-                                    (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
-                                        buf.getByte( bp + 9) == (byte) ByteCodes.invokespecial &&
-                                                buf.getByte( bp + 12) == (byte) ByteCodes.return_)) {
-                                    sym.flags_field |= EMPTYNOARGCONSTR;
-                            }
+                    if (sym.isConstructor()  && sym.type.getParameterTypes().size() == 0) {
+                        int code_length = buf.getInt(bp + 4);
+                        if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
+                                (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
+                                    buf.getByte( bp + 9) == (byte) ByteCodes.invokespecial &&
+                                            buf.getByte( bp + 12) == (byte) ByteCodes.return_)) {
+                                sym.flags_field |= EMPTYNOARGCONSTR;
                         }
                     }
                     if (saveParameterNames)

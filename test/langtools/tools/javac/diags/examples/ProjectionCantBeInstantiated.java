@@ -22,6 +22,7 @@
  */
 
 // key: compiler.err.projection.cant.be.instantiated
+// options: -XDenablePrimitiveClasses
 
 public primitive class ProjectionCantBeInstantiated {
     int x = 42;
