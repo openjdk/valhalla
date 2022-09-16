@@ -25,7 +25,8 @@
  * @test
  * @bug 8237072
  * @summary Test overload resolution.
-   @run main OverloadingPhaseTest2
+ * @compile -XDenablePrimitiveClasses OverloadingPhaseTest2.java
+ * @run main OverloadingPhaseTest2
  */
 
 public class OverloadingPhaseTest2 {

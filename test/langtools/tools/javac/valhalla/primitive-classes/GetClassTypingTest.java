@@ -27,6 +27,7 @@
  * @test
  * @bug 8271389
  * @summary [lworld] Improve typing of primitiveObject.getClass()
+ * @compile -XDenablePrimitiveClasses GetClassTypingTest.java
  * @run main GetClassTypingTest
  */
 

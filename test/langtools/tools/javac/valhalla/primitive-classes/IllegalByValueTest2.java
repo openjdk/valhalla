@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8209400 8215246
  * @summary Allow anonymous classes to be primitive class types
- * @compile/fail/ref=IllegalByValueTest2.out -XDrawDiagnostics -XDdev IllegalByValueTest2.java
+ * @compile/fail/ref=IllegalByValueTest2.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses IllegalByValueTest2.java
  */
 
 import java.lang.annotation.ElementType;

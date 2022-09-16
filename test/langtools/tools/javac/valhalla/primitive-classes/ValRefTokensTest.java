@@ -27,6 +27,7 @@
  * @test
  * @bug 8264977
  * @summary A primitive class field by name val confuses javac
+ * @compile -XDenablePrimitiveClasses ValRefTokensTest.java
  * @run main ValRefTokensTest
  */
 

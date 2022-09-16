@@ -25,6 +25,8 @@
  * @test
  * @bug 8244796 8244799
  * @summary Temporary typing of inline class literals.
+ * @compile -XDenablePrimitiveClasses ClassLiteralTypingTest.java
+ * @run main ClassLiteralTypingTest
  */
 
 /* Given an inline class V that implements I1, I2, ... In,

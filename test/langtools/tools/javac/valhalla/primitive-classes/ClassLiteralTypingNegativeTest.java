@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8221323
  * @summary  Javac should support class literals for projection types.
- * @compile/fail/ref=ClassLiteralTypingNegativeTest.out -XDrawDiagnostics ClassLiteralTypingNegativeTest.java
+ * @compile/fail/ref=ClassLiteralTypingNegativeTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ClassLiteralTypingNegativeTest.java
  */
 
 public class ClassLiteralTypingNegativeTest {

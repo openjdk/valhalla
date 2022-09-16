@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8215507 8218040
  * @summary javac should NOT forbid conversion from value array to Object[]
- * @compile/fail/ref=CovariantArrayTest.out -XDrawDiagnostics -XDdev CovariantArrayTest.java
+ * @compile/fail/ref=CovariantArrayTest.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses CovariantArrayTest.java
  */
 public class CovariantArrayTest {
     static final primitive class V {

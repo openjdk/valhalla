@@ -27,7 +27,8 @@
  * @test
  * @bug 8257846
  * @summary Separate compilation failure of generic inline class
- * @compile Range.java
+ * @compile -XDenablePrimitiveClasses Range.java
+ * @compile -XDenablePrimitiveClasses SeparateCompileGenerics.java
  * @run main SeparateCompileGenerics
  */
 

@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test value bootstrap methods
+ * @compile -XDenablePrimitiveClasses ValueBootstrapMethodsTest.java
  * @run main/othervm -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
  */
 

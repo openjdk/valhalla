@@ -27,6 +27,7 @@
  * @test
  * @bug 8269956
  * @summary  javac should generate `ldc LPoint;` for class literal Point.class
+ * @compile -XDenablePrimitiveClasses TestReflectiveMirrors.java
  * @run main TestReflectiveMirrors
  */
 

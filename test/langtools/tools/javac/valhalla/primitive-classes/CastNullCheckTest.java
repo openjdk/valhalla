@@ -28,8 +28,8 @@
  * @bug 8215110
  * @summary Check that casting to a value type involves a null check.
  *
- * @compile -XDallowWithFieldOperator Point.java
- * @compile -XDallowWithFieldOperator CastNullCheckTest.java
+ * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses Point.java
+ * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses CastNullCheckTest.java
  * @run main/othervm CastNullCheckTest
  */
 

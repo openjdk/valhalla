@@ -27,6 +27,7 @@
  * @test
  * @bug 8265423
  * @summary Experimental support for generating a single class file per primitive class
+ * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassNestHostTest.java
  * @run main UnifiedPrimitiveClassNestHostTest
  */
 
