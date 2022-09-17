@@ -31,7 +31,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @summary Check object method implemented by the VM behave with inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile ObjectMethods.java
+ * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify

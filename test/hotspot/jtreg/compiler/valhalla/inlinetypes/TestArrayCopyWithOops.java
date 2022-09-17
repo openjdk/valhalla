@@ -26,6 +26,7 @@
  * @bug 8252506
  * @summary Verify that arraycopy intrinsics properly handle flat inline type arrays with oop fields.
  * @library /test/lib
+ * @compile -XDenablePrimitiveClasses TestArrayCopyWithOops.java
  * @run main/othervm -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::test*
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestArrayCopyWithOops::create*
  *                   -Xbatch

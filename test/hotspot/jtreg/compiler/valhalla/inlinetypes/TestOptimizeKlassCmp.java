@@ -26,7 +26,7 @@
  * @bug 8209687
  * @summary Verify that Parse::optimize_cmp_with_klass() works with inline types.
  * @library /test/lib
- * @compile TestOptimizeKlassCmp.java
+ * @compile -XDenablePrimitiveClasses TestOptimizeKlassCmp.java
  * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.TestOptimizeKlassCmp
  */
 

@@ -49,6 +49,7 @@ import javax.tools.*;
  * @summary Test data movement with inline types
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
+ * @compile -XDenablePrimitiveClasses CreationErrorTest.java
  * @run main/othervm -Xmx128m
  *                   runtime.valhalla.inlinetypes.CreationErrorTest
  */
