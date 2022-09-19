@@ -101,6 +101,7 @@ SafepointBlob*      SharedRuntime::_polling_page_return_handler_blob;
 UncommonTrapBlob*   SharedRuntime::_uncommon_trap_blob;
 #endif // COMPILER2
 
+nmethod*            SharedRuntime::_cont_doYield_stub;
 
 //----------------------------generate_stubs-----------------------------------
 void SharedRuntime::generate_stubs() {
@@ -2727,7 +2728,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_obj_arg_handler = NULL;
-const int AdapterHandlerLibrary_size = 32*K;
+const int AdapterHandlerLibrary_size = 48*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
