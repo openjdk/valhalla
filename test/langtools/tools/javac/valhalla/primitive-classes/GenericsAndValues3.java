@@ -27,24 +27,21 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile GenericsAndValues2.java
+ * @compile GenericsAndValues3.java
  */
 
-import java.util.function.Consumer;
+import java.util.stream.IntStream;
 
-  @__primitive__ class CaptureBug {
-    final int value;
+primitive class StreamBug {
+  final int value;
   
-    public CaptureBug(int value) {
-      this.value = value;
-    }
-  
-    private static void accept(Consumer<? super CaptureBug.ref> consumer) {
-      consumer.accept(new CaptureBug(3));
-    }
-  
-    public static void main(String[] args) {
-      accept(value -> System.out.println(value));
-    }
+  public StreamBug(int value) {
+    this.value = value;
   }
-
+  
+  public static void main(String[] args) {
+    //var bug = new StreamBug?(7);
+    
+    IntStream.range(0, 10).mapToObj(StreamBug::new).forEach(System.out::println);
+  }
+}
