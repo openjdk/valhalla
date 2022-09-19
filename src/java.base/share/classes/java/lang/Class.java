@@ -78,6 +78,7 @@ import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.invoke.util.Wrapper;
@@ -203,7 +204,6 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
     static {
@@ -632,8 +632,8 @@ public final class Class<T> implements java.io.Serializable,
      * @see #asValueType()
      * @since Valhalla
      */
-    public boolean isPrimitiveClass() {
-        return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
+    /* package */ boolean isPrimitiveClass() {
+        return (this.getModifiers() & PrimitiveClass.PRIMITIVE_CLASS) != 0;
     }
 
     /**
@@ -673,7 +673,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     @IntrinsicCandidate
-    public Class<?> asPrimaryType() {
+    /* package */ Class<?> asPrimaryType() {
         return isPrimitiveClass() ? primaryType : this;
     }
 
@@ -691,7 +691,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     @IntrinsicCandidate
-    public Class<?> asValueType() {
+    /* package */ Class<?> asValueType() {
         if (isPrimitiveClass())
             return secondaryType;
 
@@ -717,7 +717,7 @@ public final class Class<T> implements java.io.Serializable,
      * the primary type of this class or interface
      * @since Valhalla
      */
-    public boolean isPrimaryType() {
+    /* package */ boolean isPrimaryType() {
         if (isPrimitiveClass()) {
             return this == primaryType;
         }
@@ -732,7 +732,7 @@ public final class Class<T> implements java.io.Serializable,
      * the value type of a primitive class
      * @since Valhalla
      */
-    public boolean isPrimitiveValueType() {
+    /* package */ boolean isPrimitiveValueType() {
         return isPrimitiveClass() && this == secondaryType;
     }
 
@@ -1022,8 +1022,6 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="row"> {@code char}    <td style="text-align:center"> {@code C}
      * <tr><th scope="row"> class or interface with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
      *                                      <td style="text-align:center"> {@code L}<em>N</em>{@code ;}
-     * <tr><th scope="row"> {@linkplain #isPrimitiveClass() primitive class} with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
-     *                                      <td style="text-align:center"> {@code Q}<em>N</em>{@code ;}
      * <tr><th scope="row"> {@code double}  <td style="text-align:center"> {@code D}
      * <tr><th scope="row"> {@code float}   <td style="text-align:center"> {@code F}
      * <tr><th scope="row"> {@code int}     <td style="text-align:center"> {@code I}
@@ -1042,14 +1040,8 @@ public final class Class<T> implements java.io.Serializable,
      *     returns "java.lang.String"
      * byte.class.getName()
      *     returns "byte"
-     * Point.class.getName()
-     *     returns "Point"
      * (new Object[3]).getClass().getName()
      *     returns "[Ljava.lang.Object;"
-     * (new Point[3]).getClass().getName()
-     *     returns "[QPoint;"
-     * (new Point.ref[3][4]).getClass().getName()
-     *     returns "[[LPoint;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
@@ -4137,9 +4129,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the object after casting, or null if obj is null
      *
      * @throws ClassCastException if the object is not
-     * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this class is an {@linkplain #isPrimitiveValueType()
-     * primitive value type} and the object is {@code null}
+     * null and is not assignable to the type T.
      *
      * @since 1.5
      */

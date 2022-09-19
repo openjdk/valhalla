@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package java.lang.invoke;
+
+import jdk.internal.value.PrimitiveClass;
 
 import java.security.*;
 import java.lang.reflect.*;
@@ -116,7 +118,7 @@ final class InfoFromMemberName implements MethodHandleInfo {
                 // object constructor
                 throw new IllegalArgumentException("object constructor must be of void return type");
             } else if (MethodHandleNatives.refKindIsMethod(refKind) &&
-                       methodType.returnType() != defc.asValueType()) {
+                       methodType.returnType() != PrimitiveClass.asValueType(defc)) {
                 // TODO: allow to return Object or perhaps one of the supertypes of that class
                 // static init factory
                 throw new IllegalArgumentException("static constructor must be of " + defc.getName());

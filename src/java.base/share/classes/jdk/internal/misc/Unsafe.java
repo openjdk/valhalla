@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
@@ -269,7 +270,7 @@ public final class Unsafe {
      */
     public Object getReference(Object o, long offset, Class<?> pc) {
         Object ref = getReference(o, offset);
-        if (ref == null && pc.isPrimitiveValueType()) {
+        if (ref == null && PrimitiveClass.isPrimitiveValueType(pc)) {
             // If the type of the returned reference is a regular primitive type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(pc);
@@ -279,7 +280,7 @@ public final class Unsafe {
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> pc) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && pc.isPrimitiveValueType()) {
+        if (ref == null && PrimitiveClass.isPrimitiveValueType(pc)) {
             // If the type of the returned reference is a regular primitive type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(pc);
@@ -1548,7 +1549,7 @@ public final class Unsafe {
                                                        Object x);
 
     private final boolean isInlineType(Object o) {
-        return o != null && o.getClass().isPrimitiveClass();
+        return o != null && PrimitiveClass.isPrimitiveClass(o.getClass());
     }
 
     /*
@@ -1562,7 +1563,7 @@ public final class Unsafe {
                                                     Class<?> valueType,
                                                     V expected,
                                                     V x) {
-        if (valueType.isPrimitiveClass() || isInlineType(expected)) {
+        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
             synchronized (valueLock) {
                 Object witness = getReference(o, offset);
                 if (witness == expected) {
@@ -1603,7 +1604,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (valueType.isPrimitiveClass() || isInlineType(expected)) {
+        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
             synchronized (valueLock) {
                 Object witness = getReference(o, offset);
                 if (witness == expected) {
@@ -1685,7 +1686,7 @@ public final class Unsafe {
                                                              Class<?> valueType,
                                                              V expected,
                                                              V x) {
-        if (valueType.isPrimitiveClass() || isInlineType(expected)) {
+        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1711,7 +1712,7 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (valueType.isPrimitiveClass() || isInlineType(expected)) {
+        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1737,7 +1738,7 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (valueType.isPrimitiveClass() || isInlineType(expected)) {
+        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1763,7 +1764,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (valueType.isPrimitiveClass() || isInlineType(expected)) {
+        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);

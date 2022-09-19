@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.*;
 import java.util.function.*;
 
+import jdk.internal.value.PrimitiveClass;
+
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -59,8 +61,8 @@ public class QTypeDescriptorTest {
 
     @Test
     public void testMethodInvoke() throws Exception {
-        Class<?> pointQType = Point.class.asValueType();
-        Class<?> nonFlattenValueQType = NonFlattenValue.class.asValueType();
+        Class<?> pointQType = PrimitiveClass.asValueType(Point.class);
+        Class<?> nonFlattenValueQType = PrimitiveClass.asValueType(NonFlattenValue.class);
         Method m = QTypeDescriptorTest.class
             .getDeclaredMethod("toLine", pointQType, nonFlattenValueQType);
         makeLine(m, P0, NFV);
@@ -107,13 +109,13 @@ public class QTypeDescriptorTest {
     @DataProvider
     static Object[][] descriptors() {
         return new Object[][]{
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.class.asValueType(), NonFlattenValue.class.asValueType()},     true},
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.ref.class, NonFlattenValue.class.asValueType()}, false},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { PrimitiveClass.asValueType(Point.class), PrimitiveClass.asValueType(NonFlattenValue.class)},     true},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.ref.class, PrimitiveClass.asValueType(NonFlattenValue.class)}, false},
             { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point[].class },                         true},
-            { NonFlattenValue.class.asValueType(), "point",      null,                                                     true},
-            { NonFlattenValue.class.asValueType(), "pointValue", null,                                                     true},
-            { NonFlattenValue.class.asValueType(), "has",        new Class<?>[] { Point.class.asValueType(), Point.ref.class},           true},
-            { NonFlattenValue.class.asValueType(), "has",        new Class<?>[] { Point.class.asValueType(), Point.class.asValueType()},               false},
+            { PrimitiveClass.asValueType(NonFlattenValue.class), "point",      null,                                                     true},
+            { PrimitiveClass.asValueType(NonFlattenValue.class), "pointValue", null,                                                     true},
+            { PrimitiveClass.asValueType(NonFlattenValue.class), "has",        new Class<?>[] { PrimitiveClass.asValueType(Point.class), Point.ref.class},           true},
+            { PrimitiveClass.asValueType(NonFlattenValue.class), "has",        new Class<?>[] { PrimitiveClass.asValueType(Point.class), PrimitiveClass.asValueType(Point.class)},               false},
         };
     }
 
@@ -132,11 +134,11 @@ public class QTypeDescriptorTest {
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
             { "point",      MethodType.methodType(Point.ref.class),                                      true },
-            { "pointValue", MethodType.methodType(Point.class.asValueType()),                                          true },
-            { "has",        MethodType.methodType(boolean.class, Point.class.asValueType(), Point.ref.class),          true },
-            { "point",      MethodType.methodType(Point.class.asValueType()),                                          false },
+            { "pointValue", MethodType.methodType(PrimitiveClass.asValueType(Point.class)),                                          true },
+            { "has",        MethodType.methodType(boolean.class, PrimitiveClass.asValueType(Point.class), Point.ref.class),          true },
+            { "point",      MethodType.methodType(PrimitiveClass.asValueType(Point.class)),                                          false },
             { "pointValue", MethodType.methodType(Point.ref.class),                                      false },
-            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class.asValueType()),          false },
+            { "has",        MethodType.methodType(boolean.class, Point.ref.class, PrimitiveClass.asValueType(Point.class)),          false },
             { "point",      MethodType.fromMethodDescriptorString("()LPoint;", loader),        true },
             { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),        false },
             { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),        true },
@@ -149,7 +151,7 @@ public class QTypeDescriptorTest {
     @Test(dataProvider = "methodTypes")
     public void methodHandleLookup(String name, MethodType mtype, boolean found) throws Throwable {
         try {
-            MethodHandles.lookup().findVirtual(NonFlattenValue.class.asValueType(), name, mtype);
+            MethodHandles.lookup().findVirtual(PrimitiveClass.asValueType(NonFlattenValue.class), name, mtype);
             if (!found) throw new AssertionError("Expected NoSuchMethodException");
         } catch (NoSuchMethodException e) {
             if (found) throw e;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,8 @@ package compiler.valhalla.inlinetypes;
 import java.lang.invoke.*;
 import java.lang.reflect.Method;
 
+import jdk.internal.value.PrimitiveClass;
+
 import jdk.test.lib.Asserts;
 
 import jdk.test.whitebox.WhiteBox;
@@ -33,6 +35,7 @@ import jdk.test.whitebox.WhiteBox;
 /**
  * @test TestDeoptimizationWhenBuffering
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
+ * @modules java.base/jdk.internal.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @build jdk.test.whitebox.WhiteBox
@@ -85,7 +88,7 @@ public class TestDeoptimizationWhenBuffering {
             Class<?> clazz = TestDeoptimizationWhenBuffering.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt = MethodType.methodType(MyValue1.class.asValueType());
+            MethodType mt = MethodType.methodType(PrimitiveClass.asValueType(MyValue1.class));
             test9_mh = lookup.findStatic(clazz, "test9Callee", mt);
             test10_mh = lookup.findStatic(clazz, "test10Callee", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -179,7 +182,7 @@ public class TestDeoptimizationWhenBuffering {
             Asserts.assertEQ(args[0], "C1", "unsupported mode");
             Method m = MyValue1.class.getMethod("testWithField", int.class);
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
-            m = TestDeoptimizationWhenBuffering.class.getMethod("test3Callee", MyValue1.class.asValueType());
+            m = TestDeoptimizationWhenBuffering.class.getMethod("test3Callee", PrimitiveClass.asValueType(MyValue1.class));
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
             m = TestDeoptimizationWhenBuffering.class.getMethod("test9Callee");
             WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
