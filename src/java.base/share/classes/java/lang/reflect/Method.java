@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -131,7 +132,7 @@ public final class Method extends Executable {
            byte[] annotations,
            byte[] parameterAnnotations,
            byte[] annotationDefault) {
-        assert declaringClass.isPrimaryType();
+        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.name = name;
         this.parameterTypes = parameterTypes;

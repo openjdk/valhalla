@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
+
+import jdk.internal.value.PrimitiveClass;
 
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -76,7 +78,7 @@ public class UninitializedValueTest {
 
         // field of primitive value type must be non-null
         Field f1 = v.getClass().getDeclaredField("empty");
-        assertTrue(f1.getType() == EmptyValue.class.asValueType());
+        assertTrue(f1.getType() == PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue empty = (EmptyValue)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
     }
@@ -90,12 +92,12 @@ public class UninitializedValueTest {
 
         // field of primitive value type type must be non-null
         Field f1 = v.getClass().getDeclaredField("empty");
-        assertTrue(f1.getType() == EmptyValue.class.asValueType());
+        assertTrue(f1.getType() == PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue empty = (EmptyValue)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
         Field f2 = v.getClass().getDeclaredField("vempty");
-        assertTrue(f2.getType() == EmptyValue.class.asValueType());
+        assertTrue(f2.getType() == PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue vempty = (EmptyValue)f2.get(v);
         assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
 
@@ -108,7 +110,7 @@ public class UninitializedValueTest {
     @Test
     public void testMethodHandleValue() throws Throwable {
         Value v = new Value();
-        MethodHandle mh = MethodHandles.lookup().findGetter(Value.class.asValueType(), "empty", EmptyValue.class.asValueType());
+        MethodHandle mh = MethodHandles.lookup().findGetter(PrimitiveClass.asValueType(Value.class), "empty", PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue empty = (EmptyValue) mh.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
     }
@@ -116,20 +118,20 @@ public class UninitializedValueTest {
     @Test
     public void testMethodHandleMutableValue() throws Throwable {
         MutableValue v = new MutableValue();
-        MethodHandle getter = MethodHandles.lookup().findGetter(MutableValue.class, "empty", EmptyValue.class.asValueType());
+        MethodHandle getter = MethodHandles.lookup().findGetter(MutableValue.class, "empty", PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue empty = (EmptyValue) getter.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
-        MethodHandle getter1 = MethodHandles.lookup().findGetter(MutableValue.class, "vempty", EmptyValue.class.asValueType());
+        MethodHandle getter1 = MethodHandles.lookup().findGetter(MutableValue.class, "vempty", PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue vempty = (EmptyValue) getter1.invokeExact(v);
         assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
 
-        MethodHandle setter = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyValue.class.asValueType());
+        MethodHandle setter = MethodHandles.lookup().findSetter(MutableValue.class, "empty", PrimitiveClass.asValueType(EmptyValue.class));
         setter.invokeExact(v, new EmptyValue());
         empty = (EmptyValue) getter.invokeExact(v);
         assertTrue(empty == new EmptyValue());
 
-        MethodHandle setter1 = MethodHandles.lookup().findSetter(MutableValue.class, "vempty", EmptyValue.class.asValueType());
+        MethodHandle setter1 = MethodHandles.lookup().findSetter(MutableValue.class, "vempty", PrimitiveClass.asValueType(EmptyValue.class));
         setter1.invokeExact(v, new EmptyValue());
         vempty = (EmptyValue) getter1.invokeExact(v);
         assertTrue(vempty == new EmptyValue());
@@ -152,7 +154,7 @@ public class UninitializedValueTest {
     @Test(expectedExceptions = { NullPointerException.class})
     public void nonNullableField_MethodHandle() throws Throwable {
         MutableValue v = new MutableValue();
-        MethodHandle mh = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyValue.class.asValueType());
+        MethodHandle mh = MethodHandles.lookup().findSetter(MutableValue.class, "empty", PrimitiveClass.asValueType(EmptyValue.class));
         EmptyValue.ref e = null;
         EmptyValue empty = (EmptyValue) mh.invokeExact(v, (EmptyValue)e);
     }

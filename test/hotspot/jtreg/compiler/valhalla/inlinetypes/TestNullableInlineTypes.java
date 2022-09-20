@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,6 +33,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
@@ -40,6 +42,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @test
  * @key randomness
  * @summary Test correct handling of nullable inline types.
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build test.java.lang.invoke.lib.InstructionHelper
@@ -2531,11 +2534,11 @@ public class TestNullableInlineTypes {
 
     private static final MethodHandle refCheckCast = InstructionHelper.loadCode(MethodHandles.lookup(),
         "refCheckCast",
-        MethodType.methodType(MyValue2.class.asPrimaryType(), TestNullableInlineTypes.class, MyValue1.class.asPrimaryType()),
+        MethodType.methodType(PrimitiveClass.asPrimaryType(MyValue2.class), TestNullableInlineTypes.class, PrimitiveClass.asPrimaryType(MyValue1.class)),
         CODE -> {
             CODE.
             aload_1().
-            checkcast(MyValue2.class.asPrimaryType()).
+            checkcast(PrimitiveClass.asPrimaryType(MyValue2.class)).
             return_(TypeTag.A);
         });
 

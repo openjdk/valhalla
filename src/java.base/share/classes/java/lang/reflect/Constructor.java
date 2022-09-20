@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.ConstructorAccessor;
@@ -125,7 +126,7 @@ public final class Constructor<T> extends Executable {
                 String signature,
                 byte[] annotations,
                 byte[] parameterAnnotations) {
-        assert declaringClass.isPrimaryType();
+        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.parameterTypes = parameterTypes;
         this.exceptionTypes = checkedExceptions;

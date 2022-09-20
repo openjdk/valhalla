@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 /**
  * @test TestNewAcmp
  * @summary Verifies correctness of the new acmp bytecode.
+ * @modules java.base/jdk.internal.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile TestNewAcmp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
@@ -49,6 +50,7 @@ import java.util.Arrays;
 import java.util.List;
 import jdk.test.whitebox.WhiteBox;
 
+import jdk.internal.value.PrimitiveClass;
 
 interface MyInterface {
 
@@ -1735,7 +1737,7 @@ public class TestNewAcmp {
             if (args[i] != null && !parameterTypes[0].isInstance(args[i])) {
                 continue;
             }
-            if (args[i] == null && parameterTypes[0] == MyValue1.class.asValueType()) {
+            if (args[i] == null && parameterTypes[0] == PrimitiveClass.asValueType(MyValue1.class)) {
                 continue;
             }
             if (parameterCount == 1) {
@@ -1757,7 +1759,7 @@ public class TestNewAcmp {
                     if (args[j] != null && !parameterTypes[1].isInstance(args[j])) {
                         continue;
                     }
-                    if (args[j] == null && parameterTypes[1] == MyValue1.class.asValueType()) {
+                    if (args[j] == null && parameterTypes[1] == PrimitiveClass.asValueType(MyValue1.class)) {
                         continue;
                     }
                     System.out.print("Testing " + m.getName() + "(" + args[i] + ", " + args[j] + ")");
@@ -1873,6 +1875,7 @@ public class TestNewAcmp {
             "-XX:+WhiteBoxAPI",
             "-Xbatch",
             "-XX:TypeProfileLevel=222",
+            "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
             "-XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestNewAcmp::test*",
             "-XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.TestNewAcmp::cmp*"};
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,11 +25,13 @@
 /*
  * @test
  * @summary test value bootstrap methods
+ * @modules java.base/jdk.internal.value
  * @run main/othervm -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
  */
 
 import java.util.List;
 import java.util.Objects;
+import jdk.internal.value.PrimitiveClass;
 
 public class ValueBootstrapMethodsTest {
 
@@ -46,7 +48,7 @@ public class ValueBootstrapMethodsTest {
         }
 
         private List<Object> values() {
-            return List.of(Value.class.asValueType(), i, d, s, l);
+            return List.of(PrimitiveClass.asValueType(Value.class), i, d, s, l);
         }
 
         public int localHashCode() {
@@ -55,7 +57,7 @@ public class ValueBootstrapMethodsTest {
 
         public String localToString() {
             System.out.println(l);
-            return String.format("%s@%s", Value.class.asValueType().getName(), Integer.toHexString(localHashCode()));
+            return String.format("%s@%s", PrimitiveClass.asValueType(Value.class).getName(), Integer.toHexString(localHashCode()));
         }
 
         @Override

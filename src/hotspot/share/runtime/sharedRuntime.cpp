@@ -2731,7 +2731,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_obj_arg_handler = NULL;
-const int AdapterHandlerLibrary_size = 32*K;
+const int AdapterHandlerLibrary_size = 48*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {

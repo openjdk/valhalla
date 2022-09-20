@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,11 +28,14 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static jdk.test.lib.Asserts.*;
 
 /*
  * @test InlineTypeArray
  * @summary Plain array test for Inline Types
+ * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @compile InlineTypeArray.java Point.java Long8Inline.java Person.java
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
@@ -79,7 +82,7 @@ public class InlineTypeArray {
             arrayCls = Class.forName(qarrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
 
-            assertTrue(arrayCls.getComponentType() == Point.class.asValueType(),
+            assertTrue(arrayCls.getComponentType() == PrimitiveClass.asValueType(Point.class),
                        arrayCls +
                        " Expected component type of Point.class got: " + arrayCls.getComponentType());
 
@@ -286,8 +289,8 @@ public class InlineTypeArray {
         assertTrue(myInts instanceof Comparable[]);
         assertTrue(myInts instanceof MyInt[]);
 
-        Class<?> cls = MyInt.class.asValueType();
-        assertTrue(cls.isPrimitiveValueType());
+        Class<?> cls = PrimitiveClass.asValueType(MyInt.class);
+        assertTrue(PrimitiveClass.isPrimitiveValueType(cls));
         Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");
         assertTrue(arrObj instanceof Comparable[], "Not Comparable array");

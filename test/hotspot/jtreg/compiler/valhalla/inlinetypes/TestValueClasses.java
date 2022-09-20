@@ -36,10 +36,13 @@ import java.lang.reflect.Method;
 import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
+import jdk.internal.value.PrimitiveClass;
+
 /*
  * @test
  * @key randomness
  * @summary Test correct handling of value classes.
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build test.java.lang.invoke.lib.InstructionHelper
@@ -443,11 +446,11 @@ public class TestValueClasses {
     @Run(test = "test10")
     public void test10_verifier() {
         Asserts.assertEQ(test10(MyValueClass1.class, testValue1), testValue1);
-        Asserts.assertEQ(test10(MyValueClass1.class.asPrimaryType(), null), null);
-        Asserts.assertEQ(test10(MyValueClass2.class.asPrimaryType(), null), null);
+        Asserts.assertEQ(test10(PrimitiveClass.asPrimaryType(MyValueClass1.class), null), null);
+        Asserts.assertEQ(test10(PrimitiveClass.asPrimaryType(MyValueClass2.class), null), null);
         Asserts.assertEQ(test10(Integer.class, null), null);
         try {
-            test10(MyValueClass2.class.asPrimaryType(), testValue1);
+            test10(PrimitiveClass.asPrimaryType(MyValueClass2.class), testValue1);
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
