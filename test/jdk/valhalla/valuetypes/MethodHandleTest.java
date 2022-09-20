@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle o primitive classes
+ * @compile -XDenablePrimitiveClasses MethodHandleTest.java
  * @run testng/othervm MethodHandleTest
  */
 

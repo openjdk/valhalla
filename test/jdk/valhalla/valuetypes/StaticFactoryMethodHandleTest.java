@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle of static init factories
+ * @compile -XDenablePrimitiveClasses StaticFactoryMethodHandleTest.java
  * @run testng/othervm StaticFactoryMethodHandleTest
  */
 

@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary Test ConstantDesc for primitive classes
- * @compile --enable-preview --source ${jdk.version} Point.java ValueConstantDesc.java
+ * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses Point.java ValueConstantDesc.java
  * @run testng/othervm --enable-preview ValueConstantDesc
  */
 

@@ -24,7 +24,9 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on primitive class array
+ * @compile -XDenablePrimitiveClasses ValueArray.java
  * @run testng/othervm -XX:FlatArrayElementMaxSize=-1 ValueArray
+ * @compile -XDenablePrimitiveClasses ValueArray.java
  * @run testng/othervm -XX:FlatArrayElementMaxSize=0  ValueArray
  */
 

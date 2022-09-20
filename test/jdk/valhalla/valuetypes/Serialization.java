@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary No Serialization support of primitive classes, without a proxy
- * @build Point Line NonFlattenValue Serialization
+ * @compile -XDenablePrimitiveClasses Point.java Line.java NonFlattenValue.java Serialization.java
  * @run testng/othervm Serialization
  */
 

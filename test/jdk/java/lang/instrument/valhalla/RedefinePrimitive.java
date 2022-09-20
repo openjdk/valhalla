@@ -27,6 +27,7 @@
  * @library /test/lib
  * @summary [lworld] Primitive classes can't be retransformed
  * @modules java.instrument
+ * @compile -XDenablePrimitiveClasses RedefinePrimitive.java
  * @run driver RedefinePrimitive master
  */
 
