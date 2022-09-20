@@ -27,6 +27,7 @@ package jdk.internal.value;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 
 /**
  * Utilities to access Primitive Classes as described in JEP 401.
@@ -60,6 +61,7 @@ public class PrimitiveClass {
      *         this class or interface
      * @since Valhalla
      */
+    @IntrinsicCandidate
     public static Class<?> asPrimaryType(Class<?> aClass) {
         return javaLangAccess.asPrimaryType(aClass);
     }
@@ -79,6 +81,7 @@ public class PrimitiveClass {
      * @since Valhalla
      */
     @SuppressWarnings("unchecked")
+    @IntrinsicCandidate
     public static Class<?> asValueType(Class<?> aClass) {
         return javaLangAccess.asValueType(aClass);
     }
