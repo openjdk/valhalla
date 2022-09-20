@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,9 +27,12 @@
  * @test
  * @bug 8269956
  * @summary  javac should generate `ldc LPoint;` for class literal Point.class
+ * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses TestReflectiveMirrors.java
  * @run main TestReflectiveMirrors
  */
+
+import jdk.internal.value.PrimitiveClass;
 
 public class TestReflectiveMirrors {
 
@@ -45,7 +48,7 @@ public class TestReflectiveMirrors {
             throw new AssertionError("Wrong mirror");
         }
 
-        if (ValDefault.val.class != new ValDefault().getClass().asValueType()) {
+        if (ValDefault.val.class != PrimitiveClass.asValueType(new ValDefault().getClass())) {
             throw new AssertionError("Wrong mirror");
         }
 
@@ -57,7 +60,7 @@ public class TestReflectiveMirrors {
             throw new AssertionError("Wrong mirror");
         }
 
-        if (TestReflectiveMirrors.ValDefault.val.class != new ValDefault().getClass().asValueType()) {
+        if (TestReflectiveMirrors.ValDefault.val.class != PrimitiveClass.asValueType(new ValDefault().getClass())) {
             throw new AssertionError("Wrong mirror");
         }
     }

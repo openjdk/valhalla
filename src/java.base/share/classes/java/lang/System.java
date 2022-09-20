@@ -2631,6 +2631,24 @@ public final class System {
                                                       Continuation continuation) {
                 return StackWalker.newInstance(options, null, contScope, continuation);
             }
+
+            @Override
+            public Class<?> asPrimaryType(Class<?> clazz) {
+                return clazz.asPrimaryType();
+            }
+            public Class<?> asValueType(Class<?> clazz) {
+                return clazz.asValueType();
+            }
+
+            public boolean isPrimaryType(Class<?> clazz) {
+                return clazz.isPrimaryType();
+            }
+            public boolean isPrimitiveValueType(Class<?> clazz) {
+                return clazz.isPrimitiveValueType();
+            }
+            public boolean isPrimitiveClass(Class<?> clazz) {
+                return clazz.isPrimitiveClass();
+            }
         });
     }
 }

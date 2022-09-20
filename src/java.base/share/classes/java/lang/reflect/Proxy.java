@@ -50,6 +50,7 @@ import java.util.function.BooleanSupplier;
 
 import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.module.Modules;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
@@ -876,7 +877,7 @@ public class Proxy implements java.io.Serializable {
                 type = Class.forName(c.getName(), false, ld);
             } catch (ClassNotFoundException e) {
             }
-            if (type.asPrimaryType() != c.asPrimaryType()) {
+            if (PrimitiveClass.asPrimaryType(type) != PrimitiveClass.asPrimaryType(c)) {
                 throw new IllegalArgumentException(c.getName() +
                         " referenced from a method is not visible from class loader");
             }
@@ -1256,7 +1257,7 @@ public class Proxy implements java.io.Serializable {
                         // check if this method is the resolved method if referenced from
                         // this proxy interface (i.e. this method is not implemented
                         // by any other superinterface)
-                        Method m = proxyIntf.getMethod(method.getName(), method.getParameterTypes());
+                        Method m = proxyIntf.getMethod(method.getName(), method.getSharedParameterTypes());
                         if (m.getDeclaringClass() == declaringClass) {
                             return proxyIntf;
                         }
