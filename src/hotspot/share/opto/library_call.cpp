@@ -515,7 +515,9 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
 
   case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asValueType:              return inline_primitive_Class_conversion(intrinsic_id());
+  case vmIntrinsics::_asPrimaryTypeArg:
+  case vmIntrinsics::_asValueType:
+  case vmIntrinsics::_asValueTypeArg:           return inline_primitive_Class_conversion(intrinsic_id());
 
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
@@ -3832,10 +3834,12 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
 }
 
 //-------------------------inline_primitive_Class_conversion-------------------
-// public Class<T> java.lang.Class.asPrimaryType();
-// public Class<T> java.lang.Class.asValueType()
+//               Class<T> java.lang.Class                  .asPrimaryType()
+// public static Class<T> jdk.internal.value.PrimitiveClass.asPrimaryType(Class<T>)
+//               Class<T> java.lang.Class                  .asValueType()
+// public static Class<T> jdk.internal.value.PrimitiveClass.asValueType(Class<T>)
 bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
-  Node* mirror = argument(0); // Receiver Class
+  Node* mirror = argument(0); // Receiver/argument Class
   const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
   if (mirror_con == NULL) {
     return false;
@@ -3845,9 +3849,9 @@ bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
   ciType* tm = mirror_con->java_mirror_type(&is_val_mirror);
   if (tm != NULL) {
     Node* result = mirror;
-    if (id == vmIntrinsics::_asPrimaryType && is_val_mirror) {
+    if ((id == vmIntrinsics::_asPrimaryType || id == vmIntrinsics::_asPrimaryTypeArg) && is_val_mirror) {
       result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->ref_mirror()));
-    } else if (id == vmIntrinsics::_asValueType) {
+    } else if (id == vmIntrinsics::_asValueType || id == vmIntrinsics::_asValueTypeArg) {
       if (!tm->is_inlinetype()) {
         return false; // Throw UnsupportedOperationException
       } else if (!is_val_mirror) {

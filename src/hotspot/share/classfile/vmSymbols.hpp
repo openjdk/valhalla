@@ -605,6 +605,7 @@
   template(class_int_signature,                       "(Ljava/lang/Class;)I")                     \
   template(class_long_signature,                      "(Ljava/lang/Class;)J")                     \
   template(class_boolean_signature,                   "(Ljava/lang/Class;)Z")                     \
+  template(class_class_signature,                     "(Ljava/lang/Class;)Ljava/lang/Class;")     \
   template(throwable_throwable_signature,             "(Ljava/lang/Throwable;)Ljava/lang/Throwable;")             \
   template(throwable_string_void_signature,           "(Ljava/lang/Throwable;Ljava/lang/String;)V")               \
   template(string_array_void_signature,               "([Ljava/lang/String;)V")                                   \
@@ -785,6 +786,7 @@
   template(java_lang_runtime_PrimitiveObjectMethods,        "java/lang/runtime/PrimitiveObjectMethods")           \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
   template(primitiveObjectHashCode_name,                    "primitiveObjectHashCode")                            \
+  template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
                                                                                                                   \
   /* Thread.dump_to_file jcmd */                                                                                  \
   template(jdk_internal_vm_ThreadDumper,           "jdk/internal/vm/ThreadDumper")                                \
