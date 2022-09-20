@@ -2047,7 +2047,6 @@ public class JavacParser implements Parser {
     }
 
     JCExpression lambdaExpressionOrStatementRest(List<JCVariableDecl> args, int pos) {
-        checkSourceLevel(Feature.LAMBDA);
         accept(ARROW);
 
         return token.kind == LBRACE ?
@@ -2183,7 +2182,6 @@ public class JavacParser implements Parser {
         if (token.kind == LT) {
             nextToken();
             if (token.kind == GT && diamondAllowed) {
-                checkSourceLevel(Feature.DIAMOND);
                 mode |= DIAMOND;
                 nextToken();
                 return List.nil();
@@ -3367,7 +3365,7 @@ public class JavacParser implements Parser {
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
-            case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
+            case DEFAULT     : flag = Flags.DEFAULT; break;
             case ERROR       : flag = 0; nextToken(); break;
             case IDENTIFIER  : {
                 if (isNonSealedClassStart(false)) {
@@ -3406,15 +3404,8 @@ public class JavacParser implements Parser {
                     // if first modifier is an annotation, set pos to annotation's.
                     if (flags == 0 && annotations.isEmpty())
                         pos = ann.pos;
-                    final Name name = TreeInfo.name(ann.annotationType);
-                    if (name == names.__primitive__ || name == names.java_lang___primitive__) {
-                        flag = Flags.PRIMITIVE_CLASS;
-                    } else if (name == names.__value__ || name == names.java_lang___value__) {
-                        flag = Flags.VALUE_CLASS;
-                    } else {
-                        annotations.append(ann);
-                        flag = 0;
-                    }
+                    annotations.append(ann);
+                    flag = 0;
                 }
             }
             flags |= flag;

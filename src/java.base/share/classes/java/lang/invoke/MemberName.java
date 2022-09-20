@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.BytecodeDescriptor;
 import sun.invoke.util.VerifyAccess;
 
@@ -191,7 +192,7 @@ final class MemberName implements Member, Cloneable {
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
-        Class<?> c = clazz.isPrimitiveClass() ? clazz.asValueType() : clazz;
+        Class<?> c = PrimitiveClass.isPrimitiveClass(clazz) ? PrimitiveClass.asValueType(clazz) : clazz;
         if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
             return itype.changeReturnType(c);
         if (!isStatic())
@@ -479,7 +480,7 @@ final class MemberName implements Member, Cloneable {
     public boolean isInlineableField()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type.isPrimitiveValueType() || (type.isValue() && !type.isPrimitiveClass());
+            return PrimitiveClass.isPrimitiveValueType(type) || (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
         }
         return false;
     }

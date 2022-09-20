@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,6 +46,8 @@ import java.util.function.Function;
 
 import static java.lang.invoke.MethodType.fromMethodDescriptorString;
 import static java.lang.invoke.MethodType.methodType;
+
+import jdk.internal.value.PrimitiveClass;
 
 public class InstructionHelper {
 
@@ -289,7 +291,7 @@ public class InstructionHelper {
             @Override
             public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isPrimitiveValueType();
+                return aClass != null && PrimitiveClass.isPrimitiveValueType(aClass);
             }
 
             @Override
@@ -299,7 +301,7 @@ public class InstructionHelper {
                         return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
                     } else {
                         Class<?> c = Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
-                        return basicTypeHelper.isInlineClass(desc) ? c.asValueType() : c.asPrimaryType();
+                        return basicTypeHelper.isInlineClass(desc) ? PrimitiveClass.asValueType(c) : PrimitiveClass.asPrimaryType(c);
                     }
                 } catch (ReflectiveOperationException ex) {
                     throw new AssertionError(ex);

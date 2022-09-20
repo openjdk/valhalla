@@ -24,8 +24,9 @@
 /*
  * @test
  * @summary Test ObjectMethods::bootstrap call via condy
+ * @modules java.base/jdk.internal.value
  * @modules java.base/jdk.internal.org.objectweb.asm
- * @run testng ObjectMethodsViaCondy
+ * @run testng/othervm ObjectMethodsViaCondy
  */
 
 import java.io.IOException;
@@ -41,6 +42,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.stream.Stream;
+
+import jdk.internal.value.PrimitiveClass;
 
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.ConstantDynamic;
@@ -68,9 +71,9 @@ public class ObjectMethodsViaCondy {
     public static primitive record PrimitiveRecord(int i, String name) {
         static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
-        static final MethodType EQUALS_DESC = methodType(boolean.class, PrimitiveRecord.class.asValueType(), Object.class);
-        static final MethodType HASHCODE_DESC = methodType(int.class, PrimitiveRecord.class.asValueType());
-        static final MethodType TO_STRING_DESC = methodType(String.class, PrimitiveRecord.class.asValueType());
+        static final MethodType EQUALS_DESC = methodType(boolean.class, PrimitiveClass.asValueType(PrimitiveRecord.class), Object.class);
+        static final MethodType HASHCODE_DESC = methodType(int.class, PrimitiveClass.asValueType(PrimitiveRecord.class));
+        static final MethodType TO_STRING_DESC = methodType(String.class, PrimitiveClass.asValueType(PrimitiveRecord.class));
 
         static final Handle[] ACCESSORS = accessors();
         static final String NAME_LIST = "i;name";
@@ -95,7 +98,7 @@ public class ObjectMethodsViaCondy {
          */
         static MethodHandle makeBootstrapMethod(String methodName) throws Throwable {
             ClassFileBuilder builder = new ClassFileBuilder("Test-" + methodName);
-            builder.bootstrapMethod(methodName, TO_STRING_DESC, PrimitiveRecord.class.asValueType(), NAME_LIST, ACCESSORS);
+            builder.bootstrapMethod(methodName, TO_STRING_DESC, PrimitiveClass.asValueType(PrimitiveRecord.class), NAME_LIST, ACCESSORS);
             byte[] bytes = builder.build();
             MethodHandles.Lookup lookup = LOOKUP.defineHiddenClass(bytes, true, ClassOption.NESTMATE);
             MethodType mtype = MethodType.methodType(Object.class);

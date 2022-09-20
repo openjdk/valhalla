@@ -1002,6 +1002,9 @@ JRT_END
 
 jlong SharedRuntime::get_java_tid(Thread* thread) {
   if (thread != NULL && thread->is_Java_thread()) {
+    Thread* current = Thread::current();
+    guarantee(current != thread || JavaThread::cast(thread)->is_oop_safe(),
+              "current cannot touch oops after its GC barrier is detached.");
     oop obj = JavaThread::cast(thread)->threadObj();
     return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
   }
@@ -2728,7 +2731,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_obj_arg_handler = NULL;
-const int AdapterHandlerLibrary_size = 32*K;
+const int AdapterHandlerLibrary_size = 48*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
