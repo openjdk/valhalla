@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8156486
+ * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodTypeFloat.java
  * @run testng/othervm VarHandleTestMethodTypeFloat
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodTypeFloat
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false VarHandleTestMethodTypeFloat
