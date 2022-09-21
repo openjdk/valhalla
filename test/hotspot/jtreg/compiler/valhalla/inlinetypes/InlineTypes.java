@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@ public class InlineTypes {
             new Scenario(0,
                          "-XX:+EnableValhalla",
                          "-XX:+EnablePrimitiveClasses",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",
@@ -49,6 +50,7 @@ public class InlineTypes {
             new Scenario(1,
                          "-XX:+EnableValhalla",
                          "-XX:+EnablePrimitiveClasses",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -62,6 +64,7 @@ public class InlineTypes {
             new Scenario(2,
                          "-XX:+EnableValhalla",
                          "-XX:+EnablePrimitiveClasses",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:-UseCompressedOops",
@@ -76,6 +79,7 @@ public class InlineTypes {
             new Scenario(3,
                          "-XX:+EnableValhalla",
                          "-XX:+EnablePrimitiveClasses",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:+AlwaysIncrementalInline",
@@ -88,6 +92,7 @@ public class InlineTypes {
             new Scenario(4,
                          "-XX:+EnableValhalla",
                          "-XX:+EnablePrimitiveClasses",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-DVerifyIR=false",
                          "-XX:FlatArrayElementMaxOops=-1",
@@ -100,6 +105,7 @@ public class InlineTypes {
             new Scenario(5,
                          "-XX:+EnableValhalla",
                          "-XX:+EnablePrimitiveClasses",
+                         "--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED",
                          "-XX:+IgnoreUnrecognizedVMOptions",
                          "-XX:-UseACmpProfile",
                          "-XX:+AlwaysIncrementalInline",

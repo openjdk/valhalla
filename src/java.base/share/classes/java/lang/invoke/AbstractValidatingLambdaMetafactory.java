@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
  */
 package java.lang.invoke;
 
+import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.Wrapper;
 
 import java.lang.reflect.Modifier;
@@ -268,7 +269,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             }
 
             // check receiver type
-            if (!implClass.asPrimaryType().isAssignableFrom(receiverClass.asPrimaryType())) {
+            if (!PrimitiveClass.asPrimaryType(implClass).isAssignableFrom(PrimitiveClass.asPrimaryType(receiverClass))) {
                 throw new LambdaConversionException(
                         String.format("Invalid receiver type %s; not a subtype of implementation type %s",
                                       receiverClass.descriptorString(), implClass.descriptorString()));
@@ -321,7 +322,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
         for (int i = 0; i < dynamicMethodType.parameterCount(); i++) {
             Class<?> dynamicParamType = dynamicMethodType.parameterType(i);
             Class<?> descriptorParamType = descriptor.parameterType(i);
-            if (!descriptorParamType.asPrimaryType().isAssignableFrom(dynamicParamType.asPrimaryType())) {
+            if (!PrimitiveClass.asPrimaryType(descriptorParamType).isAssignableFrom(PrimitiveClass.asPrimaryType(dynamicParamType))) {
                 String msg = String.format("Type mismatch for dynamic parameter %d: %s is not a subtype of %s",
                                            i, dynamicParamType, descriptorParamType);
                 throw new LambdaConversionException(msg);
@@ -403,7 +404,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
 
         if (fromType.isValue() && toType.isValue()) {
             // val projection can be converted to ref projection; or vice verse
-            return fromType.asPrimaryType() == toType.asPrimaryType();
+            return PrimitiveClass.asPrimaryType(fromType) == PrimitiveClass.asPrimaryType(toType);
         }
 
         return false;

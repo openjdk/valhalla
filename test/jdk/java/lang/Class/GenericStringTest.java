@@ -70,7 +70,9 @@ public class GenericStringTest {
                                      AnInterface.class,
                                      LocalMap.class,
                                      AnEnum.class,
-                                     AnotherEnum.class)) {
+                                     AnotherEnum.class,
+                                     AValueClass.class,
+                                     APrimitiveClass.class)) {
             failures += checkToGenericString(clazz, clazz.getAnnotation(ExpectedGenericString.class).value());
         }
 
@@ -111,3 +113,9 @@ enum AnEnum {
 enum AnotherEnum {
     BAR{};
 }
+
+@ExpectedGenericString("final value class AValueClass<E>")
+value class AValueClass<E> {}
+
+@ExpectedGenericString("final primitive class APrimitiveClass<E>")
+primitive class APrimitiveClass<E> {}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,8 @@ import java.lang.reflect.Method;
 import jdk.experimental.bytecode.TypeTag;
 import java.util.Arrays;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
@@ -43,6 +45,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline types in LWorld.
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @modules java.base/jdk.internal.value
  * @compile MyValue5.jcod
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
@@ -1408,7 +1411,7 @@ public class TestLWorld {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asValueType()),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, PrimitiveClass.asValueType(MyValue2.class)),
         CODE -> {
             CODE.
             aload_1().
@@ -4018,7 +4021,7 @@ public class TestLWorld {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatibleRef = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatibleRef",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asPrimaryType()),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, PrimitiveClass.asPrimaryType(MyValue2.class)),
         CODE -> {
             CODE.
             aload_1().

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,8 @@ import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
+
+import jdk.internal.value.PrimitiveClass;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -151,10 +153,10 @@ public class MethodHandleTest {
         // set an array element to null
         try {
             Object v = (Object)setter.invoke(array, 1, null);
-            assertFalse(elementType.isPrimitiveValueType(), "should fail to set a primitive class array element to null");
+            assertFalse(PrimitiveClass.isPrimitiveValueType(elementType), "should fail to set a primitive class array element to null");
             assertNull((Object)getter.invoke(array, 1));
         } catch (NullPointerException e) {
-            assertTrue(elementType.isPrimitiveValueType(), "should only fail to set a primitive class array element to null");
+            assertTrue(PrimitiveClass.isPrimitiveValueType(elementType), "should only fail to set a primitive class array element to null");
         }
     }
 
@@ -166,7 +168,7 @@ public class MethodHandleTest {
         Class<?> c = f.getDeclaringClass();
         assertFalse(Modifier.isFinal(f.getModifiers()));
         assertFalse(Modifier.isStatic(f.getModifiers()));
-        boolean canBeNull = f.getType().isPrimaryType();
+        boolean canBeNull = PrimitiveClass.isPrimaryType(f.getType());
         // test reflection
         try {
             f.set(o, null);
@@ -236,7 +238,7 @@ public class MethodHandleTest {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
         assertTrue(f.getType().isValue());
-        assertTrue(f.getType().isPrimitiveValueType() == isPrimitiveValue);
+        assertTrue(PrimitiveClass.isPrimitiveValueType(f.getType()) == isPrimitiveValue);
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 

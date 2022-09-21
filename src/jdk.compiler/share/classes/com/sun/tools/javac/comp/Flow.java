@@ -212,7 +212,6 @@ public class Flow {
     private final JCDiagnostic.Factory diags;
     private Env<AttrContext> attrEnv;
     private       Lint lint;
-    private final boolean allowEffectivelyFinalInInnerClasses;
 
     public static Flow instance(Context context) {
         Flow instance = context.get(flowKey);
@@ -337,7 +336,6 @@ public class Flow {
         rs = Resolve.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
         Source source = Source.instance(context);
-        allowEffectivelyFinalInInnerClasses = Feature.EFFECTIVELY_FINAL_IN_INNER_CLASSES.allowedInSource(source);
     }
 
     /**
@@ -3140,12 +3138,6 @@ public class Flow {
                     sym.pos < currentTree.getStartPosition()) {
                 switch (currentTree.getTag()) {
                     case CLASSDEF:
-                        if (!allowEffectivelyFinalInInnerClasses) {
-                            if ((sym.flags() & FINAL) == 0) {
-                                reportInnerClsNeedsFinalError(pos, sym);
-                            }
-                            break;
-                        }
                     case PATTERNCASELABEL:
                     case LAMBDA:
                         if ((sym.flags() & (EFFECTIVELY_FINAL | FINAL)) == 0) {
@@ -3166,10 +3158,6 @@ public class Flow {
                         ((VarSymbol)sym).pos < currentTree.getStartPosition()) {
                     switch (currentTree.getTag()) {
                         case CLASSDEF:
-                            if (!allowEffectivelyFinalInInnerClasses) {
-                                reportInnerClsNeedsFinalError(tree, sym);
-                                break;
-                            }
                         case CASE:
                         case LAMBDA:
                             reportEffectivelyFinalError(tree, sym);
@@ -3186,11 +3174,6 @@ public class Flow {
                 default -> throw new AssertionError("Unexpected tree kind: " + currentTree.getTag());
             };
             log.error(pos, Errors.CantRefNonEffectivelyFinalVar(sym, diags.fragment(subKey)));
-        }
-
-        void reportInnerClsNeedsFinalError(DiagnosticPosition pos, Symbol sym) {
-            log.error(pos,
-                      Errors.LocalVarAccessedFromIclsNeedsFinal(sym));
         }
 
     /*************************************************************************

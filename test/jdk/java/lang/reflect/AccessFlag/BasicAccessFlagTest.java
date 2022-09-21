@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8266670
+ * @bug 8266670 8281463 8293626
  * @summary Basic tests of AccessFlag
  */
 
@@ -31,6 +31,7 @@ import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 import java.util.HashSet;
@@ -42,6 +43,7 @@ public class BasicAccessFlagTest {
         testMaskOrdering();
         testDisjoint();
         testMaskToAccessFlagsPositive();
+        testLocationsNullHandling();
     }
 
     /*
@@ -111,6 +113,8 @@ public class BasicAccessFlagTest {
 
             Set<AccessFlag.Location> locations = new HashSet<>();
             for (var accessFlag : value) {
+                if (accessFlag.equals(AccessFlag.SUPER))
+                    continue;       // SUPER is defined to overlap with IDENTITY
                 for (var location : accessFlag.locations()) {
                     boolean added = locations.add(location);
                     if (!added) {
@@ -140,10 +144,23 @@ public class BasicAccessFlagTest {
             for (var location : accessFlag.locations()) {
                 Set<AccessFlag> computedSet =
                     AccessFlag.maskToAccessFlags(accessFlag.mask(), location);
-                if (!expectedSet.equals(computedSet)) {
+                if (!computedSet.containsAll(expectedSet)) {
+                    System.out.println("expected: " + expectedSet);
+                    System.out.println("computed: " + computedSet);
                     throw new RuntimeException("Bad set computation on " +
                                                accessFlag + ", " + location);
                 }
+            }
+        }
+    }
+
+    private static void testLocationsNullHandling() {
+        for (var flag : AccessFlag.values() ) {
+            try {
+                flag.locations(null);
+                throw new RuntimeException("Did not get NPE on " + flag + ".location(null)");
+            } catch (NullPointerException npe ) {
+                ; // Expected
             }
         }
     }

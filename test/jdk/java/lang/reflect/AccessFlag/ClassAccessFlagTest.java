@@ -47,7 +47,7 @@ import java.util.*;
  * file. Therefore, this test does not attempt to probe the setting of
  * that access flag.
  */
-@ExpectedClassFlags("[PUBLIC, FINAL, SUPER]")
+@ExpectedClassFlags("[PUBLIC, FINAL, SUPER, IDENTITY]")
 public final class ClassAccessFlagTest {
     public static void main(String... args) {
         // Top-level and auxiliary classes; i.e. non-inner classes
@@ -179,23 +179,23 @@ public final class ClassAccessFlagTest {
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     /*package*/ interface PackageInterface {}
 
-    @ExpectedClassFlags("[FINAL]")
+    @ExpectedClassFlags("[FINAL, IDENTITY]")
     /*package*/ final class TestFinalClass {}
 
-    @ExpectedClassFlags("[ABSTRACT]")
+    @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
     /*package*/ abstract class TestAbstractClass {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT, ANNOTATION]")
     /*package*/ @interface TestMarkerAnnotation {}
 
-    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, ENUM]")
+    @ExpectedClassFlags("[PUBLIC, STATIC, FINAL, IDENTITY, ENUM]")
     public enum MetaSynVar {
         QUUX;
     }
 
     // Is there is at least one special enum constant, the enum class
     // itself is implicitly abstract rather than final.
-    @ExpectedClassFlags("[PROTECTED, STATIC, ABSTRACT, ENUM]")
+    @ExpectedClassFlags("[PROTECTED, STATIC, IDENTITY, ABSTRACT, ENUM]")
     protected enum MetaSynVar2 {
         WOMBAT{
             @Override
@@ -204,7 +204,7 @@ public final class ClassAccessFlagTest {
         public abstract int foo();
     }
 
-    @ExpectedClassFlags("[PRIVATE, ABSTRACT]")
+    @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
     private abstract class Foo {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
@@ -221,7 +221,7 @@ public final class ClassAccessFlagTest {
 interface TestInterface {}
 
 
-@ExpectedClassFlags("[FINAL, SUPER, ENUM]")
+@ExpectedClassFlags("[FINAL, SUPER, IDENTITY, ENUM]")
 enum TestOuterEnum {
     INSTANCE;
 }

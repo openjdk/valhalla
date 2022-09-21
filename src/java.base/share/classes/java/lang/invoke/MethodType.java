@@ -40,9 +40,9 @@ import java.util.Optional;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.Stable;
 import sun.invoke.util.BytecodeDescriptor;
@@ -52,7 +52,6 @@ import sun.security.util.SecurityConstants;
 
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
-import static java.lang.invoke.MethodType.fromDescriptor;
 
 /**
  * A method type represents the arguments and return type accepted and
@@ -950,7 +949,7 @@ class MethodType
     }
 
     static String toSimpleName(Class<?> c) {
-        if (c.isPrimitiveClass() && c.isPrimaryType()) {
+        if (PrimitiveClass.isPrimitiveClass(c) && PrimitiveClass.isPrimaryType(c)) {
             return c.getSimpleName() + ".ref";
         } else {
             return c.getSimpleName();

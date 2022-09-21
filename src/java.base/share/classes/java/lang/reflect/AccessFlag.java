@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -188,24 +189,26 @@ public enum AccessFlag {
     SUPER(0x0000_0020, false, Location.SET_CLASS, null),
 
     /**
-     * The access flag {@code ACC_IDENTITY} with a mask value of {@code
-     * 0x0020}.
+     * The access flag {@code ACC_IDENTITY}, corresponding to the
+     * source modifier {@link Modifier#IDENTITY identity}, with a mask
+     * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
+     * @jvms 4.1 -B. Class access and property modifiers
      */
-//    IDENTITY(0x0000_0020, false, Location.SET_CLASS),
+    IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_INNER_CLASS, null),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
      * 0x0020}.
      * @see java.lang.module.ModuleDescriptor#isOpen
      */
-        OPEN(0x0000_0020, false, Location.SET_MODULE,
-             new Function<ClassFileFormatVersion, Set<Location>>() {
-                 @Override
-                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                     return (cffv.compareTo(ClassFileFormatVersion.RELEASE_9) >= 0 ) ?
-                         Location.SET_MODULE:
-                         Location.EMPTY_SET;}
-             }),
+    OPEN(0x0000_0020, false, Location.SET_MODULE,
+         new Function<ClassFileFormatVersion, Set<Location>>() {
+             @Override
+             public Set<Location> apply(ClassFileFormatVersion cffv) {
+                 return (cffv.compareTo(ClassFileFormatVersion.RELEASE_9) >= 0 ) ?
+                     Location.SET_MODULE:
+                     Location.EMPTY_SET;}
+         }),
 
     /**
      * The module requires flag {@code ACC_TRANSITIVE} with a mask
@@ -242,13 +245,20 @@ public enum AccessFlag {
                              Location.EMPTY_SET;}
                  }),
 
-   /**
+    /**
+     * The access flag {@code ACC_VALUE}, corresponding to the
+     * source modifier {@link Modifier#VALUE value}, with a mask
+     * value of <code>{@value "0x%04x" Modifier#VALUE}</code>.
+     * @jvms 4.1 -B. Class access and property modifiers
+     */
+    VALUE(Modifier.VALUE, true, Set.of(Location.CLASS, Location.INNER_CLASS), null),
+
+    /**
      * The access flag {@code ACC_VOLATILE}, corresponding to the
      * source modifier {@link Modifier#VOLATILE volatile}, with a mask
      * value of <code>{@value "0x%04x" Modifier#VOLATILE}</code>.
      */
     VOLATILE(Modifier.VOLATILE, true, Location.SET_FIELD, null),
-
     /**
      * The access flag {@code ACC_BRIDGE} with a mask value of
      * <code>{@value "0x%04x" Modifier#BRIDGE}</code>
@@ -330,7 +340,7 @@ public enum AccessFlag {
      * major versions 46 through 60, inclusive (JVMS {@jvms 4.6}),
      * corresponding to Java SE 1.2 through 16.
      */
-    STRICT(Modifier.STRICT, true, Location.SET_METHOD,
+    STRICT(Modifier.STRICT, true, Location.EMPTY_SET,
              new Function<ClassFileFormatVersion, Set<Location>>() {
                @Override
                public Set<Location> apply(ClassFileFormatVersion cffv) {
@@ -476,6 +486,7 @@ public enum AccessFlag {
      * @throws NullPointerException if the parameter is {@code null}
      */
     public Set<Location> locations(ClassFileFormatVersion cffv) {
+        Objects.requireNonNull(cffv);
         if (cffvToLocations == null) {
             return locations;
         } else {
@@ -494,16 +505,17 @@ public enum AccessFlag {
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
         Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
+        int unmatchedFlags = mask;
         for (var accessFlag : LocationToFlags.locationToFlags.get(location)) {
             int accessMask = accessFlag.mask();
             if ((mask &  accessMask) != 0) {
                 result.add(accessFlag);
-                mask = mask & ~accessMask;
+                unmatchedFlags = unmatchedFlags & ~accessMask;
             }
         }
-        if (mask != 0) {
+        if (unmatchedFlags != 0) {
             throw new IllegalArgumentException("Unmatched bit position 0x" +
-                                               Integer.toHexString(mask) +
+                                               Integer.toHexString(unmatchedFlags) +
                                                " for location " + location);
         }
         return Collections.unmodifiableSet(result);
@@ -627,7 +639,7 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, SUPER,
+                                Set.of(PUBLIC, FINAL, SUPER, IDENTITY, VALUE,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
@@ -641,7 +653,7 @@ public enum AccessFlag {
                                        BRIDGE, VARARGS, NATIVE,
                                        ABSTRACT, STRICT, SYNTHETIC)),
                           entry(Location.INNER_CLASS,
-                                Set.of(PUBLIC, PRIVATE, PROTECTED,
+                                Set.of(PUBLIC, PRIVATE, PROTECTED, IDENTITY, VALUE,
                                        STATIC, FINAL, INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION, ENUM)),
                           entry(Location.METHOD_PARAMETER,

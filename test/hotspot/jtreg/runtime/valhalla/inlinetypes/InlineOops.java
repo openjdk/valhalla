@@ -27,6 +27,8 @@ import java.lang.invoke.*;
 import java.lang.ref.*;
 import java.util.concurrent.*;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
 import jdk.test.whitebox.WhiteBox;
@@ -36,6 +38,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test InlineOops_int_Serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
@@ -51,6 +54,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test InlineOops_int_G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
@@ -66,6 +70,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test InlineOops_int_Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
@@ -81,6 +86,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @test InlineOops_int_Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile Person.java InlineOops.java
@@ -328,7 +334,7 @@ public class InlineOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vtClass = Person.class.asValueType();
+            Class<?> vtClass = PrimitiveClass.asValueType(Person.class);
 
             System.out.println("vtClass="+vtClass);
 
@@ -568,7 +574,7 @@ public class InlineOops {
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
-                            .aconst_init(FooValue.class.asValueType())
+                            .aconst_init(PrimitiveClass.asValueType(FooValue.class))
                             .aload(oopMapsSlot)
                             .iconst_0()  // Test-D0 Slots=R Stack=Q(RRR)RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
@@ -578,7 +584,7 @@ public class InlineOops {
                             .iconst_1()  // Test-D1 Slots=R Stack=RV
                             .invokestatic(InlineOops.class, GET_OOP_MAP_NAME, GET_OOP_MAP_DESC, false)
                             .aastore()
-                            .aconst_init(FooValue.class.asValueType())
+                            .aconst_init(PrimitiveClass.asValueType(FooValue.class))
                             .astore(vtSlot)
                             .aload(oopMapsSlot)
                             .iconst_2()  // Test-D2 Slots=RQ(RRR) Stack=RV

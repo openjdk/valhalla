@@ -25,6 +25,8 @@
 
 package java.lang.runtime;
 
+import jdk.internal.value.PrimitiveClass;
+
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -416,7 +418,8 @@ public class ObjectMethods {
         requireNonNull(getters);
         Arrays.stream(getters).forEach(Objects::requireNonNull);
         MethodType methodType;
-        Class<?> receiverType = recordClass.isPrimitiveClass() ? recordClass.asValueType() : recordClass;
+        Class<?> receiverType = PrimitiveClass.isPrimitiveClass(recordClass)
+                ? PrimitiveClass.asValueType(recordClass) : recordClass;
         if (type instanceof MethodType mt) {
             methodType = mt;
             if (mt.parameterType(0) != receiverType) {

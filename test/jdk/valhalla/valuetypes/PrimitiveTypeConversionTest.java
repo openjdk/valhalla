@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,8 @@ import static java.lang.invoke.MethodType.*;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
+import jdk.internal.value.PrimitiveClass;
+
 public class PrimitiveTypeConversionTest {
     static primitive class Value {
         Point val;
@@ -61,8 +63,8 @@ public class PrimitiveTypeConversionTest {
     @Test
     public static void primitiveWidening() throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        MethodHandle mh1 = lookup.findStatic(PrimitiveTypeConversionTest.class, "narrow", methodType(Value.class.asValueType(), Value.ref.class));
-        MethodHandle mh2 = mh1.asType(methodType(Value.class.asValueType(), Value.class.asValueType()));
+        MethodHandle mh1 = lookup.findStatic(PrimitiveTypeConversionTest.class, "narrow", methodType(PrimitiveClass.asValueType(Value.class), Value.ref.class));
+        MethodHandle mh2 = mh1.asType(methodType(PrimitiveClass.asValueType(Value.class), PrimitiveClass.asValueType(Value.class)));
         Object v = mh1.invoke(VALUE);
         assertEquals(v, VALUE);
         try {
@@ -79,7 +81,7 @@ public class PrimitiveTypeConversionTest {
     @Test
     public static void primitiveNarrowing() throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        MethodHandle mh = lookup.findStatic(PrimitiveTypeConversionTest.class, "widen", methodType(Value.ref.class, Value.class.asValueType()));
+        MethodHandle mh = lookup.findStatic(PrimitiveTypeConversionTest.class, "widen", methodType(Value.ref.class, PrimitiveClass.asValueType(Value.class)));
         Object v = mh.invoke(VALUE);
         assertTrue(v == null);
         try {
@@ -88,7 +90,7 @@ public class PrimitiveTypeConversionTest {
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
-        MethodHandle mh2 = mh.asType(methodType(Value.class.asValueType(), Value.ref.class));
+        MethodHandle mh2 = mh.asType(methodType(PrimitiveClass.asValueType(Value.class), Value.ref.class));
         try {
             Value v2 = (Value) mh2.invoke((Value.ref)null);
             fail("Expected NullPointerException but not thrown");
@@ -100,8 +102,8 @@ public class PrimitiveTypeConversionTest {
     @Test
     public static void valToRef() throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        MethodHandle mh1 = lookup.findGetter(Value.class.asValueType(), "val", Point.class.asValueType());
-        MethodHandle mh2 = mh1.asType(methodType(Point.ref.class, Value.class.asValueType()));
+        MethodHandle mh1 = lookup.findGetter(PrimitiveClass.asValueType(Value.class), "val", PrimitiveClass.asValueType(Point.class));
+        MethodHandle mh2 = mh1.asType(methodType(Point.ref.class, PrimitiveClass.asValueType(Value.class)));
         Value v = new Value(new Point(10,10), null);
 
         Point p1 = (Point) mh1.invokeExact(VALUE);
@@ -111,8 +113,8 @@ public class PrimitiveTypeConversionTest {
 
     @Test
     public static void refToVal() throws Throwable {
-        MethodHandle mh1 = MethodHandles.lookup().findGetter(Value.class.asValueType(), "ref", Point.ref.class);
-        MethodHandle mh2 = mh1.asType(methodType(Point.class.asValueType(), Value.class.asValueType()));
+        MethodHandle mh1 = MethodHandles.lookup().findGetter(PrimitiveClass.asValueType(Value.class), "ref", Point.ref.class);
+        MethodHandle mh2 = mh1.asType(methodType(PrimitiveClass.asValueType(Point.class), PrimitiveClass.asValueType(Value.class)));
         Point.ref p1 = (Point.ref) mh1.invokeExact(VALUE);
         Point p2 = (Point) mh2.invokeExact(VALUE);
         assertEquals(p1, p2);
@@ -121,8 +123,8 @@ public class PrimitiveTypeConversionTest {
     @Test
     public static void valToRef1() throws Throwable {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
-        MethodHandle mh1 = lookup.findGetter(Value.class.asValueType(), "val", Point.class.asValueType());
-        MethodHandle mh2 = mh1.asType(methodType(Point.class.asValueType(), Value.ref.class));
+        MethodHandle mh1 = lookup.findGetter(PrimitiveClass.asValueType(Value.class), "val", PrimitiveClass.asValueType(Point.class));
+        MethodHandle mh2 = mh1.asType(methodType(PrimitiveClass.asValueType(Point.class), Value.ref.class));
 
         Point p1 = (Point) mh1.invokeExact(VALUE);
         Point p2 = (Point) mh2.invoke(VALUE);
@@ -133,7 +135,7 @@ public class PrimitiveTypeConversionTest {
 
     @Test
     public static void refToVal1() throws Throwable {
-        MethodHandle mh1 = MethodHandles.lookup().findGetter(Value.class.asValueType(), "ref", Point.ref.class);
+        MethodHandle mh1 = MethodHandles.lookup().findGetter(PrimitiveClass.asValueType(Value.class), "ref", Point.ref.class);
         MethodHandle mh2 = mh1.asType(methodType(Point.ref.class, Value.ref.class));
         Value v = new Value(new Point(10,10), null);
 
@@ -146,8 +148,8 @@ public class PrimitiveTypeConversionTest {
 
     @Test
     public static void refToVal2() throws Throwable {
-        MethodHandle mh1 = MethodHandles.lookup().findGetter(Value.class.asValueType(), "ref", Point.ref.class);
-        MethodHandle mh2 = mh1.asType(methodType(Point.class.asValueType(), Value.class.asValueType()));
+        MethodHandle mh1 = MethodHandles.lookup().findGetter(PrimitiveClass.asValueType(Value.class), "ref", Point.ref.class);
+        MethodHandle mh2 = mh1.asType(methodType(PrimitiveClass.asValueType(Point.class), PrimitiveClass.asValueType(Value.class)));
         Value v = new Value(new Point(10,10), null);
 
         Point.ref p1 = (Point.ref) mh1.invokeExact(v);

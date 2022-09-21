@@ -37,6 +37,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 
+import jdk.internal.value.PrimitiveClass;
+
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -80,7 +82,7 @@ public class StaticFactoryMethodHandleTest {
     @Test
     public void testNoArgStaticFactory() throws Throwable {
         // test default static init factory
-        Class<? extends Cons> cls = (Class<? extends Cons>)DefaultConstructor.class.asValueType();
+        Class<? extends Cons> cls = (Class<? extends Cons>)PrimitiveClass.asValueType(DefaultConstructor.class);
         MethodHandle mh = staticInitFactory(cls, methodType(cls));
         DefaultConstructor o = (DefaultConstructor)mh.invokeExact();
         assertEquals(o, new DefaultConstructor());
@@ -89,7 +91,7 @@ public class StaticFactoryMethodHandleTest {
 
     @DataProvider(name="ctorWithArgs")
     static Object[][] ctorWithArgs() {
-        Class<? extends Cons> cls = (Class<? extends Cons>)ConstructorWithArgs.class.asValueType();
+        Class<? extends Cons> cls = (Class<? extends Cons>)PrimitiveClass.asValueType(ConstructorWithArgs.class);
         return new Object[][]{
                 new Object[] { cls, methodType(cls, int.class), Modifier.PUBLIC, new ConstructorWithArgs(1) },
                 new Object[] { cls, methodType(cls, int.class, int.class), 0, new ConstructorWithArgs(1, 2) },
@@ -147,14 +149,14 @@ public class StaticFactoryMethodHandleTest {
         //
         MethodHandle mh = lookup.findStatic(c, "<init>", mtype);
         try {
-            lookup.findConstructor(DefaultConstructor.class.asValueType(), mtype);
+            lookup.findConstructor(PrimitiveClass.asValueType(DefaultConstructor.class), mtype);
             throw new RuntimeException("findConstructor should not find the static init factory");
         } catch (NoSuchMethodException e) {
         }
 
         // crack method handle
         MethodHandleInfo minfo = lookup.revealDirect(mh);
-        assertEquals(minfo.getDeclaringClass(), c.asPrimaryType());
+        assertEquals(minfo.getDeclaringClass(), PrimitiveClass.asPrimaryType(c));
         assertEquals(minfo.getName(), "<init>");
         assertEquals(minfo.getReferenceKind(), MethodHandleInfo.REF_invokeStatic);
         assertEquals(minfo.getMethodType(), mtype);
