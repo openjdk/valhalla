@@ -241,7 +241,7 @@ public class Bytecodes {
   public static final int _goto_w               = 200; // 0xc8
   public static final int _jsr_w                = 201; // 0xc9
   public static final int _breakpoint           = 202; // 0xca
-  public static final int _defaultvalue         = 203; // 0xcb
+  public static final int _aconst_init          = 203; // 0xcb
   public static final int _withfield            = 204; // 0xcc
 
   public static final int number_of_java_codes  = 205;
