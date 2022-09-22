@@ -1871,6 +1871,8 @@ public class TestNewAcmp {
 
     private static void enumerateVMOptions() throws Exception {
         String[] baseOptions = {
+            "-XX:+EnableValhalla",
+            "-XX:+EnablePrimitiveClasses",
             "-Xbootclasspath/a:.",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",

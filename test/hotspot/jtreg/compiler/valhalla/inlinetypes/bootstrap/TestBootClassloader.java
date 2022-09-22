@@ -38,7 +38,7 @@ import jdk.internal.value.PrimitiveClass;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build jdk.test.whitebox.WhiteBox TestBootClassloader InstallBootstrapClasses
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run driver InstallBootstrapClasses
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InstallBootstrapClasses
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
