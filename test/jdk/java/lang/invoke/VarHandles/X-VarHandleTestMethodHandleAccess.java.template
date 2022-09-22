@@ -246,16 +246,13 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact(recv, $value1$, $value2$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSetPlain $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(recv);
             assertEquals(x, $value2$, "success weakCompareAndSetPlain $type$ value");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, $value1$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSetPlain $type$");
@@ -263,22 +260,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value2$, "failing weakCompareAndSetPlain $type$ value");
         }
 
-#end[PrimitiveClass]
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact(recv, $value2$, $value1$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(recv);
             assertEquals(x, $value1$, "success weakCompareAndSetAcquire $type$");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, $value2$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSetAcquire $type$");
@@ -286,22 +279,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value1$, "failing weakCompareAndSetAcquire $type$ value");
         }
 
-#end[PrimitiveClass]
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact(recv, $value1$, $value2$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSetRelease $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(recv);
             assertEquals(x, $value2$, "success weakCompareAndSetRelease $type$");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, $value1$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSetRelease $type$");
@@ -309,22 +298,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value2$, "failing weakCompareAndSetRelease $type$ value");
         }
 
-#end[PrimitiveClass]
         {
             boolean success = false;
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact(recv, $value2$, $value1$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSet $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(recv);
             assertEquals(x, $value1$, "success weakCompareAndSet $type$");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, $value2$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSet $type$");
@@ -332,7 +317,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value1$, "failing weakCompareAndSet $type$ value");
         }
 
-#end[PrimitiveClass]
         // Compare set and get
         {
             $type$ o = ($type$) hs.get(TestAccessMode.GET_AND_SET).invokeExact(recv, $value2$);
@@ -646,16 +630,13 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact($value1$, $value2$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSetPlain $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact();
             assertEquals(x, $value2$, "success weakCompareAndSetPlain $type$ value");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact($value1$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSetPlain $type$");
@@ -663,22 +644,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value2$, "failing weakCompareAndSetPlain $type$ value");
         }
 
-#end[PrimitiveClass]
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact($value2$, $value1$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact();
             assertEquals(x, $value1$, "success weakCompareAndSetAcquire $type$");
         }
 
-#if[!PrimitiveClass]
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = (boolean) mh.invokeExact($value2$, $value3$);
@@ -687,22 +664,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value1$, "failing weakCompareAndSetAcquire $type$ value");
         }
 
-#end[PrimitiveClass]
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact($value1$, $value2$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSetRelease $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact();
             assertEquals(x, $value2$, "success weakCompareAndSetRelease $type$");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact($value1$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSetRelease $type$");
@@ -710,22 +683,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value2$, "failing weakCompareAndSetRelease $type$ value");
         }
 
-#end[PrimitiveClass]
         {
             MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = (boolean) mh.invokeExact($value2$, $value1$);
-#if[!PrimitiveClass]
                 if (!success) weakDelay();
-#end[PrimitiveClass]
             }
             assertEquals(success, true, "success weakCompareAndSet $type$");
             $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact();
             assertEquals(x, $value1$, "success weakCompareAndSet $type$");
         }
 
-#if[!PrimitiveClass]
         {
             boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact($value2$, $value3$);
             assertEquals(success, false, "failing weakCompareAndSet $type$");
@@ -733,7 +702,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             assertEquals(x, $value1$, "failing weakCompareAndSetRe $type$ value");
         }
 
-#end[PrimitiveClass]
         // Compare set and get
         {
             hs.get(TestAccessMode.SET).invokeExact($value1$);
@@ -1019,16 +987,13 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = (boolean) mh.invokeExact(array, i, $value1$, $value2$);
-#if[!PrimitiveClass]
                     if (!success) weakDelay();
-#end[PrimitiveClass]
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain $type$");
                 $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(array, i);
                 assertEquals(x, $value2$, "success weakCompareAndSetPlain $type$ value");
             }
 
-#if[!PrimitiveClass]
             {
                 boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, $value1$, $value3$);
                 assertEquals(success, false, "failing weakCompareAndSetPlain $type$");
@@ -1036,22 +1001,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
                 assertEquals(x, $value2$, "failing weakCompareAndSetPlain $type$ value");
             }
 
-#end[PrimitiveClass]
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = (boolean) mh.invokeExact(array, i, $value2$, $value1$);
-#if[!PrimitiveClass]
                     if (!success) weakDelay();
-#end[PrimitiveClass]
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire $type$");
                 $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(array, i);
                 assertEquals(x, $value1$, "success weakCompareAndSetAcquire $type$");
             }
 
-#if[!PrimitiveClass]
             {
                 boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, $value2$, $value3$);
                 assertEquals(success, false, "failing weakCompareAndSetAcquire $type$");
@@ -1059,22 +1020,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
                 assertEquals(x, $value1$, "failing weakCompareAndSetAcquire $type$ value");
             }
 
-#end[PrimitiveClass]
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = (boolean) mh.invokeExact(array, i, $value1$, $value2$);
-#if[!PrimitiveClass]
                     if (!success) weakDelay();
-#end[PrimitiveClass]
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease $type$");
                 $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(array, i);
                 assertEquals(x, $value2$, "success weakCompareAndSetRelease $type$");
             }
 
-#if[!PrimitiveClass]
             {
                 boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, $value1$, $value3$);
                 assertEquals(success, false, "failing weakCompareAndSetAcquire $type$");
@@ -1082,22 +1039,18 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
                 assertEquals(x, $value2$, "failing weakCompareAndSetAcquire $type$ value");
             }
 
-#end[PrimitiveClass]
             {
                 MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = (boolean) mh.invokeExact(array, i, $value2$, $value1$);
-#if[!PrimitiveClass]
                     if (!success) weakDelay();
-#end[PrimitiveClass]
                 }
                 assertEquals(success, true, "success weakCompareAndSet $type$");
                 $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(array, i);
                 assertEquals(x, $value1$, "success weakCompareAndSet $type$");
             }
 
-#if[!PrimitiveClass]
             {
                 boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, $value2$, $value3$);
                 assertEquals(success, false, "failing weakCompareAndSet $type$");
@@ -1105,7 +1058,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
                 assertEquals(x, $value1$, "failing weakCompareAndSet $type$ value");
             }
 
-#end[PrimitiveClass]
             // Compare set and get
             {
                 hs.get(TestAccessMode.SET).invokeExact(array, i, $value1$);

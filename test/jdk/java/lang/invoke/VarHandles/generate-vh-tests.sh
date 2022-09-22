@@ -41,12 +41,6 @@ do
       ;;
   esac
 
-  case $type in
-    Point)
-      args="$args -KPrimitiveClass"
-      ;;
-  esac
-
   wrong_primitive_type=boolean
 
   case $type in

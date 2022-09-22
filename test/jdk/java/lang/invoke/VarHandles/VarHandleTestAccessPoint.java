@@ -610,6 +610,7 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain(recv, Point.getInstance(1,1), Point.getInstance(2,2));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain Point");
             Point x = (Point) vh.get(recv);
@@ -617,9 +618,17 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         }
 
         {
+            boolean success = vh.weakCompareAndSetPlain(recv, Point.getInstance(1,1), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSetPlain Point");
+            Point x = (Point) vh.get(recv);
+            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetPlain Point value");
+        }
+
+        {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire(recv, Point.getInstance(2,2), Point.getInstance(1,1));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire Point");
             Point x = (Point) vh.get(recv);
@@ -627,9 +636,17 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         }
 
         {
+            boolean success = vh.weakCompareAndSetAcquire(recv, Point.getInstance(2,2), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
+            Point x = (Point) vh.get(recv);
+            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetAcquire Point value");
+        }
+
+        {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease(recv, Point.getInstance(1,1), Point.getInstance(2,2));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease Point");
             Point x = (Point) vh.get(recv);
@@ -637,13 +654,28 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         }
 
         {
+            boolean success = vh.weakCompareAndSetRelease(recv, Point.getInstance(1,1), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSetRelease Point");
+            Point x = (Point) vh.get(recv);
+            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetRelease Point value");
+        }
+
+        {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet(recv, Point.getInstance(2,2), Point.getInstance(1,1));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet Point");
             Point x = (Point) vh.get(recv);
             assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSet Point value");
+        }
+
+        {
+            boolean success = vh.weakCompareAndSet(recv, Point.getInstance(2,2), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSet Point");
+            Point x = (Point) vh.get(recv);
+            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSet Point value");
         }
 
         // Compare set and get
@@ -822,6 +854,7 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain(Point.getInstance(1,1), Point.getInstance(2,2));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain Point");
             Point x = (Point) vh.get();
@@ -829,9 +862,17 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         }
 
         {
+            boolean success = vh.weakCompareAndSetPlain(Point.getInstance(1,1), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSetPlain Point");
+            Point x = (Point) vh.get();
+            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetPlain Point value");
+        }
+
+        {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire(Point.getInstance(2,2), Point.getInstance(1,1));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire Point");
             Point x = (Point) vh.get();
@@ -839,9 +880,17 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         }
 
         {
+            boolean success = vh.weakCompareAndSetAcquire(Point.getInstance(2,2), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
+            Point x = (Point) vh.get();
+            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetAcquire Point value");
+        }
+
+        {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease(Point.getInstance(1,1), Point.getInstance(2,2));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease Point");
             Point x = (Point) vh.get();
@@ -849,13 +898,28 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         }
 
         {
+            boolean success = vh.weakCompareAndSetRelease(Point.getInstance(1,1), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSetRelease Point");
+            Point x = (Point) vh.get();
+            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetRelease Point value");
+        }
+
+        {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet(Point.getInstance(2,2), Point.getInstance(1,1));
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet Point");
             Point x = (Point) vh.get();
             assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSet Point");
+        }
+
+        {
+            boolean success = vh.weakCompareAndSet(Point.getInstance(2,2), Point.getInstance(3,3));
+            assertEquals(success, false, "failing weakCompareAndSet Point");
+            Point x = (Point) vh.get();
+            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSet Point value");
         }
 
         // Compare set and get
@@ -1037,6 +1101,7 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetPlain(array, i, Point.getInstance(1,1), Point.getInstance(2,2));
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain Point");
                 Point x = (Point) vh.get(array, i);
@@ -1044,9 +1109,17 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
             }
 
             {
+                boolean success = vh.weakCompareAndSetPlain(array, i, Point.getInstance(1,1), Point.getInstance(3,3));
+                assertEquals(success, false, "failing weakCompareAndSetPlain Point");
+                Point x = (Point) vh.get(array, i);
+                assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetPlain Point value");
+            }
+
+            {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetAcquire(array, i, Point.getInstance(2,2), Point.getInstance(1,1));
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire Point");
                 Point x = (Point) vh.get(array, i);
@@ -1054,9 +1127,17 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
             }
 
             {
+                boolean success = vh.weakCompareAndSetAcquire(array, i, Point.getInstance(2,2), Point.getInstance(3,3));
+                assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
+                Point x = (Point) vh.get(array, i);
+                assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetAcquire Point value");
+            }
+
+            {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetRelease(array, i, Point.getInstance(1,1), Point.getInstance(2,2));
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease Point");
                 Point x = (Point) vh.get(array, i);
@@ -1064,13 +1145,28 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
             }
 
             {
+                boolean success = vh.weakCompareAndSetRelease(array, i, Point.getInstance(1,1), Point.getInstance(3,3));
+                assertEquals(success, false, "failing weakCompareAndSetRelease Point");
+                Point x = (Point) vh.get(array, i);
+                assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetRelease Point value");
+            }
+
+            {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSet(array, i, Point.getInstance(2,2), Point.getInstance(1,1));
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet Point");
                 Point x = (Point) vh.get(array, i);
                 assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSet Point");
+            }
+
+            {
+                boolean success = vh.weakCompareAndSet(array, i, Point.getInstance(2,2), Point.getInstance(3,3));
+                assertEquals(success, false, "failing weakCompareAndSet Point");
+                Point x = (Point) vh.get(array, i);
+                assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSet Point value");
             }
 
             // Compare set and get
