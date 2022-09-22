@@ -25,7 +25,6 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses                        Point.java Value.java VarHandleTestAccessByte.java
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessByte
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessByte
  * @run testng/othervm -Diters=20000                         VarHandleTestAccessByte
@@ -41,7 +40,6 @@ import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 
 import static org.testng.Assert.*;
 

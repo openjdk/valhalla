@@ -42,15 +42,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-#if[Point]
-import jdk.internal.value.PrimitiveClass;
-#end[Point]
-
 import static org.testng.Assert.*;
 
 public class VarHandleTestAccess$Type$ extends VarHandleBaseTest {
 #if[Point]
-    static final Class<?> type = PrimitiveClass.asValueType($type$.class);
+    static final Class<?> type = $type$.class.asValueType();
 #else[Point]
     static final Class<?> type = $type$.class;
 #end[Point]

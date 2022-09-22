@@ -25,25 +25,25 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses    Point.java Value.java VarHandleTestMethodHandleAccessPoint.java
- * @run testng/othervm -Diters=20000     VarHandleTestMethodHandleAccessPoint
+ * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccessPoint
  */
 
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import jdk.internal.value.PrimitiveClass;
+
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
-    static final Class<?> type = Point.class.asValueType();
+    static final Class<?> type = PrimitiveClass.asValueType(Point.class);
 
     static final Point static_final_v = Point.getInstance(1,1);
 
@@ -224,79 +224,43 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
         }
 
         {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Point.getInstance(1,1), Point.getInstance(2,2));
-                if (!success) weakDelay();
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, Point.getInstance(1,1), Point.getInstance(2,2));
             }
-            assertEquals(success, true, "success weakCompareAndSetPlain Point");
+            assertEquals(success, true, "weakCompareAndSetPlain Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(2,2), "success weakCompareAndSetPlain Point value");
-        }
-
-        {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, Point.getInstance(1,1), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSetPlain Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetPlain Point value");
-        }
-
-        {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
-            boolean success = false;
-            for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Point.getInstance(2,2), Point.getInstance(1,1));
-                if (!success) weakDelay();
-            }
-            assertEquals(success, true, "success weakCompareAndSetAcquire Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSetAcquire Point");
-        }
-
-        {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, Point.getInstance(2,2), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetAcquire Point value");
-        }
-
-        {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
-            boolean success = false;
-            for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Point.getInstance(1,1), Point.getInstance(2,2));
-                if (!success) weakDelay();
-            }
-            assertEquals(success, true, "success weakCompareAndSetRelease Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(2,2), "success weakCompareAndSetRelease Point");
-        }
-
-        {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, Point.getInstance(1,1), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSetRelease Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetRelease Point value");
+            assertEquals(x, Point.getInstance(2,2), "weakCompareAndSetPlain Point value");
         }
 
         {
             boolean success = false;
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(recv, Point.getInstance(2,2), Point.getInstance(1,1));
-                if (!success) weakDelay();
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, Point.getInstance(2,2), Point.getInstance(1,1));
             }
-            assertEquals(success, true, "success weakCompareAndSet Point");
+            assertEquals(success, true, "weakCompareAndSetAcquire Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSet Point");
+            assertEquals(x, Point.getInstance(1,1), "weakCompareAndSetAcquire Point");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, Point.getInstance(2,2), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSet Point");
+            boolean success = false;
+            for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, Point.getInstance(1,1), Point.getInstance(2,2));
+            }
+            assertEquals(success, true, "weakCompareAndSetRelease Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSet Point value");
+            assertEquals(x, Point.getInstance(2,2), "weakCompareAndSetRelease Point");
+        }
+
+        {
+            boolean success = false;
+            for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, Point.getInstance(2,2), Point.getInstance(1,1));
+            }
+            assertEquals(success, true, "weakCompareAndSet Point");
+            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
+            assertEquals(x, Point.getInstance(1,1), "weakCompareAndSet Point");
         }
 
         // Compare set and get
@@ -444,80 +408,43 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
         }
 
         {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Point.getInstance(1,1), Point.getInstance(2,2));
-                if (!success) weakDelay();
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(Point.getInstance(1,1), Point.getInstance(2,2));
             }
-            assertEquals(success, true, "success weakCompareAndSetPlain Point");
+            assertEquals(success, true, "weakCompareAndSetPlain Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(2,2), "success weakCompareAndSetPlain Point value");
+            assertEquals(x, Point.getInstance(2,2), "weakCompareAndSetPlain Point value");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(Point.getInstance(1,1), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSetPlain Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetPlain Point value");
-        }
-
-        {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Point.getInstance(2,2), Point.getInstance(1,1));
-                if (!success) weakDelay();
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(Point.getInstance(2,2), Point.getInstance(1,1));
             }
-            assertEquals(success, true, "success weakCompareAndSetAcquire Point");
+            assertEquals(success, true, "weakCompareAndSetAcquire Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSetAcquire Point");
+            assertEquals(x, Point.getInstance(1,1), "weakCompareAndSetAcquire Point");
         }
 
         {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
-            boolean success = (boolean) mh.invokeExact(Point.getInstance(2,2), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetAcquire Point value");
-        }
-
-        {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Point.getInstance(1,1), Point.getInstance(2,2));
-                if (!success) weakDelay();
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(Point.getInstance(1,1), Point.getInstance(2,2));
             }
-            assertEquals(success, true, "success weakCompareAndSetRelease Point");
+            assertEquals(success, true, "weakCompareAndSetRelease Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(2,2), "success weakCompareAndSetRelease Point");
+            assertEquals(x, Point.getInstance(2,2), "weakCompareAndSetRelease Point");
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(Point.getInstance(1,1), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSetRelease Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetRelease Point value");
-        }
-
-        {
-            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) mh.invokeExact(Point.getInstance(2,2), Point.getInstance(1,1));
-                if (!success) weakDelay();
+                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(Point.getInstance(2,2), Point.getInstance(1,1));
             }
-            assertEquals(success, true, "success weakCompareAndSet Point");
+            assertEquals(success, true, "weakCompareAndSet Point");
             Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSet Point");
-        }
-
-        {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(Point.getInstance(2,2), Point.getInstance(3,3));
-            assertEquals(success, false, "failing weakCompareAndSet Point");
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact();
-            assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetRe Point value");
+            assertEquals(x, Point.getInstance(1,1), "weakCompareAndSet Point");
         }
 
         // Compare set and get
@@ -662,79 +589,43 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
             }
 
             {
-                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Point.getInstance(1,1), Point.getInstance(2,2));
-                    if (!success) weakDelay();
+                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, Point.getInstance(1,1), Point.getInstance(2,2));
                 }
-                assertEquals(success, true, "success weakCompareAndSetPlain Point");
+                assertEquals(success, true, "weakCompareAndSetPlain Point");
                 Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(2,2), "success weakCompareAndSetPlain Point value");
+                assertEquals(x, Point.getInstance(2,2), "weakCompareAndSetPlain Point value");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, Point.getInstance(1,1), Point.getInstance(3,3));
-                assertEquals(success, false, "failing weakCompareAndSetPlain Point");
-                Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetPlain Point value");
-            }
-
-            {
-                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Point.getInstance(2,2), Point.getInstance(1,1));
-                    if (!success) weakDelay();
+                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Point.getInstance(2,2), Point.getInstance(1,1));
                 }
-                assertEquals(success, true, "success weakCompareAndSetAcquire Point");
+                assertEquals(success, true, "weakCompareAndSetAcquire Point");
                 Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSetAcquire Point");
+                assertEquals(x, Point.getInstance(1,1), "weakCompareAndSetAcquire Point");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Point.getInstance(2,2), Point.getInstance(3,3));
-                assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
-                Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSetAcquire Point value");
-            }
-
-            {
-                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Point.getInstance(1,1), Point.getInstance(2,2));
-                    if (!success) weakDelay();
+                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(array, i, Point.getInstance(1,1), Point.getInstance(2,2));
                 }
-                assertEquals(success, true, "success weakCompareAndSetRelease Point");
+                assertEquals(success, true, "weakCompareAndSetRelease Point");
                 Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(2,2), "success weakCompareAndSetRelease Point");
+                assertEquals(x, Point.getInstance(2,2), "weakCompareAndSetRelease Point");
             }
 
             {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, Point.getInstance(1,1), Point.getInstance(3,3));
-                assertEquals(success, false, "failing weakCompareAndSetAcquire Point");
-                Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(2,2), "failing weakCompareAndSetAcquire Point value");
-            }
-
-            {
-                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) mh.invokeExact(array, i, Point.getInstance(2,2), Point.getInstance(1,1));
-                    if (!success) weakDelay();
+                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, Point.getInstance(2,2), Point.getInstance(1,1));
                 }
-                assertEquals(success, true, "success weakCompareAndSet Point");
+                assertEquals(success, true, "weakCompareAndSet Point");
                 Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(1,1), "success weakCompareAndSet Point");
-            }
-
-            {
-                boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, Point.getInstance(2,2), Point.getInstance(3,3));
-                assertEquals(success, false, "failing weakCompareAndSet Point");
-                Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(array, i);
-                assertEquals(x, Point.getInstance(1,1), "failing weakCompareAndSet Point value");
+                assertEquals(x, Point.getInstance(1,1), "weakCompareAndSet Point");
             }
 
             // Compare set and get
@@ -827,4 +718,3 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
         }
     }
 }
-

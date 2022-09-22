@@ -25,8 +25,7 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses    Point.java Value.java VarHandleTestMethodHandleAccessBoolean.java
- * @run testng/othervm -Diters=20000     VarHandleTestMethodHandleAccessBoolean
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessBoolean
  */
 
 import org.testng.annotations.BeforeClass;
