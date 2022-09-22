@@ -155,7 +155,7 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
     msg_stream.print("Did not generate intrinsic %s%s at bci:%d in",
                      vmIntrinsics::name_at(intrinsic_id()),
                      is_virtual() ? " (virtual)" : "", bci);
-    const char *msg = msg_stream.as_string();
+    const char *msg = msg_stream.freeze();
     log_debug(jit, inlining)("%s", msg);
     if (C->print_intrinsics() || C->print_inlining()) {
       tty->print("%s", msg);
@@ -216,7 +216,7 @@ Node* LibraryIntrinsic::generate_predicate(JVMState* jvms, int predicate) {
     msg_stream.print("Did not generate intrinsic %s%s at bci:%d in",
                      vmIntrinsics::name_at(intrinsic_id()),
                      is_virtual() ? " (virtual)" : "", bci);
-    const char *msg = msg_stream.as_string();
+    const char *msg = msg_stream.freeze();
     log_debug(jit, inlining)("%s", msg);
     if (C->print_intrinsics() || C->print_inlining()) {
       C->print_inlining_stream()->print("%s", msg);
