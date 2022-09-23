@@ -5152,6 +5152,7 @@ public class JavacParser implements Parser {
 
     protected void checkSourceLevel(int pos, Feature feature) {
         if (feature == Feature.PRIMITIVE_CLASSES && !allowPrimitiveClasses) {
+            // primitive classes are special
             log.error(DiagnosticFlag.SOURCE_LEVEL, pos, feature.error(source.name));
         } else if (preview.isPreview(feature) && !preview.isEnabled()) {
             //preview feature without --preview flag, error
