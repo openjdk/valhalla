@@ -26,7 +26,7 @@
  * @summary Verifies correctness of the new acmp bytecode.
  * @modules java.base/jdk.internal.value
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @compile TestNewAcmp.java
+ * @compile -XDenablePrimitiveClasses TestNewAcmp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.TestNewAcmp

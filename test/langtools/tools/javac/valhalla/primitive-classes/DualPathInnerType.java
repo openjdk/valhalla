@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8244233
  * @summary Nested types are not handled properly across projections
- * @compile/fail/ref=DualPathInnerType.out -XDrawDiagnostics DualPathInnerType.java
+ * @compile/fail/ref=DualPathInnerType.out -XDrawDiagnostics -XDenablePrimitiveClasses DualPathInnerType.java
  */
 
 public primitive class DualPathInnerType  {

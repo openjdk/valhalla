@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccess$Type$.java
 #if[Point]
  * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccess$Type$
 #else[Point]

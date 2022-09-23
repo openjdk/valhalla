@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8237072
  * @summary Test various relationships between a value type and its reference projection.
- * @compile/fail/ref=OverloadingPhaseTest.out -XDrawDiagnostics OverloadingPhaseTest.java
+ * @compile/fail/ref=OverloadingPhaseTest.out -XDrawDiagnostics -XDenablePrimitiveClasses OverloadingPhaseTest.java
  */
 
 public class OverloadingPhaseTest {

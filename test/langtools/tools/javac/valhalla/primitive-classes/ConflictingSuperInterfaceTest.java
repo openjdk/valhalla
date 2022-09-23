@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8244711
  * @summary Javac should complain about an inline class with conflicting super interfaces.
- * @compile/fail/ref=ConflictingSuperInterfaceTest.out -XDrawDiagnostics ConflictingSuperInterfaceTest.java
+ * @compile/fail/ref=ConflictingSuperInterfaceTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ConflictingSuperInterfaceTest.java
  */
 
 public class ConflictingSuperInterfaceTest {

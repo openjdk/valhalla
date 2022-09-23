@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses LambdaConversion.java
  * @run testng/othervm LambdaConversion
  * @summary test lambda type conversion of primitive class
  */

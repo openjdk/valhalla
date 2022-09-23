@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8230082
  * @summary Javac should not allow inline type's fields to be volatile (as they are final)
- * @compile/fail/ref=NoVolatileFields.out -XDrawDiagnostics NoVolatileFields.java
+ * @compile/fail/ref=NoVolatileFields.out -XDrawDiagnostics -XDenablePrimitiveClasses NoVolatileFields.java
  */
 
 public class NoVolatileFields {

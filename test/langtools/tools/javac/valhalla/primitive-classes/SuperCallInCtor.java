@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8267835
  * @summary  Javac tolerates vacuous chaining to super constructor from primitive class constructor
- * @compile/fail/ref=SuperCallInCtor.out -XDrawDiagnostics SuperCallInCtor.java
+ * @compile/fail/ref=SuperCallInCtor.out -XDrawDiagnostics -XDenablePrimitiveClasses SuperCallInCtor.java
  */
 
 final class SuperCallInCtor {

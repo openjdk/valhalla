@@ -32,7 +32,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile ObjectMethods.java
+ * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run main/othervm -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify

@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test CheckcastTest
  * @summary checkcast bytecode test
  * @library /test/lib
- * @compile VDefaultTest.java
+ * @compile -XDenablePrimitiveClasses VDefaultTest.java CheckcastTest.java
  * @run main runtime.valhalla.inlinetypes.CheckcastTest
  */
 

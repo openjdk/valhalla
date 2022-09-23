@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8237072
  * @summary Test various relationships between a value type and its reference projection.
- * @compile/fail/ref=GenericInlineTest.out -XDrawDiagnostics GenericInlineTest.java
+ * @compile/fail/ref=GenericInlineTest.out -XDrawDiagnostics -XDenablePrimitiveClasses GenericInlineTest.java
  */
 
 abstract class Low<T, U> {}

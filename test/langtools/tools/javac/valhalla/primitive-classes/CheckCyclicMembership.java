@@ -1,8 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Value types may not declare fields of its own type either directly or indirectly.
- *
- * @compile/fail/ref=CheckCyclicMembership.out -XDrawDiagnostics CheckCyclicMembership.java
+ * @compile/fail/ref=CheckCyclicMembership.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckCyclicMembership.java
  */
 
 final primitive class CheckCyclicMembership {

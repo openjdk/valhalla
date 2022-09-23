@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8264977
  * @summary A primitive class field by name val confuses javac
- * @compile/fail/ref=ValRefTokensNegativeTest.out -XDrawDiagnostics ValRefTokensNegativeTest.java
+ * @compile/fail/ref=ValRefTokensNegativeTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ValRefTokensNegativeTest.java
  */
 
 public class ValRefTokensNegativeTest  {

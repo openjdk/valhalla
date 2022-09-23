@@ -28,6 +28,7 @@
  * @bug 8207330
  * @summary Check that flattenable flag is set for synthetic fields as needed.
  * @modules jdk.jdeps/com.sun.tools.classfile
+ * @compile -XDenablePrimitiveClasses CheckFlattenableSyntheticFields.java
  * @run main/othervm CheckFlattenableSyntheticFields
  */
 

@@ -27,6 +27,7 @@ package runtime.valhalla.inlinetypes;
  * @test Test8186715
  * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
+ * @compile -XDenablePrimitiveClasses Test8186715.java
  * @run main runtime.valhalla.inlinetypes.Test8186715
  */
 

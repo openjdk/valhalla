@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test method handles with primitive narrowing/widening conversion
+ * @compile -XDenablePrimitiveClasses PrimitiveTypeConversionTest.java
  * @run testng/othervm PrimitiveTypeConversionTest
  */
 

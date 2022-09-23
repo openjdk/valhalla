@@ -26,6 +26,7 @@
  * @summary Test ObjectMethods::bootstrap call via condy
  * @modules java.base/jdk.internal.value
  * @modules java.base/jdk.internal.org.objectweb.asm
+ * @compile -XDenablePrimitiveClasses ObjectMethodsViaCondy.java
  * @run testng/othervm ObjectMethodsViaCondy
  */
 

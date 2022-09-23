@@ -1,8 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Check various withfield constrains
- *
- * @compile/fail/ref=WithFieldNegativeTests.out -XDrawDiagnostics WithFieldNegativeTests.java
+ * @compile/fail/ref=WithFieldNegativeTests.out -XDrawDiagnostics -XDenablePrimitiveClasses WithFieldNegativeTests.java
  */
 
 value final class A {

@@ -25,6 +25,7 @@
  * @test
  * @bug 8244982
  * @summary Javac has trouble compiling method references
+ * @compile -XDenablePrimitiveClasses StreamsTest.java
  * @run main StreamsTest
  */
 

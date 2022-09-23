@@ -24,7 +24,7 @@
 /**
  * @test
  * @summary Test withfield behavior at runtime.
- * @compile WithFieldRuntimeTest.java
+ * @compile -XDenablePrimitiveClasses WithFieldRuntimeTest.java
  * @run main/othervm WithFieldRuntimeTest
  */
 

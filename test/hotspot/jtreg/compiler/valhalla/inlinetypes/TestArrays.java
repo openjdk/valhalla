@@ -41,6 +41,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @summary Test inline type arrays
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile -XDenablePrimitiveClasses TestArrays.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestArrays
  */
 

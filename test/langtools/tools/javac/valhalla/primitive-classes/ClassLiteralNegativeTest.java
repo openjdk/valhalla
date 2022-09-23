@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8244796 8244799
  * @summary Value class literal tests
- * @compile/fail/ref=ClassLiteralNegativeTest.out -XDrawDiagnostics ClassLiteralNegativeTest.java
+ * @compile/fail/ref=ClassLiteralNegativeTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ClassLiteralNegativeTest.java
  */
 
 final primitive class ClassLiteralNegativeTest {

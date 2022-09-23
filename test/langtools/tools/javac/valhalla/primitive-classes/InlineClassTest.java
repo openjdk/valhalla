@@ -27,6 +27,7 @@
  * @test
  * @bug 8222745
  * @summary Test inline modifier
+ * @compile -XDenablePrimitiveClasses InlineClassTest.java
  * @run main/othervm InlineClassTest
  */
 

@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check behavior of synzhronized key word on primitive class instances and methods.
  *
- * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics CheckSynchronized.java
+ * @compile/fail/ref=CheckSynchronized.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckSynchronized.java
  */
 
 primitive final class CheckSynchronized implements java.io.Serializable {

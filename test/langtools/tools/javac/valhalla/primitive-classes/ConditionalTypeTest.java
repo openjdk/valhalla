@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8244513
  * @summary Test conditional expression typing involving inlines.
- * @compile/fail/ref=ConditionalTypeTest.out -XDrawDiagnostics ConditionalTypeTest.java
+ * @compile/fail/ref=ConditionalTypeTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ConditionalTypeTest.java
  */
 
 final class ConditionalTypeTest {

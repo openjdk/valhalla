@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8264216
  * @summary [lworld] unknown.Class.default gives misleading compilation error
- * @compile/fail/ref=UnknownTypeDefault.out -Xlint:all -Werror -XDrawDiagnostics -XDdev UnknownTypeDefault.java
+ * @compile/fail/ref=UnknownTypeDefault.out -Xlint:all -Werror -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses UnknownTypeDefault.java
  */
 
 public class UnknownTypeDefault {

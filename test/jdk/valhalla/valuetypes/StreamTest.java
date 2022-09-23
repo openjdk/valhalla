@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on primitive class array
- * @compile StreamTest.java
+ * @compile -XDenablePrimitiveClasses StreamTest.java
  * @run testng StreamTest
  */
 

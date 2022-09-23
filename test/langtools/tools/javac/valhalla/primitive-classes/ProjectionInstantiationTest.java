@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8244561 8250997
  * @summary Javac should not allow instantiation of V.ref or V.val
- * @compile/fail/ref=ProjectionInstantiationTest.out -XDrawDiagnostics ProjectionInstantiationTest.java
+ * @compile/fail/ref=ProjectionInstantiationTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ProjectionInstantiationTest.java
  */
 import java.util.function.Supplier;
 

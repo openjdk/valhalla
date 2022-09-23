@@ -26,7 +26,9 @@
  * @test
  * @summary test Object methods on primitive classes
  * @modules java.base/jdk.internal.value
+ * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run testng/othervm -Dvalue.bsm.salt=1 ObjectMethods
+ * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
 import java.lang.reflect.Modifier;
