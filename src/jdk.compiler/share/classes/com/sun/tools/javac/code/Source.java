@@ -287,6 +287,9 @@ public enum Source {
 
         public Error error(String sourceName) {
             Assert.checkNonNull(optFragment);
+            if (this == PRIMITIVE_CLASSES) {
+                return Errors.PrimitiveClassesNotSupported(minLevel.name);
+            }
             return optKind == DiagKind.NORMAL ?
                     Errors.FeatureNotSupportedInSource(optFragment, sourceName, minLevel.name) :
                     Errors.FeatureNotSupportedInSourcePlural(optFragment, sourceName, minLevel.name);
