@@ -706,7 +706,7 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@code "<init>"} and {@code "<clinit>"}).
+     * with special names ({@code "<init>"}, {@code "<vnew>"} and {@code "<clinit>"}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
      * A lookup of such an internal method will produce a {@code NoSuchMethodException}.
@@ -2599,7 +2599,7 @@ assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
             MemberName method = resolveOrFail(REF_invokeStatic, refc, name, type);
             // resolveOrFail could return a non-static <init> method if present
             // detect and throw NSME before producing a MethodHandle
-            if (!method.isStatic() && name.equals("<init>")) {
+            if (!method.isStatic() && (name.equals("<init>") || name.equals("<vnew>"))) {
                 throw new NoSuchMethodException("illegal method name: " + name);
             }
 
@@ -2750,9 +2750,9 @@ assertEquals("[x, y, z]", pb.command().toString());
          * }
          *
          * @apiNote
-         * This method does not find a static {@code <init>} factory method as it is invoked
+         * This method does not find a static {@code <init>/<vnew>} factory method as it is invoked
          * via {@code invokestatic} bytecode as opposed to {@code invokespecial} for an
-         * object constructor.  To look up static {@code <init>} factory method, use
+         * object constructor.  To look up static {@code <init>/<vnew>} factory method, use
          * the {@link #findStatic(Class, String, MethodType) findStatic} method.
          *
          * @param refc the class or interface from which the method is accessed
@@ -2773,7 +2773,7 @@ assertEquals("[x, y, z]", pb.command().toString());
             if (type.returnType() != void.class) {
                 throw new NoSuchMethodException("Constructors must have void return type: " + refc.getName());
             }
-            String name = "<init>";
+            String name = refc.isValue() ? "<vnew>" : "<init>";
             MemberName ctor = resolveOrFail(REF_newInvokeSpecial, refc, name, type);
             return getDirectConstructor(refc, ctor);
         }
@@ -2969,7 +2969,7 @@ assertEquals("[x, y, z]", pb.command().toString());
          * {@linkplain MethodHandle#asVarargsCollector variable arity} if and only if
          * the method's variable arity modifier bit ({@code 0x0080}) is set.
          * <p style="font-size:smaller;">
-         * <em>(Note:  JVM internal methods named {@code "<init>"} are not visible to this API,
+         * <em>(Note:  JVM internal methods named {@code "<init>"/"<vnew>"} are not visible to this API,
          * even though the {@code invokespecial} instruction can refer to them
          * in special circumstances.  Use {@link #findConstructor findConstructor}
          * to access instance initialization methods in a safe manner.)</em>
@@ -3742,7 +3742,7 @@ return mh1;
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
             // "<init>" can only be invoked via invokespecial or it's a static init factory
             if (name.startsWith("<") && refKind != REF_newInvokeSpecial &&
-                    !(refKind == REF_invokeStatic && name.equals("<init>"))) {
+                    !(refKind == REF_invokeStatic && (name.equals("<init>") || name.equals("<vnew>")))) {
                     throw new NoSuchMethodException("illegal method name: " + name);
             }
         }
@@ -4018,7 +4018,7 @@ return mh1;
                 !refc.isInterface() &&
                 refc != lookupClass().getSuperclass() &&
                 refc.isAssignableFrom(lookupClass())) {
-                assert(!method.getName().equals("<init>"));  // not this code path
+                assert(!method.getName().equals("<init>") && !method.getName().equals("<vnew>"));  // not this code path
 
                 // Per JVMS 6.5, desc. of invokespecial instruction:
                 // If the method is in a superclass of the LC,

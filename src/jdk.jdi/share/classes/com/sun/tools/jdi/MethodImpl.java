@@ -216,7 +216,7 @@ public abstract class MethodImpl extends TypeComponentImpl
     }
 
     public boolean isConstructor() {
-        return name().equals("<init>");
+        return name().equals("<init>") || name().equals("<vnew>");
     }
 
     public boolean isStaticInitializer() {

@@ -177,6 +177,9 @@ public class MemberEnter extends JCTree.Visitor {
 
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
+        if (tree.name == tree.name.table.names.init && enclScope.owner.isValueClass()) {
+            tree.name = tree.name.table.names.vnew;
+        }
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);
         m.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, m, tree);
         tree.sym = m;
@@ -230,7 +233,7 @@ public class MemberEnter extends JCTree.Visitor {
             annotate.annotateDefaultValueLater(tree.defaultValue, localEnv, m, tree.pos());
         }
 
-        if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
+        if (m.isInitOrVNew() && m.type.getParameterTypes().size() == 0) {
             int statsSize = tree.body.stats.size();
             if (statsSize == 0) {
                 m.flags_field |= EMPTYNOARGCONSTR;
@@ -344,7 +347,7 @@ public class MemberEnter extends JCTree.Visitor {
     void checkReceiver(JCVariableDecl tree, Env<AttrContext> localEnv) {
         attr.attribExpr(tree.nameexpr, localEnv);
         MethodSymbol m = localEnv.enclMethod.sym;
-        if (m.isConstructor()) {
+        if (m.isInitOrVNew()) {
             Type outertype = m.owner.owner.type;
             if (outertype.hasTag(TypeTag.METHOD)) {
                 // we have a local inner class

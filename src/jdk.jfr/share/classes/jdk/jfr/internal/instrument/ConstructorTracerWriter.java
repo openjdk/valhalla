@@ -57,7 +57,7 @@ final class ConstructorTracerWriter extends ClassVisitor {
     }
 
     private boolean isConstructor(String name) {
-        return name.equals("<init>");
+        return name.equals("<init>") || name.equals("<vnew>");
     }
 
     private boolean takesStringParameter(String desc) {
