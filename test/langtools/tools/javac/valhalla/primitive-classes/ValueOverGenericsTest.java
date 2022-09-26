@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary Value types cannot parameterize generic types (except under experimental mode)
- * @compile/fail/ref=ValueOverGenericsTest.out -XDrawDiagnostics ValueOverGenericsTest.java
+ * @compile/fail/ref=ValueOverGenericsTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ValueOverGenericsTest.java
  *
  */
 

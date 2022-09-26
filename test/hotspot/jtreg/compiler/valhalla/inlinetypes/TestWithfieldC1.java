@@ -34,6 +34,7 @@ import compiler.lib.ir_framework.*;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestWithfieldC1Classes.jasm
+ * @compile -XDenablePrimitiveClasses TestWithfieldC1.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestWithfieldC1
  */
 

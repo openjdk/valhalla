@@ -26,6 +26,7 @@
  * @bug 8280942
  * @summary Preload attribute should mention primitive classes when reference projection is used in descriptors
  * @modules jdk.jdeps/com.sun.tools.classfile
+ * @compile -XDenablePrimitiveClasses PreloadAttributeTest.java
  * @run main PreloadAttributeTest
  */
 

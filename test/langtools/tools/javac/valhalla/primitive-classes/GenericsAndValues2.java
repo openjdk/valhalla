@@ -27,7 +27,7 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile GenericsAndValues2.java
+ * @compile -XDenablePrimitiveClasses GenericsAndValues2.java
  */
 
 import java.util.function.Consumer;

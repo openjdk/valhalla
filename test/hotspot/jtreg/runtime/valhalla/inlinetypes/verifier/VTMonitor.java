@@ -25,6 +25,7 @@
  * @test
  * @bug 8227373
  * @summary Test that verifier allows monitor operations on inline types.
+ * @compile -XDenablePrimitiveClasses VTMonitor.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote VTMonitor
  */
 

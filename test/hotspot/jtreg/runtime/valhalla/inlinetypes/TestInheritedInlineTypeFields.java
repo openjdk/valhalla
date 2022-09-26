@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test TestInheritedInlineTypeFields
  * @summary Test if inline field klasses are correctly retrieved for inherited fields
  * @library /test/lib
- * @compile Point.java TestInheritedInlineTypeFields.java
+ * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses Point.java TestInheritedInlineTypeFields.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.TestInheritedInlineTypeFields
  */
 

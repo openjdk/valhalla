@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8197911
  * @summary Test Javac's treatment of null assignment to primitive class instances
- * @compile/fail/ref=FlattenableNegativeTest.out -XDrawDiagnostics -XDdev FlattenableNegativeTest.java
+ * @compile/fail/ref=FlattenableNegativeTest.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses FlattenableNegativeTest.java
  */
 
 public class FlattenableNegativeTest {

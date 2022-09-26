@@ -27,7 +27,7 @@
  * @test
  * @bug 8222711
  * @summary Ensure that static factory methods are generated with the right qualifier.
- * @compile TestQualifierOnInit.java
+ * @compile -XDenablePrimitiveClasses TestQualifierOnInit.java
  * @run main/othervm TestQualifierOnInit
  */
 

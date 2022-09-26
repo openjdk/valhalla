@@ -27,6 +27,7 @@
  * @test
  * @bug 8268671
  * @summary Wrong code generated for PrimitiveClass.ref.default
+ * @compile -XDenablePrimitiveClasses DefaultOfPrimitiveReference.java
  * @run main DefaultOfPrimitiveReference
  */
 

@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check inlineness via __inline__ annotation
  * @bug 8222745
- * @compile/fail/ref=InlineAnnotationOnAnonymousClass.out -XDrawDiagnostics InlineAnnotationOnAnonymousClass.java
+ * @compile/fail/ref=InlineAnnotationOnAnonymousClass.out -XDrawDiagnostics -XDenablePrimitiveClasses InlineAnnotationOnAnonymousClass.java
  */
 
 class InlineAnnotationOnAnonymousClass {

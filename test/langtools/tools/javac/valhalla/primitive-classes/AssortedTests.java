@@ -27,7 +27,7 @@
  * @test
  * @bug 8222634
  * @summary Check various code snippets that were incorrectly failing to compile.
- * @compile AssortedTests.java
+ * @compile -XDenablePrimitiveClasses AssortedTests.java
  */
 
 primitive class MyValue1 {

@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses Nest.java
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses Nest
  * @summary Test substitutability of inner class and anonymous class that
  * has the enclosing instance and possibly other captured outer locals

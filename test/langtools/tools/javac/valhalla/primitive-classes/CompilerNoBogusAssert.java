@@ -27,6 +27,7 @@
  * @test
  * @bug 8222711
  * @summary Regression test for bogus assertion failure.
+ * @compile -XDenablePrimitiveClasses CompilerNoBogusAssert.java
  * @run main/othervm CompilerNoBogusAssert
  */
 

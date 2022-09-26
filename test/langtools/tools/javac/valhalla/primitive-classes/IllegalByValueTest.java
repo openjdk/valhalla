@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8209400
  * @summary Allow anonymous classes to be value types
- * @compile/fail/ref=IllegalByValueTest.out -XDrawDiagnostics -XDdev IllegalByValueTest.java
+ * @compile/fail/ref=IllegalByValueTest.out -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses IllegalByValueTest.java
  */
 
 import java.lang.annotation.ElementType;

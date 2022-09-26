@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check valueness via __value__ annotation
  * @bug 8221699
- * @compile/fail/ref=ValueAnnotationTest.out -XDrawDiagnostics ValueAnnotationTest.java
+ * @compile/fail/ref=ValueAnnotationTest.out -XDrawDiagnostics -XDenablePrimitiveClasses ValueAnnotationTest.java
  */
 
 primitive

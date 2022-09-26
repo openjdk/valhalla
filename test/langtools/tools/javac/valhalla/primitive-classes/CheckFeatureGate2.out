@@ -1,2 +1,2 @@
-CheckFeatureGate2.java:11:17: compiler.err.feature.not.supported.in.source.plural: (compiler.misc.feature.primitive.classes), 13, 19
+CheckFeatureGate2.java:11:17: compiler.err.primitive.classes.not.supported: 19
 1 error

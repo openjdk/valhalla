@@ -40,7 +40,7 @@ import static jdk.test.lib.Asserts.*;
  * @summary Test tearing of inline fields and array elements
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile ValueTearing.java
+ * @compile -XDenablePrimitiveClasses ValueTearing.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *                   -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=

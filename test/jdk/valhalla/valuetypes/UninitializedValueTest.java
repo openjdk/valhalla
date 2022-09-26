@@ -24,8 +24,9 @@
 
 /*
  * @test
- * @compile --enable-preview --source ${jdk.version} UninitializedValueTest.java
+ * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses UninitializedValueTest.java
  * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 UninitializedValueTest
+ * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses UninitializedValueTest.java
  * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=0 UninitializedValueTest
  * @summary Test reflection and method handle on accessing a field of a primitive class
  *          that may be flattened or non-flattened
