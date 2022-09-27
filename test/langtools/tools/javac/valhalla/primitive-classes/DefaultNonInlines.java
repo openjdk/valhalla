@@ -26,7 +26,7 @@
  * @bug 8237067
  * @summary [lworld] Provide linguistic support to denote default values.
  * @compile -XDenablePrimitiveClasses DefaultNonInlines.java
- * @run main/othervm -Dtest.compiler.opts=-release=13 DefaultNonInlines
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dtest.compiler.opts=-release=13 DefaultNonInlines
  */
 
 public class DefaultNonInlines {

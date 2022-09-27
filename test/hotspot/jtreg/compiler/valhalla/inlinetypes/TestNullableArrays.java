@@ -40,7 +40,7 @@ import java.util.Arrays;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses TestNullableArrays.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestNullableArrays
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestNullableArrays
  */
 
 @ForceCompileClassInitializer

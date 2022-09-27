@@ -29,7 +29,7 @@
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
  * @compile -XDenablePrimitiveClasses test-classes/HelloInlineClassApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
- * @run driver HelloInlineClassTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HelloInlineClassTest
  */
 
 import jdk.test.lib.helpers.ClassFileInstaller;

@@ -39,7 +39,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses TestLWorldProfiling.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestLWorldProfiling
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
 
 @ForceCompileClassInitializer

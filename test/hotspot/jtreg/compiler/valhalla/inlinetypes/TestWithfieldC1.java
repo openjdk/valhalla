@@ -35,7 +35,7 @@ import compiler.lib.ir_framework.*;
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestWithfieldC1Classes.jasm
  * @compile -XDenablePrimitiveClasses TestWithfieldC1.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestWithfieldC1
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestWithfieldC1
  */
 
 @ForceCompileClassInitializer
