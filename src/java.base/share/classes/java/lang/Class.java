@@ -642,7 +642,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isIdentity() {
-        return (this.getModifiers() & Modifier.IDENTITY) != 0;
+        return isArray() || (this.getModifiers() & Modifier.IDENTITY) != 0;
     }
 
     /**
@@ -651,7 +651,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isValue() {
-        return (this.getModifiers() & Modifier.VALUE) != 0;
+        return !isArray() && (this.getModifiers() & Modifier.VALUE) != 0;
     }
 
     /**
