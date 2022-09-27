@@ -3243,24 +3243,6 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
   }
 #endif
 
-  if (EnableValhalla) {
-    // create_property("valhalla.enableValhalla", "true", InternalProperty)
-    const char* prop_name = "valhalla.enableValhalla";
-    const char* prop_value = "true";
-    const size_t prop_len = strlen(prop_name) + strlen(prop_value) + 2;
-    char* property = AllocateHeap(prop_len, mtArguments);
-    int ret = jio_snprintf(property, prop_len, "%s=%s", prop_name, prop_value);
-    if (ret < 0 || ret >= (int)prop_len) {
-      FreeHeap(property);
-      return JNI_ENOMEM;
-    }
-    bool added = add_property(property, UnwriteableProperty, InternalProperty);
-    FreeHeap(property);
-    if (!added) {
-      return JNI_ENOMEM;
-    }
-  }
-
 #ifndef CAN_SHOW_REGISTERS_ON_ASSERT
   UNSUPPORTED_OPTION(ShowRegistersOnAssert);
 #endif // CAN_SHOW_REGISTERS_ON_ASSERT
