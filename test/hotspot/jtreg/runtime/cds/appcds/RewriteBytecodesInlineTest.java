@@ -51,6 +51,7 @@ public class RewriteBytecodesInlineTest {
 
     OutputAnalyzer output = TestCommon.exec(appJar,
                     // command-line arguments ...
+                    "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                     use_whitebox_jar,
                     "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:+WhiteBoxAPI",

@@ -45,26 +45,31 @@ public class HelloInlineClassTest {
                                                     "HelloInlineClassApp$Rectangle"));
         output.shouldHaveExitValue(0);
 
-        TestCommon.run("-Xint", "-cp", appJar,  mainClass)
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xint", "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-cp", appJar,  mainClass)
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-cp", appJar,  mainClass)
             .assertNormalExit();
 
         String compFlag = "-XX:CompileCommand=compileonly,HelloInlineClassApp*::*";
 
-        TestCommon.run("-Xcomp", compFlag,
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xcomp", compFlag,
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-Xcomp", compFlag,
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xcomp", compFlag,
                        "-XX:TieredStopAtLevel=1",
                        "-XX:+TieredCompilation",
                        "-XX:-Inline",
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-Xcomp", compFlag,
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xcomp", compFlag,
                        "-XX:TieredStopAtLevel=4",
                        "-XX:-TieredCompilation",
                        "-XX:-Inline",

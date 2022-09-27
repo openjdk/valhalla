@@ -92,12 +92,13 @@ public class DynamicArchiveRelocationTest extends DynamicArchiveTestBase {
 
         // (1) Dump base archive (static)
 
-        TestCommon.dumpBaseArchive(baseArchiveName, unlockArg, logArg)
+        TestCommon.dumpBaseArchive(baseArchiveName, "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", unlockArg, logArg)
           .shouldContain("Relocating archive from");
 
         // (2) Dump top archive (dynamic)
 
         dump2(baseArchiveName, topArchiveName,
+              "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
               unlockArg,
               dumpTopRelocArg,
               logArg,
@@ -109,6 +110,7 @@ public class DynamicArchiveRelocationTest extends DynamicArchiveTestBase {
                 });
 
         run2(baseArchiveName, topArchiveName,
+             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
              unlockArg,
              runRelocArg,
              logArg,
