@@ -1997,7 +1997,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, EnableValhalla, true,                                       \
           "Enable experimental Valhalla features")                          \
                                                                             \
-  product(bool, EnablePrimitiveClasses, true,                               \
+  product(bool, EnablePrimitiveClasses, false,                              \
           "Enable experimental Valhalla primitive classes")                 \
                                                                             \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \
