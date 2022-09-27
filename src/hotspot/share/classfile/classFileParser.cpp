@@ -4786,8 +4786,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
   const bool is_identity_class = (flags & JVM_ACC_IDENTITY) != 0;
   const bool is_inner_class = name != NULL;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_inline_types() || !is_value_class, "JVM_ACC_VALUE should not be set");
-  assert(supports_inline_types() || !is_primitive_class, "JVM_ACC_PRIMITIVE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4832,12 +4830,12 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
-      (is_interface && major_gte_1_5 && ((is_super && !supports_inline_types()) || is_enum)) ||   //  ACC_SUPER (now ACC_IDENTITY) was illegal for interfaces
+      (is_interface && major_gte_1_5 && ((is_super && (!EnableValhalla || !supports_inline_types())) || is_enum)) ||   //  ACC_SUPER (now ACC_IDENTITY) was illegal for interfaces
       (!is_interface && major_gte_1_5 && is_annotation) ||
       (is_value_class && is_enum) ||
       (is_identity_class && is_value_class) ||
-      (supports_inline_types() && !is_module && !is_abstract && !is_Object && !(is_identity_class || is_value_class) && !is_inner_class) ||
-      (supports_inline_types() && is_primitive_class && (!is_value_class || !is_final || is_interface || is_abstract))) {
+      (EnableValhalla && supports_inline_types() && !is_module && !is_abstract && !is_Object && !(is_identity_class || is_value_class) && !is_inner_class) ||
+      (EnablePrimitiveClasses && supports_inline_types() && is_primitive_class && (!is_value_class || !is_final || is_interface || is_abstract))) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
     if (is_value_class)  class_note = " (a value class)";

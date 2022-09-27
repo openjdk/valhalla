@@ -41,6 +41,8 @@ public class BadACCValue {
             if (!e.getMessage().contains(message)) {
                 throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
             }
+        } catch (Throwable t) {
+            throw new RuntimeException( "Wrong Exeception, message: " + t.getMessage(), t);
         }
     }
 
