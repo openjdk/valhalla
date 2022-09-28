@@ -97,13 +97,11 @@ public class TreeInfo {
 
     public static boolean isCanonicalConstructor(JCTree tree) {
         // the record flag is only set to the canonical constructor
-        // TODO - inline allowed here.
         return isConstructor(tree) && (((JCMethodDecl)tree).sym.flags_field & RECORD) != 0;
     }
 
     public static boolean isCompactConstructor(JCTree tree) {
         // the record flag is only set to the canonical constructor
-        // TODO - inline allowed here.
         return isCanonicalConstructor(tree) && (((JCMethodDecl)tree).sym.flags_field & COMPACT_RECORD_CONSTRUCTOR) != 0;
     }
 

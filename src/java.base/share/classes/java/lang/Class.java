@@ -3620,7 +3620,6 @@ public final class Class<T> implements java.io.Serializable,
             Constructor<T>[] temporaryRes = (Constructor<T>[]) new Constructor<?>[0];
             res = temporaryRes;
         } else {
-            // TODO - make sure JVM returns "<vnew>" methods for inline classes.
             res = getDeclaredConstructors0(publicOnly);
         }
         if (rd != null) {

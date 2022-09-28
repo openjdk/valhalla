@@ -114,12 +114,12 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                      int modifiers,
                                      Class<?> targetConstructorClass)
     {
-        boolean isInlineClass = declaringClass.isValue();
+        boolean isValueClass = declaringClass.isValue();
         return (SerializationConstructorAccessorImpl)
             generate(declaringClass,
-                     isInlineClass ? "<vnew>" : "<init>",
+                     isValueClass ? "<vnew>" : "<init>",
                      parameterTypes,
-                     isInlineClass ? declaringClass : Void.TYPE,
+                     isValueClass ? declaringClass : Void.TYPE,
                      checkedExceptions,
                      modifiers,
                      true,

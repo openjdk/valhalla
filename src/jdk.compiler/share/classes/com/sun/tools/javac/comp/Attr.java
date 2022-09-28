@@ -6068,7 +6068,6 @@ public class Attr extends JCTree.Visitor {
         @Override
         public void visitNewClass(JCNewClass that) {
             if (that.constructor == null) {
-                // TODO - since this is a dummy constructor no concern for inline classes.
                 that.constructor = new MethodSymbol(0, names.init,
                         dummyMethodType(), syms.noSymbol);
             }
