@@ -26,6 +26,7 @@
  * @summary test MethodHandle/VarHandle on primitive classes
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.org.objectweb.asm
+ * @compile -XDenablePrimitiveClasses SubstitutabilityTest.java
  * @run testng SubstitutabilityTest
  */
 

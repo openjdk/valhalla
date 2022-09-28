@@ -27,7 +27,7 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile GenericsAndValues3.java
+ * @compile -XDenablePrimitiveClasses GenericsAndValues3.java
  */
 
 import java.util.stream.IntStream;

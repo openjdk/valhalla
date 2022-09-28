@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@ import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -67,17 +68,7 @@ public class RunBasic {
 
     private static final List<String> JAVA_CMDS;
 
-    // To update .ldap files under src/test/test, LDAP request and response
-    // bytes can be logged while interacting with a real LDAP server
-    // (e.g.: HOST_NAME = "localhost:8389").
-    // For that point HOST_NAME to a real server in which the ROOT_DOMAIN
-    // below is configured to allow modifications by anonymous users, and
-    // pass an additional "-trace" argument to the created subprocesses.
-    // The LDAP requests and response bytes will appear in the log, and you
-    // can then update the corresponding .ldap files.
     static final String HOST_NAME = InetAddress.getLoopbackAddress().getHostName();
-    static final String ROOT_DOMAIN = "dc=ie,dc=oracle,dc=com";
-    static final String PATH = "/" + ROOT_DOMAIN;
 
     static {
         String javaPath = JDKToolFinder.getJDKTool("java");
@@ -102,10 +93,14 @@ public class RunBasic {
         System.out.println("Hostname: [" + HOST_NAME + "]");
 
         // run tests
-        runTest("java.desktop", "test.StoreObject");
-        runTest("person", "test.StorePerson");
-        runTest("fruit", "test.StoreFruit");
-        runTest("hello", "test.StoreRemote");
+        runTest("java.desktop", "test.StoreObject",
+                "-Dcom.sun.jndi.ldap.object.trustSerialData=true");
+        runTest("person", "test.StorePerson",
+                "-Dcom.sun.jndi.ldap.object.trustSerialData=true");
+        runTest("fruit", "test.StoreFruit",
+                "-Dcom.sun.jndi.ldap.object.trustSerialData=true");
+        runTest("hello", "test.StoreRemote",
+                "-Dcom.sun.jndi.ldap.object.trustSerialData=true");
         runTest("foo", "test.ConnectWithFoo");
         runTest("authz", "test.ConnectWithAuthzId");
         runTest("ldapv4", "test.ReadByUrl");
@@ -127,16 +122,19 @@ public class RunBasic {
         Files.createDirectories(Path.of(first, more));
     }
 
-    private static void runTest(String desc, String clsName) throws Throwable {
+    private static void runTest(String desc, String clsName, String... additionalVmOpts) throws Throwable {
+        List<String> opts = new ArrayList<>();
+        opts.add("-Dtest.src=" + TEST_SRC);
+        for (String opt : additionalVmOpts) {
+            opts.add(opt);
+        }
+        opts.add("-p");
+        opts.add("mods");
+        opts.add("-m");
+        opts.add("test/" + clsName);
+        opts.add("ldap://" + HOST_NAME + "/dc=ie,dc=oracle,dc=com");
         System.out.println("Running with the '" + desc + "' module...");
-        // To record LDAP requests and responses in order to update the
-        // .ldap files under src/test/test, make sure that HOST_NAME
-        // points to an LDAP server accepting anonymous modifications without
-        // credentials, and that has "dc=ie,dc=oracle,dc=com" configured
-        // as root domain. Also add "-trace" as last argument to the runJava
-        // command below.
-        runJava("-Dtest.src=" + TEST_SRC, "-p", "mods", "-m", "test/" + clsName,
-                "ldap://" + HOST_NAME + PATH);
+        runJava(opts.toArray(String[]::new));
     }
 
     private static void runJava(String... opts) throws Throwable {

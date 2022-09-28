@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test reflection on primitive classes
- * @compile --enable-preview --source ${jdk.version} Reflection.java
+ * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses Reflection.java
  * @run testng/othervm --enable-preview Reflection
  */
 

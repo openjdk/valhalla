@@ -46,7 +46,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
- * @compile MyValue5.jcod
+ * @compile -XDenablePrimitiveClasses MyValue5.jcod
+ * @compile -XDenablePrimitiveClasses TestLWorld.java
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
  */

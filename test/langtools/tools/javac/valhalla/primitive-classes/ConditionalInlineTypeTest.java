@@ -27,6 +27,7 @@
  * @test
  * @bug 8244513
  * @summary Test conditional expression typing involving inlines.
+ * @compile -XDenablePrimitiveClasses ConditionalInlineTypeTest.java
  * @run main ConditionalInlineTypeTest
  */
 

@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccessString.java
  * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessString
  */
 

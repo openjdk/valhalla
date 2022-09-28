@@ -26,6 +26,7 @@
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of arrays of unloaded inline classes.
+ * @compile -XDenablePrimitiveClasses TestUnloadedInlineTypeArray.java
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray

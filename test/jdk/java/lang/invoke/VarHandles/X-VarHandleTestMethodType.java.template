@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8156486
+ * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodType$Type$.java
  * @run testng/othervm VarHandleTestMethodType$Type$
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodType$Type$
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false VarHandleTestMethodType$Type$
@@ -42,13 +43,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+#if[Point]
+import jdk.internal.value.PrimitiveClass;
+
+#end[Point]
 import static org.testng.Assert.*;
 
 import static java.lang.invoke.MethodType.*;
 
 public class VarHandleTestMethodType$Type$ extends VarHandleBaseTest {
 #if[Point]
-    static final Class<?> type = $type$.class.asValueType();
+    static final Class<?> type = PrimitiveClass.asValueType($type$.class);
 #else[Point]
     static final Class<?> type = $type$.class;
 #end[Point]

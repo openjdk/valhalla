@@ -73,7 +73,7 @@ public class ProjectionRelationsTest {
 
         Context context = new Context();
 
-        JavacTask task = (JavacTask) compiler.getTask(out, null, null, List.of("-XDinlinesAreIslands"), null, files, context);
+        JavacTask task = (JavacTask) compiler.getTask(out, null, null, List.of("-XDinlinesAreIslands", "-XDenablePrimitiveClasses"), null, files, context);
         Iterable<? extends Element> elements = task.analyze();
         if (elements == null || !elements.iterator().hasNext()) {
             throw new RuntimeException("Didn't compile alright!");

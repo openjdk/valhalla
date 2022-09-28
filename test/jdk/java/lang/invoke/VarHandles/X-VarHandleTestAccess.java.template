@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses                        Point.java Value.java VarHandleTestAccess$Type$.java
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccess$Type$
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccess$Type$
  * @run testng/othervm -Diters=20000                         VarHandleTestAccess$Type$
@@ -41,11 +42,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+#if[Point]
+import jdk.internal.value.PrimitiveClass;
+
+#end[Point]
 import static org.testng.Assert.*;
 
 public class VarHandleTestAccess$Type$ extends VarHandleBaseTest {
 #if[Point]
-    static final Class<?> type = $type$.class.asValueType();
+    static final Class<?> type = PrimitiveClass.asValueType($type$.class);
 #else[Point]
     static final Class<?> type = $type$.class;
 #end[Point]

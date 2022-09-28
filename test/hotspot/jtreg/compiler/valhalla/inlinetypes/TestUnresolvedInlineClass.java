@@ -26,7 +26,7 @@
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to resolve an inline type argument
  * @library /test/lib
- * @build SimpleInlineType
+ * @compile -XDenablePrimitiveClasses SimpleInlineType.java TestUnresolvedInlineClass.java
  * @run main/othervm TestUnresolvedInlineClass
  */
 

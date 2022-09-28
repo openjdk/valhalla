@@ -46,6 +46,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build test.java.lang.invoke.lib.InstructionHelper
+ * @compile -XDenablePrimitiveClasses TestNullableInlineTypes.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
 

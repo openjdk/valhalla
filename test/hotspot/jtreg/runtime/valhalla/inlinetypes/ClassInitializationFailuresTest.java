@@ -28,6 +28,7 @@ import jdk.test.lib.Asserts;
 * @test
 * @summary Test several scenarios of class initialization failures
 * @library /test/lib
+ * @compile -XDenablePrimitiveClasses ClassInitializationFailuresTest.java
 * @run main runtime.valhalla.inlinetypes.ClassInitializationFailuresTest
 
 */

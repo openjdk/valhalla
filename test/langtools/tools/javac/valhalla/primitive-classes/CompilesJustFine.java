@@ -27,7 +27,7 @@
  * @test
  * @bug 8222555 8222553
  * @summary Prove that code suspected of not compiling actually compiles fine.
- * @compile CompilesJustFine.java
+ * @compile -XDenablePrimitiveClasses CompilesJustFine.java
  */
 
 class CompilesFine {

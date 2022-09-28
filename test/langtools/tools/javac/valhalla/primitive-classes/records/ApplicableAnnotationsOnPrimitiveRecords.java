@@ -28,6 +28,7 @@
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.util
  *          jdk.jdeps/com.sun.tools.classfile
+ * @compile -XDenablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords.java
  * @run main ApplicableAnnotationsOnPrimitiveRecords
  */
 import com.sun.tools.classfile.*;

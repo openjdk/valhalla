@@ -40,6 +40,7 @@ import jdk.test.whitebox.WhiteBox;
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @build jdk.test.whitebox.WhiteBox
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict TestDeoptimizationWhenBufferingClasses.jasm
+ * @compile -XDenablePrimitiveClasses TestDeoptimizationWhenBuffering.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.inlinetypes.*::test*

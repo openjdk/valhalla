@@ -25,6 +25,7 @@
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
+ * @compile -XDenablePrimitiveClasses TestArrayAccessDeopt.java
  * @run driver TestArrayAccessDeopt
  */
 

@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeDensity
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @compile InlineTypeDensity.java
+ * @compile -XDenablePrimitiveClasses InlineTypeDensity.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions

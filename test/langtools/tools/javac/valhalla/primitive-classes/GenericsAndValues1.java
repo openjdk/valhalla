@@ -27,7 +27,7 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile GenericsAndValues1.java
+ * @compile -XDenablePrimitiveClasses GenericsAndValues1.java
  */
 
  primitive class Foo implements Comparable<Foo.ref>{

@@ -38,6 +38,7 @@ import jdk.internal.value.PrimitiveClass;
  * @summary Detect tearing on inline type buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
+ * @compile -XDenablePrimitiveClasses TestBufferTearing.java
  * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:FlatArrayElementMaxSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestBufferTearing

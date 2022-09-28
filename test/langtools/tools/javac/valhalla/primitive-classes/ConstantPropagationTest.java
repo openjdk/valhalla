@@ -25,7 +25,7 @@
  * @test
  * @summary Check constant propagation behavior
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile ConstantPropagationTest.java
+ * @compile -XDenablePrimitiveClasses ConstantPropagationTest.java
  * @run main/othervm -Xverify:none ConstantPropagationTest
  * @modules jdk.compiler
  */

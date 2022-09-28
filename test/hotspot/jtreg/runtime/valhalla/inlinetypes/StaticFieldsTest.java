@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Test circularity in static fields
  * @library /test/lib
- * @compile StaticFieldsTest.java
+ * @compile -XDenablePrimitiveClasses StaticFieldsTest.java
  * @run main runtime.valhalla.inlinetypes.StaticFieldsTest
  */
 

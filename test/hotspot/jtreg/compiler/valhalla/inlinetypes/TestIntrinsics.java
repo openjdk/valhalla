@@ -44,6 +44,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @library /test/lib /
  * @modules java.base/jdk.internal.misc java.base/jdk.internal.value
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile -XDenablePrimitiveClasses TestIntrinsics.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestIntrinsics
  */
 

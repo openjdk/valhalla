@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses                        Point.java Value.java VarHandleTestAccessBoolean.java
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessBoolean
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessBoolean
  * @run testng/othervm -Diters=20000                         VarHandleTestAccessBoolean

@@ -29,7 +29,7 @@
  * @requires vm.compiler2.enabled
  * @modules java.base/jdk.internal.value
  * @library /test/lib /compiler/whitebox /
- * @compile TestTrivialMethods.java
+ * @compile -XDenablePrimitiveClasses TestTrivialMethods.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbatch
  *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields

@@ -31,7 +31,7 @@ import jdk.internal.value.PrimitiveClass;
  * @requires vm.gc == null
  * @summary if_acmpeq/ne bytecode test
  * @modules java.base/jdk.internal.value
- * @compile Ifacmp.java
+ * @compile -XDenablePrimitiveClasses Ifacmp.java
  * @run main/othervm -Xms16m -Xmx16m -XX:+UseSerialGC
  *                   runtime.valhalla.inlinetypes.Ifacmp
  */

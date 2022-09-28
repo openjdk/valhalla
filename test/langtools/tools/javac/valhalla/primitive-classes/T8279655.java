@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8279655
  * @summary Bogus error: incompatible types: Object cannot be converted to Foo
- * @compile T8279655.java
+ * @compile -XDenablePrimitiveClasses T8279655.java
  */
 
 public class T8279655 {

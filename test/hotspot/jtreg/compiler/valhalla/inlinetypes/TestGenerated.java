@@ -25,6 +25,7 @@
  * @test
  * @bug 8260034 8260225 8260283 8261037 8261874 8262128 8262831
  * @summary Generated inline type tests.
+ * @compile -XDenablePrimitiveClasses TestGenerated.java
  * @run main/othervm -Xbatch
  *                   compiler.valhalla.inlinetypes.TestGenerated
  * @run main/othervm -Xbatch -XX:FlatArrayElementMaxSize=0

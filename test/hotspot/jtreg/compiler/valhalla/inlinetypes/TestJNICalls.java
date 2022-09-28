@@ -35,8 +35,11 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test calling native methods with inline type arguments from compiled code.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile -XDenablePrimitiveClasses TestJNICalls.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestJNICalls
  */
+
+/** this test was already failing no relation with the added -XDenablePrimitiveClasses option */
 
 @ForceCompileClassInitializer
 public class TestJNICalls {

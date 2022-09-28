@@ -28,6 +28,7 @@
  * @summary V.ref class should not inadvertently carry over attributes from V.class
  * @bug 8244713
  * @modules jdk.jdeps/com.sun.tools.classfile
+ * @compile -XDenablePrimitiveClasses AttributesTest.java
  * @run main AttributesTest
  */
 

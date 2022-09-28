@@ -27,6 +27,7 @@
  * @library /test/lib
  * @summary [lworld] Primitive classes can't be retransformed
  * @modules java.instrument
+ * @compile -XDenablePrimitiveClasses RedefinePrimitive.java
  * @run driver RedefinePrimitive master
  */
 
@@ -439,7 +440,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     transformErrorExpected = true;
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(1, className);
+                            .transform(1, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 
@@ -459,7 +460,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     transformErrorExpected = true;
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(1, className);
+                            .transform(1, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 
@@ -479,7 +480,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     transformErrorExpected = true;
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(1, className);
+                            .transform(1, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 
@@ -517,7 +518,7 @@ public class RedefinePrimitive {
                 @Override
                 public void prologue() throws Exception {
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(2, className);
+                            .transform(2, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 

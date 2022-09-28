@@ -27,6 +27,7 @@
  * @bug 8265423
  * @summary Experimental support for generating a single class file per primitive class
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
+ * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassBytecodeTest.java
  * @run main UnifiedPrimitiveClassBytecodeTest
  * @modules jdk.compiler
  */

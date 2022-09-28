@@ -33,7 +33,7 @@ import jdk.internal.value.PrimitiveClass;
  * @summary Test if JVM API using varargs work with inline type arrays
  * @modules java.base/jdk.internal.value
  * @library /test/lib
- * @compile VarArgsArray.java NewInstanceFromConstructor.java IntValue.java
+ * @compile -XDenablePrimitiveClasses VarArgsArray.java NewInstanceFromConstructor.java IntValue.java
  * @run main runtime.valhalla.inlinetypes.VarArgsArray
  */
 public class VarArgsArray {

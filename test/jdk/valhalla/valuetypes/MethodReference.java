@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses MethodReference.java
  * @run main MethodReference
  * @summary test method reference and primitive reference type as the parameter type
  */

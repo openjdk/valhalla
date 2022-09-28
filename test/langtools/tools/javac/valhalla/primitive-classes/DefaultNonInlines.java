@@ -25,6 +25,7 @@
  * @test Check default values for non-inline types
  * @bug 8237067
  * @summary [lworld] Provide linguistic support to denote default values.
+ * @compile -XDenablePrimitiveClasses DefaultNonInlines.java
  * @run main/othervm -Dtest.compiler.opts=-release=13 DefaultNonInlines
  */
 

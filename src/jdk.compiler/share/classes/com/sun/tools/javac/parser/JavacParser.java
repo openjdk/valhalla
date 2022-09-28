@@ -191,10 +191,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
-                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
-        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && fac.options.isSet("enablePrimitiveClasses");
+        this.allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -3645,8 +3643,6 @@ public class JavacParser implements Parser {
         if (name == names.primitive) {
             if (allowPrimitiveClasses) {
                 return Source.JDK18;
-            } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
             }
         }
         if (name == names.value) {
@@ -3763,15 +3759,14 @@ public class JavacParser implements Parser {
      *           | Expression
      */
     protected JCTree resource() {
-        int startPos = token.pos;
         if (token.kind == FINAL || token.kind == MONKEYS_AT) {
-            JCModifiers mods = optFinal(Flags.FINAL);
+            JCModifiers mods = optFinal(0);
             JCExpression t = parseType(true);
             return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
         }
         JCExpression t = term(EXPR | TYPE);
         if ((lastmode & TYPE) != 0 && LAX_IDENTIFIER.test(token.kind)) {
-            JCModifiers mods = toP(F.at(startPos).Modifiers(Flags.FINAL));
+            JCModifiers mods = F.Modifiers(0);
             return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
         } else {
             checkSourceLevel(Feature.EFFECTIVELY_FINAL_VARIABLES_IN_TRY_WITH_RESOURCES);
@@ -4632,7 +4627,7 @@ public class JavacParser implements Parser {
                     break;
             }
             if (isIdentityModifier) {
-                checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
         }
@@ -5156,7 +5151,10 @@ public class JavacParser implements Parser {
     }
 
     protected void checkSourceLevel(int pos, Feature feature) {
-        if (preview.isPreview(feature) && !preview.isEnabled()) {
+        if (feature == Feature.PRIMITIVE_CLASSES && !allowPrimitiveClasses) {
+            // primitive classes are special
+            log.error(DiagnosticFlag.SOURCE_LEVEL, pos, feature.error(source.name));
+        } else if (preview.isPreview(feature) && !preview.isEnabled()) {
             //preview feature without --preview flag, error
             log.error(DiagnosticFlag.SOURCE_LEVEL, pos, preview.disabledError(feature));
         } else if (!feature.allowedInSource(source)) {

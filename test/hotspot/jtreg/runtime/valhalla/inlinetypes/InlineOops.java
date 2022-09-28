@@ -41,7 +41,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile Person.java InlineOops.java
+ * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
@@ -56,7 +56,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile Person.java InlineOops.java
+ * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
@@ -71,7 +71,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile Person.java InlineOops.java
+ * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
@@ -86,7 +86,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
  * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
- * @compile Person.java InlineOops.java
+ * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
