@@ -172,6 +172,9 @@ JNIEXPORT jboolean JNICALL
 JVM_IsPreviewEnabled(void);
 
 JNIEXPORT jboolean JNICALL
+JVM_IsValhallaEnabled(void);
+
+JNIEXPORT jboolean JNICALL
 JVM_IsContinuationsSupported(void);
 
 JNIEXPORT void JNICALL
