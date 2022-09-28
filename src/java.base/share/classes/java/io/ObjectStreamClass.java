@@ -62,7 +62,6 @@ import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.access.JavaSecurityAccess;
-import jdk.internal.value.PrimitiveClass;
 import sun.reflect.misc.ReflectUtil;
 import static java.io.ObjectStreamField.*;
 
@@ -73,7 +72,7 @@ import static java.io.ObjectStreamField.*;
  *
  * <p>The algorithm to compute the SerialVersionUID is described in
  * <a href="{@docRoot}/../specs/serialization/class.html#stream-unique-identifiers">
- *    <cite>Java Object Serialization Specification,</cite> Section 4.6, "Stream Unique Identifiers"</a>.
+ *    <cite>Java Object Serialization Specification</cite>, Section 4.6, "Stream Unique Identifiers"</a>.
  *
  * @author      Mike Warres
  * @author      Roger Riggs
@@ -929,6 +928,9 @@ public final class ObjectStreamClass implements Serializable {
         return serializable;
     }
 
+    /**
+     * {@return {code true} if the class is a value class, {@code false} otherwise}
+     */
     boolean isValue() {
         requireInitialized();
         return isValue;
@@ -1069,7 +1071,7 @@ public final class ObjectStreamClass implements Serializable {
                 throw ex;
             }
         } else if (isValue) {
-            // Start with an buffered default value.
+            // Start with a buffered default value.
             return FieldReflector.newValueInstance(cl);
         }  else {
             throw new UnsupportedOperationException();
@@ -1077,7 +1079,7 @@ public final class ObjectStreamClass implements Serializable {
     }
 
     /**
-     * Finish the initialization of a Value object.
+     * Finish the initialization of a value object.
      * @param obj an object (larval if a value object)
      * @return the finished object
      */
@@ -1965,7 +1967,7 @@ public final class ObjectStreamClass implements Serializable {
         }
 
         /**
-         * Finish a Value object, clear the larval state and returning the Value object.
+         * Finish a value object, clear the larval state and returning the value object.
          * @param obj a buffered value object in a larval state
          * @return the finished value object
          */

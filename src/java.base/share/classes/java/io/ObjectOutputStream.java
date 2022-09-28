@@ -128,12 +128,12 @@ import sun.reflect.misc.ReflectUtil;
  * implemented by a class they can write and read their own state using all of
  * the methods of ObjectOutput and ObjectInput.  It is the responsibility of
  * the objects to handle any versioning that occurs.
- * Value classes implementing {@link Externalizable} can not be serialized
- * or deserialized, the value object is immutable and the state can not be restored.
+ * Value classes implementing {@link Externalizable} cannot be serialized
+ * or deserialized, the value object is immutable and the state cannot be restored.
  * Use {@link Serializable} {@code writeReplace} to delegate to another serializable
- * object such as a Record.
+ * object such as a record.
  *
- * Value objects can not be `java.io.Externalizable`.
+ * Value objects cannot be `java.io.Externalizable`.
  *
  * <p>Enum constants are serialized differently than ordinary serializable or
  * externalizable objects.  The serialized form of an enum constant consists

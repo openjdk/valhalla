@@ -216,7 +216,7 @@ import sun.security.action.GetIntegerAction;
  * implemented by a class they can write and read their own state using all of
  * the methods of ObjectOutput and ObjectInput.  It is the responsibility of
  * the objects to handle any versioning that occurs.
- * Value objects can not be `java.io.Externalizable` because Value objects are
+ * value objects cannot be `java.io.Externalizable` because value objects are
  * immutable and `Externalizable.readExternal` is unable to modify the fields of the value.
  *
  * <p>Enum constants are deserialized differently than ordinary serializable or
@@ -245,8 +245,8 @@ import sun.security.action.GetIntegerAction;
  *
  * <p>Value objects are deserialized differently than ordinary serializable objects or records.
  * See <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-value-objects">
- *  * <cite>Java Object Serialization Specification,</cite> Section 1.1xx,
- *  * "Serialization of Value Objects"</a> for additional information.
+ * <cite>Java Object Serialization Specification,</cite> Section 1.1xx,
+ * "Serialization of Value Objects"</a> for additional information.
  *
  * @author      Mike Warres
  * @author      Roger Riggs

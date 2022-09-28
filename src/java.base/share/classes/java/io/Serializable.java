@@ -151,7 +151,7 @@ package java.io;
  * <cite>Java Object Serialization Specification,</cite> Section 1.1xx,
  * "Serialization of Value Objects"</a>. Any declarations of the special
  * handling methods discussed above, except {@code writeReplace},
- * are ignored for record types. Value classes implementing {@link Externalizable}
+ * are ignored for value types. Value classes implementing {@link Externalizable}
  * and not using {@code writeReplace} are not supported.<p>
  *
  * The serialization runtime associates with each serializable class a version
