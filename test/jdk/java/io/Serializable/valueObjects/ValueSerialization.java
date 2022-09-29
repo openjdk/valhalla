@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary ValueSerialization support of value classes
- * @compile -XDenablePrimitiveClasses Point.java Line.java NonFlattenValue.java Serialization.java
  * @run testng/othervm ValueSerialization
  */
 
