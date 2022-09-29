@@ -191,14 +191,16 @@ public final class Objects {
     }
 
    /**
-     * {@return {@code true} if the object is an identity object, otherwise {@code false}}
-     * @param o an object
-     */
+    * {@return {@code true} if the object is an identity object, otherwise {@code false}}
+    *
+    * @param obj an object
+    * @throws NullPointerException if {@code obj} is {@code null}
+    */
 //    @IntrinsicCandidate
-    public static boolean isIdentityObject(Object o) {
-        return o.getClass().isIdentity() ||
-                o.getClass() == Object.class ||
-                !ValhallaFeatures.isEnabled(); // Before Valhalla all objects are identity objects.
+    public static boolean isIdentityObject(Object obj) {
+        requireNonNull(obj);
+        return obj.getClass().isIdentity() ||  // Before Valhalla all classes are identity classes
+                obj.getClass() == Object.class;
     }
 
     /**

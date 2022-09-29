@@ -72,6 +72,7 @@ import java.util.stream.Collectors;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.module.Resources;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -642,7 +643,9 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isIdentity() {
-        return isArray() || (this.getModifiers() & Modifier.IDENTITY) != 0;
+        return !ValhallaFeatures.isEnabled() ||  // Before Valhalla all classes are identity classes
+                isArray() ||
+                (this.getModifiers() & Modifier.IDENTITY) != 0;
     }
 
     /**
@@ -651,7 +654,9 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     public boolean isValue() {
-        return !isArray() && (this.getModifiers() & Modifier.VALUE) != 0;
+        return ValhallaFeatures.isEnabled() &&  // Before Valhalla no classes are value classes
+                !isArray() &&
+                (this.getModifiers() & Modifier.VALUE) != 0;
     }
 
     /**

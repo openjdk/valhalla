@@ -82,7 +82,7 @@ public class ObjectMethods {
                 {new ValueType2(2), false},
                 {new PrimitiveRecord(1, "A"), false},
                 {new ValueRecord(1,"B"), false},
-                {new int[0], true},  // arrays of primitives classes are identity objects
+                {new int[0], true},  // arrays of primitive classes are identity objects
                 {new Object[0], true},  // arrays of identity classes are identity objects
                 {new String[0], true},  // arrays of identity classes are identity objects
                 {new ValueType1[0], true},  // arrays of value classes are identity objects
