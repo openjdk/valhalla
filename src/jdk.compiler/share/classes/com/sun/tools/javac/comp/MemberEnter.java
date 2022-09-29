@@ -63,6 +63,7 @@ public class MemberEnter extends JCTree.Visitor {
     private final Annotate annotate;
     private final Types types;
     private final DeferredLintHandler deferredLintHandler;
+    private final boolean allowValueClasses;
 
     public static MemberEnter instance(Context context) {
         MemberEnter instance = context.get(memberEnterKey);
@@ -81,6 +82,8 @@ public class MemberEnter extends JCTree.Visitor {
         annotate = Annotate.instance(context);
         types = Types.instance(context);
         deferredLintHandler = DeferredLintHandler.instance(context);
+        Source source = Source.instance(context);
+        allowValueClasses = Source.Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** Construct method type from method signature.
@@ -177,7 +180,7 @@ public class MemberEnter extends JCTree.Visitor {
 
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
-        if (tree.name == tree.name.table.names.init && enclScope.owner.isValueClass()) {
+        if (tree.name == tree.name.table.names.init && allowValueClasses && enclScope.owner.isValueClass()) {
             tree.name = tree.name.table.names.vnew;
         }
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);

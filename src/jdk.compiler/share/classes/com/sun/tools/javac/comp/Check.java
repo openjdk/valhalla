@@ -781,7 +781,7 @@ public class Check {
                 case MTH:
                     if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                         log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
-                    } else if (s.isValueObjectFactory()) {
+                    } else if (s.isInitOrVNew()) {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
                             log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, fragment));
@@ -792,7 +792,7 @@ public class Check {
                         } else if (protection(m.flags()) > protection(m.owner.flags())) {
                             log.error(pos, Errors.SuperConstructorAccessRestricted(m, fragment));
                         } else if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
+                            log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
                         }
                     }
                     break;

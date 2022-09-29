@@ -106,6 +106,7 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean allowModules;
     public final boolean allowRecords;
+    public final boolean allowValueClasses;
     private final boolean compactMethodDiags;
     private final boolean allowLocalVariableTypeInference;
     private final boolean allowYieldStatement;
@@ -140,13 +141,13 @@ public class Resolve {
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
                 options.isUnset(Option.XDIAGS) && options.isUnset("rawDiagnostics");
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
-        Target target = Target.instance(context);
         allowLocalVariableTypeInference = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source);
         allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -2986,7 +2987,7 @@ public class Resolve {
                               Type site,
                               List<Type> argtypes,
                               List<Type> typeargtypes) {
-        Name constructorName = site.tsym.isValueClass() ? names.vnew : names.init;
+        Name constructorName = allowValueClasses && site.tsym.isValueClass() ? names.vnew : names.init;
         return lookupMethod(env, pos, site.tsym, resolveMethodCheck,
                 new BasicLookupHelper(constructorName, site, argtypes, typeargtypes) {
                     @Override

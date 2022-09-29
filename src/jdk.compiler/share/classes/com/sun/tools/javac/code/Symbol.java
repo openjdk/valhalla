@@ -357,7 +357,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
      */
     public Type externalType(Types types) {
         Type t = erasure(types);
-        if ((isConstructor() || isValueObjectFactory()) && owner.hasOuterInstance()) {
+        if (isInitOrVNew() && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
             return new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
@@ -483,13 +483,13 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     /** Is this symbol a value object factory?
      */
     public boolean isValueObjectFactory() {
-        return ((name == name.table.names.vnew && this.type.getReturnType().tsym == this.owner && (flags() & STATIC) == 0));
+        return name == name.table.names.vnew && this.type.getReturnType().tsym == this.owner;
     }
 
     /** Is this symbol a constructor or value factory?
      */
     public boolean isInitOrVNew() {
-        return name.table.names.isInitOrVNew(name) && (flags() & STATIC) == 0;
+        return name.table.names.isInitOrVNew(name);
     }
 
     public boolean isDynamic() {
@@ -1995,7 +1995,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if ((flags() & BLOCK) != 0) {
                 return owner.name.toString();
             } else {
-                String s = (isConstructor() || isValueObjectFactory())
+                String s = isInitOrVNew()
                     ? owner.name.toString()
                     : name.toString();
                 if (type != null) {
@@ -2251,7 +2251,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @DefinedBy(Api.LANGUAGE_MODEL)
         public ElementKind getKind() {
-            if (isConstructor() || isValueObjectFactory())
+            if (isInitOrVNew())
                 return ElementKind.CONSTRUCTOR;
             else if (name == name.table.names.clinit)
                 return ElementKind.STATIC_INIT;

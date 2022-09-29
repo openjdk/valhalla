@@ -372,7 +372,7 @@ public class TransValues extends TreeTranslator {
     private boolean transformToValueFactory() {
         // We lower any constructors in abstract value classes to <init> methods while a
         // constructor in a concrete value class is lowered into a static value factory method
-        return currentClass != null && (currentClass.sym.flags() & (ABSTRACT | VALUE_CLASS)) == VALUE_CLASS && currentMethod != null && currentMethod.sym.isValueObjectFactory();
+        return currentClass != null && (currentClass.sym.flags() & (ABSTRACT | VALUE_CLASS)) == VALUE_CLASS && currentMethod != null && currentMethod.sym.name == names.vnew;
     }
 
     private boolean isInstanceMemberAccess(Symbol symbol) {
