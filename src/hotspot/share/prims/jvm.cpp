@@ -3562,6 +3562,10 @@ JVM_LEAF(jboolean, JVM_IsPreviewEnabled(void))
   return Arguments::enable_preview() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
+JVM_LEAF(jboolean, JVM_IsValhallaEnabled(void))
+  return EnableValhalla ? JNI_TRUE : JNI_FALSE;
+JVM_END
+
 JVM_LEAF(jboolean, JVM_IsContinuationsSupported(void))
   return VMContinuations ? JNI_TRUE : JNI_FALSE;
 JVM_END
