@@ -639,10 +639,9 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * {@return {@code true} if this class is an identity class, otherwise {@code false}}
-     * When value classes are enabled, classes with the {@linkplain Modifier#IDENTITY IDENTITY}
-     * {@link #getModifiers() modifier} are identified as identity classes;
-     * when not enabled, all classes are identity classes.
-     * Array classes are always identity classes.
+     * If this {@code Class} object represents an array type, then this method returns {@code true}.
+     * If this {@code Class} object represents a primitive type, or {@code void},
+     * then this method returns {@code false}.
      *
      * @since Valhalla
      */
@@ -654,15 +653,13 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * {@return {@code true} if this class is a value class, otherwise {@code false}}
-     * When value classes are enabled, classes with the {@linkplain Modifier#VALUE VALUE}
-     * {@link #getModifiers() modifier} are identified as value classes;
-     * when not enabled, no classes are value classes.
+     * If this {@code Class} object represents an array type, a primitive type, or
+     * {@code void}, then this method returns {@code false}.
      *
      * @since Valhalla
      */
     public boolean isValue() {
-        return ValhallaFeatures.isEnabled() &&  // Before Valhalla no classes are value classes
-                (this.getModifiers() & Modifier.VALUE) != 0;
+        return (this.getModifiers() & Modifier.VALUE) != 0;
     }
 
     /**
