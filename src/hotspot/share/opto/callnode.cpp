@@ -1301,7 +1301,7 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
 
   Node* ctrl = phase->transform(new ProjNode(unc, TypeFunc::Control));
   Node* halt = phase->transform(new HaltNode(ctrl, call->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
-  phase->C->root()->add_req(halt);
+  igvn->add_input_to(phase->C->root(), halt);
 
   return true;
 }
