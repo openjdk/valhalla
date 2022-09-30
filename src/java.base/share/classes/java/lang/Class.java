@@ -639,23 +639,29 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * {@return {@code true} if this class is an identity class, otherwise {@code false}}
+     * When value classes are enabled, classes with the {@linkplain Modifier#IDENTITY IDENTITY}
+     * {@link #getModifiers() modifier} are identified as identity classes;
+     * when not enabled, all classes are identity classes.
+     * Array classes are always identity classes.
      *
      * @since Valhalla
      */
     public boolean isIdentity() {
         return !ValhallaFeatures.isEnabled() ||  // Before Valhalla all classes are identity classes
-                isArray() ||
-                (this.getModifiers() & Modifier.IDENTITY) != 0;
+                (this.getModifiers() & Modifier.IDENTITY) != 0 ||
+                isArray();
     }
 
     /**
      * {@return {@code true} if this class is a value class, otherwise {@code false}}
+     * When value classes are enabled, classes with the {@linkplain Modifier#VALUE VALUE}
+     * {@link #getModifiers() modifier} are identified as value classes;
+     * when not enabled, no classes are value classes.
      *
      * @since Valhalla
      */
     public boolean isValue() {
         return ValhallaFeatures.isEnabled() &&  // Before Valhalla no classes are value classes
-                !isArray() &&
                 (this.getModifiers() & Modifier.VALUE) != 0;
     }
 
