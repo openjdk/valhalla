@@ -34,6 +34,7 @@
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
@@ -69,6 +70,31 @@ public class ObjectMethods {
                                         .setPointRef(Point.makePoint(200, 200))
                                         .setReference(Point.makePoint(300, 300))
                                         .setNumber(Value.Number.intValue(20)).build();
+
+    @DataProvider(name="Identities")
+    Object[][] identitiesData() {
+        return new Object[][]{
+                {new Object(), true},
+                {"String", true},
+                {String.class, true},
+                {Object.class, true},
+                {new ValueType1(1), false},
+                {new ValueType2(2), false},
+                {new PrimitiveRecord(1, "A"), false},
+                {new ValueRecord(1,"B"), false},
+                {new int[0], true},  // arrays of primitive classes are identity objects
+                {new Object[0], true},  // arrays of identity classes are identity objects
+                {new String[0], true},  // arrays of identity classes are identity objects
+                {new ValueType1[0], true},  // arrays of value classes are identity objects
+        };
+    }
+
+    @Test(dataProvider="Identities")
+    void identityTests(Object obj, boolean expected) {
+        var actual = Objects.isIdentityObject(obj);
+        assertEquals(expected, actual, "Objects.isIdentityObject unexpected");
+    }
+
     @DataProvider(name="equalsTests")
     Object[][] equalsTests() {
         return new Object[][]{
