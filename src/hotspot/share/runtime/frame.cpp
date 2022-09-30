@@ -359,7 +359,7 @@ void frame::deoptimize(JavaThread* thread) {
     // type args. We can't deoptimize at that point because the buffers have not yet been initialized.
     // Also, if the method is synchronized, we first need to acquire the lock.
     // Don't patch the return pc to delay deoptimization until we enter the method body (the check
-    // addedin LIRGenerator::do_Base will detect the pending deoptimization by checking the original_pc).
+    // added in LIRGenerator::do_Base will detect the pending deoptimization by checking the original_pc).
 #if defined ASSERT && !defined AARCH64   // Stub call site does not look like NativeCall on AArch64
     NativeCall* call = nativeCall_before(this->pc());
     address dest = call->destination();

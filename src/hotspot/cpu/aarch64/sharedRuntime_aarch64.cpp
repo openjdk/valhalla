@@ -615,6 +615,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->c2i_entry_barrier(masm);
 
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
@@ -1062,9 +1064,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     __ bind(L_skip_barrier);
     c2i_no_clinit_check_entry = __ pc();
   }
-
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->c2i_entry_barrier(masm);
 
   gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 

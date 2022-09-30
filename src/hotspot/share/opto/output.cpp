@@ -288,30 +288,32 @@ int C2SafepointPollStubTable::estimate_stub_size() const {
 
 // Nmethod entry barrier stubs
 C2EntryBarrierStub* C2EntryBarrierStubTable::add_entry_barrier() {
-  assert(_stub == NULL, "There can only be one entry barrier stub");
-  _stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
-  return _stub;
+  C2EntryBarrierStub* stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
+  _stubs.append(stub);
+  return stub;
 }
 
 void C2EntryBarrierStubTable::emit(CodeBuffer& cb) {
-  if (_stub == NULL) {
+  if (_stubs.is_empty()) {
     // No stub - nothing to do
     return;
   }
 
   C2_MacroAssembler masm(&cb);
-  // Make sure there is enough space in the code buffer
-  if (cb.insts()->maybe_expand_to_ensure_remaining(PhaseOutput::MAX_inst_size) && cb.blob() == NULL) {
-    ciEnv::current()->record_failure("CodeCache is full");
-    return;
-  }
+  for (C2EntryBarrierStub* stub : _stubs) {
+    // Make sure there is enough space in the code buffer
+    if (cb.insts()->maybe_expand_to_ensure_remaining(PhaseOutput::MAX_inst_size) && cb.blob() == NULL) {
+      ciEnv::current()->record_failure("CodeCache is full");
+      return;
+    }
 
-  intptr_t before = masm.offset();
-  masm.emit_entry_barrier_stub(_stub);
-  intptr_t after = masm.offset();
-  int actual_size = (int)(after - before);
-  int expected_size = masm.entry_barrier_stub_size();
-  assert(actual_size == expected_size, "Estimated size is wrong, expected %d, was %d", expected_size, actual_size);
+    intptr_t before = masm.offset();
+    masm.emit_entry_barrier_stub(stub);
+    intptr_t after = masm.offset();
+    int actual_size = (int)(after - before);
+    int expected_size = masm.entry_barrier_stub_size();
+    assert(actual_size == expected_size, "Estimated size is wrong, expected %d, was %d", expected_size, actual_size);
+  }
 }
 
 int C2EntryBarrierStubTable::estimate_stub_size() const {
@@ -3445,12 +3447,6 @@ uint PhaseOutput::scratch_emit_size(const Node* n) {
     masm.bind(fakeL);
     n->as_MachBranch()->save_label(&saveL, &save_bnum);
     n->as_MachBranch()->label_set(&fakeL, 0);
-  } else if (n->is_MachProlog()) {
-    saveL = ((MachPrologNode*)n)->_verified_entry;
-    ((MachPrologNode*)n)->_verified_entry = &fakeL;
-  } else if (n->is_MachVEP()) {
-    saveL = ((MachVEPNode*)n)->_verified_entry;
-    ((MachVEPNode*)n)->_verified_entry = &fakeL;
   }
   n->emit(buf, C->regalloc());
 
@@ -3460,10 +3456,6 @@ uint PhaseOutput::scratch_emit_size(const Node* n) {
   // Restore label.
   if (is_branch) {
     n->as_MachBranch()->label_set(saveL, save_bnum);
-  } else if (n->is_MachProlog()) {
-    ((MachPrologNode*)n)->_verified_entry = saveL;
-  } else if (n->is_MachVEP()) {
-    ((MachVEPNode*)n)->_verified_entry = saveL;
   }
 
   // End scratch_emit_size section.
