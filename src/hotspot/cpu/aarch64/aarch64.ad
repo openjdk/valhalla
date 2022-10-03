@@ -1770,10 +1770,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
     __ bind(L_skip_barrier);
   }
 
-  if (C->max_vector_size() > 0) {
-    __ reinitialize_ptrue();
-  }
-
   __ verified_entry(C, 0);
 
   if (C->stub_function() == NULL) {
@@ -2188,6 +2184,10 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     __ bind(skip);
 
   } else {
+    // insert a nop at the start of the prolog so we can patch in a
+    // branch if we need to invalidate the method later
+    __ nop();
+
     // TODO 8284443 Avoid creation of temporary frame
     if (ra_->C->stub_function() == NULL) {
       __ verified_entry(ra_->C, 0);

@@ -303,11 +303,15 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   cmp_klass(receiver, iCache, rscratch1);
 }
 
-void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, bool needs_stack_repair) {
+void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool has_scalarized_args, bool needs_stack_repair) {
   MacroAssembler::build_frame(frame_size_in_bytes);
 
   if (needs_stack_repair) {
     save_stack_increment(sp_inc, frame_size_in_bytes);
+  }
+  if (has_scalarized_args) {
+    // Initialize orig_pc to detect deoptimization during buffering in the entry points
+    str(zr, Address(sp, sp_offset_for_orig_pc));
   }
 }
 
@@ -317,12 +321,7 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   generate_stack_overflow_check(bang_size_in_bytes);
 
-  if (has_scalarized_args) {
-    // Initialize orig_pc to detect deoptimization during buffering in the entry points
-    str(zr, Address(sp, sp_offset_for_orig_pc - frame_size_in_bytes));
-  }
-
-  build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
+  build_frame_helper(frame_size_in_bytes, sp_offset_for_orig_pc, 0, has_scalarized_args, needs_stack_repair);
 
   // Insert nmethod entry barrier into frame.
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
@@ -361,11 +360,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
 
-  // Initialize orig_pc to detect deoptimization during buffering in below runtime call
-  str(zr, Address(sp, sp_offset_for_orig_pc));
-
   // Create a temp frame so we can call into the runtime. It must be properly set up to accommodate GC.
-  build_frame_helper(frame_size_in_bytes, 0, ces->c1_needs_stack_repair());
+  build_frame_helper(frame_size_in_bytes, sp_offset_for_orig_pc, 0, true, ces->c1_needs_stack_repair());
 
   // The runtime call might safepoint, make sure nmethod entry barrier is executed
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
@@ -401,7 +397,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
 
   // Create the real frame. Below jump will then skip over the stack banging and frame
   // setup code in the verified_inline_entry (which has a different real_frame_size).
-  build_frame_helper(frame_size_in_bytes, sp_inc, ces->c1_needs_stack_repair());
+  build_frame_helper(frame_size_in_bytes, sp_offset_for_orig_pc, sp_inc, true, ces->c1_needs_stack_repair());
 
   b(verified_inline_entry_label);
   return rt_call_offset;
