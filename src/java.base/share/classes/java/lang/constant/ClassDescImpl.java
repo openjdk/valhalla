@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
  */
 package java.lang.constant;
 
-import sun.invoke.util.Wrapper;
+import jdk.internal.value.PrimitiveClass;
 
 import java.lang.invoke.MethodHandles;
 
@@ -78,10 +78,10 @@ final class ClassDescImpl implements ClassDesc {
         else {
             Class<?> clazz = lookup.findClass(internalToBinary(dropFirstAndLastChar(c.descriptorString())));
             if (isValue) {
-                if (!clazz.isPrimitiveClass()) {
+                if (!PrimitiveClass.isPrimitiveClass(clazz)) {
                     throw new LinkageError(clazz.getName() + " is not a primitive class");
                 }
-                clazz = clazz.asValueType();
+                clazz = PrimitiveClass.asValueType(clazz);
             }
             for (int i = 0; i < depth; i++)
                 clazz = clazz.arrayType();

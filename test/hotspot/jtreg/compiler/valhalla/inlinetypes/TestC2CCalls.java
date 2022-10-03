@@ -26,7 +26,7 @@
  * @key randomness
  * @summary Test inline type calling convention with compiled to compiled calls.
  * @library /test/lib /compiler/whitebox /
- * @compile TestC2CCalls.java
+ * @compile -XDenablePrimitiveClasses TestC2CCalls.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   TestC2CCalls

@@ -25,6 +25,7 @@
  * @test
  * @bug 8247309
  * @summary Test correct handling of aconst_init bytecode with unresolved inline class.
+ * @compile -XDenablePrimitiveClasses TestUnresolvedDefault.java
  * @run main/othervm -Xcomp -XX:CompileCommand=compileonly,TestUnresolvedDefault::test TestUnresolvedDefault
  */
 

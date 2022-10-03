@@ -140,7 +140,6 @@ typedef AllocFailStrategy::AllocFailEnum AllocFailType;
  */
 enum class MEMFLAGS {
   MEMORY_TYPES_DO(MEMORY_TYPE_DECLARE_ENUM)
-  mtValueTypes,        // memory for buffered value types
   mt_number_of_types   // number of memory types (mtDontTrack
                        // is not included as validate type)
 };

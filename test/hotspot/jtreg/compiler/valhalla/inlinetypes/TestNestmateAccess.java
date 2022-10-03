@@ -29,6 +29,7 @@ import jdk.test.lib.Asserts;
  * @bug 8253416
  * @summary Test nestmate access to flattened field if nest-host is not loaded.
  * @library /test/lib
+ * @compile -XDenablePrimitiveClasses TestNestmateAccess.java
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.Test*::<init>
  *                   compiler.valhalla.inlinetypes.TestNestmateAccess

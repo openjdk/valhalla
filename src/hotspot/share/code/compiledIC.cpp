@@ -654,7 +654,7 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
       // C1 -> interp: values passed as oops
       info._entry = m()->get_c2i_inline_entry();
     } else {
-      // C2 -> interp: values passed fields
+      // C2 -> interp: values passed as fields
       info._entry = m()->get_c2i_entry();
     }
   }

@@ -101,6 +101,7 @@ SafepointBlob*      SharedRuntime::_polling_page_return_handler_blob;
 UncommonTrapBlob*   SharedRuntime::_uncommon_trap_blob;
 #endif // COMPILER2
 
+nmethod*            SharedRuntime::_cont_doYield_stub;
 
 //----------------------------generate_stubs-----------------------------------
 void SharedRuntime::generate_stubs() {
@@ -1001,6 +1002,9 @@ JRT_END
 
 jlong SharedRuntime::get_java_tid(Thread* thread) {
   if (thread != NULL && thread->is_Java_thread()) {
+    Thread* current = Thread::current();
+    guarantee(current != thread || JavaThread::cast(thread)->is_oop_safe(),
+              "current cannot touch oops after its GC barrier is detached.");
     oop obj = JavaThread::cast(thread)->threadObj();
     return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
   }
@@ -1565,7 +1569,11 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
       // so bypassing it in c2i adapter is benign.
       return callee->get_c2i_no_clinit_check_entry();
     } else {
-      return callee->get_c2i_entry();
+      if (caller_frame.is_interpreted_frame()) {
+        return callee->get_c2i_inline_entry();
+      } else {
+        return callee->get_c2i_entry();
+      }
     }
   }
 
@@ -2727,7 +2735,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_obj_arg_handler = NULL;
-const int AdapterHandlerLibrary_size = 32*K;
+const int AdapterHandlerLibrary_size = 48*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {

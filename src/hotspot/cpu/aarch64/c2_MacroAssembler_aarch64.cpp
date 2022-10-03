@@ -45,6 +45,28 @@
 
 typedef void (MacroAssembler::* chr_insn)(Register Rt, const Address &adr);
 
+void C2_MacroAssembler::entry_barrier() {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+    // Dummy labels for just measuring the code size
+    Label dummy_slow_path;
+    Label dummy_continuation;
+    Label dummy_guard;
+    Label* slow_path = &dummy_slow_path;
+    Label* continuation = &dummy_continuation;
+    Label* guard = &dummy_guard;
+    if (!Compile::current()->output()->in_scratch_emit_size()) {
+      // Use real labels from actual stub when not emitting code for the purpose of measuring its size
+      C2EntryBarrierStub* stub = Compile::current()->output()->entry_barrier_table()->add_entry_barrier();
+      slow_path = &stub->slow_path();
+      continuation = &stub->continuation();
+      guard = &stub->guard();
+    }
+    // In the C2 code, we move the non-hot part of nmethod entry barriers out-of-line to a stub.
+    bs->nmethod_entry_barrier(this, slow_path, continuation, guard);
+  }
+}
+
 void C2_MacroAssembler::emit_entry_barrier_stub(C2EntryBarrierStub* stub) {
   bind(stub->slow_path());
   movptr(rscratch1, (uintptr_t) StubRoutines::aarch64::method_entry_barrier());

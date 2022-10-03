@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,8 @@
  */
 
 package sun.invoke.util;
+
+import jdk.internal.value.PrimitiveClass;
 
 import java.lang.invoke.MethodType;
 import java.util.ArrayList;
@@ -91,7 +93,7 @@ public class BytecodeDescriptor {
             String name = str.substring(begc, endc).replace('/', '.');
             try {
                 Class<?> clz = Class.forName(name, false, loader);
-                return c == 'Q' ? clz.asValueType() : clz.asPrimaryType();
+                return c == 'Q' ? PrimitiveClass.asValueType(clz) : PrimitiveClass.asPrimaryType(clz);
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }

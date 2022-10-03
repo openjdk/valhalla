@@ -26,7 +26,7 @@
  * @bug 8269756
  * @summary test scenarios where getfield, putfield, and withfield access the
  *          same constant pool field_ref and test other withfield error cases.
- * @compile withfieldTests.jcod
+ * @compile -XDenablePrimitiveClasses withfieldTests.jcod RunWithfieldTests.java
  * @run main/othervm -Xverify:remote RunWithfieldTests
  */
 

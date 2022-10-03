@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "cds/cds_globals.hpp"
 #include "cds/filemap.hpp"
 #include "classfile/classLoader.hpp"
 #include "classfile/javaAssertions.hpp"
@@ -3029,24 +3030,6 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     // Unknown option
     } else if (is_bad_option(option, args->ignoreUnrecognized)) {
       return JNI_ERR;
-    }
-  }
-
-  if (EnableValhalla) {
-    // create_property("valhalla.enableValhalla", "true", InternalProperty)
-    const char* prop_name = "valhalla.enableValhalla";
-    const char* prop_value = "true";
-    const size_t prop_len = strlen(prop_name) + strlen(prop_value) + 2;
-    char* property = AllocateHeap(prop_len, mtArguments);
-    int ret = jio_snprintf(property, prop_len, "%s=%s", prop_name, prop_value);
-    if (ret < 0 || ret >= (int)prop_len) {
-      FreeHeap(property);
-      return JNI_ENOMEM;
-    }
-    bool added = add_property(property, UnwriteableProperty, InternalProperty);
-    FreeHeap(property);
-    if (!added) {
-      return JNI_ENOMEM;
     }
   }
 

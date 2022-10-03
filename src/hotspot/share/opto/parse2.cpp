@@ -2569,6 +2569,7 @@ void Parse::do_one_bytecode() {
   if (TraceOptoParse) {
     tty->print(" @");
     dump_bci(bci());
+    tty->print(" %s", Bytecodes::name(bc()));
     tty->cr();
   }
 #endif

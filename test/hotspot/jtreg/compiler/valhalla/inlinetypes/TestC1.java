@@ -38,6 +38,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Various tests that are specific for C1.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
+ * @compile -XDenablePrimitiveClasses TestC1.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestC1
  */
 

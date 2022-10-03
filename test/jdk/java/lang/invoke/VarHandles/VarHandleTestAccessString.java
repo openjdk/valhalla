@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @compile -XDenablePrimitiveClasses                        Point.java Value.java VarHandleTestAccessString.java
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessString
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessString
  * @run testng/othervm -Diters=20000                         VarHandleTestAccessString
@@ -587,6 +588,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain(recv, "foo", "bar");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain String");
             String x = (String) vh.get(recv);
@@ -604,6 +606,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire(recv, "bar", "foo");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire String");
             String x = (String) vh.get(recv);
@@ -621,6 +624,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease(recv, "foo", "bar");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease String");
             String x = (String) vh.get(recv);
@@ -638,6 +642,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet(recv, "bar", "foo");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet String");
             String x = (String) vh.get(recv);
@@ -827,6 +832,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain("foo", "bar");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain String");
             String x = (String) vh.get();
@@ -844,6 +850,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire("bar", "foo");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire String");
             String x = (String) vh.get();
@@ -861,6 +868,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease("foo", "bar");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease String");
             String x = (String) vh.get();
@@ -878,6 +886,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet("bar", "foo");
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet String");
             String x = (String) vh.get();
@@ -1070,6 +1079,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetPlain(array, i, "foo", "bar");
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain String");
                 String x = (String) vh.get(array, i);
@@ -1087,6 +1097,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetAcquire(array, i, "bar", "foo");
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire String");
                 String x = (String) vh.get(array, i);
@@ -1104,6 +1115,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetRelease(array, i, "foo", "bar");
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease String");
                 String x = (String) vh.get(array, i);
@@ -1121,6 +1133,7 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSet(array, i, "bar", "foo");
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet String");
                 String x = (String) vh.get(array, i);

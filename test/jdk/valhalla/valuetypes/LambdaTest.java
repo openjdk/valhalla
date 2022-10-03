@@ -24,6 +24,7 @@
 /*
  * @test
  * @summary Test lambdas with parameter types or return type of value class
+ * @compile -XDenablePrimitiveClasses LambdaTest.java
  * @run testng/othervm LambdaTest
  */
 

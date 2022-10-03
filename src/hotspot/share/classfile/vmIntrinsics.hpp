@@ -288,8 +288,10 @@ class methodHandle;
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
   do_intrinsic(_asPrimaryType,            java_lang_Class,        asPrimaryType_name, void_class_signature,      F_R)   \
+  do_intrinsic(_asPrimaryTypeArg,         jdk_internal_value_PrimitiveClass, asPrimaryType_name, class_class_signature, F_S) \
    do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
   do_intrinsic(_asValueType,              java_lang_Class,        asValueType_name, void_class_signature,        F_R)   \
+  do_intrinsic(_asValueTypeArg,           jdk_internal_value_PrimitiveClass, asValueType_name,   class_class_signature, F_S) \
    do_name(     asValueType_name,                                "asValueType")                                         \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
@@ -554,7 +556,7 @@ class methodHandle;
    do_signature(continuationEnterSpecial_signature,               "(Ljdk/internal/vm/Continuation;ZZ)V")                \
   do_signature(continuationGetStacks_signature,                   "(III)V")                                             \
   do_alias(continuationOnPinned_signature,      int_void_signature)                                                     \
-  do_intrinsic(_Continuation_doYield,      jdk_internal_vm_Continuation, doYield_name,      continuationDoYield_signature, F_S) \
+  do_intrinsic(_Continuation_doYield,      jdk_internal_vm_Continuation, doYield_name,      continuationDoYield_signature, F_SN) \
    do_alias(    continuationDoYield_signature,     void_int_signature)                                                  \
                                                                                                                         \
   /* support for UnsafeConstants */                                                                                     \

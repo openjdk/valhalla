@@ -634,6 +634,7 @@ class CompileReplay : public StackObj {
       }
       line_no++;
     }
+    reset();
   }
 
   void process_command(TRAPS) {
@@ -732,13 +733,7 @@ class CompileReplay : public StackObj {
     Method* method = parse_method(CHECK);
     if (had_error()) return;
     int entry_bci = parse_int("entry_bci");
-    const char* comp_level_label = "comp_level";
-    int comp_level = parse_int(comp_level_label);
-    // old version w/o comp_level
-    if (had_error() && (error_message() == comp_level_label)) {
-      // use highest available tier
-      comp_level = CompilationPolicy::highest_compile_level();
-    }
+    int comp_level = parse_int("comp_level");
     if (!is_valid_comp_level(comp_level)) {
       return;
     }
@@ -809,7 +804,6 @@ class CompileReplay : public StackObj {
     CompileBroker::compile_method(methodHandle(THREAD, method), entry_bci, comp_level,
                                   methodHandle(), 0, CompileTask::Reason_Replay, THREAD);
     replay_state = NULL;
-    reset();
   }
 
   // ciMethod <klass> <name> <signature> <invocation_counter> <backedge_counter> <interpreter_invocation_count> <interpreter_throwout_count> <instructions_size>

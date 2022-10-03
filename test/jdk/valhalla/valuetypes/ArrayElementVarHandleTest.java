@@ -25,6 +25,7 @@
 /*
  * @test
  * @summary test VarHandle on primitive class array
+ * @compile -XDenablePrimitiveClasses ArrayElementVarHandleTest.java
  * @run testng/othervm -XX:FlatArrayElementMaxSize=-1 ArrayElementVarHandleTest
  * @run testng/othervm -XX:FlatArrayElementMaxSize=0  ArrayElementVarHandleTest
  */

@@ -26,7 +26,7 @@
  * @summary Tests that all FieldAccess and FieldModification notifications
             are generated for primitive classes.
  * @requires vm.jvmti
- * @compile FieldAccessModify.java
+ * @compile -XDenablePrimitiveClasses FieldAccessModify.java
  * @run main/othervm/native -agentlib:FieldAccessModify FieldAccessModify
  */
 

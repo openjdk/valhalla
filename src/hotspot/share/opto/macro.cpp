@@ -2243,7 +2243,7 @@ void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
 
   unc_ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
   Node* halt = _igvn.transform(new HaltNode(unc_ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on inline type"));
-  C->root()->add_req(halt);
+  _igvn.add_input_to(C->root(), halt);
 }
 
 // we have determined that this lock/unlock can be eliminated, we simply

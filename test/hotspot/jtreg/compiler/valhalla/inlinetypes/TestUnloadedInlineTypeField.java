@@ -34,8 +34,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @summary Test the handling of fields of unloaded inline classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
- * @compile TestUnloadedInlineTypeField.java
+ * @compile -XDenablePrimitiveClasses hack/GetUnresolvedInlineFieldWrongSignature.java
+ * @compile -XDenablePrimitiveClasses TestUnloadedInlineTypeField.java
  * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 

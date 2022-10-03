@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @compile --enable-preview --source ${jdk.version} MHZeroValue.java
+ * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses MHZeroValue.java
  * @run testng/othervm --enable-preview -XX:InlineFieldMaxFlatSize=128 MHZeroValue
  * @run testng/othervm --enable-preview -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant
@@ -35,6 +35,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import static java.lang.invoke.MethodType.*;
+
+import jdk.internal.value.PrimitiveClass;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -60,8 +62,8 @@ public class MHZeroValue {
                 // for any type T, default value is always the same as (new T[1])[0]
                 new Object[] { int.class,               (new int[1])[0] },
                 new Object[] { Integer.class,           (new Integer[1])[0] },
-                new Object[] { P.class.asValueType(),   (new P[1])[0] },
-                new Object[] { P.class.asPrimaryType(), (new P.ref[1])[0] },
+                new Object[] { PrimitiveClass.asValueType(P.class),   (new P[1])[0] },
+                new Object[] { PrimitiveClass.asPrimaryType(P.class), (new P.ref[1])[0] },
                 new Object[] { V.class,                 (new V[1])[0] },
         };
     }
@@ -77,7 +79,7 @@ public class MHZeroValue {
                 // int : Integer
                 new Object[] { int.class,             Integer.class },
                 // Point : Point.ref
-                new Object[] { P.class.asValueType(), P.class.asPrimaryType() },
+                new Object[] { PrimitiveClass.asValueType(P.class), PrimitiveClass.asPrimaryType(P.class) },
                 new Object[] { null,                  V.class },
         };
     }
@@ -99,8 +101,8 @@ public class MHZeroValue {
 
     @DataProvider
     public static Object[][] emptyTypes() {
-        Class<?> pref = P.class.asPrimaryType();
-        Class<?> pval = P.class.asValueType();
+        Class<?> pref = PrimitiveClass.asPrimaryType(P.class);
+        Class<?> pval = PrimitiveClass.asValueType(P.class);
         return new Object[][] {
                 new Object[] { methodType(int.class, int.class, Object.class),     new V(), 0 },
                 new Object[] { methodType(Integer.class, int.class, Object.class), new P(), null },

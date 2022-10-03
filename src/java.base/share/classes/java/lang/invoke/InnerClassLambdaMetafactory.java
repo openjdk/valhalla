@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.CDS;
 import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
@@ -641,7 +642,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             while (c.isArray()) {
                 c = c.getComponentType();
             }
-            return (c.isValue() && !c.isPrimitiveClass()) || c.isPrimitiveValueType();
+            return (c.isValue() && !PrimitiveClass.isPrimitiveClass(c)) || PrimitiveClass.isPrimitiveValueType(c);
         }
 
         boolean isEmpty() {

@@ -24,6 +24,7 @@
 /*
  * @test
  * @summary Test basic verifier assignability of inline types.
+ * @compile -XDenablePrimitiveClasses VTAssignability.java
  * @run main/othervm -Xverify:remote VTAssignability
  */
 

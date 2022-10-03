@@ -26,6 +26,7 @@
  * @test
  * @bug 8273360
  * @summary Test reflection of constructors for value classes
+ * @compile -XDenablePrimitiveClasses StaticFactoryTest.java
  * @run testng/othervm StaticFactoryTest
  */
 
@@ -36,6 +37,8 @@ import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import jdk.internal.value.PrimitiveClass;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -101,7 +104,7 @@ public final identity class StaticFactoryTest {
 
         assertEquals(clz.isIdentity(), isIdentityClass, "identity class: " + clz);
         assertEquals(clz.isValue(), isValueClass, "value class: " + clz);
-        assertEquals(clz.isPrimitiveClass(), isPrimitiveClass, "primitive class: " + clz);
+        assertEquals(PrimitiveClass.isPrimitiveClass(clz), isPrimitiveClass, "primitive class: " + clz);
 
         Constructor<?> ctor = clz.getDeclaredConstructor();
         Object o = ctor.newInstance();

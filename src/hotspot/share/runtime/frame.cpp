@@ -221,7 +221,7 @@ address frame::raw_pc() const {
 // Change the pc in a frame object. This does not change the actual pc in
 // actual frame. To do that use patch_pc.
 //
-void frame::set_pc(address   newpc ) {
+void frame::set_pc(address newpc) {
 #ifdef ASSERT
   if (_cb != NULL && _cb->is_nmethod()) {
     assert(!((nmethod*)_cb)->is_deopt_pc(_pc), "invariant violation");
@@ -233,21 +233,6 @@ void frame::set_pc(address   newpc ) {
   _pc = newpc;
   _cb = CodeCache::find_blob(_pc);
 
-}
-
-void frame::set_pc_preserve_deopt(address newpc) {
-  set_pc_preserve_deopt(newpc, CodeCache::find_blob(newpc));
-}
-
-void frame::set_pc_preserve_deopt(address newpc, CodeBlob* cb) {
-#ifdef ASSERT
-  if (_cb != NULL && _cb->is_nmethod()) {
-    assert(!((nmethod*)_cb)->is_deopt_pc(_pc), "invariant violation");
-  }
-#endif // ASSERT
-
-  _pc = newpc;
-  _cb = cb;
 }
 
 // type testers
@@ -374,7 +359,7 @@ void frame::deoptimize(JavaThread* thread) {
     // type args. We can't deoptimize at that point because the buffers have not yet been initialized.
     // Also, if the method is synchronized, we first need to acquire the lock.
     // Don't patch the return pc to delay deoptimization until we enter the method body (the check
-    // addedin LIRGenerator::do_Base will detect the pending deoptimization by checking the original_pc).
+    // added in LIRGenerator::do_Base will detect the pending deoptimization by checking the original_pc).
 #if defined ASSERT && !defined AARCH64   // Stub call site does not look like NativeCall on AArch64
     NativeCall* call = nativeCall_before(this->pc());
     address dest = call->destination();

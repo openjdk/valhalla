@@ -31,6 +31,7 @@ public:
   // C2 compiled method's prolog code.
   void verified_entry(Compile* C, int sp_inc = 0);
 
+  void entry_barrier();
   void emit_entry_barrier_stub(C2EntryBarrierStub* stub);
   static int entry_barrier_stub_size();
 
