@@ -101,6 +101,7 @@ public class TestVM {
     private static final boolean PRINT_VALID_IR_RULES = Boolean.getBoolean("ShouldDoIRVerification");
     protected static final long PER_METHOD_TRAP_LIMIT = (Long)WHITE_BOX.getVMFlag("PerMethodTrapLimit");
     protected static final boolean PROFILE_INTERPRETER = (Boolean)WHITE_BOX.getVMFlag("ProfileInterpreter");
+    protected static final boolean DEOPT_BARRIERS_ALOT = (Boolean)WHITE_BOX.getVMFlag("DeoptimizeNMethodBarriersALot");
     private static final boolean FLIP_C1_C2 = Boolean.getBoolean("FlipC1C2");
     private static final boolean IGNORE_COMPILER_CONTROLS = Boolean.getBoolean("IgnoreCompilerControls");
 
@@ -895,15 +896,13 @@ public class TestVM {
 
     public static void assertDeoptimizedByC1(Method m) {
         if (isStableDeopt(m, CompLevel.C1_SIMPLE)) {
-            TestRun.check(compiledByC1(m) != TriState.Yes || PER_METHOD_TRAP_LIMIT == 0 || !PROFILE_INTERPRETER,
-                          m + " should have been deoptimized by C1");
+            TestRun.check(compiledByC1(m) != TriState.Yes, m + " should have been deoptimized by C1");
         }
     }
 
     public static void assertDeoptimizedByC2(Method m) {
         if (isStableDeopt(m, CompLevel.C2)) {
-            TestRun.check(compiledByC2(m) != TriState.Yes || PER_METHOD_TRAP_LIMIT == 0 || !PROFILE_INTERPRETER,
-                          m + " should have been deoptimized by C2");
+            TestRun.check(compiledByC2(m) != TriState.Yes, m + " should have been deoptimized by C2");
         }
     }
 
@@ -912,6 +911,7 @@ public class TestVM {
      */
     public static boolean isStableDeopt(Method m, CompLevel level) {
         return (USE_COMPILER && !XCOMP && !IGNORE_COMPILER_CONTROLS && !TEST_C1 &&
+                PER_METHOD_TRAP_LIMIT != 0 && PROFILE_INTERPRETER && !DEOPT_BARRIERS_ALOT &&
                 (!EXCLUDE_RANDOM || WHITE_BOX.isMethodCompilable(m, level.getValue(), false)));
     }
 
@@ -967,7 +967,7 @@ public class TestVM {
                 default -> throw new TestRunException("compiledAtLevel() should not be called with " + level);
             }
         }
-        if (!USE_COMPILER || XCOMP || TEST_C1 || IGNORE_COMPILER_CONTROLS || FLIP_C1_C2 ||
+        if (!USE_COMPILER || XCOMP || TEST_C1 || IGNORE_COMPILER_CONTROLS || FLIP_C1_C2 || DEOPT_BARRIERS_ALOT ||
             (EXCLUDE_RANDOM && !WHITE_BOX.isMethodCompilable(m, level.getValue(), false))) {
             return TriState.Maybe;
         }

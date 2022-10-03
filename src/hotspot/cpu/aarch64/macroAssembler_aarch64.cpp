@@ -5951,18 +5951,16 @@ void MacroAssembler::get_thread(Register dst) {
 // C2 compiled method's prolog code
 // Moved here from aarch64.ad to support Valhalla code belows
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
-
-  // n.b. frame size includes space for return pc and rfp
-  const long framesize = C->output()->frame_size_in_bytes();
-
-  // insert a nop at the start of the prolog so we can patch in a
-  // branch if we need to invalidate the method later
-  nop();
+  if (C->max_vector_size() > 0) {
+    reinitialize_ptrue();
+  }
 
   int bangsize = C->output()->bang_size_in_bytes();
   if (C->output()->need_stack_bang(bangsize))
     generate_stack_overflow_check(bangsize);
 
+  // n.b. frame size includes space for return pc and rfp
+  const long framesize = C->output()->frame_size_in_bytes();
   build_frame(framesize);
 
   if (C->needs_stack_repair()) {
