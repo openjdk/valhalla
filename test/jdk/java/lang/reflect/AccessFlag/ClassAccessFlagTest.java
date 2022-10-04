@@ -161,6 +161,18 @@ public final class ClassAccessFlagTest {
                                                arrayClass);
                 }
             }
+            // Verify IDENTITY, ABSTRACT, and FINAL access flags
+            Set<AccessFlag> expected = new HashSet<>(4);
+            expected.add(AccessFlag.ABSTRACT);
+            expected.add(AccessFlag.FINAL);
+            expected.add(AccessFlag.IDENTITY);
+            if (accessLevel != null)
+                expected.add(accessLevel);
+            if (!expected.equals(arrayClass.accessFlags())) {
+                throw new RuntimeException("Unexpected access flags for array: " + accessClass +
+                        ": actual: " + arrayClass.accessFlags() +
+                        ", expected: " + expected);
+            }
         }
 
     }

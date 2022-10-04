@@ -1512,13 +1512,15 @@ public final class Class<T> implements java.io.Serializable,
         // INNER_CLASS forbids. INNER_CLASS allows PRIVATE, PROTECTED,
         // and STATIC, which are not allowed on Location.CLASS.
         // Use getClassAccessFlagsRaw to expose SUPER status.
+        // Arrays are identity classes but not reflected in modifiers
         var location = (isMemberClass() || isLocalClass() ||
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
-        return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
-                                            getClassAccessFlagsRaw() :
-                                            getModifiers(),
+        final int mask = ((location == AccessFlag.Location.CLASS) ?
+                getClassAccessFlagsRaw() : getModifiers()) |
+                (isArray() ? Modifier.IDENTITY : 0);
+        return AccessFlag.maskToAccessFlags(mask & (~0x800),  // suppress unspecified bit
                                             location);
     }
 

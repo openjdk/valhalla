@@ -31,6 +31,7 @@
  * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
@@ -74,25 +75,40 @@ public class ObjectMethods {
     @DataProvider(name="Identities")
     Object[][] identitiesData() {
         return new Object[][]{
-                {new Object(), true},
-                {"String", true},
-                {String.class, true},
-                {Object.class, true},
-                {new ValueType1(1), false},
-                {new ValueType2(2), false},
-                {new PrimitiveRecord(1, "A"), false},
-                {new ValueRecord(1,"B"), false},
-                {new int[0], true},  // arrays of primitive classes are identity objects
-                {new Object[0], true},  // arrays of identity classes are identity objects
-                {new String[0], true},  // arrays of identity classes are identity objects
-                {new ValueType1[0], true},  // arrays of value classes are identity objects
+                {new Object(), false, false},
+                {"String", true, false},
+                {String.class, true, false},
+                {Object.class, true, false},
+                {new ValueType1(1), false, true},
+                {new ValueType2(2), false, true},
+                {new PrimitiveRecord(1, "A"), false, true},
+                {new ValueRecord(1,"B"), false, true},
+                {new int[0], true, false},  // arrays of primitive classes are identity objects
+                {new Object[0], true, false},  // arrays of identity classes are identity objects
+                {new String[0], true, false},  // arrays of identity classes are identity objects
+                {new ValueType1[0], true, false},  // arrays of value classes are identity objects
         };
     }
 
     @Test(dataProvider="Identities")
-    void identityTests(Object obj, boolean expected) {
-        var actual = Objects.isIdentityObject(obj);
-        assertEquals(expected, actual, "Objects.isIdentityObject unexpected");
+    void identityTests(Object obj, boolean classIdentity, boolean classValue) {
+        Class<?> clazz = obj.getClass();
+
+        if (clazz == Object.class) {
+            assertEquals(Objects.isIdentityObject(obj), true, "Objects.isIdentityObject()");
+        } else {
+            assertEquals(Objects.isIdentityObject(obj), expectedIdentity, "Objects.isIdentityObject()");
+        }
+
+        assertEquals(clazz.isIdentity(), classIdentity, "Class.isIdentity()");
+
+        assertEquals(clazz.isValue(), classValue, "Class.isValue()");
+
+        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
+                classIdentity, "AccessFlag.IDENTITY");
+
+        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
+                classValue, "AccessFlag.VALUE");
     }
 
     @DataProvider(name="equalsTests")
