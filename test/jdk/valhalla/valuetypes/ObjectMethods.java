@@ -91,24 +91,24 @@ public class ObjectMethods {
     }
 
     @Test(dataProvider="Identities")
-    void identityTests(Object obj, boolean classIdentity, boolean classValue) {
+    void identityTests(Object obj, boolean identityClass, boolean valueClass) {
         Class<?> clazz = obj.getClass();
 
         if (clazz == Object.class) {
-            assertEquals(Objects.isIdentityObject(obj), true, "Objects.isIdentityObject()");
+            assertTrue(Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
         } else {
-            assertEquals(Objects.isIdentityObject(obj), expectedIdentity, "Objects.isIdentityObject()");
+            assertEquals(Objects.isIdentityObject(obj), identityClass, "Objects.isIdentityObject()");
         }
 
-        assertEquals(clazz.isIdentity(), classIdentity, "Class.isIdentity()");
+        assertEquals(clazz.isIdentity(), identityClass, "Class.isIdentity()");
 
-        assertEquals(clazz.isValue(), classValue, "Class.isValue()");
+        assertEquals(clazz.isValue(), valueClass, "Class.isValue()");
 
         assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
-                classIdentity, "AccessFlag.IDENTITY");
+                identityClass, "AccessFlag.IDENTITY");
 
         assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
-                classValue, "AccessFlag.VALUE");
+                valueClass, "AccessFlag.VALUE");
     }
 
     @DataProvider(name="equalsTests")
