@@ -110,7 +110,7 @@ public class ValueConstantDesc {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> c = (Class<?>) cd.resolveConstantDesc(lookup);
         assertTrue(c == type);
-        assertTrue(cd.isPrimitiveValueType() == PrimitiveClass.isPrimitiveValueType(type));
+        assertTrue(PrimitiveClass.isPrimitiveValueClassDesc(cd) == PrimitiveClass.isPrimitiveValueType(type));
     }
 
     @Test(expectedExceptions = {LinkageError.class})

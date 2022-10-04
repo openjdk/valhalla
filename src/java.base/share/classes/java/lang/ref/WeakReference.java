@@ -57,7 +57,7 @@ public non-sealed class WeakReference<T> extends Reference<T> {
      * reference is not registered with any queue.
      *
      * @param referent object the new weak reference will refer to
-     * @throws IllegalArgumentException if the referent is an instance of a
+     * @throws IdentityException if the referent is an instance of a
      *         {@link Class#isValue() value class}
      */
     public WeakReference(T referent) {
@@ -71,7 +71,7 @@ public non-sealed class WeakReference<T> extends Reference<T> {
      * @param referent object the new weak reference will refer to
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
-     * @throws IllegalArgumentException if the referent is an instance of a
+     * @throws IdentityException if the referent is an instance of a
      *         {@link Class#isValue() value class}
      */
     public WeakReference(T referent, ReferenceQueue<? super T> q) {

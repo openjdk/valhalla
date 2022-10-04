@@ -91,7 +91,7 @@ public non-sealed class PhantomReference<T> extends Reference<T> {
      * @param referent the object the new phantom reference will refer to
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
-     * @throws IllegalArgumentException if the referent is an instance of an
+     * @throws IdentityException if the referent is an instance of an
      *         {@link Class#isValue() value class}
      */
     public PhantomReference(T referent, ReferenceQueue<? super T> q) {

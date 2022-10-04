@@ -36,8 +36,8 @@ import java.util.Objects;
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
  * <p>
- * Subclasses of {@code java.lang.Object} can be either {@linkplain Class#isIdentity() identity classes}
- * or {@linkplain Class#isValue value classes}.
+ * Subclasses of {@code java.lang.Object} can be either {@linkplain Class#isIdentity()
+ * identity classes} or {@linkplain Class#isValue value classes}.
  * The class {@code Object} itself is neither an identity class nor a value class.
  * See {@jls The Java Language Specification  8.1.1.5 identity and value Classes}.
  * An instance can be created with {@code new Object()}, those instances are
@@ -250,8 +250,7 @@ public class Object {
      * The string output is not necessarily stable over time or across
      * JVM invocations.
      * @implSpec
-     * If this object is an instance of an identity class, then
-     * the {@code toString} method for class {@code Object}
+     * The {@code toString} method for class {@code Object}
      * returns a string consisting of the name of the class of which the
      * object is an instance, the at-sign character `{@code @}', and
      * the unsigned hexadecimal representation of the hash code of the
@@ -261,12 +260,6 @@ public class Object {
      * <pre>
      * getClass().getName() + '@' + Integer.toHexString(hashCode())
      * </pre></blockquote>
-     * <p>
-     * If this object is an instance of a primitive class, then
-     * the {@code toString} method returns a string which contains
-     * the name of the primitive class, and string representations of
-     * all its fields.  The precise format produced by this method
-     * is unspecified and subject to change.
      *
      * @return  a string representation of the object.
      */
