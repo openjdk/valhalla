@@ -132,7 +132,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.super.class.cannot.be.inner",
                 """
                 class Outer {
-                    abstract class I { /* has identity since is an inner class */ }
+                    abstract class I {} // has identity since is an inner class
                     static value class V extends I
                 }
                 """);
@@ -285,7 +285,11 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
         assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
-                value identity class IdentityValue {}
+                value identity class ValueIdentity {}
+                """);
+        assertFail("compiler.err.illegal.combination.of.modifiers",
+                """
+                identity value class IdentityValue {}
                 """);
         assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
                 """
@@ -371,7 +375,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 abstract value class V {
-                    public V() { /* trivial ctor */ }
+                    public V() {} // trivial ctor
                 }
                 """
         );
@@ -598,6 +602,43 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     ClassFile classFile = ClassFile.read(fileEntry);
                     assertTrue(classFile.access_flags.flags == Flags.ACC_IDENTITY);
                 }
+            }
+        }
+    }
+
+    public void testCheckSubclassesFlags() throws Exception {
+        String source =
+                """
+                identity interface I {}
+                class Sub implements I {}
+                """;
+        File dir = assertOK(true, source);
+        for (final File fileEntry : dir.listFiles()) {
+            ClassFile classFile = ClassFile.read(fileEntry);
+            assertTrue((classFile.access_flags.flags & Flags.ACC_IDENTITY) != 0);
+        }
+
+        source =
+                """
+                value interface I {}
+                abstract class A implements I {}
+                value class Sub extends A {}
+                """;
+        dir = assertOK(true, source);
+        for (final File fileEntry : dir.listFiles()) {
+            ClassFile classFile = ClassFile.read(fileEntry);
+            switch (classFile.getName()) {
+                case "Sub":
+                    assertTrue((classFile.access_flags.flags & (Flags.VALUE_CLASS | Flags.FINAL)) != 0);
+                    break;
+                case "A":
+                    assertTrue((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
+                    break;
+                case "I":
+                    assertTrue((classFile.access_flags.flags & (Flags.INTERFACE | Flags.VALUE_CLASS)) != 0);
+                    break;
+                default:
+                    throw new AssertionError("you shoulnd't be here");
             }
         }
     }
