@@ -765,17 +765,15 @@ public class Check {
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
                 log.error(pos, Errors.SuperClassDeclaresInitBlock(fragment));
             }
-            // No instance fields and no arged constructors both mean inner classes
-            // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
-                log.error(pos, Errors.SuperClassCannotBeInner(fragment));
+                log.error(pos, Errors.AbstractValueClassCannotBeInner(fragment));
             }
             for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                 case VAR:
                     if ((s.flags() & STATIC) == 0) {
-                        log.error(pos, Errors.SuperFieldNotAllowed(s, fragment));
+                        log.error(pos, Errors.InstanceFieldNotAllowed(s, fragment));
                     }
                     break;
                 case MTH:

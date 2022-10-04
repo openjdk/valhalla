@@ -215,17 +215,14 @@ compiler.err.value.class.does.not.support
 compiler.err.value.class.may.not.extend
 compiler.err.this.exposed.prematurely
 compiler.err.concrete.supertype.for.value.class
-compiler.err.super.class.cannot.be.inner
 compiler.err.super.class.declares.init.block
 compiler.err.super.constructor.cannot.take.arguments
 compiler.err.super.constructor.access.restricted
 compiler.err.super.constructor.cannot.be.generic
 compiler.err.super.constructor.cannot.throw
-compiler.err.super.field.not.allowed
 compiler.err.super.method.cannot.be.synchronized
 compiler.err.super.no.arg.constructor.must.be.empty
 compiler.err.generic.parameterization.with.primitive.class
 compiler.misc.feature.primitive.classes
 compiler.misc.feature.value.classes
-compiler.misc.abstract.value.class
 compiler.misc.superclass.of.value.class
