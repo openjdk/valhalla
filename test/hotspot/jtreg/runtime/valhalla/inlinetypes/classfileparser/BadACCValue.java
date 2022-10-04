@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary test that if a class file has ACC_VALUE or ACC_PRIMITIVE set then it must be run
- *          with option -XX:+ÉnableValhalla or -XX:+EnablePrimitiveClasses respectively.
+ *          with option -XX:+EnableValhalla or -XX:+EnablePrimitiveClasses respectively.
  * @compile cfpTests.jcod
  * @run main/othervm -XX:-EnableValhalla -XX:-EnablePrimitiveClasses BadACCValue ACC_VALUE
  * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses BadACCValue ACC_PRIMIITVE

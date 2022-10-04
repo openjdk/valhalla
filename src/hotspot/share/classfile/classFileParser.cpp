@@ -3325,7 +3325,6 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_IDENTITY are defined depending on version and feature flag
     if (supports_inline_types()) {
       recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_IDENTITY;
     }
@@ -5230,7 +5229,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
     case JVM_SIGNATURE_PRIMITIVE_OBJECT:
-      // Can't enable this check fully until JDK upgrades the bytecode generators.
+      // Can't enable this check fully until JDK upgrades the bytecode generators (TODO: JDK-8270852).
       // For now, compare to class file version 51 so old verifier doesn't see Q signatures.
       if ( (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) || (!EnablePrimitiveClasses)) {
         classfile_parse_error("Class name contains illegal Q-signature "
@@ -6180,7 +6179,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // Are JVM_ACC_VALUE and JVM_ACC_PRIMITIVE support (version and feature check)
+  // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE supported version
   if (supports_inline_types()) {
     recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
   }
