@@ -72,6 +72,7 @@ import java.util.stream.Collectors;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.module.Resources;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -638,15 +639,22 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * {@return {@code true} if this class is an identity class, otherwise {@code false}}
+     * If this {@code Class} object represents an array type, then this method returns {@code true}.
+     * If this {@code Class} object represents a primitive type, or {@code void},
+     * then this method returns {@code false}.
      *
      * @since Valhalla
      */
     public boolean isIdentity() {
-        return (this.getModifiers() & Modifier.IDENTITY) != 0;
+        return !ValhallaFeatures.isEnabled() ||  // Before Valhalla all classes are identity classes
+                (this.getModifiers() & Modifier.IDENTITY) != 0 ||
+                isArray();
     }
 
     /**
      * {@return {@code true} if this class is a value class, otherwise {@code false}}
+     * If this {@code Class} object represents an array type, a primitive type, or
+     * {@code void}, then this method returns {@code false}.
      *
      * @since Valhalla
      */

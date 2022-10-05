@@ -615,6 +615,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->c2i_entry_barrier(masm);
 
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
@@ -1063,9 +1065,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     c2i_no_clinit_check_entry = __ pc();
   }
 
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->c2i_entry_barrier(masm);
-
   gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 
   address c2i_unverified_inline_entry = c2i_unverified_entry;
@@ -1078,6 +1077,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
     c2i_inline_entry = __ pc();
+    // TODO 8294013 Fix this and add tests
+    c2i_no_clinit_check_entry = __ pc();
     gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
@@ -2570,10 +2571,9 @@ void SharedRuntime::generate_deopt_blob() {
 
   Label retaddr;
   __ set_last_Java_frame(sp, noreg, retaddr, rscratch1);
-#ifdef ASSERT0
+#ifdef ASSERT
   { Label L;
-    __ ldr(rscratch1, Address(rthread,
-                              JavaThread::last_Java_fp_offset()));
+    __ ldr(rscratch1, Address(rthread, JavaThread::last_Java_fp_offset()));
     __ cbz(rscratch1, L);
     __ stop("SharedRuntime::generate_deopt_blob: last_Java_fp not cleared");
     __ bind(L);
@@ -2845,7 +2845,7 @@ void SharedRuntime::generate_uncommon_trap_blob() {
     __ ldrw(rscratch1, Address(r4, Deoptimization::UnrollBlock::unpack_kind_offset_in_bytes()));
     __ cmpw(rscratch1, (unsigned)Deoptimization::Unpack_uncommon_trap);
     __ br(Assembler::EQ, L);
-    __ stop("SharedRuntime::generate_deopt_blob: last_Java_fp not cleared");
+    __ stop("SharedRuntime::generate_uncommon_trap_blob: expected Unpack_uncommon_trap");
     __ bind(L);
   }
 #endif

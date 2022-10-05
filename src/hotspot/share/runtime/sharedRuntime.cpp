@@ -1569,7 +1569,11 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
       // so bypassing it in c2i adapter is benign.
       return callee->get_c2i_no_clinit_check_entry();
     } else {
-      return callee->get_c2i_entry();
+      if (caller_frame.is_interpreted_frame()) {
+        return callee->get_c2i_inline_entry();
+      } else {
+        return callee->get_c2i_entry();
+      }
     }
   }
 
