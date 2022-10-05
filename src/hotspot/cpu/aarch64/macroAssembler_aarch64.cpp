@@ -5951,6 +5951,17 @@ void MacroAssembler::get_thread(Register dst) {
 // C2 compiled method's prolog code
 // Moved here from aarch64.ad to support Valhalla code belows
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+  if (C->clinit_barrier_on_entry()) {
+    assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
+
+    Label L_skip_barrier;
+
+    mov_metadata(rscratch2, C->method()->holder()->constant_encoding());
+    clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
+    far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
+    bind(L_skip_barrier);
+  }
+
   if (C->max_vector_size() > 0) {
     reinitialize_ptrue();
   }
