@@ -21,11 +21,8 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.concrete.supertype.for.value.class
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+public class ConcreteSuperclassOfValueClass {
+    static abstract value class V extends ConcreteSuperclassOfValueClass {}
 }
-
-value class V extends InstanceFieldNotAllowedInValueClass {}

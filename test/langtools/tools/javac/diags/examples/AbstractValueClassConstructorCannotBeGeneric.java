@@ -21,11 +21,9 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.abstract.value.class.constructor.cannot.be.generic
+// key: compiler.misc.abstract.value.class
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+public abstract value class AbstractValueClassConstructorCannotBeGeneric {
+    <T> AbstractValueClassConstructorCannotBeGeneric() {}
 }
-
-value class V extends InstanceFieldNotAllowedInValueClass {}

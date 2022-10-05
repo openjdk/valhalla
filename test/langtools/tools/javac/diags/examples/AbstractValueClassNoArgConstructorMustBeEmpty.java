@@ -21,11 +21,11 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.abstract.value.class.no.arg.constructor.must.be.empty
+// key: compiler.misc.abstract.value.class
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+public abstract value class AbstractValueClassNoArgConstructorMustBeEmpty {
+    public AbstractValueClassNoArgConstructorMustBeEmpty() {
+        System.out.println("");
+    }
 }
-
-value class V extends InstanceFieldNotAllowedInValueClass {}

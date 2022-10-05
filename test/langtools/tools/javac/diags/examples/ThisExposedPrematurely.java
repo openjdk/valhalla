@@ -21,11 +21,13 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.this.exposed.prematurely
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+value class ThisExposedPrematurely {
+    int x;
+    ThisExposedPrematurely() {
+        foo(this); // Error.
+        x = 10;
+    }
+    void foo(ThisExposedPrematurely v) {}
 }
-
-value class V extends InstanceFieldNotAllowedInValueClass {}

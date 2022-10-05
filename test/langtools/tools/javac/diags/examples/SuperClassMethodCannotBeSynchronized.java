@@ -21,11 +21,10 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.super.class.method.cannot.be.synchronized
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+public abstract class SuperClassMethodCannotBeSynchronized {
+    synchronized void foo() {}
 }
 
-value class V extends InstanceFieldNotAllowedInValueClass {}
+value class V extends SuperClassMethodCannotBeSynchronized {}

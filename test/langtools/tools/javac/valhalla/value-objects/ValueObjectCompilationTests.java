@@ -85,13 +85,13 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.super.class.declares.init.block",
+        assertFail("compiler.err.abstract.value.class.declares.init.block",
                 """
                 abstract value class V {
                     { int f = 42; } // Error, abstract value class may not declare an instance initializer.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.take.arguments",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
                 abstract value class V {
                     V(int x) {}  // Error, abstract value class may not declare a non-trivial constructor.
@@ -138,7 +138,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """);
 
-        assertFail("compiler.err.super.method.cannot.be.synchronized",
+        assertFail("compiler.err.super.class.method.cannot.be.synchronized",
                 """
                 abstract class I { // has identity since it declared a synchronized instance method.
                     synchronized void foo() {}
@@ -146,7 +146,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V extends I {}
                 """);
 
-        assertFail("compiler.err.super.class.declares.init.block",
+        assertFail("compiler.err.abstract.value.class.declares.init.block",
                 """
                 abstract class I { // has identity since it declares an instance initializer
                     { int f = 42; }
@@ -154,12 +154,18 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V extends I {}
                 """);
 
-        assertFail("compiler.err.super.constructor.cannot.take.arguments",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
                 abstract class I { // has identity since it declares a non-trivial constructor
                     I(int x) {}
                 }
                 value class V extends I {}
+                """);
+        assertFail("compiler.err.concrete.supertype.for.value.class",
+                """
+                class ConcreteSuperType {
+                    static abstract value class V extends ConcreteSuperType {}  // Error: concrete super.
+                }
                 """);
     }
 
@@ -390,31 +396,31 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 }
                 """
         );
-        assertFail("compiler.err.super.constructor.access.restricted",
+        assertFail("compiler.err.abstract.value.class.constructor.has.weaker.access",
                 """
                 abstract value class V {
                     private V() {} // non-trivial, more restrictive access than the class.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.take.arguments",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
                 abstract value class V {
                     public V(int x) {} // non-trivial ctor as it declares formal parameters.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.be.generic",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.be.generic",
                 """
                 abstract value class V {
                     <T> V() {} // non trivial as it declares type parameters.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.throw",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.throw",
                 """
                 abstract value class V {
                     V() throws Exception {} // non-trivial as it throws
                 }
                 """);
-        assertFail("compiler.err.super.no.arg.constructor.must.be.empty",
+        assertFail("compiler.err.abstract.value.class.no.arg.constructor.must.be.empty",
                 """
                 abstract value class V {
                     V() {

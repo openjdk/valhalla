@@ -763,7 +763,7 @@ public class Check {
             // dealing with an abstract value or value super class below.
             Fragment fragment = c.isAbstract() && c.isValueClass() && c == st.tsym ? Fragments.AbstractValueClass(c) : Fragments.SuperclassOfValueClass(c, st);
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
-                log.error(pos, Errors.SuperClassDeclaresInitBlock(fragment));
+                log.error(pos, Errors.AbstractValueClassDeclaresInitBlock(fragment));
             }
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
@@ -778,19 +778,19 @@ public class Check {
                     break;
                 case MTH:
                     if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
-                        log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
+                        log.error(pos, Errors.SuperClassMethodCannotBeSynchronized(s, c, st));
                     } else if (s.isConstructor()) {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorCannotTakeArguments(m, fragment));
                         } else if (m.getTypeParameters().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotBeGeneric(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorCannotBeGeneric(m, fragment));
                         } else if (m.type.getThrownTypes().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotThrow(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorCannotThrow(m, fragment));
                         } else if (protection(m.flags()) > protection(m.owner.flags())) {
-                            log.error(pos, Errors.SuperConstructorAccessRestricted(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorHasWeakerAccess(m, fragment));
                         } else if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
+                                log.error(pos, Errors.AbstractValueClassNoArgConstructorMustBeEmpty(m, fragment));
                         }
                     }
                     break;

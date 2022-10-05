@@ -21,11 +21,10 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.abstract.value.class.declares.init.block
+// key: compiler.misc.abstract.value.class
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+public abstract value class AbstractValueClassWithInstanceInitializer {
+    int f;
+    { f = 42; }
 }
-
-value class V extends InstanceFieldNotAllowedInValueClass {}

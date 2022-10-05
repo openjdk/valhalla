@@ -21,11 +21,9 @@
  * questions.
  */
 
-// key: compiler.err.instance.field.not.allowed
-// key: compiler.misc.superclass.of.value.class
+// key: compiler.err.abstract.value.class.constructor.has.weaker.access
+// key: compiler.misc.abstract.value.class
 
-abstract class InstanceFieldNotAllowedInValueClass {
-    int i;
+public abstract value class AbstractValueClassConstructorHasWeakerAccess {
+    private AbstractValueClassConstructorHasWeakerAccess() {}
 }
-
-value class V extends InstanceFieldNotAllowedInValueClass {}
