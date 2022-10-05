@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.SecurityManager</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;SecurityManager</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="annotation">@Deprecated(since="17"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">class</span> SecurityManager <div class="superclass"><span class="keyword">extends</span> java.lang.Object</div>
+</div>
+</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><dl class="notes"> <dt>Direct Known Subclasses:</dt>
+ <dd><code><a href="../../../java.rmi/java/rmi/RMISecurityManager.html" title="class in java.rmi">RMISecurityManager</a></code>
+</dd>
+ </dl>
+ <hr>
+ <div class="type-signature"><span class="annotations"><a href="Deprecated.html" title="annotation interface in java.lang">@Deprecated</a>(<a href="Deprecated.html#since()">since</a>="17", <a href="Deprecated.html#forRemoval()">forRemoval</a>=true) </span><span class="modifiers">public class </span><span class="element-name type-name-label">SecurityManager</span> <span class="extends-implements">extends <a href="Object.html" title="class in java.lang">Object</a></span></div>
+<div class="deprecation-block"><span class="deprecated-label">Deprecated, for removal: This API element is subject to removal in a future version.</span> <div class="deprecation-comment">The Security Manager is deprecated and subject to removal in a future release. There is no replacement for the Security Manager. See <a href="https://openjdk.java.net/jeps/411"><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>link</b> with destination https://openjdk.org/jeps/411.</span><span class="hdiffs-tip-li">Moved to a <b>link</b> with destination https://openjdk.java.net/jeps/411.</span></span></span>JEP 411</span></a><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>link</b> with destination https://openjdk.org/jeps/411.</span><span class="hdiffs-tip-li">Moved to a <b>link</b> with destination https://openjdk.java.net/jeps/411.</span></span></span> </span>for discussion and alternatives.</div>
+</div>
+<div class="block">The security manager is a class that allows applications to implement a security policy. It allows an application to determine, before performing a possibly unsafe or sensitive operation, what the operation is and whether it is being attempted in a security context that allows the operation to be performed. The application can allow or disallow the operation. <p> The <code>SecurityManager</code>
+ class contains many methods with names that begin with the word <code>check</code>
+. These methods are called by various methods in the Java libraries before those methods perform certain potentially sensitive operations. The invocation of such a <code>check</code>
+ method typically looks like this: </p>
+<blockquote><pre>
+     SecurityManager security = System.getSecurityManager();
+     if (security != null) {
+         security.check<i>XXX</i>(argument,  . . . );
+     }
+ </pre>
+</blockquote>
+<p> The security manager is thereby given an opportunity to prevent completion of the operation by throwing an exception. A security manager routine simply returns if the operation is permitted, but throws a <code>SecurityException</code>
+ if the operation is not permitted. </p>
+<h2><a id="set-security-manager">Setting a Security Manager</a></h2>
+ Environments using a security manager will typically set the security manager at startup. In the JDK implementation, this is done by setting the system property <code><span id="java.security.manager" class="search-tag-result">java.security.manager</span></code>
+ on the command line to the class name of the security manager. It can also be set to the empty String ("") or the special token "<code>default</code>
+" to use the default <code>java.lang.SecurityManager</code>
+. If a class name is specified, it must be <code>java.lang.SecurityManager</code>
+ or a public subclass and have a public no-arg constructor. The class is loaded by the <a href="ClassLoader.html#getSystemClassLoader()">built-in system class loader</a> if it is not <code>java.lang.SecurityManager</code>
+. If the <code>java.security.manager</code>
+ system property is not set, the default value is <code>null</code>
+, which means a security manager will not be set at startup. <p> The Java run-time may also allow, but is not required to allow, the security manager to be set dynamically by invoking the <a href="System.html#setSecurityManager(java.lang.SecurityManager)"><code>setSecurityManager</code>
+</a> method. In the JDK implementation, if the Java virtual machine is started with the <code>java.security.manager</code>
+ system property set to the special token "<code>allow</code>
+", then a security manager will not be set at startup but can be set dynamically. If the Java virtual machine is started with the <code>java.security.manager</code>
+ system property not set or set to the special token "<code>disallow</code>
+", then a security manager will not be set at startup and cannot be set dynamically (the <a href="System.html#setSecurityManager(java.lang.SecurityManager)"><code>setSecurityManager</code>
+</a> method will throw an <code>UnsupportedOperationException</code>
+). Finally, if the <code>java.security.manager</code>
+ system property is set to the class name of the security manager, or to the empty String ("") or the special token "<code>default</code>
+", then a security manager is set at startup (as described previously) and can also be subsequently replaced (or disabled) dynamically (subject to the policy of the currently installed security manager). The following table illustrates the behavior of the JDK implementation for the different settings of the <code>java.security.manager</code>
+ system property: <table class="striped"> <caption style="display:none">property value, the SecurityManager set at startup, can dynamically set a SecurityManager </caption>
+ <thead><tr><th scope="col">Property Value</th>
+<th scope="col">The SecurityManager set at startup</th>
+<th scope="col">System.setSecurityManager run-time behavior</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row">null</th>
+<td>None</td>
+<td>Throws <code>UnsupportedOperationException</code>
+</td>
+</tr>
+<tr><th scope="row">empty String ("")</th>
+<td><code>java.lang.SecurityManager</code>
+</td>
+<td>Success or throws <code>SecurityException</code>
+ if not permitted by the currently installed security manager</td>
+</tr>
+<tr><th scope="row">"default"</th>
+<td><code>java.lang.SecurityManager</code>
+</td>
+<td>Success or throws <code>SecurityException</code>
+ if not permitted by the currently installed security manager</td>
+</tr>
+<tr><th scope="row">"disallow"</th>
+<td>None</td>
+<td>Throws <code>UnsupportedOperationException</code>
+</td>
+</tr>
+<tr><th scope="row">"allow"</th>
+<td>None</td>
+<td>Success or throws <code>SecurityException</code>
+ if not permitted by the currently installed security manager</td>
+</tr>
+<tr><th scope="row">a class name</th>
+<td>the named class</td>
+<td>Success or throws <code>SecurityException</code>
+ if not permitted by the currently installed security manager</td>
+</tr>
+</tbody>
+</table>
+</p>
+<p> The current security manager is returned by the <a href="System.html#getSecurityManager()"><code>getSecurityManager</code>
+</a> method. </p>
+<h2><a id="check-permission">Checking Permissions</a></h2>
+ The special method <a href="#checkPermission(java.security.Permission)"><code>checkPermission(java.security.Permission)</code>
+</a> determines whether an access request indicated by a specified permission should be granted or denied. The default implementation calls <pre>
+   AccessController.checkPermission(perm);
+ </pre>
+<p> If a requested access is allowed, <code>checkPermission</code>
+ returns quietly. If denied, a <code>SecurityException</code>
+ is thrown. </p>
+<p> The default implementation of each of the other <code>check</code>
+ methods in <code>SecurityManager</code>
+ is to call the <code>SecurityManager checkPermission</code>
+ method to determine if the calling thread has permission to perform the requested operation. </p>
+<p> Note that the <code>checkPermission</code>
+ method with just a single permission argument always performs security checks within the context of the currently executing thread. Sometimes a security check that should be made within a given context will actually need to be done from within a <i>different</i> context (for example, from within a worker thread). The <a href="#getSecurityContext()"><code>getSecurityContext</code>
+</a> method and the <a href="#checkPermission(java.security.Permission,java.lang.Object)"><code>checkPermission</code>
+</a> method that includes a context argument are provided for this situation. The <code>getSecurityContext</code>
+ method returns a "snapshot" of the current calling context. (The default implementation returns an AccessControlContext object.) A sample call is the following: <pre>
+   Object context = null;
+   SecurityManager sm = System.getSecurityManager();
+   if (sm != null) context = sm.getSecurityContext();
+ </pre>
+</p>
+<p> The <code>checkPermission</code>
+ method that takes a context object in addition to a permission makes access decisions based on that context, rather than on that of the current execution thread. Code within a different context can thus call that method, passing the permission and the previously-saved context object. A sample call, using the SecurityManager <code>sm</code>
+ obtained as in the previous example, is the following: <pre>
+   if (sm != null) sm.checkPermission(permission, context);
+ </pre>
+</p>
+<p>Permissions fall into these categories: File, Socket, Net, Security, Runtime, Property, AWT, Reflect, and Serializable. The classes managing these various permission categories are <code>java.io.FilePermission</code>
+, <code>java.net.SocketPermission</code>
+, <code>java.net.NetPermission</code>
+, <code>java.security.SecurityPermission</code>
+, <code>java.lang.RuntimePermission</code>
+, <code>java.util.PropertyPermission</code>
+, <code>java.awt.AWTPermission</code>
+, <code>java.lang.reflect.ReflectPermission</code>
+, and <code>java.io.SerializablePermission</code>
+. </p>
+<p>All but the first two (FilePermission and SocketPermission) are subclasses of <code>java.security.BasicPermission</code>
+, which itself is an abstract subclass of the top-level class for permissions, which is <code>java.security.Permission</code>
+. BasicPermission defines the functionality needed for all permissions that contain a name that follows the hierarchical property naming convention (for example, "exitVM", "setFactory", "queuePrintJob", etc). An asterisk may appear at the end of the name, following a ".", or by itself, to signify a wildcard match. For example: "a.*" or "*" is valid, "*a" or "a*b" is not valid. </p>
+<p>FilePermission and SocketPermission are subclasses of the top-level class for permissions (<code>java.security.Permission</code>
+). Classes like these that have a more complicated name syntax than that used by BasicPermission subclass directly from Permission rather than from BasicPermission. For example, for a <code>java.io.FilePermission</code>
+ object, the permission name is the path name of a file (or directory). </p>
+<p>Some of the permission classes have an "actions" list that tells the actions that are permitted for the object. For example, for a <code>java.io.FilePermission</code>
+ object, the actions list (such as "read, write") specifies which actions are granted for the specified file (or for files in the specified directory). </p>
+<p>Other permission classes are for "named" permissions - ones that contain a name but no actions list; you either have the named permission or you don't. </p>
+<p>Note: There is also a <code>java.security.AllPermission</code>
+ permission that implies all permissions. It exists to simplify the work of system administrators who might need to perform multiple tasks that require all (or numerous) permissions. </p>
+<p> See <a href="https://docs.oracle.com/pls/topic/lookup?ctx=javase20&amp;id=security_guide_permissions">Permissions in the Java Development Kit (JDK)</a> for permission-related information. This document includes a table listing the various SecurityManager <code>check</code>
+ methods and the permission(s) the default implementation of each such method requires. It also contains a table of the methods that require permissions, and for each such method tells which permission it requires.</p>
+</div>
+ <dl class="notes"> <dt>Since:</dt>
+ <dd>1.0</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list"><li><a href="ClassLoader.html" title="class in java.lang"><code>ClassLoader</code>
+</a></li><li><a href="SecurityException.html" title="class in java.lang"><code>SecurityException</code>
+</a></li><li><a href="System.html#getSecurityManager()"><code>getSecurityManager</code>
+</a></li><li><a href="System.html#setSecurityManager(java.lang.SecurityManager)"><code>setSecurityManager</code>
+</a></li><li><a href="../security/AccessController.html" title="class in java.security"><code>AccessController</code>
+</a></li><li><a href="../security/AccessControlContext.html" title="class in java.security"><code>AccessControlContext</code>
+</a></li><li><a href="../security/AccessControlException.html" title="class in java.security"><code>AccessControlException</code>
+</a></li><li><a href="../security/Permission.html" title="class in java.security"><code>Permission</code>
+</a></li><li><a href="../security/BasicPermission.html" title="class in java.security"><code>BasicPermission</code>
+</a></li><li><a href="../io/FilePermission.html" title="class in java.io"><code>FilePermission</code>
+</a></li><li><a href="../net/SocketPermission.html" title="class in java.net"><code>SocketPermission</code>
+</a></li><li><a href="../util/PropertyPermission.html" title="class in java.util"><code>PropertyPermission</code>
+</a></li><li><a href="RuntimePermission.html" title="class in java.lang"><code>RuntimePermission</code>
+</a></li><li><a href="../security/Policy.html" title="class in java.security"><code>Policy</code>
+</a></li><li><a href="../security/SecurityPermission.html" title="class in java.security"><code>SecurityPermission</code>
+</a></li><li><a href="../security/ProtectionDomain.html" title="class in java.security"><code>ProtectionDomain</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> SecurityManager()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="checkAccept(String,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkAccept(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkAccess(Thread)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkAccess(<span class="parameters"><span class="parameter">java.lang.Thread arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkAccess(ThreadGroup)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkAccess(<span class="parameters"><span class="parameter">java.lang.ThreadGroup arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkConnect(String,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkConnect(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkConnect(String,int,Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkConnect(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter">java.lang.Object arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkCreateClassLoader()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkCreateClassLoader()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkDelete(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkDelete(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkExec(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkExec(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkExit(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkExit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkLink(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkLink(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkListen(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkListen(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkMulticast(InetAddress)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkMulticast(<span class="parameters"><span class="parameter">java.net.InetAddress arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkMulticast(InetAddress,byte)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.4"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkMulticast(<span class="parameters"><span class="parameter">java.net.InetAddress arg0</span>, <span class="parameter"><span class="keyword">byte</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPackageAccess(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPackageAccess(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPackageDefinition(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPackageDefinition(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPermission(Permission)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPermission(<span class="parameters"><span class="parameter">java.security.Permission arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPermission(Permission,Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPermission(<span class="parameters"><span class="parameter">java.security.Permission arg0</span>, <span class="parameter">java.lang.Object arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPrintJobAccess()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPrintJobAccess()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPropertiesAccess()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPropertiesAccess()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkPropertyAccess(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkPropertyAccess(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkRead(FileDescriptor)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkRead(<span class="parameters"><span class="parameter">java.io.FileDescriptor arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkRead(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkRead(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkRead(String,Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkRead(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.Object arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkSecurityAccess(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkSecurityAccess(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkSetFactory()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkSetFactory()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkWrite(FileDescriptor)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkWrite(<span class="parameters"><span class="parameter">java.io.FileDescriptor arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="checkWrite(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> checkWrite(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getClassContext()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> <span><span>java.lang.Class&lt;?&gt;</span>[]</span> getClassContext()</div>
+</div>
+</li><li><div class="element" id="getSecurityContext()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.Object getSecurityContext()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getThreadGroup()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.ThreadGroup getThreadGroup()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th>Changed</th>
+<th class="allZero">Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/SecurityManager.html">SecurityManager</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>2</td>
+<td></td>
+<td>2</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>2</td>
+<td></td>
+<td>2</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

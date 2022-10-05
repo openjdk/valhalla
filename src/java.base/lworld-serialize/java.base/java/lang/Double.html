@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.Double</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;Double</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">class</span> Double <div class="superclass"><span class="keyword">extends</span> java.lang.Number</div>
+<div class="superinterfaces"><span class="keyword">implements</span> <span>java.lang.Comparable&lt;java.lang.Double&gt;</span>, java.lang.constant.Constable, java.lang.constant.ConstantDesc</div>
+</div>
+</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><dl class="notes"> <dt>All Implemented Interfaces:</dt>
+ <dd><code><a href="../io/Serializable.html" title="interface in java.io">Serializable</a></code>
+, <code><a href="Comparable.html" title="interface in java.lang">Comparable</a>&lt;<a href="Double.html" title="class in java.lang">Double</a>&gt;</code>
+, <code><a href="constant/Constable.html" title="interface in java.lang.constant">Constable</a></code>
+, <code><a href="constant/ConstantDesc.html" title="interface in java.lang.constant">ConstantDesc</a></code>
+</dd>
+ </dl>
+ <hr>
+ <div class="type-signature"><span class="modifiers">public final class </span><span class="element-name type-name-label">Double</span> <span class="extends-implements">extends <a href="Number.html" title="class in java.lang">Number</a> implements <a href="Comparable.html" title="interface in java.lang">Comparable</a>&lt;<a href="Double.html" title="class in java.lang">Double</a>&gt;, <a href="constant/Constable.html" title="interface in java.lang.constant">Constable</a>, <a href="constant/ConstantDesc.html" title="interface in java.lang.constant">ConstantDesc</a></span></div>
+<div class="block">The <code>Double</code>
+ class wraps a value of the primitive type <code>double</code>
+ in an object. An object of type <code>Double</code>
+ contains a single field whose type is <code>double</code>
+. <p>In addition, this class provides several methods for converting a <code>double</code>
+ to a <code>String</code>
+ and a <code>String</code>
+ to a <code>double</code>
+, as well as other constants and methods useful when dealing with a <code>double</code>
+. </p>
+<p>This is a <a href="../../../java.base/java/lang/doc-files/ValueBased.html">value-based</a> class; programmers should treat instances that are <a href="#equals(java.lang.Object)">equal</a> as interchangeable and should not use instances for synchronization, or unpredictable behavior may occur. For example, in a future release, synchronization may fail. </p>
+<h2><a id="equivalenceRelation">Floating-point Equality, Equivalence, and Comparison</a></h2>
+ IEEE 754 floating-point values include finite nonzero values, signed zeros (<code>+0.0</code>
+ and <code>-0.0</code>
+), signed infinities <span class="diff-html-removed">(</span> <a href="#POSITIVE_INFINITY">positive infinity</a> and <a href="#NEGATIVE_INFINITY">negative infinity</a>), and <a href="#NaN">NaN</a> (not-a-number). <p>An <em>equivalence relation</em>
+ on a set of values is a boolean relation on pairs of values that is reflexive, symmetric, and transitive. For more discussion of equivalence relations and object equality, see the <a href="Object.html#equals(java.lang.Object)"><code>Object.equals</code>
+</a> specification. An equivalence relation partitions the values it operates over into sets called <i>equivalence classes</i>. All the members of the equivalence class are equal to each other under the relation. An equivalence class may contain only a single member. At least for some purposes, all the members of an equivalence class are substitutable for each other. In particular, in a numeric expression equivalent values can be <em>substituted</em>
+ for one another without changing the result of the expression, meaning changing the equivalence class of the result of the expression. </p>
+<p>Notably, the built-in <code>==</code>
+ operation on floating-point values is <em>not</em>
+ an equivalence relation. Despite not defining an equivalence relation, the semantics of the IEEE 754 <code>==</code>
+ operator were deliberately designed to meet other needs of numerical computation. There are two exceptions where the properties of an equivalence relation are not satisfied by <code> ==</code>
+ on floating-point values: <ul><li>If <code>v1</code>
+ and <code>v2</code>
+ are both NaN, then <code>v1 == v2</code>
+ has the value <code>false</code>
+. Therefore, for two NaN arguments the <em>reflexive</em>
+ property of an equivalence relation is <em>not</em>
+ satisfied by the <code>==</code>
+ operator. </li><li>If <code>v1</code>
+ represents <code>+0.0</code>
+ while <code>v2</code>
+ represents <code>-0.0</code>
+, or vice versa, then <code>v1 == v2</code>
+ has the value <code>true</code>
+ even though <code>+0.0</code>
+ and <code>-0.0</code>
+ are distinguishable under various floating-point operations. For example, <code>1.0/+0.0</code>
+ evaluates to positive infinity while <code>1.0/-0.0</code>
+ evaluates to <em>negative</em>
+ infinity and positive infinity and negative infinity are neither equal to each other nor equivalent to each other. Thus, while a signed zero input most commonly determines the sign of a zero result, because of dividing by zero, <code>+0.0</code>
+ and <code>-0.0</code>
+ may not be substituted for each other in general. The sign of a zero input also has a non-substitutable effect on the result of some math library methods. </li></ul>
+</p>
+<p>For ordered comparisons using the built-in comparison operators (<code>&lt;</code>
+, <code>&lt;=</code>
+, etc.), NaN values have another anomalous situation: a NaN is neither less than, nor greater than, nor equal to any value, including itself. This means the <i>trichotomy of comparison</i> does <em>not</em>
+ hold. </p>
+<p>To provide the appropriate semantics for <code>equals</code>
+ and <code>compareTo</code>
+ methods, those methods cannot simply be wrappers around <code>==</code>
+ or ordered comparison operations. Instead, <a href="#equals(java.lang.Object)"><code>equals</code>
+</a><span class="diff-html-removed"> uses </span><a href="#repEquivalence"><span class="diff-html-removed"> representation equivalence</span></a><span class="diff-html-removed">, defining </span><span class="diff-html-added">defines </span>NaN arguments to be equal to each other <span class="diff-html-removed">, restoring reflexivity, </span>and <span class="diff-html-removed">defining </span><span class="diff-html-added">defines </span><code>+0.0</code>
+ to <em>not</em>
+ be equal to <code> -0.0</code>
+<span class="diff-html-added">, restoring reflexivity</span>. For comparisons, <a href="#compareTo(java.lang.Double)"><code>compareTo</code>
+</a> defines a total order where <code> -0.0</code>
+ is less than <code>+0.0</code>
+ and where a NaN is equal to itself and considered greater than positive infinity. </p>
+<p>The operational semantics of <code>equals</code>
+ and <code> compareTo</code>
+ are expressed in terms of <a href="#doubleToLongBits(double)">bit-wise converting</a> the floating-point values to integral values. </p>
+<p>The <em>natural ordering</em>
+ implemented by <a href="#compareTo(java.lang.Double)"><code>compareTo</code>
+</a> is <a href="Comparable.html" title="interface in java.lang">consistent with equals</a>. That is, two objects are reported as equal by <code>equals</code>
+ if and only if <code>compareTo</code>
+ on those objects returns zero. </p>
+<p>The adjusted behaviors defined for <code>equals</code>
+ and <code> compareTo</code>
+ allow instances of wrapper classes to work properly with conventional data structures. For example, defining NaN values to be <code>equals</code>
+ to one another allows NaN to be used as an element of a <a href="../util/HashSet.html" title="class in java.util"><code>HashSet</code>
+</a> or as the key of a <a href="../util/HashMap.html" title="class in java.util"><code>HashMap</code>
+</a>. Similarly, defining <code> compareTo</code>
+ as a total ordering, including <code>+0.0</code>
+, <code> -0.0</code>
+, and NaN, allows instances of wrapper classes to be used as elements of a <a href="../util/SortedSet.html" title="interface in java.util"><code>SortedSet</code>
+</a> or as keys of a <a href="../util/SortedMap.html" title="interface in java.util"><code>SortedMap</code>
+</a>.</p>
+<p><span class="diff-html-removed">Comparing numerical equality to various useful equivalence relations that can be defined over floating-point values: </span><dl><span class="diff-html-removed"> </span><dt><a id="fpNumericalEq"><i><span class="diff-html-removed">numerical equality</span></i></a><span class="diff-html-removed"> (</span><code><span class="diff-html-removed">==</span></code>
+<span class="diff-html-removed"> operator): (</span><em><span class="diff-html-removed">Not</span></em>
+<span class="diff-html-removed"> an equivalence relation)</span></dt>
+<span class="diff-html-removed"> </span><dd><span class="diff-html-removed">Two floating-point values represent the same extended real number. The extended real numbers are the real numbers augmented with positive infinity and negative infinity. Under numerical equality, </span><code><span class="diff-html-removed">+0.0</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed">-0.0</span></code>
+<span class="diff-html-removed"> are equal since they both map to the same real value, 0. A NaN does not map to any real number and is not equal to any value, including itself. </span></dd>
+<span class="diff-html-removed"> </span><dt><i><span class="diff-html-removed">bit-wise equivalence</span></i><span class="diff-html-removed">:</span></dt>
+<span class="diff-html-removed"> </span><dd><span class="diff-html-removed">The bits of the two floating-point values are the same. This equivalence relation for </span><code><span class="diff-html-removed">double</span></code>
+<span class="diff-html-removed"> values </span><code><span class="diff-html-removed">a</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed"> b</span></code>
+<span class="diff-html-removed"> is implemented by the expression </span><br>
+<code><span class="diff-html-removed">Double.doubleTo</span></code>
+<code><b><span class="diff-html-removed">Raw</span></b></code>
+<code><span class="diff-html-removed">LongBits(a) == Double.doubleTo</span></code>
+<code><b><span class="diff-html-removed">Raw</span></b></code>
+<code><span class="diff-html-removed">LongBits(b)</span></code>
+<br>
+<span class="diff-html-removed"> Under this relation, </span><code><span class="diff-html-removed">+0.0</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed">-0.0</span></code>
+<span class="diff-html-removed"> are distinguished from each other and every bit pattern encoding a NaN is distinguished from every other bit pattern encoding a NaN. </span></dd>
+<span class="diff-html-removed"> </span><dt><i><a id="repEquivalence"><span class="diff-html-removed">representation equivalence</span></a></i><span class="diff-html-removed">:</span></dt>
+<span class="diff-html-removed"> </span><dd><span class="diff-html-removed">The two floating-point values represent the the same IEEE 754 </span><i><span class="diff-html-removed">datum</span></i><span class="diff-html-removed">. In particular, for </span><a href="#isFinite(double)"><span class="diff-html-removed">finite</span></a><span class="diff-html-removed"> values, the sign, </span><a href="Math.html#getExponent(double)"><span class="diff-html-removed">exponent</span></a><span class="diff-html-removed">, and significand components of the floating-point values are the same. Under this relation: </span><ul><li><span class="diff-html-removed"> </span><code><span class="diff-html-removed">+0.0</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed">-0.0</span></code>
+<span class="diff-html-removed"> are distinguished from each other. </span></li><li><span class="diff-html-removed"> every bit pattern encoding a NaN is considered equivalent to each other </span></li><li><span class="diff-html-removed"> positive infinity is equivalent to positive infinity; negative infinity is equivalent to negative infinity. </span></li></ul>
+<span class="diff-html-removed"> Expressions implementing this equivalence relation include: </span><ul><li><code><span class="diff-html-removed">Double.doubleToLongBits(a) == Double.doubleToLongBits(b)</span></code>
+<span class="diff-html-removed"> </span></li><li><code><span class="diff-html-removed">Double.valueOf(a).equals(Double.valueOf(b))</span></code>
+<span class="diff-html-removed"> </span></li><li><code><span class="diff-html-removed">Double.compare(a, b) == 0</span></code>
+<span class="diff-html-removed"> </span></li></ul>
+<span class="diff-html-removed"> Note that representation equivalence is often an appropriate notion of equivalence to test the behavior of </span><a href="StrictMath.html" title="class in java.lang"><span class="diff-html-removed">math libraries</span></a><span class="diff-html-removed">. </span></dd>
+<span class="diff-html-removed"> </span></dl>
+<span class="diff-html-removed"> For two binary floating-point values </span><code><span class="diff-html-removed">a</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed">b</span></code>
+<span class="diff-html-removed">, if neither of </span><code><span class="diff-html-removed">a</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed">b</span></code>
+<span class="diff-html-removed"> is zero or NaN, then the three relations numerical equality, bit-wise equivalence, and representation equivalence of </span><code><span class="diff-html-removed">a</span></code>
+<span class="diff-html-removed"> and </span><code><span class="diff-html-removed">b</span></code>
+<span class="diff-html-removed"> have the same </span><code><span class="diff-html-removed">true</span></code>
+<span class="diff-html-removed">/</span><code><span class="diff-html-removed">false</span></code>
+<span class="diff-html-removed"> value. In other words, for binary floating-point values, the three relations only differ if at least one argument is zero or NaN.</span></p>
+</div>
+ <dl class="notes"><dt>See <i>Java Language Specification</i>:</dt>
+ <dd> <a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-4.html#jls-4.2.3">4.2.3 Floating-Point Types, Formats, and Values</a><br>
+<a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-4.html#jls-4.2.4.">4.2.4. Floating-Point Operations</a><br>
+<a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-15.html#jls-15.21.1">15.21.1 Numerical Equality Operators == and !=</a><br>
+<a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-15.html#jls-15.20.1">15.20.1 Numerical Comparison Operators <code>&lt;</code>
+, <code>&lt;=</code>
+, <code>&gt;</code>
+, and <code>&gt;=</code>
+</a><br>
+</dd>
+ <dt>Since:</dt>
+ <dd>1.0</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list-long"><li><a href="https://standards.ieee.org/ieee/754/6210/"> <cite>IEEE Standard for Floating-Point Arithmetic</cite>
+</a></li><li><a href="../../../serialized-form.html#java.lang.Double">Serialized Form</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+<section class="enclosed"><h2>Fields</h2>
+<ul><li><div class="element" id="BYTES"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> BYTES = 8</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_EXPONENT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MAX_EXPONENT = 1023</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_VALUE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">double</span> MAX_VALUE = 1.7976931348623157E308</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_EXPONENT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MIN_EXPONENT = -1022</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_NORMAL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">double</span> MIN_NORMAL = 2.2250738585072014E-308</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_VALUE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">double</span> MIN_VALUE = 4.9E-324</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="NEGATIVE_INFINITY"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">double</span> NEGATIVE_INFINITY = -Infinity</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="NaN"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">double</span> NaN = NaN</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="POSITIVE_INFINITY"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">double</span> POSITIVE_INFINITY = Infinity</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="PRECISION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> PRECISION = 53</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="SIZE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> SIZE = 64</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="TYPE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span>java.lang.Class&lt;java.lang.Double&gt;</span> TYPE</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;(double)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="9"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> Double(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="9"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> Double(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.lang.NumberFormatException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="byteValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">byte</span> byteValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compare(double,double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> compare(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span>, <span class="parameter"><span class="keyword">double</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compareTo(Double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> compareTo(<span class="parameters"><span class="parameter">java.lang.Double arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="describeConstable()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.Optional&lt;java.lang.Double&gt;</span> describeConstable()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="doubleToLongBits(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">long</span> doubleToLongBits(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="doubleToRawLongBits(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">long</span> doubleToRawLongBits(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="doubleValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">double</span> doubleValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="equals(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> equals(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="floatValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">float</span> floatValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="hashCode()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> hashCode()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="hashCode(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> hashCode(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="intValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> intValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isFinite(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isFinite(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isInfinite()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> isInfinite()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isInfinite(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isInfinite(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isNaN()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> isNaN()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isNaN(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isNaN(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="longBitsToDouble(long)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">double</span> longBitsToDouble(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="longValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> longValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="max(double,double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">double</span> max(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span>, <span class="parameter"><span class="keyword">double</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="min(double,double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">double</span> min(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span>, <span class="parameter"><span class="keyword">double</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="parseDouble(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">double</span> parseDouble(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.lang.NumberFormatException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="resolveConstantDesc(Lookup)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.Double resolveConstantDesc(<span class="parameters"><span class="parameter">java.lang.invoke.MethodHandles.Lookup arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="shortValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">short</span> shortValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="sum(double,double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">double</span> sum(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span>, <span class="parameter"><span class="keyword">double</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toHexString(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String toHexString(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toString()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String toString(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+</div>
+</li><li><div class="element" id="valueOf(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.Double valueOf(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.Double valueOf(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.lang.NumberFormatException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="serial-form"><h2>Serialized Form</h2>
+<span class="same">&check;</span><h3>serialVersionUID</h3>
+<span class="same">&check;</span>-9172774392245257468<section class="enclosed"><h3>Serialized Fields</h3>
+<ul><li><div class="element"><span class="same">&check;</span><div class="signature"><span class="keyword">double</span>&nbsp;value</div>
+</div>
+</li></ul>
+</section>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th>Added</th>
+<th>Changed</th>
+<th>Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/Double.html">Double</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>2</td>
+<td>13</td>
+<td>16</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>2</td>
+<td>13</td>
+<td>16</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

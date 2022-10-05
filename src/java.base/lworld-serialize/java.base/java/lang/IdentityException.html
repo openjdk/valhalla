@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.IdentityException</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;IdentityException</h1>
+</div>
+<div class="element"><span class="single">&#x2460;</span><span class="missing">Only in: lworld; not in: jdk-git.</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">class</span> IdentityException <div class="superclass"><span class="keyword">extends</span> java.lang.RuntimeException</div>
+</div>
+</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Not in jdk-git; only in lworld</div>
+<section class="class-description" id="class-description">
+<dl class="notes">
+<dt>All Implemented Interfaces:</dt>
+<dd><code><a href="../io/Serializable.html" title="interface in java.io">Serializable</a></code></dd>
+</dl>
+<hr>
+<div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">IdentityException</span>
+<span class="extends-implements">extends <a href="RuntimeException.html" title="class in java.lang">RuntimeException</a></span></div>
+<div class="block">Thrown when an identity object is required but a value object is supplied.
+ <p>
+ Identity objects are required for synchronization and locking.
+ <a href="../../../java.base/java/lang/doc-files/ValueBased.html">Value-based</a>
+ objects do not have identity and cannot be used for synchronization or locking.</div>
+<dl class="notes">
+<dt>Since:</dt>
+<dd>Valhalla</dd>
+<dt>See Also:</dt>
+<dd>
+<ul class="see-list">
+<li><a href="../../../serialized-form.html#java.lang.IdentityException">Serialized Form</a></li>
+</ul>
+</dd>
+</dl>
+</section>
+</div>
+</div>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;()"><span class="single">&#x2460;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> IdentityException()</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Not in jdk-git; only in lworld</div>
+<section class="detail" id="&lt;init&gt;()">
+<h3>IdentityException</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">IdentityException</span>()</div>
+<div class="block">Create an <code>IdentityException</code> with no message.</div>
+</section>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(Class)"><span class="single">&#x2460;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> IdentityException(<span class="parameters"><span class="parameter"><span>java.lang.Class&lt;?&gt;</span> arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Not in jdk-git; only in lworld</div>
+<section class="detail" id="&lt;init&gt;(java.lang.Class)">
+<h3>IdentityException</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">IdentityException</span><wbr><span class="parameters">(<a href="Class.html" title="class in java.lang">Class</a>&lt;?&gt;&nbsp;clazz)</span></div>
+<div class="block">Create an <code>IdentityException</code> with the class name and default message.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>clazz</code> - the class of the object</dd>
+</dl>
+</section>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String)"><span class="single">&#x2460;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> IdentityException(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Not in jdk-git; only in lworld</div>
+<section class="detail" id="&lt;init&gt;(java.lang.String)">
+<h3>IdentityException</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">IdentityException</span><wbr><span class="parameters">(<a href="String.html" title="class in java.lang">String</a>&nbsp;message)</span></div>
+<div class="block">Create an <code>IdentityException</code> with a message.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>message</code> - the detail message; can be <code>null</code></dd>
+</dl>
+</section>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String,Throwable)"><span class="single">&#x2460;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> IdentityException(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.Throwable arg1</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Not in jdk-git; only in lworld</div>
+<section class="detail" id="&lt;init&gt;(java.lang.String,java.lang.Throwable)">
+<h3>IdentityException</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">IdentityException</span><wbr><span class="parameters">(<a href="String.html" title="class in java.lang">String</a>&nbsp;message,
+ <a href="Throwable.html" title="class in java.lang">Throwable</a>&nbsp;cause)</span></div>
+<div class="block">Create an <code>IdentityException</code> with a message and cause.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>message</code> - the detail message; can be <code>null</code></dd>
+<dd><code>cause</code> - the cause; <code>null</code> is permitted, and indicates
+               that the cause is nonexistent or unknown.</dd>
+</dl>
+</section>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(Throwable)"><span class="single">&#x2460;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> IdentityException(<span class="parameters"><span class="parameter">java.lang.Throwable arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Not in jdk-git; only in lworld</div>
+<section class="detail" id="&lt;init&gt;(java.lang.Throwable)">
+<h3>IdentityException</h3>
+<div class="member-signature"><span class="modifiers">public</span>&nbsp;<span class="element-name">IdentityException</span><wbr><span class="parameters">(<a href="Throwable.html" title="class in java.lang">Throwable</a>&nbsp;cause)</span></div>
+<div class="block">Create an <code>IdentityException</code> with a cause.</div>
+<dl class="notes">
+<dt>Parameters:</dt>
+<dd><code>cause</code> - the cause; <code>null</code> is permitted, and indicates
+               that the cause is nonexistent or unknown.</dd>
+</dl>
+</section>
+</div>
+</div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th>Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th>Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/IdentityException.html">IdentityException</a></th>
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>2</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/IdentityException.html#%3Cinit%3E()">&lt;init&gt;()</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/IdentityException.html#%3Cinit%3E(Class)">&lt;init&gt;(Class)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/IdentityException.html#%3Cinit%3E(String)">&lt;init&gt;(String)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/IdentityException.html#%3Cinit%3E(String,Throwable)">&lt;init&gt;(String,Throwable)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/IdentityException.html#%3Cinit%3E(Throwable)">&lt;init&gt;(Throwable)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>6</td>
+<td></td>
+<td></td>
+<td>7</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

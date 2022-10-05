@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.Character</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;Character</h1>
+</div>
+<div class="element"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">class</span> Character <div class="superclass"><span class="keyword">extends</span> java.lang.Object</div>
+<div class="superinterfaces"><span class="keyword">implements</span> java.io.Serializable, <span>java.lang.Comparable&lt;java.lang.Character&gt;</span>, java.lang.constant.Constable</div>
+</div>
+</div>
+<div class="apiDescriptions"></div>
+<section class="enclosed"><h2>Nested Types</h2>
+<ul><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/Character.Subset.html">Subset</a></span></li><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/Character.UnicodeBlock.html">UnicodeBlock</a></span></li><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/Character.UnicodeScript.html">UnicodeScript</a></span></li></ul>
+</section>
+<section class="enclosed"><h2>Fields</h2>
+<ul><li><div class="element" id="BYTES"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> BYTES = 2</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="COMBINING_SPACING_MARK"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> COMBINING_SPACING_MARK = 8</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="CONNECTOR_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> CONNECTOR_PUNCTUATION = 23</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="CONTROL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> CONTROL = 15</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="CURRENCY_SYMBOL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> CURRENCY_SYMBOL = 26</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DASH_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DASH_PUNCTUATION = 20</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DECIMAL_DIGIT_NUMBER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DECIMAL_DIGIT_NUMBER = 9</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_ARABIC_NUMBER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_ARABIC_NUMBER = 6</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_BOUNDARY_NEUTRAL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_BOUNDARY_NEUTRAL = 9</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_COMMON_NUMBER_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_COMMON_NUMBER_SEPARATOR = 7</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_EUROPEAN_NUMBER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_EUROPEAN_NUMBER = 3</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_EUROPEAN_NUMBER_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_EUROPEAN_NUMBER_SEPARATOR = 4</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_EUROPEAN_NUMBER_TERMINATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_EUROPEAN_NUMBER_TERMINATOR = 5</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_FIRST_STRONG_ISOLATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_FIRST_STRONG_ISOLATE = 21</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_LEFT_TO_RIGHT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_LEFT_TO_RIGHT = 0</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_LEFT_TO_RIGHT_EMBEDDING = 14</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_LEFT_TO_RIGHT_ISOLATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_LEFT_TO_RIGHT_ISOLATE = 19</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_LEFT_TO_RIGHT_OVERRIDE = 15</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_NONSPACING_MARK"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_NONSPACING_MARK = 8</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_OTHER_NEUTRALS"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_OTHER_NEUTRALS = 13</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_PARAGRAPH_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_PARAGRAPH_SEPARATOR = 10</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_POP_DIRECTIONAL_FORMAT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_POP_DIRECTIONAL_FORMAT = 18</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_POP_DIRECTIONAL_ISOLATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_POP_DIRECTIONAL_ISOLATE = 22</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_RIGHT_TO_LEFT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_RIGHT_TO_LEFT = 1</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_RIGHT_TO_LEFT_ARABIC = 2</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_RIGHT_TO_LEFT_EMBEDDING = 16</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_RIGHT_TO_LEFT_ISOLATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_RIGHT_TO_LEFT_ISOLATE = 20</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_RIGHT_TO_LEFT_OVERRIDE = 17</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_SEGMENT_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_SEGMENT_SEPARATOR = 11</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_UNDEFINED"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_UNDEFINED = -1</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="DIRECTIONALITY_WHITESPACE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> DIRECTIONALITY_WHITESPACE = 12</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="ENCLOSING_MARK"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> ENCLOSING_MARK = 7</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="END_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> END_PUNCTUATION = 22</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="FINAL_QUOTE_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> FINAL_QUOTE_PUNCTUATION = 30</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="FORMAT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> FORMAT = 16</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="INITIAL_QUOTE_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> INITIAL_QUOTE_PUNCTUATION = 29</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="LETTER_NUMBER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> LETTER_NUMBER = 10</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="LINE_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> LINE_SEPARATOR = 13</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="LOWERCASE_LETTER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> LOWERCASE_LETTER = 2</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MATH_SYMBOL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> MATH_SYMBOL = 25</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_CODE_POINT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MAX_CODE_POINT = 1114111</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_HIGH_SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MAX_HIGH_SURROGATE = '\udbff'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_LOW_SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MAX_LOW_SURROGATE = '\udfff'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_RADIX"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MAX_RADIX = 36</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MAX_SURROGATE = '\udfff'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MAX_VALUE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MAX_VALUE = '￿'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_CODE_POINT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MIN_CODE_POINT = 0</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_HIGH_SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MIN_HIGH_SURROGATE = '\ud800'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_LOW_SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MIN_LOW_SURROGATE = '\udc00'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_RADIX"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MIN_RADIX = 2</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_SUPPLEMENTARY_CODE_POINT"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> MIN_SUPPLEMENTARY_CODE_POINT = 65536</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MIN_SURROGATE = '\ud800'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MIN_VALUE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">char</span> MIN_VALUE = '\u0000'</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MODIFIER_LETTER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> MODIFIER_LETTER = 4</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="MODIFIER_SYMBOL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> MODIFIER_SYMBOL = 27</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="NON_SPACING_MARK"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> NON_SPACING_MARK = 6</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="OTHER_LETTER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> OTHER_LETTER = 5</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="OTHER_NUMBER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> OTHER_NUMBER = 11</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="OTHER_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> OTHER_PUNCTUATION = 24</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="OTHER_SYMBOL"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> OTHER_SYMBOL = 28</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="PARAGRAPH_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> PARAGRAPH_SEPARATOR = 14</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="PRIVATE_USE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> PRIVATE_USE = 18</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="SIZE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">int</span> SIZE = 16</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="SPACE_SEPARATOR"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> SPACE_SEPARATOR = 12</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="START_PUNCTUATION"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> START_PUNCTUATION = 21</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="SURROGATE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> SURROGATE = 19</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="TITLECASE_LETTER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> TITLECASE_LETTER = 3</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="TYPE"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span>java.lang.Class&lt;java.lang.Character&gt;</span> TYPE</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="UNASSIGNED"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> UNASSIGNED = 0</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="UPPERCASE_LETTER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span class="keyword">byte</span> UPPERCASE_LETTER = 1</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;(char)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="9"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> Character(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="charCount(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> charCount(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="charValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">char</span> charValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointAt(char[],int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointAt(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointAt(char[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointAt(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointAt(CharSequence,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointAt(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointBefore(char[],int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointBefore(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointBefore(char[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointBefore(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointBefore(CharSequence,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointBefore(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointCount(char[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointCount(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointCount(CharSequence,int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointCount(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointOf(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> codePointOf(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compare(char,char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> compare(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span>, <span class="parameter"><span class="keyword">char</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compareTo(Character)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> compareTo(<span class="parameters"><span class="parameter">java.lang.Character arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="describeConstable()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.Optional&lt;<span>java.lang.constant.DynamicConstantDesc&lt;java.lang.Character&gt;</span>&gt;</span> describeConstable()</div>
+</div>
+</li><li><div class="element" id="digit(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> digit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="digit(char,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> digit(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="equals(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> equals(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="forDigit(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> forDigit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getDirectionality(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">byte</span> getDirectionality(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getDirectionality(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">byte</span> getDirectionality(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getName(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String getName(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getNumericValue(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> getNumericValue(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getNumericValue(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> getNumericValue(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getType(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> getType(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getType(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> getType(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="hashCode()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> hashCode()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="hashCode(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> hashCode(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="highSurrogate(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> highSurrogate(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isAlphabetic(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isAlphabetic(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isBmpCodePoint(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isBmpCodePoint(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isDefined(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isDefined(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isDefined(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isDefined(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isDigit(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isDigit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isDigit(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isDigit(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isHighSurrogate(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isHighSurrogate(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isISOControl(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isISOControl(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isISOControl(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isISOControl(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isIdentifierIgnorable(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isIdentifierIgnorable(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isIdentifierIgnorable(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isIdentifierIgnorable(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isIdeographic(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isIdeographic(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isJavaIdentifierPart(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isJavaIdentifierPart(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isJavaIdentifierPart(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isJavaIdentifierPart(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isJavaIdentifierStart(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isJavaIdentifierStart(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isJavaIdentifierStart(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isJavaIdentifierStart(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isJavaLetter(char)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.1")</span><br>
+<span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isJavaLetter(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isJavaLetterOrDigit(char)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.1")</span><br>
+<span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isJavaLetterOrDigit(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLetter(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLetter(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLetter(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLetter(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLetterOrDigit(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLetterOrDigit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLetterOrDigit(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLetterOrDigit(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLowSurrogate(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLowSurrogate(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLowerCase(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLowerCase(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isLowerCase(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isLowerCase(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isMirrored(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isMirrored(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isMirrored(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isMirrored(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isSpace(char)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.1")</span><br>
+<span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isSpace(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isSpaceChar(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isSpaceChar(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isSpaceChar(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isSpaceChar(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isSupplementaryCodePoint(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isSupplementaryCodePoint(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isSurrogate(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isSurrogate(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isSurrogatePair(char,char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isSurrogatePair(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span>, <span class="parameter"><span class="keyword">char</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isTitleCase(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isTitleCase(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isTitleCase(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isTitleCase(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isUnicodeIdentifierPart(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isUnicodeIdentifierPart(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isUnicodeIdentifierPart(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isUnicodeIdentifierPart(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isUnicodeIdentifierStart(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isUnicodeIdentifierStart(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isUnicodeIdentifierStart(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isUnicodeIdentifierStart(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isUpperCase(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isUpperCase(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isUpperCase(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isUpperCase(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isValidCodePoint(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isValidCodePoint(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isWhitespace(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isWhitespace(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isWhitespace(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">boolean</span> isWhitespace(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="lowSurrogate(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> lowSurrogate(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="offsetByCodePoints(char[],int,int,int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> offsetByCodePoints(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span>, <span class="parameter"><span class="keyword">int</span> arg4</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="offsetByCodePoints(CharSequence,int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> offsetByCodePoints(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="reverseBytes(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> reverseBytes(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toChars(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span><span class="keyword">char</span>[]</span> toChars(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toChars(int,char[],int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> toChars(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span><span class="keyword">char</span>[]</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toCodePoint(char,char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> toCodePoint(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span>, <span class="parameter"><span class="keyword">char</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toLowerCase(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> toLowerCase(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toLowerCase(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> toLowerCase(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toString()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String toString(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String toString(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toTitleCase(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> toTitleCase(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toTitleCase(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> toTitleCase(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toUpperCase(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> toUpperCase(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toUpperCase(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">char</span> toUpperCase(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.Character valueOf(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="serial-form"><h2>Serialized Form</h2>
+<span class="same">&check;</span><h3>serialVersionUID</h3>
+<span class="same">&check;</span>3786198910865385080<section class="enclosed"><h3>Serialized Fields</h3>
+<ul><li><div class="element"><span class="same">&check;</span><div class="signature"><span class="keyword">char</span>&nbsp;value</div>
+</div>
+</li></ul>
+</section>
+</section>
+<section class="summary"><h2>Summary</h2>
+No differences.</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

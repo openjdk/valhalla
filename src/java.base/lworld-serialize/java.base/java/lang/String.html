@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.String</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;String</h1>
+</div>
+<div class="element"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">class</span> String <div class="superclass"><span class="keyword">extends</span> java.lang.Object</div>
+<div class="superinterfaces"><span class="keyword">implements</span> java.io.Serializable, java.lang.CharSequence, <span>java.lang.Comparable&lt;java.lang.String&gt;</span>, java.lang.constant.Constable, java.lang.constant.ConstantDesc</div>
+</div>
+</div>
+<div class="apiDescriptions"></div>
+<section class="enclosed"><h2>Fields</h2>
+<ul><li><div class="element" id="CASE_INSENSITIVE_ORDER"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> <span>java.util.Comparator&lt;java.lang.String&gt;</span> CASE_INSENSITIVE_ORDER</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String()</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],int)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.1")</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],int,int,int)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.1")</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],int,int,String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span>, <span class="parameter">java.lang.String arg3</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.UnsupportedEncodingException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],int,int,Charset)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span>, <span class="parameter">java.nio.charset.Charset arg3</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter">java.lang.String arg1</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.UnsupportedEncodingException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(byte[],Charset)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter">java.nio.charset.Charset arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(int[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">int</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(char[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(char[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(StringBuffer)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter">java.lang.StringBuffer arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(StringBuilder)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> String(<span class="parameters"><span class="parameter">java.lang.StringBuilder arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="charAt(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">char</span> charAt(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="chars()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.util.stream.IntStream chars()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointAt(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> codePointAt(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointBefore(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> codePointBefore(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePointCount(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> codePointCount(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="codePoints()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.util.stream.IntStream codePoints()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compareTo(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> compareTo(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compareToIgnoreCase(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> compareToIgnoreCase(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="concat(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String concat(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="contains(CharSequence)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> contains(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="contentEquals(CharSequence)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> contentEquals(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="contentEquals(StringBuffer)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> contentEquals(<span class="parameters"><span class="parameter">java.lang.StringBuffer arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="copyValueOf(char[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String copyValueOf(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="copyValueOf(char[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String copyValueOf(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="describeConstable()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.Optional&lt;java.lang.String&gt;</span> describeConstable()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="endsWith(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> endsWith(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="equals(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> equals(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="equalsIgnoreCase(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> equalsIgnoreCase(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="format(String,Object[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String format(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span>java.lang.Object[]</span> arg1</span></span>)</div>
+</div>
+</li><li><div class="element" id="format(Locale,String,Object[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String format(<span class="parameters"><span class="parameter">java.util.Locale arg0</span>, <span class="parameter">java.lang.String arg1</span>, <span class="parameter"><span>java.lang.Object[]</span> arg2</span></span>)</div>
+</div>
+</li><li><div class="element" id="formatted(Object[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String formatted(<span class="parameters"><span class="parameter"><span>java.lang.Object[]</span> arg0</span></span>)</div>
+</div>
+</li><li><div class="element" id="getBytes()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span><span class="keyword">byte</span>[]</span> getBytes()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getBytes(int,int,byte[],int)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="1.1")</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> getBytes(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span><span class="keyword">byte</span>[]</span> arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getBytes(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span><span class="keyword">byte</span>[]</span> getBytes(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.UnsupportedEncodingException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getBytes(Charset)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span><span class="keyword">byte</span>[]</span> getBytes(<span class="parameters"><span class="parameter">java.nio.charset.Charset arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getChars(int,int,char[],int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> getChars(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span><span class="keyword">char</span>[]</span> arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="hashCode()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> hashCode()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="indent(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String indent(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="indexOf(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> indexOf(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="indexOf(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> indexOf(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="indexOf(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> indexOf(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="indexOf(String,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> indexOf(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="intern()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String intern()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isBlank()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> isBlank()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isEmpty()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> isEmpty()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="join(CharSequence,CharSequence[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String join(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter"><span>java.lang.CharSequence[]</span> arg1</span></span>)</div>
+</div>
+</li><li><div class="element" id="join(CharSequence,Iterable)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String join(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter"><span>java.lang.Iterable&lt;<span>? <span class="keyword">extends</span> java.lang.CharSequence</span>&gt;</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="lastIndexOf(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> lastIndexOf(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="lastIndexOf(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> lastIndexOf(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="lastIndexOf(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> lastIndexOf(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="lastIndexOf(String,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> lastIndexOf(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="length()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> length()</div>
+</div>
+</li><li><div class="element" id="lines()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.stream.Stream&lt;java.lang.String&gt;</span> lines()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="matches(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> matches(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="offsetByCodePoints(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> offsetByCodePoints(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="regionMatches(boolean,int,String,int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> regionMatches(<span class="parameters"><span class="parameter"><span class="keyword">boolean</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter">java.lang.String arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span>, <span class="parameter"><span class="keyword">int</span> arg4</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="regionMatches(int,String,int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> regionMatches(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter">java.lang.String arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="repeat(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String repeat(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="replace(char,char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String replace(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span>, <span class="parameter"><span class="keyword">char</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="replace(CharSequence,CharSequence)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String replace(<span class="parameters"><span class="parameter">java.lang.CharSequence arg0</span>, <span class="parameter">java.lang.CharSequence arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="replaceAll(String,String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String replaceAll(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.String arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="replaceFirst(String,String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String replaceFirst(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.String arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="resolveConstantDesc(Lookup)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String resolveConstantDesc(<span class="parameters"><span class="parameter">java.lang.invoke.MethodHandles.Lookup arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="split(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.lang.String[]</span> split(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="split(String,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.lang.String[]</span> split(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="startsWith(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> startsWith(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="startsWith(String,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> startsWith(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="strip()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String strip()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="stripIndent()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String stripIndent()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="stripLeading()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String stripLeading()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="stripTrailing()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String stripTrailing()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="subSequence(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.CharSequence subSequence(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="substring(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String substring(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="substring(int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String substring(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toCharArray()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span><span class="keyword">char</span>[]</span> toCharArray()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toLowerCase()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toLowerCase()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toLowerCase(Locale)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toLowerCase(<span class="parameters"><span class="parameter">java.util.Locale arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toString()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toUpperCase()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toUpperCase()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toUpperCase(Locale)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toUpperCase(<span class="parameters"><span class="parameter">java.util.Locale arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="transform(Function)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="typarams">&lt;<span>R</span>&gt;</span> R transform(<span class="parameters"><span class="parameter"><span>java.util.function.Function&lt;<span>? <span class="keyword">super</span> java.lang.String</span>, <span>? <span class="keyword">extends</span> R</span>&gt;</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="translateEscapes()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String translateEscapes()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="trim()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String trim()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(boolean)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span class="keyword">boolean</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(long)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(char)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span class="keyword">char</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(float)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span class="keyword">float</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(double)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span class="keyword">double</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(char[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(char[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter"><span><span class="keyword">char</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="valueOf(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String valueOf(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="serial-form"><h2>Serialized Form</h2>
+<span class="same">&check;</span><h3>serialVersionUID</h3>
+<span class="same">&check;</span>-6849794470754667710</section>
+<section class="summary"><h2>Summary</h2>
+No differences.</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

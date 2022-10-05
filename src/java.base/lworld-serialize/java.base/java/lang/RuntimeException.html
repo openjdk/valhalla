@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.RuntimeException</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;RuntimeException</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">class</span> RuntimeException <div class="superclass"><span class="keyword">extends</span> java.lang.Exception</div>
+</div>
+</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><dl class="notes"> <dt>All Implemented Interfaces:</dt>
+ <dd><code><a href="../io/Serializable.html" title="interface in java.io">Serializable</a></code>
+</dd>
+ </dl>
+ <dl class="notes"> <dt>Direct Known Subclasses:</dt>
+ <dd><code><a href="annotation/AnnotationTypeMismatchException.html" title="class in java.lang.annotation">AnnotationTypeMismatchException</a></code>
+, <code><a href="ArithmeticException.html" title="class in java.lang">ArithmeticException</a></code>
+, <code><a href="ArrayStoreException.html" title="class in java.lang">ArrayStoreException</a></code>
+, <code><a href="../nio/BufferOverflowException.html" title="class in java.nio">BufferOverflowException</a></code>
+, <code><a href="../nio/BufferUnderflowException.html" title="class in java.nio">BufferUnderflowException</a></code>
+, <code><a href="../../../java.desktop/javax/swing/undo/CannotRedoException.html" title="class in javax.swing.undo">CannotRedoException</a></code>
+, <code><a href="../../../java.desktop/javax/swing/undo/CannotUndoException.html" title="class in javax.swing.undo">CannotUndoException</a></code>
+, <code><a href="../../../java.xml/javax/xml/catalog/CatalogException.html" title="class in javax.xml.catalog">CatalogException</a></code>
+, <code><a href="ClassCastException.html" title="class in java.lang">ClassCastException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/ClassNotPreparedException.html" title="class in com.sun.jdi">ClassNotPreparedException</a></code>
+, <code><a href="../../../java.desktop/java/awt/color/CMMException.html" title="class in java.awt.color">CMMException</a></code>
+, <code><a href="../util/concurrent/CompletionException.html" title="class in java.util.concurrent">CompletionException</a></code>
+, <code><a href="../util/ConcurrentModificationException.html" title="class in java.util">ConcurrentModificationException</a></code>
+, <code><a href="../time/DateTimeException.html" title="class in java.time">DateTimeException</a></code>
+, <code><a href="../../../java.xml/org/w3c/dom/DOMException.html" title="class in org.w3c.dom">DOMException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/request/DuplicateRequestException.html" title="class in com.sun.jdi.request">DuplicateRequestException</a></code>
+, <code><a href="../util/EmptyStackException.html" title="class in java.util">EmptyStackException</a></code>
+, <code><a href="EnumConstantNotPresentException.html" title="class in java.lang">EnumConstantNotPresentException</a></code>
+, <code><a href="../../../java.xml/org/w3c/dom/events/EventException.html" title="class in org.w3c.dom.events">EventException</a></code>
+, <code><a href="../nio/file/FileSystemAlreadyExistsException.html" title="class in java.nio.file">FileSystemAlreadyExistsException</a></code>
+, <code><a href="../nio/file/FileSystemNotFoundException.html" title="class in java.nio.file">FileSystemNotFoundException</a></code>
+, <code><a href="module/FindException.html" title="class in java.lang.module">FindException</a></code>
+, <code><a href="IdentityException.html" title="class in java.lang"><span class="diff-html-added">IdentityException</span></a></code>
+<span class="diff-html-added">, </span><code><a href="IllegalArgumentException.html" title="class in java.lang">IllegalArgumentException</a></code>
+, <code><a href="IllegalCallerException.html" title="class in java.lang">IllegalCallerException</a></code>
+, <code><a href="IllegalMonitorStateException.html" title="class in java.lang">IllegalMonitorStateException</a></code>
+, <code><a href="../../../java.desktop/java/awt/geom/IllegalPathStateException.html" title="class in java.awt.geom">IllegalPathStateException</a></code>
+, <code><a href="IllegalStateException.html" title="class in java.lang">IllegalStateException</a></code>
+, <code><a href="../util/IllformedLocaleException.html" title="class in java.util">IllformedLocaleException</a></code>
+, <code><a href="../../../java.desktop/java/awt/image/ImagingOpException.html" title="class in java.awt.image">ImagingOpException</a></code>
+, <code><a href="reflect/InaccessibleObjectException.html" title="class in java.lang.reflect">InaccessibleObjectException</a></code>
+, <code><a href="annotation/IncompleteAnnotationException.html" title="class in java.lang.annotation">IncompleteAnnotationException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/InconsistentDebugInfoException.html" title="class in com.sun.jdi">InconsistentDebugInfoException</a></code>
+, <code><a href="IndexOutOfBoundsException.html" title="class in java.lang">IndexOutOfBoundsException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/InternalException.html" title="class in com.sun.jdi">InternalException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/InvalidCodeIndexException.html" title="class in com.sun.jdi">InvalidCodeIndexException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/InvalidLineNumberException.html" title="class in com.sun.jdi">InvalidLineNumberException</a></code>
+, <code><a href="module/InvalidModuleDescriptorException.html" title="class in java.lang.module">InvalidModuleDescriptorException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/InvalidModuleException.html" title="class in com.sun.jdi">InvalidModuleException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/request/InvalidRequestStateException.html" title="class in com.sun.jdi.request">InvalidRequestStateException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/InvalidStackFrameException.html" title="class in com.sun.jdi">InvalidStackFrameException</a></code>
+, <code><a href="../../../jdk.jartool/jdk/security/jarsigner/JarSignerException.html" title="class in jdk.security.jarsigner">JarSignerException</a></code>
+, <code><a href="../../../java.management/javax/management/JMRuntimeException.html" title="class in javax.management">JMRuntimeException</a></code>
+, <code><a href="../../../jdk.jsobject/netscape/javascript/JSException.html" title="class in netscape.javascript">JSException</a></code>
+, <code><a href="LayerInstantiationException.html" title="class in java.lang">LayerInstantiationException</a></code>
+, <code><a href="../../../java.xml/org/w3c/dom/ls/LSException.html" title="class in org.w3c.dom.ls">LSException</a></code>
+, <code><a href="reflect/MalformedParameterizedTypeException.html" title="class in java.lang.reflect">MalformedParameterizedTypeException</a></code>
+, <code><a href="reflect/MalformedParametersException.html" title="class in java.lang.reflect">MalformedParametersException</a></code>
+, <code><a href="MatchException.html" title="class in java.lang">MatchException</a><sup><a href="MatchException.html#preview-java.lang.MatchException">PREVIEW</a></sup>
+</code>
+, <code><a href="../../../java.compiler/javax/lang/model/type/MirroredTypesException.html" title="class in javax.lang.model.type">MirroredTypesException</a></code>
+, <code><a href="../util/MissingResourceException.html" title="class in java.util">MissingResourceException</a></code>
+, <code><a href="NegativeArraySizeException.html" title="class in java.lang">NegativeArraySizeException</a></code>
+, <code><a href="../../../jdk.dynalink/jdk/dynalink/NoSuchDynamicMethodException.html" title="class in jdk.dynalink">NoSuchDynamicMethodException</a></code>
+, <code><a href="../util/NoSuchElementException.html" title="class in java.util">NoSuchElementException</a></code>
+, <code><a href="../../../java.xml.crypto/javax/xml/crypto/NoSuchMechanismException.html" title="class in javax.xml.crypto">NoSuchMechanismException</a></code>
+, <code><a href="NullPointerException.html" title="class in java.lang">NullPointerException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/ObjectCollectedException.html" title="class in com.sun.jdi">ObjectCollectedException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/OpaqueFrameException.html" title="class in com.sun.jdi">OpaqueFrameException</a></code>
+, <code><a href="../../../java.desktop/java/awt/color/ProfileDataException.html" title="class in java.awt.color">ProfileDataException</a></code>
+, <code><a href="../security/ProviderException.html" title="class in java.security">ProviderException</a></code>
+, <code><a href="../nio/file/ProviderNotFoundException.html" title="class in java.nio.file">ProviderNotFoundException</a></code>
+, <code><a href="../../../java.xml/org/w3c/dom/ranges/RangeException.html" title="class in org.w3c.dom.ranges">RangeException</a></code>
+, <code><a href="../../../java.desktop/java/awt/image/RasterFormatException.html" title="class in java.awt.image">RasterFormatException</a></code>
+, <code><a href="../util/concurrent/RejectedExecutionException.html" title="class in java.util.concurrent">RejectedExecutionException</a></code>
+, <code><a href="module/ResolutionException.html" title="class in java.lang.module">ResolutionException</a></code>
+, <code><a href="SecurityException.html" title="class in java.lang">SecurityException</a></code>
+, <code><a href="../../../jdk.jshell/jdk/jshell/spi/SPIResolutionException.html" title="class in jdk.jshell.spi">SPIResolutionException</a></code>
+, <code><a href="../../../jdk.incubator.concurrent/jdk/incubator/concurrent/StructureViolationException.html" title="class in jdk.incubator.concurrent">StructureViolationException</a></code>
+, <code><a href="TypeNotPresentException.html" title="class in java.lang">TypeNotPresentException</a></code>
+, <code><a href="../io/UncheckedIOException.html" title="class in java.io">UncheckedIOException</a></code>
+, <code><a href="reflect/UndeclaredThrowableException.html" title="class in java.lang.reflect">UndeclaredThrowableException</a></code>
+, <code><a href="../../../java.compiler/javax/lang/model/UnknownEntityException.html" title="class in javax.lang.model">UnknownEntityException</a></code>
+, <code><a href="../../../java.instrument/java/lang/instrument/UnmodifiableModuleException.html" title="class in java.lang.instrument">UnmodifiableModuleException</a></code>
+, <code><a href="../../../java.desktop/javax/print/attribute/UnmodifiableSetException.html" title="class in javax.print.attribute">UnmodifiableSetException</a></code>
+, <code><a href="UnsupportedOperationException.html" title="class in java.lang">UnsupportedOperationException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/VMDisconnectedException.html" title="class in com.sun.jdi">VMDisconnectedException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/VMMismatchException.html" title="class in com.sun.jdi">VMMismatchException</a></code>
+, <code><a href="../../../jdk.jdi/com/sun/jdi/VMOutOfMemoryException.html" title="class in com.sun.jdi">VMOutOfMemoryException</a></code>
+, <code><a href="invoke/WrongMethodTypeException.html" title="class in java.lang.invoke">WrongMethodTypeException</a></code>
+, <code><a href="WrongThreadException.html" title="class in java.lang">WrongThreadException</a></code>
+, <code><a href="../../../jdk.xml.dom/org/w3c/dom/xpath/XPathException.html" title="class in org.w3c.dom.xpath">XPathException</a></code>
+</dd>
+ </dl>
+ <hr>
+ <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">RuntimeException</span> <span class="extends-implements">extends <a href="Exception.html" title="class in java.lang">Exception</a></span></div>
+<div class="block"><code>RuntimeException</code>
+ is the superclass of those exceptions that can be thrown during the normal operation of the Java Virtual Machine. <p><code>RuntimeException</code>
+ and its subclasses are <em>unchecked exceptions</em>
+. Unchecked exceptions do <em>not</em>
+ need to be declared in a method or constructor's <code>throws</code>
+ clause if they can be thrown by the execution of the method or constructor and propagate outside the method or constructor boundary.</p>
+</div>
+ <dl class="notes"><dt>See <i>Java Language Specification</i>:</dt>
+ <dd> <a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-11.html#jls-11.2">11.2 Compile-Time Checking of Exceptions</a><br>
+</dd>
+ <dt>Since:</dt>
+ <dd>1.0</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list"><li><a href="../../../serialized-form.html#java.lang.RuntimeException">Serialized Form</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> RuntimeException()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> RuntimeException(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String,Throwable)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> RuntimeException(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.Throwable arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(String,Throwable,boolean,boolean)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> RuntimeException(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.Throwable arg1</span>, <span class="parameter"><span class="keyword">boolean</span> arg2</span>, <span class="parameter"><span class="keyword">boolean</span> arg3</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(Throwable)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> RuntimeException(<span class="parameters"><span class="parameter">java.lang.Throwable arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="serial-form"><h2>Serialized Form</h2>
+<span class="same">&check;</span><h3>serialVersionUID</h3>
+<span class="same">&check;</span>-7034897190745766939</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th>Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/RuntimeException.html">RuntimeException</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>2</td>
+<td></td>
+<td></td>
+<td>2</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>2</td>
+<td></td>
+<td></td>
+<td>2</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

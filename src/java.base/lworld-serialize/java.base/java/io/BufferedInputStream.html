@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.io.BufferedInputStream</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/io/package-summary.html">java.io</a></div>
+<h1>Class&nbsp;BufferedInputStream</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">class</span> BufferedInputStream <div class="superclass"><span class="keyword">extends</span> java.io.FilterInputStream</div>
+</div>
+</div>
+<div class="apiDescriptions"></div>
+<section class="enclosed"><h2>Fields</h2>
+<ul><li><div class="element" id="buf"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span> <span class="keyword">volatile</span></span> <span><span class="keyword">byte</span>[]</span> buf</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="count"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> <span class="keyword">int</span> count</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="marklimit"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> <span class="keyword">int</span> marklimit</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="markpos"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> <span class="keyword">int</span> markpos</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="pos"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> <span class="keyword">int</span> pos</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;(InputStream)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> BufferedInputStream(<span class="parameters"><span class="parameter">java.io.InputStream arg0</span></span>)</div>
+</div>
+</li><li><div class="element" id="&lt;init&gt;(InputStream,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> BufferedInputStream(<span class="parameters"><span class="parameter">java.io.InputStream arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="available()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> available() <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="close()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> close() <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="mark(int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> mark(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="markSupported()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> markSupported()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="read()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> read() <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+</div>
+</li><li><div class="element" id="read(byte[],int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> read(<span class="parameters"><span class="parameter"><span><span class="keyword">byte</span>[]</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter"><span class="keyword">int</span> arg2</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="reset()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> reset() <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="skip(long)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> skip(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="transferTo(OutputStream)"><span class="single">&#x2460;</span><span class="missing">Only in: jdk-git; not in: lworld.</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> transferTo(<span class="parameters"><span class="parameter">java.io.OutputStream arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th class="allZero" colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th>Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/io/BufferedInputStream.html#transferTo(OutputStream)">transferTo(OutputStream)</a></th>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td>1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

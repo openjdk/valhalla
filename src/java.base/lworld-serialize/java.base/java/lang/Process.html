@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.Process</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;Process</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">class</span> Process <div class="superclass"><span class="keyword">extends</span> java.lang.Object</div>
+</div>
+</div>
+<div class="apiDescriptions"></div>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> Process()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="children()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.stream.Stream&lt;java.lang.ProcessHandle&gt;</span> children()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="descendants()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.stream.Stream&lt;java.lang.ProcessHandle&gt;</span> descendants()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="destroy()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">void</span> destroy()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="destroyForcibly()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.Process destroyForcibly()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="errorReader()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> java.io.BufferedReader errorReader()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="errorReader(Charset)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> java.io.BufferedReader errorReader(<span class="parameters"><span class="parameter">java.nio.charset.Charset arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exitValue()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">int</span> exitValue()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getErrorStream()"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> java.io.InputStream getErrorStream()</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>getErrorStream</h3>
+<div class="member-signature"><span class="modifiers">public abstract</span> <span class="return-type"><a href="../io/InputStream.html" title="class in java.io">InputStream</a></span> <span class="element-name">getErrorStream</span>()</div>
+<div class="block">Returns the input stream connected to the error output of the process. The stream obtains data piped from the error output of the process represented by this <code>Process</code>
+ object. <p>If the standard error of the process has been redirected using <a href="ProcessBuilder.html#redirectError(java.lang.ProcessBuilder.Redirect)"><code>ProcessBuilder.redirectError</code>
+</a> or <a href="ProcessBuilder.html#redirectErrorStream(boolean)"><code>ProcessBuilder.redirectErrorStream</code>
+</a> then this method will return a <a href="ProcessBuilder.html#redirect-output">null input stream</a>.</p>
+</div>
+ <dl class="notes"> <dt>API Note:</dt>
+ <dd>Use <span class="diff-html-removed">getErrorStream</span><span class="diff-html-added"> </span><a href="#getInputStream()"><code><span class="diff-html-added">getInputStream</span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>link</b> with destination #getErrorStream().</span><span class="hdiffs-tip-li">Moved to a <b>link</b> with destination #getInputStream().</span></span></span>()</span></code>
+</a><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>link</b> with destination #getErrorStream().</span><span class="hdiffs-tip-li">Moved to a <b>link</b> with destination #getInputStream().</span></span></span> </span>and <a href="#errorReader()"><code><span class="diff-html-removed">errorReader()</span></code>
+</a><span class="diff-html-removed"> </span><code><span class="diff-html-added">inputReader</span></code>
+<span class="diff-html-added"> </span>with extreme care. The <code>BufferedReader</code>
+ may have buffered input from the <span class="diff-html-removed">error </span><span class="diff-html-added">input </span>stream.</dd>
+ <dt>Implementation Note:</dt>
+ <dd>Implementation note: It is a good idea for the returned input stream to be buffered.</dd>
+ <dt>Returns:</dt>
+ <dd>the input stream connected to the error output of the process</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="getInputStream()"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> java.io.InputStream getInputStream()</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>getInputStream</h3>
+<div class="member-signature"><span class="modifiers">public abstract</span> <span class="return-type"><a href="../io/InputStream.html" title="class in java.io">InputStream</a></span> <span class="element-name">getInputStream</span>()</div>
+<div class="block">Returns the input stream connected to the normal output of the process. The stream obtains data piped from the standard output of the process represented by this <code>Process</code>
+ object. <p>If the standard output of the process has been redirected using <a href="ProcessBuilder.html#redirectOutput(java.lang.ProcessBuilder.Redirect)"><code>ProcessBuilder.redirectOutput</code>
+</a> then this method will return a <a href="ProcessBuilder.html#redirect-output">null input stream</a>. </p>
+<p>Otherwise, if the standard error of the process has been redirected using <a href="ProcessBuilder.html#redirectErrorStream(boolean)"><code>ProcessBuilder.redirectErrorStream</code>
+</a> then the input stream returned by this method will receive the merged standard output and the standard error of the process.</p>
+</div>
+ <dl class="notes"> <dt>API Note:</dt>
+ <dd>Use <a href="#getInputStream()"><code>getInputStream()</code>
+</a> and <code><span class="diff-html-changed"><span class="hdiffs-tooltip">Moved out of a <b>link</b> with destination #inputReader().</span>inputReader</span></code>
+<span class="diff-html-removed">()</span> with extreme care. The <code>BufferedReader</code>
+ may have buffered input from the input stream.</dd>
+ <dt>Implementation Note:</dt>
+ <dd>Implementation note: It is a good idea for the returned input stream to be buffered.</dd>
+ <dt>Returns:</dt>
+ <dd>the input stream connected to the normal output of the process</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="getOutputStream()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> java.io.OutputStream getOutputStream()</div>
+</div>
+</li><li><div class="element" id="info()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.ProcessHandle.Info info()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="inputReader()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> java.io.BufferedReader inputReader()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="inputReader(Charset)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> java.io.BufferedReader inputReader(<span class="parameters"><span class="parameter">java.nio.charset.Charset arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isAlive()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> isAlive()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="onExit()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span>java.util.concurrent.CompletableFuture&lt;java.lang.Process&gt;</span> onExit()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="outputWriter()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> java.io.BufferedWriter outputWriter()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="outputWriter(Charset)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> java.io.BufferedWriter outputWriter(<span class="parameters"><span class="parameter">java.nio.charset.Charset arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="pid()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> pid()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="supportsNormalTermination()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> supportsNormalTermination()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toHandle()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.ProcessHandle toHandle()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="waitFor()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">int</span> waitFor() <span class="throws"><span class="keyword">throws</span> java.lang.InterruptedException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="waitFor(long,TimeUnit)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> waitFor(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span>, <span class="parameter">java.util.concurrent.TimeUnit arg1</span></span>) <span class="throws"><span class="keyword">throws</span> java.lang.InterruptedException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th>Added</th>
+<th>Changed</th>
+<th>Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/Process.html#getErrorStream()">getErrorStream()</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>3</td>
+<td>2</td>
+<td>6</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/Process.html#getInputStream()">getInputStream()</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>4</td>
+<td>3</td>
+<td>8</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

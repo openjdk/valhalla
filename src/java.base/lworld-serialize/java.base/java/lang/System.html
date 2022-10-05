@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.System</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;System</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">class</span> System <div class="superclass"><span class="keyword">extends</span> java.lang.Object</div>
+</div>
+</div>
+<div class="apiDescriptions"></div>
+<section class="enclosed"><h2>Nested Types</h2>
+<ul><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/System.Logger.html">Logger</a></span></li><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/System.LoggerFinder.html">LoggerFinder</a></span></li></ul>
+</section>
+<section class="enclosed"><h2>Fields</h2>
+<ul><li><div class="element" id="err"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> java.io.PrintStream err</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="in"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> java.io.InputStream in</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="out"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span></span> java.io.PrintStream out</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="arraycopy(Object,int,Object,int,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> arraycopy(<span class="parameters"><span class="parameter">java.lang.Object arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span>, <span class="parameter">java.lang.Object arg2</span>, <span class="parameter"><span class="keyword">int</span> arg3</span>, <span class="parameter"><span class="keyword">int</span> arg4</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="clearProperty(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String clearProperty(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="console()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.io.Console console()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="currentTimeMillis()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">long</span> currentTimeMillis()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exit(int)"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> exit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>exit</h3>
+<div class="member-signature"><span class="modifiers">public static</span> <span class="return-type">void</span> <span class="element-name">exit</span><wbr></wbr>
+<span class="parameters">(int status)</span></div>
+<div class="block"><span class="diff-html-removed">Initiates the </span><a href="Runtime.html#shutdown"><span class="diff-html-removed">shutdown sequence</span></a><span class="diff-html-removed"> of the </span><span class="diff-html-added">Terminates the currently running </span>Java Virtual Machine. <span class="diff-html-removed">This method always blocks indefinitely. </span>The argument serves as a status code; by convention, a nonzero status code indicates abnormal termination. <p> This method calls the <code>exit</code>
+ method in class <code>Runtime</code>
+. This method never returns normally. </p>
+<p> The call <code>System.exit(n)</code>
+ is effectively equivalent to the call: </p>
+<blockquote><pre>
+ Runtime.getRuntime().exit(n)
+ </pre>
+</blockquote>
+</div>
+ <dl class="notes"> <dt>Parameters:</dt>
+ <dd><code>status</code>
+ - exit status.</dd>
+ <dt>Throws:</dt>
+ <dd><code><a href="SecurityException.html" title="class in java.lang">SecurityException</a></code>
+ - if a security manager exists and its <code>checkExit</code>
+ method doesn't allow exit with the specified status.</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list"><li><a href="Runtime.html#exit(int)"><code>Runtime.exit(int)</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="gc()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> gc()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getLogger(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.System.Logger getLogger(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getLogger(String,ResourceBundle)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.System.Logger getLogger(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.util.ResourceBundle arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getProperties()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.util.Properties getProperties()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getProperty(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String getProperty(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getProperty(String,String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String getProperty(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.String arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getSecurityManager()"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="17"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.SecurityManager getSecurityManager()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getenv()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span>java.util.Map&lt;java.lang.String, java.lang.String&gt;</span> getenv()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getenv(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String getenv(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="identityHashCode(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">int</span> identityHashCode(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="inheritedChannel()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.nio.channels.Channel inheritedChannel() <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="lineSeparator()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String lineSeparator()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="load(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> load(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="loadLibrary(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> loadLibrary(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="mapLibraryName(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String mapLibraryName(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="nanoTime()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">long</span> nanoTime()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="runFinalization()"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="18"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> runFinalization()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="setErr(PrintStream)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> setErr(<span class="parameters"><span class="parameter">java.io.PrintStream arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="setIn(InputStream)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> setIn(<span class="parameters"><span class="parameter">java.io.InputStream arg0</span></span>)</div>
+</div>
+</li><li><div class="element" id="setOut(PrintStream)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> setOut(<span class="parameters"><span class="parameter">java.io.PrintStream arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="setProperties(Properties)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> setProperties(<span class="parameters"><span class="parameter">java.util.Properties arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="setProperty(String,String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.String setProperty(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter">java.lang.String arg1</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="setSecurityManager(SecurityManager)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="17"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span class="keyword">void</span> setSecurityManager(<span class="parameters"><span class="parameter">java.lang.SecurityManager arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th>Changed</th>
+<th>Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/System.html#exit(int)">exit(int)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>2</td>
+<td>3</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>interface java.base/java.lang.ProcessHandle</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Interface&nbsp;ProcessHandle</h1>
+</div>
+<div class="element"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">interface</span> ProcessHandle <div class="superinterfaces"><span class="keyword">extends</span> <span>java.lang.Comparable&lt;java.lang.ProcessHandle&gt;</span></div>
+</div>
+</div>
+<div class="apiDescriptions"></div>
+<section class="enclosed"><h2>Nested Types</h2>
+<ul><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/ProcessHandle.Info.html">Info</a></span></li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="allProcesses()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span>java.util.stream.Stream&lt;java.lang.ProcessHandle&gt;</span> allProcesses()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="children()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span>java.util.stream.Stream&lt;java.lang.ProcessHandle&gt;</span> children()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="compareTo(ProcessHandle)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">int</span> compareTo(<span class="parameters"><span class="parameter">java.lang.ProcessHandle arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="current()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.ProcessHandle current()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="descendants()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span>java.util.stream.Stream&lt;java.lang.ProcessHandle&gt;</span> descendants()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="destroy()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">boolean</span> destroy()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="destroyForcibly()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">boolean</span> destroyForcibly()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="equals(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">boolean</span> equals(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="hashCode()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">int</span> hashCode()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="info()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> java.lang.ProcessHandle.Info info()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="isAlive()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">boolean</span> isAlive()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="of(long)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> <span>java.util.Optional&lt;java.lang.ProcessHandle&gt;</span> of(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="onExit()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span>java.util.concurrent.CompletableFuture&lt;java.lang.ProcessHandle&gt;</span> onExit()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="parent()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span>java.util.Optional&lt;java.lang.ProcessHandle&gt;</span> parent()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="pid()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">long</span> pid()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="supportsNormalTermination()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">abstract</span></span> <span class="keyword">boolean</span> supportsNormalTermination()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+No differences.</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

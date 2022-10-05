@@ -1,0 +1,466 @@
+/*
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
+/* Global/default settings. */
+
+body {
+    font-family:'DejaVu Sans', Arial, Helvetica, sans-serif;
+    font-size:14px;
+    margin: 0;
+    padding: 0;
+}
+
+/* Headings. */
+
+h1 {
+    font-size:20px;
+}
+h2 {
+    font-size:18px;
+}
+h3 {
+    font-size:16px;
+    font-style:italic;
+}
+h4 {
+    font-size:13px;
+}
+h5 {
+    font-size:12px;
+}
+h6 {
+    font-size:11px;
+}
+
+/* Links. */
+
+a:link, a:visited {
+    text-decoration:none;
+    color:#4A6782;
+}
+a[href]:hover, a[href]:focus {
+    text-decoration:none;
+    color:#bb7a2a;
+}
+
+/* Header, footer and navigation. */
+
+header > div,
+footer > div {
+    padding: 1em;
+}
+
+header > div.info,
+footer > div.info {
+    font-size: smaller;
+}
+
+.bar {
+    background-color:#4D7A97;
+    color:#FFFFFF;
+}
+
+.bar nav ul {
+    display: inline;
+    margin: 0;
+    padding: 0;
+    list-style-type: none;
+}
+
+.bar nav li {
+    display: inline;
+    margin: 0 1em 0 0;
+    text-transform: uppercase;
+}
+
+.bar nav a,
+.bar nav a:link,
+.bar nav a:visited,
+.bar nav a:active {
+    color:#FFFFFF;
+    text-decoration:none;
+}
+
+.bar nav a:hover,
+.bar nav a:focus {
+    color:#bb7a2a;
+}
+
+.bar div.info {
+    float: right;
+}
+
+/* Main. */
+
+main {
+    margin: 1em;
+}
+
+
+/* Page heading: the <h1> and preceding text. */
+
+div.pageHeading {
+    border-bottom: 1px solid black;
+    margin-bottom: 2em;
+}
+
+.pageHeading .label {
+    font-weight: bold;
+}
+
+.pageHeading h1 {
+    color:#2c4557;
+}
+
+/* The signature block. */
+
+div.signature {
+    margin-top: 5px;
+    font-family:'DejaVu Sans Mono', monospace;
+    font-size:14px;
+}
+
+.signature .keyword {
+    font-weight: bold;
+}
+
+.signature div.superclass,
+.signature div.superinterfaces,
+.signature div.permitted-subclasses {
+    margin-left:2em;
+}
+
+.signature span.diffs, .serial-form span.diffs {
+    display: inline-block;
+    background-color: lightgrey;
+    border: 1px solid grey;
+    border-radius: 5px;
+    margin: 2px;
+    padding: 4px 1px;
+    list-style: none;
+}
+
+.signature span.diffs > span, .serial-form span.diffs > span {
+    display: inline;
+    background-color: white;
+    border: 1px solid grey;
+    border-radius: 5px;
+    margin: 0 1px;
+    padding: 2px;
+}
+
+.signature span.unresolved {
+    color: gray;
+}
+
+/* Elements. */
+
+.doc-files span.diff,   .element span.diff,   .enclosed span.diff,   .serial-form span.diff,
+.doc-files span.same,   .element span.same,   .enclosed span.same,   .serial-form span.same,
+.doc-files span.single, .element span.single, .enclosed span.single, .serial-form span.single {
+    display: inline-block;
+    width: 2em;
+    margin-right: 0.5ex;
+    text-align: center;
+    font-weight: bold;
+}
+
+.doc-files span.diff, .element span.diff, .enclosed span.diff, .serial-form span.diff {
+    background: #fdd;
+    color: #800;
+}
+
+.doc-files span.same, .element span.same, .enclosed span.same, .serial-form span.same {
+    background: #dfd;
+    color: #080;
+}
+
+.doc-files span.single, .element span.single, .enclosed span.single, .serial-form span.single {
+    background: #ddf;
+    color: #008;
+}
+
+.doc-files span.missing, .element span.missing, .enclosed span.missing, .serial-form span.missing,
+.element span.notes {
+    margin-right: 10px;
+    font-style: italic;
+}
+
+.doc-files table.details {
+  margin: 10px 0;
+}
+
+.doc-files table.details,
+.doc-files table.details thead,
+.doc-files table.details tbody,
+.doc-files table.details tfoot {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+
+.doc-files table.details caption {
+  padding-bottom: 2px;
+}
+
+.doc-files table.details thead,
+.doc-files table.details tfoot {
+  background-color: #ddd
+}
+
+.doc-files table.details tbody tr:nth-child(even) {
+  background-color: #eee
+}
+
+.doc-files table.details th,
+.doc-files table.details td {
+  padding: 2px 5px;
+}
+
+.doc-files table.details thead th,
+.doc-files table.details tfoot th {
+  border: 1px solid black;
+}
+
+.doc-files table.details td {
+  border-left: 1px solid black;
+  text-align: center;
+}
+
+.doc-files table.details tbody th {
+  font-weight: normal;
+}
+
+.doc-files table.details tbody th,
+.doc-files table.details tfoot th {
+  text-align:left;
+}
+
+/* Side-by-side diffs. */
+
+div.sdiffs {
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-column-gap: 10px;
+    margin: 2px 10px;
+    padding: 2px 2px;
+    border: 1px solid grey;
+}
+
+.sdiffs div.sdiffs-ref {
+    grid-column: 1;
+    overflow-x: auto;
+}
+
+.sdiffs div.sdiffs-mod {
+    grid-column: 2;
+    overflow-x: auto;
+}
+
+.sdiffs div.sdiffs-title {
+    padding-left: 2em;
+    text-weight: bold;
+    background-color: #eee;
+    border-bottom: 1px solid grey;
+    margin-bottom: 5px;
+}
+
+.sdiffs span.sdiffs-changed {
+    color: blue;
+}
+
+/* HTML diffs */
+
+div.hdiffs {
+    margin: 2px 10px;
+    padding: 2px 2px;
+    border: 1px solid grey;
+}
+
+div.hdiffs-title {
+    padding-left: 2em;
+    text-weight: bold;
+    background-color: #eee;
+    border-bottom: 1px solid grey;
+    margin-bottom: 5px;
+}
+
+.hdiffs span.diff-html-added { background-color: #bfb }
+.hdiffs span.diff-html-changed { background-color: #ffb; }
+.hdiffs span.diff-html-removed { background-color: #fbb; }
+
+/* No diffs */
+
+div.xdiffs {
+    margin: 2px 10px;
+    padding: 2px 2px;
+    border: 1px solid grey;
+}
+
+div.xdiffs-title {
+    padding-left: 2em;
+    text-weight: bold;
+    background-color: #eee;
+    border-bottom: 1px solid grey;
+    margin-bottom: 5px;
+}
+
+/* Tooltip container */
+.hdiffs .diff-html-changed {
+  position: relative;
+}
+
+/* Tooltip text */
+.hdiffs .diff-html-changed .hdiffs-tooltip {
+  display:block;
+  visibility: hidden;
+  width: 300px;
+  background-color: #fafad2;
+  padding: 5px 10px;
+  border: 1px solid black;
+  text-align: left;
+  border-radius: 6px;
+
+  color: black;
+  font-size: small;
+  font-style-normal;
+  font-weight: normal;
+  white-space: normal;
+
+  /* Position the tooltip text */
+  position: absolute;
+  z-index: 1;
+  top: 125%;
+  left: 50%;
+  margin-left: -150px;
+
+  /* Fade in tooltip */
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+/* Tooltip arrow */
+.hdiffs .diff-html-changed .hdiffs-tooltip::after {
+  content: " ";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent transparent black transparent;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.hdiffs .diff-html-changed:hover .hdiffs-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+.hdiffs span.hdiffs-tip-ul { display:block; list-style: outside }
+.hdiffs span.hdiffs-tip-li { display:list-item;  margin-left: 1em; padding-left: 0.1em; }
+
+/* The summary table */
+
+section.summary {
+  border-top: 1px solid black;
+  margin-top: 2em;
+}
+
+table.summary,
+table.summary thead,
+table.summary tbody,
+table.summary tfoot {
+  border: 1px solid black;
+  border-collapse: collapse;
+}
+
+table.summary caption {
+  padding-bottom: 2px;
+}
+
+table.summary thead,
+table.summary tfoot {
+  background-color: #ddd
+}
+
+table.summary tbody tr:nth-child(even) {
+  background-color: #eee
+}
+
+table.summary th,
+table.summary td {
+  padding: 2px 5px;
+}
+
+table.summary thead th,
+table.summary tfoot th {
+  border: 1px solid black;
+}
+
+table.summary thead th.allZero {
+  color: gray;
+}
+
+table.summary td {
+  border-left: 1px solid black;
+  text-align: center;
+}
+
+table.summary tbody th {
+  font-weight: normal;
+}
+
+table.summary tbody th,
+table.summary tfoot th {
+  text-align:left;
+}
+
+/* The debug section. */
+
+.todo {
+    display: inline-block;
+    border: 1px solid blue;
+    border-radius: 5px;
+    padding: 1px 2px;
+}
+
+ section.debug {
+    border: 1px solid grey;
+    border-radius: 5px;
+    border-color: blue;
+    margin: 2em 1em;
+    padding: 2px 5px;
+ }
+
+ .debug table {
+     border: 1px solid grey;
+     border-collapse: collapse;
+ }
+
+ .debug td, .debug th {
+     padding 2px 5px;
+     border-left: 1px solid grey;
+     border-top: 1px solid lightgrey;
+ }
+
+

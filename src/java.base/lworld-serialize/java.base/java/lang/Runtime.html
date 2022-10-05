@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.Runtime</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;Runtime</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">class</span> Runtime <div class="superclass"><span class="keyword">extends</span> java.lang.Object</div>
+</div>
+</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><hr>
+ <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">Runtime</span> <span class="extends-implements">extends <a href="Object.html" title="class in java.lang">Object</a></span></div>
+<div class="block">Every Java application has a single instance of class <code>Runtime</code>
+ that allows the application to interface with the environment in which the application is running. The current runtime can be obtained from the <code>getRuntime</code>
+ method. <p> An application cannot create its own instance of this class.</p>
+<h2><a id="shutdown"><span class="diff-html-removed">Shutdown Sequence</span></a></h2>
+<p><span class="diff-html-removed">The Java Virtual Machine initiates the </span><i><span class="diff-html-removed">shutdown sequence</span></i><span class="diff-html-removed"> in response to one of several events: </span><ol><li><span class="diff-html-removed">when the number of </span><a href="Thread.html#isAlive()"><span class="diff-html-removed">live</span></a><span class="diff-html-removed"> non-daemon threads drops to zero for the first time (see note below on the JNI Invocation API);</span></li><li><span class="diff-html-removed">when the </span><a href="#exit(int)"><code><span class="diff-html-removed">Runtime.exit</span></code>
+</a><span class="diff-html-removed"> or </span><a href="System.html#exit(int)"><code><span class="diff-html-removed">System.exit</span></code>
+</a><span class="diff-html-removed"> method is called for the first time; or</span></li><li><span class="diff-html-removed">when some external event occurs, such as an interrupt or a signal is received from the operating system.</span></li></ol>
+</p>
+<p><span class="diff-html-removed">At the beginning of the shutdown sequence, the registered shutdown hooks are </span><a href="Thread.html#start()"><span class="diff-html-removed">started</span></a><span class="diff-html-removed"> in some unspecified order. They run concurrently with any daemon or non-daemon threads that were </span><a href="Thread.html#isAlive()"><span class="diff-html-removed">alive</span></a><span class="diff-html-removed"> at the beginning of the shutdown sequence. </span></p>
+<p><span class="diff-html-removed">After the shutdown sequence has begun, registration and de-registration of shutdown hooks with </span><a href="#addShutdownHook(java.lang.Thread)"><code><span class="diff-html-removed">addShutdownHook</span></code>
+</a><span class="diff-html-removed"> and </span><a href="#removeShutdownHook(java.lang.Thread)"><code><span class="diff-html-removed">removeShutdownHook</span></code>
+</a><span class="diff-html-removed"> is prohibited. However, creating and starting new threads is permitted. New threads run concurrently with the registered shutdown hooks and with any daemon or non-daemon threads that are already running. </span></p>
+<p><span class="diff-html-removed">The shutdown sequence finishes when all shutdown hooks have terminated. At this point, the Java Virtual Machine terminates as described below. </span></p>
+<p><span class="diff-html-removed">It is possible that one or more shutdown hooks do not terminate, for example, because of an infinite loop. In this case, the shutdown sequence will never finish. Other threads and shutdown hooks continue to run and can terminate the JVM via the </span><a href="#halt(int)"><code><span class="diff-html-removed">halt</span></code>
+</a><span class="diff-html-removed"> method. </span></p>
+<p><span class="diff-html-removed">Prior to the beginning of the shutdown sequence, it is possible for a program to start a shutdown hook by calling its </span><a href="Thread.html#start()"><code><span class="diff-html-removed">start</span></code>
+</a><span class="diff-html-removed"> method explicitly. If this occurs, the behavior of the shutdown sequence is unspecified. </span></p>
+<h2><a id="termination"><span class="diff-html-removed">Java Virtual Machine Termination</span></a></h2>
+<p><span class="diff-html-removed">The JVM terminates when the shutdown sequence finishes or when </span><a href="#halt(int)"><code><span class="diff-html-removed">halt</span></code>
+</a><span class="diff-html-removed"> is called. In contrast to </span><a href="#exit(int)"><code><span class="diff-html-removed">exit</span></code>
+</a><span class="diff-html-removed">, the </span><a href="#halt(int)"><code><span class="diff-html-removed">halt</span></code>
+</a><span class="diff-html-removed"> method does not initiate the shutdown sequence. </span></p>
+<p><span class="diff-html-removed">When the JVM terminates, all threads are immediately prevented from executing any further Java code. This includes shutdown hooks as well as daemon and non-daemon threads. The threads' current methods do not complete normally or abruptly; no </span><code><span class="diff-html-removed">finally</span></code>
+<span class="diff-html-removed"> clause of any method is executed, nor is any </span><a href="Thread.UncaughtExceptionHandler.html" title="interface in java.lang"><span class="diff-html-removed">uncaught exception handler</span></a><span class="diff-html-removed">.</span></p>
+</div>
+<span class="diff-html-removed"> </span><dl class="notes"><span class="diff-html-removed"> </span><dt><span class="diff-html-removed">Implementation Note:</span></dt>
+<span class="diff-html-removed"> </span><dd><span class="diff-html-removed">Native code typically uses the </span><a href="../../../../specs/jni/invocation.html"><span class="diff-html-removed">JNI Invocation API</span></a><span class="diff-html-removed"> to control launching and termination of the JVM. Such native code invokes the </span><a href="../../../../specs/jni/invocation.html#jni_createjavavm"><code><span class="diff-html-removed">JNI_CreateJavaVM</span></code>
+</a><span class="diff-html-removed"> function to launch the JVM. Subsequently, the native code invokes the </span><a href="../../../../specs/jni/invocation.html#destroyjavavm"><code><span class="diff-html-removed">DestroyJavaVM</span></code>
+</a><span class="diff-html-removed"> function to await termination of that JVM. The </span><code><span class="diff-html-removed">DestroyJavaVM</span></code>
+<span class="diff-html-removed"> function is responsible for initiating the shutdown sequence when the number of </span><a href="Thread.html#isAlive()"><span class="diff-html-removed">live</span></a><span class="diff-html-removed"> non-daemon threads first drops to zero. When the shutdown sequence completes and the JVM terminates, control is returned to the native code that invoked </span><code><span class="diff-html-removed">DestroyJavaVM</span></code>
+<span class="diff-html-removed">. This behavior differs from the </span><a href="#exit(int)"><code><span class="diff-html-removed">exit</span></code>
+</a><span class="diff-html-removed"> or </span><a href="#halt(int)"><code><span class="diff-html-removed">halt</span></code>
+</a><span class="diff-html-removed"> methods. These methods typically terminate the OS process hosting the JVM and do not interact with the JNI Invocation API.</span></dd>
+<span class="diff-html-removed"> </span><dt><span class="diff-html-removed">See </span><i><span class="diff-html-removed">Java Language Specification</span></i><span class="diff-html-removed">:</span></dt>
+<span class="diff-html-removed"> </span><dd><span class="diff-html-removed"> </span><a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-12.html#jls-12.8"><span class="diff-html-removed">12.8 Program Exit</span></a><br>
+</dd>
+<span class="diff-html-removed"> </span><dt>Since:</dt>
+ <dd>1.0</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list"><li><a href="#getRuntime()"><code>getRuntime()</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+<section class="enclosed"><h2>Nested Types</h2>
+<ul><li><span><span class="same">&check;</span> <a href="../../../java.base/java/lang/Runtime.Version.html">Version</a></span></li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="addShutdownHook(Thread)"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> addShutdownHook(<span class="parameters"><span class="parameter">java.lang.Thread arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>addShutdownHook</h3>
+<div class="member-signature"><span class="modifiers">public</span> <span class="return-type">void</span> <span class="element-name">addShutdownHook</span><wbr></wbr>
+<span class="parameters">(<a href="Thread.html" title="class in java.lang">Thread</a> hook)</span></div>
+<div class="block">Registers a new virtual-machine shutdown hook. <p><span class="diff-html-added"> The Java virtual machine </span><i><span class="diff-html-added">shuts down</span></i><span class="diff-html-added"> in response to two kinds of events: </span><ul><li><span class="diff-html-added"> The program </span><i><span class="diff-html-added">exits</span></i><span class="diff-html-added"> normally, when the last non-daemon thread exits or when the </span><a href="#exit(int)"><code><span class="diff-html-added">exit</span></code>
+</a><span class="diff-html-added"> (equivalently, </span><a href="System.html#exit(int)"><code><span class="diff-html-added">System.exit</span></code>
+</a><span class="diff-html-added">) method is invoked, or </span></li><li><span class="diff-html-added"> The virtual machine is </span><i><span class="diff-html-added">terminated</span></i><span class="diff-html-added"> in response to a user interrupt, such as typing </span><code><span class="diff-html-added">^C</span></code>
+<span class="diff-html-added">, or a system-wide event, such as user logoff or system shutdown. </span></li></ul>
+</p>
+<p> A <i>shutdown hook</i> is simply an initialized but unstarted thread. <span class="diff-html-removed">Shutdown hooks are started at the beginning of the </span><a href="#shutdown"><span class="diff-html-removed">shutdown sequence</span></a><span class="diff-html-removed">. Registration and de-registration of shutdown hooks is disallowed once the shutdown sequence has begun. </span></p>
+<p><span class="diff-html-removed"> Uncaught exceptions are handled in shutdown hooks just as in any other thread, as specified in </span><a href="Thread.UncaughtExceptionHandler.html" title="interface in java.lang"><code><span class="diff-html-removed">Thread.UncaughtExceptionHandler</span></code>
+</a><span class="diff-html-removed">. After the uncaught exception handler has completed, the shutdown hook is considered to have terminated and is not treated differently from a hook that has terminated without having thrown an uncaught exception.</span></p>
+</div>
+<span class="diff-html-removed"> </span><dt><span class="diff-html-removed">API Note:</span></dt>
+<span class="diff-html-removed"> </span><div class="block"><p><span class="diff-html-added">When the virtual machine begins its shutdown sequence it will start all registered shutdown hooks in some unspecified order and let them run concurrently. When all the hooks have finished it will then halt. Note that daemon threads will continue to run during the shutdown sequence, as will non-daemon threads if shutdown was initiated by invoking the </span><a href="#exit(int)"><code><span class="diff-html-added">exit</span></code>
+</a><span class="diff-html-added"> method. </span></p>
+<p><span class="diff-html-added"> Once the shutdown sequence has begun it can be stopped only by invoking the </span><a href="#halt(int)"><code><span class="diff-html-added">halt</span></code>
+</a><span class="diff-html-added"> method, which forcibly terminates the virtual machine. </span></p>
+<p><span class="diff-html-added"> Once the shutdown sequence has begun it is impossible to register a new shutdown hook or de-register a previously-registered hook. Attempting either of these operations will cause an </span><a href="IllegalStateException.html" title="class in java.lang"><code><span class="diff-html-added">IllegalStateException</span></code>
+</a><span class="diff-html-added"> to be thrown. </span></p>
+<p><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span><span class="hdiffs-tip-li">Moved to a <b>paragraph</b>.</span></span></span> </span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span><span class="hdiffs-tip-li">Moved to a <b>paragraph</b>.</span></span></span>Shutdown hooks run at a delicate time in the life cycle of a virtual machine and should therefore be coded defensively. They should, in particular, be written to be thread-safe and to avoid deadlocks insofar as possible. They should also not rely blindly upon services that may have registered their own shutdown hooks and therefore may themselves </span></p>
+</div>
+<span class="diff-html-removed"> be </span><div class="block"><p><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span><span class="hdiffs-tip-li">Moved to a <b>paragraph</b>.</span></span></span> </span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span><span class="hdiffs-tip-li">Moved to a <b>paragraph</b>.</span></span></span>in the process of shutting down. Attempts to use other thread-based services such as the AWT event-dispatch thread, for example, may lead to deadlocks. </span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span></span></span></span></p>
+<p><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span></span></span> Shutdown hooks should also finish their work quickly. When a program invokes </span><a href="#exit(int)"><code><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span></span></span>exit</span></code>
+</a></p>
+</div>
+<span class="diff-html-removed">, </span><div class="block"><p><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span></span></span> </span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span></span></span>the expectation is that the virtual machine will promptly shut down and exit. When the virtual machine is terminated due to user logoff or system shutdown the underlying operating system may only allow a </span></p>
+</div>
+<span class="diff-html-removed"> limited </span><div class="block"><p><span class="diff-html-added">fixed </span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span></span></span>amount of time in which to shut down and exit. It is therefore inadvisable to attempt any user interaction or to perform a long-running computation in a shutdown hook. </span></p>
+<p><span class="diff-html-added">Uncaught exceptions are handled in shutdown hooks just as in any other thread, by invoking the </span><a href="ThreadGroup.html#uncaughtException(java.lang.Thread,java.lang.Throwable)"><code><span class="diff-html-added">uncaughtException</span></code>
+</a><span class="diff-html-added"> method of the thread's </span><a href="ThreadGroup.html" title="class in java.lang"><code><span class="diff-html-added">ThreadGroup</span></code>
+</a><span class="diff-html-added"> object. The default implementation of this method prints the exception's stack trace to </span><a href="System.html#err"><code><span class="diff-html-added">System.err</span></code>
+</a><span class="diff-html-added"> and terminates the thread; it does not cause the virtual machine to exit or halt. </span></p>
+<p><span class="diff-html-added"> In rare circumstances the virtual machine may </span><i><span class="diff-html-added">abort</span></i><span class="diff-html-added">, that is, stop running without shutting down cleanly. This occurs when the virtual machine is terminated externally, for example with the </span><code><span class="diff-html-added">SIGKILL</span></code>
+<span class="diff-html-added"> signal on Unix or the </span><code><span class="diff-html-added">TerminateProcess</span></code>
+<span class="diff-html-added"> call on Microsoft Windows. The virtual machine may also abort if a native method goes awry by, for example, corrupting internal data structures or attempting to access nonexistent memory. If the virtual machine aborts then no guarantee can be made about whether or not any shutdown hooks will be run.</span></p>
+</div>
+ <dl class="notes"> <dt>Parameters:</dt>
+ <dd><code>hook</code>
+ - An initialized but unstarted <a href="Thread.html" title="class in java.lang"><code>Thread</code>
+</a> object</dd>
+ <dt>Throws:</dt>
+ <dd><code><a href="IllegalArgumentException.html" title="class in java.lang">IllegalArgumentException</a></code>
+ - If the <span class="diff-html-removed">same hook (compared using </span><code><span class="diff-html-removed">==</span></code>
+<span class="diff-html-removed">) as the </span>specified hook has already been registered, or if it can be determined that the hook is already running or has already been run</dd>
+ <dd><code><a href="IllegalStateException.html" title="class in java.lang">IllegalStateException</a></code>
+ - If the <span class="diff-html-removed">shutdown sequence has already begun</span><span class="diff-html-added">virtual machine is already in the process of shutting down</span></dd>
+<span class="diff-html-added"> </span><dd><code><a href="SecurityException.html" title="class in java.lang">SecurityException</a></code>
+ - If a security manager is present and it denies <a href="RuntimePermission.html" title="class in java.lang"><code>RuntimePermission</code>
+</a><code>("shutdownHooks")</code>
+</dd>
+ <dt>Since:</dt>
+ <dd>1.3</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list-long"><li><a href="#removeShutdownHook(java.lang.Thread)"><code>removeShutdownHook(java.lang.Thread)</code>
+</a></li><li><a href="#halt(int)"><code>halt(int)</code>
+</a></li><li><a href="#exit(int)"><code>exit(int)</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="availableProcessors()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> availableProcessors()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exec(String[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.Process exec(<span class="parameters"><span class="parameter"><span>java.lang.String[]</span> arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exec(String[],String[])"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.Process exec(<span class="parameters"><span class="parameter"><span>java.lang.String[]</span> arg0</span>, <span class="parameter"><span>java.lang.String[]</span> arg1</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exec(String[],String[],File)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.Process exec(<span class="parameters"><span class="parameter"><span>java.lang.String[]</span> arg0</span>, <span class="parameter"><span>java.lang.String[]</span> arg1</span>, <span class="parameter">java.io.File arg2</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exec(String)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="18")</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> java.lang.Process exec(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exec(String,String[])"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="18")</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> java.lang.Process exec(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span>java.lang.String[]</span> arg1</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exec(String,String[],File)"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="18")</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> java.lang.Process exec(<span class="parameters"><span class="parameter">java.lang.String arg0</span>, <span class="parameter"><span>java.lang.String[]</span> arg1</span>, <span class="parameter">java.io.File arg2</span></span>) <span class="throws"><span class="keyword">throws</span> java.io.IOException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="exit(int)"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> exit(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>exit</h3>
+<div class="member-signature"><span class="modifiers">public</span> <span class="return-type">void</span> <span class="element-name">exit</span><wbr></wbr>
+<span class="parameters">(int status)</span></div>
+<div class="block"><span class="diff-html-removed">Initiates the </span><a href="#shutdown"><span class="diff-html-removed">shutdown sequence</span></a><span class="diff-html-removed"> of the Java Virtual Machine</span><span class="diff-html-added">Terminates the currently running Java virtual machine by initiating its shutdown sequence</span>. This method <span class="diff-html-removed">blocks indefinitely; it </span>never returns <span class="diff-html-removed">or throws an exception (that is, it does not complete either </span>normally<span class="diff-html-removed"> or abruptly)</span>. The argument serves as a status code; by convention, a nonzero status code indicates abnormal termination. <p><span class="diff-html-added"> All registered </span><a href="#addShutdownHook(java.lang.Thread)"><span class="diff-html-added">shutdown hooks</span></a><span class="diff-html-added">, if any, are started in some unspecified order and allowed to run concurrently until they finish. Once this is done the virtual machine </span><a href="#halt(int)"><span class="diff-html-added">halts</span></a><span class="diff-html-added">. </span></p>
+<p> Invocations of this method are serialized such that only one invocation will actually proceed with the shutdown sequence and terminate the VM with the given status code. All other invocations <span class="diff-html-removed">simply </span><span class="diff-html-added">will </span>block indefinitely. <span class="diff-html-removed"> Because </span><span class="diff-html-added">If </span>this method <span class="diff-html-removed">always blocks indefinitely, if it </span>is invoked from a shutdown hook <span class="diff-html-removed">, it will prevent that shutdown hook from terminating. Consequently, this will prevent the shutdown sequence from finishing. </span><span class="diff-html-added">the system will deadlock. </span></p>
+<p> The <a href="System.html#exit(int)"><code>System.exit</code>
+</a> method is the conventional and convenient means of invoking this method.</p>
+</div>
+ <dl class="notes"> <dt>Parameters:</dt>
+ <dd><code>status</code>
+ - Termination status. By convention, a nonzero status code indicates abnormal termination.</dd>
+ <dt>Throws:</dt>
+ <dd><code><a href="SecurityException.html" title="class in java.lang">SecurityException</a></code>
+ - If a security manager is present and its <a href="SecurityManager.html#checkExit(int)"><code>checkExit</code>
+</a> method does not permit exiting with the specified status</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list-long"><li><a href="SecurityException.html" title="class in java.lang"><code>SecurityException</code>
+</a></li><li><a href="SecurityManager.html#checkExit(int)"><code>SecurityManager.checkExit(int)</code>
+</a></li><li><a href="#addShutdownHook(java.lang.Thread)"><code>addShutdownHook(java.lang.Thread)</code>
+</a></li><li><a href="#removeShutdownHook(java.lang.Thread)"><code>removeShutdownHook(java.lang.Thread)</code>
+</a></li><li><a href="#halt(int)"><code>halt(int)</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="freeMemory()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> freeMemory()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="gc()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> gc()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="getRuntime()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.Runtime getRuntime()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="halt(int)"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> halt(<span class="parameters"><span class="parameter"><span class="keyword">int</span> arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>halt</h3>
+<div class="member-signature"><span class="modifiers">public</span> <span class="return-type">void</span> <span class="element-name">halt</span><wbr></wbr>
+<span class="parameters">(int status)</span></div>
+<div class="block"><span class="diff-html-removed">Immediately </span><span class="diff-html-added">Forcibly </span><span class="diff-html-changed"><span class="hdiffs-tooltip">Moved out of a <b>link</b> with destination #termination.</span>terminates </span>the <span class="diff-html-added">currently running </span>Java <span class="diff-html-removed">Virtual Machine. Termination is unconditional and immediate. This method does not initiate the </span><a href="#shutdown"><span class="diff-html-removed">shutdown sequence</span></a><span class="diff-html-removed">, nor does it wait for the shutdown sequence to finish if it is already in progress. This method </span><span class="diff-html-added">virtual machine. This method </span>never returns normally. <p><span class="diff-html-changed"><span class="hdiffs-tooltip">Moved to a <b>paragraph</b>.</span></span></p>
+</div>
+<span class="diff-html-removed"> </span><dt><span class="diff-html-removed">API Note:</span></dt>
+<span class="diff-html-removed"> </span><div class="block"><p><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span><span class="hdiffs-tip-li">Moved to a <b>paragraph</b>.</span></span></span> </span><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>definition list</b> with class notes.</span><span class="hdiffs-tip-li">Moved out of a <b>definition</b>.</span><span class="hdiffs-tip-li">Moved to a <b>division</b> with class block.</span><span class="hdiffs-tip-li">Moved to a <b>paragraph</b>.</span></span></span>This method should be used with extreme caution. </span><span class="diff-html-added">Unlike the </span><a href="#exit(int)"><code><span class="diff-html-added">exit</span></code>
+</a><span class="diff-html-added"> method, this method does not cause shutdown hooks to be started. If the shutdown sequence has already been initiated then this method does not wait for any running shutdown hooks to finish their work.</span></p>
+</div>
+<span class="diff-html-removed"> </span><dl class="notes"><span class="diff-html-removed"> Using it may circumvent or disrupt any cleanup actions intended to be performed by shutdown hooks, possibly leading to data corruption.</span><dt>Parameters:</dt>
+ <dd><code>status</code>
+ - Termination status. By convention, a nonzero status code indicates abnormal termination. If the <a href="#exit(int)"><code>exit</code>
+</a> (equivalently, <a href="System.html#exit(int)"><code>System.exit</code>
+</a>) method has already been invoked then this status code will override the status code passed to that method.</dd>
+ <dt>Throws:</dt>
+ <dd><code><a href="SecurityException.html" title="class in java.lang">SecurityException</a></code>
+ - If a security manager is present and its <a href="SecurityManager.html#checkExit(int)"><code>checkExit</code>
+</a> method does not permit an exit with the specified status</dd>
+ <dt>Since:</dt>
+ <dd>1.3</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list-long"><li><a href="#exit(int)"><code>exit(int)</code>
+</a></li><li><a href="#addShutdownHook(java.lang.Thread)"><code>addShutdownHook(java.lang.Thread)</code>
+</a></li><li><a href="#removeShutdownHook(java.lang.Thread)"><code>removeShutdownHook(java.lang.Thread)</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="load(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> load(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="loadLibrary(String)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> loadLibrary(<span class="parameters"><span class="parameter">java.lang.String arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="maxMemory()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> maxMemory()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="removeShutdownHook(Thread)"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> removeShutdownHook(<span class="parameters"><span class="parameter">java.lang.Thread arg0</span></span>)</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>removeShutdownHook</h3>
+<div class="member-signature"><span class="modifiers">public</span> <span class="return-type">boolean</span> <span class="element-name">removeShutdownHook</span><wbr></wbr>
+<span class="parameters">(<a href="Thread.html" title="class in java.lang">Thread</a> hook)</span></div>
+<div class="block">De-registers a previously-registered virtual-machine shutdown hook.<span class="diff-html-removed"> Hooks are compared using </span><code><span class="diff-html-removed">==</span></code>
+<span class="diff-html-removed">. Registration and de-registration of shutdown hooks is disallowed once the shutdown sequence has begun.</span></div>
+ <dl class="notes"> <dt>Parameters:</dt>
+ <dd><code>hook</code>
+ - the hook to remove</dd>
+ <dt>Returns:</dt>
+ <dd><code>true</code>
+ if the specified hook had previously been registered and was successfully de-registered, <code>false</code>
+ otherwise.</dd>
+ <dt>Throws:</dt>
+ <dd><code><a href="IllegalStateException.html" title="class in java.lang">IllegalStateException</a></code>
+ - If the <span class="diff-html-removed">shutdown sequence has already begun</span><span class="diff-html-added">virtual machine is already in the process of shutting down</span></dd>
+<span class="diff-html-added"> </span><dd><code><a href="SecurityException.html" title="class in java.lang">SecurityException</a></code>
+ - If a security manager is present and it denies <a href="RuntimePermission.html" title="class in java.lang"><code>RuntimePermission</code>
+</a><code>("shutdownHooks")</code>
+</dd>
+ <dt>Since:</dt>
+ <dd>1.3</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list-long"><li><a href="#addShutdownHook(java.lang.Thread)"><code>addShutdownHook(java.lang.Thread)</code>
+</a></li><li><a href="#exit(int)"><code>exit(int)</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="runFinalization()"><span class="same">&check;</span><div class="signature"><span class="annotation">@Deprecated(since="18"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">void</span> runFinalization()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="totalMemory()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">long</span> totalMemory()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="version()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">static</span></span> java.lang.Runtime.Version version()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th>Added</th>
+<th>Changed</th>
+<th>Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/Runtime.html">Runtime</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>23</td>
+<td>23</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/Runtime.html#addShutdownHook(Thread)">addShutdownHook(Thread)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>3</td>
+<td>1</td>
+<td>11</td>
+<td>15</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/Runtime.html#exit(int)">exit(int)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>3</td>
+<td>4</td>
+<td>5</td>
+<td>12</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/Runtime.html#halt(int)">halt(int)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>3</td>
+<td>4</td>
+<td>8</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/Runtime.html#removeShutdownHook(Thread)">removeShutdownHook(Thread)</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+<td>4</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>8</td>
+<td>9</td>
+<td>45</td>
+<td>62</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>

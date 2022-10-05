@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>class java.base/java.lang.Object</title>
+<meta name="generator" content="apidiff">
+<link rel="stylesheet" type="text/css; charset=UTF-8" href="../../../resources/apidiff.css">
+</head>
+<body class="type"><header><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</header>
+<main><div class="pageHeading"><div><span class="label">Module</span>&nbsp;<a href="../../../java.base/module-summary.html">java.base</a></div>
+<div><span class="label">Package</span>&nbsp;<a href="../../../java.base/java/lang/package-summary.html">java.lang</a></div>
+<h1>Class&nbsp;Object</h1>
+</div>
+<div class="element"><span class="diff">&cross;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">class</span> Object </div>
+</div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><hr>
+ <div class="type-signature"><span class="modifiers">public class </span><span class="element-name type-name-label">Object</span></div>
+<div class="block">Class <code>Object</code>
+ is the root of the class hierarchy. Every class has <code>Object</code>
+ as a superclass. All objects, including arrays, implement the methods of this class. <p><span class="diff-html-changed"><span class="hdiffs-tooltip">Moved to a <b>paragraph</b>.</span></span><span class="diff-html-added"> Subclasses of </span><code><span class="diff-html-added">java.lang.Object</span></code>
+<span class="diff-html-added"> can be either </span><a href="Class.html#isIdentity()"><span class="diff-html-added">identity classes</span></a><span class="diff-html-added"> or </span><a href="Class.html#isValue()"><span class="diff-html-added">value classes</span></a><span class="diff-html-added">. The class </span><code><span class="diff-html-added">Object</span></code>
+<span class="diff-html-added"> itself is neither an identity class nor a value class. See </span><a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-8.html#jls-8.1.1.5"><span class="diff-html-added">The Java Language Specification 8.1.1.5 identity and value Classes</span></a><span class="diff-html-added">. An instance can be created with </span><code><span class="diff-html-added">new Object()</span></code>
+<span class="diff-html-added">, those instances are </span><a href="../util/Objects.html#isIdentityObject(java.lang.Object)"><code><span class="diff-html-added">an identity object</span></code>
+</a><span class="diff-html-added">.</span></p>
+</div>
+ <dl class="notes"> <dt>Since:</dt>
+ <dd>1.0</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list"><li><a href="Class.html" title="class in java.lang"><code>Class</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+<section class="enclosed"><h2>Constructors</h2>
+<ul><li><div class="element" id="&lt;init&gt;()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> Object()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="enclosed"><h2>Methods</h2>
+<ul><li><div class="element" id="clone()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">protected</span></span> java.lang.Object clone() <span class="throws"><span class="keyword">throws</span> java.lang.CloneNotSupportedException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="equals(Object)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">boolean</span> equals(<span class="parameters"><span class="parameter">java.lang.Object arg0</span></span>)</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="finalize()"><span class="diff">&cross;</span><div class="signature"><span class="annotation">@Deprecated(since="9"forRemoval=true)</span><br>
+<span class="modifiers"><span class="keyword">protected</span></span> <span class="keyword">void</span> finalize() <span class="throws"><span class="keyword">throws</span> java.lang.Throwable</span></div>
+<div class="apiDescriptions"><div class="hdiffs"><div class="hdiffs-title">Comparing jdk-git and lworld</div>
+<div><h3>finalize</h3>
+<div class="member-signature"><span class="annotations"><a href="Deprecated.html" title="annotation interface in java.lang">@Deprecated</a>(<a href="Deprecated.html#since()">since</a>="9", <a href="Deprecated.html#forRemoval()">forRemoval</a>=true) </span><span class="modifiers">protected</span> <span class="return-type">void</span> <span class="element-name">finalize</span>() throws <span class="exceptions"><a href="Throwable.html" title="class in java.lang">Throwable</a></span></div>
+<div class="deprecation-block"><span class="deprecated-label">Deprecated, for removal: This API element is subject to removal in a future version.</span> <div class="deprecation-comment">Finalization is deprecated and subject to removal in a future release. The use of finalization can lead to problems with security, performance, and reliability. See <a href="https://openjdk.java.net/jeps/421"><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>link</b> with destination https://openjdk.org/jeps/421.</span><span class="hdiffs-tip-li">Moved to a <b>link</b> with destination https://openjdk.java.net/jeps/421.</span></span></span>JEP 421</span></a><span class="diff-html-changed"><span class="hdiffs-tooltip"><span class="hdiffs-tip-ul"><span class="hdiffs-tip-li">Moved out of a <b>link</b> with destination https://openjdk.org/jeps/421.</span><span class="hdiffs-tip-li">Moved to a <b>link</b> with destination https://openjdk.java.net/jeps/421.</span></span></span> </span>for discussion and alternatives. <p> Subclasses that override <code>finalize</code>
+ to perform cleanup should use alternative cleanup mechanisms and remove the <code>finalize</code>
+ method. Use <a href="ref/Cleaner.html" title="class in java.lang.ref"><code>Cleaner</code>
+</a> and <a href="ref/PhantomReference.html" title="class in java.lang.ref"><code>PhantomReference</code>
+</a> as safer ways to release resources when an object becomes unreachable. Alternatively, add a <code>close</code>
+ method to explicitly release resources, and implement <code>AutoCloseable</code>
+ to enable use of the <code>try</code>
+-with-resources statement. </p>
+<p> This method will remain in place until finalizers have been removed from most existing code.</p>
+</div>
+</div>
+<div class="block">Called by the garbage collector on an object when garbage collection determines that there are no more references to the object. A subclass overrides the <code>finalize</code>
+ method to dispose of system resources or to perform other cleanup. <p> <b>When running in a Java virtual machine in which finalization has been disabled or removed, the garbage collector will never call <code>finalize()</code>
+. In a Java virtual machine in which finalization is enabled, the garbage collector might call <code>finalize</code>
+ only after an indefinite delay.</b> </p>
+<p> The general contract of <code>finalize</code>
+ is that it is invoked if and when the Java virtual machine has determined that there is no longer any means by which this object can be accessed by any thread that has not yet died, except as a result of an action taken by the finalization of some other object or class which is ready to be finalized. The <code>finalize</code>
+ method may take any action, including making this object available again to other threads; the usual purpose of <code>finalize</code>
+, however, is to perform cleanup actions before the object is irrevocably discarded. For example, the finalize method for an object that represents an input/output connection might perform explicit I/O transactions to break the connection before the object is permanently discarded. </p>
+<p> The <code>finalize</code>
+ method of class <code>Object</code>
+ performs no special action; it simply returns normally. Subclasses of <code>Object</code>
+ may override this definition. </p>
+<p> The Java programming language does not guarantee which thread will invoke the <code>finalize</code>
+ method for any given object. It is guaranteed, however, that the thread that invokes finalize will not be holding any user-visible synchronization locks when finalize is invoked. If an uncaught exception is thrown by the finalize method, the exception is ignored and finalization of that object terminates. </p>
+<p> After the <code>finalize</code>
+ method has been invoked for an object, no further action is taken until the Java virtual machine has again determined that there is no longer any means by which this object can be accessed by any thread that has not yet died, including possible actions by other objects or classes which are ready to be finalized, at which point the object may be discarded. </p>
+<p> The <code>finalize</code>
+ method is never invoked more than once by a Java virtual machine for any given object. </p>
+<p> Any exception thrown by the <code>finalize</code>
+ method causes the finalization of this object to be halted, but is otherwise ignored.</p>
+</div>
+ <dl class="notes"> <dt>API Note:</dt>
+ <dd>Classes that embed non-heap resources have many options for cleanup of those resources. The class must ensure that the lifetime of each instance is longer than that of any resource it embeds. <a href="ref/Reference.html#reachabilityFence(java.lang.Object)"><code>Reference.reachabilityFence(java.lang.Object)</code>
+</a> can be used to ensure that objects remain reachable while resources embedded in the object are in use. <p> A subclass should avoid overriding the <code>finalize</code>
+ method unless the subclass embeds non-heap resources that must be cleaned up before the instance is collected. Finalizer invocations are not automatically chained, unlike constructors. If a subclass overrides <code>finalize</code>
+ it must invoke the superclass finalizer explicitly. To guard against exceptions prematurely terminating the finalize chain, the subclass should use a <code>try-finally</code>
+ block to ensure <code>super.finalize()</code>
+ is always invoked. For example, <pre><code>     @Override
+     protected void finalize() throws Throwable {
+         try {
+             ... // cleanup subclass state
+         } finally {
+             super.finalize();
+         }
+     }
+ </code>
+</pre>
+</p>
+</dd>
+ <dt>Throws:</dt>
+ <dd><code><a href="Throwable.html" title="class in java.lang">Throwable</a></code>
+ - the <code>Exception</code>
+ raised by this method</dd>
+ <dt>See <i>Java Language Specification</i>:</dt>
+ <dd> <a href="https://docs.oracle.com/javase/specs/jls/se20/html/jls-12.html#jls-12.6">12.6 Finalization of Class Instances</a><br>
+</dd>
+ <dt>See Also:</dt>
+ <dd><ul class="see-list"><li><a href="ref/WeakReference.html" title="class in java.lang.ref"><code>WeakReference</code>
+</a></li><li><a href="ref/PhantomReference.html" title="class in java.lang.ref"><code>PhantomReference</code>
+</a></li></ul>
+</dd>
+ </dl>
+ </div>
+</div>
+</div>
+</div>
+</li><li><div class="element" id="getClass()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span>java.lang.Class&lt;?&gt;</span> getClass()</div>
+</div>
+</li><li><div class="element" id="hashCode()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> <span class="keyword">int</span> hashCode()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="notify()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">void</span> notify()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="notifyAll()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">void</span> notifyAll()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="toString()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span></span> java.lang.String toString()</div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="wait()"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">void</span> wait() <span class="throws"><span class="keyword">throws</span> java.lang.InterruptedException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="wait(long)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">void</span> wait(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span></span>) <span class="throws"><span class="keyword">throws</span> java.lang.InterruptedException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li><li><div class="element" id="wait(long,int)"><span class="same">&check;</span><div class="signature"><span class="modifiers"><span class="keyword">public</span> <span class="keyword">final</span></span> <span class="keyword">void</span> wait(<span class="parameters"><span class="parameter"><span class="keyword">long</span> arg0</span>, <span class="parameter"><span class="keyword">int</span> arg1</span></span>) <span class="throws"><span class="keyword">throws</span> java.lang.InterruptedException</span></div>
+<div class="apiDescriptions"></div>
+</div>
+</li></ul>
+</section>
+<section class="summary"><h2>Summary</h2>
+<table class="summary"><caption>Differences</caption>
+<thead><tr><td rowspan="2"></td>
+<th class="allZero" colspan="3">Elements</th>
+<th class="allZero" colspan="3">Comments</th>
+<th colspan="3">Descriptions</th>
+<th rowspan="2">Total</th>
+</tr>
+<tr><th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th class="allZero">Added</th>
+<th class="allZero">Changed</th>
+<th class="allZero">Removed</th>
+<th>Added</th>
+<th>Changed</th>
+<th class="allZero">Removed</th>
+</tr>
+</thead>
+<tbody><tr><th scope="row"><a href="../../../java.base/java/lang/Object.html">Object</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>7</td>
+<td>1</td>
+<td></td>
+<td>8</td>
+</tr>
+<tr><th scope="row"><a href="../../../java.base/java/lang/Object.html#finalize()">finalize()</a></th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>2</td>
+<td></td>
+<td>2</td>
+</tr>
+</tbody>
+<tfoot><tr><th scope="row">Total</th>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td>7</td>
+<td>3</td>
+<td></td>
+<td>10</td>
+</tr>
+</tfoot>
+</table>
+</section>
+</main>
+<footer><div class="bar"><div class="info">jdk-git : lworld</div>
+<nav><ul><li><a href="../../../index.html">Overview</a></li></ul>
+</nav>
+</div>
+</footer>
+</body>
+</html>
