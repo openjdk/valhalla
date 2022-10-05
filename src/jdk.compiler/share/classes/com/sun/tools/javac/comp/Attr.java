@@ -3541,7 +3541,7 @@ public class Attr extends JCTree.Visitor {
                  * LTM code is doing to look for type annotations so we are fine.
                  */
                 if ((owner.flags() & STATIC) == 0) {
-                    Name constructorName = owner.isValueClass() ? names.vnew : names.init;
+                    Name constructorName = owner.isConcreteValueClass() ? names.vnew : names.init;
                     for (Symbol s : enclClass.members_field.getSymbolsByName(constructorName)) {
                         newScopeOwner = s;
                         break;
@@ -3608,7 +3608,7 @@ public class Attr extends JCTree.Visitor {
             Symbol lhsSym = TreeInfo.symbol(that.expr);
             if (TreeInfo.isStaticSelector(that.expr, names)) {
                 // TODO - a bit hacky but...
-                if (lhsSym != null && lhsSym.isValueClass() && that.name == names.init) {
+                if (lhsSym != null && lhsSym.isConcreteValueClass() && that.name == names.init) {
                     that.name = names.vnew;
                 }
                 //if the qualifier is a type, validate it; raw warning check is

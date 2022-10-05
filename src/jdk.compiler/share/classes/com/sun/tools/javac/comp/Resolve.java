@@ -2927,7 +2927,7 @@ public class Resolve {
                               Type site,
                               List<Type> argtypes,
                               List<Type> typeargtypes) {
-        Name constructorName = site.tsym.isValueClass() ? names.vnew : names.init;
+        Name constructorName = site.tsym.isConcreteValueClass() ? names.vnew : names.init;
         return lookupMethod(env, pos, site.tsym, resolveContext, new BasicLookupHelper(constructorName, site, argtypes, typeargtypes) {
             @Override
             Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
@@ -2962,7 +2962,7 @@ public class Resolve {
                               List<Type> typeargtypes,
                               boolean allowBoxing,
                               boolean useVarargs) {
-        Name constructorName = site.tsym.isValueClass() ? names.vnew : names.init;
+        Name constructorName = site.tsym.isConcreteValueClass() ? names.vnew : names.init;
         Symbol sym = findMethod(env, site,
                                     constructorName, argtypes,
                                     typeargtypes, allowBoxing,
@@ -2987,7 +2987,7 @@ public class Resolve {
                               Type site,
                               List<Type> argtypes,
                               List<Type> typeargtypes) {
-        Name constructorName = allowValueClasses && site.tsym.isValueClass() ? names.vnew : names.init;
+        Name constructorName = allowValueClasses && site.tsym.isConcreteValueClass() ? names.vnew : names.init;
         return lookupMethod(env, pos, site.tsym, resolveMethodCheck,
                 new BasicLookupHelper(constructorName, site, argtypes, typeargtypes) {
                     @Override
@@ -3051,7 +3051,7 @@ public class Resolve {
                               boolean useVarargs) {
         Symbol bestSoFar = methodNotFound;
         TypeSymbol tsym = site.tsym.isInterface() ? syms.objectType.tsym : site.tsym;
-        Name constructorName = site.tsym.isValueClass() ? names.vnew : names.init;
+        Name constructorName = site.tsym.isConcreteValueClass() ? names.vnew : names.init;
         for (final Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
             //- System.out.println(" e " + e.sym);
             if (sym.kind == MTH &&
@@ -3696,7 +3696,7 @@ public class Resolve {
         ArrayConstructorReferenceLookupHelper(JCMemberReference referenceTree, Type site, List<Type> argtypes,
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             // TODO - array constructor will be <init>
-            super(referenceTree, site.tsym.isValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
+            super(referenceTree, site.tsym.isConcreteValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
         }
 
         @Override
@@ -3728,7 +3728,7 @@ public class Resolve {
 
         ConstructorReferenceLookupHelper(JCMemberReference referenceTree, Type site, List<Type> argtypes,
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
-            super(referenceTree, site.tsym.isValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
+            super(referenceTree, site.tsym.isConcreteValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
             if (site.isRaw()) {
                 this.site = new ClassType(site.getEnclosingType(), site.tsym.type.getTypeArguments(), site.tsym, site.getMetadata(), site.getFlavor());
                 needsInference = true;

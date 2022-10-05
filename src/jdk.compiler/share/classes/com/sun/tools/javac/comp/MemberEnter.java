@@ -180,7 +180,7 @@ public class MemberEnter extends JCTree.Visitor {
 
     public void visitMethodDef(JCMethodDecl tree) {
         WriteableScope enclScope = enter.enterScope(env);
-        if (tree.name == tree.name.table.names.init && allowValueClasses && enclScope.owner.isValueClass()) {
+        if (tree.name == tree.name.table.names.init && allowValueClasses && enclScope.owner.isConcreteValueClass()) {
             tree.name = tree.name.table.names.vnew;
         }
         MethodSymbol m = new MethodSymbol(0, tree.name, null, enclScope.owner);

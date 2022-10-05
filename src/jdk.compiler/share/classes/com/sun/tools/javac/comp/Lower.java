@@ -1264,7 +1264,7 @@ public class Lower extends TreeTranslator {
                     argtypes = argtypes
                         .prepend(syms.intType)
                         .prepend(syms.stringType);
-                Name constructorName = accOwner.isValueClass() ? names.vnew : names.init;
+                Name constructorName = accOwner.isConcreteValueClass() ? names.vnew : names.init;
                 aconstr = new MethodSymbol(
                     SYNTHETIC,
                     constructorName,

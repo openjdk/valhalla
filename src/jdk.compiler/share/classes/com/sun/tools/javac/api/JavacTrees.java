@@ -615,7 +615,7 @@ public class JavacTrees extends DocTrees {
     }
 
     MethodSymbol findConstructor(ClassSymbol tsym, List<Type> paramTypes, boolean strict) {
-        Name constructorName = tsym.isValueClass() ? names.vnew : names.init;
+        Name constructorName = tsym.isConcreteValueClass() ? names.vnew : names.init;
         for (Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
             if (sym.kind == MTH) {
                 if (hasParameterTypes((MethodSymbol) sym, paramTypes, strict)) {

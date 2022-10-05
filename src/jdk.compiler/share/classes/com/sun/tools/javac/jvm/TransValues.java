@@ -428,20 +428,4 @@ public class TransValues extends TreeTranslator {
         }
         return null;
     }
-
-    private MethodSymbol getDefaultConstructor(Symbol klass) {
-        Name constructorName = klass.isValueClass() ? names.vnew : names.init;
-        for (Symbol method : klass.members().getSymbolsByName(constructorName, s->s.kind == MTH && s.type.getParameterTypes().size() == 0, LookupKind.NON_RECURSIVE)) {
-            return (MethodSymbol) method;
-        }
-        // class defines a non-nullary but no nullary constructor, fabricate a symbol.
-        MethodType dctorType = new MethodType(List.nil(),
-                klass.type,
-                List.nil(),
-                klass.type.tsym);
-        return new MethodSymbol(Flags.PUBLIC,
-                constructorName,
-                dctorType,
-                klass);
-    }
 }

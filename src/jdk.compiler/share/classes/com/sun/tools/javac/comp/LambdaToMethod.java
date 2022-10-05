@@ -1662,7 +1662,7 @@ public class LambdaToMethod extends TreeTranslator {
                 return clinit;
             } else {
                 //get the first constructor and treat it as the instance init sym
-                Name constructorName = csym.isValueClass() ? names.vnew : names.init;
+                Name constructorName = csym.isConcreteValueClass() ? names.vnew : names.init;
                 for (Symbol s : csym.members_field.getSymbolsByName(constructorName)) {
                     return s;
                 }

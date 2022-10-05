@@ -1361,7 +1361,7 @@ public class TypeEnter implements Completer {
                 } else {
                     flags = (owner().flags() & AccessFlags) | GENERATEDCONSTR;
                 }
-                Name constructorName = owner().isValueClass() ? names.vnew : names.init;
+                Name constructorName = owner().isConcreteValueClass() ? names.vnew : names.init;
                 constructorSymbol = new MethodSymbol(flags, constructorName,
                     constructorType(), owner());
             }
