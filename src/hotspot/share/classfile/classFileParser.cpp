@@ -5006,6 +5006,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
 
   bool is_illegal = false;
 
+  const char* class_note = "";
   if (is_interface) {
     if (major_gte_8) {
       // Class file version is JAVA_8_VERSION or later Methods of
@@ -5043,6 +5044,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
         if (is_final || is_synchronized || is_native || !is_static ||
             is_abstract || is_bridge) {
           is_illegal = true;
+          class_note = (is_value_class ? " (a value class)" : " (not a value class)");
         }
       } else if (is_initializer) {
         if (is_static || is_final || is_synchronized || is_native ||
@@ -5052,6 +5054,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
       } else { // not initializer
         if (!is_identity_class && is_synchronized && !is_static) {
           is_illegal = true;
+          class_note = " (not an identity class)";
         } else {
           if (is_abstract) {
             if ((is_final || is_native || is_private || is_static ||
@@ -5076,9 +5079,9 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_ClassFormatError(),
-        "Method %s in %sclass %s has illegal modifiers: 0x%X",
-        name->as_C_string(), is_value_class ? "value " : "",
-	      _class_name->as_C_string(), flags);
+        "Method %s in class %s%s has illegal modifiers: 0x%X",
+        name->as_C_string(), _class_name->as_C_string(),
+        class_note, flags);
     }
     return;
   }
