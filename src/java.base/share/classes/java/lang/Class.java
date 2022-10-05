@@ -1677,7 +1677,7 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isConstructor() { return !isPartial() && "<init>".equals(name); }
+        boolean isConstructor() { return !isPartial() && ("<init>".equals(name) || "<vnew>".equals(name)); }
 
         boolean isMethod() { return !isPartial() && !isConstructor() && !"<clinit>".equals(name); }
 
@@ -3840,7 +3840,7 @@ public final class Class<T> implements java.io.Serializable,
                 return constructor;
             }
         }
-        throw new NoSuchMethodException(methodToString("<init>", parameterTypes));
+        throw new NoSuchMethodException(methodToString(isValue() ? "<vnew>" : "<init>", parameterTypes));
     }
 
     //

@@ -2165,8 +2165,9 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
     if (method != NULL) {
       return method;
     }
-    if (name == vmSymbols::object_initializer_name()) {
-      break;  // <init> is never inherited, not even as a static factory
+    if (name == vmSymbols::object_initializer_name() ||
+        name == vmSymbols::inline_factory_name()) {
+      break;  // <init> and <vnew> is never inherited
     }
     klass = klass->super();
     overpass_local_mode = OverpassLookupMode::skip;   // Always ignore overpass methods in superclasses
