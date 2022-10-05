@@ -104,11 +104,12 @@ public class ObjectMethods {
 
         assertEquals(clazz.isValue(), valueClass, "Class.isValue()");
 
-        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
-                identityClass, "AccessFlag.IDENTITY");
-
-        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
-                valueClass, "AccessFlag.VALUE");
+        // JDK-8294866: Not yet implemented checks of AccessFlags for the array class
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
+//                identityClass, "AccessFlag.IDENTITY");
+//
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
+//                valueClass, "AccessFlag.VALUE");
     }
 
     @DataProvider(name="equalsTests")
