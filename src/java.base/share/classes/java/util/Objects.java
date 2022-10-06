@@ -191,7 +191,8 @@ public final class Objects {
     }
 
    /**
-    * {@return {@code true} if the specified object reference is an identity object, otherwise {@code false}}
+    * {@return {@code true} if the specified object reference is an identity object,
+    * otherwise {@code false}}
     *
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
