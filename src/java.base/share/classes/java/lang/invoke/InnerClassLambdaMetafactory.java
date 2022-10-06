@@ -26,7 +26,6 @@
 package java.lang.invoke;
 
 import jdk.internal.misc.PreviewFeatures;
-import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.CDS;
 import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
