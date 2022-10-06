@@ -25,6 +25,7 @@
 
 package java.util;
 
+import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.misc.Unsafe;
@@ -189,6 +190,19 @@ public final class Objects {
         return o.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(o));
     }
 
+   /**
+    * {@return {@code true} if the specified object reference is an identity object, otherwise {@code false}}
+    *
+    * @param obj an object
+    * @throws NullPointerException if {@code obj} is {@code null}
+    */
+//    @IntrinsicCandidate
+    public static boolean isIdentityObject(Object obj) {
+        requireNonNull(obj);
+        return obj.getClass().isIdentity() ||  // Before Valhalla all classes are identity classes
+                obj.getClass() == Object.class;
+    }
+
     /**
      * Checks that the specified object reference is an identity object.
      *
@@ -202,9 +216,8 @@ public final class Objects {
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
-        var cl = obj.getClass();
-        if (cl.isValue())
-            throw new IdentityException(cl);
+        if (!isIdentityObject(obj))
+            throw new IdentityException(obj.getClass());
         return obj;
     }
 
@@ -223,7 +236,7 @@ public final class Objects {
     @ForceInline
     public static <T> T requireIdentity(T obj, String message) {
         Objects.requireNonNull(obj);
-        if (obj.getClass().isValue())
+        if (!isIdentityObject(obj))
             throw new IdentityException(message);
         return obj;
     }
@@ -243,7 +256,7 @@ public final class Objects {
     @ForceInline
     public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
         Objects.requireNonNull(obj);
-        if (obj.getClass().isValue())
+        if (!isIdentityObject(obj))
             throw new IdentityException(messageSupplier == null ?
                     null : messageSupplier.get());
         return obj;

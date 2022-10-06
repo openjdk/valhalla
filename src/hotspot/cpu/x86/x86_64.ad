@@ -901,45 +901,14 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
   C2_MacroAssembler _masm(&cbuf);
 
-  if (C->clinit_barrier_on_entry()) {
-    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
-    assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
+  __ verified_entry(C);
 
-    Label L_skip_barrier;
-    Register klass = rscratch1;
-
-    __ mov_metadata(klass, C->method()->holder()->constant_encoding());
-    __ clinit_barrier(klass, r15_thread, &L_skip_barrier /*L_fast_path*/);
-
-    __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
-
-    __ bind(L_skip_barrier);
+  if (ra_->C->stub_function() == NULL) {
+    __ entry_barrier();
   }
 
-  __ verified_entry(C);
-  __ bind(*_verified_entry);
-
-  if (C->stub_function() == NULL) {
-    BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
- #ifdef _LP64
-    if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
-      // We put the non-hot code of the nmethod entry barrier out-of-line in a stub.
-      Label dummy_slow_path;
-      Label dummy_continuation;
-      Label* slow_path = &dummy_slow_path;
-      Label* continuation = &dummy_continuation;
-      if (!Compile::current()->output()->in_scratch_emit_size()) {
-        // Use real labels from actual stub when not emitting code for the purpose of measuring its size
-        C2EntryBarrierStub* stub = Compile::current()->output()->entry_barrier_table()->add_entry_barrier();
-        slow_path = &stub->slow_path();
-        continuation = &stub->continuation();
-      }
-      bs->nmethod_entry_barrier(&_masm, slow_path, continuation);
-    }
-#else
-    // Don't bother with out-of-line nmethod entry barrier stub for x86_32.
-    bs->nmethod_entry_barrier(&_masm, NULL /* slow_path */, NULL /* continuation */);
-#endif
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    __ bind(*_verified_entry);
   }
 
   C->output()->set_frame_complete(cbuf.insts_size());
@@ -1662,8 +1631,8 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
   C2_MacroAssembler _masm(&cbuf);
+  uint insts_size = cbuf.insts_size();
   if (!_verified) {
-    uint insts_size = cbuf.insts_size();
     if (UseCompressedClassPointers) {
       __ load_klass(rscratch1, j_rarg0, rscratch2);
       __ cmpptr(rax, rscratch1);
@@ -1672,12 +1641,31 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     }
     __ jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   } else {
+    // TODO 8284443 Avoid creation of temporary frame
+    if (ra_->C->stub_function() == NULL) {
+      __ verified_entry(ra_->C, 0);
+      __ entry_barrier();
+      int initial_framesize = ra_->C->output()->frame_size_in_bytes() - 2*wordSize;
+      __ remove_frame(initial_framesize, false);
+    }
     // Unpack inline type args passed as oop and then jump to
     // the verified entry point (skipping the unverified entry).
     int sp_inc = __ unpack_inline_args(ra_->C, _receiver_only);
     // Emit code for verified entry and save increment for stack repair on return
     __ verified_entry(ra_->C, sp_inc);
-    __ jmp(*_verified_entry);
+    if (Compile::current()->output()->in_scratch_emit_size()) {
+      Label dummy_verified_entry;
+      __ jmp(dummy_verified_entry);
+    } else {
+      __ jmp(*_verified_entry);
+    }
+  }
+  /* WARNING these NOPs are critical so that verified entry point is properly
+     4 bytes aligned for patching by NativeJump::patch_verified_entry() */
+  int nops_cnt = 4 - ((cbuf.insts_size() - insts_size) & 0x3);
+  nops_cnt &= 0x3; // Do not add nops if code is aligned.
+  if (nops_cnt > 0) {
+    __ nop(nops_cnt);
   }
 }
 

@@ -133,10 +133,10 @@ public:
 };
 
 class C2EntryBarrierStubTable {
-  C2EntryBarrierStub* _stub;
+  GrowableArray<C2EntryBarrierStub*> _stubs;
 
 public:
-  C2EntryBarrierStubTable() : _stub(NULL) {}
+  C2EntryBarrierStubTable() {}
   C2EntryBarrierStub* add_entry_barrier();
   int estimate_stub_size() const;
   void emit(CodeBuffer& cb);

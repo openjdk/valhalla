@@ -176,13 +176,37 @@ static NativeNMethodCmpBarrier* native_nmethod_barrier(nmethod* nm) {
   return barrier;
 }
 
+static void set_immediate(nmethod* nm, jint val) {
+  NativeNMethodCmpBarrier* cmp1 = native_nmethod_barrier(nm);
+  cmp1->set_immediate(val);
+
+  if (!nm->is_osr_method() && nm->method()->has_scalarized_args()) {
+    // nmethods with scalarized arguments have multiple entry points that each have an own nmethod entry barrier
+    assert(nm->verified_entry_point() != nm->verified_inline_entry_point(), "scalarized entry point not found");
+    address method_body = nm->is_compiled_by_c1() ? nm->verified_inline_entry_point() : nm->verified_entry_point();
+    address entry_point2 = nm->is_compiled_by_c1() ? nm->verified_entry_point() : nm->verified_inline_entry_point();
+
+    int barrier_offset = reinterpret_cast<address>(cmp1) - method_body;
+    NativeNMethodCmpBarrier* cmp2 = reinterpret_cast<NativeNMethodCmpBarrier*>(entry_point2 + barrier_offset);
+    assert(cmp1 != cmp2, "sanity");
+    debug_only(cmp2->verify());
+    cmp2->set_immediate(val);
+
+    if (method_body != nm->verified_inline_ro_entry_point() && entry_point2 != nm->verified_inline_ro_entry_point()) {
+      NativeNMethodCmpBarrier* cmp3 = reinterpret_cast<NativeNMethodCmpBarrier*>(nm->verified_inline_ro_entry_point() + barrier_offset);
+      assert(cmp1 != cmp3 && cmp2 != cmp3, "sanity");
+      debug_only(cmp3->verify());
+      cmp3->set_immediate(val);
+    }
+  }
+}
+
 void BarrierSetNMethod::disarm(nmethod* nm) {
   if (!supports_entry_barrier(nm)) {
     return;
   }
 
-  NativeNMethodCmpBarrier* cmp = native_nmethod_barrier(nm);
-  cmp->set_immediate(disarmed_value());
+  set_immediate(nm, disarmed_value());
 }
 
 void BarrierSetNMethod::arm(nmethod* nm, int arm_value) {
@@ -190,8 +214,7 @@ void BarrierSetNMethod::arm(nmethod* nm, int arm_value) {
     return;
   }
 
-  NativeNMethodCmpBarrier* cmp = native_nmethod_barrier(nm);
-  cmp->set_immediate(arm_value);
+  set_immediate(nm, arm_value);
 }
 
 bool BarrierSetNMethod::is_armed(nmethod* nm) {

@@ -35,6 +35,13 @@ import java.util.Objects;
  * Class {@code Object} is the root of the class hierarchy.
  * Every class has {@code Object} as a superclass. All objects,
  * including arrays, implement the methods of this class.
+ * <p>
+ * Subclasses of {@code java.lang.Object} can be either {@linkplain Class#isIdentity() identity classes}
+ * or {@linkplain Class#isValue value classes}.
+ * The class {@code Object} itself is neither an identity class nor a value class.
+ * See {@jls The Java Language Specification  8.1.1.5 identity and value Classes}.
+ * An instance can be created with {@code new Object()}, those instances are
+ * {@link Objects#isIdentityObject(Object) an identity object}.
  *
  * @see     java.lang.Class
  * @since   1.0
