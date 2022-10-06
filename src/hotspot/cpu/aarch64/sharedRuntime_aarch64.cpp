@@ -609,12 +609,31 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
 static void gen_c2i_adapter(MacroAssembler *masm,
                             const GrowableArray<SigEntry>* sig_extended,
                             const VMRegPair *regs,
+                            bool requires_clinit_barrier,
+                            address& c2i_no_clinit_check_entry,
                             Label& skip_fixup,
                             address start,
                             OopMapSet* oop_maps,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
+  if (requires_clinit_barrier && VM_Version::supports_fast_class_init_checks()) {
+    Label L_skip_barrier;
+
+    { // Bypass the barrier for non-static methods
+      __ ldrw(rscratch1, Address(rmethod, Method::access_flags_offset()));
+      __ andsw(zr, rscratch1, JVM_ACC_STATIC);
+      __ br(Assembler::EQ, L_skip_barrier); // non-static
+    }
+
+    __ load_method_holder(rscratch2, rmethod);
+    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
+
+    __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
+  }
+
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
 
@@ -1027,7 +1046,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
-  address c2i_unverified_entry = __ pc();
+  address c2i_unverified_entry        = __ pc();
+  address c2i_unverified_inline_entry = __ pc();
   Label skip_fixup;
 
   gen_inline_cache_check(masm, skip_fixup);
@@ -1037,49 +1057,30 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
+  address c2i_no_clinit_check_entry = NULL;
   address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
-    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    // No class init barrier needed because method is guaranteed to be non-static
+    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, c2i_no_clinit_check_entry,
+                    skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* requires_clinit_barrier = */ false);
     skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
-  address c2i_entry = __ pc();
-
-  // Class initialization barrier for static methods
-  address c2i_no_clinit_check_entry = NULL;
-  if (VM_Version::supports_fast_class_init_checks()) {
-    Label L_skip_barrier;
-
-    { // Bypass the barrier for non-static methods
-      __ ldrw(rscratch1, Address(rmethod, Method::access_flags_offset()));
-      __ andsw(zr, rscratch1, JVM_ACC_STATIC);
-      __ br(Assembler::EQ, L_skip_barrier); // non-static
-    }
-
-    __ load_method_holder(rscratch2, rmethod);
-    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
-
-    __ bind(L_skip_barrier);
-    c2i_no_clinit_check_entry = __ pc();
-  }
-
-  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
-
-  address c2i_unverified_inline_entry = c2i_unverified_entry;
+  address c2i_entry        = __ pc();
+  address c2i_inline_entry = __ pc();
+  gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
+                  skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* requires_clinit_barrier = */ true);
 
   // Non-scalarized c2i adapter
-  address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
-    Label inline_entry_skip_fixup;
     c2i_unverified_inline_entry = __ pc();
+    Label inline_entry_skip_fixup;
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
     c2i_inline_entry = __ pc();
-    // TODO 8294013 Fix this and add tests
-    c2i_no_clinit_check_entry = __ pc();
-    gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
+                    inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* requires_clinit_barrier = */ false);
   }
 
   __ flush();

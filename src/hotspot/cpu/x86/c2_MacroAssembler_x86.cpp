@@ -46,6 +46,21 @@
 
 // C2 compiled method's prolog code.
 void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+  if (C->clinit_barrier_on_entry()) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+    assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
+
+    Label L_skip_barrier;
+    Register klass = rscratch1;
+
+    mov_metadata(klass, C->method()->holder()->constant_encoding());
+    clinit_barrier(klass, r15_thread, &L_skip_barrier /*L_fast_path*/);
+
+    jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
+
+    bind(L_skip_barrier);
+  }
+
   int framesize = C->output()->frame_size_in_bytes();
   int bangsize = C->output()->bang_size_in_bytes();
   bool fp_mode_24b = false;

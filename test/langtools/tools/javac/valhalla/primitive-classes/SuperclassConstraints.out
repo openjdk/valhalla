@@ -1,8 +1,8 @@
 SuperclassConstraints.java:14:15: compiler.err.concrete.supertype.for.value.class: SuperclassConstraints.I0, SuperclassConstraints.BadSuper
-SuperclassConstraints.java:44:15: compiler.err.super.field.not.allowed: x, (compiler.misc.superclass.of.value.class: SuperclassConstraints.I6, SuperclassConstraints.SuperWithInstanceField)
-SuperclassConstraints.java:76:15: compiler.err.super.no.arg.constructor.must.be.empty: SuperclassConstraints.SuperWithNonEmptyNoArgCtor(), (compiler.misc.superclass.of.value.class: SuperclassConstraints.I9, SuperclassConstraints.SuperWithNonEmptyNoArgCtor)
-SuperclassConstraints.java:85:15: compiler.err.super.constructor.cannot.take.arguments: SuperclassConstraints.SuperWithArgedCtor(java.lang.String), (compiler.misc.superclass.of.value.class: SuperclassConstraints.I10, SuperclassConstraints.SuperWithArgedCtor)
-SuperclassConstraints.java:98:15: compiler.err.super.class.declares.init.block: (compiler.misc.superclass.of.value.class: SuperclassConstraints.I11, SuperclassConstraints.SuperWithInstanceInit)
-SuperclassConstraints.java:106:15: compiler.err.super.method.cannot.be.synchronized: foo(), SuperclassConstraints.I12, SuperclassConstraints.SuperWithSynchronizedMethod
-SuperclassConstraints.java:110:15: compiler.err.super.class.cannot.be.inner: (compiler.misc.superclass.of.value.class: SuperclassConstraints.I13, SuperclassConstraints.InnerSuper)
+SuperclassConstraints.java:44:15: compiler.err.instance.field.not.allowed: x, (compiler.misc.superclass.of.value.class: SuperclassConstraints.I6, SuperclassConstraints.SuperWithInstanceField)
+SuperclassConstraints.java:76:15: compiler.err.abstract.value.class.no.arg.constructor.must.be.empty: SuperclassConstraints.SuperWithNonEmptyNoArgCtor(), (compiler.misc.superclass.of.value.class: SuperclassConstraints.I9, SuperclassConstraints.SuperWithNonEmptyNoArgCtor)
+SuperclassConstraints.java:85:15: compiler.err.abstract.value.class.constructor.cannot.take.arguments: SuperclassConstraints.SuperWithArgedCtor(java.lang.String), (compiler.misc.superclass.of.value.class: SuperclassConstraints.I10, SuperclassConstraints.SuperWithArgedCtor)
+SuperclassConstraints.java:98:15: compiler.err.abstract.value.class.declares.init.block: (compiler.misc.superclass.of.value.class: SuperclassConstraints.I11, SuperclassConstraints.SuperWithInstanceInit)
+SuperclassConstraints.java:106:15: compiler.err.super.class.method.cannot.be.synchronized: foo(), SuperclassConstraints.I12, SuperclassConstraints.SuperWithSynchronizedMethod
+SuperclassConstraints.java:110:15: compiler.err.abstract.value.class.cannot.be.inner: (compiler.misc.superclass.of.value.class: SuperclassConstraints.I13, SuperclassConstraints.InnerSuper)
 7 errors
