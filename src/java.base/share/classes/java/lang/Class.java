@@ -1517,8 +1517,8 @@ public final class Class<T> implements java.io.Serializable,
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
         return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
-                                            getClassAccessFlagsRaw() :
-                                            getModifiers(),
+                                            getClassAccessFlagsRaw() & (~0x800) :
+                                            getModifiers() & (~0x800), // suppress unspecified bit
                                             location);
     }
 
