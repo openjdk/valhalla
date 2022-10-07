@@ -27,13 +27,15 @@
  * @summary test Object methods on primitive classes
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses ObjectMethods.java
- * @run testng/othervm -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 ObjectMethods
  * @compile -XDenablePrimitiveClasses ObjectMethods.java
- * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
@@ -69,6 +71,47 @@ public class ObjectMethods {
                                         .setPointRef(Point.makePoint(200, 200))
                                         .setReference(Point.makePoint(300, 300))
                                         .setNumber(Value.Number.intValue(20)).build();
+
+    @DataProvider(name="Identities")
+    Object[][] identitiesData() {
+        return new Object[][]{
+                {new Object(), false, false},
+                {"String", true, false},
+                {String.class, true, false},
+                {Object.class, true, false},
+                {new ValueType1(1), false, true},
+                {new ValueType2(2), false, true},
+                {new PrimitiveRecord(1, "A"), false, true},
+                {new ValueRecord(1,"B"), false, true},
+                {new int[0], true, false},  // arrays of primitive classes are identity objects
+                {new Object[0], true, false},  // arrays of identity classes are identity objects
+                {new String[0], true, false},  // arrays of identity classes are identity objects
+                {new ValueType1[0], true, false},  // arrays of value classes are identity objects
+        };
+    }
+
+    @Test(dataProvider="Identities")
+    void identityTests(Object obj, boolean identityClass, boolean valueClass) {
+        Class<?> clazz = obj.getClass();
+
+        if (clazz == Object.class) {
+            assertTrue(Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
+        } else {
+            assertEquals(Objects.isIdentityObject(obj), identityClass, "Objects.isIdentityObject()");
+        }
+
+        assertEquals(clazz.isIdentity(), identityClass, "Class.isIdentity()");
+
+        assertEquals(clazz.isValue(), valueClass, "Class.isValue()");
+
+        // JDK-8294866: Not yet implemented checks of AccessFlags for the array class
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
+//                identityClass, "AccessFlag.IDENTITY");
+//
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
+//                valueClass, "AccessFlag.VALUE");
+    }
+
     @DataProvider(name="equalsTests")
     Object[][] equalsTests() {
         return new Object[][]{

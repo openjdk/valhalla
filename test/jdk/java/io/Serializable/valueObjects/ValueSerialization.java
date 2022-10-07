@@ -24,7 +24,8 @@
 /*
  * @test
  * @summary ValueSerialization support of value classes
- * @run testng/othervm ValueSerialization
+ * @compile ValueSerialization.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueSerialization
  */
 
 import java.io.ByteArrayInputStream;

@@ -209,23 +209,10 @@ compiler.err.preview.without.source.or.release
 
 compiler.misc.illegal.signature                               # the compiler can now detect more non-denotable types before class writing
 
-# Value types
-compiler.err.cyclic.primitive.class.membership
-compiler.err.value.class.does.not.support
-compiler.err.value.class.may.not.extend
-compiler.err.this.exposed.prematurely
-compiler.err.concrete.supertype.for.value.class
-compiler.err.super.class.cannot.be.inner
-compiler.err.super.class.declares.init.block
-compiler.err.super.constructor.cannot.take.arguments
-compiler.err.super.constructor.access.restricted
-compiler.err.super.constructor.cannot.be.generic
-compiler.err.super.constructor.cannot.throw
-compiler.err.super.field.not.allowed
-compiler.err.super.method.cannot.be.synchronized
-compiler.err.super.no.arg.constructor.must.be.empty
-compiler.err.generic.parameterization.with.primitive.class
-compiler.misc.feature.primitive.classes
+# Value Objects
 compiler.misc.feature.value.classes
-compiler.misc.abstract.value.class
-compiler.misc.superclass.of.value.class
+
+# Primitive Classes
+compiler.err.cyclic.primitive.class.membership
+compiler.misc.feature.primitive.classes
+compiler.err.generic.parameterization.with.primitive.class

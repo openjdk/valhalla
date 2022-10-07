@@ -26,7 +26,7 @@
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile cfpTests.jcod
- * @run main/othervm -Xverify:remote BadInlineTypes
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xverify:remote BadInlineTypes
  */
 
 public class BadInlineTypes {

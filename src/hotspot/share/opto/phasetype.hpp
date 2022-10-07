@@ -69,6 +69,7 @@
   flags(FAILURE,                      "Failure") \
   flags(SPLIT_INLINES_ARRAY,          "Split inlines array") \
   flags(SPLIT_INLINES_ARRAY_IGVN,     "IGVN after split inlines array") \
+  flags(ALL,                          "All") \
   flags(DEBUG,                        "Debug")
 
 #define table_entry(name, description) PHASE_##name,
@@ -170,6 +171,8 @@ class PhaseNameValidator {
         // strncpy always writes len characters. If the source string is shorter, the function fills the remaining bytes with NULLs.
         strncpy(_bad, *iter, len);
         _valid = false;
+      } else if (PHASE_ALL == cpt) {
+        mask = ~(UINT64_C(0));
       } else {
         assert(cpt < 64, "out of bounds");
         mask |= CompilerPhaseTypeHelper::to_bitmask(cpt);

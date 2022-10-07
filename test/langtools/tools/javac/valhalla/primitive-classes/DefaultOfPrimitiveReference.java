@@ -28,7 +28,7 @@
  * @bug 8268671
  * @summary Wrong code generated for PrimitiveClass.ref.default
  * @compile -XDenablePrimitiveClasses DefaultOfPrimitiveReference.java
- * @run main DefaultOfPrimitiveReference
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses DefaultOfPrimitiveReference
  */
 
 public primitive class DefaultOfPrimitiveReference {

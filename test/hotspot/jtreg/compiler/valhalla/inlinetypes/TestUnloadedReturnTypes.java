@@ -28,7 +28,8 @@
  * @build jdk.test.whitebox.WhiteBox
  * @compile -XDenablePrimitiveClasses TestUnloadedReturnTypes.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:CompileCommand=dontinline,*::test*
  *                   TestUnloadedReturnTypes
  */

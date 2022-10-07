@@ -27,7 +27,7 @@
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.org.objectweb.asm
  * @compile -XDenablePrimitiveClasses SubstitutabilityTest.java
- * @run testng SubstitutabilityTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;

@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @summary Test quickening of getfield and putfield applied to inline fields
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses Point.java JumboInline.java QuickeningTest.java
- * @run main runtime.valhalla.inlinetypes.QuickeningTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.QuickeningTest
  */
 
 public class QuickeningTest {

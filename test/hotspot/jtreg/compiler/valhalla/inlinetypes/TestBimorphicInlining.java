@@ -33,11 +33,11 @@ import jdk.test.lib.Asserts;
  * @summary Test bimorphic inlining with inline type receivers.
  * @library /testlibrary /test/lib
  * @compile -XDenablePrimitiveClasses TestBimorphicInlining.java
- * @run main/othervm -Xbatch -XX:TypeProfileLevel=222
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   compiler.valhalla.inlinetypes.TestBimorphicInlining
- * @run main/othervm -Xbatch -XX:TypeProfileLevel=222
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:+UnlockExperimentalVMOptions -XX:PerMethodTrapLimit=0 -XX:PerMethodSpecTrapLimit=0
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.inlinetypes.TestBimorphicInlining::test*

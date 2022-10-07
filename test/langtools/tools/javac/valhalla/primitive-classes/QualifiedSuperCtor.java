@@ -26,7 +26,7 @@
  * @bug 8198749
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses QualifiedSuperCtor.java
- * @run main/othervm QualifiedSuperCtor
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses QualifiedSuperCtor
  */
 
 primitive class A {

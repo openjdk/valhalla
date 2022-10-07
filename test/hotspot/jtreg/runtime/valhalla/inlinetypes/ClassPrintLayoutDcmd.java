@@ -32,7 +32,7 @@ import jdk.test.lib.JDKToolFinder;
  * @summary Test the VM.class_print_layout command
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses ClassPrintLayoutDcmd.java Point.java
- * @run main/othervm runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.ClassPrintLayoutDcmd
  */
 
 public primitive class ClassPrintLayoutDcmd {

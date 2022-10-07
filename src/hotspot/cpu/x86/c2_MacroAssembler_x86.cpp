@@ -46,6 +46,21 @@
 
 // C2 compiled method's prolog code.
 void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+  if (C->clinit_barrier_on_entry()) {
+    assert(VM_Version::supports_fast_class_init_checks(), "sanity");
+    assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
+
+    Label L_skip_barrier;
+    Register klass = rscratch1;
+
+    mov_metadata(klass, C->method()->holder()->constant_encoding());
+    clinit_barrier(klass, r15_thread, &L_skip_barrier /*L_fast_path*/);
+
+    jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
+
+    bind(L_skip_barrier);
+  }
+
   int framesize = C->output()->frame_size_in_bytes();
   int bangsize = C->output()->bang_size_in_bytes();
   bool fp_mode_24b = false;
@@ -135,6 +150,29 @@ void C2_MacroAssembler::verified_entry(Compile* C, int sp_inc) {
     STOP("Stack is not properly aligned!");
     bind(L);
   }
+#endif
+}
+
+void C2_MacroAssembler::entry_barrier() {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+#ifdef _LP64
+  if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+    // We put the non-hot code of the nmethod entry barrier out-of-line in a stub.
+    Label dummy_slow_path;
+    Label dummy_continuation;
+    Label* slow_path = &dummy_slow_path;
+    Label* continuation = &dummy_continuation;
+    if (!Compile::current()->output()->in_scratch_emit_size()) {
+      // Use real labels from actual stub when not emitting code for the purpose of measuring its size
+      C2EntryBarrierStub* stub = Compile::current()->output()->entry_barrier_table()->add_entry_barrier();
+      slow_path = &stub->slow_path();
+      continuation = &stub->continuation();
+    }
+    bs->nmethod_entry_barrier(this, slow_path, continuation);
+  }
+#else
+  // Don't bother with out-of-line nmethod entry barrier stub for x86_32.
+  bs->nmethod_entry_barrier(this, NULL /* slow_path */, NULL /* continuation */);
 #endif
 }
 

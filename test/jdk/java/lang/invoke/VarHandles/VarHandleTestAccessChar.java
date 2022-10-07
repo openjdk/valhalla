@@ -25,11 +25,11 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses                        Point.java Value.java VarHandleTestAccessChar.java
- * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessChar
- * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessChar
- * @run testng/othervm -Diters=20000                         VarHandleTestAccessChar
- * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessChar
+ * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestAccessChar.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=10    -Xint                   VarHandleTestAccessChar
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessChar
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000                         VarHandleTestAccessChar
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessChar
  */
 
 import org.testng.annotations.BeforeClass;

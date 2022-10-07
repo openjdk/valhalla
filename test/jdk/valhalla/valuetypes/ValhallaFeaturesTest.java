@@ -25,34 +25,38 @@
 
 import jdk.internal.misc.ValhallaFeatures;
 
+import org.junit.*;
+import static org.junit.Assert.*;
+
 /*
  * @test
  * @modules java.base/jdk.internal.misc
  * @summary Test feature flags reflect command line flags
- * @run main/othervm ValhallaFeaturesTest true
- * @run main/othervm -XX:+EnableValhalla ValhallaFeaturesTest true
- * @run main/othervm -XX:-EnableValhalla ValhallaFeaturesTest false
+ * @run junit/othervm -Dexpected=true ValhallaFeaturesTest
+ * @run junit/othervm -XX:+EnableValhalla -Dexpected=true ValhallaFeaturesTest
+ * @run junit/othervm -XX:-EnableValhalla -Dexpected=false ValhallaFeaturesTest
  */
 
 public class ValhallaFeaturesTest {
 
-    public static void main(String[] args) {
-        boolean expected = args.length > 0 ? args[0].equalsIgnoreCase("true") : false;
+    // Save the expected enable from the command line -Dexpected
+    private static boolean expected = Boolean.getBoolean("expected");
+
+    @Test
+    public void checkEnable() {
         boolean enabled = ValhallaFeatures.isEnabled();
         System.out.println("EnableValhalla: " + enabled);
-        if (expected != enabled) {
-            throw new RuntimeException("expected: " + expected + ", actual: " + enabled);
-        }
+        assertEquals("EnableValhalla Flag", expected, enabled);
+    }
 
-        try {
+    @Test
+    public void checkEnsure() {
+        if (expected) {
+            // Throwing an exception is an error
             ValhallaFeatures.ensureValhallaEnabled();
-            if (!enabled) {
-                throw new RuntimeException("ensureValhallaEnabled should have thrown UOE");
-            }
-        } catch (UnsupportedOperationException uoe) {
-            if (enabled) {
-                throw new RuntimeException("UnsupportedOperationException not expected", uoe);
-            }
+        } else {
+            assertThrows("EnableValhalla Flag", UnsupportedOperationException.class,
+                    () -> ValhallaFeatures.ensureValhallaEnabled());
         }
     }
 }
