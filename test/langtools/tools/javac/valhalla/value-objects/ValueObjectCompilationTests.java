@@ -775,6 +775,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
             }
         }
 
+        // check that <vnew> is invoked with invokestatic
         for (String source : List.of(
                 """
                 value class A {
