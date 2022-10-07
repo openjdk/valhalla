@@ -6467,6 +6467,10 @@ bool TypeAryKlassPtr::must_be_exact() const {
   if (_elem == Type::TOP   ) return false;
   const TypeKlassPtr*  tk = _elem->isa_klassptr();
   if (!tk)             return true;   // a primitive type, like int
+  // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+  if (tk->klass()->is_inlinetype() && !is_null_free()) {
+    return false;
+  }
   return tk->must_be_exact();
 }
 

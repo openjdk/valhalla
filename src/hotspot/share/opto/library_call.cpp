@@ -5595,9 +5595,6 @@ bool LibraryCallKit::inline_arraycopy() {
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
-    if (toop->isa_aryptr() != NULL) {
-      toop = toop->is_aryptr()->cast_to_not_flat(false)->cast_to_not_null_free(false);
-    }
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
