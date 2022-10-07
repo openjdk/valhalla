@@ -638,21 +638,28 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * {@return {@code true} if this class is an identity class, otherwise {@code false}}
-     * If this {@code Class} object represents an array type, then this method returns {@code true}.
+     * {@return {@code true} if this {@code Class} object represents an identity
+     * class or interface; otherwise {@code false}}
+     *
+     * If this {@code Class} object represents an array type, then this method
+     * returns {@code true}.
      * If this {@code Class} object represents a primitive type, or {@code void},
      * then this method returns {@code false}.
      *
      * @since Valhalla
      */
     public boolean isIdentity() {
-        return !ValhallaFeatures.isEnabled() ||  // Before Valhalla all classes are identity classes
-                (this.getModifiers() & Modifier.IDENTITY) != 0 ||
-                isArray();
+        if (!ValhallaFeatures.isEnabled()) {
+            // by default interfaces are not an identity interface
+            return !isInterface();
+        }
+        return (this.getModifiers() & Modifier.IDENTITY) != 0 || isArray();
     }
 
     /**
-     * {@return {@code true} if this class is a value class, otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents a value
+     * class or interface; otherwise {@code false}}
+     *
      * If this {@code Class} object represents an array type, a primitive type, or
      * {@code void}, then this method returns {@code false}.
      *
