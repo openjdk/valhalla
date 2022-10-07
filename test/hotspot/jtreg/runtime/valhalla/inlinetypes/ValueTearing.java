@@ -36,6 +36,7 @@ import jdk.test.whitebox.WhiteBox;
 import static jdk.test.lib.Asserts.*;
 
 /*
+ * @ignore Disabled until there is a syntax in the language to make objects/fields non-tearable
  * @test ValueTearing
  * @summary Test tearing of inline fields and array elements
  * @modules java.base/jdk.internal.misc
