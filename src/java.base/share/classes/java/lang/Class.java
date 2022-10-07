@@ -888,10 +888,6 @@ public final class Class<T> implements java.io.Serializable,
      * superinterface of, the class or interface represented by the specified
      * {@code Class} parameter. It returns {@code true} if so;
      * otherwise it returns {@code false}. If this {@code Class}
-     * object represents the {@linkplain #isPrimaryType() reference type}
-     * of a {@linkplain #isPrimitiveClass() primitive class}, this method
-     * return {@code true} if the specified {@code Class} parameter represents
-     * the same primitive class. If this {@code Class}
      * object represents a primitive type, this method returns
      * {@code true} if the specified {@code Class} parameter is
      * exactly this {@code Class} object; otherwise it returns
@@ -900,9 +896,9 @@ public final class Class<T> implements java.io.Serializable,
      * <p> Specifically, this method tests whether the type represented by the
      * specified {@code Class} parameter can be converted to the type
      * represented by this {@code Class} object via an identity conversion
-     * or via a widening reference conversion or via a primitive widening
-     * conversion. See <cite>The Java Language Specification</cite>,
-     * sections {@jls 5.1.1} and {@jls 5.1.4}, for details.
+     * or via a widening reference conversion. See <cite>The Java Language
+     * Specification</cite>, sections {@jls 5.1.1} and {@jls 5.1.4},
+     * for details.
      *
      * @param     cls the {@code Class} object to be checked
      * @return    the {@code boolean} value indicating whether objects of the
@@ -1517,8 +1513,8 @@ public final class Class<T> implements java.io.Serializable,
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
         return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
-                                            getClassAccessFlagsRaw() :
-                                            getModifiers(),
+                                            getClassAccessFlagsRaw() & (~0x800) :
+                                            getModifiers() & (~0x800), // suppress unspecified bit
                                             location);
     }
 

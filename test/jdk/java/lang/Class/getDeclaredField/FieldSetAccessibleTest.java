@@ -94,15 +94,15 @@ public class FieldSetAccessibleTest {
             // is public and of a public class, or it's opened
             // otherwise it would fail.
             boolean isPublic = Modifier.isPublic(f.getModifiers()) &&
-                    Modifier.isPublic(c.getModifiers());
+                Modifier.isPublic(c.getModifiers());
             boolean access = (exported && isPublic) || target.isOpen(pn, self);
             try {
                 f.setAccessible(false);
                 f.setAccessible(true);
                 if (!access) {
                     throw new RuntimeException(
-                            String.format("Expected InaccessibleObjectException is not thrown "
-                                    + "for field %s in class %s%n", f.getName(), c.getName()));
+                        String.format("Expected InaccessibleObjectException is not thrown "
+                                      + "for field %s in class %s%n", f.getName(), c.getName()));
                 }
             } catch (InaccessibleObjectException expected) {
                 if (access) {
@@ -276,7 +276,7 @@ public class FieldSetAccessibleTest {
                         .map(p -> p.subpath(2, p.getNameCount()))
                         .map(p -> p.toString())
                         .filter(s -> s.endsWith(".class") && !s.endsWith("module-info.class"))
-                        .iterator();
+                    .iterator();
             } catch(IOException x) {
                 throw new UncheckedIOException("Unable to walk \"/modules\"", x);
             }
@@ -292,9 +292,9 @@ public class FieldSetAccessibleTest {
                 "jdk.internal.vm.compiler"
             );
             return ModuleFinder.ofSystem().findAll().stream()
-                    .map(mref -> mref.descriptor().name())
-                    .filter(mn -> !mods.contains(mn))
-                    .collect(Collectors.toSet());
+                               .map(mref -> mref.descriptor().name())
+                               .filter(mn -> !mods.contains(mn))
+                               .collect(Collectors.toSet());
         }
     }
 
