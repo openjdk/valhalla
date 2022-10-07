@@ -26,6 +26,7 @@
 /*
  * @test
  * @bug 8156486
+ * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodTypeBoolean.java
  * @run testng/othervm VarHandleTestMethodTypeBoolean
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodTypeBoolean
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false VarHandleTestMethodTypeBoolean
