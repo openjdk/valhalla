@@ -27,7 +27,7 @@
             arrays are correctly detected
  * @library /testlibrary /test/lib
  * @compile -XDenablePrimitiveClasses MultiANewArrayTypeCheck.jcod MultiANewArrayTest.java Element0.java Element1.java
- * @run main/othervm MultiANewArrayTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MultiANewArrayTest
  */
 
 import jdk.test.lib.Asserts;

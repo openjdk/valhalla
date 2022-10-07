@@ -27,7 +27,7 @@
  * @library /test/lib
  * @requires vm.jvmti
  * @compile -XDenablePrimitiveClasses HeapDump.java
- * @run main HeapDump
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HeapDump
  */
 
 import java.io.File;
@@ -161,7 +161,7 @@ public class HeapDump {
             theApp = new HeapDumpTarg();
 
             // -XX:+PrintInlineLayout is debug-only arg
-            LingeredApp.startApp(theApp/*, "-XX:+PrintInlineLayout"*/);
+            LingeredApp.startApp(theApp, "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses"/*, "-XX:+PrintInlineLayout"*/);
 
             // jcmd <pid> GC.heap_dump
             JDKToolLauncher launcher = JDKToolLauncher

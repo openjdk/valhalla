@@ -44,7 +44,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -59,7 +60,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -74,7 +76,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -89,7 +92,8 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDenablePrimitiveClasses Person.java InlineOops.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
  *                   jdk.test.whitebox.WhiteBox$WhiteBoxPermission
- * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops

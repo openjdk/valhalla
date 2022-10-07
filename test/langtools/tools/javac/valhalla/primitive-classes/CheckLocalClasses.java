@@ -29,7 +29,7 @@
  * @summary [lworld] Reinstate support for local value classes.
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckLocalClasses.java
- * @run main/othervm CheckLocalClasses
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CheckLocalClasses
  */
 
 import com.sun.tools.classfile.*;

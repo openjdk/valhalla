@@ -39,7 +39,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses TestLWorldProfiling.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestLWorldProfiling
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorldProfiling
  */
 
 @ForceCompileClassInitializer
@@ -48,23 +48,27 @@ public class TestLWorldProfiling {
     public static void main(String[] args) {
         final Scenario[] scenarios = {
                 new Scenario(0,
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
                         "-XX:TypeProfileLevel=0",
                         "-XX:-MonomorphicArrayCheck"),
                 new Scenario(1,
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:+UseArrayLoadStoreProfile",
                         "-XX:+UseACmpProfile",
                         "-XX:TypeProfileLevel=0"),
                 new Scenario(2,
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
                         "-XX:TypeProfileLevel=222",
                         "-XX:-MonomorphicArrayCheck"),
                 new Scenario(3,
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
@@ -73,6 +77,7 @@ public class TestLWorldProfiling {
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation"),
                 new Scenario(4,
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:+UseArrayLoadStoreProfile",
                         "-XX:+UseACmpProfile",
@@ -80,6 +85,7 @@ public class TestLWorldProfiling {
                         "-XX:TieredStopAtLevel=4",
                         "-XX:-TieredCompilation"),
                 new Scenario(5,
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         "-XX:FlatArrayElementMaxSize=-1",
                         "-XX:-UseArrayLoadStoreProfile",
                         "-XX:-UseACmpProfile",
