@@ -49,7 +49,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @compile -XDenablePrimitiveClasses MyValue5.jcod
  * @compile -XDenablePrimitiveClasses TestLWorld.java
  * @build test.java.lang.invoke.lib.InstructionHelper
- * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer

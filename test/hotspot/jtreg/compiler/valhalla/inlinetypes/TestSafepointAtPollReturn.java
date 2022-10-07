@@ -25,7 +25,8 @@
  * @test
  * @summary Test that oop fields of value/primitive classes are preserved over safepoints at returns.
  * @compile -XDenablePrimitiveClasses TestSafepointAtPollReturn.java
- * @run main/othervm -XX:CompileCommand=dontinline,TestSafepointAtPollReturn::test* -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:CompileCommand=dontinline,TestSafepointAtPollReturn::test* -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+SafepointALot -XX:-TieredCompilation TestSafepointAtPollReturn
  */
 

@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses Point.java
  * @compile -XDallowFlattenabilityModifiers -XDenablePrimitiveClasses VDefaultTest.java
- * @run main runtime.valhalla.inlinetypes.VDefaultTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.VDefaultTest
  */
 
 public class VDefaultTest {

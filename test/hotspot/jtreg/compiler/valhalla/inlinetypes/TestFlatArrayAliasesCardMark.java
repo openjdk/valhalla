@@ -25,8 +25,9 @@
  * @test
  * @bug 8260363
  * @summary [lworld] C2 compilation fails with assert(n->Opcode() != Op_Phi) failed: cannot match
+ *
  * @compile -XDenablePrimitiveClasses TestFlatArrayAliasesCardMark.java
- * @run main/othervm -XX:-BackgroundCompilation TestFlatArrayAliasesCardMark
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:-BackgroundCompilation TestFlatArrayAliasesCardMark
  *
  */
 
