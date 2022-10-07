@@ -148,10 +148,10 @@ package java.io;
  *
  * Value classes can implement {@code Serializble} and receive the treatment defined
  * by the <a href="{@docRoot}/../specs/serialization/serial-arch.html#serialization-of-value-objects">
- * <cite>Java Object Serialization Specification,</cite> Section 1.1xx,
+ * <cite>Java Object Serialization Specification,</cite> Section 1.14,
  * "Serialization of Value Objects"</a>. Any declarations of the special
  * handling methods discussed above, except {@code writeReplace},
- * are ignored for value types. Value classes implementing {@link Externalizable}
+ * are ignored for value classes. Value classes implementing {@link Externalizable}
  * and not using {@code writeReplace} are not supported.<p>
  *
  * The serialization runtime associates with each serializable class a version
