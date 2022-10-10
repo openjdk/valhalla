@@ -1513,8 +1513,8 @@ Node *SafePointNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (phase->C->scalarize_in_safepoints() && can_reshape && jvms() != NULL) {
     for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
       Node* n = in(i)->uncast();
-      if (n->is_InlineTypeBase()) {
-        n->as_InlineTypeBase()->make_scalar_in_safepoints(phase->is_IterGVN());
+      if (n->is_InlineType()) {
+        n->as_InlineType()->make_scalar_in_safepoints(phase->is_IterGVN());
       }
     }
   }
@@ -1742,7 +1742,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
                            Node *ctrl, Node *mem, Node *abio,
                            Node *size, Node *klass_node,
                            Node* initial_test,
-                           InlineTypeBaseNode* inline_type_node)
+                           InlineTypeNode* inline_type_node)
   : CallNode(atype, NULL, TypeRawPtr::BOTTOM)
 {
   init_class_id(Class_Allocate);
@@ -1763,7 +1763,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   init_req( InitialTest        , initial_test);
   init_req( ALength            , topnode);
   init_req( ValidLengthTest    , topnode);
-  init_req( InlineTypeNode     , inline_type_node);
+  init_req( InlineType     , inline_type_node);
   // DefaultValue defaults to NULL
   // RawDefaultValue defaults to NULL
   C->add_macro_node(this);

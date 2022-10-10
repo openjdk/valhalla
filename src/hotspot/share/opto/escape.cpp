@@ -561,7 +561,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       map_ideal_node(n, phantom_obj);
       break;
     }
-    case Op_InlineTypePtr:
+    case Op_InlineType:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -735,7 +735,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
       add_base(n_ptn->as_Field(), ptn_base);
       break;
     }
-    case Op_InlineTypePtr:
+    case Op_InlineType:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -2129,7 +2129,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
     Node* storestore = storestore_worklist.at(i);
     Node* alloc = storestore->in(MemBarNode::Precedent)->in(0);
     if (alloc->is_Allocate() && not_global_escape(alloc)) {
-      if (alloc->in(AllocateNode::InlineTypeNode) != NULL) {
+      if (alloc->in(AllocateNode::InlineType) != NULL) {
         // Non-escaping inline type buffer allocations don't require a membar
         storestore->as_MemBar()->remove(_igvn);
       } else {
@@ -3478,7 +3478,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_CountPositives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
-              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_InlineTypePtr || op == Op_FlatArrayCheck ||
+              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_FlatArrayCheck ||
               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
           n->dump();
           use->dump();

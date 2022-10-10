@@ -1591,7 +1591,7 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
 
   // Remove multiple allocations of the same inline type
   if (n->is_InlineType()) {
-    n->as_InlineType()->remove_redundant_allocations(&_igvn, this);
+    n->as_InlineType()->remove_redundant_allocations(this);
   }
 
   // Check for Opaque2's who's loop has disappeared - who's input is in the
