@@ -93,7 +93,7 @@ class TypeFunc;
 class TypeVect;
 class Unique_Node_List;
 class UnstableIfTrap;
-class InlineTypeBaseNode;
+class InlineTypeNode;
 class nmethod;
 class Node_Stack;
 struct Final_Reshape_Counts;

@@ -240,7 +240,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineTypeBase()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
@@ -300,7 +300,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         } else if (!stopped()) {
           // Element type is unknown, emit runtime call
 
@@ -1939,9 +1939,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
   assert(!stopped(), "null input should have been caught earlier");
-  if (cast->is_InlineType()) {
-    cast = cast->as_InlineType()->get_oop();
-  }
   return cast;
 }
 
@@ -2064,15 +2061,15 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (left->is_InlineTypeBase()) {
+  if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_zero_type())) {
+        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_is_init())->is_zero_type())) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineTypeBase()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
       do_if(btest, cmp);
       return;
-    } else if (left->is_InlineType()){
+    } else {
       PreserveReexecuteState preexecs(this);
       inc_sp(2);
       jvms()->set_should_reexecute(true);

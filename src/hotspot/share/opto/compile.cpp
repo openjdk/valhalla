@@ -392,7 +392,7 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->for_post_loop_opts_igvn()) {
     remove_from_post_loop_opts_igvn(dead);
   }
-  if (dead->is_InlineTypeBase()) {
+  if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
   if (dead->is_Call()) {
@@ -1936,12 +1936,12 @@ void Compile::process_for_post_loop_opts_igvn(PhaseIterGVN& igvn) {
 }
 
 void Compile::add_inline_type(Node* n) {
-  assert(n->is_InlineTypeBase(), "unexpected node");
+  assert(n->is_InlineType(), "unexpected node");
   _inline_type_nodes.push(n);
 }
 
 void Compile::remove_inline_type(Node* n) {
-  assert(n->is_InlineTypeBase(), "unexpected node");
+  assert(n->is_InlineType(), "unexpected node");
   if (_inline_type_nodes.contains(n)) {
     _inline_type_nodes.remove(n);
   }
@@ -1955,11 +1955,11 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(!n->is_InlineType(), "chain of inline type nodes");
+    assert(n == ret_val || !n->is_InlineType(), "chain of inline type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
-    } else if (n->is_InlineTypePtr()) {
+    } else if (n->is_InlineType()) {
       wq.push(n->in(1));
     } else if (n->is_Phi()) {
       for (uint j = 1; j < n->req(); j++) {
@@ -2004,15 +2004,15 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Delay this until all inlining is over to avoid getting inconsistent debug info.
   set_scalarize_in_safepoints(true);
   for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
-    _inline_type_nodes.at(i)->as_InlineTypeBase()->make_scalar_in_safepoints(&igvn);
+    _inline_type_nodes.at(i)->as_InlineType()->make_scalar_in_safepoints(&igvn);
   }
   if (remove) {
     // Remove inline type nodes
     while (_inline_type_nodes.length() > 0) {
-      InlineTypeBaseNode* vt = _inline_type_nodes.pop()->as_InlineTypeBase();
+      InlineTypeNode* vt = _inline_type_nodes.pop()->as_InlineType();
       if (vt->outcnt() == 0) {
         igvn.remove_dead_node(vt);
-      } else if (vt->is_InlineTypePtr()) {
+      } else if (vt->is_InlineType()) {
         igvn.replace_node(vt, vt->get_oop());
       } else {
         // Check if any users are blackholes. If so, rewrite them to use either the
@@ -2045,7 +2045,7 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
 
 #ifdef ASSERT
         for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
-          assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");
+          assert(vt->fast_out(i)->is_InlineType(), "Unexpected inline type user");
         }
 #endif
         igvn.replace_node(vt, igvn.C->top());
@@ -4352,7 +4352,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #ifdef ASSERT
-  case Op_InlineTypePtr:
   case Op_InlineType: {
     n->dump(-1);
     assert(false, "inline type node was not removed");
