@@ -823,7 +823,7 @@ const TypePtr* MemNode::calculate_adr_type(const Type* t, const TypePtr* cross_c
 //=============================================================================
 // Should LoadNode::Ideal() attempt to remove control edges?
 bool LoadNode::can_remove_control() const {
-  return !has_pinned_control_dependency();
+  return true;
 }
 uint LoadNode::size_of() const { return sizeof(*this); }
 bool LoadNode::cmp( const Node &n ) const
@@ -841,17 +841,7 @@ void LoadNode::dump_spec(outputStream *st) const {
     st->print(" #"); _type->dump_on(st);
   }
   if (!depends_only_on_test()) {
-    st->print(" (does not depend only on test, ");
-    if (control_dependency() == UnknownControl) {
-      st->print("unknown control");
-    } else if (control_dependency() == Pinned) {
-      st->print("pinned");
-    } else if (adr_type() == TypeRawPtr::BOTTOM) {
-      st->print("raw access");
-    } else {
-      st->print("unknown reason");
-    }
-    st->print(")");
+    st->print(" (does not depend only on test)");
   }
 }
 #endif
@@ -1219,10 +1209,6 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
 //------------------------------Identity---------------------------------------
 // Loads are identity if previous store is to same address
 Node* LoadNode::Identity(PhaseGVN* phase) {
-  if (has_pinned_control_dependency()) {
-    return this;
-  }
-
   // Loading from an InlineType? The InlineType has the values of
   // all fields as input. Look for the field with matching offset.
   Node* addr = in(Address);
@@ -1742,9 +1728,6 @@ AllocateNode* LoadNode::is_new_object_mark_load(PhaseGVN *phase) const {
 // If the offset is constant and the base is an object allocation,
 // try to hook me up to the exact initializing store.
 Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (has_pinned_control_dependency()) {
-    return NULL;
-  }
   Node* p = MemNode::Ideal_common(phase, can_reshape);
   if (p)  return (p == NodeSentinel) ? NULL : p;
 
