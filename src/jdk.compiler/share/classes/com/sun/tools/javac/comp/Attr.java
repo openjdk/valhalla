@@ -4657,14 +4657,16 @@ public class Attr extends JCTree.Visitor {
                 // except for three situations:
                 owntype = sym.type;
                 if (owntype.hasTag(CLASS)) {
-                    Assert.check(owntype.getFlavor() != Flavor.X_Typeof_X);
+                    if (allowPrimitiveClasses) {
+                        Assert.check(owntype.getFlavor() != Flavor.X_Typeof_X);
+                    }
                     chk.checkForBadAuxiliaryClassAccess(tree.pos(), env, (ClassSymbol)sym);
                     Type ownOuter = owntype.getEnclosingType();
 
                     // (a) If symbol is a primitive class and its reference projection
                     // is requested via the .ref notation, then adjust the computed type to
                     // reflect this.
-                    if (owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
+                    if (allowPrimitiveClasses && owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
                         owntype = new ClassType(owntype.getEnclosingType(), owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), Flavor.L_TypeOf_Q);
                     }
 
