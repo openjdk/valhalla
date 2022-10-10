@@ -920,7 +920,7 @@ public:
     fields[AllocSize]   = TypeInt::POS;
     fields[KlassNode]   = TypeInstPtr::NOTNULL;
     fields[InitialTest] = TypeInt::BOOL;
-    fields[ALength]     = t;  // length (can be a bad length) 
+    fields[ALength]     = t;  // length (can be a bad length)
     fields[ValidLengthTest] = TypeInt::BOOL;
     fields[InlineType] = Type::BOTTOM;
     fields[DefaultValue] = TypeInstPtr::NOTNULL;
