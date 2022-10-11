@@ -40,7 +40,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /
  * @compile InlineTypes.java
  * @compile -XDenablePrimitiveClasses TestBasicFunctionality.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestBasicFunctionality
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestBasicFunctionality
  */
 
 @ForceCompileClassInitializer

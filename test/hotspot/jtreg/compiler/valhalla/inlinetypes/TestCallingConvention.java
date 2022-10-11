@@ -44,7 +44,7 @@ import jdk.internal.value.PrimitiveClass;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses TestCallingConvention.java
- * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestCallingConvention
+ * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConvention
  */
 
 @ForceCompileClassInitializer

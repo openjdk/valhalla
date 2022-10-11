@@ -26,11 +26,7 @@
 /*
  * @test
  * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccess$Type$.java
-#if[Point]
- * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccess$Type$
-#else[Point]
- * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccess$Type$
-#end[Point]
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=2000 VarHandleTestMethodHandleAccess$Type$
  */
 
 import org.testng.annotations.BeforeClass;

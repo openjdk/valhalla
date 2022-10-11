@@ -27,7 +27,7 @@
  * @bug 8281279
  * @summary test that a value class cannot sub-class an identity class
  * @compile ACCICCETests.jcod
- * @run main/othervm -XX:+EnableValhalla ACC_ICCETest
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses ACC_ICCETest
  */
 
 public class ACC_ICCETest {

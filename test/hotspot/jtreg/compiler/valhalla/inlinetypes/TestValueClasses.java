@@ -47,7 +47,7 @@ import jdk.internal.value.PrimitiveClass;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @build test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDenablePrimitiveClasses TestValueClasses.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestValueClasses
  */
 
 @ForceCompileClassInitializer

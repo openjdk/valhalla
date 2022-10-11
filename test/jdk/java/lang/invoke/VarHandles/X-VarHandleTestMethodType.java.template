@@ -27,11 +27,18 @@
  * @test
  * @bug 8156486
  * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodType$Type$.java
+#if[Point]
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses VarHandleTestMethodType$Type$
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodType$Type$
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false VarHandleTestMethodType$Type$
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodType$Type$
+#else[Point]
  * @run testng/othervm VarHandleTestMethodType$Type$
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=true -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodType$Type$
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=false VarHandleTestMethodType$Type$
  * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false -Djava.lang.invoke.VarHandle.VAR_HANDLE_IDENTITY_ADAPT=true VarHandleTestMethodType$Type$
- */
+#end[Point]
+*/
 
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;

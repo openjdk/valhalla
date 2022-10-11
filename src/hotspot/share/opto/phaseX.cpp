@@ -1614,10 +1614,10 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
 
     // Inline type nodes can have other inline types as users. If an input gets
     // updated, make sure that inline type users get a chance for optimization.
-    if (use->is_InlineTypeBase()) {
+    if (use->is_InlineType()) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
         Node* u = use->fast_out(i2);
-        if (u->is_InlineTypeBase())
+        if (u->is_InlineType())
           _worklist.push(u);
       }
     }
@@ -1662,6 +1662,16 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
         if (imem != NULL)  add_users_to_worklist0(imem);
       }
     }
+    // If the ValidLengthTest input changes then the fallthrough path out of the AllocateArray may have become dead.
+    // CatchNode::Value() is responsible for killing that path. The CatchNode has to be explicitly enqueued for igvn
+    // to guarantee the change is not missed.
+    if (use_op == Op_AllocateArray && n == use->in(AllocateNode::ValidLengthTest)) {
+      Node* p = use->as_AllocateArray()->proj_out_or_null(TypeFunc::Control);
+      if (p != NULL) {
+        add_users_to_worklist0(p);
+      }
+    }
+
     if (use_op == Op_Initialize) {
       Node* imem = use->as_Initialize()->proj_out_or_null(TypeFunc::Memory);
       if (imem != NULL)  add_users_to_worklist0(imem);
@@ -1893,6 +1903,7 @@ void PhaseCCP::push_phis(Unique_Node_List& worklist, const Node* use) const {
 
 // If we changed the receiver type to a call, we need to revisit the Catch node following the call. It's looking for a
 // non-NULL receiver to know when to enable the regular fall-through path in addition to the NullPtrException path.
+// Same is true if the type of a ValidLengthTest input to an AllocateArrayNode changes.
 void PhaseCCP::push_catch(Unique_Node_List& worklist, const Node* use) {
   if (use->is_Call()) {
     for (DUIterator_Fast imax, i = use->fast_outs(imax); i < imax; i++) {

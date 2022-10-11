@@ -26,7 +26,7 @@
 /*
  * @test
  * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccessByte.java
- * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessByte
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=2000 VarHandleTestMethodHandleAccessByte
  */
 
 import org.testng.annotations.BeforeClass;

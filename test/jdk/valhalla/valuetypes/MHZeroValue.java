@@ -25,8 +25,8 @@
 /*
  * @test
  * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses MHZeroValue.java
- * @run testng/othervm --enable-preview -XX:InlineFieldMaxFlatSize=128 MHZeroValue
- * @run testng/othervm --enable-preview -XX:InlineFieldMaxFlatSize=0 MHZeroValue
+ * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=128 MHZeroValue
+ * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=0 MHZeroValue
  * @summary Test MethodHandles::zero, MethodHandles::empty and MethodHandles::constant
  *          on value classes.
  */

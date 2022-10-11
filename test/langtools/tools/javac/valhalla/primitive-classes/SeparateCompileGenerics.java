@@ -29,7 +29,7 @@
  * @summary Separate compilation failure of generic inline class
  * @compile -XDenablePrimitiveClasses Range.java
  * @compile -XDenablePrimitiveClasses SeparateCompileGenerics.java
- * @run main SeparateCompileGenerics
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SeparateCompileGenerics
  */
 
 public class SeparateCompileGenerics {

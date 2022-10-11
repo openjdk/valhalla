@@ -38,17 +38,16 @@ public class ValuePreloadTest {
 
     static ProcessBuilder exec(String... args) throws Exception {
         List<String> argsList = new ArrayList<>();
+        Collections.addAll(argsList, "-XX:+EnableValhalla", "-XX:-EnablePrimitiveClasses");
         Collections.addAll(argsList, "-Dtest.class.path=" + System.getProperty("test.class.path", "."));
         Collections.addAll(argsList, args);
         return ProcessTools.createJavaProcessBuilder(argsList);
     }
 
-    static void checkFor(ProcessBuilder pb, String... outputStrings) throws Exception {
+    static void checkFor(ProcessBuilder pb, String expected) throws Exception {
         OutputAnalyzer out = new OutputAnalyzer(pb.start());
-        for (String s: outputStrings) {
-            out.shouldContain(s);
-        }
         out.shouldHaveExitValue(0);
+        out.shouldContain(expected);
     }
 
     public static void main(String[] args) throws Exception {
