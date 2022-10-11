@@ -818,7 +818,7 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (sym.isConstructor()  && sym.type.getParameterTypes().size() == 0) {
+                    if (sym.isInitOrVNew()  && sym.type.getParameterTypes().size() == 0) {
                         int code_length = buf.getInt(bp + 4);
                         if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
                                 (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
@@ -1008,7 +1008,7 @@ public class ClassReader {
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
                         // Map value class factory methods back to constructors for the benefit of earlier pipeline stages
-                        if (sym.kind == MTH  && sym.name == names.init && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
+                        if (sym.kind == MTH  && sym.name == names.vnew && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -1359,7 +1359,7 @@ public class ClassReader {
                 return (MethodSymbol)sym;
         }
 
-        if (nt.name != names.init)
+        if (!names.isInitOrVNew(nt.name))
             // not a constructor
             return null;
         if ((flags & INTERFACE) != 0)
@@ -2272,7 +2272,7 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
-        if (name == names.init && ((flags & STATIC) != 0)) {
+        if (names.isInitOrVNew(name) && ((flags & STATIC) != 0)) {
             flags &= ~STATIC;
             type = new MethodType(type.getParameterTypes(),
                     syms.voidType,
@@ -2280,7 +2280,7 @@ public class ClassReader {
                     syms.methodClass);
         }
         validateMethodType(name, type);
-        if (name == names.init && currentOwner.hasOuterInstance()) {
+        if (names.isInitOrVNew(name) && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2323,7 +2323,7 @@ public class ClassReader {
 
     void validateMethodType(Name name, Type t) {
         if ((!t.hasTag(TypeTag.METHOD) && !t.hasTag(TypeTag.FORALL)) ||
-            (name == names.init && !t.getReturnType().hasTag(TypeTag.VOID))) {
+            ((name == names.init || name ==names.vnew) && !t.getReturnType().hasTag(TypeTag.VOID))) {
             throw badClassFile("method.descriptor.invalid", name);
         }
     }
@@ -2393,7 +2393,7 @@ public class ClassReader {
             // the first parameter.  Note that this assumes the
             // skipped parameter has a width of 1 -- i.e. it is not
             // a double width type (long or double.)
-            if (sym.name == names.init && currentOwner.hasOuterInstance()) {
+            if (names.isInitOrVNew(sym.name) && currentOwner.hasOuterInstance()) {
                 // Sometimes anonymous classes don't have an outer
                 // instance, however, there is no reliable way to tell so
                 // we never strip this$n

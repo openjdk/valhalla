@@ -160,8 +160,8 @@ public interface MethodHandleInfo {
 
     /**
      * Returns the name of the cracked method handle's underlying member.
-     * This is {@code "<init>"} if the underlying member was a constructor,
-     * else it is a simple method name or field name.
+     * This is {@code "<init>"} or {@code "<vnew>"} if the underlying member
+     * was a constructor, else it is a simple method name or field name.
      * @return the simple name of the underlying member
      */
     public String getName();

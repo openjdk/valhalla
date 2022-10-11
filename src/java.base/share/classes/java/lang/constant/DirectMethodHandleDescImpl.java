@@ -64,7 +64,7 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
      */
     DirectMethodHandleDescImpl(Kind kind, ClassDesc owner, String name, MethodTypeDesc type) {
         if (kind == CONSTRUCTOR)
-            name = "<init>";
+            name = owner.isPrimitiveValueType() ? "<vnew>" : "<init>";
 
         requireNonNull(kind);
         validateClassOrInterface(requireNonNull(owner));

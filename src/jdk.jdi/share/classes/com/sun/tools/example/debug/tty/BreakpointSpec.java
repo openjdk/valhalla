@@ -215,6 +215,7 @@ class BreakpointSpec extends EventRequestSpec {
     private boolean isValidMethodName(String s) {
         return isJavaIdentifier(s) ||
                s.equals("<init>") ||
+               s.equals("<vnew>") ||
                s.equals("<clinit>");
     }
 

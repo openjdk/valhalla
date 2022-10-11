@@ -109,11 +109,12 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                      int modifiers,
                                      Class<?> targetConstructorClass)
     {
+        boolean isValueClass = declaringClass.isValue();
         return (SerializationConstructorAccessorImpl)
             generate(declaringClass,
-                     "<init>",
+                     isValueClass ? "<vnew>" : "<init>",
                      parameterTypes,
-                     Void.TYPE,
+                     isValueClass ? declaringClass : Void.TYPE,
                      modifiers,
                      true,
                      false,
@@ -178,7 +179,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         // +   [CONSTANT_Class_info] for above
         // +   [UTF-8] "java/lang/InvocationTargetException"
         // +   [CONSTANT_Class_info] for above
-        // +   [UTF-8] "<init>"
+        // +   [UTF-8] "<init>" or "<vnew>"
         // +   [UTF-8] "()V"
         // +   [CONSTANT_NameAndType_info] for above
         // +   [CONSTANT_Methodref_info] for NullPointerException's constructor
