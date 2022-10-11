@@ -2597,12 +2597,6 @@ assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
          */
         public MethodHandle findStatic(Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
             MemberName method = resolveOrFail(REF_invokeStatic, refc, name, type);
-            // resolveOrFail could return a non-static <vnew> method if present
-            // detect and throw NSME before producing a MethodHandle
-            if (!method.isStatic() && name.equals("<vnew>")) {
-                throw new NoSuchMethodException("illegal method name: " + name);
-            }
-
             return getDirectMethod(REF_invokeStatic, refc, method, findBoundCallerLookup(method));
         }
 
@@ -3704,6 +3698,12 @@ return mh1;
             return IMPL_NAMES.resolveOrNull(refKind, member, lookupClassOrNull(), allowedModes);
         }
 
+        boolean isIllegalSpecialName(byte refKind, String name) {
+            return (name.startsWith("<") &&
+            ((name.equals("<init>") && refKind != REF_newInvokeSpecial) ||
+            ((name.equals("<vnew>") || name.equals("<clinit>")) && refKind != REF_invokeStatic)));
+        }
+
         MemberName resolveOrNull(byte refKind, Class<?> refc, String name, MethodType type) {
             // do this before attempting to resolve
             if (!isClassAccessible(refc)) {
@@ -3711,7 +3711,7 @@ return mh1;
             }
             Objects.requireNonNull(type);
             // implicit null-check of name
-            if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
+            if (isIllegalSpecialName(refKind, name)) {
                 return null;
             }
             return IMPL_NAMES.resolveOrNull(refKind, new MemberName(refc, name, type, refKind), lookupClassOrNull(), allowedModes);
@@ -3735,10 +3735,9 @@ return mh1;
 
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            // "<init>" can only be invoked via invokespecial or it's a static init factory
-            if (name.startsWith("<") && refKind != REF_newInvokeSpecial &&
-                    !(refKind == REF_invokeStatic && (name.equals("<init>") || name.equals("<vnew>")))) {
-                    throw new NoSuchMethodException("illegal method name: " + name);
+            // "<init>" can only be invoked via invokespecial or it's a static <vnew> factory
+            if (isIllegalSpecialName(refKind, name)) {
+                throw new NoSuchMethodException("illegal method name: " + name);
             }
         }
 
