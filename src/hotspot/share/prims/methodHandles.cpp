@@ -816,13 +816,12 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller, int lookup
       LinkInfo link_info(defc, name, type, caller, access_check, loader_constraint_check);
       {
         assert(!HAS_PENDING_EXCEPTION, "");
-        if (name != vmSymbols::object_initializer_name()) {
-          break;                // will throw after end of switch
-        } else if (type->is_void_method_signature()) {
+        if (name == vmSymbols::object_initializer_name() && type->is_void_method_signature()) {
           LinkResolver::resolve_special_call(result, Handle(), link_info, THREAD);
-        } else {
-          // LinkageError unless it returns something reasonable
+        } else if (name == vmSymbols::inline_factory_name()) {
           LinkResolver::resolve_static_call(result, link_info, false, THREAD);
+        } else {
+          break;                // will throw after end of switch
         }
         if (HAS_PENDING_EXCEPTION) {
           if (speculative_resolve) {

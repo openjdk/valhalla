@@ -2597,9 +2597,9 @@ assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
          */
         public MethodHandle findStatic(Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
             MemberName method = resolveOrFail(REF_invokeStatic, refc, name, type);
-            // resolveOrFail could return a non-static <init> method if present
+            // resolveOrFail could return a non-static <vnew> method if present
             // detect and throw NSME before producing a MethodHandle
-            if (!method.isStatic() && (name.equals("<init>") || name.equals("<vnew>"))) {
+            if (!method.isStatic() && name.equals("<vnew>")) {
                 throw new NoSuchMethodException("illegal method name: " + name);
             }
 
@@ -4013,7 +4013,7 @@ return mh1;
                 !refc.isInterface() &&
                 refc != lookupClass().getSuperclass() &&
                 refc.isAssignableFrom(lookupClass())) {
-                assert(!method.getName().equals("<init>") && !method.getName().equals("<vnew>"));  // not this code path
+                assert(!method.getName().equals("<init>"));  // not this code path
 
                 // Per JVMS 6.5, desc. of invokespecial instruction:
                 // If the method is in a superclass of the LC,
