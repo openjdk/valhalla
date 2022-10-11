@@ -92,8 +92,8 @@ final class ValueObjectMethods {
             }
         }
 
-        static MethodHandle basicPrimitiveEquals(Class<?> valueType) {
-            return primitiveEquals.get(valueType);
+        static MethodHandle basicPrimitiveEquals(Class<?> type) {
+            return primitiveEquals.get(type);
         }
 
         /*
