@@ -222,7 +222,7 @@ public class InlineTypesTest {
                     .invokestatic(System.class, "gc", "()V", false)
                     .new_(containerClass)
                     .dup()
-                    .invoke(MacroCodeBuilder.InvocationKind.INVOKESPECIAL, containerClass, "<init>", "()V", false)
+                    .invoke(MacroCodeBuilder.InvocationKind.INVOKESTATIC, containerClass, "<vnew>", "()V", false)
                     .astore_1()
                     .ldc(ITERATIONS * 3)
                     .anewarray(inlineClass)

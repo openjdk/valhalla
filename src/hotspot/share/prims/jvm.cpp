@@ -1819,7 +1819,7 @@ JVM_END
 
 static bool select_method(const methodHandle& method, bool want_constructor) {
   bool is_ctor = (method->is_object_constructor() ||
-                  method->is_static_init_factory());
+                  method->is_static_vnew_factory());
   if (want_constructor) {
     return is_ctor;
   } else {
@@ -1889,7 +1889,7 @@ static jobjectArray get_class_declared_methods_helper(
       oop m;
       if (want_constructor) {
         assert(method->is_object_constructor() ||
-               method->is_static_init_factory(), "must be");
+               method->is_static_vnew_factory(), "must be");
         m = Reflection::new_constructor(method, CHECK_NULL);
       } else {
         m = Reflection::new_method(method, false, CHECK_NULL);
@@ -2172,7 +2172,7 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
     THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
-  if (m->is_object_constructor() || m->is_static_init_factory()) {
+  if (m->is_object_constructor() || m->is_static_vnew_factory()) {
     method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     method = Reflection::new_method(m, true, CHECK_NULL);

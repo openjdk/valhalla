@@ -74,7 +74,7 @@ class PrimitiveSuperNotAbstract {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()QPrimitiveSuperNotAbstract;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "PrimitiveSuperNotAbstract.java"; // #36     at 0x019E
@@ -334,7 +334,7 @@ class PrimitiveSuperHasNonStaticFields {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()QPrimitiveSuperHasNonStaticFields;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "PrimitiveSuperHasNonStaticFields.java"; // #36     at 0x019E
@@ -594,7 +594,7 @@ class PrimitiveSuperHasSynchMethod {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()QPrimitiveSuperHasSynchMethod;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "PrimitiveSuperHasSynchMethod.java"; // #36     at 0x019E
@@ -853,7 +853,7 @@ class PrimitiveSuperCtorHasArgs {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()QPrimitiveSuperCtorHasArgs;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "PrimitiveSuperCtorHasArgs.java"; // #36     at 0x019E
@@ -1114,7 +1114,7 @@ class PrimitiveSuperCtorIsNotEmpty {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()QPrimitiveSuperCtorIsNotEmpty;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "PrimitiveSuperCtorIsNotEmpty.java"; // #36     at 0x019E
@@ -1374,7 +1374,7 @@ class ValueSuperNotAbstract {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()LValueSuperNotAbstract;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "ValueSuperNotAbstract.java"; // #36     at 0x019E
@@ -1634,7 +1634,7 @@ class ValueSuperHasNonStaticFields {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()LValueSuperHasNonStaticFields;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "ValueSuperHasNonStaticFields.java"; // #36     at 0x019E
@@ -1894,7 +1894,7 @@ class ValueSuperHasSynchMethod {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()LValueSuperHasSynchMethod;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "ValueSuperHasSynchMethod.java"; // #36     at 0x019E
@@ -2153,7 +2153,7 @@ class ValueSuperCtorHasArgs {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()LValueSuperCtorHasArgs;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "ValueSuperCtorHasArgs.java"; // #36     at 0x019E
@@ -2414,7 +2414,7 @@ class ValueSuperCtorIsNotEmpty {
     Utf8 "getY"; // #30     at 0x013B
     Utf8 "(Ljava/lang/Object;)Z"; // #31     at 0x0142
     Utf8 "()Ljava/lang/String;"; // #32     at 0x015A
-    Utf8 "<init>"; // #33     at 0x0171
+    Utf8 "<vnew>"; // #33     at 0x0171
     Utf8 "()LValueSuperCtorIsNotEmpty;"; // #34     at 0x017A
     Utf8 "SourceFile"; // #35     at 0x0191
     Utf8 "ValueSuperCtorIsNotEmpty.java"; // #36     at 0x019E

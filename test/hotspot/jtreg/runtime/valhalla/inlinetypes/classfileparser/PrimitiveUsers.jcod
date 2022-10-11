@@ -496,7 +496,7 @@ class MyPrimitive {
     class #4; // #2
     NameAndType #5 #6; // #3
     Utf8 "MyPrimitive"; // #4
-    Utf8 "<init>"; // #5
+    Utf8 "<vnew>"; // #5
     Utf8 "(I)QMyPrimitive;"; // #6
     Field #2 #8; // #7
     NameAndType #9 #10; // #8
