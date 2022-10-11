@@ -131,7 +131,7 @@
   do_klass(Context_klass,                               java_lang_invoke_MethodHandleNatives_CallSiteContext  ) \
   do_klass(ConstantCallSite_klass,                      java_lang_invoke_ConstantCallSite                     ) \
   do_klass(MutableCallSite_klass,                       java_lang_invoke_MutableCallSite                      ) \
-  do_klass(PrimitiveObjectMethods_klass,                java_lang_runtime_PrimitiveObjectMethods              ) \
+  do_klass(ValueObjectMethods_klass,                    java_lang_runtime_ValueObjectMethods                  ) \
   do_klass(VolatileCallSite_klass,                      java_lang_invoke_VolatileCallSite                     ) \
                                                                                                                 \
   do_klass(AssertionStatusDirectives_klass,             java_lang_AssertionStatusDirectives                   ) \

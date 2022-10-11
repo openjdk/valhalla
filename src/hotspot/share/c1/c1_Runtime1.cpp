@@ -521,7 +521,7 @@ JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* current, oopDesc* le
   args.push_oop(Handle(THREAD, right));
   JavaValue result(T_BOOLEAN);
   JavaCalls::call_static(&result,
-                         vmClasses::PrimitiveObjectMethods_klass(),
+                         vmClasses::ValueObjectMethods_klass(),
                          vmSymbols::isSubstitutable_name(),
                          vmSymbols::object_object_boolean_signature(),
                          &args, CHECK_0);
