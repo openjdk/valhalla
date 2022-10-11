@@ -178,13 +178,13 @@ final class ValueObjectMethods {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;
             if (a.getClass() != b.getClass()) return false;
-            return a.getClass().isValue() ? valueEqual(a, b) : (a == b);
+            return a.getClass().isValue() ? valueEquals(a, b) : (a == b);
         }
 
         /*
          * Returns true if two value objects are substitutable.
          */
-        private static boolean valueEqual(Object a, Object b) {
+        private static boolean valueEquals(Object a, Object b) {
             assert a != null && b != null && isSameValueClass(a, b);
             try {
                 Class<?> type = a.getClass();
