@@ -2435,7 +2435,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   if (name == vmSymbols::object_initializer_name()) {
     if (is_interface) {
       classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
-    } else if (!is_value_class && signature->is_void_method_signature()) {
+    } else if ((!is_value_class || is_abstract_class) && signature->is_void_method_signature()) {
       // OK, a constructor
     } else {
       // not OK, so throw the same error as in verify_legal_method_signature.
