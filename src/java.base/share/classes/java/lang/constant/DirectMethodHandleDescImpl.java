@@ -63,9 +63,10 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
      * @jvms 4.2.2 Unqualified Names
      */
     DirectMethodHandleDescImpl(Kind kind, ClassDesc owner, String name, MethodTypeDesc type) {
-        if (kind == CONSTRUCTOR)
-            name = "<init>";
-
+        if (kind == CONSTRUCTOR) {
+            // TODO: missing "value objects", they don't use Q-type desc
+            name = owner.descriptorString().startsWith("Q") ? "<vnew>" : "<init>";
+        }
         requireNonNull(kind);
         validateClassOrInterface(requireNonNull(owner));
         validateMemberName(requireNonNull(name), true);
