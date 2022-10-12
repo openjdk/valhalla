@@ -42,6 +42,7 @@
   class   ConstantPoolCache; // no C++ vtable
   class   ConstMethod;       // no C++ vtable
   class   MethodCounters;    // no C++ vtable
+  class   MultiFieldInfo;    // no C++ vtable
   class   Symbol;            // no C++ vtable
   class   Metadata;          // has C++ vtable (so do all subclasses)
   class     ConstantPool;

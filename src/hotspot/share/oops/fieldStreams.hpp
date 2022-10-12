@@ -42,6 +42,7 @@ class FieldStreamBase : public StackObj {
  protected:
   Array<u2>*          _fields;
   constantPoolHandle  _constants;
+  Array<MultiFieldInfo>* _multifield_info;
   int                 _index;
   int                 _limit;
   int                 _generic_signature_slot;
@@ -79,9 +80,9 @@ class FieldStreamBase : public StackObj {
     return num_fields;
   }
 
-  inline FieldStreamBase(Array<u2>* fields, ConstantPool* constants, int start, int limit);
+  inline FieldStreamBase(Array<u2>* fields, ConstantPool* constants, Array<MultiFieldInfo>* multifield_info, int start, int limit );
 
-  inline FieldStreamBase(Array<u2>* fields, ConstantPool* constants);
+  inline FieldStreamBase(Array<u2>* fields, ConstantPool* constants, Array<MultiFieldInfo>* multifield_info);
  public:
   inline FieldStreamBase(InstanceKlass* klass);
 
@@ -114,7 +115,11 @@ class FieldStreamBase : public StackObj {
   }
 
   Symbol* name() const {
-    return field()->name(_constants());
+    return field()->name(_multifield_info, _constants());
+  }
+
+  int name_index() const {
+    return field()->name_index();
   }
 
   Symbol* signature() const {
@@ -155,6 +160,32 @@ class FieldStreamBase : public StackObj {
     return field()->is_contended();
   }
 
+  bool is_multifield() const {
+    return field()->is_multifield();
+  }
+
+  bool is_multifield_base() const {
+    return field()->is_multifield_base();
+  }
+
+  u2 multifield_base() const {
+    assert(field()->is_multifield() || field()->is_multifield_base(), "Must be");
+    if (field()->is_multifield_base()) {
+      return index();
+    } else {
+      return _multifield_info->at(field()->secondary_index()).base_index();
+    }
+  }
+
+  jbyte multifield_index() const {
+    assert(field()->is_multifield() || field()->is_multifield_base(), "Must be");
+    if (field()->is_multifield_base()) {
+      return 0;
+    } else {
+      return _multifield_info->at(field()->secondary_index()).multifield_index();
+    }
+  }
+
   int contended_group() const {
     return field()->contended_group();
   }
@@ -170,7 +201,7 @@ class FieldStreamBase : public StackObj {
 // Iterate over only the internal fields
 class JavaFieldStream : public FieldStreamBase {
  public:
-  JavaFieldStream(const InstanceKlass* k): FieldStreamBase(k->fields(), k->constants(), 0, k->java_fields_count()) {}
+  JavaFieldStream(const InstanceKlass* k): FieldStreamBase(k->fields(), k->constants(), k->multifield_info(), 0, k->java_fields_count()) {}
 
   int name_index() const {
     assert(!field()->is_internal(), "regular only");
@@ -218,14 +249,14 @@ class JavaFieldStream : public FieldStreamBase {
 // Iterate over only the internal fields
 class InternalFieldStream : public FieldStreamBase {
  public:
-  InternalFieldStream(InstanceKlass* k):      FieldStreamBase(k->fields(), k->constants(), k->java_fields_count(), 0) {}
+  InternalFieldStream(InstanceKlass* k): FieldStreamBase(k->fields(), k->constants(), k->multifield_info(), k->java_fields_count(), 0) {}
 };
 
 
 class AllFieldStream : public FieldStreamBase {
  public:
-  AllFieldStream(Array<u2>* fields, ConstantPool* constants): FieldStreamBase(fields, constants) {}
-  AllFieldStream(InstanceKlass* k):      FieldStreamBase(k->fields(), k->constants()) {}
+  AllFieldStream(Array<u2>* fields, ConstantPool* constants, Array<MultiFieldInfo>* multifield_info): FieldStreamBase(fields, constants, multifield_info) {}
+  AllFieldStream(InstanceKlass* k):      FieldStreamBase(k->fields(), k->constants(), k->multifield_info()) {}
 };
 
 #endif // SHARE_OOPS_FIELDSTREAMS_HPP

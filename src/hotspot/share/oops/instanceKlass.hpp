@@ -132,6 +132,22 @@ struct JvmtiCachedClassFileData;
 
 class SigEntry;
 
+class MultiFieldInfo : public MetaspaceObj {
+ private:
+  Symbol* _name;
+  u2 _base_index;
+  jbyte _multifield_index;
+ public:
+  MultiFieldInfo() : _name(NULL), _base_index(0), _multifield_index(-1) {}
+  MultiFieldInfo(Symbol* name, u2 base, jbyte index) : _name(name), _base_index(base), _multifield_index(index) {}
+  Symbol* name() const { return _name; }
+  u2 base_index() const { return _base_index; }
+  jbyte multifield_index() const { return _multifield_index; }
+  FieldInfo* base_field_info(InstanceKlass* ik);
+  void metaspace_pointers_do(MetaspaceClosure* it);
+  MetaspaceObj::Type type() const { return MultiFieldInfoType; }
+};
+
 class InlineKlassFixedBlock {
   Array<SigEntry>** _extended_sig;
   Array<VMRegPair>** _return_regs;
@@ -221,6 +237,9 @@ class InstanceKlass: public Klass {
 
   // The contents of the Record attribute.
   Array<RecordComponent*>* _record_components;
+
+  // Array containing meta-data generated for multifields
+  Array<MultiFieldInfo>* _multifield_info;
 
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
@@ -522,12 +541,13 @@ class InstanceKlass: public Klass {
 
  private:
   friend class fieldDescriptor;
+  friend class MultiFieldInfo;
   FieldInfo* field(int index) const { return FieldInfo::from_field_array(_fields, index); }
 
  public:
   int     field_offset      (int index) const { return field(index)->offset(); }
   int     field_access_flags(int index) const { return field(index)->access_flags(); }
-  Symbol* field_name        (int index) const { return field(index)->name(constants()); }
+  Symbol* field_name        (int index) const { return field(index)->name(multifield_info(), constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
   bool    field_is_inlined(int index) const { return field(index)->is_inlined(); }
   bool    field_is_null_free_inline_type(int index) const;
@@ -540,6 +560,17 @@ class InstanceKlass: public Klass {
     guarantee(_fields == NULL || f == NULL, "Just checking");
     _fields = f;
     _java_fields_count = java_fields_count;
+  }
+
+  Array<MultiFieldInfo>* multifield_info() const { return _multifield_info; }
+
+  MultiFieldInfo multifield_info(int i) const {
+    guarantee(_multifield_info != NULL, "Just checking");
+    return _multifield_info->at(i);
+  }
+  void set_multifield_info(Array<MultiFieldInfo>* array) {
+    assert(_multifield_info == NULL, "Must be initialized only once");
+    _multifield_info = array;
   }
 
   Array<u2>* preload_classes() const { return _preload_classes; }
