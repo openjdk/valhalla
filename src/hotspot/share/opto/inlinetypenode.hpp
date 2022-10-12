@@ -99,6 +99,7 @@ public:
   void  set_oop(Node* oop) { set_req(Oop, oop); }
   Node* get_is_init() const { return in(IsInit); }
   void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, gvn.intcon(1)); }
+  void  set_is_buffered() { _is_buffered = true; }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
