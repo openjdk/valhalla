@@ -1126,9 +1126,10 @@ Node* InlineTypeNode::Identity(PhaseGVN* phase) {
 }
 
 const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
-  const Type* toop = phase->type(get_oop());
+  Node* oop = get_oop();
+  const Type* toop = phase->type(oop);
 #ifdef ASSERT
-  if (toop->is_zero_type() && _type->isa_oopptr()->is_known_instance()) {
+  if (oop->is_Con() && toop->is_zero_type() && _type->isa_oopptr()->is_known_instance()) {
     // We are not allocated (anymore) and should therefore not have an instance id
     dump(1);
     assert(false, "Unbuffered inline type should not have known instance id");

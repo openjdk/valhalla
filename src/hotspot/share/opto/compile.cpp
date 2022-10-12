@@ -2007,49 +2007,61 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
     _inline_type_nodes.at(i)->as_InlineType()->make_scalar_in_safepoints(&igvn);
   }
   if (remove) {
-    // Remove inline type nodes
+    // Remove inline type nodes by replacing them with their oop input
     while (_inline_type_nodes.length() > 0) {
       InlineTypeNode* vt = _inline_type_nodes.pop()->as_InlineType();
       if (vt->outcnt() == 0) {
         igvn.remove_dead_node(vt);
-      } else if (vt->is_InlineType()) {
-        igvn.replace_node(vt, vt->get_oop());
-      } else {
+        continue;
+      }
+      for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
+        DEBUG_ONLY(bool must_be_buffered = false);
+        Node* u = vt->out(i);
         // Check if any users are blackholes. If so, rewrite them to use either the
         // allocated buffer, or individual components, instead of the inline type node
         // that goes away.
-        for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
-          if (vt->out(i)->is_Blackhole()) {
-            BlackholeNode* bh = vt->out(i)->as_Blackhole();
+        if (u->is_Blackhole()) {
+          BlackholeNode* bh = u->as_Blackhole();
 
-            // Unlink the old input
-            int idx = bh->find_edge(vt);
-            assert(idx != -1, "The edge should be there");
-            bh->del_req(idx);
-            --i;
+          // Unlink the old input
+          int idx = bh->find_edge(vt);
+          assert(idx != -1, "The edge should be there");
+          bh->del_req(idx);
+          --i;
 
-            if (vt->is_allocated(&igvn)) {
-              // Already has the allocated instance, blackhole that
-              bh->add_req(vt->get_oop());
-            } else {
-              // Not allocated yet, blackhole the components
-              for (uint c = 0; c < vt->field_count(); c++) {
-                bh->add_req(vt->field_value(c));
-              }
+          if (vt->is_allocated(&igvn)) {
+            // Already has the allocated instance, blackhole that
+            bh->add_req(vt->get_oop());
+          } else {
+            // Not allocated yet, blackhole the components
+            for (uint c = 0; c < vt->field_count(); c++) {
+              bh->add_req(vt->field_value(c));
             }
-
-            // Node modified, record for IGVN
-            igvn.record_for_igvn(bh);
           }
-        }
 
+          // Node modified, record for IGVN
+          igvn.record_for_igvn(bh);
+        }
 #ifdef ASSERT
-        for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
-          assert(vt->fast_out(i)->is_InlineType(), "Unexpected inline type user");
+        // Verify that inline type is buffered when replacing by oop
+        else if (u->is_InlineType()) {
+          InlineTypeNode* vt2 = u->as_InlineType();
+          for (uint i = 0; i < vt2->field_count(); ++i) {
+            if (vt2->field_value(i) == vt && !vt2->field_is_flattened(i)) {
+              // Use in non-flat field
+              must_be_buffered = true;
+            }
+          }
+        } else if (u->Opcode() != Op_Return || !tf()->returns_inline_type_as_fields()) {
+          must_be_buffered = true;
+        }
+        if (must_be_buffered && !vt->is_allocated(&igvn)) {
+          vt->dump(-3);
+          assert(false, "Should have been buffered");
         }
 #endif
-        igvn.replace_node(vt, igvn.C->top());
       }
+      igvn.replace_node(vt, vt->get_oop());
     }
   }
   igvn.optimize();

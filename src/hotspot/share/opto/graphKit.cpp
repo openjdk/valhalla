@@ -2940,8 +2940,9 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
 
 Node* GraphKit::gen_subtype_check(Node* obj_or_subklass, Node* superklass) {
   const Type* sub_t = _gvn.type(obj_or_subklass);
-  if (sub_t->isa_inlinetype()) {
-    obj_or_subklass = makecon(TypeKlassPtr::make(sub_t->inline_klass()));
+  if (sub_t->make_oopptr() != NULL && sub_t->make_oopptr()->is_inlinetypeptr()) {
+    sub_t = TypeKlassPtr::make(sub_t->inline_klass());
+    obj_or_subklass = makecon(sub_t);
   }
   bool expand_subtype_check = C->post_loop_opts_phase() ||   // macro node expansion is over
                               ExpandSubTypeCheckAtParseTime; // forced expansion
@@ -2949,7 +2950,7 @@ Node* GraphKit::gen_subtype_check(Node* obj_or_subklass, Node* superklass) {
     MergeMemNode* mem = merged_memory();
     Node* ctrl = control();
     Node* subklass = obj_or_subklass;
-    if (!sub_t->isa_klassptr() && !sub_t->isa_inlinetype()) {
+    if (!sub_t->isa_klassptr()) {
       subklass = load_object_klass(obj_or_subklass);
     }
     Node* n = Phase::gen_subtype_check(subklass, superklass, &ctrl, mem, _gvn);
@@ -2970,7 +2971,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
   assert(!klass->is_interface(), "no exact type check on interfaces");
   Node* fail = top();
   const Type* rec_t = _gvn.type(receiver);
-  if (rec_t->isa_inlinetype()) {
+  if (rec_t->is_inlinetypeptr()) {
     if (klass->equals(rec_t->inline_klass())) {
       (*casted_receiver) = receiver; // Always passes
     } else {
@@ -3425,6 +3426,13 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   bool speculative_not_null = false;
   bool never_see_null = ((failure_control == NULL)  // regular case only
                          && seems_never_null(obj, data, speculative_not_null));
+
+  if (obj->is_InlineType()) {
+    // Re-execute if buffering during triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    obj = obj->as_InlineType()->buffer(this, safe_for_replace);
+  }
 
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
