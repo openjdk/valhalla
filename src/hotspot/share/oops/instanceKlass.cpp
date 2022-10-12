@@ -164,6 +164,14 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
+  FieldInfo* MultiFieldInfo::base_field_info(InstanceKlass* ik) {
+    return ik->field(_base_index);
+  }
+
+  void MultiFieldInfo::metaspace_pointers_do(MetaspaceClosure* it) {
+    it->push(&_name);
+  }
+
 bool InstanceKlass::field_is_null_free_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_PRIMITIVE_OBJECT; }
 
 static inline bool is_stack_chunk_class(const Symbol* class_name,
@@ -540,6 +548,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, KlassKind kind, Refe
   _nest_host(NULL),
   _permitted_subclasses(NULL),
   _record_components(NULL),
+  _multifield_info(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
@@ -744,6 +753,10 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
     MetadataFactory::free_metadata(loader_data, annotations());
   }
   set_annotations(NULL);
+
+  if (_multifield_info != NULL && !_multifield_info->is_shared()) {
+    MetadataFactory::free_array<MultiFieldInfo>(loader_data, _multifield_info);
+  }
 
   SystemDictionaryShared::handle_class_unloading(this);
 }
@@ -2647,6 +2660,9 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_permitted_subclasses);
   it->push(&_preload_classes);
   it->push(&_record_components);
+  if(_multifield_info != NULL) {
+    it->push(&_multifield_info);
+  }
 
   if (has_inline_type_fields()) {
     for (int i = 0; i < java_fields_count(); i++) {
@@ -2697,7 +2713,7 @@ void InstanceKlass::remove_unshareable_info() {
   }
 
   if (has_inline_type_fields()) {
-    for (AllFieldStream fs(fields(), constants()); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         reset_inline_type_field_klass(fs.index());
       }

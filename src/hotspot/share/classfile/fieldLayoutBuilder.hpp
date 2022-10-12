@@ -58,7 +58,8 @@ class LayoutRawBlock : public ResourceObj {
     PADDING,          // padding (because of alignment constraints or @Contended)
     REGULAR,          // primitive or oop field (including inline type fields not inlined)
     INLINED,          // field inlined
-    INHERITED         // field(s) inherited from super classes
+    INHERITED,        // field(s) inherited from super classes
+    MULTIFIELD        // fields part of a multi-field
   };
 
  private:
@@ -71,10 +72,11 @@ class LayoutRawBlock : public ResourceObj {
   int _size;
   int _field_index;
   bool _is_reference;
+  jbyte _multifield_index;
 
  public:
   LayoutRawBlock(Kind kind, int size);
-  LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference = false);
+  LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference, jbyte multifield_index);
   LayoutRawBlock* next_block() const { return _next_block; }
   void set_next_block(LayoutRawBlock* next) { _next_block = next; }
   LayoutRawBlock* prev_block() const { return _prev_block; }
@@ -93,6 +95,7 @@ class LayoutRawBlock : public ResourceObj {
     return _field_index;
   }
   bool is_reference() const { return _is_reference; }
+  jbyte multifield_index() const { return _multifield_index; }
   InlineKlass* inline_klass() const {
     assert(_inline_klass != NULL, "Must be initialized");
     return _inline_klass;
@@ -120,7 +123,39 @@ class LayoutRawBlock : public ResourceObj {
   }
 };
 
-// A Field group represents a set of fields that have to be allocated together,
+class MultiFieldGroup : public ResourceObj {
+ private:
+  u2 _multifield_base;
+  Symbol* _signature;
+  int _group_size;
+  int _group_alignment;
+  GrowableArray<LayoutRawBlock*>* _fields;
+  // total size and alignment?
+
+ public:
+  MultiFieldGroup(u2 base, Symbol* signature);
+
+  u2 multifield_base() const { return _multifield_base; }
+  Symbol* signature() const { return _signature; }
+  int group_size() const { return _group_size; }
+  void set_group_size(int size) { _group_size = size; }
+  int group_alignment() const { return _group_alignment; }
+  void set_group_alignment(int alignment) { _group_alignment = alignment; }
+  GrowableArray<LayoutRawBlock*>* fields() const { return _fields; }
+  void add_field(AllFieldStream fs, InlineKlass* vk);
+    static int compare_multifield_index(LayoutRawBlock** x, LayoutRawBlock** y) {
+     return (*x)->multifield_index() - (*y)->multifield_index();
+  }
+  static int compare_multifield_groups_inverted(MultiFieldGroup** x, MultiFieldGroup** y) {
+    int diff = (*y)->group_size() - (*x)->group_size();
+    if (diff == 0) {
+      diff = (*y)->group_alignment() - (*x)->group_alignment();
+    }
+    return diff;
+  }
+};
+
+// A FieldGroup represents a set of fields that have to be allocated together,
 // this is the way the @Contended annotation is supported.
 // Inside a FieldGroup, fields are sorted based on their kind: primitive,
 // oop, or inlined.
@@ -133,6 +168,7 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* _small_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _big_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
+  GrowableArray<MultiFieldGroup*>* _multifields;
   int _contended_group;
   int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
@@ -145,12 +181,14 @@ class FieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* small_primitive_fields() const { return _small_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* big_primitive_fields() const { return _big_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
+  GrowableArray<MultiFieldGroup*>* multifields() const { return _multifields; }
   int contended_group() const { return _contended_group; }
   int oop_count() const { return _oop_count; }
 
   void add_primitive_field(AllFieldStream fs, BasicType type);
   void add_oop_field(AllFieldStream fs);
   void add_inlined_field(AllFieldStream fs, InlineKlass* vk);
+  void add_multifield(AllFieldStream fs, Array<MultiFieldInfo>* multifield_info, InlineKlass* vk = NULL);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
  private:
@@ -178,12 +216,13 @@ class FieldLayout : public ResourceObj {
  private:
   Array<u2>* _fields;
   ConstantPool* _cp;
+  Array<MultiFieldInfo>* _multifield_info;
   LayoutRawBlock* _blocks;  // the layout being computed
   LayoutRawBlock* _start;   // points to the first block where a field can be inserted
   LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
 
  public:
-  FieldLayout(Array<u2>* fields, ConstantPool* cp);
+  FieldLayout(Array<u2>* fields, ConstantPool* cp, Array<MultiFieldInfo>* multifields);
   void initialize_static_layout();
   void initialize_instance_layout(const InstanceKlass* ik);
 
@@ -205,6 +244,7 @@ class FieldLayout : public ResourceObj {
   void add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = NULL);
   void add_field_at_offset(LayoutRawBlock* blocks, int offset, LayoutRawBlock* start = NULL);
   void add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start = NULL);
+  void add_multifield(MultiFieldGroup* multifield, LayoutRawBlock* start = NULL);
   LayoutRawBlock* insert_field_block(LayoutRawBlock* slot, LayoutRawBlock* block);
   bool reconstruct_layout(const InstanceKlass* ik);
   void fill_holes(const InstanceKlass* ik);
@@ -245,6 +285,7 @@ class FieldLayoutBuilder : public ResourceObj {
   Array<u2>* _fields;
   FieldLayoutInfo* _info;
   Array<InlineKlass*>* _inline_type_field_klasses;
+  Array<MultiFieldInfo>* _multifield_info;
   FieldGroup* _root_group;
   GrowableArray<FieldGroup*> _contended_groups;
   FieldGroup* _static_fields;
@@ -263,10 +304,12 @@ class FieldLayoutBuilder : public ResourceObj {
   int _atomic_field_count;
 
   FieldGroup* get_or_create_contended_group(int g);
+  MultiFieldGroup* get_or_create_multifield_group(int base);
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, bool is_contended, bool is_inline_type, FieldLayoutInfo* info, Array<InlineKlass*>* inline_type_field_klasses);
+      Array<u2>* fields, bool is_contended, bool is_inline_type, FieldLayoutInfo* info,
+      Array<InlineKlass*>* inline_type_field_klasses, Array<MultiFieldInfo>* multifields);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");

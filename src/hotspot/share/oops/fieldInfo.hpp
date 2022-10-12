@@ -30,6 +30,8 @@
 #include "oops/typeArrayOop.hpp"
 #include "utilities/vmEnums.hpp"
 
+class MultiFieldInfo;
+
 // This class represents the field information contained in the fields
 // array of an InstanceKlass.  Currently it's laid on top an array of
 // Java shorts but in the future it could simply be used as a real
@@ -38,31 +40,37 @@
 // the various FieldStreams.
 class FieldInfo {
   friend class fieldDescriptor;
+  friend class FieldStreamBase;
   friend class JavaFieldStream;
   friend class ClassFileParser;
+  friend class FieldLayout;
 
  public:
   // fields
   // Field info extracted from the class file and stored
   // as an array of 6 shorts.
 
-#define FIELDINFO_TAG_SIZE             3
-#define FIELDINFO_TAG_OFFSET           (1 << 0)
-#define FIELDINFO_TAG_CONTENDED        (1 << 1)
-#define FIELDINFO_TAG_INLINED          (1 << 2)
+#define FIELDINFO_TAG_SIZE             5
+#define FIELDINFO_TAG_OFFSET           1 << 0
+#define FIELDINFO_TAG_CONTENDED        1 << 1
+#define FIELDINFO_TAG_INLINED          1 << 2
+#define FIELDINFO_TAG_MULTIFIELD       1 << 3
+#define FIELDINFO_TAG_MULTIFIELD_BASE  1 << 4
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits
   //   |---------high---------|---------low---------|
   //    ..........................................CO
-  //    ..........................................00  - non-contended field
-  //    [--contention_group--]...................I10  - contended field with contention group
-  //    [------------------offset---------------]I01  - real field offset
+  //    .......................................BMI00  - non-contended field
+  //    [--contention_group--].................B0I10  - contended field with contention group
+  //    [------------------offset-------------]BMI01  - real field offset
 
   // Bit O indicates if the packed field contains an offset (O=1) or not (O=0)
   // Bit C indicates if the field is contended (C=1) or not (C=0)
   //       (if it is contended, the high packed field contains the contention group)
   // Bit I indicates if the field has been inlined  (I=1) or not (I=0)
+  // Bit M indicates the field is an injected multifield
+  // Bit B indicates the field is a multifield base field
 
   enum FieldOffset {
     access_flags_offset      = 0,
@@ -81,9 +89,10 @@ class FieldInfo {
   void set_signature_index(u2 val)               { _shorts[signature_index_offset] = val;    }
   void set_initval_index(u2 val)                 { _shorts[initval_index_offset] = val;      }
 
-  u2 name_index() const                          { return _shorts[name_index_offset];        }
+  u2 name_index() const                          { assert(!is_multifield(), "wrong call"); return _shorts[name_index_offset]; }
   u2 signature_index() const                     { return _shorts[signature_index_offset];   }
   u2 initval_index() const                       { return _shorts[initval_index_offset];     }
+  u2 secondary_index() const                     { assert( is_multifield(), "wrong call"); return _shorts[name_index_offset]; }
 
  public:
   static FieldInfo* from_field_array(Array<u2>* fields, int index) {
@@ -115,6 +124,14 @@ class FieldInfo {
     return (_shorts[low_packed_offset] & FIELDINFO_TAG_CONTENDED) != 0;
   }
 
+  bool is_multifield() const {
+    return (_shorts[low_packed_offset] & FIELDINFO_TAG_MULTIFIELD) != 0;
+  }
+
+  bool is_multifield_base() const {
+    return (_shorts[low_packed_offset] & FIELDINFO_TAG_MULTIFIELD_BASE) != 0;
+  }
+
   u2 contended_group() const {
     assert((_shorts[low_packed_offset] & FIELDINFO_TAG_OFFSET) == 0, "Offset must not have been set");
     assert((_shorts[low_packed_offset] & FIELDINFO_TAG_CONTENDED) != 0, "Field must be contended");
@@ -125,7 +142,12 @@ class FieldInfo {
     return (_shorts[low_packed_offset] & FIELDINFO_TAG_OFFSET)!= 0;
   }
 
-  Symbol* name(ConstantPool* cp) const {
+  Symbol* get_multifield_name(Array<MultiFieldInfo>* multifield_info) const;
+
+  Symbol* name(Array<MultiFieldInfo>* multifield_info, ConstantPool* cp) const {
+    if (is_multifield()) {
+      return get_multifield_name(multifield_info);
+    }
     int index = name_index();
     if (is_internal()) {
       return lookup_symbol(index);
@@ -145,8 +167,12 @@ class FieldInfo {
   void set_offset(u4 val)                        {
     val = val << FIELDINFO_TAG_SIZE; // make room for tag
     bool inlined = is_inlined();
+    bool multifield = is_multifield();
+    bool multifield_base = is_multifield_base();
     _shorts[low_packed_offset] = extract_low_short_from_int(val) | FIELDINFO_TAG_OFFSET;
     if (inlined) set_inlined(true);
+    if (multifield) set_multifield(true);
+    if (multifield_base) set_multifield_base(true);
     _shorts[high_packed_offset] = extract_high_short_from_int(val);
     assert(is_inlined() || !inlined, "just checking");
   }
@@ -169,6 +195,25 @@ class FieldInfo {
     _shorts[low_packed_offset] |= FIELDINFO_TAG_CONTENDED;
     _shorts[high_packed_offset] = val;
   }
+
+  void set_multifield(bool b) {
+    if (b) {
+      _shorts[low_packed_offset] |= FIELDINFO_TAG_MULTIFIELD;
+    } else {
+      _shorts[low_packed_offset] &= ~FIELDINFO_TAG_MULTIFIELD;
+    }
+  }
+
+  void set_multifield_base(bool b) {
+    if (b) {
+      _shorts[low_packed_offset] |= FIELDINFO_TAG_MULTIFIELD_BASE;
+    } else {
+      _shorts[low_packed_offset] &= ~FIELDINFO_TAG_MULTIFIELD_BASE;
+    }
+  }
+
+  u2 multifield_base(Array<MultiFieldInfo>* multifield_info) const;
+  jbyte multifield_index(Array<MultiFieldInfo>* multifield_info) const;
 
   bool is_internal() const {
     return (access_flags() & JVM_ACC_FIELD_INTERNAL) != 0;

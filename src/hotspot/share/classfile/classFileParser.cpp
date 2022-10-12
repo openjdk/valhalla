@@ -1009,12 +1009,14 @@ public:
     _jdk_internal_vm_annotation_Contended,
     _field_Stable,
     _jdk_internal_vm_annotation_ReservedStackAccess,
+    _jdk_internal_vm_annotation_MultiField,
     _jdk_internal_ValueBased,
     _annotation_LIMIT
   };
   const Location _location;
   int _annotations_present;
   u2 _contended_group;
+  jbyte _multifield_arg;
 
   AnnotationCollector(Location location)
     : _location(location), _annotations_present(0), _contended_group(0)
@@ -1041,7 +1043,11 @@ public:
   void set_contended_group(u2 group) { _contended_group = group; }
   u2 contended_group() const { return _contended_group; }
 
+  void set_multifield_arg(jbyte arg) { _multifield_arg = arg; }
+  jbyte multifield_arg() const { return _multifield_arg; }
+
   bool is_contended() const { return has_annotation(_jdk_internal_vm_annotation_Contended); }
+  bool is_multifield_base() const { return has_annotation(_jdk_internal_vm_annotation_MultiField); }
 
   void set_stable(bool stable) { set_annotation(_field_Stable); }
   bool is_stable() const { return has_annotation(_field_Stable); }
@@ -1181,6 +1187,9 @@ static void parse_annotations(const ConstantPool* const cp,
     s_tag_val = 's',    // payload is String
     s_con_off = 7,    // utf8 payload, such as 'Ljava/lang/String;'
     s_size = 9,
+    b_tag_val = 'B',
+    b_con_off = 7,
+    b_size = 9,
     min_size = 6        // smallest possible size (zero members)
   };
   // Cannot add min_size to index in case of overflow MAX_INT
@@ -1227,6 +1236,15 @@ static void parse_annotations(const ConstantPool* const cp,
         }
       }
       coll->set_contended_group(group_index);
+    } else if (AnnotationCollector::_jdk_internal_vm_annotation_MultiField == id) {
+      // TODO: change those assertion into a conditional statement to process the value
+      assert(count == 1, "MultiField annotation must have at least one argument");  // Is it true?
+      assert(member == vmSymbols::value_name(), "Must be");
+      assert(b_tag_val == *(abase + tag_off), "Must be a byte value");
+      int arg_index = Bytes::get_Java_u2((address)abase + b_con_off);
+      int multifield_arg = cp->int_at(arg_index);
+      assert(((jbyte)multifield_arg) == multifield_arg, "Must be");
+      coll->set_multifield_arg(multifield_arg);
     }
   }
 }
@@ -1546,15 +1564,23 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // index. After parsing all fields, the data are copied to a permanent
   // array and any unused slots will be discarded.
   ResourceMark rm(THREAD);
-  u2* const fa = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD,
-                                              u2,
-                                              total_fields * (FieldInfo::field_slots + 1));
+
+  GrowableArray<FieldInfo>* temp_fieldinfo = new GrowableArray<FieldInfo>(total_fields, mtNone);
+  GrowableArray<u2>* temp_generic_signature = new GrowableArray<u2>(total_fields, mtNone);
+  GrowableArray<MultiFieldInfo>* temp_multifield_info = new GrowableArray<MultiFieldInfo>(0, mtNone); // could be allocated lazily
+  FieldInfo fi;
+  FieldInfo* f = &fi;
+  GrowableArray<AnnotationArray*>* fields_annotations = NULL;
+  GrowableArray<AnnotationArray*>* fields_type_annotations = NULL;
+
 
   // The generic signature slots start after all other fields' data.
   int generic_signature_slot = total_fields * FieldInfo::field_slots;
-  int num_generic_signature = 0;
   int instance_fields_count = 0;
+  int inj_multifields = 0;
+  int field_index = -1;
   for (int n = 0; n < length; n++) {
+    field_index++;
     // access_flags, name_index, descriptor_index, attributes_count
     cfs->guarantee_more(8, CHECK);
 
@@ -1599,23 +1625,18 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                              CHECK);
 
       if (parsed_annotations.field_annotations() != NULL) {
-        if (_fields_annotations == NULL) {
-          _fields_annotations = MetadataFactory::new_array<AnnotationArray*>(
-                                             _loader_data, length, NULL,
-                                             CHECK);
+        if (fields_annotations == NULL) {
+          fields_annotations = new GrowableArray<AnnotationArray*>(length, mtNone);
         }
-        _fields_annotations->at_put(n, parsed_annotations.field_annotations());
+
+        fields_annotations->at_put_grow(field_index, parsed_annotations.field_annotations(), NULL);
         parsed_annotations.set_field_annotations(NULL);
       }
       if (parsed_annotations.field_type_annotations() != NULL) {
-        if (_fields_type_annotations == NULL) {
-          _fields_type_annotations =
-            MetadataFactory::new_array<AnnotationArray*>(_loader_data,
-                                                         length,
-                                                         NULL,
-                                                         CHECK);
+        if (fields_type_annotations == NULL) {
+          fields_type_annotations = new GrowableArray<AnnotationArray*>(length, mtNone);
         }
-        _fields_type_annotations->at_put(n, parsed_annotations.field_type_annotations());
+        fields_type_annotations->at_put_grow(field_index, parsed_annotations.field_type_annotations(), NULL);
         parsed_annotations.set_field_type_annotations(NULL);
       }
 
@@ -1624,17 +1645,18 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
       if (generic_signature_index != 0) {
         access_flags.set_field_has_generic_signature();
-        fa[generic_signature_slot] = generic_signature_index;
+        temp_generic_signature->append(generic_signature_index);
         generic_signature_slot ++;
-        num_generic_signature ++;
       }
     }
 
-    FieldInfo* const field = FieldInfo::from_field_array(fa, n);
-    field->initialize(access_flags.as_short(),
+    f->initialize(access_flags.as_short(),
                       name_index,
                       signature_index,
                       constantvalue_index);
+    int base_idx = temp_fieldinfo->append(fi);
+    assert(base_idx == field_index, "Must be");
+    FieldInfo* const field = temp_fieldinfo->adr_at(field_index);
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Update FieldAllocationCount for this kind of field
@@ -1647,9 +1669,43 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
         _has_contended_fields = true;
       }
     }
+
+    if (parsed_annotations.is_multifield_base() && is_java_primitive(cp->basic_type_for_signature_at(signature_index))) {
+      field->set_multifield_base(true);
+      char* base_name = cp->symbol_at(name_index)->as_C_string();
+      for (int i = 1; i < parsed_annotations.multifield_arg(); i++) {
+        field_index++;
+        stringStream st;
+        st.print("%s", base_name);
+        st.print("#");
+        st.print("%d", i);
+        Symbol* inj_name = SymbolTable::new_symbol(st.as_string());
+        MultiFieldInfo mfi(inj_name, base_idx, i);
+        int mfi_idx = temp_multifield_info->append(mfi);
+        f->initialize(access_flags.as_short(),
+                      mfi_idx,
+                      signature_index,
+                      constantvalue_index);
+        int inj_idx = temp_fieldinfo->append(fi);
+        assert(inj_idx == field_index, "Must be");
+        FieldInfo* const field = temp_fieldinfo->adr_at(inj_idx);
+        const BasicType type = cp->basic_type_for_signature_at(signature_index);
+        // Update FieldAllocationCount for this kind of field
+        fac->update(is_static, type, type == T_PRIMITIVE_OBJECT);
+        field->set_multifield(true);
+        if (fields_annotations != NULL && fields_annotations->at(base_idx) != NULL) {
+          fields_annotations->at_put_grow(field_index, fields_annotations->at(base_idx));
+        }
+        if (fields_type_annotations != NULL && fields_type_annotations->at(base_idx) != NULL) {
+          fields_type_annotations->at_put_grow(field_index, fields_type_annotations->at(base_idx));
+        }
+        inj_multifields++;
+      }
+    }
   }
 
-  int index = length;
+  *java_fields_count_ptr = *java_fields_count_ptr + inj_multifields;
+  int index = length + inj_multifields;
   if (num_injected != 0) {
     for (int n = 0; n < num_injected; n++) {
       // Check for duplicates
@@ -1658,7 +1714,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
         const Symbol* const signature = injected[n].signature();
         bool duplicate = false;
         for (int i = 0; i < length; i++) {
-          const FieldInfo* const f = FieldInfo::from_field_array(fa, i);
+          const FieldInfo* const f = temp_fieldinfo->adr_at(i);
           if (name      == cp->symbol_at(f->name_index()) &&
               signature == cp->symbol_at(f->signature_index())) {
             // Symbol is desclared in Java so skip this one
@@ -1667,17 +1723,18 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
           }
         }
         if (duplicate) {
-          // These will be removed from the field array at the end
           continue;
         }
       }
 
       // Injected field
-      FieldInfo* const field = FieldInfo::from_field_array(fa, index);
-      field->initialize((u2)JVM_ACC_FIELD_INTERNAL,
+      f->initialize((u2)JVM_ACC_FIELD_INTERNAL,
                         (u2)(injected[n].name_index),
                         (u2)(injected[n].signature_index),
                         0);
+      field_index++;
+      int inj_idx = temp_fieldinfo->append(fi);
+      assert(inj_idx == field_index, "Must be");
 
       const BasicType type = Signature::basic_type(injected[n].signature());
 
@@ -1688,11 +1745,13 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
 
   if (is_inline_type) {
-    FieldInfo* const field = FieldInfo::from_field_array(fa, index);
-    field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
+    f->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
                       (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(default_value_name)),
                       (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
                       0);
+    field_index++;
+    int inj_idx = temp_fieldinfo->append(fi);
+    assert(inj_idx == field_index, "Must be");
     const BasicType type = Signature::basic_type(vmSymbols::object_signature());
     fac->update(true, type, false);
     index++;
@@ -1700,11 +1759,13 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
   if (is_inline_type && instance_fields_count == 0) {
     _is_empty_inline_type = true;
-    FieldInfo* const field = FieldInfo::from_field_array(fa, index);
-    field->initialize(JVM_ACC_FIELD_INTERNAL,
+    f->initialize(JVM_ACC_FIELD_INTERNAL,
         (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(empty_marker_name)),
         (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)),
         0);
+    field_index++;
+    int inj_idx = temp_fieldinfo->append(fi);
+    assert(inj_idx == field_index, "Must be");
     const BasicType type = Signature::basic_type(vmSymbols::byte_signature());
     fac->update(false, type, false);
     index++;
@@ -1715,10 +1776,12 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
 
   assert(NULL == _fields, "invariant");
+  assert(index == field_index + 1, "Must be");
+  assert(temp_fieldinfo->length() == field_index + 1, "Must be");
 
   _fields =
     MetadataFactory::new_array<u2>(_loader_data,
-                                   index * FieldInfo::field_slots + num_generic_signature,
+                                   temp_fieldinfo->length() * FieldInfo::field_slots + temp_generic_signature->length(),
                                    CHECK);
   // Sometimes injected fields already exist in the Java source so
   // the fields array could be too long.  In that case the
@@ -1726,14 +1789,43 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // for generic signature indexes are discarded.
   {
     int i = 0;
-    for (; i < index * FieldInfo::field_slots; i++) {
-      _fields->at_put(i, fa[i]);
+    for (i = 0; i < index; i++) {
+      u2* adr = (u2*)temp_fieldinfo->adr_at(i);
+      for (int j = 0; j < FieldInfo::field_slots; j++) {
+        _fields->at_put(i * FieldInfo::field_slots + j, adr[j]);
+      }
     }
-    for (int j = total_fields * FieldInfo::field_slots;
-         j < generic_signature_slot; j++) {
-      _fields->at_put(i++, fa[j]);
+    i = index * FieldInfo::field_slots;
+    for (int j = 0; j < temp_generic_signature->length(); j++) {
+      _fields->at_put(i++, temp_generic_signature->at(j));
     }
+
     assert(_fields->length() == i, "");
+  }
+
+  if (temp_multifield_info->length() > 0) {
+    _multifield_info = MetadataFactory::new_array<MultiFieldInfo>(_loader_data, temp_multifield_info->length(), CHECK);
+    for (int i = 0; i < temp_multifield_info->length(); i++) {
+      _multifield_info->at_put(i, temp_multifield_info->at(i));
+    }
+  }
+
+  if (fields_annotations != NULL) {
+    _fields_annotations = MetadataFactory::new_array<AnnotationArray*>(
+                                             _loader_data, temp_fieldinfo->length(), NULL,
+                                             CHECK);
+    for (int i = 0; i < fields_annotations->length(); i++) {
+      _fields_annotations->at_put(i, fields_annotations->at(i));
+    }
+  }
+
+  if (fields_type_annotations != NULL) {
+     _fields_type_annotations = MetadataFactory::new_array<AnnotationArray*>(
+                                             _loader_data, temp_fieldinfo->length(), NULL,
+                                             CHECK);
+    for (int i = 0; i < fields_type_annotations->length(); i++) {
+      _fields_type_annotations->at_put(i, fields_type_annotations->at(i));
+    }
   }
 
   if (_need_verify && length > 1) {
@@ -1747,7 +1839,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const Symbol* sig = NULL;
     {
       debug_only(NoSafepointVerifier nsv;)
-      for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
+      for (AllFieldStream fs(_fields, cp, _multifield_info); !fs.done(); fs.next()) {
         name = fs.name();
         sig = fs.signature();
         // If no duplicates, add name/signature in hashtable names_and_sigs.
@@ -2121,6 +2213,11 @@ AnnotationCollector::annotation_index(const ClassLoaderData* loader_data,
       if (_location != _in_method)  break;  // only allow for methods
       if (RestrictReservedStack && !privileged) break; // honor privileges
       return _jdk_internal_vm_annotation_ReservedStackAccess;
+    }
+    case VM_SYMBOL_ENUM_NAME(jdk_internal_vm_annotation_MultiField_signature): {
+      if (_location != _in_field) break;  // only allow for fields
+      if (!privileged)            break;  // honor privileges
+      return _jdk_internal_vm_annotation_MultiField;
     }
     case VM_SYMBOL_ENUM_NAME(jdk_internal_ValueBased_signature): {
       if (_location != _in_class)   break;  // only allow for classes
@@ -4193,6 +4290,7 @@ void ClassFileParser::apply_parsed_class_metadata(
   _cp->set_pool_holder(this_klass);
   this_klass->set_constants(_cp);
   this_klass->set_fields(_fields, java_fields_count);
+  this_klass->set_multifield_info(_multifield_info);
   this_klass->set_methods(_methods);
   this_klass->set_inner_classes(_inner_classes);
   this_klass->set_nest_members(_nest_members);
@@ -5682,6 +5780,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   assert(NULL == _combined_annotations, "invariant");
   assert(NULL == _record_components, "invariant");
   assert(NULL == _permitted_subclasses, "invariant");
+  assert(NULL == _multifield_info, "invariant");
 
   if (_has_final_method) {
     ik->set_has_final_method();
@@ -5823,7 +5922,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
   bool all_fields_empty = true;
-  for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
     if (!fs.access_flags().is_static()) {
       if (fs.field_descriptor().is_inline_type()) {
         Klass* k = _inline_type_field_klasses->at(fs.index());
@@ -5957,6 +6056,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _inline_type_field_klasses(NULL),
   _method_ordering(NULL),
   _all_mirandas(NULL),
+  _multifield_info(NULL),
   _vtable_size(0),
   _itable_size(0),
   _num_miranda_methods(0),
@@ -6042,6 +6142,7 @@ void ClassFileParser::clear_class_metadata() {
   _class_annotations = _class_type_annotations = NULL;
   _fields_annotations = _fields_type_annotations = NULL;
   _record_components = NULL;
+  _multifield_info = NULL;
 }
 
 // Destructor to clean up
@@ -6053,6 +6154,10 @@ ClassFileParser::~ClassFileParser() {
   }
   if (_fields != NULL) {
     MetadataFactory::free_array<u2>(_loader_data, _fields);
+  }
+
+  if (_multifield_info != NULL) {
+    MetadataFactory::free_array<MultiFieldInfo>(_loader_data, _multifield_info);
   }
 
   if (_inline_type_field_klasses != NULL) {
@@ -6552,7 +6657,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                    java_fields_count(),
                                                    NULL,
                                                    CHECK);
-    for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(_fields, cp, _multifield_info); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT && !fs.access_flags().is_static()) {
         // Pre-load inline class
         Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
@@ -6575,7 +6680,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _field_info = new FieldLayoutInfo();
   FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields,
       _parsed_annotations->is_contended(), is_inline_type(),
-      _field_info, _inline_type_field_klasses);
+      _field_info, _inline_type_field_klasses, _multifield_info);
   lb.build_layout(CHECK);
   if (is_inline_type()) {
     _alignment = lb.get_alignment();
