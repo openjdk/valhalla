@@ -93,7 +93,7 @@ class TypeFunc;
 class TypeVect;
 class Unique_Node_List;
 class UnstableIfTrap;
-class InlineTypeBaseNode;
+class InlineTypeNode;
 class nmethod;
 class Node_Stack;
 struct Final_Reshape_Counts;
@@ -1148,9 +1148,9 @@ class Compile : public Phase {
 #endif
   // Function calls made by the public function final_graph_reshaping.
   // No need to be made public as they are not called elsewhere.
-  void final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc);
-  void final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop);
-  void final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_Reshape_Counts &frc );
+  void final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Unique_Node_List& dead_nodes);
+  void final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop, Unique_Node_List& dead_nodes);
+  void final_graph_reshaping_walk(Node_Stack& nstack, Node* root, Final_Reshape_Counts& frc, Unique_Node_List& dead_nodes);
   void eliminate_redundant_card_marks(Node* n);
 
   // Logic cone optimization.

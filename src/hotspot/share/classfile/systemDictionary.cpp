@@ -679,7 +679,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                                 TRAPS) {
   // name must be in the form of "java/lang/Object" -- cannot be "Ljava/lang/Object;"
   assert(name != NULL && !Signature::is_array(name) &&
-         !Signature::has_envelope(name), "invalid class name");
+         !Signature::has_envelope(name), "invalid class name: %s", name == NULL ? "NULL" : name->as_C_string());
 
   EventClassLoad class_load_start_event;
 

@@ -46,10 +46,10 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @modules java.base/jdk.internal.value
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDenablePrimitiveClasses MyValue5.jcod
  * @compile -XDenablePrimitiveClasses TestLWorld.java
- * @build test.java.lang.invoke.lib.InstructionHelper
- * @run driver/timeout=450 compiler.valhalla.inlinetypes.TestLWorld
+ * @run main/othervm/timeout=450 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestLWorld
  */
 
 @ForceCompileClassInitializer
@@ -3143,7 +3143,7 @@ public class TestLWorld {
     }
 
     @Test
-// TODO Tobias
+// TODO 8293541
 //    @IR(failOn = {ALLOC_G, MEMBAR},
 //        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})
@@ -3182,7 +3182,7 @@ public class TestLWorld {
     }
 
     @Test
-// TODO Tobias
+// TODO 8293541
 //    @IR(failOn = {ALLOC_G, MEMBAR},
 //        counts = {PREDICATE_TRAP, "= 1"})
     @IR(failOn = {ALLOC_G, MEMBAR})

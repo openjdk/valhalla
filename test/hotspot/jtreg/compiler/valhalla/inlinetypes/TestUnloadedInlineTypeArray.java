@@ -27,25 +27,33 @@
  * @library /test/lib
  * @summary Test the handling of arrays of unloaded inline classes.
  * @compile -XDenablePrimitiveClasses TestUnloadedInlineTypeArray.java
- * @run main/othervm -Xcomp
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp -XX:FlatArrayElementMaxSize=0
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedInlineTypeArray::test*
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp -XX:-TieredCompilation
  *                   TestUnloadedInlineTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
  *                   TestUnloadedInlineTypeArray
  */
 

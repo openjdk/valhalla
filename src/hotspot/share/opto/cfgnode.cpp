@@ -1963,13 +1963,8 @@ bool PhiNode::wait_for_region_igvn(PhaseGVN* phase) {
 }
 
 // Push inline type input nodes (and null) down through the phi recursively (can handle data loops).
-InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
-  InlineTypeBaseNode* vt = NULL;
-  if (_type->isa_ptr()) {
-    vt = InlineTypePtrNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
-  } else {
-    vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
-  }
+InlineTypeNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init) {
+  InlineTypeNode* vt = InlineTypeNode::make_null(*phase, vk)->clone_with_phis(phase, in(0), is_init);
   if (can_reshape) {
     // Replace phi right away to be able to use the inline
     // type node when reaching the phi again through data loops.
@@ -1980,6 +1975,7 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       imax -= u->replace_edge(this, vt);
       --i;
     }
+    igvn->rehash_node_delayed(this);
     assert(outcnt() == 0, "should be dead now");
   }
   ResourceMark rm;
@@ -1991,21 +1987,21 @@ InlineTypeBaseNode* PhiNode::push_inline_types_through(PhaseGVN* phase, bool can
       n = n->in(1);
     }
     if (phase->type(n)->is_zero_type()) {
-      n = InlineTypePtrNode::make_null(*phase, vk);
+      n = InlineTypeNode::make_null(*phase, vk);
     } else if (n->is_Phi()) {
       assert(can_reshape, "can only handle phis during IGVN");
       n = phase->transform(n->as_Phi()->push_inline_types_through(phase, can_reshape, vk, is_init));
     }
     while (casts.size() != 0) {
-      // Push the cast(s) through the InlineTypePtrNode
+      // Push the cast(s) through the InlineTypeNode
       Node* cast = casts.pop()->clone();
-      cast->set_req_X(1, n->as_InlineTypePtr()->get_oop(), phase);
+      cast->set_req_X(1, n->as_InlineType()->get_oop(), phase);
       n = n->clone();
-      n->as_InlineTypePtr()->set_oop(phase->transform(cast));
+      n->as_InlineType()->set_oop(phase->transform(cast));
       n = phase->transform(n);
     }
     bool transform = !can_reshape && (i == (req()-1)); // Transform phis on last merge
-    vt->merge_with(phase, n->as_InlineTypeBase(), i, transform);
+    vt->merge_with(phase, n->as_InlineType(), i, transform);
   }
   return vt;
 }
@@ -2539,16 +2535,23 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     Node_List casts;
 
     // TODO 8284443 We need to prevent endless pushing through
+    // TODO 8284443 We could revisit the same node over and over again, right?
     // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
     // TestLWorld -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
+    bool only_phi = (outcnt() != 0);
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* n = fast_out(i);
-      if (n->is_InlineTypePtr() && n->in(1) == this) {
+      if (n->is_InlineType() && n->in(1) == this) {
         can_optimize = false;
         break;
       }
+      if (!n->is_Phi()) {
+        only_phi = false;
+      }
     }
-    // TODO 8284443 We could revisit the same node over and over again, right?
+    if (only_phi) {
+      can_optimize = false;
+    }
     for (uint next = 0; next < worklist.size() && can_optimize; next++) {
       Node* phi = worklist.at(next);
       for (uint i = 1; i < phi->req() && can_optimize; i++) {
@@ -2567,10 +2570,9 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           n = n->in(1);
         }
         const Type* t = phase->type(n);
-        if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->can_merge() &&
-            (vk == NULL || vk == t->inline_klass())) {
+        if (n->is_InlineType() && (vk == NULL || vk == t->inline_klass())) {
           vk = (vk == NULL) ? t->inline_klass() : vk;
-          if (phase->find_int_con(n->as_InlineTypeBase()->get_is_init(), 0) != 1) {
+          if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
             is_init = false;
           }
         } else if (n->is_Phi() && can_reshape && (n->bottom_type()->isa_ptr() || n->bottom_type()->isa_inlinetype())) {
@@ -2847,6 +2849,17 @@ const Type* CatchNode::Value(PhaseGVN* phase) const {
       // Rethrows always throw exceptions, never return
       if (call->entry_point() == OptoRuntime::rethrow_stub()) {
         f[CatchProjNode::fall_through_index] = Type::TOP;
+      } else if (call->is_AllocateArray()) {
+        Node* klass_node = call->in(AllocateNode::KlassNode);
+        Node* length = call->in(AllocateNode::ALength);
+        const Type* length_type = phase->type(length);
+        const Type* klass_type = phase->type(klass_node);
+        Node* valid_length_test = call->in(AllocateNode::ValidLengthTest);
+        const Type* valid_length_test_t = phase->type(valid_length_test);
+        if (length_type == Type::TOP || klass_type == Type::TOP || valid_length_test_t == Type::TOP ||
+            valid_length_test_t->is_int()->is_con(0)) {
+          f[CatchProjNode::fall_through_index] = Type::TOP;
+        }
       } else if( call->req() > TypeFunc::Parms ) {
         const Type *arg0 = phase->type( call->in(TypeFunc::Parms) );
         // Check for null receiver to virtual or interface calls

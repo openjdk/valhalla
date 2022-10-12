@@ -27,9 +27,9 @@
  * @summary test Object methods on primitive classes
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses ObjectMethods.java
- * @run testng/othervm -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 ObjectMethods
  * @compile -XDenablePrimitiveClasses ObjectMethods.java
- * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
@@ -99,6 +99,8 @@ public class ObjectMethods {
         } else {
             assertEquals(Objects.isIdentityObject(obj), identityClass, "Objects.isIdentityObject()");
         }
+
+        assertEquals(Objects.isValueObject(obj), valueClass, "Objects.isValueObject()");
 
         assertEquals(clazz.isIdentity(), identityClass, "Class.isIdentity()");
 

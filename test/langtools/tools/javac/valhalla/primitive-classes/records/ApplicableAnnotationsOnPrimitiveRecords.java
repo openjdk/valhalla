@@ -29,7 +29,7 @@
  * @modules jdk.compiler/com.sun.tools.javac.util
  *          jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords.java
- * @run main ApplicableAnnotationsOnPrimitiveRecords
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords
  */
 import com.sun.tools.classfile.*;
 import com.sun.tools.javac.util.Assert;

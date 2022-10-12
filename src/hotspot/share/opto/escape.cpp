@@ -561,7 +561,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       map_ideal_node(n, phantom_obj);
       break;
     }
-    case Op_InlineTypePtr:
+    case Op_InlineType:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -735,7 +735,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
       add_base(n_ptn->as_Field(), ptn_base);
       break;
     }
-    case Op_InlineTypePtr:
+    case Op_InlineType:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -2087,8 +2087,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
         AbstractLockNode* alock = n->as_AbstractLock();
         if (!alock->is_non_esc_obj()) {
           const Type* obj_type = igvn->type(alock->obj_node());
-          if (not_global_escape(alock->obj_node()) &&
-              !obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
+          if (not_global_escape(alock->obj_node()) && !obj_type->is_inlinetypeptr()) {
             assert(!alock->is_eliminated() || alock->is_coarsened(), "sanity");
             // The lock could be marked eliminated by lock coarsening
             // code during first IGVN before EA. Replace coarsened flag
@@ -2129,7 +2128,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
     Node* storestore = storestore_worklist.at(i);
     Node* alloc = storestore->in(MemBarNode::Precedent)->in(0);
     if (alloc->is_Allocate() && not_global_escape(alloc)) {
-      if (alloc->in(AllocateNode::InlineTypeNode) != NULL) {
+      if (alloc->in(AllocateNode::InlineType) != NULL) {
         // Non-escaping inline type buffer allocations don't require a membar
         storestore->as_MemBar()->remove(_igvn);
       } else {
@@ -3478,7 +3477,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_CountPositives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
-              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_InlineTypePtr || op == Op_FlatArrayCheck ||
+              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_FlatArrayCheck ||
               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
           n->dump();
           use->dump();

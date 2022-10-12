@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @summary Test value numbering behaves correctly with flattened fields
  * @library /testlibrary /test/lib
  * @compile -XDenablePrimitiveClasses TestC1ValueNumbering.java
- * @run main/othervm -Xcomp -XX:TieredStopAtLevel=1 -ea
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xcomp -XX:TieredStopAtLevel=1 -ea
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestC1ValueNumbering::*
  *                   compiler.valhalla.inlinetypes.TestC1ValueNumbering
  */

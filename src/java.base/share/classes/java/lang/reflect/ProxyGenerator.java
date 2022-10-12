@@ -25,6 +25,7 @@
 
 package java.lang.reflect;
 
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.Attribute;
@@ -461,7 +462,8 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      */
     private byte[] generateClassFile() {
-        visit(CLASSFILE_VERSION, accessFlags, dotToSlash(className), null,
+        int version = CLASSFILE_VERSION | (PreviewFeatures.isEnabled() ? Opcodes.V_PREVIEW : 0);
+        visit(version, accessFlags, dotToSlash(className), null,
                 JLR_PROXY, typeNames(interfaces));
 
         /*
@@ -489,14 +491,19 @@ final class ProxyGenerator extends ClassWriter {
         /*
          * For each set of proxy methods with the same signature,
          * verify that the methods' return types are compatible.
+         *
+         * Determine if any value classes to be preloaded.
          */
+        Set<Class<?>> preloadClasses = new HashSet<>();
         for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
             checkReturnTypes(sigmethods);
+            for (ProxyMethod pm : sigmethods) {
+                preloadClasses.addAll(pm.preloadClasses());
+            }
         }
 
         generateConstructor();
 
-        Set<Class<?>> preloadClasses = new HashSet<>();
         for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
             for (ProxyMethod pm : sigmethods) {
                 // add static field for the Method object
@@ -505,7 +512,6 @@ final class ProxyGenerator extends ClassWriter {
 
                 // Generate code for proxy method
                 pm.generateMethod(this, className);
-                preloadClasses.addAll(pm.preloadClasses());
             }
         }
         if (preloadClasses.size() > 0) {
@@ -857,8 +863,7 @@ final class ProxyGenerator extends ClassWriter {
             while (c.isArray()) {
                 c = c.getComponentType();
             }
-            return (c.isValue() && !PrimitiveClass.isPrimitiveClass(c)) ||
-                    PrimitiveClass.isPrimitiveValueType(c);
+            return c.isValue();
         }
 
         /**

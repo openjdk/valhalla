@@ -3033,6 +3033,12 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
     }
   }
 
+  if (!EnableValhalla && EnablePrimitiveClasses) {
+    jio_fprintf(defaultStream::error_stream(),
+                "Cannot specify -XX:+EnablePrimitiveClasses without -XX:+EnableValhalla");
+    return JNI_EINVAL;
+  }
+
   // PrintSharedArchiveAndExit will turn on
   //   -Xshare:on
   //   -Xlog:class+path=info
@@ -3162,6 +3168,12 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
 #ifdef ZERO
   // Zero always runs in interpreted mode
   set_mode_flags(_int);
+
+  // Zero runs without compilers. Do not let compiler selection code
+  // to force it into Serial GC, let the GC ergonomics decide.
+  if (FLAG_IS_DEFAULT(NeverActAsServerClassMachine)) {
+    FLAG_SET_ERGO(NeverActAsServerClassMachine, false);
+  }
 #endif
 
   // eventually fix up InitialTenuringThreshold if only MaxTenuringThreshold is set

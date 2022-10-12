@@ -797,10 +797,7 @@ extern int type2size[T_CONFLICT+1];         // Map BasicType to result stack ele
 extern const char* type2name_tab[T_CONFLICT+1];     // Map a BasicType to a char*
 extern BasicType name2type(const char* name);
 
-inline const char* type2name(BasicType t) {
-  assert((uint)t < T_CONFLICT + 1, "invalid type");
-  return type2name_tab[t];
-}
+const char* type2name(BasicType t);
 
 inline jlong max_signed_integer(BasicType bt) {
   if (bt == T_INT) {
@@ -1300,7 +1297,7 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 // It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
-#define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
+#define UseFlatArray (EnablePrimitiveClasses && (FlatArrayElementMaxSize != 0))
 //----------------------------------------------------------------------------------------------------
 
 // Allow use of C++ thread_local when approved - see JDK-8282469.

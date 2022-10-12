@@ -26,7 +26,7 @@
  * @test
  * @summary Test ConstantDesc for primitive classes
  * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses Point.java ValueConstantDesc.java
- * @run testng/othervm --enable-preview ValueConstantDesc
+ * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueConstantDesc
  */
 
 import org.testng.annotations.DataProvider;
@@ -110,7 +110,7 @@ public class ValueConstantDesc {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> c = (Class<?>) cd.resolveConstantDesc(lookup);
         assertTrue(c == type);
-        assertTrue(cd.isPrimitiveValueType() == PrimitiveClass.isPrimitiveValueType(type));
+        assertTrue(PrimitiveClass.isPrimitiveValueClassDesc(cd) == PrimitiveClass.isPrimitiveValueType(type));
     }
 
     @Test(expectedExceptions = {LinkageError.class})
