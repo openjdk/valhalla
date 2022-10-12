@@ -264,7 +264,7 @@ public final class Objects {
     }
 
    /**
-    * {@return {@code true} if the specified object reference is a value object,
+    * {@return {@code true} if the specified object is a {@linkplain Class#isValue value object},
     * otherwise {@code false}}
     *
     * @param obj an object
