@@ -25,6 +25,10 @@
 
 package jdk.internal.reflect;
 
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.misc.VM;
+import jdk.internal.org.objectweb.asm.Opcodes;
+
 class ClassFileAssembler implements ClassFileConstants {
     private ByteVector vec;
     private short cpIdx = 0;
@@ -48,8 +52,11 @@ class ClassFileAssembler implements ClassFileConstants {
 
     public void emitMagicAndVersion() {
         emitInt(0xCAFEBABE);
-        emitShort((short) 0);
-        emitShort((short) 49);
+        int classFileVersion = VM.classFileVersion();
+        if (PreviewFeatures.isEnabled()) {
+            classFileVersion += Opcodes.V_PREVIEW;
+        }
+        emitInt(classFileVersion);
     }
 
     public void emitInt(int val) {

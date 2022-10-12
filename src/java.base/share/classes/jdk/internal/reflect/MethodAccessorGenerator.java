@@ -92,7 +92,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
     {
         boolean isStaticFactory = declaringClass.isValue();
         return (ConstructorAccessor) generate(declaringClass,
-                                              "<init>",
+                                              isStaticFactory ? "<vnew>" : "<init>",
                                               parameterTypes,
                                               isStaticFactory ? PrimitiveClass.asValueType(declaringClass) : Void.TYPE,
                                               modifiers,
@@ -363,7 +363,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         }
 
         // Access flags
-        asm.emitShort(ACC_PUBLIC);
+        asm.emitShort(CLASS_ACCESS_FLAGS);
 
         // This class
         asm.emitShort(thisClass);
