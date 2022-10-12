@@ -92,7 +92,7 @@ final class ValueObjectMethods {
             }
         }
 
-        static MethodHandle basicPrimitiveEquals(Class<?> type) {
+        static MethodHandle builtinPrimitiveEquals(Class<?> type) {
             return primitiveEquals.get(type);
         }
 
@@ -306,7 +306,7 @@ final class ValueObjectMethods {
      * <li>If {@code a} and {@code b} are both instances of the same value class
      *     {@code V}, this method returns {@code true} if, for all fields {@code f}
      *      declared in {@code V}, {@code a.f} and {@code b.f} are substitutable.
-     * <li>If {@code a} and {@code b} are both values of the same basic primitive type,
+     * <li>If {@code a} and {@code b} are both values of the same builtin primitive type,
      *     this method returns {@code a == b} with the following exception:
      *     <ul>
      *     <li> If {@code a} and {@code b} both represent {@code NaN},
@@ -422,7 +422,7 @@ final class ValueObjectMethods {
      */
     private static <T> MethodHandle substitutableInvoker(Class<T> type) {
         if (type.isPrimitive())
-            return MethodHandleBuilder.basicPrimitiveEquals(type);
+            return MethodHandleBuilder.builtinPrimitiveEquals(type);
 
         if (isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type)) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
