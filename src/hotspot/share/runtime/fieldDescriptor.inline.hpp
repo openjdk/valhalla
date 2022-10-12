@@ -34,7 +34,7 @@
 // must be put in this file, as they require runtime/handles.inline.hpp.
 
 inline Symbol* fieldDescriptor::name() const {
-  return field()->name(_cp());
+  return field()->name(field_holder()->multifield_info(),  _cp());
 }
 
 inline Symbol* fieldDescriptor::signature() const {
@@ -84,5 +84,9 @@ inline BasicType fieldDescriptor::field_type() const {
 
 inline bool fieldDescriptor::is_inlined()  const  { return field()->is_inlined(); }
 inline bool fieldDescriptor::is_inline_type() const { return Signature::basic_type(field()->signature(_cp())) == T_PRIMITIVE_OBJECT; }
+
+inline bool fieldDescriptor::is_multifield() const { return field()->is_multifield(); };
+inline u2   fieldDescriptor::multifield_base() const { return field_holder()->multifield_info(field()->secondary_index()).base_index(); }
+inline jbyte fieldDescriptor::multifield_index() const { return  field_holder()->multifield_info(field()->secondary_index()).multifield_index(); }
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP

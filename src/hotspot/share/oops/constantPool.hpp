@@ -434,7 +434,7 @@ class ConstantPool : public Metadata {
     unresolved_klass_at_put(which, name_index, CPKlassSlot::_temp_resolved_klass_index);
   }
 
-  jint int_at(int which) {
+  jint int_at(int which) const {
     assert(tag_at(which).is_int(), "Corrupted constant pool");
     return *int_at_addr(which);
   }

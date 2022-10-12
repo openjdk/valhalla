@@ -1257,7 +1257,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
 
 
   if (ik->has_inline_type_fields()) {
-    for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
+    for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         if (!fs.access_flags().is_static()) {
           // Pre-load inline class

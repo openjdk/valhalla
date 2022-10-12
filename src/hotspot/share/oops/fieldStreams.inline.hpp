@@ -29,8 +29,8 @@
 
 #include "runtime/javaThread.hpp"
 
-FieldStreamBase::FieldStreamBase(Array<u2>* fields, ConstantPool* constants, int start, int limit) : _fields(fields),
-         _constants(constantPoolHandle(Thread::current(), constants)), _index(start) {
+FieldStreamBase::FieldStreamBase(Array<u2>* fields, ConstantPool* constants, Array<MultiFieldInfo>* multifield_info, int start, int limit) : _fields(fields),
+         _constants(constantPoolHandle(Thread::current(), constants)), _multifield_info(multifield_info), _index(start) {
   _index = start;
   int num_fields = init_generic_signature_start_slot();
   if (limit < start) {
@@ -40,13 +40,13 @@ FieldStreamBase::FieldStreamBase(Array<u2>* fields, ConstantPool* constants, int
   }
 }
 
-FieldStreamBase::FieldStreamBase(Array<u2>* fields, ConstantPool* constants) : _fields(fields),
-         _constants(constantPoolHandle(Thread::current(), constants)), _index(0) {
+FieldStreamBase::FieldStreamBase(Array<u2>* fields, ConstantPool* constants, Array<MultiFieldInfo>* multifield_info) : _fields(fields),
+         _constants(constantPoolHandle(Thread::current(), constants)), _multifield_info(multifield_info), _index(0) {
   _limit = init_generic_signature_start_slot();
 }
 
 FieldStreamBase::FieldStreamBase(InstanceKlass* klass) : _fields(klass->fields()),
-         _constants(constantPoolHandle(Thread::current(), klass->constants())), _index(0),
+         _constants(constantPoolHandle(Thread::current(), klass->constants())), _multifield_info(klass->multifield_info()),_index(0),
          _limit(klass->java_fields_count()) {
   init_generic_signature_start_slot();
   assert(klass == field_holder(), "");

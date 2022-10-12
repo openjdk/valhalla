@@ -148,6 +148,7 @@ class ClassFileParser {
   Array<InlineKlass*>* _inline_type_field_klasses;
   const intArray* _method_ordering;
   GrowableArray<Method*>* _all_mirandas;
+  Array<MultiFieldInfo>* _multifield_info;
 
   enum { fixed_buffer_size = 128 };
   u_char _linenumbertable_buffer[fixed_buffer_size];
