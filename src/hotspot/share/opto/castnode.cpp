@@ -86,12 +86,12 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     return this;
   }
 
-  // Push cast through InlineTypePtrNode
-  InlineTypePtrNode* vt = in(1)->isa_InlineTypePtr();
+  // Push cast through InlineTypeNode
+  InlineTypeNode* vt = in(1)->isa_InlineType();
   if (vt != NULL && phase->type(vt)->filter_speculative(_type) != Type::TOP) {
     Node* cast = clone();
     cast->set_req(1, vt->get_oop());
-    vt = vt->clone()->as_InlineTypePtr();
+    vt = vt->clone()->as_InlineType();
     vt->set_oop(phase->transform(cast));
     return vt;
   }
@@ -392,7 +392,7 @@ Node* CastLLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 //------------------------------Identity---------------------------------------
 // If input is already higher or equal to cast type, then this is an identity.
 Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
-  if (in(1)->is_InlineTypeBase() && _type->isa_instptr() && phase->type(in(1))->inline_klass()->is_subtype_of(_type->is_instptr()->instance_klass())) {
+  if (in(1)->is_InlineType() && _type->isa_instptr() && phase->type(in(1))->inline_klass()->is_subtype_of(_type->is_instptr()->instance_klass())) {
     return in(1);
   }
   Node* dom = dominating_cast(phase, phase);

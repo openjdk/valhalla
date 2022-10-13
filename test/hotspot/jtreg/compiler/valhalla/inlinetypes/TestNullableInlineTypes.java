@@ -45,7 +45,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDenablePrimitiveClasses TestNullableInlineTypes.java
  * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestNullableInlineTypes
  */
@@ -2211,10 +2211,13 @@ public class TestNullableInlineTypes {
         return ((MyValue1.ref)val).hash();
     }
 
-    private final long test80Result = test80();
+    private long test80Result = 0;
 
     @Run(test = "test80")
     public void test80_verifier() {
+        if (test80Result == 0) {
+            test80Result = test80();
+        }
         Asserts.assertEquals(test80(), test80Result);
     }
 
@@ -2243,11 +2246,14 @@ public class TestNullableInlineTypes {
         return ((MyValue1.ref)val).hash();
     }
 
-    private final long test81Result = test81();
+    private long test81Result = 0;
 
     @Run(test = "test81")
     public void test81_verifier() {
-        Asserts.assertEquals(test82(), test82Result);
+        if (test81Result == 0) {
+            test81Result = test81();
+        }
+        Asserts.assertEquals(test81(), test81Result);
     }
 
     @ForceInline
@@ -2277,10 +2283,13 @@ public class TestNullableInlineTypes {
         return ((MyValue1.ref)val).hash();
     }
 
-    private final long test82Result = test82();
+    private long test82Result = 0;
 
     @Run(test = "test82")
     public void test82_verifier() {
+        if (test82Result == 0) {
+            test82Result = test81();
+        }
         Asserts.assertEquals(test82(), test82Result);
     }
 
@@ -2332,10 +2341,13 @@ public class TestNullableInlineTypes {
         return ((MyValue1Wrapper.ref)val).vt.hash();
     }
 
-    private final long test84Result = test84();
+    private long test84Result = 0;
 
     @Run(test = "test84")
     public void test84_verifier() {
+        if (test84Result == 0) {
+            test84Result = test84();
+        }
         Asserts.assertEquals(test84(), test84Result);
     }
 
@@ -2364,10 +2376,13 @@ public class TestNullableInlineTypes {
         return ((MyValue1Wrapper.ref)val).vt.hash();
     }
 
-    private final long test85Result = test85();
+    private long test85Result = 0;
 
     @Run(test = "test85")
     public void test85_verifier() {
+        if (test85Result == 0) {
+            test85Result = test85();
+        }
         Asserts.assertEquals(test85(), test85Result);
     }
 

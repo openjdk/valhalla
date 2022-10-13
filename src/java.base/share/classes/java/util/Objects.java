@@ -263,6 +263,19 @@ public final class Objects {
         return obj;
     }
 
+   /**
+    * {@return {@code true} if the specified object is a {@linkplain Class#isValue value object},
+    * otherwise {@code false}}
+    *
+    * @param obj an object
+    * @throws NullPointerException if {@code obj} is {@code null}
+    */
+//    @IntrinsicCandidate
+    public static boolean isValueObject(Object obj) {
+        requireNonNull(obj, "obj");
+        return obj.getClass().isValue();
+    }
+
     /**
      * Returns 0 if the arguments are identical and {@code
      * c.compare(a, b)} otherwise.

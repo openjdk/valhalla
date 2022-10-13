@@ -1209,23 +1209,13 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
 //------------------------------Identity---------------------------------------
 // Loads are identity if previous store is to same address
 Node* LoadNode::Identity(PhaseGVN* phase) {
-  // Loading from an InlineTypePtr? The InlineTypePtr has the values of
+  // Loading from an InlineType? The InlineType has the values of
   // all fields as input. Look for the field with matching offset.
   Node* addr = in(Address);
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  if (base != NULL && base->is_InlineTypePtr() && offset > oopDesc::klass_offset_in_bytes()) {
-    Node* value = base->as_InlineTypePtr()->field_value_by_offset((int)offset, true);
-    if (value->is_InlineType()) {
-      // Non-flattened inline type field
-      InlineTypeNode* vt = value->as_InlineType();
-      if (vt->is_allocated(phase)) {
-        value = vt->get_oop();
-      } else {
-        // Not yet allocated, bail out
-        value = NULL;
-      }
-    }
+  if (base != NULL && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
+    Node* value = base->as_InlineType()->field_value_by_offset((int)offset, true);
     if (value != NULL) {
       if (Opcode() == Op_LoadN) {
         // Encode oop value if we are loading a narrow oop
@@ -1522,7 +1512,12 @@ static bool stable_phi(PhiNode* phi, PhaseGVN *phase) {
 }
 //------------------------------split_through_phi------------------------------
 // Split instance or boxed field load through Phi.
-Node *LoadNode::split_through_phi(PhaseGVN *phase) {
+Node* LoadNode::split_through_phi(PhaseGVN* phase) {
+  if (req() > 3) {
+    assert(is_LoadVector() && Opcode() != Op_LoadVector, "load has too many inputs");
+    // LoadVector subclasses such as LoadVectorMasked have extra inputs that the logic below doesn't take into account
+    return NULL;
+  }
   Node* mem     = in(Memory);
   Node* address = in(Address);
   const TypeOopPtr *t_oop = phase->type(address)->isa_oopptr();

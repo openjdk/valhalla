@@ -68,7 +68,6 @@
   template(java_lang_BaseVirtualThread,               "java/lang/BaseVirtualThread")              \
   template(java_lang_VirtualThread,                   "java/lang/VirtualThread")                  \
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
-  template(java_lang_NonTearable,                     "java/lang/NonTearable")                    \
   template(java_lang_Throwable,                       "java/lang/Throwable")                      \
   template(java_lang_ClassLoader,                     "java/lang/ClassLoader")                    \
   template(java_lang_Runnable,                        "java/lang/Runnable")                       \

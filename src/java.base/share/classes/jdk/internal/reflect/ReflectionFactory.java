@@ -177,7 +177,6 @@ public class ReflectionFactory {
                                 method.getName(),
                                 method.getParameterTypes(),
                                 method.getReturnType(),
-                                method.getExceptionTypes(),
                                 method.getModifiers());
     }
 
@@ -211,7 +210,6 @@ public class ReflectionFactory {
                 return new MethodAccessorGenerator().
                         generateConstructor(c.getDeclaringClass(),
                                             c.getParameterTypes(),
-                                            c.getExceptionTypes(),
                                             c.getModifiers());
             } else {
                 NativeConstructorAccessorImpl acc = new NativeConstructorAccessorImpl(c);
@@ -431,7 +429,6 @@ public class ReflectionFactory {
         ConstructorAccessor acc = new MethodAccessorGenerator().
             generateSerializationConstructor(cl,
                                              constructorToCall.getParameterTypes(),
-                                             constructorToCall.getExceptionTypes(),
                                              constructorToCall.getModifiers(),
                                              constructorToCall.getDeclaringClass());
         Constructor<?> c = newConstructor(constructorToCall.getDeclaringClass(),
