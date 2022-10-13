@@ -111,6 +111,7 @@ public class Resolve {
     private final boolean allowYieldStatement;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     final boolean dumpMethodReferenceSearchResults;
+    final boolean allowPrimitiveClasses;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -147,6 +148,7 @@ public class Resolve {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** error symbols, which are returned when resolution fails
@@ -419,7 +421,7 @@ public class Resolve {
             /* If any primitive class types are involved, ask the same question in the reference universe,
                where the hierarchy is navigable
             */
-            if (site.isPrimitiveClass())
+            if (allowPrimitiveClasses && site.isPrimitiveClass())
                 site = site.referenceProjection();
         } else if (sym.kind == TYP) {
             // A type is accessible in a reference projection if it was
@@ -484,7 +486,7 @@ public class Resolve {
         /* If any primitive class types are involved, ask the same question in the reference universe,
            where the hierarchy is navigable
         */
-        if (site.isPrimitiveClass())
+        if (allowPrimitiveClasses && site.isPrimitiveClass())
             site = site.referenceProjection();
 
         Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);

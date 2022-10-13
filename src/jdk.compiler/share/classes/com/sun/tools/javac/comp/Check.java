@@ -168,6 +168,7 @@ public class Check {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** Character for synthetic names
@@ -210,6 +211,10 @@ public class Check {
     /** Are sealed classes allowed
      */
     private final boolean allowSealed;
+
+    /** Are primitive classes allowed
+     */
+    private final boolean allowPrimitiveClasses;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -814,7 +819,7 @@ public class Check {
                 // Projection types may not be mentioned in constructor references
                 if (expr.hasTag(SELECT)) {
                     JCFieldAccess fieldAccess = (JCFieldAccess) expr;
-                    if (fieldAccess.selected.type.isPrimitiveClass() &&
+                    if (allowPrimitiveClasses && fieldAccess.selected.type.isPrimitiveClass() &&
                             (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                         log.error(expr, Errors.ProjectionCantBeInstantiated);
                         t = types.createErrorType(t);
@@ -858,7 +863,7 @@ public class Check {
      *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
     Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
-        if (t.isReference() && (primitiveClassOK || !t.isPrimitiveClass()))
+        if (t.isReference() && (!allowPrimitiveClasses || primitiveClassOK || !t.isPrimitiveClass()))
             return t;
         else
             return typeTagError(pos,
@@ -959,7 +964,7 @@ public class Check {
         @Override
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
-                if (targ.isPrimitiveClass()) {
+                if (allowPrimitiveClasses && targ.isPrimitiveClass()) {
                     log.error(pos, Errors.GenericParameterizationWithPrimitiveClass(t));
                 }
                 visit(targ, pos);
@@ -2541,7 +2546,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && symbol.type.isPrimitiveClass();
+            return (symbol.flags() & STATIC) == 0 && allowPrimitiveClasses && symbol.type.isPrimitiveClass();
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {

@@ -99,6 +99,7 @@ public class Lower extends TreeTranslator {
     private final boolean disableProtectedAccessors; // experimental
     private final PkgInfo pkginfoOpt;
     private final boolean optimizeOuterThis;
+    private final boolean allowPrimitiveClasses;
 
     protected Lower(Context context) {
         context.put(lowerKey, this);
@@ -124,6 +125,8 @@ public class Lower extends TreeTranslator {
             target.optimizeOuterThis() ||
             options.getBoolean("optimizeOuterThis", false);
         disableProtectedAccessors = options.isSet("disableProtectedAccessors");
+        Source source = Source.instance(context);
+        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** The currently enclosing class.
@@ -3138,10 +3141,7 @@ public class Lower extends TreeTranslator {
         // For narrowing conversion, insert a cast which should trigger a null check
         // For widening conversions, insert a cast if emitting a unified class file.
         return (T) make.TypeCast(type, tree);
-
     }
-
-
 
     /** Expand a boxing or unboxing conversion if needed. */
     @SuppressWarnings("unchecked") // XXX unchecked
@@ -4144,7 +4144,7 @@ public class Lower extends TreeTranslator {
          */
         boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isReferenceProjection();
         tree.selected = translate(tree.selected);
-        if (needPrimaryMirror && tree.selected.type.isPrimitiveClass()) {
+        if (needPrimaryMirror && allowPrimitiveClasses && tree.selected.type.isPrimitiveClass()) {
             tree.selected.setType(tree.selected.type.referenceProjection());
         }
         if (tree.name == names._class) {
