@@ -316,6 +316,9 @@ public class ReflectionFactory {
         if (!Externalizable.class.isAssignableFrom(cl)) {
             return null;
         }
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForExternalization does not support value classes");
+        }
         try {
             Constructor<?> cons = cl.getConstructor();
             cons.setAccessible(true);
