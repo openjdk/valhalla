@@ -647,9 +647,7 @@ public class Symtab {
         // It has a final length field and a clone method.
         ClassType arrayClassType = (ClassType)arrayClass.type;
         arrayClassType.supertype_field = objectType;
-        arrayClassType.interfaces_field =
-                List.of(cloneableType, serializableType);
-
+        arrayClassType.interfaces_field = List.of(cloneableType, serializableType);
         arrayClass.members_field = WriteableScope.create(arrayClass);
         lengthVar = new VarSymbol(
             PUBLIC | FINAL,

@@ -143,6 +143,7 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
+
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
@@ -512,7 +513,7 @@ public class Check {
         compiled.remove(Pair.of(csym.packge().modle, csym.flatname));
     }
 
-    /* *************************************************************************
+/* *************************************************************************
  * Type Checking
  **************************************************************************/
 
@@ -619,7 +620,7 @@ public class Check {
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         } else {
-            if (found.hasTag(CLASS)) {
+            if (allowPrimitiveClasses && found.hasTag(CLASS)) {
                 if (inferenceContext != infer.emptyContext)
                     checkParameterizationByPrimitiveClass(pos, found);
             }
@@ -1144,12 +1145,13 @@ public class Check {
 
         //upward project the initializer type
         Type varType = types.upward(t, types.captures(t)).baseType();
-        if (varType.hasTag(CLASS)) {
+        if (allowPrimitiveClasses && varType.hasTag(CLASS)) {
             checkParameterizationByPrimitiveClass(pos, varType);
         }
         return varType;
     }
 
+    /* it is necessary to confirm if the code below is experimental or not, and thus can be removed */
     public void checkForSuspectClassLiteralComparison(
             final JCBinary tree,
             final Type leftType,
@@ -2513,21 +2515,22 @@ public class Check {
 
     // A primitive class cannot contain a field of its own type either or indirectly.
     void checkNonCyclicMembership(JCClassDecl tree) {
-        Assert.check((tree.sym.flags_field & LOCKED) == 0);
-        try {
-            tree.sym.flags_field |= LOCKED;
-            for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                if (l.head.hasTag(VARDEF)) {
-                    JCVariableDecl field = (JCVariableDecl) l.head;
-                    if (cyclePossible(field.sym)) {
-                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
+        if (allowPrimitiveClasses) {
+            Assert.check((tree.sym.flags_field & LOCKED) == 0);
+            try {
+                tree.sym.flags_field |= LOCKED;
+                for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
+                    if (l.head.hasTag(VARDEF)) {
+                        JCVariableDecl field = (JCVariableDecl) l.head;
+                        if (cyclePossible(field.sym)) {
+                            checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
+                        }
                     }
                 }
+            } finally {
+                tree.sym.flags_field &= ~LOCKED;
             }
-        } finally {
-            tree.sym.flags_field &= ~LOCKED;
         }
-
     }
     // where
     private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {

@@ -2790,11 +2790,13 @@ public class Attr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             boolean skipNonDiamondPath = false;
             // Check that it is an instantiation of a class and not a projection type
-            if (clazz.hasTag(SELECT)) {
-                JCFieldAccess fieldAccess = (JCFieldAccess) clazz;
-                if (allowPrimitiveClasses && fieldAccess.selected.type.isPrimitiveClass() &&
-                        (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
-                    log.error(tree.pos(), Errors.ProjectionCantBeInstantiated);
+            if (allowPrimitiveClasses) {
+                if (clazz.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) clazz;
+                    if (fieldAccess.selected.type.isPrimitiveClass() &&
+                            (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
+                        log.error(tree.pos(), Errors.ProjectionCantBeInstantiated);
+                    }
                 }
             }
             // Check that class is not abstract
@@ -2976,7 +2978,9 @@ public class Attr extends JCTree.Visitor {
                     for (Type t : clazztype.getTypeArguments()) {
                         rs.checkAccessibleType(env, t);
                     }
-                    chk.checkParameterizationByPrimitiveClass(tree, clazztype);
+                    if (allowPrimitiveClasses) {
+                        chk.checkParameterizationByPrimitiveClass(tree, clazztype);
+                    }
                 }
 
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers
@@ -4067,7 +4071,9 @@ public class Attr extends JCTree.Visitor {
                 if (!types.isCastable(left, right, new Warner(tree.pos()))) {
                     log.error(tree.pos(), Errors.IncomparableTypes(left, right));
                 }
-                chk.checkForSuspectClassLiteralComparison(tree, left, right);
+                if (allowPrimitiveClasses) {
+                    chk.checkForSuspectClassLiteralComparison(tree, left, right);
+                }
             }
 
             chk.checkDivZero(tree.rhs.pos(), operator, right);
@@ -4409,7 +4415,6 @@ public class Attr extends JCTree.Visitor {
         // for the selection. This is relevant for determining whether
         // protected symbols are accessible.
         Symbol sitesym = TreeInfo.symbol(tree.selected);
-
         boolean selectSuperPrev = env.info.selectSuper;
         env.info.selectSuper =
             sitesym != null &&
@@ -5024,8 +5029,10 @@ public class Attr extends JCTree.Visitor {
         Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP_PCK, Type.noType));
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
-
-        Symbol sym = switch (site.getTag()) {
+        if (!allowPrimitiveClasses) {
+            result = types.createErrorType(names._default, site.tsym, site);
+        } else {
+            Symbol sym = switch (site.getTag()) {
                 case WILDCARD -> throw new AssertionError(tree);
                 case PACKAGE -> {
                     log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
@@ -5034,12 +5041,13 @@ public class Attr extends JCTree.Visitor {
                 }
                 case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
                 default -> new VarSymbol(STATIC, names._default, site, site.tsym);
-        };
+            };
 
-        if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
-            site = types.skipTypeVars(site, true);
+            if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
+                site = types.skipTypeVars(site, true);
+            }
+            result = checkId(tree, site, sym, env, resultInfo);
         }
-        result = checkId(tree, site, sym, env, resultInfo);
     }
 
     public void visitLiteral(JCLiteral tree) {

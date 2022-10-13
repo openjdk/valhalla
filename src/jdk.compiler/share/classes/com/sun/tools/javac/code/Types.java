@@ -1927,11 +1927,7 @@ public class Types {
                     if (elemtype(t).isPrimitive() || elemtype(s).isPrimitive()) {
                         return elemtype(t).hasTag(elemtype(s).getTag());
                     } else {
-                        Type et = elemtype(t);
-                        Type es = elemtype(s);
-                        if (!visit(et, es))
-                            return false;
-                        return true;
+                        return visit(elemtype(t), elemtype(s));
                     }
                 default:
                     return false;
@@ -2628,9 +2624,8 @@ public class Types {
         if (allInterfaces) {
             bounds = bounds.prepend(syms.objectType);
         }
-        long flags = ABSTRACT | PUBLIC | SYNTHETIC | COMPOUND | ACYCLIC;
         ClassSymbol bc =
-            new ClassSymbol(flags,
+            new ClassSymbol(ABSTRACT|PUBLIC|SYNTHETIC|COMPOUND|ACYCLIC,
                             Type.moreInfo
                                 ? names.fromString(bounds.toString())
                                 : names.empty,
@@ -4093,6 +4088,7 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
+
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
