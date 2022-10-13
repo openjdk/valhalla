@@ -119,7 +119,7 @@ public class ObjectStreamField
             case 'J'      -> Long.TYPE;
             case 'F'      -> Float.TYPE;
             case 'D'      -> Double.TYPE;
-            case 'L', '[' -> Object.class;
+            case 'L', '[', 'Q' -> Object.class;
             default       -> throw new IllegalArgumentException("illegal signature");
         };
     }
@@ -287,7 +287,7 @@ public class ObjectStreamField
     // REMIND: deprecate?
     public boolean isPrimitive() {
         char tcode = getTypeCode();
-        return ((tcode != 'L') && (tcode != '['));
+        return ((tcode != 'L') && (tcode != 'Q') && (tcode != '['));
     }
 
     /**
