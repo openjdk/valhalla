@@ -133,7 +133,7 @@ import sun.reflect.misc.ReflectUtil;
  * Use {@link Serializable} {@code writeReplace} to delegate to another serializable
  * object such as a record.
  *
- * Value objects cannot be `java.io.Externalizable`.
+ * Value objects cannot be {@code java.io.Externalizable}.
  *
  * <p>Enum constants are serialized differently than ordinary serializable or
  * externalizable objects.  The serialized form of an enum constant consists
