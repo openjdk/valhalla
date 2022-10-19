@@ -100,6 +100,8 @@ public class ObjectMethods {
             assertEquals(Objects.isIdentityObject(obj), identityClass, "Objects.isIdentityObject()");
         }
 
+        assertEquals(Objects.isValueObject(obj), valueClass, "Objects.isValueObject()");
+
         assertEquals(clazz.isIdentity(), identityClass, "Class.isIdentity()");
 
         assertEquals(clazz.isValue(), valueClass, "Class.isValue()");

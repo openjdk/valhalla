@@ -3939,6 +3939,8 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* kls = load_klass_from_mirror(mirror, false, region, _prim_path);
 
   Node* res = top();
+  Node* io = i_o();
+  Node* mem = merged_memory();
   if (!stopped()) {
     if (EnableValhalla && !requires_null_check) {
       // Check if we are casting to QMyValue
@@ -3972,6 +3974,9 @@ bool LibraryCallKit::inline_Class_cast() {
     // Let Interpreter throw ClassCastException.
     PreserveJVMState pjvms(this);
     set_control(_gvn.transform(region));
+    // Set IO and memory because gen_checkcast may override them when buffering inline types
+    set_i_o(io);
+    set_all_memory(mem);
     uncommon_trap(Deoptimization::Reason_intrinsic,
                   Deoptimization::Action_maybe_recompile);
   }

@@ -156,11 +156,6 @@ Node* Parse::fetch_interpreter_state(int index,
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
                                     SafePointNode* &bad_type_exit) {
-  if (type->isa_inlinetype() != NULL) {
-    // The interpreter passes inline types as oops
-    type = TypeOopPtr::make_from_klass(type->inline_klass());
-    type = type->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-  }
   const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.

@@ -623,7 +623,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       JavaCallArguments args;
       Handle ho(THREAD, obj);
       args.push_oop(ho);
-      methodHandle method(THREAD, Universe::primitive_type_hash_code_method());
+      methodHandle method(THREAD, Universe::value_object_hash_code_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
@@ -1249,6 +1249,19 @@ JVM_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
   }
   Klass* k = java_lang_Class::as_Klass(mirror);
   return k->is_hidden();
+JVM_END
+
+JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  if (java_lang_Class::is_primitive(mirror)) {
+    return JNI_FALSE;
+  }
+  Klass* k = java_lang_Class::as_Klass(mirror);
+  if (EnableValhalla) {
+    return k->is_array_klass() || k->is_identity_class();
+  } else {
+    return k->is_interface() ? JNI_FALSE : JNI_TRUE;
+  }
 JVM_END
 
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))

@@ -648,13 +648,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since Valhalla
      */
-    public boolean isIdentity() {
-        if (!ValhallaFeatures.isEnabled()) {
-            // by default interfaces are not an identity interface
-            return !isInterface();
-        }
-        return (this.getModifiers() & Modifier.IDENTITY) != 0 || isArray();
-    }
+    public native boolean isIdentity();
 
     /**
      * {@return {@code true} if this {@code Class} object represents a value
