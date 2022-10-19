@@ -64,16 +64,16 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
      */
     DirectMethodHandleDescImpl(Kind kind, ClassDesc owner, String name, MethodTypeDesc type) {
         if (kind == CONSTRUCTOR) {
-            // TODO: missing "value objects", they don't use Q-type desc
-            name = owner.descriptorString().startsWith("Q") ? "<vnew>" : "<init>";
+            name = "<init>";
         }
+
         requireNonNull(kind);
         validateClassOrInterface(requireNonNull(owner));
         validateMemberName(requireNonNull(name), true);
         requireNonNull(type);
 
         switch (kind) {
-            case CONSTRUCTOR   -> validateConstructor(type);
+            case CONSTRUCTOR   -> validateObjectConstructor(type);
             case GETTER        -> validateFieldType(type, false, true);
             case SETTER        -> validateFieldType(type, true, true);
             case STATIC_GETTER -> validateFieldType(type, false, false);
@@ -103,7 +103,7 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
         }
     }
 
-    private static void validateConstructor(MethodTypeDesc type) {
+    private static void validateObjectConstructor(MethodTypeDesc type) {
         if (!type.returnType().descriptorString().equals("V")) {
             throw new IllegalArgumentException(String.format("Expected type of (T*)V for constructor, found %s", type));
         }

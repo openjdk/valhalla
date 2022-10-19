@@ -2762,7 +2762,7 @@ assertEquals("[x, y, z]", pb.command().toString());
             if (type.returnType() != void.class) {
                 throw new NoSuchMethodException("Constructors must have void return type: " + refc.getName());
             }
-            String name = refc.isValue() ? "<vnew>" : "<init>";
+            String name = "<init>";
             MemberName ctor = resolveOrFail(REF_newInvokeSpecial, refc, name, type);
             return getDirectConstructor(refc, ctor);
         }
@@ -2958,7 +2958,7 @@ assertEquals("[x, y, z]", pb.command().toString());
          * {@linkplain MethodHandle#asVarargsCollector variable arity} if and only if
          * the method's variable arity modifier bit ({@code 0x0080}) is set.
          * <p style="font-size:smaller;">
-         * <em>(Note:  JVM internal methods named {@code "<init>"/"<vnew>"} are not visible to this API,
+         * <em>(Note:  JVM internal methods named {@code "<init>"} are not visible to this API,
          * even though the {@code invokespecial} instruction can refer to them
          * in special circumstances.  Use {@link #findConstructor findConstructor}
          * to access instance initialization methods in a safe manner.)</em>
@@ -3448,7 +3448,7 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructorOrStaticInitMethod());
+            assert(ctor.isObjectConstructor() || ctor.isStaticValueFactoryMethod());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
             Class<?> defc = c.getDeclaringClass();
@@ -3698,12 +3698,6 @@ return mh1;
             return IMPL_NAMES.resolveOrNull(refKind, member, lookupClassOrNull(), allowedModes);
         }
 
-        boolean isIllegalSpecialName(byte refKind, String name) {
-            return (name.startsWith("<") &&
-            ((name.equals("<init>") && refKind != REF_newInvokeSpecial) ||
-            ((name.equals("<vnew>") || name.equals("<clinit>")) && refKind != REF_invokeStatic)));
-        }
-
         MemberName resolveOrNull(byte refKind, Class<?> refc, String name, MethodType type) {
             // do this before attempting to resolve
             if (!isClassAccessible(refc)) {
@@ -3711,9 +3705,10 @@ return mh1;
             }
             Objects.requireNonNull(type);
             // implicit null-check of name
-            if (isIllegalSpecialName(refKind, name)) {
+            if (isIllegalMethodName(refKind, name)) {
                 return null;
             }
+
             return IMPL_NAMES.resolveOrNull(refKind, new MemberName(refc, name, type, refKind), lookupClassOrNull(), allowedModes);
         }
 
@@ -3733,11 +3728,22 @@ return mh1;
             return caller == null || VerifyAccess.isClassAccessible(type, caller, prevLookupClass, allowedModes);
         }
 
+        /*
+         * "<init>" can only be invoked via invokespecial
+         * "<vnew>" factory can only invoked via invokestatic
+         */
+        boolean isIllegalMethodName(byte refKind, String name) {
+            if (name.startsWith("<")) {
+                return MemberName.VALUE_FACTORY_NAME.equals(name) ? refKind != REF_invokeStatic
+                                                                  : refKind != REF_newInvokeSpecial;
+            }
+            return false;
+        }
+
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            // "<init>" can only be invoked via invokespecial or it's a static <vnew> factory
-            if (isIllegalSpecialName(refKind, name)) {
-                throw new NoSuchMethodException("illegal method name: " + name);
+            if (isIllegalMethodName(refKind, name)) {
+                throw new NoSuchMethodException("illegal method name: " + name + " " + refKind);
             }
         }
 

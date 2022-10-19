@@ -102,7 +102,8 @@ final class MemberName implements Member, Cloneable {
     /** Return the simple name of this member.
      *  For a type, it is the same as {@link Class#getSimpleName}.
      *  For a method or field, it is the simple name of the member.
-     *  For a constructor, it is {@code "<init>"} or {@code "<vnew>"}.
+     *  For an identity object constructor, it is {@code "<init>"}.
+     *  For a value class static factory method, it is {@code "<vnew>"}.
      */
     public String getName() {
         if (name == null) {
@@ -489,7 +490,6 @@ final class MemberName implements Member, Cloneable {
     static final String VALUE_FACTORY_NAME = "<vnew>";  // the ever-popular
 
     // modifiers exported by the JVM:
-    // modifiers exported by the JVM:
     static final int RECOGNIZED_MODIFIERS = 0xFFFF;
 
     // private flags, not part of RECOGNIZED_MODIFIERS:
@@ -523,14 +523,11 @@ final class MemberName implements Member, Cloneable {
     public boolean isObjectConstructor() {
         return testAllFlags(IS_OBJECT_CONSTRUCTOR);
     }
-    /** Query whether this member is a constructor. */
-    boolean isConstructor(String name) {
-        return CONSTRUCTOR_NAME.equals(name) || VALUE_FACTORY_NAME.equals(name);
-    }
     /** Query whether this member is an object constructor or static <init> factory */
-    public boolean isObjectConstructorOrStaticInitMethod() {
-        return isObjectConstructor() || (isConstructor(getName()) && isMethod());
+    public boolean isStaticValueFactoryMethod() {
+        return VALUE_FACTORY_NAME.equals(name) && isMethod();
     }
+
     /** Query whether this member is a field. */
     public boolean isField() {
         return testAllFlags(IS_FIELD);
@@ -700,8 +697,7 @@ final class MemberName implements Member, Cloneable {
         // fill in vmtarget, vmindex while we have ctor in hand:
         MethodHandleNatives.init(this, ctor);
         assert(isResolved() && this.clazz != null);
-        this.name = this.clazz.isValue() ? VALUE_FACTORY_NAME
-                                          : CONSTRUCTOR_NAME;
+        this.name = this.clazz.isValue() ? VALUE_FACTORY_NAME : CONSTRUCTOR_NAME;
         if (this.type == null) {
             Class<?> rtype = void.class;
             if (isStatic()) {  // a static init factory, not a true constructor
@@ -844,13 +840,14 @@ final class MemberName implements Member, Cloneable {
     }
     /** Create a method or constructor name from the given components:
      *  Declaring class, name, type, reference kind.
-     *  It will be a constructor if and only if the name is {@code "<init>"} or {@code "<vnew>"}.
+     *  It will be an object constructor if and only if the name is {@code "<init>"}.
+     *  It will be a value class instance factory method if and only if the name is {@code "<vnew>"}.
      *  The declaring class may be supplied as null if this is to be a bare name and type.
      *  The last argument is optional, a boolean which requests REF_invokeSpecial.
      *  The resulting name will in an unresolved state.
      */
     public MemberName(Class<?> defClass, String name, MethodType type, byte refKind) {
-        int initFlags = isConstructor(name) ? IS_OBJECT_CONSTRUCTOR : IS_METHOD;
+        int initFlags = CONSTRUCTOR_NAME.equals(name) ? IS_OBJECT_CONSTRUCTOR : IS_METHOD;
         init(defClass, name, type, flagsMods(initFlags, 0, refKind));
         initResolved(false);
     }
@@ -870,7 +867,7 @@ final class MemberName implements Member, Cloneable {
         } else if (refKind == REF_newInvokeSpecial) {
             kindFlags = IS_OBJECT_CONSTRUCTOR;
             if (!(type instanceof MethodType) ||
-                !isConstructor(name))
+                !CONSTRUCTOR_NAME.equals(name))
                 throw newIllegalArgumentException("not a constructor type or name");
         } else {
             throw newIllegalArgumentException("bad reference kind "+refKind);

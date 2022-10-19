@@ -1680,9 +1680,13 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isConstructor() { return !isPartial() && ("<init>".equals(name) || "<vnew>".equals(name)); }
+        boolean isObjectConstructor() { return !isPartial() && "<init>".equals(name); }
 
-        boolean isMethod() { return !isPartial() && !isConstructor() && !"<clinit>".equals(name); }
+        boolean isValueFactoryMethod() { return !isPartial() && "<vnew>".equals(name); }
+
+        boolean isMethod() { return !isPartial() && !isObjectConstructor()
+                                        && !isValueFactoryMethod()
+                                        && !"<clinit>".equals(name); }
 
         Class<?> getEnclosingClass() { return enclosingClass; }
 
@@ -1741,7 +1745,7 @@ public final class Class<T> implements java.io.Serializable,
         if (enclosingInfo == null)
             return null;
         else {
-            if (!enclosingInfo.isConstructor())
+            if (!enclosingInfo.isObjectConstructor() && !enclosingInfo.isValueFactoryMethod())
                 return null;
 
             ConstructorRepository typeInfo = ConstructorRepository.make(enclosingInfo.getDescriptor(),
