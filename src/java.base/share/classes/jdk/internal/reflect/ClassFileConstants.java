@@ -137,6 +137,4 @@ interface ClassFileConstants {
 
     // Access flags
     public static final short ACC_PUBLIC = (short) 0x0001;
-    // ACC_SUPER or ACC_IDENTITY (depending on Valhalla) + ACC_PUBLIC
-    public static final short CLASS_ACCESS_FLAGS = (short) 0x0021;
 }

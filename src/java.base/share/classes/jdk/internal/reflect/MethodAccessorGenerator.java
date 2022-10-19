@@ -92,7 +92,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
     {
         boolean isStaticFactory = declaringClass.isValue();
         return (ConstructorAccessor) generate(declaringClass,
-                                              isStaticFactory ? "<vnew>" : "<init>",
+                                              "<init>",
                                               parameterTypes,
                                               isStaticFactory ? PrimitiveClass.asValueType(declaringClass) : Void.TYPE,
                                               modifiers,
@@ -109,12 +109,11 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                      int modifiers,
                                      Class<?> targetConstructorClass)
     {
-        boolean isValueClass = declaringClass.isValue();
         return (SerializationConstructorAccessorImpl)
             generate(declaringClass,
-                     isValueClass ? "<vnew>" : "<init>",
+                     "<init>",
                      parameterTypes,
-                     isValueClass ? declaringClass : Void.TYPE,
+                     Void.TYPE,
                      modifiers,
                      true,
                      false,
@@ -179,7 +178,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         // +   [CONSTANT_Class_info] for above
         // +   [UTF-8] "java/lang/InvocationTargetException"
         // +   [CONSTANT_Class_info] for above
-        // +   [UTF-8] "<init>" or "<vnew>"
+        // +   [UTF-8] "<init>"
         // +   [UTF-8] "()V"
         // +   [CONSTANT_NameAndType_info] for above
         // +   [CONSTANT_Methodref_info] for NullPointerException's constructor
@@ -363,7 +362,7 @@ class MethodAccessorGenerator extends AccessorGenerator {
         }
 
         // Access flags
-        asm.emitShort(CLASS_ACCESS_FLAGS);
+        asm.emitShort(ACC_PUBLIC);
 
         // This class
         asm.emitShort(thisClass);
