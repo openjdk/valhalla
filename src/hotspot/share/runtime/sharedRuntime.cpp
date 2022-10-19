@@ -1187,7 +1187,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     frame callerFrame = stubFrame.sender(&reg_map2);
     bool caller_is_c1 = false;
 
-    if (callerFrame.is_compiled_frame() && !callerFrame.is_deoptimized_frame()) {
+    if (callerFrame.is_compiled_frame()) {
       caller_is_c1 = callerFrame.cb()->is_compiled_by_c1();
     }
 
@@ -1909,6 +1909,9 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   frame stub_frame = current->last_frame();
   assert(stub_frame.is_runtime_frame(), "must be a runtimeStub");
   frame caller = stub_frame.sender(&reg_map);
+  if (caller.is_compiled_frame()) {
+    caller_is_c1 = caller.cb()->is_compiled_by_c1();
+  }
 
   // Do nothing if the frame isn't a live compiled frame.
   // nmethod could be deoptimized by the time we get here
@@ -1920,7 +1923,6 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
 
     // Check for static or virtual call
     CompiledMethod* caller_nm = CodeCache::find_compiled(pc);
-    caller_is_c1 = caller_nm->is_compiled_by_c1();
 
     // Default call_addr is the location of the "basic" call.
     // Determine the address of the call we a reresolving. With

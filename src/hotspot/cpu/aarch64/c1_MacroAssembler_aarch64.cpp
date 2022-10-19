@@ -303,14 +303,14 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   cmp_klass(receiver, iCache, rscratch1);
 }
 
-void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool has_scalarized_args, bool needs_stack_repair) {
+void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool reset_orig_pc, bool needs_stack_repair) {
   MacroAssembler::build_frame(frame_size_in_bytes);
 
   if (needs_stack_repair) {
     save_stack_increment(sp_inc, frame_size_in_bytes);
   }
-  if (has_scalarized_args) {
-    // Initialize orig_pc to detect deoptimization during buffering in the entry points
+  if (reset_orig_pc) {
+    // Zero orig_pc to detect deoptimization during buffering in the entry points
     str(zr, Address(sp, sp_offset_for_orig_pc));
   }
 }
@@ -397,7 +397,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
 
   // Create the real frame. Below jump will then skip over the stack banging and frame
   // setup code in the verified_inline_entry (which has a different real_frame_size).
-  build_frame_helper(frame_size_in_bytes, sp_offset_for_orig_pc, sp_inc, true, ces->c1_needs_stack_repair());
+  build_frame_helper(frame_size_in_bytes, sp_offset_for_orig_pc, sp_inc, false, ces->c1_needs_stack_repair());
 
   b(verified_inline_entry_label);
   return rt_call_offset;
