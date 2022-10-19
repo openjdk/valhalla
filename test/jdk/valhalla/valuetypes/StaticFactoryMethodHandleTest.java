@@ -82,7 +82,7 @@ public class StaticFactoryMethodHandleTest {
      */
     @Test
     public void testNoArgStaticFactory() throws Throwable {
-        // test default vnew init factory
+        // test default static vnew factory
         Class<? extends Cons> cls = (Class<? extends Cons>)PrimitiveClass.asValueType(DefaultConstructor.class);
         MethodHandle mh = staticValueFactory(cls, methodType(cls));
         DefaultConstructor o = (DefaultConstructor)mh.invokeExact();
