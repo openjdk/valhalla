@@ -1290,7 +1290,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
   if (regs_cc != regs_cc_ro) {
     // No class init barrier needed because method is guaranteed to be non-static
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, c2i_no_clinit_check_entry,
-                    skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* requires_clinit_barrier = */ false);
+                    skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
     skip_fixup.reset();
   }
 
@@ -1298,7 +1298,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
   address c2i_entry        = __ pc();
   address c2i_inline_entry = __ pc();
   gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
-                  skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* requires_clinit_barrier = */ true);
+                  skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ true);
 
   // Non-scalarized c2i adapter
   if (regs != regs_cc) {
@@ -1308,7 +1308,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
 
     c2i_inline_entry = __ pc();
     gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
-                    inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* requires_clinit_barrier = */ false);
+                    inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
 
   __ flush();
