@@ -2612,34 +2612,45 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     transform_later(fast_mem);
   }
 
-  Node* r = new RegionNode(alloc_in_place ? 4 : 3);
-  Node* mem_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
-  Node* io_phi = new PhiNode(r, Type::ABIO);
-  Node* res_phi = new PhiNode(r, TypeInstPtr::BOTTOM);
-  r->init_req(1, no_allocation_ctl);
-  mem_phi->init_req(1, mem);
-  io_phi->init_req(1, io);
-  res_phi->init_req(1, no_allocation_res);
-  r->init_req(2, slow_norm);
-  mem_phi->init_req(2, slow_mem);
-  io_phi->init_req(2, slow_io);
-  res_phi->init_req(2, slow_res);
+  ctl = new RegionNode(alloc_in_place ? 4 : 3);
+  mem = new PhiNode(ctl, Type::MEMORY, TypePtr::BOTTOM);
+  io = new PhiNode(ctl, Type::ABIO);
+  res = new PhiNode(ctl, TypeInstPtr::BOTTOM);
+  ctl->init_req(1, no_allocation_ctl);
+  mem->init_req(1, mem);
+  io->init_req(1, io);
+  res->init_req(1, no_allocation_res);
+  ctl->init_req(2, slow_norm);
+  mem->init_req(2, slow_mem);
+  io->init_req(2, slow_io);
+  res->init_req(2, slow_res);
   if (alloc_in_place) {
-    r->init_req(3, fast_ctl);
-    mem_phi->init_req(3, fast_mem);
-    io_phi->init_req(3, io);
-    res_phi->init_req(3, fast_res);
+    ctl->init_req(3, fast_ctl);
+    mem->init_req(3, fast_mem);
+    io->init_req(3, io);
+    res->init_req(3, fast_res);
   }
-  transform_later(r);
-  transform_later(mem_phi);
-  transform_later(io_phi);
-  transform_later(res_phi);
+  transform_later(ctl);
+  transform_later(mem);
+  transform_later(io);
+  transform_later(res);
+
+  // Do not let stores that initialize this buffer be reordered with a subsequent
+  // store that would make this buffer accessible by other threads.
+  MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxBot);
+  transform_later(mb);
+  mb->init_req(TypeFunc::Memory, mem);
+  mb->init_req(TypeFunc::Control, ctl);
+  ctl = new ProjNode(mb, TypeFunc::Control);
+  transform_later(ctl);
+  mem = new ProjNode(mb, TypeFunc::Memory);
+  transform_later(mem);
 
   assert(projs->nb_resproj == 1, "unexpected number of results");
-  _igvn.replace_in_uses(projs->fallthrough_catchproj, r);
-  _igvn.replace_in_uses(projs->fallthrough_memproj, mem_phi);
-  _igvn.replace_in_uses(projs->fallthrough_ioproj, io_phi);
-  _igvn.replace_in_uses(projs->resproj[0], res_phi);
+  _igvn.replace_in_uses(projs->fallthrough_catchproj, ctl);
+  _igvn.replace_in_uses(projs->fallthrough_memproj, mem);
+  _igvn.replace_in_uses(projs->fallthrough_ioproj, io);
+  _igvn.replace_in_uses(projs->resproj[0], res);
   _igvn.replace_in_uses(projs->catchall_catchproj, ex_r);
   _igvn.replace_in_uses(projs->catchall_memproj, ex_mem_phi);
   _igvn.replace_in_uses(projs->catchall_ioproj, ex_io_phi);
