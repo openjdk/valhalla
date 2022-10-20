@@ -160,7 +160,9 @@ public interface MethodHandleInfo {
 
     /**
      * Returns the name of the cracked method handle's underlying member.
-     * This is {@code "<init>"} or {@code "<vnew>"} if the underlying member
+     * This is {@code "<init>"} if the underlying member was a constructor,
+     * or {@code "<vnew>"} if the underlying member was a value class static
+     * factory method, else it is a simple method name or field name.
      * was a constructor, else it is a simple method name or field name.
      * @return the simple name of the underlying member
      */
