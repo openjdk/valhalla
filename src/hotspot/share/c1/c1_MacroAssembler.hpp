@@ -33,7 +33,7 @@ class CompiledEntrySignature;
 class C1_MacroAssembler: public MacroAssembler {
  private:
   int scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry);
-  void build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool has_scalarized_args, bool needs_stack_repair);
+  void build_frame_helper(int frame_size_in_bytes, int sp_offset_for_orig_pc, int sp_inc, bool reset_orig_pc, bool needs_stack_repair);
  public:
   // creation
   C1_MacroAssembler(CodeBuffer* code) : MacroAssembler(code) { pd_init(); }

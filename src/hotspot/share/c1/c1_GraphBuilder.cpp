@@ -1261,9 +1261,9 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
           s.next();
           if (s.cur_bc() != Bytecodes::_pop) {
             w1->as_NewInlineTypeInstance()->set_not_larva_anymore();
-          }  else {
+          } else {
             w1->as_NewInlineTypeInstance()->increment_on_stack_count();
-           }
+          }
         }
         state()->raw_push(w1);
         state()->raw_push(w3);
@@ -1709,7 +1709,7 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
 
   // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
-  if ((method()->is_object_constructor() || method()->is_static_init_factory()) &&
+  if ((method()->is_object_constructor() || method()->is_static_vnew_factory()) &&
        (scope()->wrote_final() ||
          (AlwaysSafeConstructors && scope()->wrote_fields()) ||
          (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {

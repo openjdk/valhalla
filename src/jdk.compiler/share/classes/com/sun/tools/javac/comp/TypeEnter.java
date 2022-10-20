@@ -1151,7 +1151,7 @@ public class TypeEnter implements Completer {
                         case MTH:
                             if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
-                            } else if (s.isConstructor()) {
+                            } else if (s.isInitOrVNew()) {
                                 MethodSymbol m = (MethodSymbol)s;
                                 if (m.getParameters().size() > 0
                                         || m.getTypeParameters().size() > 0
@@ -1361,7 +1361,8 @@ public class TypeEnter implements Completer {
                 } else {
                     flags = (owner().flags() & AccessFlags) | GENERATEDCONSTR;
                 }
-                constructorSymbol = new MethodSymbol(flags, names.init,
+                Name constructorName = owner().isConcreteValueClass() ? names.vnew : names.init;
+                constructorSymbol = new MethodSymbol(flags, constructorName,
                     constructorType(), owner());
             }
             return constructorSymbol;

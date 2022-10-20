@@ -667,11 +667,11 @@ public:
   bool is_object_constructor() const;
 
   // returns true if the method is an object constructor or class initializer
-  // (non-static <init> or <clinit>), but false for factories (static <init>).
+  // (non-static <init> or <clinit>), but false for factories (static <vnew>).
   bool is_object_constructor_or_class_initializer() const;
 
-  // returns true if the method name is <init> and the method is static
-  bool is_static_init_factory() const;
+  // returns true if the method name is <vnew> and the method is static
+  bool is_static_vnew_factory() const;
 
   // compiled code support
   // NOTE: code() is inherently racy as deopt can be clearing code

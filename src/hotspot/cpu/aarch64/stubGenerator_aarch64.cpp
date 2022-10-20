@@ -7869,7 +7869,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // Set up last_Java_sp and last_Java_fp
     address the_pc = __ pc();
-    __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
+    __ set_last_Java_frame(sp, noreg, the_pc, rscratch1);
 
     // Call runtime
     __ mov(c_rarg1, r0);

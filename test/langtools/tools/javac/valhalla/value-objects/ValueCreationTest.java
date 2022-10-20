@@ -64,7 +64,7 @@ public class ValueCreationTest {
 
          // Check that constructor invocation has been lowered into invokestatic
          // of the factory method.
-         "4: invokestatic  #10                 // Method \"<init>\":(II)LValueCreationTest$Point;",
+         "4: invokestatic  #10                 // Method \"<vnew>\":(II)LValueCreationTest$Point;",
 
 
 

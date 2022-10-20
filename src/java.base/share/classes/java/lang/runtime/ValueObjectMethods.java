@@ -50,13 +50,13 @@ import static java.lang.invoke.MethodType.methodType;
 import static java.lang.runtime.ObjectMethods.primitiveEquals;
 
 /**
- * Implementation for Object::equals and Object::hashCode for primitive classes.
+ * Implementation for Object::equals and Object::hashCode for value objects.
  *
- * PrimitiveObjectMethods::isSubstitutable and primitiveObjectHashCode are
+ * ValueObjectMethods::isSubstitutable and valueObjectHashCode are
  * private entry points called by VM.
  */
-final class PrimitiveObjectMethods {
-    private PrimitiveObjectMethods() {}
+final class ValueObjectMethods {
+    private ValueObjectMethods() {}
     private static final boolean VERBOSE =
         GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
@@ -92,8 +92,8 @@ final class PrimitiveObjectMethods {
             }
         }
 
-        static MethodHandle primitiveEquals(Class<?> primitiveType) {
-            return primitiveEquals.get(primitiveType);
+        static MethodHandle builtinPrimitiveEquals(Class<?> type) {
+            return primitiveEquals.get(type);
         }
 
         /*
@@ -105,7 +105,7 @@ final class PrimitiveObjectMethods {
          * 2. if o1 and o2 are both values then o1 v== o2
          *
          * At invocation time, it needs a dynamic check on the objects and
-         * do the substitutability test if they are of a primitive type.
+         * do the substitutability test if they are of a value class.
          */
         static MethodHandle referenceTypeEquals(Class<?> type) {
             return OBJECT_EQUALS.asType(methodType(boolean.class, type, type));
@@ -117,12 +117,13 @@ final class PrimitiveObjectMethods {
         }
 
         /*
-         * Produces a MethodHandle that returns boolean if two value instances
-         * of the given primitive class are substitutable.
+         * Produces a MethodHandle that returns boolean if two value objects
+         * are substitutable.
          */
-        static MethodHandle primitiveTypeEquals(Class<?> type) {
-            assert PrimitiveClass.isPrimitiveValueType(type) ||
-                    (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
+        static MethodHandle valueTypeEquals(Class<?> type) {
+            // ensure the reference type of a primitive class not used in the method handle
+            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle[] getters = getters(type, TYPE_SORTER);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -143,9 +144,13 @@ final class PrimitiveObjectMethods {
                                                instanceFalse));
         }
 
-        static MethodHandle primitiveTypeHashCode(Class<?> type) {
-            assert PrimitiveClass.isPrimitiveValueType(type) ||
-                    (type.isValue() && !PrimitiveClass.isPrimitiveClass(type));
+        /*
+         * Produces a MethodHandle that computes the hash code for a value object.
+         */
+        static MethodHandle valueTypeHashCode(Class<?> type) {
+            // ensure the reference type of a primitive class not used in the method handle
+            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
+
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
             MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
@@ -159,10 +164,9 @@ final class PrimitiveObjectMethods {
                 MethodHandle getter = getters[i];
                 Class<?> ftype = fieldType(getter);
 
-                // For primitive type or reference type, this calls Objects::hashCode.
-                // If the instance is of primitive type and the hashCode method is not
-                // overridden, VM will call primitiveObjectHashCode to compute the
-                // hash code.
+                // For primitive types or reference types, this calls Objects::hashCode.
+                // For value objects and the hashCode method is not overridden,
+                // VM will call valueObjectHashCode to compute the hash code.
                 MethodHandle hasher = hashCodeForType(ftype);
                 hashers[i] = filterReturnValue(getter, hasher);
             }
@@ -180,13 +184,13 @@ final class PrimitiveObjectMethods {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;
             if (a.getClass() != b.getClass()) return false;
-            return a.getClass().isValue() ? valueEq(a, b) : (a == b);
+            return a.getClass().isValue() ? valueEquals(a, b) : (a == b);
         }
 
         /*
-         * Returns true if two values are substitutable.
+         * Returns true if two value objects are substitutable.
          */
-        private static boolean valueEq(Object a, Object b) {
+        private static boolean valueEquals(Object a, Object b) {
             assert a != null && b != null && isSameValueClass(a, b);
             try {
                 Class<?> type = a.getClass();
@@ -209,11 +213,11 @@ final class PrimitiveObjectMethods {
         }
 
         /*
-         * Returns true if the given objects are of the same primitive class.
+         * Returns true if the given objects are of the same value class.
          *
-         * Two objects are of the same primitive class iff:
+         * Two objects are of the same value class iff:
          * 1. a != null and b != null
-         * 2. the declaring class of a and b is the same primitive class
+         * 2. the declaring class of a and b is the same value class
          */
         private static boolean isSameValueClass(Object a, Object b) {
             if (a == null || b == null) return false;
@@ -238,7 +242,8 @@ final class PrimitiveObjectMethods {
 
         private static final MethodHandle FALSE = constant(boolean.class, false);
         private static final MethodHandle TRUE = constant(boolean.class, true);
-        private static final MethodHandle OBJECT_EQUALS = findStatic("eq", methodType(boolean.class, Object.class, Object.class));
+        private static final MethodHandle OBJECT_EQUALS =
+            findStatic("eq", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_SAME_VALUE_CLASS =
             findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_NULL =
@@ -274,7 +279,7 @@ final class PrimitiveObjectMethods {
         /**
          * A "salt" value used for this internal hashcode implementation that
          * needs to vary sufficiently from one run to the next so that
-         * the default hashcode for value types will vary between JVM runs.
+         * the default hashcode for value classes will vary between JVM runs.
          */
         static final int SALT;
         static {
@@ -298,10 +303,10 @@ final class PrimitiveObjectMethods {
      * <ul>
      * <li>If {@code a} and {@code b} are both {@code null}, this method returns
      *     {@code true}.
-     * <li>If {@code a} and {@code b} are both value instances of the same class
+     * <li>If {@code a} and {@code b} are both instances of the same value class
      *     {@code V}, this method returns {@code true} if, for all fields {@code f}
      *      declared in {@code V}, {@code a.f} and {@code b.f} are substitutable.
-     * <li>If {@code a} and {@code b} are both primitives of the same type,
+     * <li>If {@code a} and {@code b} are both values of the same builtin primitive type,
      *     this method returns {@code a == b} with the following exception:
      *     <ul>
      *     <li> If {@code a} and {@code b} both represent {@code NaN},
@@ -400,7 +405,7 @@ final class PrimitiveObjectMethods {
      * <li>If {@code T} is a reference type that is not {@code Object} and not an
      *     interface, this method returns a method handle testing
      *     the two arguments are the same reference, i.e. {@code a == b}.
-     * <li>If {@code T} is a value type, this method returns
+     * <li>If {@code T} is a value class, this method returns
      *     a method handle that returns {@code true} if
      *     for all fields {@code f} declared in {@code T}, where {@code U} is
      *     the type of {@code f}, if {@code a.f} and {@code b.f} are substitutable
@@ -417,34 +422,34 @@ final class PrimitiveObjectMethods {
      */
     private static <T> MethodHandle substitutableInvoker(Class<T> type) {
         if (type.isPrimitive())
-            return MethodHandleBuilder.primitiveEquals(type);
+            return MethodHandleBuilder.builtinPrimitiveEquals(type);
 
-        if (PrimitiveClass.isPrimitiveValueType(type) ||
-                (type.isValue() && !PrimitiveClass.isPrimitiveClass(type))) {
+        if (isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type)) {
             return SUBST_TEST_METHOD_HANDLES.get(type);
         }
         return MethodHandleBuilder.referenceTypeEquals(type);
     }
 
-    // store the method handle for value types in ClassValue
+    // store the method handle for value classes in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.primitiveTypeEquals(type);
+            return MethodHandleBuilder.valueTypeEquals(type);
         }
     };
 
     /**
-     * Invoke the bootstrap methods hashCode for the given primitive class object.
+     * Invoke the hashCode method for the given value object.
      * @param o the instance to hash.
-     * @return the hash code of the given primitive class object.
+     * @return the hash code of the given value object.
      */
-    private static int primitiveObjectHashCode(Object o) {
+    private static int valueObjectHashCode(Object o) {
         Class<?> c = o.getClass();
         try {
             // Note: javac disallows user to call super.hashCode if user implemented
             // risk for recursion for experts crafting byte-code
             if (!c.isValue())
                 throw new InternalError("must be value or primitive class: " + c.getName());
+
             Class<?> type = PrimitiveClass.isPrimitiveClass(c) ? PrimitiveClass.asValueType(c) : c;
             return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
@@ -455,9 +460,16 @@ final class PrimitiveObjectMethods {
         }
     }
 
+    /**
+     * Returns true if the given type is a value class.
+     */
+    private static boolean isValueClass(Class<?> type) {
+        return type.isValue() && !PrimitiveClass.isPrimitiveClass(type);
+    }
+
     private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.primitiveTypeHashCode(type);
+            return MethodHandleBuilder.valueTypeHashCode(type);
         }
     };
 

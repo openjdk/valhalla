@@ -623,7 +623,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       JavaCallArguments args;
       Handle ho(THREAD, obj);
       args.push_oop(ho);
-      methodHandle method(THREAD, Universe::primitive_type_hash_code_method());
+      methodHandle method(THREAD, Universe::value_object_hash_code_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
@@ -1251,6 +1251,19 @@ JVM_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
   return k->is_hidden();
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  if (java_lang_Class::is_primitive(mirror)) {
+    return JNI_FALSE;
+  }
+  Klass* k = java_lang_Class::as_Klass(mirror);
+  if (EnableValhalla) {
+    return k->is_array_klass() || k->is_identity_class();
+  } else {
+    return k->is_interface() ? JNI_FALSE : JNI_TRUE;
+  }
+JVM_END
+
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
   JvmtiVMObjectAllocEventCollector oam;
   oop mirror = JNIHandles::resolve_non_null(cls);
@@ -1819,7 +1832,7 @@ JVM_END
 
 static bool select_method(const methodHandle& method, bool want_constructor) {
   bool is_ctor = (method->is_object_constructor() ||
-                  method->is_static_init_factory());
+                  method->is_static_vnew_factory());
   if (want_constructor) {
     return is_ctor;
   } else {
@@ -1889,7 +1902,7 @@ static jobjectArray get_class_declared_methods_helper(
       oop m;
       if (want_constructor) {
         assert(method->is_object_constructor() ||
-               method->is_static_init_factory(), "must be");
+               method->is_static_vnew_factory(), "must be");
         m = Reflection::new_constructor(method, CHECK_NULL);
       } else {
         m = Reflection::new_method(method, false, CHECK_NULL);
@@ -2172,7 +2185,7 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
     THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
-  if (m->is_object_constructor() || m->is_static_init_factory()) {
+  if (m->is_object_constructor() || m->is_static_vnew_factory()) {
     method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     method = Reflection::new_method(m, true, CHECK_NULL);

@@ -463,7 +463,7 @@ public class Code {
         if (!alive) return;
         emit2(poolWriter.putMember(member));
         state.pop(argsize);
-        if (member.isConstructor())
+        if (member.isInitOrVNew())
             state.markInitialized((UninitializedType)state.peek());
         state.pop(1);
         state.push(mtype.getReturnType());
@@ -1385,7 +1385,7 @@ public class Code {
         if (!meth.isStatic()) {
             Type thisType = meth.owner.type;
             frame.locals = new Type[len+1];
-            if (meth.isConstructor() && thisType != syms.objectType) {
+            if (meth.isInitOrVNew() && thisType != syms.objectType) {
                 frame.locals[count++] = UninitializedType.uninitializedThis(thisType);
             } else {
                 frame.locals[count++] = types.erasure(thisType);

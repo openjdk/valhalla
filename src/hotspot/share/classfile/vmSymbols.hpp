@@ -388,6 +388,7 @@
   /* common method and field names */                                                             \
   template(object_initializer_name,                   "<init>")                                   \
   template(class_initializer_name,                    "<clinit>")                                 \
+  template(inline_factory_name,                       "<vnew>")                                   \
   template(println_name,                              "println")                                  \
   template(printStackTrace_name,                      "printStackTrace")                          \
   template(getStackTrace_name,                        "getStackTrace")                            \
@@ -780,9 +781,9 @@
   template(url_void_signature,                              "(Ljava/net/URL;)V")                                  \
   template(url_array_classloader_void_signature,            "([Ljava/net/URL;Ljava/lang/ClassLoader;)V")          \
                                                                                                                   \
-  template(java_lang_runtime_PrimitiveObjectMethods,        "java/lang/runtime/PrimitiveObjectMethods")           \
+  template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
-  template(primitiveObjectHashCode_name,                    "primitiveObjectHashCode")                            \
+  template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
                                                                                                                   \
   /* Thread.dump_to_file jcmd */                                                                                  \

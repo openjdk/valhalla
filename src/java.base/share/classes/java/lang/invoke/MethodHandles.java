@@ -706,7 +706,7 @@ public class MethodHandles {
      * (See the Java Virtual Machine Specification, section {@jvms 4.10.1.9}.)
      * <p>
      * The JVM represents constructors and static initializer blocks as internal methods
-     * with special names ({@code "<init>"} and {@code "<clinit>"}).
+     * with special names ({@code "<init>"}, {@code "<vnew>"} and {@code "<clinit>"}).
      * The internal syntax of invocation instructions allows them to refer to such internal
      * methods as if they were normal methods, but the JVM bytecode verifier rejects them.
      * A lookup of such an internal method will produce a {@code NoSuchMethodException}.
@@ -2597,12 +2597,6 @@ assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
          */
         public MethodHandle findStatic(Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
             MemberName method = resolveOrFail(REF_invokeStatic, refc, name, type);
-            // resolveOrFail could return a non-static <init> method if present
-            // detect and throw NSME before producing a MethodHandle
-            if (!method.isStatic() && name.equals("<init>")) {
-                throw new NoSuchMethodException("illegal method name: " + name);
-            }
-
             return getDirectMethod(REF_invokeStatic, refc, method, findBoundCallerLookup(method));
         }
 
@@ -3454,7 +3448,7 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isObjectConstructorOrStaticInitMethod());
+            assert(ctor.isObjectConstructor() || ctor.isStaticValueFactoryMethod());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
             Class<?> defc = c.getDeclaringClass();
@@ -3711,9 +3705,10 @@ return mh1;
             }
             Objects.requireNonNull(type);
             // implicit null-check of name
-            if (name.startsWith("<") && refKind != REF_newInvokeSpecial) {
+            if (isIllegalMethodName(refKind, name)) {
                 return null;
             }
+
             return IMPL_NAMES.resolveOrNull(refKind, new MemberName(refc, name, type, refKind), lookupClassOrNull(), allowedModes);
         }
 
@@ -3733,12 +3728,22 @@ return mh1;
             return caller == null || VerifyAccess.isClassAccessible(type, caller, prevLookupClass, allowedModes);
         }
 
+        /*
+         * "<init>" can only be invoked via invokespecial
+         * "<vnew>" factory can only invoked via invokestatic
+         */
+        boolean isIllegalMethodName(byte refKind, String name) {
+            if (name.startsWith("<")) {
+                return MemberName.VALUE_FACTORY_NAME.equals(name) ? refKind != REF_invokeStatic
+                                                                  : refKind != REF_newInvokeSpecial;
+            }
+            return false;
+        }
+
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            // "<init>" can only be invoked via invokespecial or it's a static init factory
-            if (name.startsWith("<") && refKind != REF_newInvokeSpecial &&
-                    !(refKind == REF_invokeStatic && name.equals("<init>"))) {
-                    throw new NoSuchMethodException("illegal method name: " + name);
+            if (isIllegalMethodName(refKind, name)) {
+                throw new NoSuchMethodException("illegal method name: " + name + " " + refKind);
             }
         }
 

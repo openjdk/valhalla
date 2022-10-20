@@ -106,6 +106,7 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean allowModules;
     public final boolean allowRecords;
+    public final boolean allowValueClasses;
     private final boolean compactMethodDiags;
     private final boolean allowLocalVariableTypeInference;
     private final boolean allowYieldStatement;
@@ -148,6 +149,7 @@ public class Resolve {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
         allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
@@ -218,7 +220,7 @@ public class Resolve {
             return;
         }
 
-        if (bestSoFar.name == names.init &&
+        if (names.isInitOrVNew(bestSoFar.name) &&
                 bestSoFar.owner == syms.objectType.tsym &&
                 !verboseResolutionMode.contains(VerboseResolutionMode.OBJECT_INIT)) {
             return; //skip diags for Object constructor resolution
@@ -291,7 +293,7 @@ public class Resolve {
      */
     static boolean isInitializer(Env<AttrContext> env) {
         Symbol owner = env.info.scope.owner;
-        return owner.isConstructor() ||
+        return owner.isInitOrVNew() ||
             owner.owner.kind == TYP &&
             (owner.kind == VAR ||
              owner.kind == MTH && (owner.flags() & BLOCK) != 0) &&
@@ -403,7 +405,7 @@ public class Resolve {
         return isAccessible(env, site, sym, false);
     }
     public boolean isAccessible(Env<AttrContext> env, Type site, Symbol sym, boolean checkInner) {
-        if (sym.name == names.init && sym.owner != site.tsym) return false;
+        if (names.isInitOrVNew(sym.name) && sym.owner != site.tsym) return false;
 
         /* 15.9.5.1: Note that it is possible for the signature of the anonymous constructor
            to refer to an inaccessible type
@@ -482,7 +484,7 @@ public class Resolve {
      * cannot be overridden (e.g. MH.invokeExact(Object[])).
      */
     private boolean notOverriddenIn(Type site, Symbol sym) {
-        if (sym.kind != MTH || sym.isConstructor() || sym.isStatic())
+        if (sym.kind != MTH || sym.isInitOrVNew() || sym.isStatic())
             return true;
 
         /* If any primitive class types are involved, ask the same question in the reference universe,
@@ -1886,7 +1888,7 @@ public class Resolve {
         for (TypeSymbol s : isInterface ? List.of(intype.tsym) : superclasses(intype)) {
             bestSoFar = findMethodInScope(env, site, name, argtypes, typeargtypes,
                     s.members(), bestSoFar, allowBoxing, useVarargs, true);
-            if (name == names.init) return bestSoFar;
+            if (names.isInitOrVNew(name)) return bestSoFar;
             iphase = (iphase == null) ? null : iphase.update(s, this);
             if (iphase != null) {
                 for (Type itype : types.interfaces(s.type)) {
@@ -2931,7 +2933,8 @@ public class Resolve {
                               Type site,
                               List<Type> argtypes,
                               List<Type> typeargtypes) {
-        return lookupMethod(env, pos, site.tsym, resolveContext, new BasicLookupHelper(names.init, site, argtypes, typeargtypes) {
+        Name constructorName = site.tsym.isConcreteValueClass() ? names.vnew : names.init;
+        return lookupMethod(env, pos, site.tsym, resolveContext, new BasicLookupHelper(constructorName, site, argtypes, typeargtypes) {
             @Override
             Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
                 return findConstructor(pos, env, site, argtypes, typeargtypes,
@@ -2965,8 +2968,9 @@ public class Resolve {
                               List<Type> typeargtypes,
                               boolean allowBoxing,
                               boolean useVarargs) {
+        Name constructorName = site.tsym.isConcreteValueClass() ? names.vnew : names.init;
         Symbol sym = findMethod(env, site,
-                                    names.init, argtypes,
+                                    constructorName, argtypes,
                                     typeargtypes, allowBoxing,
                                     useVarargs);
         chk.checkDeprecated(pos, env.info.scope.owner, sym);
@@ -2989,8 +2993,9 @@ public class Resolve {
                               Type site,
                               List<Type> argtypes,
                               List<Type> typeargtypes) {
+        Name constructorName = allowValueClasses && site.tsym.isConcreteValueClass() ? names.vnew : names.init;
         return lookupMethod(env, pos, site.tsym, resolveMethodCheck,
-                new BasicLookupHelper(names.init, site, argtypes, typeargtypes) {
+                new BasicLookupHelper(constructorName, site, argtypes, typeargtypes) {
                     @Override
                     Symbol doLookup(Env<AttrContext> env, MethodResolutionPhase phase) {
                         return findDiamond(pos, env, site, argtypes, typeargtypes,
@@ -3005,7 +3010,7 @@ public class Resolve {
                                 sym = super.access(env, pos, location, sym);
                             } else {
                                 sym = new DiamondError(sym, currentResolutionContext);
-                                sym = accessMethod(sym, pos, site, names.init, true, argtypes, typeargtypes);
+                                sym = accessMethod(sym, pos, site, constructorName, true, argtypes, typeargtypes);
                                 env.info.pendingResolutionPhase = currentResolutionContext.step;
                             }
                         }
@@ -3052,7 +3057,8 @@ public class Resolve {
                               boolean useVarargs) {
         Symbol bestSoFar = methodNotFound;
         TypeSymbol tsym = site.tsym.isInterface() ? syms.objectType.tsym : site.tsym;
-        for (final Symbol sym : tsym.members().getSymbolsByName(names.init)) {
+        Name constructorName = site.tsym.isConcreteValueClass() ? names.vnew : names.init;
+        for (final Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
             //- System.out.println(" e " + e.sym);
             if (sym.kind == MTH &&
                 (sym.flags_field & SYNTHETIC) == 0) {
@@ -3061,7 +3067,7 @@ public class Resolve {
                             List.nil();
                     Type constrType = new ForAll(site.tsym.type.getTypeArguments().appendList(oldParams),
                                                  types.createMethodTypeWithReturn(sym.type.asMethodType(), site));
-                    MethodSymbol newConstr = new MethodSymbol(sym.flags(), names.init, constrType, site.tsym) {
+                    MethodSymbol newConstr = new MethodSymbol(sym.flags(), constructorName, constrType, site.tsym) {
                         @Override
                         public Symbol baseSymbol() {
                             return sym;
@@ -3103,7 +3109,7 @@ public class Resolve {
                                   List<Type> argtypes,
                                   List<Type> typeargtypes,
                                   MethodResolutionPhase maxPhase) {
-        if (!name.equals(names.init)) {
+        if (!names.isInitOrVNew(name)) {
             //method reference
             return new MethodReferenceLookupHelper(referenceTree, name, site, argtypes, typeargtypes, maxPhase);
         } else if (site.hasTag(ARRAY)) {
@@ -3695,7 +3701,8 @@ public class Resolve {
 
         ArrayConstructorReferenceLookupHelper(JCMemberReference referenceTree, Type site, List<Type> argtypes,
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
-            super(referenceTree, names.init, site, argtypes, typeargtypes, maxPhase);
+            // TODO - array constructor will be <init>
+            super(referenceTree, site.tsym.isConcreteValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
         }
 
         @Override
@@ -3727,7 +3734,7 @@ public class Resolve {
 
         ConstructorReferenceLookupHelper(JCMemberReference referenceTree, Type site, List<Type> argtypes,
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
-            super(referenceTree, names.init, site, argtypes, typeargtypes, maxPhase);
+            super(referenceTree, site.tsym.isConcreteValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
             if (site.isRaw()) {
                 this.site = new ClassType(site.getEnclosingType(), site.tsym.type.getTypeArguments(), site.tsym, site.getMetadata(), site.getFlavor());
                 needsInference = true;
@@ -4132,7 +4139,7 @@ public class Resolve {
                 hasLocation = !location.name.equals(names._this) &&
                         !location.name.equals(names._super);
             }
-            boolean isConstructor = name == names.init;
+            boolean isConstructor = names.isInitOrVNew(name);
             KindName kindname = isConstructor ? KindName.CONSTRUCTOR : kind.absentKind();
             Name idname = isConstructor ? site.tsym.name : name;
             String errKey = getErrorKey(kindname, typeargtypes.nonEmpty(), hasLocation);
@@ -4224,7 +4231,7 @@ public class Resolve {
                       compactMethodDiags ?
                               d -> MethodResolutionDiagHelper.rewrite(diags, pos, log.currentSource(), dkind, c.snd) : null,
                       kindName(ws),
-                      ws.name == names.init ? ws.owner.name : ws.name,
+                      names.isInitOrVNew(ws.name) ? ws.owner.name : ws.name,
                       methodArguments(ws.type.getParameterTypes()),
                       methodArguments(argtypes),
                       kindName(ws.owner),
@@ -4280,6 +4287,7 @@ public class Resolve {
             }
             boolean truncatedDiag = candidatesMap.size() != filteredCandidates.size();
             if (filteredCandidates.size() > 1) {
+                boolean isConstructor = names.isInitOrVNew(name);
                 JCDiagnostic err = diags.create(dkind,
                         null,
                         truncatedDiag ?
@@ -4288,8 +4296,8 @@ public class Resolve {
                         log.currentSource(),
                         pos,
                         "cant.apply.symbols",
-                        name == names.init ? KindName.CONSTRUCTOR : kind.absentKind(),
-                        name == names.init ? site.tsym.name : name,
+                        isConstructor ? KindName.CONSTRUCTOR : kind.absentKind(),
+                        isConstructor ? site.tsym.name : name,
                         methodArguments(argtypes));
                 return new JCDiagnostic.MultilineDiagnostic(err, candidateDetails(filteredCandidates, site));
             } else if (filteredCandidates.size() == 1) {
@@ -4449,7 +4457,7 @@ public class Resolve {
                 Name name,
                 List<Type> argtypes,
                 List<Type> typeargtypes) {
-            if (sym.name == names.init && sym.owner != site.tsym) {
+            if (names.isInitOrVNew(sym.name) && sym.owner != site.tsym) {
                 return new SymbolNotFoundError(ABSENT_MTH).getDiagnostic(dkind,
                         pos, location, site, name, argtypes, typeargtypes);
             }
@@ -4662,7 +4670,7 @@ public class Resolve {
             Symbol s1 = diagSyms.head;
             Symbol s2 = diagSyms.tail.head;
             Name sname = s1.name;
-            if (sname == names.init) sname = s1.owner.name;
+            if (names.isInitOrVNew(sname)) sname = s1.owner.name;
             return diags.create(dkind, log.currentSource(),
                     pos, "ref.ambiguous", sname,
                     kindName(s1),

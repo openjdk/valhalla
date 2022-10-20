@@ -2367,6 +2367,7 @@ public class JavacParser implements Parser {
         ReferenceMode refMode;
         if (token.kind == NEW) {
             refMode = ReferenceMode.NEW;
+            // TODO - will be converted in Attr
             refName = names.init;
             nextToken();
         } else {
@@ -4101,7 +4102,8 @@ public class JavacParser implements Parser {
         for (JCTree def : defs) {
             if (def.hasTag(METHODDEF)) {
                 JCMethodDecl methDef = (JCMethodDecl) def;
-                if (methDef.name == names.init && methDef.params.isEmpty() && (methDef.mods.flags & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0) {
+                // TODO - specifically for record.
+                if (names.isInitOrVNew(methDef.name) && methDef.params.isEmpty() && (methDef.mods.flags & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0) {
                     ListBuffer<JCVariableDecl> tmpParams = new ListBuffer<>();
                     for (JCVariableDecl param : headerFields) {
                         tmpParams.add(F.at(param)
@@ -4695,7 +4697,7 @@ public class JavacParser implements Parser {
             // Parsing formalParameters sets the receiverParam, if present
             List<JCVariableDecl> params = List.nil();
             List<JCExpression> thrown = List.nil();
-            if (!isRecord || name != names.init || token.kind == LPAREN) {
+            if (!isRecord || !names.isInitOrVNew(name) || token.kind == LPAREN) {
                 params = formalParameters();
                 if (!isVoid) type = bracketsOpt(type);
                 if (token.kind == THROWS) {

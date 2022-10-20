@@ -353,7 +353,8 @@ public class LambdaToMethod extends TreeTranslator {
 
 
             boolean init;
-            if ((init = (owner.name == names.init)) || owner.name == names.clinit) {
+            // TODO - can <vnew> exist in this context?
+            if ((init = names.isInitOrVNew(owner.name)) || owner.name == names.clinit) {
                 owner = owner.owner;
                 apportionTypeAnnotations(tree,
                         init ? owner::getInitTypeAttributes : owner::getClassInitTypeAttributes,
@@ -1661,7 +1662,8 @@ public class LambdaToMethod extends TreeTranslator {
                 return clinit;
             } else {
                 //get the first constructor and treat it as the instance init sym
-                for (Symbol s : csym.members_field.getSymbolsByName(names.init)) {
+                Name constructorName = csym.isConcreteValueClass() ? names.vnew : names.init;
+                for (Symbol s : csym.members_field.getSymbolsByName(constructorName)) {
                     return s;
                 }
             }
@@ -1765,7 +1767,7 @@ public class LambdaToMethod extends TreeTranslator {
         private boolean lambdaIdentSymbolFilter(Symbol sym) {
             return (sym.kind == VAR || sym.kind == MTH)
                     && !sym.isStatic()
-                    && sym.name != names.init;
+                    && !names.isInitOrVNew(sym.name);
         }
 
         /**
@@ -1887,6 +1889,8 @@ public class LambdaToMethod extends TreeTranslator {
                     methodName = "static";
                 } else if (methodName.equals("<init>")) {
                     methodName = "new";
+                } else if (methodName.equals("<vnew>")) {
+                    methodName = "vnew";
                 }
                 return methodName;
             }

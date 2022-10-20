@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,9 +23,9 @@
 
 /*
  * @test
- * @summary No Serialization support of primitive classes, without a proxy
- * @compile -XDenablePrimitiveClasses Point.java Line.java NonFlattenValue.java Serialization.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses Serialization
+ * @summary ValueSerialization support of value classes
+ * @compile -XDenablePrimitiveClasses ValueSerialization.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueSerialization
  */
 
 import java.io.ByteArrayInputStream;
@@ -50,53 +50,67 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.expectThrows;
 
-public class Serialization {
+public class ValueSerialization {
 
     static final Class<NotSerializableException> NSE = NotSerializableException.class;
 
     @DataProvider(name = "doesNotImplementSerializable")
     public Object[][] doesNotImplementSerializable() {
         return new Object[][] {
-            new Object[] { Point.makePoint(10, 100) },
-            new Object[] { Line.makeLine(Point.makePoint(99, 99),
-                                         Point.makePoint(888, 888)) },
-            new Object[] { NonFlattenValue.make(1001, 10005) },
+            new Object[] { new NonSerializablePoint(10, 100) },
             // an array of Points
-            new Object[] { new Point[] {
-                    Point.makePoint(1, 5),
-                    Point.makePoint(2, 6) } },
+            new Object[] { new NonSerializablePoint[] {new NonSerializablePoint(1, 5)} },
+            new Object[] { new Object[] {new NonSerializablePoint(3, 7)} },
+            new Object[] { new ExternalizablePoint(12, 102) },
+            new Object[] { new ExternalizablePoint[] {
+                    new ExternalizablePoint(3, 7),
+                    new ExternalizablePoint(2, 8) } },
             new Object[] { new Object[] {
-                    Point.makePoint(3, 7),
-                    Point.makePoint(4, 8) } },
+                    new ExternalizablePoint(13, 17),
+                    new ExternalizablePoint(14, 18) } },
         };
     }
 
-    // primitive class that DOES NOT implement Serializable should throw NSE
+    // value class that DOES NOT implement Serializable should throw NSE
     @Test(dataProvider = "doesNotImplementSerializable")
     public void doesNotImplementSerializable(Object obj) {
         assertThrows(NSE, () -> serialize(obj));
     }
 
-    /** A Serializable Point */
-    static primitive class SerializablePoint implements Serializable {
+    /** Non-Serializable point. */
+    public static value class NonSerializablePoint {
+        public int x;
+        public int y;
+
+        public NonSerializablePoint(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
+    }
+
+    /** A Serializable value class Point */
+    static value class SerializablePoint implements Serializable {
         public int x;
         public int y;
         SerializablePoint(int x, int y) { this.x = x; this.y = y; }
-        static SerializablePoint make(int x, int y) {
-            return new SerializablePoint(x, y);
-        }
         @Override public String toString() {
             return "[SerializablePoint x=" + x + " y=" + y + "]"; }
     }
 
-    /** An Externalizable Point */
-    static primitive class ExternalizablePoint implements Externalizable {
+    /** A Serializable primitive class Point */
+    static primitive class SerializablePrimitivePoint implements Serializable {
+        public int x;
+        public int y;
+        SerializablePrimitivePoint(int x, int y) { this.x = x; this.y = y; }
+        @Override public String toString() {
+            return "[SerializablePrimitivePoint x=" + x + " y=" + y + "]"; }
+    }
+
+    /** An Externalizable Point is not Serializable, readExternal cannot modify fields */
+    static value class ExternalizablePoint implements Externalizable {
         public int x;
         public int y;
         ExternalizablePoint(int x, int y) { this.x = x; this.y = y; }
-        static ExternalizablePoint make(int x, int y) {
-            return new ExternalizablePoint(x, y);
-        }
         @Override public void readExternal(ObjectInput in) {  }
         @Override public void writeExternal(ObjectOutput out) {  }
         @Override public String toString() {
@@ -106,36 +120,34 @@ public class Serialization {
     @DataProvider(name = "doesImplementSerializable")
     public Object[][] doesImplementSerializable() {
         return new Object[][] {
-            new Object[] { SerializablePoint.make(11, 101) },
-            new Object[] { ExternalizablePoint.make(12, 102) },
-            new Object[] { new ExternalizablePoint[] {
-                    ExternalizablePoint.make(3, 7),
-                    ExternalizablePoint.make(2, 8) } },
+            new Object[] { new SerializablePoint(11, 101) },
             new Object[] { new SerializablePoint[] {
-                    SerializablePoint.make(1, 5),
-                    SerializablePoint.make(2, 6) } },
+                    new SerializablePoint(1, 5),
+                    new SerializablePoint(2, 6) } },
             new Object[] { new Object[] {
-                    SerializablePoint.make(3, 7),
-                    SerializablePoint.make(4, 8) } },
+                    new SerializablePoint(3, 7),
+                    new SerializablePoint(4, 8) } },
+            new Object[] { new SerializablePrimitivePoint(711, 7101) },
+            new Object[] { new SerializablePrimitivePoint[] {
+                    new SerializablePrimitivePoint(71, 75),
+                    new SerializablePrimitivePoint(72, 76) } },
             new Object[] { new Object[] {
-                    ExternalizablePoint.make(13, 17),
-                    ExternalizablePoint.make(14, 18) } },
+                    new SerializablePrimitivePoint(73, 77),
+                    new SerializablePrimitivePoint(74, 78) } },
         };
     }
 
-    // primitive class that DOES implement Serializable should throw NSE
+    // value class that DOES implement Serializable all supported
     @Test(dataProvider = "doesImplementSerializable")
-    public void doesImplementSerializable(Object obj) {
-        assertThrows(NSE, () -> serialize(obj));
+    public void doesImplementSerializable(Object obj) throws IOException {
+        serialize(obj);
     }
 
     /** A Serializable Foo, with a serial proxy */
-    static primitive class SerializableFoo implements Serializable {
+    static value class SerializableFoo implements Serializable {
         public int x;
         SerializableFoo(int x) { this.x = x; }
-        static SerializableFoo make(int x) {
-            return new SerializableFoo(x);
-        }
+
         Object writeReplace() throws ObjectStreamException {
             return new SerialFooProxy(x);
         }
@@ -146,18 +158,15 @@ public class Serialization {
             final int x;
             SerialFooProxy(int x) { this.x = x; }
             Object readResolve() throws ObjectStreamException {
-                return SerializableFoo.make(this.x);
+                return new SerializableFoo(this.x);
             }
         }
     }
 
     /** An Externalizable Foo, with a serial proxy */
-    static primitive class ExternalizableFoo implements Externalizable {
+    static value class ExternalizableFoo implements Externalizable {
         public String s;
         ExternalizableFoo(String s) {  this.s = s; }
-        static ExternalizableFoo make(String s) {
-            return new ExternalizableFoo(s);
-        }
         Object writeReplace() throws ObjectStreamException {
             return new SerialFooProxy(s);
         }
@@ -168,36 +177,36 @@ public class Serialization {
             final String s;
             SerialFooProxy(String s) { this.s = s; }
             Object readResolve() throws ObjectStreamException {
-                return ExternalizableFoo.make(this.s);
+                return new ExternalizableFoo(this.s);
             }
         }
         @Override public void readExternal(ObjectInput in) {  }
         @Override public void writeExternal(ObjectOutput out) {  }
     }
 
-    // primitive classes that DO implement Serializable, but have a serial proxy
+    // value classes that DO implement Serializable, but have a serial proxy
     @Test
     public void serializableFooWithProxy() throws Exception {
-        SerializableFoo foo = SerializableFoo.make(45);
+        SerializableFoo foo = new SerializableFoo(45);
         SerializableFoo foo1 = serializeDeserialize(foo);
         assertEquals(foo.x, foo1.x);
     }
     @Test
     public void serializableFooArrayWithProxy() throws Exception {
-        SerializableFoo[] fooArray = new SerializableFoo[]{SerializableFoo.make(46)};
+        SerializableFoo[] fooArray = new SerializableFoo[]{new SerializableFoo(46)};
         SerializableFoo[] fooArray1 = serializeDeserialize(fooArray);
         assertEquals(fooArray.length, fooArray1.length);
         assertEquals(fooArray[0].x, fooArray1[0].x);
     }
     @Test
     public void externalizableFooWithProxy() throws Exception {
-        ExternalizableFoo foo = ExternalizableFoo.make("hello");
+        ExternalizableFoo foo = new ExternalizableFoo("hello");
         ExternalizableFoo foo1 = serializeDeserialize(foo);
         assertEquals(foo.s, foo1.s);
     }
     @Test
     public void externalizableFooArrayWithProxy() throws Exception {
-        ExternalizableFoo[] fooArray = new ExternalizableFoo[] { ExternalizableFoo.make("there") };
+        ExternalizableFoo[] fooArray = new ExternalizableFoo[] { new ExternalizableFoo("there") };
         ExternalizableFoo[] fooArray1 = serializeDeserialize(fooArray);
         assertEquals(fooArray.length, fooArray1.length);
         assertEquals(fooArray[0].s, fooArray1[0].s);
@@ -237,24 +246,23 @@ public class Serialization {
     @DataProvider(name = "classes")
     public Object[][] classes() {
         return new Object[][] {
-            new Object[] { Point.class             },
-            new Object[] { SerializablePoint.class }
+            new Object[] { NonSerializablePoint.class },
+            new Object[] { SerializablePoint.class },
+            new Object[] { SerializablePrimitivePoint.class }
         };
     }
 
     static final Class<InvalidClassException> ICE = InvalidClassException.class;
 
-    // primitive class read directly from a byte stream
+    // value class read directly from a byte stream, both serializable and externalizable are supported
     @Test(dataProvider = "classes")
     public void deserialize(Class<?> cls) throws Exception {
         var clsDesc = ObjectStreamClass.lookup(cls);
         long uid = clsDesc == null ? 0L : clsDesc.getSerialVersionUID();
 
         byte[] serialBytes = serializableByteStreamFor(cls.getName(), uid);
-        expectThrows(ICE, () -> deserialize(serialBytes));
 
         byte[] extBytes = externalizableByteStreamFor(cls.getName(), uid);
-        expectThrows(ICE, () -> deserialize(extBytes));
     }
 
     static <T> byte[] serialize(T obj) throws IOException {
