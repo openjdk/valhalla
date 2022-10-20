@@ -940,14 +940,14 @@ bool Method::is_class_initializer() const {
            method_holder()->major_version() < 51));
 }
 
-// A method named <init>, if non-static, is a classic object constructor.
+// A method named <init>, is a classic object constructor.
 bool Method::is_object_constructor() const {
-  return name() == vmSymbols::object_initializer_name() && !is_static();
+  return name() == vmSymbols::object_initializer_name();
 }
 
-// A static method named <vnew> is a factory for an inline class.
+// A method named <vnew> is a factory for an inline class.
 bool Method::is_static_vnew_factory() const {
-  return name() == vmSymbols::inline_factory_name() && is_static();
+  return name() == vmSymbols::inline_factory_name();
 }
 
 bool Method::needs_clinit_barrier() const {
