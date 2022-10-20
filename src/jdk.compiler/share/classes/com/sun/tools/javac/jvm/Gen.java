@@ -2031,7 +2031,6 @@ public class Gen extends JCTree.Visitor {
         genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
 
         items.makeMemberItem(tree.constructor, true).invoke();
-
         result = items.makeStackItem(tree.type);
     }
 

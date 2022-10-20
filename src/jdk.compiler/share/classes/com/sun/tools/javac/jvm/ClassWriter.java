@@ -222,6 +222,7 @@ public class ClassWriter extends ClassFile {
     private boolean dumpInnerClassModifiers; // -XDdumpmodifiers=i
     private boolean dumpMethodModifiers; // -XDdumpmodifiers=m
 
+
     /** Return flags as a string, separated by " ".
      */
     public static String flagNames(long flags) {
