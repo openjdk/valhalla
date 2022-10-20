@@ -39,7 +39,7 @@ class ConstantUtils {
     static final Constable[] EMPTY_CONSTABLE = new Constable[0];
     static final int MAX_ARRAY_TYPE_DESC_DIMENSIONS = 255;
 
-    private static final Set<String> pointyNames = Set.of("<init>", "<clinit>");
+    private static final Set<String> pointyNames = Set.of("<init>", "<vnew>", "<clinit>");
 
     /**
      * Validates the correctness of a binary class name. In particular checks for the presence of

@@ -296,11 +296,11 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
   klass->initialize(CHECK_NH); // Quick no-op if already initialized.
 
   // Special case for factory methods
-  if (!constructor_signature->is_void_method_signature()) {
-    assert(klass->is_inline_klass(), "inline classes must use factory methods");
+  if (EnableValhalla && !constructor_signature->is_void_method_signature()) {
+    guarantee(klass->is_inline_klass(), "inline classes must use factory methods");
     JavaValue factory_result(T_OBJECT);
     JavaCalls::call_static(&factory_result, klass,
-                           vmSymbols::object_initializer_name(),
+                           vmSymbols::inline_factory_name(),
                            constructor_signature, args, CHECK_NH);
     return Handle(THREAD, factory_result.get_oop());
   }

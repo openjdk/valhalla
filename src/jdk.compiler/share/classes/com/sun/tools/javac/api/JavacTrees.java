@@ -615,7 +615,8 @@ public class JavacTrees extends DocTrees {
     }
 
     MethodSymbol findConstructor(ClassSymbol tsym, List<Type> paramTypes, boolean strict) {
-        for (Symbol sym : tsym.members().getSymbolsByName(names.init)) {
+        Name constructorName = tsym.isConcreteValueClass() ? names.vnew : names.init;
+        for (Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
             if (sym.kind == MTH) {
                 if (hasParameterTypes((MethodSymbol) sym, paramTypes, strict)) {
                     return (MethodSymbol) sym;
@@ -635,7 +636,7 @@ public class JavacTrees extends DocTrees {
         //### Note that this search is not necessarily what the compiler would do!
 
         // do not match constructors
-        if (methodName == names.init)
+        if (names.isInitOrVNew(methodName))
             return null;
 
         if (searched.contains(tsym))

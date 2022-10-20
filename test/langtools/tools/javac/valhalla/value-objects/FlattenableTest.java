@@ -28,7 +28,7 @@ public class FlattenableTest {
                 return x.v;
             }
         }
-        V foo(X x) {
+        V bar(X x) {
             x = new X(null); // OK
             return x.v;
         }
@@ -37,7 +37,7 @@ public class FlattenableTest {
             V v;
             V [] va = { null }; // OK: array initialization
             V [] va2 = new V[] { null }; // OK: array initialization
-            void foo(X x) {
+            void ooo(X x) {
                 x = new X(null); // OK
                 v = null; // legal assignment.
                 va[0] = null; // legal.

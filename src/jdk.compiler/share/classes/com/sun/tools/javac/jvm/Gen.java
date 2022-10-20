@@ -338,7 +338,7 @@ public class Gen extends JCTree.Visitor {
         Symbol msym = rs.
             resolveInternalMethod(pos, attrEnv, site, name, argtypes, null);
         if (isStatic) items.makeStaticItem(msym).invoke();
-        else items.makeMemberItem(msym, name == names.init).invoke();
+        else items.makeMemberItem(msym, names.isInitOrVNew(name)).invoke();
     }
 
     /** Is the given method definition an access method
@@ -561,7 +561,7 @@ public class Gen extends JCTree.Visitor {
      *  @param initTAs  Type annotations from the initializer expression.
      */
     void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<TypeCompound> initTAs) {
-        if (md.name == names.init && TreeInfo.isInitialConstructor(md)) {
+        if (names.isInitOrVNew(md.name) && TreeInfo.isInitialConstructor(md)) {
             // We are seeing a constructor that does not call another
             // constructor of the same class.
             List<JCStatement> stats = md.body.stats;
@@ -964,7 +964,7 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
             int extras = 0;
             // Count up extra parameters
-            if (meth.isConstructor()) {
+            if (meth.isInitOrVNew()) {
                 extras++;
                 if (meth.enclClass().isInner() &&
                     !meth.enclClass().isStatic()) {
@@ -1071,7 +1071,7 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
-                if (meth.isConstructor() && selfType != syms.objectType)
+                if (meth.isInitOrVNew() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(

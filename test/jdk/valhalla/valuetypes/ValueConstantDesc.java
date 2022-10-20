@@ -33,7 +33,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.lang.constant.ClassDesc;
+import java.lang.constant.DirectMethodHandleDesc;
+import java.lang.constant.MethodHandleDesc;
+import java.lang.constant.MethodTypeDesc;
+import java.lang.invoke.MethodHandleInfo;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
 
 import jdk.internal.value.PrimitiveClass;
 
@@ -41,6 +47,7 @@ import static org.testng.Assert.*;
 
 public class ValueConstantDesc {
     private static final String NAME = "Point";
+    private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     @DataProvider(name="descs")
     static Object[][] descs() {
@@ -107,17 +114,45 @@ public class ValueConstantDesc {
         ClassDesc cd = type.describeConstable().orElseThrow();
         ClassDesc valueDesc = ClassDesc.ofDescriptor(descriptor);
         assertEquals(cd, valueDesc);
-        MethodHandles.Lookup lookup = MethodHandles.lookup();
-        Class<?> c = (Class<?>) cd.resolveConstantDesc(lookup);
+        Class<?> c = (Class<?>) cd.resolveConstantDesc(LOOKUP);
         assertTrue(c == type);
         assertTrue(PrimitiveClass.isPrimitiveValueClassDesc(cd) == PrimitiveClass.isPrimitiveValueType(type));
+    }
+    @DataProvider(name="classes")
+    static Object[][] classes() {
+        Class<?> valType = PrimitiveClass.asValueType(Point.class);
+        Class<?> refType = Point.class;
+
+        return new Object[][]{
+            new Object[] { ValueOptional.class, "(Ljava/lang/Object;)LValueOptional;" },
+            new Object[] { valType, "(II)QPoint;" },
+            new Object[] { refType, "(II)QPoint;" },
+        };
+    }
+    @Test(dataProvider="classes")
+    public void directMethodHandleDesc(Class<?> type, String methodDescriptor) throws Throwable {
+        ClassDesc cd = type.describeConstable().orElseThrow();
+        MethodTypeDesc methodTypeDesc = MethodTypeDesc.ofDescriptor(methodDescriptor);
+
+        DirectMethodHandleDesc dmhDesc = MethodHandleDesc.ofMethod(DirectMethodHandleDesc.Kind.STATIC, cd, "<vnew>", methodTypeDesc);
+        MethodHandle mh = (MethodHandle) dmhDesc.resolveConstantDesc(LOOKUP);
+        MethodType methodType = (MethodType) methodTypeDesc.resolveConstantDesc(LOOKUP);
+        MethodHandle vnew = LOOKUP.findStatic(type, "<vnew>", methodType);
+        assertMethodHandleEquals(mh, vnew);
+    }
+
+    private static void assertMethodHandleEquals(MethodHandle mh1, MethodHandle mh2) {
+        MethodHandleInfo minfo1 = LOOKUP.revealDirect(mh1);
+        MethodHandleInfo minfo2 = LOOKUP.revealDirect(mh2);
+        assertEquals(minfo1.getDeclaringClass(), minfo2.getDeclaringClass());
+        assertEquals(minfo1.getName(), minfo2.getName());
+        assertEquals(minfo1.getMethodType(), minfo2.getMethodType());
     }
 
     @Test(expectedExceptions = {LinkageError.class})
     public void illegalDescriptor() throws ReflectiveOperationException {
         // ValueConstantDesc is not a primitive class
         ClassDesc cd = ClassDesc.ofDescriptor("QValueConstantDesc;");
-        MethodHandles.Lookup lookup = MethodHandles.lookup();
-        Class<?> c = (Class<?>) cd.resolveConstantDesc(lookup);
+        Class<?> c = (Class<?>) cd.resolveConstantDesc(LOOKUP);
     }
 }
