@@ -141,7 +141,7 @@ public interface ExecutableElement extends Element, Parameterizable {
      * {@return the simple name of a constructor, method, or
      * initializer}  For a constructor, the name {@code "<init>"} or
      * initializer} For a constructor, the name {@code "<init>"} is
-     * returned, for a value class static factory method, the name 
+     * returned, for a value class static factory method, the name
      * {@code "<vnew>"} is returned, for a static initializer, the
      * name {@code "<clinit>"} is returned, and for an anonymous class
      * or instance initializer, an <a href=Name.html#empty_name>empty name</a> is
