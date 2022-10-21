@@ -2635,6 +2635,17 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(io_phi);
   transform_later(res_phi);
 
+  // Do not let stores that initialize this buffer be reordered with a subsequent
+  // store that would make this buffer accessible by other threads.
+  MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxBot);
+  transform_later(mb);
+  mb->init_req(TypeFunc::Memory, mem_phi);
+  mb->init_req(TypeFunc::Control, r);
+  r = new ProjNode(mb, TypeFunc::Control);
+  transform_later(r);
+  mem_phi = new ProjNode(mb, TypeFunc::Memory);
+  transform_later(mem_phi);
+
   assert(projs->nb_resproj == 1, "unexpected number of results");
   _igvn.replace_in_uses(projs->fallthrough_catchproj, r);
   _igvn.replace_in_uses(projs->fallthrough_memproj, mem_phi);
