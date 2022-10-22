@@ -700,9 +700,8 @@ final class MemberName implements Member, Cloneable {
         this.name = this.clazz.isValue() ? VALUE_FACTORY_NAME : CONSTRUCTOR_NAME;
         if (this.type == null) {
             Class<?> rtype = void.class;
-            if (isStatic()) {  // a static init factory, not a true constructor
+            if (isStatic()) {  // a value class static factory, not a true constructor
                 rtype = getDeclaringClass();
-                // FIXME: If it's a hidden class, this sig won't work.
             }
             this.type = new Object[] { rtype, ctor.getParameterTypes() };
         }
