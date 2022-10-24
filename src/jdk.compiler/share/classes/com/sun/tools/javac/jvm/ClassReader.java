@@ -818,12 +818,12 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (sym.isInitOrVNew()  && sym.type.getParameterTypes().size() == 0) {
+                    if (sym.isInitOrVNew() && sym.type.getParameterTypes().size() == 0) {
                         int code_length = buf.getInt(bp + 4);
-                        if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
+                        if ((code_length == 1 && buf.getByte(bp + 8) == (byte) ByteCodes.return_) ||
                                 (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
-                                    buf.getByte( bp + 9) == (byte) ByteCodes.invokespecial &&
-                                            buf.getByte( bp + 12) == (byte) ByteCodes.return_)) {
+                                    buf.getByte(bp + 9) == (byte) ByteCodes.invokespecial &&
+                                            buf.getByte(bp + 12) == (byte) ByteCodes.return_)) {
                                 sym.flags_field |= EMPTYNOARGCONSTR;
                         }
                     }
@@ -1008,7 +1008,7 @@ public class ClassReader {
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
                         // Map value class factory methods back to constructors for the benefit of earlier pipeline stages
-                        if (sym.kind == MTH  && sym.name == names.vnew && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
+                        if (sym.kind == MTH && sym.name == names.vnew && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -2323,7 +2323,7 @@ public class ClassReader {
 
     void validateMethodType(Name name, Type t) {
         if ((!t.hasTag(TypeTag.METHOD) && !t.hasTag(TypeTag.FORALL)) ||
-            ((name == names.init || name ==names.vnew) && !t.getReturnType().hasTag(TypeTag.VOID))) {
+            ((name == names.init || name == names.vnew) && !t.getReturnType().hasTag(TypeTag.VOID))) {
             throw badClassFile("method.descriptor.invalid", name);
         }
     }
@@ -2545,7 +2545,7 @@ public class ClassReader {
             flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
         }
         if ((flags & PRIMITIVE_CLASS) != 0) {
-            if ((flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
+            if (!allowPrimitiveClasses || (flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
                 throw badClassFile("bad.access.flags", Flags.toString(flags));
             }
         }

@@ -1296,14 +1296,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                     if (moreInfo)
                         s += String.valueOf(sym.hashCode());
                     return s;
-                }
-                String s;
-                if (longform) {
-                    s =  sym.getQualifiedName().toString();
+                } else if (longform) {
+                    return sym.getQualifiedName().toString();
                 } else {
-                    s = sym.name.toString();
+                    return sym.name.toString();
                 }
-                return s;
             }
 
         public Flavor getFlavor() {

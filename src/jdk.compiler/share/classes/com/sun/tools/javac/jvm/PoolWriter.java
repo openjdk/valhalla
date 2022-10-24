@@ -531,7 +531,6 @@ public class PoolWriter {
         signatureGen.assembleSig(types.supertype(t));
         for (Type i : types.interfaces(t))
             signatureGen.assembleSig(i);
-
         return signatureGen.toName();
     }
 

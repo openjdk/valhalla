@@ -100,6 +100,7 @@ public class Lower extends TreeTranslator {
     private final boolean disableProtectedAccessors; // experimental
     private final PkgInfo pkginfoOpt;
     private final boolean optimizeOuterThis;
+    private final boolean allowPrimitiveClasses;
 
     protected Lower(Context context) {
         context.put(lowerKey, this);
@@ -126,6 +127,8 @@ public class Lower extends TreeTranslator {
             target.optimizeOuterThis() ||
             options.getBoolean("optimizeOuterThis", false);
         disableProtectedAccessors = options.isSet("disableProtectedAccessors");
+        Source source = Source.instance(context);
+        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** The currently enclosing class.
@@ -1143,7 +1146,7 @@ public class Lower extends TreeTranslator {
         case TYP:
             if (sym.owner.kind != PCK) {
                 // Make sure not to lose type fidelity due to symbol sharing between projections
-                boolean requireReferenceProjection =
+                boolean requireReferenceProjection = allowPrimitiveClasses &&
                         tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref && tree.type.isReferenceProjection();
                 // Convert type idents to
                 // <flat name> or <package name> . <flat name>
@@ -1474,9 +1477,8 @@ public class Lower extends TreeTranslator {
             do {
                 proxyName = proxyName(v.name, index++);
             } while (!proxyNames.add(proxyName));
-            final Type type = v.erasure(types);
             VarSymbol proxy = new VarSymbol(
-                flags, proxyName, type, owner);
+                flags, proxyName, v.erasure(types), owner);
             proxies.put(v, proxy);
             JCVariableDecl vd = make.at(pos).VarDef(proxy, null);
             vd.vartype = access(vd.vartype);
@@ -1543,9 +1545,7 @@ public class Lower extends TreeTranslator {
      *  @param owner      The class in which the definition goes.
      */
     JCVariableDecl outerThisDef(int pos, ClassSymbol owner) {
-        Type target = types.erasure(owner.enclClass().type.getEnclosingType());
-        long flags = FINAL | SYNTHETIC;
-        VarSymbol outerThis = makeOuterThisVarSymbol(owner, flags);
+        VarSymbol outerThis = makeOuterThisVarSymbol(owner, FINAL | SYNTHETIC);
         return makeOuterThisVarDecl(pos, outerThis);
     }
 
@@ -3143,10 +3143,7 @@ public class Lower extends TreeTranslator {
         // For narrowing conversion, insert a cast which should trigger a null check
         // For widening conversions, insert a cast if emitting a unified class file.
         return (T) make.TypeCast(type, tree);
-
     }
-
-
 
     /** Expand a boxing or unboxing conversion if needed. */
     @SuppressWarnings("unchecked") // XXX unchecked
@@ -4148,7 +4145,7 @@ public class Lower extends TreeTranslator {
          */
         boolean needPrimaryMirror = tree.name == names._class && tree.selected.type.isReferenceProjection();
         tree.selected = translate(tree.selected);
-        if (needPrimaryMirror && tree.selected.type.isPrimitiveClass()) {
+        if (needPrimaryMirror && allowPrimitiveClasses && tree.selected.type.isPrimitiveClass()) {
             tree.selected.setType(tree.selected.type.referenceProjection());
         }
         if (tree.name == names._class) {

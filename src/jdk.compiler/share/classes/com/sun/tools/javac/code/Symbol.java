@@ -1399,7 +1399,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if (name.isEmpty())
                 return
                     Log.getLocalizedString("anonymous.class", flatname);
-
+            else
                 return fullname.toString();
         }
 
@@ -2186,7 +2186,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @Override
         public boolean isInheritedIn(Symbol clazz, Types types) {
-
             switch ((int)(flags_field & Flags.AccessFlags)) {
                 case PUBLIC:
                     return !this.owner.isInterface() ||

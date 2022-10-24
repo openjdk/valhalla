@@ -729,6 +729,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             super.setPos(pos);
             return this;
         }
+
         public boolean isPoly() { return false; }
         public boolean isStandalone() { return true; }
 

@@ -2168,7 +2168,7 @@ public class Attr extends JCTree.Visitor {
             Iterator<DiagnosticPosition> posIt = positions.iterator();
 
             condTypes = condTypes.stream()
-                                 .map(t -> chk.checkNonVoid(posIt.next(), t.isPrimitiveClass() ? t.referenceProjection() : t))
+                                 .map(t -> chk.checkNonVoid(posIt.next(), allowPrimitiveClasses && t.isPrimitiveClass() ? t.referenceProjection() : t))
                                  .collect(List.collector());
 
             // both are known to be reference types (or projections).  The result is
@@ -2612,7 +2612,7 @@ public class Attr extends JCTree.Visitor {
                 // as a special case, x.getClass() has type Class<? extends |X|>
                 // Special treatment for primitive classes: Given an expression v of type V where
                 // V is a primitive class, v.getClass() is typed to be Class<? extends |V.ref|>
-                Type wcb = types.erasure(qualifierType.isPrimitiveClass() ?
+                Type wcb = types.erasure(allowPrimitiveClasses && qualifierType.isPrimitiveClass() ?
                                          qualifierType.referenceProjection() : qualifierType.baseType());
                 return new ClassType(restype.getEnclosingType(),
                         List.of(new WildcardType(wcb,
@@ -2790,11 +2790,13 @@ public class Attr extends JCTree.Visitor {
                     resultInfo.checkContext.deferredAttrContext().mode == DeferredAttr.AttrMode.SPECULATIVE;
             boolean skipNonDiamondPath = false;
             // Check that it is an instantiation of a class and not a projection type
-            if (clazz.hasTag(SELECT)) {
-                JCFieldAccess fieldAccess = (JCFieldAccess) clazz;
-                if (fieldAccess.selected.type.isPrimitiveClass() &&
-                        (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
-                    log.error(tree.pos(), Errors.ProjectionCantBeInstantiated);
+            if (allowPrimitiveClasses) {
+                if (clazz.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) clazz;
+                    if (fieldAccess.selected.type.isPrimitiveClass() &&
+                            (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
+                        log.error(tree.pos(), Errors.ProjectionCantBeInstantiated);
+                    }
                 }
             }
             // Check that class is not abstract
@@ -2976,7 +2978,9 @@ public class Attr extends JCTree.Visitor {
                     for (Type t : clazztype.getTypeArguments()) {
                         rs.checkAccessibleType(env, t);
                     }
-                    chk.checkParameterizationByPrimitiveClass(tree, clazztype);
+                    if (allowPrimitiveClasses) {
+                        chk.checkParameterizationByPrimitiveClass(tree, clazztype);
+                    }
                 }
 
                 // If we already errored, be careful to avoid a further avalanche. ErrorType answers
@@ -3050,7 +3054,7 @@ public class Attr extends JCTree.Visitor {
         if (arg.getTag() == NEWCLASS)
             return arg;
         // Likewise arg can't be null if it is a primitive class instance.
-        if (arg.type.isPrimitiveClass())
+        if (allowPrimitiveClasses && arg.type.isPrimitiveClass())
             return arg;
         // optimization: X.this is never null; skip null check
         Name name = TreeInfo.name(arg);
@@ -4072,7 +4076,6 @@ public class Attr extends JCTree.Visitor {
                 if (!types.isCastable(left, right, new Warner(tree.pos()))) {
                     log.error(tree.pos(), Errors.IncomparableTypes(left, right));
                 }
-                chk.checkForSuspectClassLiteralComparison(tree, left, right);
             }
 
             chk.checkDivZero(tree.rhs.pos(), operator, right);
@@ -4385,7 +4388,7 @@ public class Attr extends JCTree.Visitor {
         // Attribute the qualifier expression, and determine its symbol (if any).
         Type site = attribTree(tree.selected, env, new ResultInfo(skind, Type.noType));
         Assert.check(site == tree.selected.type);
-        if (tree.name == names._class && site.isPrimitiveClass()) {
+        if (allowPrimitiveClasses && tree.name == names._class && site.isPrimitiveClass()) {
             /* JDK-8269956: Where a reflective (class) literal is needed, the unqualified Point.class is
              * always the "primary" mirror - representing the primitive reference runtime type - thereby
              * always matching the behavior of Object::getClass
@@ -4414,7 +4417,6 @@ public class Attr extends JCTree.Visitor {
         // for the selection. This is relevant for determining whether
         // protected symbols are accessible.
         Symbol sitesym = TreeInfo.symbol(tree.selected);
-
         boolean selectSuperPrev = env.info.selectSuper;
         env.info.selectSuper =
             sitesym != null &&
@@ -4554,7 +4556,7 @@ public class Attr extends JCTree.Visitor {
                     // In this case, we have already made sure in
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
-                } else if (site.isPrimitiveClass() && isType(location) && resultInfo.pkind.contains(KindSelector.TYP) && (name == names.ref || name == names.val)) {
+                } else if (allowPrimitiveClasses && site.isPrimitiveClass() && isType(location) && resultInfo.pkind.contains(KindSelector.TYP) && (name == names.ref || name == names.val)) {
                     return site.tsym;
                 } else {
                     // We are seeing a plain identifier as selector.
@@ -4662,14 +4664,16 @@ public class Attr extends JCTree.Visitor {
                 // except for three situations:
                 owntype = sym.type;
                 if (owntype.hasTag(CLASS)) {
-                    Assert.check(owntype.getFlavor() != Flavor.X_Typeof_X);
+                    if (allowPrimitiveClasses) {
+                        Assert.check(owntype.getFlavor() != Flavor.X_Typeof_X);
+                    }
                     chk.checkForBadAuxiliaryClassAccess(tree.pos(), env, (ClassSymbol)sym);
                     Type ownOuter = owntype.getEnclosingType();
 
                     // (a) If symbol is a primitive class and its reference projection
                     // is requested via the .ref notation, then adjust the computed type to
                     // reflect this.
-                    if (owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
+                    if (allowPrimitiveClasses && owntype.isPrimitiveClass() && tree.hasTag(SELECT) && ((JCFieldAccess) tree).name == names.ref) {
                         owntype = new ClassType(owntype.getEnclosingType(), owntype.getTypeArguments(), (TypeSymbol)sym, owntype.getMetadata(), Flavor.L_TypeOf_Q);
                     }
 
@@ -5027,8 +5031,10 @@ public class Attr extends JCTree.Visitor {
         Type site = attribTree(tree.clazz, env, new ResultInfo(KindSelector.TYP_PCK, Type.noType));
         if (!pkind().contains(KindSelector.TYP_PCK))
             site = capture(site); // Capture field access
-
-        Symbol sym = switch (site.getTag()) {
+        if (!allowPrimitiveClasses) {
+            result = types.createErrorType(names._default, site.tsym, site);
+        } else {
+            Symbol sym = switch (site.getTag()) {
                 case WILDCARD -> throw new AssertionError(tree);
                 case PACKAGE -> {
                     log.error(tree.pos, Errors.CantResolveLocation(Kinds.KindName.CLASS, site.tsym.getQualifiedName(), null, null,
@@ -5037,12 +5043,13 @@ public class Attr extends JCTree.Visitor {
                 }
                 case ERROR -> types.createErrorType(names._default, site.tsym, site).tsym;
                 default -> new VarSymbol(STATIC, names._default, site, site.tsym);
-        };
+            };
 
-        if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
-            site = types.skipTypeVars(site, true);
+            if (site.hasTag(TYPEVAR) && sym.kind != ERR) {
+                site = types.skipTypeVars(site, true);
+            }
+            result = checkId(tree, site, sym, env, resultInfo);
         }
-        result = checkId(tree, site, sym, env, resultInfo);
     }
 
     public void visitLiteral(JCLiteral tree) {
@@ -5379,7 +5386,7 @@ public class Attr extends JCTree.Visitor {
         try {
             annotate.flush();
             attribClass(c);
-            if (c.type.isPrimitiveClass()) {
+            if (allowPrimitiveClasses && c.type.isPrimitiveClass()) {
                 final Env<AttrContext> env = typeEnvs.get(c);
                 if (env != null && env.tree != null && env.tree.hasTag(CLASSDEF))
                     chk.checkNonCyclicMembership((JCClassDecl)env.tree);

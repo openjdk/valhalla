@@ -112,6 +112,7 @@ public class Resolve {
     private final boolean allowYieldStatement;
     final EnumSet<VerboseResolutionMode> verboseResolutionMode;
     final boolean dumpMethodReferenceSearchResults;
+    final boolean allowPrimitiveClasses;
 
     WriteableScope polymorphicSignatureScope;
 
@@ -141,6 +142,7 @@ public class Resolve {
         compactMethodDiags = options.isSet(Option.XDIAGS, "compact") ||
                 options.isUnset(Option.XDIAGS) && options.isUnset("rawDiagnostics");
         verboseResolutionMode = VerboseResolutionMode.getVerboseResolutionMode(options);
+        Target target = Target.instance(context);
         allowLocalVariableTypeInference = Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source);
         allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
@@ -148,6 +150,7 @@ public class Resolve {
         allowRecords = Feature.RECORDS.allowedInSource(source);
         dumpMethodReferenceSearchResults = options.isSet("debug.dumpMethodReferenceSearchResults");
         allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** error symbols, which are returned when resolution fails
@@ -416,17 +419,19 @@ public class Resolve {
         }
 
         ClassSymbol enclosingCsym = env.enclClass.sym;
-        if (sym.kind == MTH || sym.kind == VAR) {
-            /* If any primitive class types are involved, ask the same question in the reference universe,
-               where the hierarchy is navigable
-            */
-            if (site.isPrimitiveClass())
-                site = site.referenceProjection();
-        } else if (sym.kind == TYP) {
-            // A type is accessible in a reference projection if it was
-            // accessible in the value projection.
-            if (site.isReferenceProjection())
-                site = site.valueProjection();
+        if (allowPrimitiveClasses) {
+            if (sym.kind == MTH || sym.kind == VAR) {
+                /* If any primitive class types are involved, ask the same question in the reference universe,
+                   where the hierarchy is navigable
+                */
+                if (site.isPrimitiveClass())
+                    site = site.referenceProjection();
+            } else if (sym.kind == TYP) {
+                // A type is accessible in a reference projection if it was
+                // accessible in the value projection.
+                if (site.isReferenceProjection())
+                    site = site.valueProjection();
+            }
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {
@@ -485,8 +490,9 @@ public class Resolve {
         /* If any primitive class types are involved, ask the same question in the reference universe,
            where the hierarchy is navigable
         */
-        if (site.isPrimitiveClass())
+        if (allowPrimitiveClasses && site.isPrimitiveClass()) {
             site = site.referenceProjection();
+        }
 
         Symbol s2 = ((MethodSymbol)sym).implementation(site.tsym, types, true);
         return (s2 == null || s2 == sym || sym.owner == s2.owner || (sym.owner.isInterface() && s2.owner == syms.objectType.tsym) ||

@@ -143,6 +143,7 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
+
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
@@ -168,6 +169,7 @@ public class Check {
         allowModules = Feature.MODULES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealed = Feature.SEALED_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** Character for synthetic names
@@ -210,6 +212,10 @@ public class Check {
     /** Are sealed classes allowed
      */
     private final boolean allowSealed;
+
+    /** Are primitive classes allowed
+     */
+    private final boolean allowPrimitiveClasses;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -507,7 +513,7 @@ public class Check {
         compiled.remove(Pair.of(csym.packge().modle, csym.flatname));
     }
 
-    /* *************************************************************************
+/* *************************************************************************
  * Type Checking
  **************************************************************************/
 
@@ -614,7 +620,7 @@ public class Check {
             inferenceContext.addFreeTypeListener(List.of(req, found),
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         } else {
-            if (found.hasTag(CLASS)) {
+            if (allowPrimitiveClasses && found.hasTag(CLASS)) {
                 if (inferenceContext != infer.emptyContext)
                     checkParameterizationByPrimitiveClass(pos, found);
             }
@@ -814,7 +820,7 @@ public class Check {
                 // Projection types may not be mentioned in constructor references
                 if (expr.hasTag(SELECT)) {
                     JCFieldAccess fieldAccess = (JCFieldAccess) expr;
-                    if (fieldAccess.selected.type.isPrimitiveClass() &&
+                    if (allowPrimitiveClasses && fieldAccess.selected.type.isPrimitiveClass() &&
                             (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
                         log.error(expr, Errors.ProjectionCantBeInstantiated);
                         t = types.createErrorType(t);
@@ -858,7 +864,7 @@ public class Check {
      *  @param primitiveClassOK       If false, a primitive class does not qualify
      */
     Type checkRefType(DiagnosticPosition pos, Type t, boolean primitiveClassOK) {
-        if (t.isReference() && (primitiveClassOK || !t.isPrimitiveClass()))
+        if (t.isReference() && (!allowPrimitiveClasses || primitiveClassOK || !t.isPrimitiveClass()))
             return t;
         else
             return typeTagError(pos,
@@ -959,7 +965,7 @@ public class Check {
         @Override
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
-                if (targ.isPrimitiveClass()) {
+                if (allowPrimitiveClasses && targ.isPrimitiveClass()) {
                     log.error(pos, Errors.GenericParameterizationWithPrimitiveClass(t));
                 }
                 visit(targ, pos);
@@ -1139,43 +1145,10 @@ public class Check {
 
         //upward project the initializer type
         Type varType = types.upward(t, types.captures(t)).baseType();
-        if (varType.hasTag(CLASS)) {
+        if (allowPrimitiveClasses && varType.hasTag(CLASS)) {
             checkParameterizationByPrimitiveClass(pos, varType);
         }
         return varType;
-    }
-
-    public void checkForSuspectClassLiteralComparison(
-            final JCBinary tree,
-            final Type leftType,
-            final Type rightType) {
-
-        if (lint.isEnabled(LintCategory.MIGRATION)) {
-            if (isInvocationOfGetClass(tree.lhs) && isClassOfSomeInterface(rightType) ||
-                    isInvocationOfGetClass(tree.rhs) && isClassOfSomeInterface(leftType)) {
-                log.warning(LintCategory.MIGRATION, tree.pos(), Warnings.GetClassComparedWithInterface);
-            }
-        }
-    }
-    //where
-    private boolean isClassOfSomeInterface(Type someClass) {
-        if (someClass.tsym.flatName() == names.java_lang_Class) {
-            List<Type> arguments = someClass.getTypeArguments();
-            if (arguments.length() == 1) {
-                return arguments.head.isInterface();
-            }
-        }
-        return false;
-    }
-    //where
-    private boolean isInvocationOfGetClass(JCExpression tree) {
-        tree = TreeInfo.skipParens(tree);
-        if (tree.hasTag(APPLY)) {
-            JCMethodInvocation apply = (JCMethodInvocation)tree;
-            MethodSymbol msym = (MethodSymbol)TreeInfo.symbol(apply.meth);
-            return msym.name == names.getClass && msym.implementedIn(syms.objectType.tsym, types) != null;
-        }
-        return false;
     }
 
     Type checkMethod(final Type mtype,
@@ -2509,21 +2482,22 @@ public class Check {
 
     // A primitive class cannot contain a field of its own type either or indirectly.
     void checkNonCyclicMembership(JCClassDecl tree) {
-        Assert.check((tree.sym.flags_field & LOCKED) == 0);
-        try {
-            tree.sym.flags_field |= LOCKED;
-            for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
-                if (l.head.hasTag(VARDEF)) {
-                    JCVariableDecl field = (JCVariableDecl) l.head;
-                    if (cyclePossible(field.sym)) {
-                        checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
+        if (allowPrimitiveClasses) {
+            Assert.check((tree.sym.flags_field & LOCKED) == 0);
+            try {
+                tree.sym.flags_field |= LOCKED;
+                for (List<? extends JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
+                    if (l.head.hasTag(VARDEF)) {
+                        JCVariableDecl field = (JCVariableDecl) l.head;
+                        if (cyclePossible(field.sym)) {
+                            checkNonCyclicMembership((ClassSymbol) field.type.tsym, field.pos());
+                        }
                     }
                 }
+            } finally {
+                tree.sym.flags_field &= ~LOCKED;
             }
-        } finally {
-            tree.sym.flags_field &= ~LOCKED;
         }
-
     }
     // where
     private void checkNonCyclicMembership(ClassSymbol c, DiagnosticPosition pos) {
@@ -2542,7 +2516,7 @@ public class Check {
     }
         // where
         private boolean cyclePossible(VarSymbol symbol) {
-            return (symbol.flags() & STATIC) == 0 && symbol.type.isPrimitiveClass();
+            return (symbol.flags() & STATIC) == 0 && allowPrimitiveClasses && symbol.type.isPrimitiveClass();
         }
 
     void checkNonCyclicDecl(JCClassDecl tree) {

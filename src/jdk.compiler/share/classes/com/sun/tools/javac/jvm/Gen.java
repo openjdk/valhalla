@@ -134,6 +134,8 @@ public class Gen extends JCTree.Visitor {
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
         qualifiedSymbolCache = new HashMap<>();
+        Source source = Source.instance(context);
+        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** Switches
@@ -180,6 +182,8 @@ public class Gen extends JCTree.Visitor {
      *  value: qualified symbol
      */
     Map<Type, Symbol> qualifiedSymbolCache;
+
+    boolean allowPrimitiveClasses;
 
     /** Generate code to load an integer constant.
      *  @param n     The integer to be loaded.
@@ -1061,7 +1065,8 @@ public class Gen extends JCTree.Visitor {
                                                : null,
                                         syms,
                                         types,
-                                        poolWriter);
+                                        poolWriter,
+                                        allowPrimitiveClasses);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
@@ -2026,7 +2031,6 @@ public class Gen extends JCTree.Visitor {
         genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
 
         items.makeMemberItem(tree.constructor, true).invoke();
-
         result = items.makeStackItem(tree.type);
     }
 

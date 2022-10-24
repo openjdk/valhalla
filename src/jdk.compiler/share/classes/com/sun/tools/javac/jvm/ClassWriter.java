@@ -110,6 +110,8 @@ public class ClassWriter extends ClassFile {
 
     private Check check;
 
+    private boolean allowPrimitiveClasses;
+
     /**
      * If true, class files will be written in module-specific subdirectories
      * of the CLASS_OUTPUT location.
@@ -194,6 +196,8 @@ public class ClassWriter extends ClassFile {
             dumpInnerClassModifiers = modifierFlags.indexOf('i') != -1;
             dumpMethodModifiers = modifierFlags.indexOf('m') != -1;
         }
+        Source source = Source.instance(context);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     public void addExtraAttributes(ToIntFunction<Symbol> addExtraAttributes) {
@@ -217,6 +221,7 @@ public class ClassWriter extends ClassFile {
     private boolean dumpFieldModifiers; // -XDdumpmodifiers=f
     private boolean dumpInnerClassModifiers; // -XDdumpmodifiers=i
     private boolean dumpMethodModifiers; // -XDdumpmodifiers=m
+
 
     /** Return flags as a string, separated by " ".
      */
@@ -1256,7 +1261,7 @@ public class ClassWriter extends ClassFile {
             case ARRAY:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
                 databuf.appendByte(7);
-                databuf.appendChar(t.isPrimitiveClass() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
+                databuf.appendChar(allowPrimitiveClasses && t.isPrimitiveClass() ? poolWriter.putClass(new ConstantPoolQType(types.erasure(t), types)) : poolWriter.putClass(types.erasure(t)));
                 break;
             case TYPEVAR:
                 if (debugstackmap) System.out.print("object(" + types.erasure(t).tsym + ")");
