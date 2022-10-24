@@ -25,7 +25,8 @@
  * @test
  * @bug 8212175
  * @summary Trouble creating an anonymous value class with diamond syntax
- * @run main/othervm AnonymousValue
+ * @compile -XDenablePrimitiveClasses AnonymousValue.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AnonymousValue
  */
 
 import java.util.function.Function;

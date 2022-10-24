@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check valueness via __value__ annotation
  * @bug 8221699
- * @compile/fail/ref=ValueAnnotationOnAnonymousClass.out -XDrawDiagnostics ValueAnnotationOnAnonymousClass.java
+ * @compile/fail/ref=ValueAnnotationOnAnonymousClass.out -XDrawDiagnostics -XDenablePrimitiveClasses ValueAnnotationOnAnonymousClass.java
  */
 
 class ValueAnnotationOnAnonymousClass {

@@ -648,8 +648,24 @@ class StubGenerator: public StubCodeGenerator {
     __ align(CodeEntryAlignment);
     StubCodeMark mark(this, "StubRoutines", stub_name);
     address start = __ pc();
+    // B
     __ emit_data64(0x0706050403020100, relocInfo::none);
     __ emit_data64(0x0F0E0D0C0B0A0908, relocInfo::none);
+    // H
+    __ emit_data64(0x0003000200010000, relocInfo::none);
+    __ emit_data64(0x0007000600050004, relocInfo::none);
+    // S
+    __ emit_data64(0x0000000100000000, relocInfo::none);
+    __ emit_data64(0x0000000300000002, relocInfo::none);
+    // D
+    __ emit_data64(0x0000000000000000, relocInfo::none);
+    __ emit_data64(0x0000000000000001, relocInfo::none);
+    // S - FP
+    __ emit_data64(0x3F80000000000000, relocInfo::none); // 0.0f, 1.0f
+    __ emit_data64(0x4040000040000000, relocInfo::none); // 2.0f, 3.0f
+    // D - FP
+    __ emit_data64(0x0000000000000000, relocInfo::none); // 0.0d
+    __ emit_data64(0x3FF0000000000000, relocInfo::none); // 1.0d
     return start;
   }
 
@@ -6804,13 +6820,13 @@ class StubGenerator: public StubCodeGenerator {
   }
 
   // The handle is dereferenced through a load barrier.
-  static void jfr_epilogue(MacroAssembler* _masm, Register thread) {
+  static void jfr_epilogue(MacroAssembler* _masm) {
     __ reset_last_Java_frame(true);
     Label null_jobject;
     __ cbz(r0, null_jobject);
     DecoratorSet decorators = ACCESS_READ | IN_NATIVE;
     BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->load_at(_masm, decorators, T_OBJECT, r0, Address(r0, 0), c_rarg0, thread);
+    bs->load_at(_masm, decorators, T_OBJECT, r0, Address(r0, 0), rscratch1, rscratch2);
     __ bind(null_jobject);
   }
 
@@ -6839,7 +6855,7 @@ class StubGenerator: public StubCodeGenerator {
     address the_pc = __ pc();
     jfr_prologue(the_pc, _masm, rthread);
     __ call_VM_leaf(CAST_FROM_FN_PTR(address, JfrIntrinsicSupport::write_checkpoint), 1);
-    jfr_epilogue(_masm, rthread);
+    jfr_epilogue(_masm);
     __ leave();
     __ ret(lr);
 
@@ -7869,7 +7885,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // Set up last_Java_sp and last_Java_fp
     address the_pc = __ pc();
-    __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
+    __ set_last_Java_frame(sp, noreg, the_pc, rscratch1);
 
     // Call runtime
     __ mov(c_rarg1, r0);
@@ -8007,7 +8023,9 @@ class StubGenerator: public StubCodeGenerator {
                                                 SharedRuntime::
                                                 throw_NullPointerException_at_call));
 
-    StubRoutines::aarch64::_vector_iota_indices    = generate_iota_indices("iota_indices");
+    if (UseSVE == 0) {
+      StubRoutines::aarch64::_vector_iota_indices = generate_iota_indices("iota_indices");
+    }
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();

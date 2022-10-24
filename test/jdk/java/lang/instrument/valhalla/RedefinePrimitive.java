@@ -27,7 +27,8 @@
  * @library /test/lib
  * @summary [lworld] Primitive classes can't be retransformed
  * @modules java.instrument
- * @run driver RedefinePrimitive master
+ * @compile -XDenablePrimitiveClasses RedefinePrimitive.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RedefinePrimitive master
  */
 
 import java.io.File;
@@ -305,6 +306,7 @@ public class RedefinePrimitive {
                 log("Starting " + tests[i].name + "...");
                 ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                         "-javaagent:redefineagent.jar",
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         getPropOpt("test.jdk"),
                         getPropOpt("test.classes"),
                         getPropOpt("test.java.opts"),
@@ -439,7 +441,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     transformErrorExpected = true;
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(1, className);
+                            .transform(1, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 
@@ -459,7 +461,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     transformErrorExpected = true;
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(1, className);
+                            .transform(1, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 
@@ -479,7 +481,7 @@ public class RedefinePrimitive {
                 public void prologue() throws Exception {
                     transformErrorExpected = true;
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(1, className);
+                            .transform(1, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 
@@ -517,7 +519,7 @@ public class RedefinePrimitive {
                 @Override
                 public void prologue() throws Exception {
                     String transformedClassFile = ClassTransformer.fromTestSource(SOURCE_FILE)
-                            .transform(2, className);
+                            .transform(2, className, "-XDenablePrimitiveClasses");
                     redefineClassBytes = loadClassBytes(new File(transformedClassFile));
                 }
 

@@ -27,7 +27,8 @@
  * @summary Verify there are no unnecessary checkcasts generated while acessing an instance
  *          field/method through a reference projection.
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @run main NoUnnecessaryCast
+ * @compile -XDenablePrimitiveClasses NoUnnecessaryCast.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses NoUnnecessaryCast
  */
 
 import java.io.File;

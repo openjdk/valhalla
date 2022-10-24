@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,12 +25,12 @@
 
 package sun.misc;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.util.Set;
 
@@ -651,8 +651,8 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isPrimitiveClass()) {
-            throw new UnsupportedOperationException("can't get field offset on an inline class: " + f);
+        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
+            throw new UnsupportedOperationException("can't get field offset on a primitive class: " + f);
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
@@ -693,8 +693,8 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isPrimitiveClass()) {
-            throw new UnsupportedOperationException("can't get static field offset on an inline class: " + f);
+        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
+            throw new UnsupportedOperationException("can't get static field offset on a primitive class: " + f);
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
@@ -727,8 +727,8 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get base address on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isPrimitiveClass()) {
-            throw new UnsupportedOperationException("can't get base address on an inline class: " + f);
+        if (PrimitiveClass.isPrimitiveClass(f.getDeclaringClass())) {
+            throw new UnsupportedOperationException("can't get base address on a primitive class: " + f);
         }
         if (declaringClass.isRecord()) {
             throw new UnsupportedOperationException("can't get base address on a record class: " + f);

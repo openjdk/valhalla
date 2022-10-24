@@ -623,7 +623,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       JavaCallArguments args;
       Handle ho(THREAD, obj);
       args.push_oop(ho);
-      methodHandle method(THREAD, Universe::primitive_type_hash_code_method());
+      methodHandle method(THREAD, Universe::value_object_hash_code_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
@@ -1251,6 +1251,19 @@ JVM_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
   return k->is_hidden();
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_IsIdentityClass(JNIEnv *env, jclass cls))
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  if (java_lang_Class::is_primitive(mirror)) {
+    return JNI_FALSE;
+  }
+  Klass* k = java_lang_Class::as_Klass(mirror);
+  if (EnableValhalla) {
+    return k->is_array_klass() || k->is_identity_class();
+  } else {
+    return k->is_interface() ? JNI_FALSE : JNI_TRUE;
+  }
+JVM_END
+
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
   JvmtiVMObjectAllocEventCollector oam;
   oop mirror = JNIHandles::resolve_non_null(cls);
@@ -1819,7 +1832,7 @@ JVM_END
 
 static bool select_method(const methodHandle& method, bool want_constructor) {
   bool is_ctor = (method->is_object_constructor() ||
-                  method->is_static_init_factory());
+                  method->is_static_vnew_factory());
   if (want_constructor) {
     return is_ctor;
   } else {
@@ -1889,7 +1902,7 @@ static jobjectArray get_class_declared_methods_helper(
       oop m;
       if (want_constructor) {
         assert(method->is_object_constructor() ||
-               method->is_static_init_factory(), "must be");
+               method->is_static_vnew_factory(), "must be");
         m = Reflection::new_constructor(method, CHECK_NULL);
       } else {
         m = Reflection::new_method(method, false, CHECK_NULL);
@@ -2172,7 +2185,7 @@ static jobject get_method_at_helper(const constantPoolHandle& cp, jint index, bo
     THROW_MSG_0(vmSymbols::java_lang_RuntimeException(), "Unable to look up method in target class");
   }
   oop method;
-  if (m->is_object_constructor() || m->is_static_init_factory()) {
+  if (m->is_object_constructor() || m->is_static_vnew_factory()) {
     method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     method = Reflection::new_method(m, true, CHECK_NULL);
@@ -2994,9 +3007,6 @@ JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
     if (java_lang_Thread::thread(JNIHandles::resolve_non_null(jthread)) != NULL) {
       throw_illegal_thread_state = true;
     } else {
-      // We could also check the stillborn flag to see if this thread was already stopped, but
-      // for historical reasons we let the thread detect that itself when it starts running
-
       jlong size =
              java_lang_Thread::stackSize(JNIHandles::resolve_non_null(jthread));
       // Allocate the C++ Thread structure and create the native thread.  The
@@ -3049,71 +3059,9 @@ JVM_ENTRY(void, JVM_StartThread(JNIEnv* env, jobject jthread))
 JVM_END
 
 
-// JVM_Stop is implemented using a VM_Operation, so threads are forced to safepoints
-// before the quasi-asynchronous exception is delivered.  This is a little obtrusive,
-// but is thought to be reliable and simple. In the case, where the receiver is the
-// same thread as the sender, no VM_Operation is needed.
-JVM_ENTRY(void, JVM_StopThread(JNIEnv* env, jobject jthread, jobject throwable))
-  ThreadsListHandle tlh(thread);
-  oop java_throwable = JNIHandles::resolve(throwable);
-  if (java_throwable == NULL) {
-    THROW(vmSymbols::java_lang_NullPointerException());
-  }
-  oop java_thread = NULL;
-  JavaThread* receiver = NULL;
-  bool is_alive = tlh.cv_internal_thread_to_JavaThread(jthread, &receiver, &java_thread);
-  Events::log_exception(thread,
-                        "JVM_StopThread thread JavaThread " INTPTR_FORMAT " as oop " INTPTR_FORMAT " [exception " INTPTR_FORMAT "]",
-                        p2i(receiver), p2i(java_thread), p2i(throwable));
-
-  if (is_alive) {
-    // jthread refers to a live JavaThread.
-    if (thread == receiver) {
-      // Exception is getting thrown at self so no VM_Operation needed.
-      THROW_OOP(java_throwable);
-    } else {
-      // Use a VM_Operation to throw the exception.
-      JavaThread::send_async_exception(receiver, java_throwable);
-    }
-  } else {
-    // Either:
-    // - target thread has not been started before being stopped, or
-    // - target thread already terminated
-    // We could read the threadStatus to determine which case it is
-    // but that is overkill as it doesn't matter. We must set the
-    // stillborn flag for the first case, and if the thread has already
-    // exited setting this flag has no effect.
-    java_lang_Thread::set_stillborn(java_thread);
-  }
-JVM_END
-
-
 JVM_ENTRY(jboolean, JVM_IsThreadAlive(JNIEnv* env, jobject jthread))
   oop thread_oop = JNIHandles::resolve_non_null(jthread);
   return java_lang_Thread::is_alive(thread_oop);
-JVM_END
-
-
-JVM_ENTRY(void, JVM_SuspendThread(JNIEnv* env, jobject jthread))
-  ThreadsListHandle tlh(thread);
-  JavaThread* receiver = NULL;
-  bool is_alive = tlh.cv_internal_thread_to_JavaThread(jthread, &receiver, NULL);
-  if (is_alive) {
-    // jthread refers to a live JavaThread, but java_suspend() will
-    // detect a thread that has started to exit and will ignore it.
-    receiver->java_suspend();
-  }
-JVM_END
-
-
-JVM_ENTRY(void, JVM_ResumeThread(JNIEnv* env, jobject jthread))
-  ThreadsListHandle tlh(thread);
-  JavaThread* receiver = NULL;
-  bool is_alive = tlh.cv_internal_thread_to_JavaThread(jthread, &receiver, NULL);
-  if (is_alive) {
-    // jthread refers to a live JavaThread.
-    receiver->java_resume();
-  }
 JVM_END
 
 
@@ -3161,7 +3109,7 @@ JVM_ENTRY(void, JVM_Sleep(JNIEnv* env, jclass threadClass, jlong millis))
     ThreadState old_state = thread->osthread()->get_state();
     thread->osthread()->set_state(SLEEPING);
     if (!thread->sleep(millis)) { // interrupted
-      // An asynchronous exception (e.g., ThreadDeathException) could have been thrown on
+      // An asynchronous exception could have been thrown on
       // us while we were sleeping. We do not overwrite those.
       if (!HAS_PENDING_EXCEPTION) {
         HOTSPOT_THREAD_SLEEP_END(1);
@@ -3562,6 +3510,10 @@ JVM_LEAF(jboolean, JVM_IsPreviewEnabled(void))
   return Arguments::enable_preview() ? JNI_TRUE : JNI_FALSE;
 JVM_END
 
+JVM_LEAF(jboolean, JVM_IsValhallaEnabled(void))
+  return EnableValhalla ? JNI_TRUE : JNI_FALSE;
+JVM_END
+
 JVM_LEAF(jboolean, JVM_IsContinuationsSupported(void))
   return VMContinuations ? JNI_TRUE : JNI_FALSE;
 JVM_END
@@ -3678,7 +3630,7 @@ JVM_END
 JVM_ENTRY(void, JVM_InitializeFromArchive(JNIEnv* env, jclass cls))
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve(cls));
   assert(k->is_klass(), "just checking");
-  HeapShared::initialize_from_archived_subgraph(k, THREAD);
+  HeapShared::initialize_from_archived_subgraph(THREAD, k);
 JVM_END
 
 JVM_ENTRY(void, JVM_RegisterLambdaProxyClassForArchiving(JNIEnv* env,
@@ -4015,6 +3967,8 @@ JVM_ENTRY(void, JVM_VirtualThreadMountBegin(JNIEnv* env, jobject vthread, jboole
     assert(!JvmtiExport::can_support_virtual_threads(), "sanity check");
     return;
   }
+  assert(!thread->is_in_tmp_VTMS_transition(), "sanity check");
+  assert(!thread->is_in_VTMS_transition(), "sanity check");
   JvmtiVTMSTransitionDisabler::start_VTMS_transition(vthread, /* is_mount */ true);
 #else
   fatal("Should only be called with JVMTI enabled");
@@ -4039,6 +3993,7 @@ JVM_ENTRY(void, JVM_VirtualThreadMountEnd(JNIEnv* env, jobject vthread, jboolean
     }
   }
   assert(thread->is_in_VTMS_transition(), "sanity check");
+  assert(!thread->is_in_tmp_VTMS_transition(), "sanity check");
   JvmtiVTMSTransitionDisabler::finish_VTMS_transition(vthread, /* is_mount */ true);
   if (first_mount) {
     // thread start
@@ -4087,7 +4042,7 @@ JVM_ENTRY(void, JVM_VirtualThreadUnmountBegin(JNIEnv* env, jobject vthread, jboo
       }
     }
   }
-
+  assert(!thread->is_in_tmp_VTMS_transition(), "sanity check");
   assert(!thread->is_in_VTMS_transition(), "sanity check");
   JvmtiVTMSTransitionDisabler::start_VTMS_transition(vthread, /* is_mount */ false);
 
@@ -4110,7 +4065,22 @@ JVM_ENTRY(void, JVM_VirtualThreadUnmountEnd(JNIEnv* env, jobject vthread, jboole
     return;
   }
   assert(thread->is_in_VTMS_transition(), "sanity check");
+  assert(!thread->is_in_tmp_VTMS_transition(), "sanity check");
   JvmtiVTMSTransitionDisabler::finish_VTMS_transition(vthread, /* is_mount */ false);
+#else
+  fatal("Should only be called with JVMTI enabled");
+#endif
+JVM_END
+
+JVM_ENTRY(void, JVM_VirtualThreadHideFrames(JNIEnv* env, jobject vthread, jboolean hide))
+#if INCLUDE_JVMTI
+  if (!DoJVMTIVirtualThreadTransitions) {
+    assert(!JvmtiExport::can_support_virtual_threads(), "sanity check");
+    return;
+  }
+  assert(!thread->is_in_VTMS_transition(), "sanity check");
+  assert(thread->is_in_tmp_VTMS_transition() != (bool)hide, "sanity check");
+  thread->toggle_is_in_tmp_VTMS_transition();
 #else
   fatal("Should only be called with JVMTI enabled");
 #endif

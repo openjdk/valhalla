@@ -24,8 +24,9 @@
 
 /*
  * @test
- * @summary test MethodHandle of static init factories
- * @run testng/othervm StaticFactoryMethodHandleTest
+ * @summary test MethodHandle of static vnew factories
+ * @compile -XDenablePrimitiveClasses StaticFactoryMethodHandleTest.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StaticFactoryMethodHandleTest
  */
 
 import java.lang.invoke.MethodHandle;
@@ -36,6 +37,8 @@ import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+
+import jdk.internal.value.PrimitiveClass;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -79,9 +82,9 @@ public class StaticFactoryMethodHandleTest {
      */
     @Test
     public void testNoArgStaticFactory() throws Throwable {
-        // test default static init factory
-        Class<? extends Cons> cls = (Class<? extends Cons>)DefaultConstructor.class.asValueType();
-        MethodHandle mh = staticInitFactory(cls, methodType(cls));
+        // test default static vnew factory
+        Class<? extends Cons> cls = (Class<? extends Cons>)PrimitiveClass.asValueType(DefaultConstructor.class);
+        MethodHandle mh = staticValueFactory(cls, methodType(cls));
         DefaultConstructor o = (DefaultConstructor)mh.invokeExact();
         assertEquals(o, new DefaultConstructor());
         assertEquals(o, newInstance(cls, 0, new Class<?>[0]));
@@ -89,7 +92,7 @@ public class StaticFactoryMethodHandleTest {
 
     @DataProvider(name="ctorWithArgs")
     static Object[][] ctorWithArgs() {
-        Class<? extends Cons> cls = (Class<? extends Cons>)ConstructorWithArgs.class.asValueType();
+        Class<? extends Cons> cls = (Class<? extends Cons>)PrimitiveClass.asValueType(ConstructorWithArgs.class);
         return new Object[][]{
                 new Object[] { cls, methodType(cls, int.class), Modifier.PUBLIC, new ConstructorWithArgs(1) },
                 new Object[] { cls, methodType(cls, int.class, int.class), 0, new ConstructorWithArgs(1, 2) },
@@ -102,7 +105,7 @@ public class StaticFactoryMethodHandleTest {
      */
     @Test(dataProvider="ctorWithArgs")
     public void testStaticFactoryWithArgs(Class<? extends Cons> c, MethodType mtype, int modifiers, ConstructorWithArgs o) throws Throwable {
-        MethodHandle mh = staticInitFactory(c, mtype);
+        MethodHandle mh = staticValueFactory(c, mtype);
         ConstructorWithArgs o1;
         Object o2;
         switch (mtype.parameterCount()) {
@@ -125,37 +128,37 @@ public class StaticFactoryMethodHandleTest {
 
     @Test
     public void testValueClasstaticFactory() throws Throwable {
-        // test default static init factory
+        // test default static value class factory
         MethodType mtype = methodType(Value.class, int.class);
-        MethodHandle mh = staticInitFactory(Value.class, mtype);
+        MethodHandle mh = staticValueFactory(Value.class, mtype);
         Value o = (Value)mh.invokeExact(10);
         assertEquals(o, new Value(10));
         assertEquals(o, newInstance(Value.class, Modifier.PUBLIC, mtype.parameterArray(), 10));
     }
 
     /*
-     * Test the following API when looking up a static init factory
+     * Test the following API when looking up a static value class factory method
      *
-     * 1. Lookup::findStatic accepts "<init>" to lookup a static init factory
+     * 1. Lookup::findStatic accepts "<vnew>" to lookup a static value class factory method
      * 2. Lookup::findConstructor is for invokespecial <init> constructor bytecode pattern
      *    i.e. the instance <init> constructor.
-     *    Hence it won't find the static <init> factory.
+     *    Hence it won't find the static <vnew> factory.
      * 3. Lookup::revealDirect cracks the method handle info
      */
-    static MethodHandle staticInitFactory(Class<? extends Cons> c, MethodType mtype) throws Throwable {
+    static MethodHandle staticValueFactory(Class<? extends Cons> c, MethodType mtype) throws Throwable {
         Lookup lookup = MethodHandles.lookup();
         //
-        MethodHandle mh = lookup.findStatic(c, "<init>", mtype);
+        MethodHandle mh = lookup.findStatic(c, "<vnew>", mtype);
         try {
-            lookup.findConstructor(DefaultConstructor.class.asValueType(), mtype);
+            lookup.findConstructor(PrimitiveClass.asValueType(DefaultConstructor.class), mtype);
             throw new RuntimeException("findConstructor should not find the static init factory");
         } catch (NoSuchMethodException e) {
         }
 
         // crack method handle
         MethodHandleInfo minfo = lookup.revealDirect(mh);
-        assertEquals(minfo.getDeclaringClass(), c.asPrimaryType());
-        assertEquals(minfo.getName(), "<init>");
+        assertEquals(minfo.getDeclaringClass(), PrimitiveClass.asPrimaryType(c));
+        assertEquals(minfo.getName(), "<vnew>");
         assertEquals(minfo.getReferenceKind(), MethodHandleInfo.REF_invokeStatic);
         assertEquals(minfo.getMethodType(), mtype);
         return mh;

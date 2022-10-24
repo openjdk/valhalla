@@ -155,7 +155,7 @@ JVMState* LibraryIntrinsic::generate(JVMState* jvms) {
     msg_stream.print("Did not generate intrinsic %s%s at bci:%d in",
                      vmIntrinsics::name_at(intrinsic_id()),
                      is_virtual() ? " (virtual)" : "", bci);
-    const char *msg = msg_stream.as_string();
+    const char *msg = msg_stream.freeze();
     log_debug(jit, inlining)("%s", msg);
     if (C->print_intrinsics() || C->print_inlining()) {
       tty->print("%s", msg);
@@ -216,7 +216,7 @@ Node* LibraryIntrinsic::generate_predicate(JVMState* jvms, int predicate) {
     msg_stream.print("Did not generate intrinsic %s%s at bci:%d in",
                      vmIntrinsics::name_at(intrinsic_id()),
                      is_virtual() ? " (virtual)" : "", bci);
-    const char *msg = msg_stream.as_string();
+    const char *msg = msg_stream.freeze();
     log_debug(jit, inlining)("%s", msg);
     if (C->print_intrinsics() || C->print_inlining()) {
       C->print_inlining_stream()->print("%s", msg);
@@ -515,16 +515,22 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
 
   case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asValueType:              return inline_primitive_Class_conversion(intrinsic_id());
+  case vmIntrinsics::_asPrimaryTypeArg:
+  case vmIntrinsics::_asValueType:
+  case vmIntrinsics::_asValueTypeArg:           return inline_primitive_Class_conversion(intrinsic_id());
 
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
   case vmIntrinsics::_intBitsToFloat:
   case vmIntrinsics::_doubleToRawLongBits:
   case vmIntrinsics::_doubleToLongBits:
-  case vmIntrinsics::_longBitsToDouble:         return inline_fp_conversions(intrinsic_id());
+  case vmIntrinsics::_longBitsToDouble:
+  case vmIntrinsics::_floatToFloat16:
+  case vmIntrinsics::_float16ToFloat:           return inline_fp_conversions(intrinsic_id());
 
+  case vmIntrinsics::_floatIsFinite:
   case vmIntrinsics::_floatIsInfinite:
+  case vmIntrinsics::_doubleIsFinite:
   case vmIntrinsics::_doubleIsInfinite:         return inline_fp_range_check(intrinsic_id());
 
   case vmIntrinsics::_numberOfLeadingZeros_i:
@@ -720,6 +726,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
     return inline_vector_extract();
   case vmIntrinsics::_VectorCompressExpand:
     return inline_vector_compress_expand();
+  case vmIntrinsics::_IndexVector:
+    return inline_index_vector();
 
   case vmIntrinsics::_getObjectSize:
     return inline_getObjectSize();
@@ -2303,10 +2311,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     inline_klass = mirror_type->as_inline_klass();
   }
 
-  if (base->is_InlineTypeBase()) {
-    InlineTypeBaseNode* vt = base->as_InlineTypeBase();
+  if (base->is_InlineType()) {
+    InlineTypeNode* vt = base->as_InlineType();
     if (is_store) {
-      if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->isa_inlinetype() || !_gvn.type(vt)->is_inlinetype()->larval()) {
+      if (!vt->is_allocated(&_gvn)) {
         return false;
       }
       base = vt->get_oop();
@@ -2330,7 +2338,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           }
         }
       }
-      if (vt->is_InlineType()) {
+      {
         // Re-execute the unsafe access if allocation triggers deoptimization.
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
@@ -2561,9 +2569,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->instance_klass();
         int offset = adr_type->is_instptr()->offset();
-        val->as_InlineTypeBase()->store_flattened(this, base, base, holder, offset, decorators);
+        val->as_InlineType()->store_flattened(this, base, base, holder, offset, decorators);
       } else {
-        val->as_InlineTypeBase()->store_flattened(this, base, adr, NULL, 0, decorators);
+        val->as_InlineType()->store_flattened(this, base, adr, NULL, 0, decorators);
       }
     } else {
       access_store_at(heap_base_oop, adr, adr_type, val, value_type, type, decorators);
@@ -2571,7 +2579,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
   }
 
   if (argument(1)->is_InlineType() && is_store) {
-    InlineTypeBaseNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(base)->inline_klass());
+    InlineTypeNode* value = InlineTypeNode::make_from_oop(this, base, _gvn.type(argument(1))->inline_klass());
     value = value->make_larval(this, false);
     replace_in_map(argument(1), value);
   }
@@ -2582,7 +2590,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 bool LibraryCallKit::inline_unsafe_make_private_buffer() {
   Node* receiver = argument(0);
   Node* value = argument(1);
-  if (!value->is_InlineTypeBase()) {
+  if (!value->is_InlineType()) {
     return false;
   }
 
@@ -2591,7 +2599,7 @@ bool LibraryCallKit::inline_unsafe_make_private_buffer() {
     return true;
   }
 
-  set_result(value->as_InlineTypeBase()->make_larval(this, true));
+  set_result(value->as_InlineType()->make_larval(this, true));
   return true;
 }
 
@@ -2602,7 +2610,11 @@ bool LibraryCallKit::inline_unsafe_finish_private_buffer() {
     return false;
   }
   InlineTypeNode* vt = buffer->as_InlineType();
-  if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
+  if (!vt->is_allocated(&_gvn)) {
+    return false;
+  }
+  // TODO 8239003 Why is this needed?
+  if (AllocateNode::Ideal_allocation(vt->get_oop(), &_gvn) == NULL) {
     return false;
   }
 
@@ -3832,10 +3844,12 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
 }
 
 //-------------------------inline_primitive_Class_conversion-------------------
-// public Class<T> java.lang.Class.asPrimaryType();
-// public Class<T> java.lang.Class.asValueType()
+//               Class<T> java.lang.Class                  .asPrimaryType()
+// public static Class<T> jdk.internal.value.PrimitiveClass.asPrimaryType(Class<T>)
+//               Class<T> java.lang.Class                  .asValueType()
+// public static Class<T> jdk.internal.value.PrimitiveClass.asValueType(Class<T>)
 bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
-  Node* mirror = argument(0); // Receiver Class
+  Node* mirror = argument(0); // Receiver/argument Class
   const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
   if (mirror_con == NULL) {
     return false;
@@ -3845,9 +3859,9 @@ bool LibraryCallKit::inline_primitive_Class_conversion(vmIntrinsics::ID id) {
   ciType* tm = mirror_con->java_mirror_type(&is_val_mirror);
   if (tm != NULL) {
     Node* result = mirror;
-    if (id == vmIntrinsics::_asPrimaryType && is_val_mirror) {
+    if ((id == vmIntrinsics::_asPrimaryType || id == vmIntrinsics::_asPrimaryTypeArg) && is_val_mirror) {
       result = _gvn.makecon(TypeInstPtr::make(tm->as_inline_klass()->ref_mirror()));
-    } else if (id == vmIntrinsics::_asValueType) {
+    } else if (id == vmIntrinsics::_asValueType || id == vmIntrinsics::_asValueTypeArg) {
       if (!tm->is_inlinetype()) {
         return false; // Throw UnsupportedOperationException
       } else if (!is_val_mirror) {
@@ -3929,6 +3943,8 @@ bool LibraryCallKit::inline_Class_cast() {
   Node* kls = load_klass_from_mirror(mirror, false, region, _prim_path);
 
   Node* res = top();
+  Node* io = i_o();
+  Node* mem = merged_memory();
   if (!stopped()) {
     if (EnableValhalla && !requires_null_check) {
       // Check if we are casting to QMyValue
@@ -3962,6 +3978,9 @@ bool LibraryCallKit::inline_Class_cast() {
     // Let Interpreter throw ClassCastException.
     PreserveJVMState pjvms(this);
     set_control(_gvn.transform(region));
+    // Set IO and memory because gen_checkcast may override them when buffering inline types
+    set_i_o(io);
+    set_all_memory(mem);
     uncommon_trap(Deoptimization::Reason_intrinsic,
                   Deoptimization::Action_maybe_recompile);
   }
@@ -4541,7 +4560,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   PhiNode*    result_mem = new PhiNode(result_reg, Type::MEMORY, TypePtr::BOTTOM);
   Node* obj = argument(0);
 
-  if (obj->is_InlineType() || gvn().type(obj)->is_inlinetypeptr()) {
+  if (gvn().type(obj)->is_inlinetypeptr()) {
     return false;
   }
 
@@ -4661,7 +4680,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 // Build special case code for calls to getClass on an object.
 bool LibraryCallKit::inline_native_getClass() {
   Node* obj = argument(0);
-  if (obj->is_InlineTypeBase()) {
+  if (obj->is_InlineType()) {
     const Type* t = _gvn.type(obj);
     if (t->maybe_null()) {
       null_check(obj);
@@ -4770,6 +4789,8 @@ bool LibraryCallKit::inline_fp_conversions(vmIntrinsics::ID id) {
   case vmIntrinsics::_intBitsToFloat:       result = new MoveI2FNode(arg);  break;
   case vmIntrinsics::_doubleToRawLongBits:  result = new MoveD2LNode(arg);  break;
   case vmIntrinsics::_longBitsToDouble:     result = new MoveL2DNode(arg);  break;
+  case vmIntrinsics::_floatToFloat16:       result = new ConvF2HFNode(arg); break;
+  case vmIntrinsics::_float16ToFloat:       result = new ConvHF2FNode(arg); break;
 
   case vmIntrinsics::_doubleToLongBits: {
     // two paths (plus control) merge in a wood
@@ -4869,8 +4890,14 @@ bool LibraryCallKit::inline_fp_range_check(vmIntrinsics::ID id) {
   case vmIntrinsics::_floatIsInfinite:
     result = new IsInfiniteFNode(arg);
     break;
+  case vmIntrinsics::_floatIsFinite:
+    result = new IsFiniteFNode(arg);
+    break;
   case vmIntrinsics::_doubleIsInfinite:
     result = new IsInfiniteDNode(arg);
+    break;
+  case vmIntrinsics::_doubleIsFinite:
+    result = new IsFiniteDNode(arg);
     break;
   default:
     fatal_unexpected_iid(id);
@@ -5027,10 +5054,6 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
     jvms()->set_should_reexecute(true);
 
     Node* obj = argument(0);
-    if (obj->is_InlineType()) {
-      return false;
-    }
-
     obj = null_check_receiver();
     if (stopped())  return true;
 
@@ -5591,9 +5614,6 @@ bool LibraryCallKit::inline_arraycopy() {
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
     const Type* toop = dest_klass_t->cast_to_exactness(false)->as_instance_type();
-    if (toop->isa_aryptr() != NULL) {
-      toop = toop->is_aryptr()->cast_to_not_flat(false)->cast_to_not_null_free(false);
-    }
     src = _gvn.transform(new CheckCastPPNode(control(), src, toop));
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();

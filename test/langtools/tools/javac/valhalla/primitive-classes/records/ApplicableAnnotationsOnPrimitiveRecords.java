@@ -28,7 +28,8 @@
  * @library /tools/lib
  * @modules jdk.compiler/com.sun.tools.javac.util
  *          jdk.jdeps/com.sun.tools.classfile
- * @run main ApplicableAnnotationsOnPrimitiveRecords
+ * @compile -XDenablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ApplicableAnnotationsOnPrimitiveRecords
  */
 import com.sun.tools.classfile.*;
 import com.sun.tools.javac.util.Assert;
@@ -60,7 +61,7 @@ public primitive record ApplicableAnnotationsOnPrimitiveRecords(@FieldAnnotation
                 String methodName = m.getName(cf.constant_pool);
                 if (methodName.equals("toString") || methodName.equals("hashCode") || methodName.equals("equals") || methodName.equals("main")) {
                     // ignore
-                } else if (methodName.equals("<init>")) {
+                } else if (methodName.equals("<vnew>")) {
                     var paAnnos = ((RuntimeVisibleParameterAnnotations_attribute) m.attributes.get(Attribute.RuntimeVisibleParameterAnnotations)).parameter_annotations;
                     Assert.check(paAnnos != null && paAnnos.length > 0);
                     for (var pa : paAnnos) {

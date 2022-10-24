@@ -207,15 +207,9 @@ public enum Source {
      */
     public enum Feature {
 
-        DIAMOND(MIN, Fragments.FeatureDiamond, DiagKind.NORMAL), // Used in Analyzer
         MODULES(JDK9, Fragments.FeatureModules, DiagKind.PLURAL),
         EFFECTIVELY_FINAL_VARIABLES_IN_TRY_WITH_RESOURCES(JDK9, Fragments.FeatureVarInTryWithResources, DiagKind.PLURAL),
         DEPRECATION_ON_IMPORT(MIN, JDK8),
-        POLY(JDK8),
-        LAMBDA(JDK8, Fragments.FeatureLambda, DiagKind.PLURAL),
-        DEFAULT_METHODS(JDK8, Fragments.FeatureDefaultMethods, DiagKind.PLURAL),
-        STRICT_METHOD_CLASH_CHECK(JDK8),
-        GRAPH_INFERENCE(JDK8), // Used in Analyzer
         PRIVATE_SAFE_VARARGS(JDK9),
         DIAMOND_WITH_ANONYMOUS_CLASS_CREATION(JDK9, Fragments.FeatureDiamondAndAnonClass, DiagKind.NORMAL),
         UNDERSCORE_IDENTIFIER(MIN, JDK8),
@@ -293,6 +287,9 @@ public enum Source {
 
         public Error error(String sourceName) {
             Assert.checkNonNull(optFragment);
+            if (this == PRIMITIVE_CLASSES) {
+                return Errors.PrimitiveClassesNotSupported(minLevel.name);
+            }
             return optKind == DiagKind.NORMAL ?
                     Errors.FeatureNotSupportedInSource(optFragment, sourceName, minLevel.name) :
                     Errors.FeatureNotSupportedInSourcePlural(optFragment, sourceName, minLevel.name);

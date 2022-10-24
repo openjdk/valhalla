@@ -24,8 +24,8 @@
 /**
  * @test
  * @summary Test withfield behavior at runtime.
- * @compile WithFieldRuntimeTest.java
- * @run main/othervm WithFieldRuntimeTest
+ * @compile -XDenablePrimitiveClasses WithFieldRuntimeTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses WithFieldRuntimeTest
  */
 
 public final primitive class WithFieldRuntimeTest {

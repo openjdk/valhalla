@@ -1885,24 +1885,24 @@ public final class System {
     }
 
     /**
-     * Terminates the currently running Java Virtual Machine. The
-     * argument serves as a status code; by convention, a nonzero status
-     * code indicates abnormal termination.
+     * Initiates the <a href="Runtime.html#shutdown">shutdown sequence</a> of the
+     * Java Virtual Machine. This method always blocks indefinitely. The argument
+     * serves as a status code; by convention, a nonzero status code indicates
+     * abnormal termination.
      * <p>
-     * This method calls the {@code exit} method in class
-     * {@code Runtime}. This method never returns normally.
+     * This method calls the {@code exit} method in class {@code Runtime}. This
+     * method never returns normally.
      * <p>
-     * The call {@code System.exit(n)} is effectively equivalent to
-     * the call:
+     * The call {@code System.exit(n)} is effectively equivalent to the call:
      * <blockquote><pre>
      * Runtime.getRuntime().exit(n)
      * </pre></blockquote>
      *
-     * @param      status   exit status.
-     * @throws  SecurityException
-     *        if a security manager exists and its {@code checkExit}
-     *        method doesn't allow exit with the specified status.
-     * @see        java.lang.Runtime#exit(int)
+     * @param  status exit status.
+     * @throws SecurityException
+     *         if a security manager exists and its {@code checkExit} method
+     *         doesn't allow exit with the specified status.
+     * @see    java.lang.Runtime#exit(int)
      */
     public static void exit(int status) {
         Runtime.getRuntime().exit(status);
@@ -2630,6 +2630,24 @@ public final class System {
                                                       ContinuationScope contScope,
                                                       Continuation continuation) {
                 return StackWalker.newInstance(options, null, contScope, continuation);
+            }
+
+            @Override
+            public Class<?> asPrimaryType(Class<?> clazz) {
+                return clazz.asPrimaryType();
+            }
+            public Class<?> asValueType(Class<?> clazz) {
+                return clazz.asValueType();
+            }
+
+            public boolean isPrimaryType(Class<?> clazz) {
+                return clazz.isPrimaryType();
+            }
+            public boolean isPrimitiveValueType(Class<?> clazz) {
+                return clazz.isPrimitiveValueType();
+            }
+            public boolean isPrimitiveClass(Class<?> clazz) {
+                return clazz.isPrimitiveClass();
             }
         });
     }

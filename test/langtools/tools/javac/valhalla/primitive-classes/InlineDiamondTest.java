@@ -27,7 +27,8 @@
  * @test
  * @bug 8244458 8244414
  * @summary Diamond inference does not work with value classes
- * @run main InlineDiamondTest
+ * @compile -XDenablePrimitiveClasses InlineDiamondTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InlineDiamondTest
  */
 
 public class InlineDiamondTest<E> {

@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8221545
  * @summary Test Generics with ?
- * @compile/fail/ref=GenericsWithQuestion.out -XDrawDiagnostics GenericsWithQuestion.java
+ * @compile/fail/ref=GenericsWithQuestion.out -XDrawDiagnostics -XDenablePrimitiveClasses GenericsWithQuestion.java
  */
 
 import java.util.HashMap;

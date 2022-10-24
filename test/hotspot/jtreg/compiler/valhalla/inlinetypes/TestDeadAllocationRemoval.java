@@ -25,7 +25,8 @@
  * @test
  * @bug 8230397
  * @summary Test removal of an already dead AllocateNode with not-yet removed proj outputs.
- * @run main/othervm -Xbatch TestDeadAllocationRemoval
+ * @compile -XDenablePrimitiveClasses TestDeadAllocationRemoval.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch TestDeadAllocationRemoval
  */
 
 public class TestDeadAllocationRemoval {

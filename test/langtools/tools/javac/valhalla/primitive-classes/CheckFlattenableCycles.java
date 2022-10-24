@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check for cycles through fields declared flattenable.
  *
- * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics CheckFlattenableCycles.java
+ * @compile/fail/ref=CheckFlattenableCycles.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckFlattenableCycles.java
  */
 
 final primitive class CheckFlattenableCycles {

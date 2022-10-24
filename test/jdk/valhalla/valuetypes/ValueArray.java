@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,8 +24,10 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on primitive class array
- * @run testng/othervm -XX:FlatArrayElementMaxSize=-1 ValueArray
- * @run testng/othervm -XX:FlatArrayElementMaxSize=0  ValueArray
+ * @compile -XDenablePrimitiveClasses ValueArray.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=-1 ValueArray
+ * @compile -XDenablePrimitiveClasses ValueArray.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=0  ValueArray
  */
 
 import java.lang.reflect.Array;
@@ -35,11 +37,13 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
+import jdk.internal.value.PrimitiveClass;
+
 public class ValueArray {
     @DataProvider(name="elementTypes")
     static Object[][] elementTypes() {
         return new Object[][]{
-            new Object[] { Point.class.asValueType(), Point.default },
+            new Object[] { PrimitiveClass.asValueType(Point.class), Point.default },
             new Object[] { Point.ref.class, null },
             new Object[] { ValueOptional.class, null },
         };
@@ -51,15 +55,15 @@ public class ValueArray {
     @Test(dataProvider="elementTypes")
     public void testElementType(Class<?> elementType, Object defaultValue) {
         assertTrue(elementType.isValue());
-        assertTrue(elementType.isPrimaryType() || defaultValue != null);
+        assertTrue(PrimitiveClass.isPrimaryType(elementType) || defaultValue != null);
 
         Object[] array = (Object[])Array.newInstance(elementType, 1);
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.componentType() == elementType);
         // Array is a reference type
         assertTrue(arrayType.isArray());
-        assertTrue(arrayType.isPrimaryType());
-        assertEquals(arrayType.asPrimaryType(), arrayType);
+        assertTrue(PrimitiveClass.isPrimaryType(arrayType));
+        assertEquals(PrimitiveClass.asPrimaryType(arrayType), arrayType);
         assertTrue(array[0] == defaultValue);
 
         // check the element type of multi-dimensional array
@@ -108,9 +112,9 @@ public class ValueArray {
         testClassName(arrayClass);
         testArrayElements(arrayClass, array);
         Class<?> componentType = arrayClass.componentType();
-        if (componentType.isPrimitiveClass()) {
-            Object[] qArray = (Object[]) Array.newInstance(componentType.asValueType(), 0);
-            Object[] lArray = (Object[]) Array.newInstance(componentType.asPrimaryType(), 0);
+        if (PrimitiveClass.isPrimitiveClass(componentType)) {
+            Object[] qArray = (Object[]) Array.newInstance(PrimitiveClass.asValueType(componentType), 0);
+            Object[] lArray = (Object[]) Array.newInstance(PrimitiveClass.asPrimaryType(componentType), 0);
             testArrayCovariance(componentType, qArray, lArray);
         }
     }
@@ -127,7 +131,7 @@ public class ValueArray {
             sb.append("[");
             c = c.getComponentType();
         }
-        sb.append(c.isPrimitiveValueType() ? "Q" : "L").append(c.getName()).append(";");
+        sb.append(PrimitiveClass.isPrimitiveValueType(c) ? "Q" : "L").append(c.getName()).append(";");
         assertEquals(sb.toString(), arrayClassName);
     }
 
@@ -154,7 +158,7 @@ public class ValueArray {
         Arrays.setAll(newArray, i -> array[i]);
 
         // test nullable
-        if (!componentType.isPrimitiveValueType()) {
+        if (!PrimitiveClass.isPrimitiveValueType(componentType)) {
             for (int i = 0; i < newArray.length; i++) {
                 Array.set(newArray, i, null);
             }
@@ -173,7 +177,7 @@ public class ValueArray {
      * Point[] is a subtype of Point.ref[], which is a subtype of Object[].
      */
     static void testArrayCovariance(Class<?> componentType, Object[] qArray, Object[] lArray) {
-        assertTrue(componentType.isPrimitiveClass());
+        assertTrue(PrimitiveClass.isPrimitiveClass(componentType));
 
         // Class.instanceOf (self)
         assertTrue(qArray.getClass().isInstance(qArray));

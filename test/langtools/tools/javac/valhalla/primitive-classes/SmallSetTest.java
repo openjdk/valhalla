@@ -27,9 +27,9 @@
  * @test
  * @bug 8253181
  * @summary Javac fails to properly handle inline class files with inner classes
- * @compile SmallSetTest.java
- * @compile SmallSetTest.java
- * @run main SmallSetTest
+ * @compile -XDenablePrimitiveClasses SmallSetTest.java
+ * @compile -XDenablePrimitiveClasses SmallSetTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SmallSetTest
  */
 
 public class SmallSetTest {

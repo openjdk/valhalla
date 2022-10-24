@@ -1055,7 +1055,8 @@ public class Modules extends JCTree.Visitor {
         }
 
         MethodSymbol noArgsConstructor(ClassSymbol tsym) {
-            for (Symbol sym : tsym.members().getSymbolsByName(names.init)) {
+            Name constructorName = tsym.isConcreteValueClass() ? names.vnew : names.init;
+            for (Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
                 MethodSymbol mSym = (MethodSymbol)sym;
                 if (mSym.params().isEmpty()) {
                     return mSym;

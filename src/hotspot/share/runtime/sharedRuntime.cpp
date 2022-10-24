@@ -274,6 +274,10 @@ JRT_LEAF(jdouble, SharedRuntime::drem(jdouble x, jdouble y))
 #endif
 JRT_END
 
+JRT_LEAF(jfloat, SharedRuntime::i2f(jint x))
+  return (jfloat)x;
+JRT_END
+
 #ifdef __SOFTFP__
 JRT_LEAF(jfloat, SharedRuntime::fadd(jfloat x, jfloat y))
   return x + y;
@@ -305,10 +309,6 @@ JRT_END
 
 JRT_LEAF(jdouble, SharedRuntime::ddiv(jdouble x, jdouble y))
   return x / y;
-JRT_END
-
-JRT_LEAF(jfloat, SharedRuntime::i2f(jint x))
-  return (jfloat)x;
 JRT_END
 
 JRT_LEAF(jdouble, SharedRuntime::i2d(jint x))
@@ -449,6 +449,86 @@ JRT_END
 
 JRT_LEAF(jdouble, SharedRuntime::l2d(jlong x))
   return (jdouble)x;
+JRT_END
+
+// Reference implementation at src/java.base/share/classes/java/lang/Float.java:floatToFloat16
+JRT_LEAF(jshort, SharedRuntime::f2hf(jfloat  x))
+  jint doppel = SharedRuntime::f2i(x);
+  jshort sign_bit = (jshort) ((doppel & 0x80000000) >> 16);
+  if (g_isnan(x))
+    return (jshort)(sign_bit | 0x7c00 | (doppel & 0x007fe000) >> 13 | (doppel & 0x00001ff0) >> 4 | (doppel & 0x0000000f));
+
+  jfloat abs_f = (x >= 0.0f) ? x : (x * -1.0f);
+
+  // Overflow threshold is halffloat max value + 1/2 ulp
+  if (abs_f >= (65504.0f + 16.0f)) {
+    return (jshort)(sign_bit | 0x7c00); // Positive or negative infinity
+  }
+
+  // Smallest magnitude of Halffloat is 0x1.0p-24, half-way or smaller rounds to zero
+  if (abs_f <= (pow(2, -24) * 0.5f)) { // Covers float zeros and subnormals.
+    return sign_bit; // Positive or negative zero
+  }
+
+  jint exp = 0x7f800000 & doppel;
+
+  // For binary16 subnormals, beside forcing exp to -15, retain
+  // the difference exp_delta = E_min - exp.  This is the excess
+  // shift value, in addition to 13, to be used in the
+  // computations below. Further the (hidden) msb with value 1
+  // in f must be involved as well
+  jint exp_delta = 0;
+  jint msb = 0x00000000;
+  if (exp < -14) {
+    exp_delta = -14 - exp;
+    exp = -15;
+    msb = 0x00800000;
+  }
+  jint f_signif_bits = ((doppel & 0x007fffff) | msb);
+
+  // Significand bits as if using rounding to zero
+  jshort signif_bits = (jshort)(f_signif_bits >> (13 + exp_delta));
+
+  jint lsb = f_signif_bits & (1 << (13 + exp_delta));
+  jint round  = f_signif_bits & (1 << (12 + exp_delta));
+  jint sticky = f_signif_bits & ((1 << (12 + exp_delta)) - 1);
+
+  if (round != 0 && ((lsb | sticky) != 0 )) {
+    signif_bits++;
+  }
+
+  return (jshort)(sign_bit | ( ((exp + 15) << 10) + signif_bits ) );
+JRT_END
+
+// Reference implementation at src/java.base/share/classes/java/lang/Float.java:float16ToFloat
+JRT_LEAF(jfloat, SharedRuntime::hf2f(jshort x))
+  // Halffloat format has 1 signbit, 5 exponent bits and
+  // 10 significand bits
+  jint hf_arg = (jint)x;
+  jint hf_sign_bit = 0x8000 & hf_arg;
+  jint hf_exp_bits = 0x7c00 & hf_arg;
+  jint hf_significand_bits = 0x03ff & hf_arg;
+
+  jint significand_shift = 13; //difference between float and halffloat precision
+
+  jfloat sign = (hf_sign_bit != 0) ? -1.0f : 1.0f;
+
+  // Extract halffloat exponent, remove its bias
+  jint hf_exp = (hf_exp_bits >> 10) - 15;
+
+  if (hf_exp == -15) {
+    // For subnormal values, return 2^-24 * significand bits
+    return (sign * (pow(2,-24)) * hf_significand_bits);
+  }else if (hf_exp == 16) {
+    return (hf_significand_bits == 0) ? sign * float_infinity : (SharedRuntime::i2f((hf_sign_bit << 16) | 0x7f800000 |
+           (hf_significand_bits << significand_shift)));
+  }
+
+  // Add the bias of float exponent and shift
+  int float_exp_bits = (hf_exp + 127) << (24 - 1);
+
+  // Combine sign, exponent and significand bits
+  return SharedRuntime::i2f((hf_sign_bit << 16) | float_exp_bits | (hf_significand_bits << significand_shift));
 JRT_END
 
 // Exception handling across interpreter/compiler boundaries
@@ -999,13 +1079,15 @@ JRT_ENTRY_NO_ASYNC(void, SharedRuntime::register_finalizer(JavaThread* current, 
   InstanceKlass::register_finalizer(instanceOop(obj), CHECK);
 JRT_END
 
-
-jlong SharedRuntime::get_java_tid(Thread* thread) {
-  if (thread != NULL && thread->is_Java_thread()) {
-    oop obj = JavaThread::cast(thread)->threadObj();
-    return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
+jlong SharedRuntime::get_java_tid(JavaThread* thread) {
+  assert(thread != NULL, "No thread");
+  if (thread == NULL) {
+    return 0;
   }
-  return 0;
+  guarantee(Thread::current() != thread || thread->is_oop_safe(),
+            "current cannot touch oops after its GC barrier is detached.");
+  oop obj = thread->threadObj();
+  return (obj == NULL) ? 0 : java_lang_Thread::thread_id(obj);
 }
 
 /**
@@ -1014,14 +1096,14 @@ jlong SharedRuntime::get_java_tid(Thread* thread) {
  * 6254741.  Once that is fixed we can remove the dummy return value.
  */
 int SharedRuntime::dtrace_object_alloc(oopDesc* o) {
-  return dtrace_object_alloc(Thread::current(), o, o->size());
+  return dtrace_object_alloc(JavaThread::current(), o, o->size());
 }
 
-int SharedRuntime::dtrace_object_alloc(Thread* thread, oopDesc* o) {
+int SharedRuntime::dtrace_object_alloc(JavaThread* thread, oopDesc* o) {
   return dtrace_object_alloc(thread, o, o->size());
 }
 
-int SharedRuntime::dtrace_object_alloc(Thread* thread, oopDesc* o, size_t size) {
+int SharedRuntime::dtrace_object_alloc(JavaThread* thread, oopDesc* o, size_t size) {
   assert(DTraceAllocProbes, "wrong call");
   Klass* klass = o->klass();
   Symbol* name = klass->name();
@@ -1112,10 +1194,10 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     bc = Bytecodes::_invokestatic;
     methodHandle attached_method(THREAD, extract_attached_method(vfst));
     assert(attached_method.not_null(), "must have attached method");
-    vmClasses::PrimitiveObjectMethods_klass()->initialize(CHECK_NH);
+    vmClasses::ValueObjectMethods_klass()->initialize(CHECK_NH);
     LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, false, CHECK_NH);
 #ifdef ASSERT
-    Method* is_subst = vmClasses::PrimitiveObjectMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
+    Method* is_subst = vmClasses::ValueObjectMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
 #endif
     return receiver;
@@ -1185,7 +1267,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     frame callerFrame = stubFrame.sender(&reg_map2);
     bool caller_is_c1 = false;
 
-    if (callerFrame.is_compiled_frame() && !callerFrame.is_deoptimized_frame()) {
+    if (callerFrame.is_compiled_frame()) {
       caller_is_c1 = callerFrame.cb()->is_compiled_by_c1();
     }
 
@@ -1566,7 +1648,11 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* current)
       // so bypassing it in c2i adapter is benign.
       return callee->get_c2i_no_clinit_check_entry();
     } else {
-      return callee->get_c2i_entry();
+      if (caller_frame.is_interpreted_frame()) {
+        return callee->get_c2i_inline_entry();
+      } else {
+        return callee->get_c2i_entry();
+      }
     }
   }
 
@@ -1903,6 +1989,9 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
   frame stub_frame = current->last_frame();
   assert(stub_frame.is_runtime_frame(), "must be a runtimeStub");
   frame caller = stub_frame.sender(&reg_map);
+  if (caller.is_compiled_frame()) {
+    caller_is_c1 = caller.cb()->is_compiled_by_c1();
+  }
 
   // Do nothing if the frame isn't a live compiled frame.
   // nmethod could be deoptimized by the time we get here
@@ -1914,7 +2003,6 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
 
     // Check for static or virtual call
     CompiledMethod* caller_nm = CodeCache::find_compiled(pc);
-    caller_is_c1 = caller_nm->is_compiled_by_c1();
 
     // Default call_addr is the location of the "basic" call.
     // Determine the address of the call we a reresolving. With
@@ -2728,7 +2816,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_int_arg_handler = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_obj_obj_arg_handler = NULL;
-const int AdapterHandlerLibrary_size = 32*K;
+const int AdapterHandlerLibrary_size = 48*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
@@ -2976,7 +3064,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
           _sig_cc->appendAll(vk->extended_sig());
           _sig_cc_ro->appendAll(vk->extended_sig());
           if (bt == T_OBJECT) {
-            // Nullable inline type argument, insert InlineTypeBaseNode::IsInit field right after T_PRIMITIVE_OBJECT
+            // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_PRIMITIVE_OBJECT
             _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
             _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, NULL));
           }

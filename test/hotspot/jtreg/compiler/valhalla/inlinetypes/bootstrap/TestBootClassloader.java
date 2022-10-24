@@ -25,18 +25,23 @@ import java.lang.reflect.Method;
 import jdk.test.lib.Asserts;
 import jdk.test.whitebox.WhiteBox;
 
+import jdk.internal.value.PrimitiveClass;
+
 /*
  * @test
  * @key randomness
  * @bug 8280006
  * @summary Test that field flattening works as expected if primitive classes of
  *          holder and field were loaded by different class loaders (bootstrap + app).
+ * @modules java.base/jdk.internal.value
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build jdk.test.whitebox.WhiteBox TestBootClassloader InstallBootstrapClasses
+ * @compile -XDenablePrimitiveClasses ValueOnBootclasspath.java InstallBootstrapClasses.java TestBootClassloader.java
+ * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run driver InstallBootstrapClasses
- * @run main/othervm -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses InstallBootstrapClasses
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -Xbootclasspath/a:boot -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -Xbatch -XX:-TieredCompilation -XX:CompileCommand=compileonly,TestBootClassloader::test*
  *                   -XX:CompileCommand=inline,*::get* TestBootClassloader
  */
@@ -84,11 +89,11 @@ public class TestBootClassloader {
             test1(wrapper1);
             test2(wrapper2);
         }
-        Method method = TestBootClassloader.class.getDeclaredMethod("test1", Wrapper1.class.asValueType());
+        Method method = TestBootClassloader.class.getDeclaredMethod("test1", PrimitiveClass.asValueType(Wrapper1.class));
         Asserts.assertTrue(WB.isMethodCompilable(method, COMP_LEVEL_FULL_OPTIMIZATION, false), "Test1 method not compilable");
         Asserts.assertTrue(WB.isMethodCompiled(method), "Test1 method not compiled");
 
-        method = TestBootClassloader.class.getDeclaredMethod("test2", Wrapper2.class.asValueType());
+        method = TestBootClassloader.class.getDeclaredMethod("test2", PrimitiveClass.asValueType(Wrapper2.class));
         Asserts.assertTrue(WB.isMethodCompilable(method, COMP_LEVEL_FULL_OPTIMIZATION, false), "Test2 method not compilable");
         Asserts.assertTrue(WB.isMethodCompiled(method), "Test2 method not compiled");
     }

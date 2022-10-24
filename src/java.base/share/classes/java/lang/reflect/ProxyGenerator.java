@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.org.objectweb.asm.Attribute;
 import jdk.internal.org.objectweb.asm.ByteVector;
@@ -460,7 +462,8 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      */
     private byte[] generateClassFile() {
-        visit(CLASSFILE_VERSION, accessFlags, dotToSlash(className), null,
+        int version = CLASSFILE_VERSION | (PreviewFeatures.isEnabled() ? Opcodes.V_PREVIEW : 0);
+        visit(version, accessFlags, dotToSlash(className), null,
                 JLR_PROXY, typeNames(interfaces));
 
         /*
@@ -488,14 +491,19 @@ final class ProxyGenerator extends ClassWriter {
         /*
          * For each set of proxy methods with the same signature,
          * verify that the methods' return types are compatible.
+         *
+         * Determine if any value classes to be preloaded.
          */
+        Set<Class<?>> preloadClasses = new HashSet<>();
         for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
             checkReturnTypes(sigmethods);
+            for (ProxyMethod pm : sigmethods) {
+                preloadClasses.addAll(pm.preloadClasses());
+            }
         }
 
         generateConstructor();
 
-        Set<Class<?>> preloadClasses = new HashSet<>();
         for (List<ProxyMethod> sigmethods : proxyMethods.values()) {
             for (ProxyMethod pm : sigmethods) {
                 // add static field for the Method object
@@ -504,7 +512,6 @@ final class ProxyGenerator extends ClassWriter {
 
                 // Generate code for proxy method
                 pm.generateMethod(this, className);
-                preloadClasses.addAll(pm.preloadClasses());
             }
         }
         if (preloadClasses.size() > 0) {
@@ -531,7 +538,7 @@ final class ProxyGenerator extends ClassWriter {
      */
     private void addProxyMethod(Method m, Class<?> fromClass) {
         Class<?> returnType = m.getReturnType();
-        Class<?>[] exceptionTypes = m.getExceptionTypes();
+        Class<?>[] exceptionTypes = m.getSharedExceptionTypes();
 
         String sig = m.toShortSignature();
         List<ProxyMethod> sigmethods = proxyMethods.computeIfAbsent(sig,
@@ -553,7 +560,7 @@ final class ProxyGenerator extends ClassWriter {
                 return;
             }
         }
-        sigmethods.add(new ProxyMethod(m, sig, m.getParameterTypes(), returnType,
+        sigmethods.add(new ProxyMethod(m, sig, m.getSharedParameterTypes(), returnType,
                 exceptionTypes, fromClass,
                 "m" + proxyMethodCount++));
     }
@@ -744,8 +751,8 @@ final class ProxyGenerator extends ClassWriter {
          */
         private ProxyMethod(Method method, String methodFieldName) {
             this(method, method.toShortSignature(),
-                    method.getParameterTypes(), method.getReturnType(),
-                    method.getExceptionTypes(), method.getDeclaringClass(), methodFieldName);
+                    method.getSharedParameterTypes(), method.getReturnType(),
+                    method.getSharedExceptionTypes(), method.getDeclaringClass(), methodFieldName);
         }
 
         /**
@@ -856,7 +863,7 @@ final class ProxyGenerator extends ClassWriter {
             while (c.isArray()) {
                 c = c.getComponentType();
             }
-            return (c.isValue() && !c.isPrimitiveClass()) || c.isPrimitiveValueType();
+            return c.isValue();
         }
 
         /**
@@ -894,7 +901,7 @@ final class ProxyGenerator extends ClassWriter {
                 mv.visitInsn(prim.returnOpcode);
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isPrimitiveValueType()) {
+                if (PrimitiveClass.isPrimitiveValueType(type)) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);
@@ -965,10 +972,11 @@ final class ProxyGenerator extends ClassWriter {
                     "forName",
                     "(Ljava/lang/String;Z" + LJL_CLASSLOADER + ")Ljava/lang/Class;",
                     false);
-            if (cl.isPrimitiveValueType()) {
-              mv.visitMethodInsn(INVOKEVIRTUAL,
-                                 JL_CLASS,
-                                 "asValueType", "()Ljava/lang/Class;", false);
+            if (PrimitiveClass.isPrimitiveValueType(cl)) {
+                mv.visitMethodInsn(INVOKESTATIC,
+                      "jdk/internal/value/PrimitiveClass",
+                      "asValueType", "(Ljava/lang/Class;)Ljava/lang/Class;",
+                      false);
             }
 
         }

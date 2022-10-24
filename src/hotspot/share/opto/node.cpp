@@ -572,9 +572,10 @@ Node *Node::clone() const {
     n->as_SafePoint()->clone_jvms(C);
     n->as_SafePoint()->clone_replaced_nodes();
   }
-  if (n->is_InlineTypeBase()) {
+  if (n->is_InlineType()) {
     C->add_inline_type(n);
   }
+  Compile::current()->record_modified_node(n);
   return n;                     // Return the clone
 }
 
@@ -657,7 +658,7 @@ void Node::destruct(PhaseValues* phase) {
   if (for_post_loop_opts_igvn()) {
     compile->remove_from_post_loop_opts_igvn(this);
   }
-  if (is_InlineTypeBase()) {
+  if (is_InlineType()) {
     compile->remove_inline_type(this);
   }
 
@@ -787,6 +788,7 @@ void Node::add_req( Node *n ) {
   }
   _in[_cnt++] = n;            // Stuff over old prec edge
   if (n != NULL) n->add_out((Node *)this);
+  Compile::current()->record_modified_node(this);
 }
 
 //---------------------------add_req_batch-------------------------------------
@@ -825,6 +827,7 @@ void Node::add_req_batch( Node *n, uint m ) {
       n->add_out((Node *)this);
     }
   }
+  Compile::current()->record_modified_node(this);
 }
 
 //------------------------------del_req----------------------------------------
@@ -871,6 +874,7 @@ void Node::ins_req( uint idx, Node *n ) {
   }
   _in[idx] = n;                            // Stuff over old required edge
   if (n != NULL) n->add_out((Node *)this); // Add reciprocal def-use edge
+  Compile::current()->record_modified_node(this);
 }
 
 //-----------------------------find_edge---------------------------------------
@@ -1048,6 +1052,7 @@ void Node::add_prec( Node *n ) {
 #ifdef ASSERT
   while ((++i)<_max) { assert(_in[i] == NULL, "spec violation: Gap in prec edges (node %d)", _idx); }
 #endif
+  Compile::current()->record_modified_node(this);
 }
 
 //------------------------------rm_prec----------------------------------------
@@ -1059,6 +1064,7 @@ void Node::rm_prec( uint j ) {
   if (_in[j] == NULL) return;   // Avoid spec violation: Gap in prec edges.
   _in[j]->del_out((Node *)this);
   close_prec_gap_at(j);
+  Compile::current()->record_modified_node(this);
 }
 
 //------------------------------size_of----------------------------------------
@@ -2710,7 +2716,7 @@ void Node::verify_edges(Unique_Node_List &visited) {
       assert( cnt == 0,"Mismatched edge count.");
     } else if (n == NULL) {
       assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy() ||
-             (is_Allocate() && i >= AllocateNode::InlineTypeNode) ||
+             (is_Allocate() && i >= AllocateNode::InlineType) ||
              (is_Unlock() && i == req()-1)
               || (is_MemBar() && i == 5), // the precedence edge to a membar can be removed during macro node expansion
              "only region, phi, arraycopy, allocate or unlock nodes have null data edges");

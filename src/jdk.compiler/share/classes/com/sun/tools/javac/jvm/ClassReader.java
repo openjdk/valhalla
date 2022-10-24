@@ -286,10 +286,8 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
-                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
-        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
 
@@ -489,6 +487,10 @@ public class ClassReader {
         case 'L':
             {
                 // int oldsigp = sigp;
+                if ((char) signature[sigp] == 'Q' && !allowPrimitiveClasses) {
+                    throw badClassFile("bad.class.signature",
+                            Convert.utf2string(signature, sigp, 10));
+                }
                 Type t = classSigToType();
                 if (sigp < siglimit && signature[sigp] == '.')
                     throw badClassFile("deprecated inner class signature syntax " +
@@ -548,7 +550,7 @@ public class ClassReader {
      */
     Type classSigToType() {
         byte prefix = signature[sigp];
-        if (prefix != 'L' && prefix != 'Q')
+        if (prefix != 'L' && (!allowPrimitiveClasses || prefix != 'Q'))
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
@@ -816,15 +818,13 @@ public class ClassReader {
 
             new AttributeReader(names.Code, V45_3, MEMBER_ATTRIBUTE) {
                 protected void read(Symbol sym, int attrLen) {
-                    if (allowPrimitiveClasses) {
-                        if (sym.isConstructor()  && ((MethodSymbol) sym).type.getParameterTypes().size() == 0) {
-                            int code_length = buf.getInt(bp + 4);
-                            if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
-                                    (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
-                                        buf.getByte( bp + 9) == (byte) ByteCodes.invokespecial &&
-                                                buf.getByte( bp + 12) == (byte) ByteCodes.return_)) {
-                                    sym.flags_field |= EMPTYNOARGCONSTR;
-                            }
+                    if (sym.isInitOrVNew()  && sym.type.getParameterTypes().size() == 0) {
+                        int code_length = buf.getInt(bp + 4);
+                        if ((code_length == 1 && buf.getByte( bp + 8) == (byte) ByteCodes.return_) ||
+                                (code_length == 5 && buf.getByte(bp + 8) == ByteCodes.aload_0 &&
+                                    buf.getByte( bp + 9) == (byte) ByteCodes.invokespecial &&
+                                            buf.getByte( bp + 12) == (byte) ByteCodes.return_)) {
+                                sym.flags_field |= EMPTYNOARGCONSTR;
                         }
                     }
                     if (saveParameterNames)
@@ -1008,7 +1008,7 @@ public class ClassReader {
                         if (sym.kind == MTH && sym.type.getThrownTypes().isEmpty())
                             sym.type.asMethodType().thrown = thrown;
                         // Map value class factory methods back to constructors for the benefit of earlier pipeline stages
-                        if (sym.kind == MTH  && sym.name == names.init && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
+                        if (sym.kind == MTH  && sym.name == names.vnew && !sym.type.getReturnType().hasTag(TypeTag.VOID)) {
                             sym.type = new MethodType(sym.type.getParameterTypes(),
                                     syms.voidType,
                                     sym.type.getThrownTypes(),
@@ -1359,7 +1359,7 @@ public class ClassReader {
                 return (MethodSymbol)sym;
         }
 
-        if (nt.name != names.init)
+        if (!names.isInitOrVNew(nt.name))
             // not a constructor
             return null;
         if ((flags & INTERFACE) != 0)
@@ -2272,7 +2272,7 @@ public class ClassReader {
                                    Integer.toString(minorVersion));
             }
         }
-        if (name == names.init && ((flags & STATIC) != 0)) {
+        if (names.isInitOrVNew(name) && ((flags & STATIC) != 0)) {
             flags &= ~STATIC;
             type = new MethodType(type.getParameterTypes(),
                     syms.voidType,
@@ -2280,7 +2280,7 @@ public class ClassReader {
                     syms.methodClass);
         }
         validateMethodType(name, type);
-        if (name == names.init && currentOwner.hasOuterInstance()) {
+        if (names.isInitOrVNew(name) && currentOwner.hasOuterInstance()) {
             // Sometimes anonymous classes don't have an outer
             // instance, however, there is no reliable way to tell so
             // we never strip this$n
@@ -2323,7 +2323,7 @@ public class ClassReader {
 
     void validateMethodType(Name name, Type t) {
         if ((!t.hasTag(TypeTag.METHOD) && !t.hasTag(TypeTag.FORALL)) ||
-            (name == names.init && !t.getReturnType().hasTag(TypeTag.VOID))) {
+            ((name == names.init || name ==names.vnew) && !t.getReturnType().hasTag(TypeTag.VOID))) {
             throw badClassFile("method.descriptor.invalid", name);
         }
     }
@@ -2393,7 +2393,7 @@ public class ClassReader {
             // the first parameter.  Note that this assumes the
             // skipped parameter has a width of 1 -- i.e. it is not
             // a double width type (long or double.)
-            if (sym.name == names.init && currentOwner.hasOuterInstance()) {
+            if (names.isInitOrVNew(sym.name) && currentOwner.hasOuterInstance()) {
                 // Sometimes anonymous classes don't have an outer
                 // instance, however, there is no reliable way to tell so
                 // we never strip this$n
@@ -2541,8 +2541,14 @@ public class ClassReader {
         // read flags, or skip if this is an inner class
         long f = nextChar();
         long flags = adjustClassFlags(f);
-        if (c == syms.objectType.tsym)
+        if (c == syms.objectType.tsym) {
             flags &= ~IDENTITY_TYPE; // jlO lacks identity even while being a concrete class.
+        }
+        if ((flags & PRIMITIVE_CLASS) != 0) {
+            if ((flags & (FINAL | PRIMITIVE_CLASS | IDENTITY_TYPE)) != (FINAL | PRIMITIVE_CLASS)) {
+                throw badClassFile("bad.access.flags", Flags.toString(flags));
+            }
+        }
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches

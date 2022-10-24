@@ -25,7 +25,8 @@
  * @test
  * @bug 8208067
  * @summary Verify that instance methods are callable from ctor after all instance fields are DA.
- * @run main/othervm -ea CanonicalCtorTest
+ * @compile -XDenablePrimitiveClasses CanonicalCtorTest.java
+ * @run main/othervm -ea -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CanonicalCtorTest
  */
 
 public primitive class CanonicalCtorTest {

@@ -27,7 +27,8 @@
  * @test
  * @bug 8244458 8244414
  * @summary Check that javac does not crash while computing LUB involving values.
- * @run main LubWithInlines
+ * @compile -XDenablePrimitiveClasses LubWithInlines.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LubWithInlines
  */
 
 public class LubWithInlines {

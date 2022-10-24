@@ -68,10 +68,8 @@
   template(java_lang_BaseVirtualThread,               "java/lang/BaseVirtualThread")              \
   template(java_lang_VirtualThread,                   "java/lang/VirtualThread")                  \
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
-  template(java_lang_NonTearable,                     "java/lang/NonTearable")                    \
   template(java_lang_Throwable,                       "java/lang/Throwable")                      \
   template(java_lang_ClassLoader,                     "java/lang/ClassLoader")                    \
-  template(java_lang_ThreadDeath,                     "java/lang/ThreadDeath")                    \
   template(java_lang_Runnable,                        "java/lang/Runnable")                       \
   template(jdk_internal_vm_ContinuationScope,         "jdk/internal/vm/ContinuationScope")        \
   template(jdk_internal_vm_StackChunk,                "jdk/internal/vm/StackChunk")               \
@@ -390,13 +388,13 @@
   /* common method and field names */                                                             \
   template(object_initializer_name,                   "<init>")                                   \
   template(class_initializer_name,                    "<clinit>")                                 \
+  template(inline_factory_name,                       "<vnew>")                                   \
   template(println_name,                              "println")                                  \
   template(printStackTrace_name,                      "printStackTrace")                          \
   template(getStackTrace_name,                        "getStackTrace")                            \
   template(main_name,                                 "main")                                     \
   template(name_name,                                 "name")                                     \
   template(priority_name,                             "priority")                                 \
-  template(stillborn_name,                            "stillborn")                                \
   template(group_name,                                "group")                                    \
   template(daemon_name,                               "daemon")                                   \
   template(run_method_name,                           "run")                                      \
@@ -605,6 +603,7 @@
   template(class_int_signature,                       "(Ljava/lang/Class;)I")                     \
   template(class_long_signature,                      "(Ljava/lang/Class;)J")                     \
   template(class_boolean_signature,                   "(Ljava/lang/Class;)Z")                     \
+  template(class_class_signature,                     "(Ljava/lang/Class;)Ljava/lang/Class;")     \
   template(throwable_throwable_signature,             "(Ljava/lang/Throwable;)Ljava/lang/Throwable;")             \
   template(throwable_string_void_signature,           "(Ljava/lang/Throwable;Ljava/lang/String;)V")               \
   template(string_array_void_signature,               "([Ljava/lang/String;)V")                                   \
@@ -782,9 +781,10 @@
   template(url_void_signature,                              "(Ljava/net/URL;)V")                                  \
   template(url_array_classloader_void_signature,            "([Ljava/net/URL;Ljava/lang/ClassLoader;)V")          \
                                                                                                                   \
-  template(java_lang_runtime_PrimitiveObjectMethods,        "java/lang/runtime/PrimitiveObjectMethods")           \
+  template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
-  template(primitiveObjectHashCode_name,                    "primitiveObjectHashCode")                            \
+  template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
+  template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
                                                                                                                   \
   /* Thread.dump_to_file jcmd */                                                                                  \
   template(jdk_internal_vm_ThreadDumper,           "jdk/internal/vm/ThreadDumper")                                \

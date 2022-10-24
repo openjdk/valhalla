@@ -25,9 +25,9 @@ package runtime.valhalla.inlinetypes;
 
 /* @test
  * @summary test JNI functions with inline types
- * @run main/native runtime.valhalla.inlinetypes.InlineWithJni
+ * @run main/othervm/native -XX:+EnableValhalla -XX:-EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineWithJni
  */
-public primitive final class InlineWithJni {
+public value class InlineWithJni {
 
     static {
         System.loadLibrary("InlineWithJni");

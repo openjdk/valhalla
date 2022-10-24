@@ -25,8 +25,8 @@
  * @test
  * @bug 8229537
  * @summary [lworld] Poor interaction between explicit lambda parameters and nullable projection types.
- * @compile ExplicitLambdaWithNullableTypes2.java
- * @run main/othervm ExplicitLambdaWithNullableTypes2
+ * @compile -XDenablePrimitiveClasses ExplicitLambdaWithNullableTypes2.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ExplicitLambdaWithNullableTypes2
  */
 
 import java.util.List;

@@ -166,9 +166,7 @@ class SubTypeCheckNode;
 class Type;
 class TypeNode;
 class UnlockNode;
-class InlineTypeBaseNode;
 class InlineTypeNode;
-class InlineTypePtrNode;
 class VectorNode;
 class LoadVectorNode;
 class LoadVectorMaskedNode;
@@ -565,6 +563,7 @@ public:
     if (_in[i] != NULL) _in[i]->del_out((Node *)this);
     _in[i] = n;
     n->add_out((Node *)this);
+    Compile::current()->record_modified_node(this);
   }
 
   // Set this node's index, used by cisc_version to replace current node
@@ -719,9 +718,7 @@ public:
         DEFINE_CLASS_ID(CompressV, Vector, 4)
         DEFINE_CLASS_ID(ExpandV, Vector, 5)
         DEFINE_CLASS_ID(CompressM, Vector, 6)
-      DEFINE_CLASS_ID(InlineTypeBase, Type, 8)
-        DEFINE_CLASS_ID(InlineType, InlineTypeBase, 0)
-        DEFINE_CLASS_ID(InlineTypePtr, InlineTypeBase, 1)
+      DEFINE_CLASS_ID(InlineType, Type, 8)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -955,8 +952,6 @@ public:
   DEFINE_CLASS_QUERY(SubTypeCheck)
   DEFINE_CLASS_QUERY(Type)
   DEFINE_CLASS_QUERY(InlineType)
-  DEFINE_CLASS_QUERY(InlineTypeBase)
-  DEFINE_CLASS_QUERY(InlineTypePtr)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(VectorMaskCmp)
   DEFINE_CLASS_QUERY(VectorUnbox)

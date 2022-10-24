@@ -28,7 +28,8 @@
  * @bug 8265423
  * @summary Experimental support for generating a single class file per primitive class
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @run main UnifiedPrimitiveClassInnerClassesTest
+ * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassInnerClassesTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnifiedPrimitiveClassInnerClassesTest
  */
 
 import com.sun.tools.classfile.*;

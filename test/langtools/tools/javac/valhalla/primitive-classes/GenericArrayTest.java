@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8217958
  * @summary Trouble assigning/casting to a value array type with parameterized element type
- * @compile/fail/ref=GenericArrayTest.out -Xlint:all -Werror -XDrawDiagnostics -XDdev GenericArrayTest.java
+ * @compile/fail/ref=GenericArrayTest.out -Xlint:all -Werror -XDrawDiagnostics -XDdev -XDenablePrimitiveClasses GenericArrayTest.java
  */
 
 public class GenericArrayTest {

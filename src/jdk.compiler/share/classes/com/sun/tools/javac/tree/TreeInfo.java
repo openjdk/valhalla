@@ -48,6 +48,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.SYNCHRONIZED;
 
 import javax.tools.JavaFileObject;
 
+import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
 
 import static com.sun.tools.javac.tree.JCTree.JCOperatorExpression.OperandPos.LEFT;
@@ -78,7 +79,18 @@ public class TreeInfo {
     public static boolean isConstructor(JCTree tree) {
         if (tree.hasTag(METHODDEF)) {
             Name name = ((JCMethodDecl) tree).name;
-            return name == name.table.names.init;
+            return name == name.table.names.init || name == name.table.names.vnew;
+        } else {
+            return false;
+        }
+    }
+
+    /** Is tree a value factory declaration?
+     */
+    public static boolean isValueFactory(JCTree tree) {
+        if (tree.hasTag(METHODDEF)) {
+            Name name = ((JCMethodDecl) tree).name;
+            return name == name.table.names.vnew;
         } else {
             return false;
         }
@@ -106,7 +118,7 @@ public class TreeInfo {
      */
     public static boolean hasConstructors(List<JCTree> trees) {
         for (List<JCTree> l = trees; l.nonEmpty(); l = l.tail)
-            if (isConstructor(l.head)) return true;
+            if (isConstructor(l.head) || isValueFactory(l.head)) return true;
         return false;
     }
 
@@ -252,8 +264,7 @@ public class TreeInfo {
     public static JCMethodInvocation firstConstructorCall(JCTree tree) {
         if (!tree.hasTag(METHODDEF)) return null;
         JCMethodDecl md = (JCMethodDecl) tree;
-        Names names = md.name.table.names;
-        if (md.name != names.init) return null;
+        if (!md.isInitOrVNew()) return null;
         if (md.body == null) return null;
         List<JCStatement> stats = md.body.stats;
         // Synthetic initializations can appear before the super call.
@@ -717,21 +728,26 @@ public class TreeInfo {
     }
 
     public static DiagnosticPosition diagnosticPositionFor(final Symbol sym, final JCTree tree, boolean returnNullIfNotFound) {
+        return diagnosticPositionFor(sym, tree, returnNullIfNotFound, null);
+    }
+
+    public static DiagnosticPosition diagnosticPositionFor(final Symbol sym, final JCTree tree, boolean returnNullIfNotFound,
+            Predicate<? super JCTree> filter) {
         class DiagScanner extends DeclScanner {
-            DiagScanner(Symbol sym) {
-                super(sym);
+            DiagScanner(Symbol sym, Predicate<? super JCTree> filter) {
+                super(sym, filter);
             }
 
             public void visitIdent(JCIdent that) {
-                if (that.sym == sym) result = that;
-                else super.visitIdent(that);
+                if (!checkMatch(that, that.sym))
+                    super.visitIdent(that);
             }
             public void visitSelect(JCFieldAccess that) {
-                if (that.sym == sym) result = that;
-                else super.visitSelect(that);
+                if (!checkMatch(that, that.sym))
+                    super.visitSelect(that);
             }
         }
-        DiagScanner s = new DiagScanner(sym);
+        DiagScanner s = new DiagScanner(sym, filter);
         tree.accept(s);
         JCTree decl = s.result;
         if (decl == null && returnNullIfNotFound) { return null; }
@@ -744,9 +760,14 @@ public class TreeInfo {
 
     private static class DeclScanner extends TreeScanner {
         final Symbol sym;
+        final Predicate<? super JCTree> filter;
 
         DeclScanner(final Symbol sym) {
+            this(sym, null);
+        }
+        DeclScanner(final Symbol sym, Predicate<? super JCTree> filter) {
             this.sym = sym;
+            this.filter = filter;
         }
 
         JCTree result = null;
@@ -755,32 +776,40 @@ public class TreeInfo {
                 tree.accept(this);
         }
         public void visitTopLevel(JCCompilationUnit that) {
-            if (that.packge == sym) result = that;
-            else super.visitTopLevel(that);
+            if (!checkMatch(that, that.packge))
+                super.visitTopLevel(that);
         }
         public void visitModuleDef(JCModuleDecl that) {
-            if (that.sym == sym) result = that;
+            checkMatch(that, that.sym);
             // no need to scan within module declaration
         }
         public void visitPackageDef(JCPackageDecl that) {
-            if (that.packge == sym) result = that;
-            else super.visitPackageDef(that);
+            if (!checkMatch(that, that.packge))
+                super.visitPackageDef(that);
         }
         public void visitClassDef(JCClassDecl that) {
-            if (that.sym == sym) result = that;
-            else super.visitClassDef(that);
+            if (!checkMatch(that, that.sym))
+                super.visitClassDef(that);
         }
         public void visitMethodDef(JCMethodDecl that) {
-            if (that.sym == sym) result = that;
-            else super.visitMethodDef(that);
+            if (!checkMatch(that, that.sym))
+                super.visitMethodDef(that);
         }
         public void visitVarDef(JCVariableDecl that) {
-            if (that.sym == sym) result = that;
-            else super.visitVarDef(that);
+            if (!checkMatch(that, that.sym))
+                super.visitVarDef(that);
         }
         public void visitTypeParameter(JCTypeParameter that) {
-            if (that.type != null && that.type.tsym == sym) result = that;
-            else super.visitTypeParameter(that);
+            if (that.type == null || !checkMatch(that, that.type.tsym))
+                super.visitTypeParameter(that);
+        }
+
+        protected boolean checkMatch(JCTree that, Symbol thatSym) {
+            if (thatSym == this.sym && (filter == null || filter.test(that))) {
+                result = that;
+                return true;
+            }
+            return false;
         }
     }
 

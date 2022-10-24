@@ -56,6 +56,7 @@ compiler.misc.bad.enclosing.method                      # bad class file
 compiler.misc.bad.runtime.invisible.param.annotations   # bad class file
 compiler.misc.bad.signature                             # bad class file
 compiler.misc.bad.requires.flag                         # bad class file
+compiler.misc.bad.access.flags                          # bad class file
 compiler.misc.bad.type.annotation.value
 compiler.misc.class.file.not.found                      # ClassReader
 compiler.misc.class.file.wrong.class
@@ -65,7 +66,6 @@ compiler.misc.fatal.err.cant.locate.field               # Resolve, from Lower
 compiler.misc.fatal.err.cant.locate.meth                # Resolve, from Lower
 compiler.misc.fatal.err.cant.close                      # JavaCompiler
 compiler.misc.feature.not.supported.in.source.plural    # cannot happen (for now)
-compiler.misc.feature.default.methods                   # just preserved for testing (for now)
 compiler.misc.file.does.not.contain.package
 compiler.misc.illegal.start.of.class.file
 compiler.misc.inferred.do.not.conform.to.lower.bounds   # cannot happen?
@@ -209,23 +209,10 @@ compiler.err.preview.without.source.or.release
 
 compiler.misc.illegal.signature                               # the compiler can now detect more non-denotable types before class writing
 
-# Value types
-compiler.err.cyclic.primitive.class.membership
-compiler.err.value.class.does.not.support
-compiler.err.value.class.may.not.extend
-compiler.err.this.exposed.prematurely
-compiler.err.concrete.supertype.for.value.class
-compiler.err.super.class.cannot.be.inner
-compiler.err.super.class.declares.init.block
-compiler.err.super.constructor.cannot.take.arguments
-compiler.err.super.constructor.access.restricted
-compiler.err.super.constructor.cannot.be.generic
-compiler.err.super.constructor.cannot.throw
-compiler.err.super.field.not.allowed
-compiler.err.super.method.cannot.be.synchronized
-compiler.err.super.no.arg.constructor.must.be.empty
-compiler.err.generic.parameterization.with.primitive.class
-compiler.misc.feature.primitive.classes
+# Value Objects
 compiler.misc.feature.value.classes
-compiler.misc.abstract.value.class
-compiler.misc.superclass.of.value.class
+
+# Primitive Classes
+compiler.err.cyclic.primitive.class.membership
+compiler.misc.feature.primitive.classes
+compiler.err.generic.parameterization.with.primitive.class

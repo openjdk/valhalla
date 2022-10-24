@@ -27,14 +27,14 @@
  * @summary Hello World test for using inline classes with CDS
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @build HelloInlineClassApp
+ * @compile -XDenablePrimitiveClasses test-classes/HelloInlineClassApp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Rectangle
- * @run driver HelloInlineClassTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HelloInlineClassTest
  */
 
 import jdk.test.lib.helpers.ClassFileInstaller;
 import jdk.test.lib.process.OutputAnalyzer;
-
+//@compile -XDenablePrimitiveClasses HelloInlineClassApp HelloInlineClassTest.java
 public class HelloInlineClassTest {
     public static void main(String[] args) throws Exception {
         String appJar = ClassFileInstaller.getJarPath("hello_inline.jar");
@@ -45,26 +45,31 @@ public class HelloInlineClassTest {
                                                     "HelloInlineClassApp$Rectangle"));
         output.shouldHaveExitValue(0);
 
-        TestCommon.run("-Xint", "-cp", appJar,  mainClass)
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xint", "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-cp", appJar,  mainClass)
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-cp", appJar,  mainClass)
             .assertNormalExit();
 
         String compFlag = "-XX:CompileCommand=compileonly,HelloInlineClassApp*::*";
 
-        TestCommon.run("-Xcomp", compFlag,
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xcomp", compFlag,
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-Xcomp", compFlag,
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xcomp", compFlag,
                        "-XX:TieredStopAtLevel=1",
                        "-XX:+TieredCompilation",
                        "-XX:-Inline",
                        "-cp", appJar,  mainClass)
             .assertNormalExit();
 
-        TestCommon.run("-Xcomp", compFlag,
+        TestCommon.run("-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                       "-Xcomp", compFlag,
                        "-XX:TieredStopAtLevel=4",
                        "-XX:-TieredCompilation",
                        "-XX:-Inline",

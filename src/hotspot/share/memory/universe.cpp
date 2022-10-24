@@ -132,7 +132,7 @@ LatestMethodCache* Universe::_throw_illegal_access_error_cache = NULL;
 LatestMethodCache* Universe::_throw_no_such_method_error_cache = NULL;
 LatestMethodCache* Universe::_do_stack_walk_cache     = NULL;
 LatestMethodCache* Universe::_is_substitutable_cache  = NULL;
-LatestMethodCache* Universe::_primitive_type_hash_code_cache = NULL;
+LatestMethodCache* Universe::_value_object_hash_code_cache = NULL;
 
 long Universe::verify_flags                           = Universe::Verify_All;
 
@@ -237,7 +237,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   _throw_no_such_method_error_cache->metaspace_pointers_do(it);
   _do_stack_walk_cache->metaspace_pointers_do(it);
   _is_substitutable_cache->metaspace_pointers_do(it);
-  _primitive_type_hash_code_cache->metaspace_pointers_do(it);
+  _value_object_hash_code_cache->metaspace_pointers_do(it);
 }
 
 // Serialize metadata and pointers to primitive type mirrors in and out of CDS archive
@@ -262,9 +262,6 @@ void Universe::serialize(SerializeClosure* f) {
         }
         f->do_oop(&mirror_oop); // write to archive
       }
-      if (mirror_oop != NULL) { // may be null if archived heap is disabled
-        java_lang_Class::update_archived_primitive_mirror_native_pointers(mirror_oop);
-      }
     }
   }
 #endif
@@ -287,7 +284,7 @@ void Universe::serialize(SerializeClosure* f) {
   _throw_no_such_method_error_cache->serialize(f);
   _do_stack_walk_cache->serialize(f);
   _is_substitutable_cache->serialize(f);
-  _primitive_type_hash_code_cache->serialize(f);
+  _value_object_hash_code_cache->serialize(f);
 }
 
 
@@ -334,7 +331,7 @@ void Universe::genesis(TRAPS) {
         // Initialization of the fillerArrayKlass must come before regular
         // int-TypeArrayKlass so that the int-Array mirror points to the
         // int-TypeArrayKlass.
-        _fillerArrayKlassObj = TypeArrayKlass::create_klass(T_INT, "Ljava/internal/vm/FillerArray;", CHECK);
+        _fillerArrayKlassObj = TypeArrayKlass::create_klass(T_INT, "Ljdk/internal/vm/FillerArray;", CHECK);
         for (int i = T_BOOLEAN; i < T_LONG+1; i++) {
           _typeArrayKlassObjs[i] = TypeArrayKlass::create_klass((BasicType)i, CHECK);
         }
@@ -803,7 +800,7 @@ jint universe_init() {
   Universe::_throw_no_such_method_error_cache = new LatestMethodCache();
   Universe::_do_stack_walk_cache = new LatestMethodCache();
   Universe::_is_substitutable_cache = new LatestMethodCache();
-  Universe::_primitive_type_hash_code_cache = new LatestMethodCache();
+  Universe::_value_object_hash_code_cache = new LatestMethodCache();
 
 #if INCLUDE_CDS
   DynamicArchive::check_for_dynamic_dump();
@@ -975,12 +972,12 @@ void Universe::initialize_known_methods(TRAPS) {
   // Set up substitutability testing
   ResourceMark rm;
   initialize_known_method(_is_substitutable_cache,
-                          vmClasses::PrimitiveObjectMethods_klass(),
+                          vmClasses::ValueObjectMethods_klass(),
                           vmSymbols::isSubstitutable_name()->as_C_string(),
                           vmSymbols::object_object_boolean_signature(), true, CHECK);
-  initialize_known_method(_primitive_type_hash_code_cache,
-                          vmClasses::PrimitiveObjectMethods_klass(),
-                          vmSymbols::primitiveObjectHashCode_name()->as_C_string(),
+  initialize_known_method(_value_object_hash_code_cache,
+                          vmClasses::ValueObjectMethods_klass(),
+                          vmSymbols::valueObjectHashCode_name()->as_C_string(),
                           vmSymbols::object_int_signature(), true, CHECK);
 }
 

@@ -191,10 +191,8 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
-        this.allowPrimitiveClasses = (!preview.isPreview(Feature.PRIMITIVE_CLASSES) || preview.isEnabled()) &&
-                Feature.PRIMITIVE_CLASSES.allowedInSource(source);
-        this.allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
-                Feature.VALUE_CLASSES.allowedInSource(source);
+        this.allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && fac.options.isSet("enablePrimitiveClasses");
+        this.allowValueClasses = Feature.VALUE_CLASSES.allowedInSource(source);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -2047,7 +2045,6 @@ public class JavacParser implements Parser {
     }
 
     JCExpression lambdaExpressionOrStatementRest(List<JCVariableDecl> args, int pos) {
-        checkSourceLevel(Feature.LAMBDA);
         accept(ARROW);
 
         return token.kind == LBRACE ?
@@ -2183,7 +2180,6 @@ public class JavacParser implements Parser {
         if (token.kind == LT) {
             nextToken();
             if (token.kind == GT && diamondAllowed) {
-                checkSourceLevel(Feature.DIAMOND);
                 mode |= DIAMOND;
                 nextToken();
                 return List.nil();
@@ -2371,6 +2367,7 @@ public class JavacParser implements Parser {
         ReferenceMode refMode;
         if (token.kind == NEW) {
             refMode = ReferenceMode.NEW;
+            // TODO - will be converted in Attr
             refName = names.init;
             nextToken();
         } else {
@@ -3367,7 +3364,7 @@ public class JavacParser implements Parser {
             case SYNCHRONIZED: flag = Flags.SYNCHRONIZED; break;
             case STRICTFP    : flag = Flags.STRICTFP; break;
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
-            case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
+            case DEFAULT     : flag = Flags.DEFAULT; break;
             case ERROR       : flag = 0; nextToken(); break;
             case IDENTIFIER  : {
                 if (isNonSealedClassStart(false)) {
@@ -3647,8 +3644,6 @@ public class JavacParser implements Parser {
         if (name == names.primitive) {
             if (allowPrimitiveClasses) {
                 return Source.JDK18;
-            } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK18));
             }
         }
         if (name == names.value) {
@@ -3765,15 +3760,14 @@ public class JavacParser implements Parser {
      *           | Expression
      */
     protected JCTree resource() {
-        int startPos = token.pos;
         if (token.kind == FINAL || token.kind == MONKEYS_AT) {
-            JCModifiers mods = optFinal(Flags.FINAL);
+            JCModifiers mods = optFinal(0);
             JCExpression t = parseType(true);
             return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
         }
         JCExpression t = term(EXPR | TYPE);
         if ((lastmode & TYPE) != 0 && LAX_IDENTIFIER.test(token.kind)) {
-            JCModifiers mods = toP(F.at(startPos).Modifiers(Flags.FINAL));
+            JCModifiers mods = F.Modifiers(0);
             return variableDeclaratorRest(token.pos, mods, t, ident(), true, null, true, false);
         } else {
             checkSourceLevel(Feature.EFFECTIVELY_FINAL_VARIABLES_IN_TRY_WITH_RESOURCES);
@@ -4108,7 +4102,8 @@ public class JavacParser implements Parser {
         for (JCTree def : defs) {
             if (def.hasTag(METHODDEF)) {
                 JCMethodDecl methDef = (JCMethodDecl) def;
-                if (methDef.name == names.init && methDef.params.isEmpty() && (methDef.mods.flags & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0) {
+                // TODO - specifically for record.
+                if (names.isInitOrVNew(methDef.name) && methDef.params.isEmpty() && (methDef.mods.flags & Flags.COMPACT_RECORD_CONSTRUCTOR) != 0) {
                     ListBuffer<JCVariableDecl> tmpParams = new ListBuffer<>();
                     for (JCVariableDecl param : headerFields) {
                         tmpParams.add(F.at(param)
@@ -4634,7 +4629,7 @@ public class JavacParser implements Parser {
                     break;
             }
             if (isIdentityModifier) {
-                checkSourceLevel(Feature.PRIMITIVE_CLASSES);
+                checkSourceLevel(Feature.VALUE_CLASSES);
                 return true;
             }
         }
@@ -4702,7 +4697,7 @@ public class JavacParser implements Parser {
             // Parsing formalParameters sets the receiverParam, if present
             List<JCVariableDecl> params = List.nil();
             List<JCExpression> thrown = List.nil();
-            if (!isRecord || name != names.init || token.kind == LPAREN) {
+            if (!isRecord || !names.isInitOrVNew(name) || token.kind == LPAREN) {
                 params = formalParameters();
                 if (!isVoid) type = bracketsOpt(type);
                 if (token.kind == THROWS) {
@@ -5158,7 +5153,10 @@ public class JavacParser implements Parser {
     }
 
     protected void checkSourceLevel(int pos, Feature feature) {
-        if (preview.isPreview(feature) && !preview.isEnabled()) {
+        if (feature == Feature.PRIMITIVE_CLASSES && !allowPrimitiveClasses) {
+            // primitive classes are special
+            log.error(DiagnosticFlag.SOURCE_LEVEL, pos, feature.error(source.name));
+        } else if (preview.isPreview(feature) && !preview.isEnabled()) {
             //preview feature without --preview flag, error
             log.error(DiagnosticFlag.SOURCE_LEVEL, pos, preview.disabledError(feature));
         } else if (!feature.allowedInSource(source)) {

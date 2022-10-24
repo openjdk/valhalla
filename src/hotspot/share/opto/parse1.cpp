@@ -156,11 +156,6 @@ Node* Parse::fetch_interpreter_state(int index,
 // The safepoint is a map which will feed an uncommon trap.
 Node* Parse::check_interpreter_type(Node* l, const Type* type,
                                     SafePointNode* &bad_type_exit) {
-  if (type->isa_inlinetype() != NULL) {
-    // The interpreter passes inline types as oops
-    type = TypeOopPtr::make_from_klass(type->inline_klass());
-    type = type->join_speculative(TypePtr::NOTNULL)->is_oopptr();
-  }
   const TypeOopPtr* tp = type->isa_oopptr();
 
   // TypeFlow may assert null-ness if a type appears unloaded.
@@ -476,8 +471,9 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
   for (uint reason = 0; reason < md->trap_reason_limit(); reason++) {
     uint md_count = md->trap_count(reason);
     if (md_count != 0) {
-      if (md_count == md->trap_count_limit())
-        md_count += md->overflow_trap_count();
+      if (md_count >= md->trap_count_limit()) {
+        md_count = md->trap_count_limit() + md->overflow_trap_count();
+      }
       uint total_count = C->trap_count(reason);
       uint old_count   = total_count;
       total_count += md_count;
@@ -927,7 +923,7 @@ void Compile::return_values(JVMState* jvms) {
     if (tf()->returns_inline_type_as_fields()) {
       // Multiple return values (inline type fields): add as many edges
       // to the Return node as returned values.
-      InlineTypeBaseNode* vt = res->as_InlineTypeBase();
+      InlineTypeNode* vt = res->as_InlineType();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
       if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
@@ -946,10 +942,6 @@ void Compile::return_values(JVMState* jvms) {
       uint idx = TypeFunc::Parms + 1;
       vt->pass_fields(&kit, ret, idx, false, method()->signature()->returns_null_free_inline_type());
     } else {
-      if (res->is_InlineType()) {
-        assert(res->as_InlineType()->is_allocated(&kit.gvn()), "must be allocated");
-        res = res->as_InlineType()->get_oop();
-      }
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
     }
@@ -1754,15 +1746,13 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         t = target->stack_type_at(j - tmp_jvms->stkoff());
       }
       if (t != NULL && t != Type::BOTTOM) {
-        if (n->is_InlineType() && (!t->isa_inlinetype() && !t->is_inlinetypeptr())) {
-          // TODO Currently, the implementation relies on the assumption that InlineTypePtrNodes
-          // are always buffered. We therefore need to allocate here.
+        if (n->is_InlineType() && !t->is_inlinetypeptr()) {
           // Allocate inline type in src block to be able to merge it with oop in target block
           map()->set_req(j, n->as_InlineType()->buffer(this));
-        } else if (!n->is_InlineTypeBase() && t->is_inlinetypeptr()) {
+        } else if (!n->is_InlineType() && t->is_inlinetypeptr()) {
           // Scalarize null in src block to be able to merge it with inline type in target block
           assert(gvn().type(n)->is_zero_type(), "Should have been scalarized");
-          map()->set_req(j, InlineTypePtrNode::make_null(gvn(), t->inline_klass()));
+          map()->set_req(j, InlineTypeNode::make_null(gvn(), t->inline_klass()));
         }
       }
     }
@@ -1866,8 +1856,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       PhiNode* phi;
       if (m->is_Phi() && m->as_Phi()->region() == r) {
         phi = m->as_Phi();
-      } else if (m->is_InlineTypeBase() && m->as_InlineTypeBase()->has_phi_inputs(r)) {
-        phi = m->as_InlineTypeBase()->get_oop()->as_Phi();
+      } else if (m->is_InlineType() && m->as_InlineType()->has_phi_inputs(r)) {
+        phi = m->as_InlineType()->get_oop()->as_Phi();
       } else {
         phi = NULL;
       }
@@ -1908,8 +1898,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       if (phi != NULL && phi->bottom_type()->is_inlinetypeptr()) {
         // Reload current state because it may have been updated by ensure_phi
         m = map()->in(j);
-        InlineTypeBaseNode* vtm = m->as_InlineTypeBase(); // Current inline type
-        InlineTypeBaseNode* vtn = n->as_InlineTypeBase(); // Incoming inline type
+        InlineTypeNode* vtm = m->as_InlineType(); // Current inline type
+        InlineTypeNode* vtn = n->as_InlineType(); // Incoming inline type
         assert(vtm->get_oop() == phi, "Inline type should have Phi input");
         if (TraceOptoParse) {
 #ifdef ASSERT
@@ -1923,16 +1913,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
         }
         // Do the merge
         vtm->merge_with(&_gvn, vtn, pnum, last_merge);
-        if (vtm->is_InlineTypePtr() && vtn->is_InlineType()) {
-          // TODO 8284443 Remove this
-          Node* newVal = InlineTypeNode::make_uninitialized(gvn(), vtm->bottom_type()->inline_klass());
-          for (uint i = 1; i < vtm->req(); ++i) {
-            newVal->set_req(i, vtm->in(i));
-          }
-          _gvn.set_type(newVal, vtm->bottom_type());
-          vtm->replace_by(newVal);
-          vtm = newVal->as_InlineTypeBase();
-        }
         if (last_merge) {
           map()->set_req(j, _gvn.transform_no_reclaim(vtm));
           record_for_igvn(vtm);
@@ -2109,8 +2089,8 @@ int Parse::Block::add_new_path() {
       if (n->is_Phi() && n->as_Phi()->region() == r) {
         assert(n->req() == pnum, "must be same size as region");
         n->add_req(NULL);
-      } else if (n->is_InlineTypeBase() && n->as_InlineTypeBase()->has_phi_inputs(r)) {
-        n->as_InlineTypeBase()->add_new_path(r);
+      } else if (n->is_InlineType() && n->as_InlineType()->has_phi_inputs(r)) {
+        n->as_InlineType()->add_new_path(r);
       }
     }
   }
@@ -2133,7 +2113,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
   if (o->is_Phi() && o->as_Phi()->region() == region) {
     return o->as_Phi();
   }
-  InlineTypeBaseNode* vt = o->isa_InlineTypeBase();
+  InlineTypeNode* vt = o->isa_InlineType();
   if (vt != NULL && vt->has_phi_inputs(region)) {
     return vt->get_oop()->as_Phi();
   }
@@ -2170,7 +2150,7 @@ PhiNode *Parse::ensure_phi(int idx, bool nocreate) {
     return NULL;
   }
 
-  if (vt != NULL && (t->is_inlinetypeptr() || t->isa_inlinetype())) {
+  if (vt != NULL && t->is_inlinetypeptr()) {
     // Inline types are merged by merging their field values.
     // Create a cloned InlineTypeNode with phi inputs that
     // represents the merged inline type and update the map.
@@ -2379,7 +2359,7 @@ void Parse::return_current(Node* value) {
         assert(tf()->returns_inline_type_as_fields(), "must be returned as fields");
         jvms()->set_should_reexecute(true);
         inc_sp(1);
-        value = value->as_InlineTypeBase()->allocate_fields(this);
+        value = value->as_InlineType()->allocate_fields(this);
       }
     } else if (value->is_InlineType()) {
       // Inline type is returned as oop, make sure it is buffered and re-execute

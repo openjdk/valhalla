@@ -460,6 +460,7 @@ alloc_class chunk1(
 );
 
 alloc_class chunk2 (
+    // Governing predicates for load/store and arithmetic
     P0,
     P1,
     P2,
@@ -467,8 +468,8 @@ alloc_class chunk2 (
     P4,
     P5,
     P6,
-    P7,
 
+    // Extra predicates
     P8,
     P9,
     P10,
@@ -477,6 +478,9 @@ alloc_class chunk2 (
     P13,
     P14,
     P15,
+
+    // Preserved for all-true predicate
+    P7,
 );
 
 alloc_class chunk3(RFLAGS);
@@ -1759,44 +1763,14 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   // branch if we need to invalidate the method later
   __ nop();
 
-  if (C->clinit_barrier_on_entry()) {
-    assert(!C->method()->holder()->is_not_initialized(), "initialization should have been started");
-
-    Label L_skip_barrier;
-
-    __ mov_metadata(rscratch2, C->method()->holder()->constant_encoding());
-    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
-    __ bind(L_skip_barrier);
-  }
-
-  if (C->max_vector_size() > 0) {
-    __ reinitialize_ptrue();
-  }
-
   __ verified_entry(C, 0);
-  __ bind(*_verified_entry);
 
   if (C->stub_function() == NULL) {
-    BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
-      // Dummy labels for just measuring the code size
-      Label dummy_slow_path;
-      Label dummy_continuation;
-      Label dummy_guard;
-      Label* slow_path = &dummy_slow_path;
-      Label* continuation = &dummy_continuation;
-      Label* guard = &dummy_guard;
-      if (!Compile::current()->output()->in_scratch_emit_size()) {
-        // Use real labels from actual stub when not emitting code for the purpose of measuring its size
-        C2EntryBarrierStub* stub = Compile::current()->output()->entry_barrier_table()->add_entry_barrier();
-        slow_path = &stub->slow_path();
-        continuation = &stub->continuation();
-        guard = &stub->guard();
-      }
-      // In the C2 code, we move the non-hot part of nmethod entry barriers out-of-line to a stub.
-      bs->nmethod_entry_barrier(&_masm, slow_path, continuation, guard);
-    }
+    __ entry_barrier();
+  }
+
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    __ bind(*_verified_entry);
   }
 
   if (VerifyStackAtCalls) {
@@ -2193,7 +2167,7 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 
 void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
-  MacroAssembler _masm(&cbuf);
+  C2_MacroAssembler _masm(&cbuf);
 
   if (!_verified) {
     Label skip;
@@ -2203,12 +2177,28 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     __ bind(skip);
 
   } else {
+    // insert a nop at the start of the prolog so we can patch in a
+    // branch if we need to invalidate the method later
+    __ nop();
+
+    // TODO 8284443 Avoid creation of temporary frame
+    if (ra_->C->stub_function() == NULL) {
+      __ verified_entry(ra_->C, 0);
+      __ entry_barrier();
+      int framesize = ra_->C->output()->frame_slots() << LogBytesPerInt;
+      __ remove_frame(framesize, false);
+    }
     // Unpack inline type args passed as oop and then jump to
     // the verified entry point (skipping the unverified entry).
     int sp_inc = __ unpack_inline_args(ra_->C, _receiver_only);
     // Emit code for verified entry and save increment for stack repair on return
     __ verified_entry(ra_->C, sp_inc);
-    __ b(*_verified_entry);
+    if (Compile::current()->output()->in_scratch_emit_size()) {
+      Label dummy_verified_entry;
+      __ b(dummy_verified_entry);
+    } else {
+      __ b(*_verified_entry);
+    }
   }
 }
 
@@ -3638,7 +3628,7 @@ encode %{
     address call;
     if (!_method) {
       // A call to a runtime wrapper, e.g. new, new_typeArray_Java, uncommon_trap.
-      call = __ trampoline_call(Address(addr, relocInfo::runtime_call_type), &cbuf);
+      call = __ trampoline_call(Address(addr, relocInfo::runtime_call_type));
       if (call == NULL) {
         ciEnv::current()->record_failure("CodeCache is full");
         return;
@@ -3647,7 +3637,7 @@ encode %{
       int method_index = resolved_method_index(cbuf);
       RelocationHolder rspec = _optimized_virtual ? opt_virtual_call_Relocation::spec(method_index)
                                                   : static_call_Relocation::spec(method_index);
-      call = __ trampoline_call(Address(addr, rspec), &cbuf);
+      call = __ trampoline_call(Address(addr, rspec));
       if (call == NULL) {
         ciEnv::current()->record_failure("CodeCache is full");
         return;
@@ -3655,10 +3645,10 @@ encode %{
       if (CodeBuffer::supports_shared_stubs() && _method->can_be_statically_bound()) {
         // Calls of the same statically bound method can share
         // a stub to the interpreter.
-        cbuf.shared_stub_to_interp_for(_method, cbuf.insts()->mark_off());
+        cbuf.shared_stub_to_interp_for(_method, call - cbuf.insts_begin());
       } else {
         // Emit stub for static call
-        address stub = CompiledStaticCall::emit_to_interp_stub(cbuf);
+        address stub = CompiledStaticCall::emit_to_interp_stub(cbuf, call);
         if (stub == NULL) {
           ciEnv::current()->record_failure("CodeCache is full");
           return;
@@ -3666,7 +3656,6 @@ encode %{
       }
     }
 
-    _masm.clear_inst_mark();
     __ post_call_nop();
 
     // Only non uncommon_trap calls need to reinitialize ptrue.
@@ -3746,7 +3735,6 @@ encode %{
         ciEnv::current()->record_failure("CodeCache is full");
         return;
       }
-      _masm.clear_inst_mark();
       __ post_call_nop();
     } else {
       Label retaddr;
@@ -5594,6 +5582,7 @@ operand pRegGov()
 %{
   constraint(ALLOC_IN_RC(gov_pr));
   match(RegVectMask);
+  match(pReg);
   op_cost(0);
   format %{ %}
   interface(REG_INTER);

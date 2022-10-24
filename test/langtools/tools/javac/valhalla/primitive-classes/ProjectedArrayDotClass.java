@@ -26,8 +26,8 @@
  * @bug 8222722
  * @summary  Javac fails to compile V?[].class (syntax dead)
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile ProjectedArrayDotClass.java
- * @run main/othervm -Xverify:none ProjectedArrayDotClass
+ * @compile -XDenablePrimitiveClasses ProjectedArrayDotClass.java
+ * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ProjectedArrayDotClass
  * @modules jdk.compiler
  */
 

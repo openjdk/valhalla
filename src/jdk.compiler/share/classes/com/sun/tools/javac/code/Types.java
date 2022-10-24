@@ -975,7 +975,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        t.name != names.init &&
+                        !names.isInitOrVNew(t.name) &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }
@@ -2924,11 +2924,7 @@ public class Types {
      * @return true if t is a subsignature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return isSubSignature(t, s, true);
-    }
-
-    public boolean isSubSignature(Type t, Type s, boolean strict) {
-        return hasSameArgs(t, s, strict) || hasSameArgs(t, erasure(s), strict);
+        return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
     }
 
     /**

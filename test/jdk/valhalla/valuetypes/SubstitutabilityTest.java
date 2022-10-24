@@ -26,7 +26,8 @@
  * @summary test MethodHandle/VarHandle on primitive classes
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.org.objectweb.asm
- * @run testng SubstitutabilityTest
+ * @compile -XDenablePrimitiveClasses SubstitutabilityTest.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SubstitutabilityTest
  */
 
 import java.lang.reflect.Method;
@@ -187,7 +188,7 @@ public class SubstitutabilityTest {
      * isSubstitutable method handle invoker requires both parameters are
      * non-null and of the same primitive class.
      *
-     * This verifies PrimitiveObjectMethods::isSubstitutable that does not
+     * This verifies ValueObjectMethods::isSubstitutable that does not
      * throw an exception if any one of parameter is null or if
      * the parameters are of different types.
      */
@@ -209,7 +210,7 @@ public class SubstitutabilityTest {
     static {
         Method m = null;
         try {
-            Class<?> c = Class.forName("java.lang.runtime.PrimitiveObjectMethods");
+            Class<?> c = Class.forName("java.lang.runtime.ValueObjectMethods");
             m = c.getDeclaredMethod("isSubstitutable", Object.class, Object.class);
             m.setAccessible(true);
         } catch (ReflectiveOperationException e) {

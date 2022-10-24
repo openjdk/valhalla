@@ -240,7 +240,7 @@ void Parse::array_store(BasicType bt) {
       PreserveReexecuteState preexecs(this);
       inc_sp(3);
       jvms()->set_should_reexecute(true);
-      cast_val->as_InlineTypeBase()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+      cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
@@ -300,7 +300,7 @@ void Parse::array_store(BasicType bt) {
           PreserveReexecuteState preexecs(this);
           inc_sp(3);
           jvms()->set_should_reexecute(true);
-          val->as_InlineTypeBase()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+          val->as_InlineType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
         } else if (!stopped()) {
           // Element type is unknown, emit runtime call
 
@@ -1939,9 +1939,6 @@ Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKi
                               !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
   dec_sp(2);
   assert(!stopped(), "null input should have been caught earlier");
-  if (cast->is_InlineType()) {
-    cast = cast->as_InlineType()->get_oop();
-  }
   return cast;
 }
 
@@ -2064,15 +2061,15 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (left->is_InlineTypeBase()) {
+  if (left->is_InlineType()) {
     if (_gvn.type(right)->is_zero_type() ||
-        (right->is_InlineTypeBase() && _gvn.type(right->as_InlineTypeBase()->get_is_init())->is_zero_type())) {
+        (right->is_InlineType() && _gvn.type(right->as_InlineType()->get_is_init())->is_zero_type())) {
       // Null checking a scalarized but nullable inline type. Check the IsInit
       // input instead of the oop input to avoid keeping buffer allocations alive.
-      Node* cmp = CmpI(left->as_InlineTypeBase()->get_is_init(), intcon(0));
+      Node* cmp = CmpI(left->as_InlineType()->get_is_init(), intcon(0));
       do_if(btest, cmp);
       return;
-    } else if (left->is_InlineType()){
+    } else {
       PreserveReexecuteState preexecs(this);
       inc_sp(2);
       jvms()->set_should_reexecute(true);
@@ -2223,7 +2220,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   // Both operands are values types of the same class, we need to perform a
-  // substitutability test. Delegate to PrimitiveObjectMethods::isSubstitutable().
+  // substitutability test. Delegate to ValueObjectMethods::isSubstitutable().
   Node* ne_io_phi = PhiNode::make(ne_region, i_o());
   Node* mem = reset_memory();
   Node* ne_mem_phi = PhiNode::make(ne_region, mem);
@@ -2238,7 +2235,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_all_memory(mem);
 
   kill_dead_locals();
-  ciMethod* subst_method = ciEnv::current()->PrimitiveObjectMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
+  ciMethod* subst_method = ciEnv::current()->ValueObjectMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
   CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
@@ -2248,7 +2245,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   Node* ret = set_results_for_java_call(call, false, true);
   dec_sp(2);
 
-  // Test the return value of PrimitiveObjectMethods::isSubstitutable()
+  // Test the return value of ValueObjectMethods::isSubstitutable()
   Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
   Node* ctl = C->top();
   if (btest == BoolTest::eq) {
@@ -2572,6 +2569,7 @@ void Parse::do_one_bytecode() {
   if (TraceOptoParse) {
     tty->print(" @");
     dump_bci(bci());
+    tty->print(" %s", Bytecodes::name(bc()));
     tty->cr();
   }
 #endif

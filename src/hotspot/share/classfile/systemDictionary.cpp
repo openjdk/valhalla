@@ -661,7 +661,6 @@ InstanceKlass* SystemDictionary::handle_parallel_loading(JavaThread* current,
 void SystemDictionary::post_class_load_event(EventClassLoad* event, const InstanceKlass* k, const ClassLoaderData* init_cld) {
   assert(event != NULL, "invariant");
   assert(k != NULL, "invariant");
-  assert(event->should_commit(), "invariant");
   event->set_loadedClass(k);
   event->set_definingClassLoader(k->class_loader_data());
   event->set_initiatingClassLoader(init_cld);
@@ -679,7 +678,7 @@ InstanceKlass* SystemDictionary::resolve_instance_class_or_null(Symbol* name,
                                                                 TRAPS) {
   // name must be in the form of "java/lang/Object" -- cannot be "Ljava/lang/Object;"
   assert(name != NULL && !Signature::is_array(name) &&
-         !Signature::has_envelope(name), "invalid class name");
+         !Signature::has_envelope(name), "invalid class name: %s", name == NULL ? "NULL" : name->as_C_string());
 
   EventClassLoad class_load_start_event;
 
@@ -1099,8 +1098,13 @@ bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
   assert(scp_index >= 0, "must be");
   SharedClassPathEntry* scp_entry = FileMapInfo::shared_path(scp_index);
   if (!Universe::is_module_initialized()) {
-    assert(scp_entry != NULL && scp_entry->is_modules_image(),
-           "Loading non-bootstrap classes before the module system is initialized");
+    assert(scp_entry != NULL, "must be");
+    // At this point, no modules have been defined yet. KlassSubGraphInfo::check_allowed_klass()
+    // has restricted the classes can be loaded at this step to be only:
+    // [1] scp_entry->is_modules_image(): classes in java.base, or,
+    // [2] HeapShared::is_a_test_class_in_unnamed_module(ik): classes in bootstrap/unnamed module
+    assert(scp_entry->is_modules_image() || HeapShared::is_a_test_class_in_unnamed_module(ik),
+           "only these classes can be loaded before the module system is initialized");
     assert(class_loader.is_null(), "sanity");
     return true;
   }

@@ -45,6 +45,28 @@
 
 typedef void (MacroAssembler::* chr_insn)(Register Rt, const Address &adr);
 
+void C2_MacroAssembler::entry_barrier() {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  if (BarrierSet::barrier_set()->barrier_set_nmethod() != NULL) {
+    // Dummy labels for just measuring the code size
+    Label dummy_slow_path;
+    Label dummy_continuation;
+    Label dummy_guard;
+    Label* slow_path = &dummy_slow_path;
+    Label* continuation = &dummy_continuation;
+    Label* guard = &dummy_guard;
+    if (!Compile::current()->output()->in_scratch_emit_size()) {
+      // Use real labels from actual stub when not emitting code for the purpose of measuring its size
+      C2EntryBarrierStub* stub = Compile::current()->output()->entry_barrier_table()->add_entry_barrier();
+      slow_path = &stub->slow_path();
+      continuation = &stub->continuation();
+      guard = &stub->guard();
+    }
+    // In the C2 code, we move the non-hot part of nmethod entry barriers out-of-line to a stub.
+    bs->nmethod_entry_barrier(this, slow_path, continuation, guard);
+  }
+}
+
 void C2_MacroAssembler::emit_entry_barrier_stub(C2EntryBarrierStub* stub) {
   bind(stub->slow_path());
   movptr(rscratch1, (uintptr_t) StubRoutines::aarch64::method_entry_barrier());
@@ -977,7 +999,7 @@ void C2_MacroAssembler::bytemask_compress(Register dst) {
 
 // Pack the lowest-numbered bit of each mask element in src into a long value
 // in dst, at most the first 64 lane elements.
-// Clobbers: rscratch1 if hardware doesn't support FEAT_BITPERM.
+// Clobbers: rscratch1, if UseSVE=1 or the hardware doesn't support FEAT_BITPERM.
 void C2_MacroAssembler::sve_vmask_tolong(Register dst, PRegister src, BasicType bt, int lane_cnt,
                                          FloatRegister vtmp1, FloatRegister vtmp2) {
   assert(lane_cnt <= 64 && is_power_of_2(lane_cnt), "Unsupported lane count");
@@ -995,25 +1017,12 @@ void C2_MacroAssembler::sve_vmask_tolong(Register dst, PRegister src, BasicType 
     sve_vector_narrow(vtmp1, B, vtmp1, size, vtmp2);
   }
 
-  if (UseSVE > 0 && !VM_Version::supports_svebitperm()) {
-    // Compress the lowest 8 bytes.
-    fmovd(dst, vtmp1);
-    bytemask_compress(dst);
-    if (lane_cnt <= 8) return;
-
-    // Repeat on higher bytes and join the results.
-    // Compress 8 bytes in each iteration.
-    for (int idx = 1; idx < (lane_cnt / 8); idx++) {
-      sve_extract_integral(rscratch1, T_LONG, vtmp1, idx, vtmp2);
-      bytemask_compress(rscratch1);
-      orr(dst, dst, rscratch1, Assembler::LSL, idx << 3);
-    }
-  } else if (UseSVE == 2 && VM_Version::supports_svebitperm()) {
-    // Given by the vector with value 0x00 or 0x01 in each byte, the basic idea
+  if (UseSVE > 1 && VM_Version::supports_svebitperm()) {
+    // Given a vector with the value 0x00 or 0x01 in each byte, the basic idea
     // is to compress each significant bit of the byte in a cross-lane way. Due
-    // to the lack of cross-lane bit-compress instruction, here we use BEXT
-    // (bit-compress in each lane) with the biggest lane size (T = D) and
-    // concatenates the results then.
+    // to the lack of a cross-lane bit-compress instruction, we use BEXT
+    // (bit-compress in each lane) with the biggest lane size (T = D) then
+    // concatenate the results.
 
     // The second source input of BEXT, initialized with 0x01 in each byte.
     // vtmp2 = 0x01010101 0x01010101 0x01010101 0x01010101
@@ -1041,6 +1050,19 @@ void C2_MacroAssembler::sve_vmask_tolong(Register dst, PRegister src, BasicType 
       // the lowest 64 bits after narrowing vtmp1 from D to B.
       sve_vector_narrow(vtmp1, B, vtmp1, D, vtmp2);
       umov(dst, vtmp1, D, 0);
+    }
+  } else if (UseSVE > 0) {
+    // Compress the lowest 8 bytes.
+    fmovd(dst, vtmp1);
+    bytemask_compress(dst);
+    if (lane_cnt <= 8) return;
+
+    // Repeat on higher bytes and join the results.
+    // Compress 8 bytes in each iteration.
+    for (int idx = 1; idx < (lane_cnt / 8); idx++) {
+      sve_extract_integral(rscratch1, T_LONG, vtmp1, idx, vtmp2);
+      bytemask_compress(rscratch1);
+      orr(dst, dst, rscratch1, Assembler::LSL, idx << 3);
     }
   } else {
     assert(false, "unsupported");

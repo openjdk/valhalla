@@ -27,8 +27,9 @@
  * @test
  * @bug 8247664
  * @summary Bogus error message: incompatible types while using separate compilation.
- * @compile SeparateCompileTest01.java
- * @run main SeparateCompileTest
+ * @compile -XDenablePrimitiveClasses SeparateCompileTest01.java
+ * @compile -XDenablePrimitiveClasses SeparateCompileTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SeparateCompileTest
  */
 
 public class SeparateCompileTest {

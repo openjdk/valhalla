@@ -252,8 +252,8 @@ class Symbol : public MetaspaceObj {
   Symbol* fundamental_name(TRAPS);
   bool is_same_fundamental_type(Symbol*) const;
 
-  // Tests if the symbol starts with the given prefix.
-  int index_of_at(int i, const char* str, int len) const;
+  // Test if the symbol has the give substring at or after the i-th char.
+  int index_of_at(int i, const char* substr, int substr_len) const;
 
   // Three-way compare for sorting; returns -1/0/1 if receiver is </==/> than arg
   // note that the ordering is not alfabetical

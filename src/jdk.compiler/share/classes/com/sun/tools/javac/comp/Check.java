@@ -763,36 +763,34 @@ public class Check {
             // dealing with an abstract value or value super class below.
             Fragment fragment = c.isAbstract() && c.isValueClass() && c == st.tsym ? Fragments.AbstractValueClass(c) : Fragments.SuperclassOfValueClass(c, st);
             if ((st.tsym.flags() & HASINITBLOCK) != 0) {
-                log.error(pos, Errors.SuperClassDeclaresInitBlock(fragment));
+                log.error(pos, Errors.AbstractValueClassDeclaresInitBlock(fragment));
             }
-            // No instance fields and no arged constructors both mean inner classes
-            // cannot be super classes for primitive classes.
             Type encl = st.getEnclosingType();
             if (encl != null && encl.hasTag(CLASS)) {
-                log.error(pos, Errors.SuperClassCannotBeInner(fragment));
+                log.error(pos, Errors.AbstractValueClassCannotBeInner(fragment));
             }
             for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
                 switch (s.kind) {
                 case VAR:
                     if ((s.flags() & STATIC) == 0) {
-                        log.error(pos, Errors.SuperFieldNotAllowed(s, fragment));
+                        log.error(pos, Errors.InstanceFieldNotAllowed(s, fragment));
                     }
                     break;
                 case MTH:
                     if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
-                        log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
-                    } else if (s.isConstructor()) {
+                        log.error(pos, Errors.SuperClassMethodCannotBeSynchronized(s, c, st));
+                    } else if (s.isInitOrVNew()) {
                         MethodSymbol m = (MethodSymbol)s;
                         if (m.getParameters().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorCannotTakeArguments(m, fragment));
                         } else if (m.getTypeParameters().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotBeGeneric(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorCannotBeGeneric(m, fragment));
                         } else if (m.type.getThrownTypes().size() > 0) {
-                            log.error(pos, Errors.SuperConstructorCannotThrow(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorCannotThrow(m, fragment));
                         } else if (protection(m.flags()) > protection(m.owner.flags())) {
-                            log.error(pos, Errors.SuperConstructorAccessRestricted(m, fragment));
+                            log.error(pos, Errors.AbstractValueClassConstructorHasWeakerAccess(m, fragment));
                         } else if ((m.flags() & EMPTYNOARGCONSTR) == 0) {
-                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, fragment));
+                                log.error(pos, Errors.AbstractValueClassNoArgConstructorMustBeEmpty(m, fragment));
                         }
                     }
                     break;
@@ -1124,7 +1122,7 @@ public class Check {
     //where
         private boolean isTrustMeAllowedOnMethod(Symbol s) {
             return (s.flags() & VARARGS) != 0 &&
-                (s.isConstructor() ||
+                (s.isInitOrVNew() ||
                     (s.flags() & (STATIC | FINAL |
                                   (Feature.PRIVATE_SAFE_VARARGS.allowedInSource(source) ? PRIVATE : 0) )) != 0);
         }
@@ -1140,7 +1138,7 @@ public class Check {
         }
 
         //upward project the initializer type
-        Type varType = types.upward(t, types.captures(t));
+        Type varType = types.upward(t, types.captures(t)).baseType();
         if (varType.hasTag(CLASS)) {
             checkParameterizationByPrimitiveClass(pos, varType);
         }
@@ -1200,6 +1198,7 @@ public class Check {
         List<Type> nonInferred = sym.type.getParameterTypes();
         if (nonInferred.length() != formals.length()) nonInferred = formals;
         Type last = useVarargs ? formals.last() : null;
+        // TODO - is enum so <init>
         if (sym.name == names.init && sym.owner == syms.enumSym) {
             formals = formals.tail.tail;
             nonInferred = nonInferred.tail.tail;
@@ -1383,7 +1382,7 @@ public class Check {
             }
             break;
         case MTH:
-            if (sym.name == names.init) {
+            if (names.isInitOrVNew(sym.name)) {
                 if ((sym.owner.flags_field & ENUM) != 0) {
                     // enum constructors cannot be declared public or
                     // protected and must be implicitly or explicitly
@@ -1786,7 +1785,7 @@ public class Check {
     //where
         private boolean withinAnonConstr(Env<AttrContext> env) {
             return env.enclClass.name.isEmpty() &&
-                    env.enclMethod != null && env.enclMethod.name == names.init;
+                    env.enclMethod != null && names.isInitOrVNew(env.enclMethod.name);
         }
 
 /* *************************************************************************
@@ -2382,7 +2381,7 @@ public class Check {
         // or by virtue of being a member of a diamond inferred anonymous class. Latter case is to
         // be treated "as if as they were annotated" with @Override.
         boolean mustOverride = explicitOverride ||
-                (env.info.isAnonymousDiamond && !m.isConstructor() && !m.isPrivate());
+                (env.info.isAnonymousDiamond && !m.isInitOrVNew() && !m.isPrivate());
         if (mustOverride && !isOverrider(m)) {
             DiagnosticPosition pos = tree.pos();
             for (JCAnnotation a : tree.getModifiers().annotations) {
@@ -2856,7 +2855,7 @@ public class Check {
                 if (m2 == m1) continue;
                 //if (i) the signature of 'sym' is not a subsignature of m1 (seen as
                 //a member of 'site') and (ii) m1 has the same erasure as m2, issue an error
-                if (!types.isSubSignature(sym.type, types.memberType(site, m2), Feature.STRICT_METHOD_CLASH_CHECK.allowedInSource(source)) &&
+                if (!types.isSubSignature(sym.type, types.memberType(site, m2)) &&
                         types.hasSameArgs(m2.erasure(types), m1.erasure(types))) {
                     sym.flags_field |= CLASH;
                     if (m1 == sym) {
@@ -2901,7 +2900,7 @@ public class Check {
         for (Symbol s : types.membersClosure(site, true).getSymbolsByName(sym.name, cf)) {
             //if (i) the signature of 'sym' is not a subsignature of m1 (seen as
             //a member of 'site') and (ii) 'sym' has the same erasure as m1, issue an error
-            if (!types.isSubSignature(sym.type, types.memberType(site, s), Feature.STRICT_METHOD_CLASH_CHECK.allowedInSource(source))) {
+            if (!types.isSubSignature(sym.type, types.memberType(site, s))) {
                 if (types.hasSameArgs(s.erasure(types), sym.erasure(types))) {
                     log.error(pos,
                               Errors.NameClashSameErasureNoHide(sym, sym.location(), s, s.location()));
@@ -2933,7 +2932,7 @@ public class Check {
                      (s.flags() & SYNTHETIC) == 0 &&
                      !shouldSkip(s) &&
                      s.isInheritedIn(site.tsym, types) &&
-                     !s.isConstructor();
+                     !s.isInitOrVNew();
          }
      }
 
@@ -2992,7 +2991,7 @@ public class Check {
              return s.kind == MTH &&
                      (s.flags() & DEFAULT) != 0 &&
                      s.isInheritedIn(site.tsym, types) &&
-                     !s.isConstructor();
+                     !s.isInitOrVNew();
          }
      }
 
@@ -3679,7 +3678,7 @@ public class Check {
                     applicableTargets.add(names.RECORD_COMPONENT);
                 }
             } else if (target == names.METHOD) {
-                if (s.kind == MTH && !s.isConstructor())
+                if (s.kind == MTH && !s.isInitOrVNew())
                     applicableTargets.add(names.METHOD);
             } else if (target == names.PARAMETER) {
                 if (s.kind == VAR &&
@@ -3687,7 +3686,7 @@ public class Check {
                     applicableTargets.add(names.PARAMETER);
                 }
             } else if (target == names.CONSTRUCTOR) {
-                if (s.kind == MTH && s.isConstructor())
+                if (s.kind == MTH && s.isInitOrVNew())
                     applicableTargets.add(names.CONSTRUCTOR);
             } else if (target == names.LOCAL_VARIABLE) {
                 if (s.kind == VAR && s.owner.kind == MTH &&
@@ -3706,9 +3705,9 @@ public class Check {
                     //cannot type annotate implicitly typed locals
                     continue;
                 } else if (s.kind == TYP || s.kind == VAR ||
-                        (s.kind == MTH && !s.isConstructor() &&
+                        (s.kind == MTH && !s.isInitOrVNew() &&
                                 !s.type.getReturnType().hasTag(VOID)) ||
-                        (s.kind == MTH && s.isConstructor())) {
+                        (s.kind == MTH && s.isInitOrVNew())) {
                     applicableTargets.add(names.TYPE_USE);
                 }
             } else if (target == names.TYPE_PARAMETER) {
@@ -3970,7 +3969,8 @@ public class Check {
      *  constructors.
      */
     void checkCyclicConstructors(JCClassDecl tree) {
-        Map<Symbol,Symbol> callMap = new HashMap<>();
+        // use LinkedHashMap so we generate errors deterministically
+        Map<Symbol,Symbol> callMap = new LinkedHashMap<>();
 
         // enter each constructor this-call into the map
         for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
@@ -3999,7 +3999,7 @@ public class Check {
                                         Map<Symbol,Symbol> callMap) {
         if (ctor != null && (ctor.flags_field & ACYCLIC) == 0) {
             if ((ctor.flags_field & LOCKED) != 0) {
-                log.error(TreeInfo.diagnosticPositionFor(ctor, tree),
+                log.error(TreeInfo.diagnosticPositionFor(ctor, tree, false, t -> t.hasTag(IDENT)),
                           Errors.RecursiveCtorInvocation);
             } else {
                 ctor.flags_field |= LOCKED;
@@ -4029,6 +4029,22 @@ public class Check {
                 || opc == ByteCodes.ldiv || opc == ByteCodes.lmod) {
                 deferredLintHandler.report(() -> warnDivZero(pos));
             }
+        }
+    }
+
+    /**
+     *  Check for possible loss of precission
+     *  @param pos           Position for error reporting.
+     *  @param found    The computed type of the tree
+     *  @param req  The computed type of the tree
+     */
+    void checkLossOfPrecision(final DiagnosticPosition pos, Type found, Type req) {
+        if (found.isNumeric() && req.isNumeric() && !types.isAssignable(found, req)) {
+            deferredLintHandler.report(() -> {
+                if (lint.isEnabled(LintCategory.LOSSY_CONVERSIONS))
+                    log.warning(LintCategory.LOSSY_CONVERSIONS,
+                            pos, Warnings.PossibleLossOfPrecision(found, req));
+            });
         }
     }
 
@@ -4956,7 +4972,7 @@ public class Check {
         private void checkCtorAccess(JCClassDecl tree, ClassSymbol c) {
             if (isExternalizable(c.type)) {
                 for(var sym : c.getEnclosedElements()) {
-                    if (sym.isConstructor() &&
+                    if (sym.isInitOrVNew() &&
                         ((sym.flags() & PUBLIC) == PUBLIC)) {
                         if (((MethodSymbol)sym).getParameters().isEmpty()) {
                             return;
@@ -4984,7 +5000,7 @@ public class Check {
                 try {
                     ClassSymbol supertype = ((ClassSymbol)(((DeclaredType)superClass).asElement()));
                     for(var sym : supertype.getEnclosedElements()) {
-                        if (sym.isConstructor()) {
+                        if (sym.isInitOrVNew()) {
                             MethodSymbol ctor = (MethodSymbol)sym;
                             if (ctor.getParameters().isEmpty()) {
                                 if (((ctor.flags() & PRIVATE) == PRIVATE) ||

@@ -27,7 +27,8 @@
  * @test
  * @bug 8244559
  * @summary Check that javac transforms Types to AST nodes properly.
- * @run main ProperTypeApplySelectTest
+ * @compile -XDenablePrimitiveClasses ProperTypeApplySelectTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ProperTypeApplySelectTest
  */
 
 import java.util.List;

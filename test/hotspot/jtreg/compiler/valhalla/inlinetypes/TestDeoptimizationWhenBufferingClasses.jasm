@@ -30,7 +30,7 @@ public final primitive value class compiler/valhalla/inlinetypes/MyValue1
     final Field vtField1:"Qcompiler/valhalla/inlinetypes/MyValue2;";
     final Field vtField2:"Lcompiler/valhalla/inlinetypes/MyValue2;";
 
-    public static Method <init>:"()Qcompiler/valhalla/inlinetypes/MyValue1;" stack 2 {
+    public static Method <vnew>:"()Qcompiler/valhalla/inlinetypes/MyValue1;" stack 2 {
         getstatic cnt:I;
         iconst_1;
         iadd;
@@ -41,10 +41,10 @@ public final primitive value class compiler/valhalla/inlinetypes/MyValue1
         getstatic cnt:I;
         withfield x:I;
 
-        invokestatic compiler/valhalla/inlinetypes/MyValue2.<init>:"()Qcompiler/valhalla/inlinetypes/MyValue2;";
+        invokestatic compiler/valhalla/inlinetypes/MyValue2.<vnew>:"()Qcompiler/valhalla/inlinetypes/MyValue2;";
         withfield vtField1:"Qcompiler/valhalla/inlinetypes/MyValue2;";
 
-        invokestatic compiler/valhalla/inlinetypes/MyValue2.<init>:"()Qcompiler/valhalla/inlinetypes/MyValue2;";
+        invokestatic compiler/valhalla/inlinetypes/MyValue2.<vnew>:"()Qcompiler/valhalla/inlinetypes/MyValue2;";
         withfield vtField2:"Lcompiler/valhalla/inlinetypes/MyValue2;";
 
         areturn;
@@ -82,7 +82,7 @@ public final primitive value class compiler/valhalla/inlinetypes/MyValue2
     static Field cnt:I;
     final Field x:I;
 
-    public static Method <init>:"()Qcompiler/valhalla/inlinetypes/MyValue2;" stack 2 {
+    public static Method <vnew>:"()Qcompiler/valhalla/inlinetypes/MyValue2;" stack 2 {
         getstatic cnt:I;
         iconst_1;
         iadd;

@@ -27,7 +27,8 @@
  * @test
  * @bug 8222402
  * @summary LW2 array support in javac
- * @run main/othervm ArrayRelationsTest
+ * @compile -XDenablePrimitiveClasses ArrayRelationsTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ArrayRelationsTest
  */
 
 public primitive class ArrayRelationsTest {

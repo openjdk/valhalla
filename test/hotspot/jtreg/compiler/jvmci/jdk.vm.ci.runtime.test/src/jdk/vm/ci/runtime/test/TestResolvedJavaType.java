@@ -187,7 +187,8 @@ public class TestResolvedJavaType extends TypeUniverse {
         assertEquals(javaName, internalNameToJava(typeName, true, true));
     }
 
-    @Test
+    // TODO 8291719
+    // @Test
     public void getModifiersTest() {
         for (Class<?> c : classes) {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);

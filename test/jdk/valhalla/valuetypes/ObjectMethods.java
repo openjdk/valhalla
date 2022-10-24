@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,25 @@
 /*
  * @test
  * @summary test Object methods on primitive classes
- * @run testng/othervm -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
+ * @modules java.base/jdk.internal.value
+ * @compile -XDenablePrimitiveClasses ObjectMethods.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 ObjectMethods
+ * @compile -XDenablePrimitiveClasses ObjectMethods.java
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
+import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
+
+import jdk.internal.value.PrimitiveClass;
 
 public class ObjectMethods {
     static final int SALT = 1;
@@ -64,6 +71,49 @@ public class ObjectMethods {
                                         .setPointRef(Point.makePoint(200, 200))
                                         .setReference(Point.makePoint(300, 300))
                                         .setNumber(Value.Number.intValue(20)).build();
+
+    @DataProvider(name="Identities")
+    Object[][] identitiesData() {
+        return new Object[][]{
+                {new Object(), false, false},
+                {"String", true, false},
+                {String.class, true, false},
+                {Object.class, true, false},
+                {new ValueType1(1), false, true},
+                {new ValueType2(2), false, true},
+                {new PrimitiveRecord(1, "A"), false, true},
+                {new ValueRecord(1,"B"), false, true},
+                {new int[0], true, false},  // arrays of primitive classes are identity objects
+                {new Object[0], true, false},  // arrays of identity classes are identity objects
+                {new String[0], true, false},  // arrays of identity classes are identity objects
+                {new ValueType1[0], true, false},  // arrays of value classes are identity objects
+        };
+    }
+
+    @Test(dataProvider="Identities")
+    void identityTests(Object obj, boolean identityClass, boolean valueClass) {
+        Class<?> clazz = obj.getClass();
+
+        if (clazz == Object.class) {
+            assertTrue(Objects.isIdentityObject(obj), "Objects.isIdentityObject()");
+        } else {
+            assertEquals(Objects.isIdentityObject(obj), identityClass, "Objects.isIdentityObject()");
+        }
+
+        assertEquals(Objects.isValueObject(obj), valueClass, "Objects.isValueObject()");
+
+        assertEquals(clazz.isIdentity(), identityClass, "Class.isIdentity()");
+
+        assertEquals(clazz.isValue(), valueClass, "Class.isValue()");
+
+        // JDK-8294866: Not yet implemented checks of AccessFlags for the array class
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.IDENTITY),
+//                identityClass, "AccessFlag.IDENTITY");
+//
+//        assertEquals(clazz.accessFlags().contains(AccessFlag.VALUE),
+//                valueClass, "AccessFlag.VALUE");
+    }
+
     @DataProvider(name="equalsTests")
     Object[][] equalsTests() {
         return new Object[][]{
@@ -167,14 +217,14 @@ public class ObjectMethods {
     Object[][] hashcodeTests() {
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return new Object[][]{
-            { P1,                   hash(Point.class.asValueType(), 1, 2) },
-            { LINE1,                hash(Line.class.asValueType(), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
+            { P1,                   hash(PrimitiveClass.asValueType(Point.class), 1, 2) },
+            { LINE1,                hash(PrimitiveClass.asValueType(Line.class), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
             { VALUE,                hash(hashCodeComponents(VALUE))},
             { VALUE1,               hash(hashCodeComponents(VALUE1))},
-            { Point.makePoint(0,0), hash(Point.class.asValueType(), 0, 0) },
-            { Point.default,        hash(Point.class.asValueType(), 0, 0) },
-            { MyValue1.default,     hash(MyValue1.class.asValueType(), Point.default, null) },
-            { new MyValue1(0, 0, null), hash(MyValue1.class.asValueType(), Point.makePoint(0,0), null) },
+            { Point.makePoint(0,0), hash(PrimitiveClass.asValueType(Point.class), 0, 0) },
+            { Point.default,        hash(PrimitiveClass.asValueType(Point.class), 0, 0) },
+            { MyValue1.default,     hash(PrimitiveClass.asValueType(MyValue1.class), Point.default, null) },
+            { new MyValue1(0, 0, null), hash(PrimitiveClass.asValueType(MyValue1.class), Point.makePoint(0,0), null) },
             { new ValueOptional(P1), hash(ValueOptional.class, P1) },
         };
     }
@@ -197,8 +247,8 @@ public class ObjectMethods {
                     throw new RuntimeException(e);
                 }
             });
-        if (type.isPrimitiveClass()) {
-            type = type.asValueType();
+        if (PrimitiveClass.isPrimitiveClass(type)) {
+            type = PrimitiveClass.asValueType(type);
         }
         return Stream.concat(Stream.of(type), fields).toArray(Object[]::new);
     }

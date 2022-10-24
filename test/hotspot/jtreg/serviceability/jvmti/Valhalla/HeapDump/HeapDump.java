@@ -23,9 +23,11 @@
 
 /**
  * @test
+ * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @requires vm.jvmti
- * @run main HeapDump
+ * @compile -XDenablePrimitiveClasses HeapDump.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses HeapDump
  */
 
 import java.io.File;
@@ -34,6 +36,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.TimeUnit;
+import jdk.internal.value.PrimitiveClass;
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.hprof.model.HackJavaValue;
@@ -158,7 +161,7 @@ public class HeapDump {
             theApp = new HeapDumpTarg();
 
             // -XX:+PrintInlineLayout is debug-only arg
-            LingeredApp.startApp(theApp/*, "-XX:+PrintInlineLayout"*/);
+            LingeredApp.startApp(theApp, "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses"/*, "-XX:+PrintInlineLayout"*/);
 
             // jcmd <pid> GC.heap_dump
             JDKToolLauncher launcher = JDKToolLauncher
@@ -266,7 +269,7 @@ public class HeapDump {
             boolean isStatic = Modifier.isStatic(testField.getModifiers());
             testField.setAccessible(true);
             objDescr = "- " + (isStatic ? "(static) " : "")
-                    + (testField.getType().isPrimitiveClass() ? "(primitive) " : "")
+                    + (PrimitiveClass.isPrimitiveClass(testField.getType()) ? "(primitive) " : "")
                     + testField.getName() + " ('" + testField.getType().descriptorString() + "')";
             try {
                 Object testValue = testField.get(testObj);
