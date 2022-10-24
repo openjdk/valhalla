@@ -744,7 +744,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       ignored++;
       // get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_PRIMITIVE_OBJECT);
-      __ load_heap_oop(buf_oop, Address(buf_array, index));
+      __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
       next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
@@ -3409,7 +3409,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       __ ldrd(r_1->as_FloatRegister(), from);
     } else if (bt == T_OBJECT || bt == T_ARRAY) {
       assert_different_registers(r0, r_1->as_Register());
-      __ load_heap_oop(r_1->as_Register(), from);
+      __ load_heap_oop(r_1->as_Register(), from, rscratch1, rscratch2);
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
       assert_different_registers(r0, r_1->as_Register());

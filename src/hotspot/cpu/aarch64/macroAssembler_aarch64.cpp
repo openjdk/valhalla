@@ -1135,7 +1135,7 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
-  load_heap_oop(obj, field);
+  load_heap_oop(obj, field, temp_reg, rscratch2);
 }
 
 void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
@@ -6212,7 +6212,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (!toReg->is_FloatRegister()) {
       Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
       if (is_reference_type(bt)) {
-        load_heap_oop(dst, fromAddr);
+        load_heap_oop(dst, fromAddr, rscratch1, rscratch2);
       } else {
         bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
         load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
@@ -6300,7 +6300,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   }
 
   int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_PRIMITIVE_OBJECT);
-  load_heap_oop(val_obj, Address(val_array, index));
+  load_heap_oop(val_obj, Address(val_array, index), tmp1, tmp2);
 
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;
