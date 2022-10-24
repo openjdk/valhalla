@@ -1135,7 +1135,7 @@ void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset);
-  load_heap_oop(obj, field);
+  load_heap_oop(obj, field, temp_reg, rscratch2);
 }
 
 void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
@@ -2053,24 +2053,6 @@ Address MacroAssembler::form_address(Register Rd, Register base, int64_t byte_of
   return Address(Rd);
 }
 
-void MacroAssembler::atomic_incw(Register counter_addr, Register tmp, Register tmp2) {
-  if (UseLSE) {
-    mov(tmp, 1);
-    ldadd(Assembler::word, tmp, zr, counter_addr);
-    return;
-  }
-  Label retry_load;
-  prfm(Address(counter_addr), PSTL1STRM);
-  bind(retry_load);
-  // flush and load exclusive from the memory location
-  ldxrw(tmp, counter_addr);
-  addw(tmp, tmp, 1);
-  // if we store+flush with no intervening write tmp will be zero
-  stxrw(tmp2, tmp, counter_addr);
-  cbnzw(tmp2, retry_load);
-}
-
-
 int MacroAssembler::corrected_idivl(Register result, Register ra, Register rb,
                                     bool want_remainder, Register scratch)
 {
@@ -2239,7 +2221,7 @@ int MacroAssembler::load_signed_byte32(Register dst, Address src) {
   return off;
 }
 
-void MacroAssembler::load_sized_value(Register dst, Address src, size_t size_in_bytes, bool is_signed, Register dst2) {
+void MacroAssembler::load_sized_value(Register dst, Address src, size_t size_in_bytes, bool is_signed) {
   switch (size_in_bytes) {
   case  8:  ldr(dst, src); break;
   case  4:  ldrw(dst, src); break;
@@ -2249,7 +2231,7 @@ void MacroAssembler::load_sized_value(Register dst, Address src, size_t size_in_
   }
 }
 
-void MacroAssembler::store_sized_value(Address dst, Register src, size_t size_in_bytes, Register src2) {
+void MacroAssembler::store_sized_value(Address dst, Register src, size_t size_in_bytes) {
   switch (size_in_bytes) {
   case  8:  str(src, dst); break;
   case  4:  strw(src, dst); break;
@@ -2557,9 +2539,9 @@ int MacroAssembler::push_p(unsigned int bitset, Register stack) {
     return 0;
   }
 
-  unsigned char regs[PRegister::number_of_saved_registers];
+  unsigned char regs[PRegister::number_of_registers];
   int count = 0;
-  for (int reg = 0; reg < PRegister::number_of_saved_registers; reg++) {
+  for (int reg = 0; reg < PRegister::number_of_registers; reg++) {
     if (1 & bitset)
       regs[count++] = reg;
     bitset >>= 1;
@@ -2594,9 +2576,9 @@ int MacroAssembler::pop_p(unsigned int bitset, Register stack) {
     return 0;
   }
 
-  unsigned char regs[PRegister::number_of_saved_registers];
+  unsigned char regs[PRegister::number_of_registers];
   int count = 0;
-  for (int reg = 0; reg < PRegister::number_of_saved_registers; reg++) {
+  for (int reg = 0; reg < PRegister::number_of_registers; reg++) {
     if (1 & bitset)
       regs[count++] = reg;
     bitset >>= 1;
@@ -3100,7 +3082,7 @@ void MacroAssembler::push_CPU_state(bool save_vectors, bool use_sve,
   }
   if (save_vectors && use_sve && total_predicate_in_bytes > 0) {
     sub(sp, sp, total_predicate_in_bytes);
-    for (int i = 0; i < PRegister::number_of_saved_registers; i++) {
+    for (int i = 0; i < PRegister::number_of_registers; i++) {
       sve_str(as_PRegister(i), Address(sp, i));
     }
   }
@@ -3109,7 +3091,7 @@ void MacroAssembler::push_CPU_state(bool save_vectors, bool use_sve,
 void MacroAssembler::pop_CPU_state(bool restore_vectors, bool use_sve,
                                    int sve_vector_size_in_bytes, int total_predicate_in_bytes) {
   if (restore_vectors && use_sve && total_predicate_in_bytes > 0) {
-    for (int i = PRegister::number_of_saved_registers - 1; i >= 0; i--) {
+    for (int i = PRegister::number_of_registers - 1; i >= 0; i--) {
       sve_ldr(as_PRegister(i), Address(sp, i));
     }
     add(sp, sp, total_predicate_in_bytes);
@@ -4587,15 +4569,15 @@ void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
 }
 
 void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
-                                     Address dst, Register src,
+                                     Address dst, Register val,
                                      Register tmp1, Register tmp2, Register tmp3) {
   BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
   decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
-    bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
+    bs->BarrierSetAssembler::store_at(this, decorators, type, dst, val, tmp1, tmp2, tmp3);
   } else {
-    bs->store_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
+    bs->store_at(this, decorators, type, dst, val, tmp1, tmp2, tmp3);
   }
 }
 
@@ -4649,9 +4631,9 @@ void MacroAssembler::load_heap_oop_not_null(Register dst, Address src, Register 
   access_load_at(T_OBJECT, IN_HEAP | IS_NOT_NULL | decorators, dst, src, tmp1, tmp2);
 }
 
-void MacroAssembler::store_heap_oop(Address dst, Register src, Register tmp1,
+void MacroAssembler::store_heap_oop(Address dst, Register val, Register tmp1,
                                     Register tmp2, Register tmp3, DecoratorSet decorators) {
-  access_store_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, tmp2, tmp3);
+  access_store_at(T_OBJECT, IN_HEAP | decorators, dst, val, tmp1, tmp2, tmp3);
 }
 
 // Used for storing NULLs.
@@ -6230,7 +6212,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     if (!toReg->is_FloatRegister()) {
       Register dst = toReg->is_stack() ? tmp2 : toReg->as_Register();
       if (is_reference_type(bt)) {
-        load_heap_oop(dst, fromAddr);
+        load_heap_oop(dst, fromAddr, rscratch1, rscratch2);
       } else {
         bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
         load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
@@ -6318,7 +6300,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   }
 
   int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_PRIMITIVE_OBJECT);
-  load_heap_oop(val_obj, Address(val_array, index));
+  load_heap_oop(val_obj, Address(val_array, index), tmp1, tmp2);
 
   ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
   VMReg fromReg;

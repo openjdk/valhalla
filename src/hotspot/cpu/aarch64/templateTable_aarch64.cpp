@@ -2618,7 +2618,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     __ b(Done);
   } else { // Valhalla
     if (is_static) {
-      __ load_heap_oop(r0, field);
+      __ load_heap_oop(r0, field, rscratch1, rscratch2);
       Label is_null_free_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
       __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_null_free_inline_type);
@@ -2648,7 +2648,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       Label is_inlined, nonnull, is_inline_type, rewrite_inline;
       __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
         // Non-inline field case
-        __ load_heap_oop(r0, field);
+        __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ push(atos);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
@@ -2657,7 +2657,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(is_inline_type);
         __ test_field_is_inlined(raw_flags, noreg /* temp */, is_inlined);
          // field is not inlined
-          __ load_heap_oop(r0, field);
+          __ load_heap_oop(r0, field, rscratch1, rscratch2);
           __ cbnz(r0, nonnull);
             __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
             __ get_inline_type_field_klass(klass, raw_flags, inline_klass);
@@ -3311,7 +3311,7 @@ void TemplateTable::fast_accessfield(TosState state)
       Label is_inlined, nonnull, Done;
       __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
         // field is not inlined
-        __ load_heap_oop(r0, field);
+        __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ cbnz(r0, nonnull);
           __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
           __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +

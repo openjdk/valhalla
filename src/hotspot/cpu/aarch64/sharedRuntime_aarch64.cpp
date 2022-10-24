@@ -162,11 +162,8 @@ int RegisterSaver::v0_offset_in_bytes() {
 int RegisterSaver::total_sve_predicate_in_bytes() {
 #ifdef COMPILER2
   if (_save_vectors && Matcher::supports_scalable_vector()) {
-    // The number of total predicate bytes is unlikely to be a multiple
-    // of 16 bytes so we manually align it up.
-    return align_up(Matcher::scalable_predicate_reg_slots() *
-                    VMRegImpl::stack_slot_size *
-                    PRegister::number_of_saved_registers, 16);
+    return (Matcher::scalable_vector_reg_size(T_BYTE) >> LogBitsPerByte) *
+           PRegister::number_of_registers;
   }
 #endif
   return 0;
@@ -250,14 +247,6 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
       sp_offset = FloatRegister::save_slots_per_register * i;
     }
     oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset), r->as_VMReg());
-  }
-
-  if (_save_vectors && use_sve) {
-    for (int i = 0; i < PRegister::number_of_saved_registers; i++) {
-      PRegister r = as_PRegister(i);
-      int sp_offset = sve_predicate_size_in_slots * i;
-      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset), r->as_VMReg());
-    }
   }
 
   return oop_map;
@@ -755,7 +744,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       ignored++;
       // get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_PRIMITIVE_OBJECT);
-      __ load_heap_oop(buf_oop, Address(buf_array, index));
+      __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
       next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
@@ -3420,7 +3409,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       __ ldrd(r_1->as_FloatRegister(), from);
     } else if (bt == T_OBJECT || bt == T_ARRAY) {
       assert_different_registers(r0, r_1->as_Register());
-      __ load_heap_oop(r_1->as_Register(), from);
+      __ load_heap_oop(r_1->as_Register(), from, rscratch1, rscratch2);
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
       assert_different_registers(r0, r_1->as_Register());
