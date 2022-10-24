@@ -63,7 +63,7 @@ oop ZObjArrayAllocator::initialize(HeapWord* mem) const {
   // The array is going to be exposed before it has been completely
   // cleared, therefore we can't expose the header at the end of this
   // function. Instead explicitly initialize it according to our needs.
-  arrayOopDesc::set_mark(mem, markWord::prototype());
+  arrayOopDesc::set_mark(mem, Klass::default_prototype_header(_klass));
   arrayOopDesc::release_set_klass(mem, _klass);
   assert(_length >= 0, "length should be non-negative");
   arrayOopDesc::set_length(mem, _length);
