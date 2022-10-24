@@ -495,15 +495,11 @@ bool Symbol::is_valid(Symbol* s) {
 }
 
 void Symbol::print_Qvalue_on(outputStream* st) const {
-  if (this == NULL) {
-    st->print("NULL");
-  } else {
-    st->print("'Q");
-    for (int i = 0; i < utf8_length(); i++) {
-      st->print("%c", char_at(i));
-    }
-    st->print(";'");
+  st->print("'Q");
+  for (int i = 0; i < utf8_length(); i++) {
+    st->print("%c", char_at(i));
   }
+  st->print(";'");
 }
 
 // SymbolTable prints this in its statistics
