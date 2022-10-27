@@ -3736,7 +3736,9 @@ public class Resolve {
                 List<Type> typeargtypes, MethodResolutionPhase maxPhase) {
             super(referenceTree, site.tsym.isConcreteValueClass() ? names.vnew : names.init, site, argtypes, typeargtypes, maxPhase);
             if (site.isRaw()) {
-                this.site = new ClassType(site.getEnclosingType(), site.tsym.type.getTypeArguments(), site.tsym, site.getMetadata(), site.getFlavor());
+                this.site = new ClassType(site.getEnclosingType(),
+                        !(site.tsym.isInner() && site.getEnclosingType().isRaw()) ?
+                            site.tsym.type.getTypeArguments() : List.nil(), site.tsym, site.getMetadata(), site.getFlavor());
                 needsInference = true;
             }
         }
