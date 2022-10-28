@@ -41,6 +41,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
@@ -68,15 +70,13 @@ import static java.lang.runtime.ObjectMethods.primitiveEquals;
 final class ValueObjectMethods {
     private ValueObjectMethods() {}
     private static final boolean VERBOSE =
-        GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
+            GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
+    private static final int THRESHOLD =
+            GetIntegerAction.privilegedGetProperty("jdk.value.threshold", Integer.MAX_VALUE);
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
     static class MethodHandleBuilder {
-        static MethodHandle[] getters(Class<?> type) {
-            return getters(type, null);
-        }
-
-        static MethodHandle[] getters(Class<?> type, Comparator<MethodHandle> comparator) {
+        static Stream<MethodHandle> getterStream(Class<?> type, Comparator<MethodHandle> comparator) {
             // filter static fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
                 .filter(f -> !Modifier.isStatic(f.getModifiers()))
@@ -90,7 +90,11 @@ final class ValueObjectMethods {
             if (comparator != null) {
                 s = s.sorted(comparator);
             }
-            return s.toArray(MethodHandle[]::new);
+            return s;
+        }
+
+        static List<MethodHandle> getters(Class<?> type, Comparator<MethodHandle> comparator) {
+            return getterStream(type, comparator).toList();
         }
 
         static MethodHandle hashCodeForType(Class<?> type) {
@@ -126,7 +130,6 @@ final class ValueObjectMethods {
             return ftype;
         }
 
-
         /**
          * A base method for testing substitutability on a recursive data type,
          * a value class with cyclic membership.
@@ -148,15 +151,21 @@ final class ValueObjectMethods {
          *              The method type is (Object,Object)boolean.
          * @param o1    an object
          * @param o2    an object to be compared for substitutability
+         * @param counter an AtomicInteger counter to keep track of the traversal count
          * @return
          * @param <V>   a value class
          */
         private static <V> boolean base(Class<V> type, MethodHandle mh, MethodHandle[] getters,
-                                        MethodHandle recur, Object o1, Object o2) throws Throwable {
+                                        MethodHandle recur, Object o1, Object o2,
+                                        AtomicInteger counter) throws Throwable {
             assert isValueClass(type) : type.getName() + " not a value class";
 
             if (o1 == null && o2 == null) return true;
             if (o1 == null || o2 == null) return false;
+
+            if (counter.getAndDecrement() == 0) {
+                throw new StackOverflowError("fail to evaluate == for value class " + type.getName());
+            }
 
             // test if all fields that are not of the same value type are substitutable
             boolean result = (boolean) mh.invoke(o1, o2);
@@ -168,8 +177,14 @@ final class ValueObjectMethods {
                     Class<?> ftype = fieldType(getter);
                     Object f1 = getter.invoke(o1);
                     Object f2 = getter.invoke(o2);
-                    boolean substitutable = ftype == type ? (boolean) recur.invokeExact(f1, f2)
-                                                          : isSubstitutable(f1, f2);
+
+                    boolean substitutable;
+                    if (ftype == type) {
+                        substitutable = (boolean)recur.invokeExact(f1, f2, counter);
+                    } else {
+                        MethodHandle recur2 = RECUR_METHOD_HANDLES.get(ftype);
+                        substitutable = (boolean)recur2.invokeExact(f1, f2, counter);
+                    }
                     if (!substitutable) {
                         return false;
                     }
@@ -215,15 +230,7 @@ final class ValueObjectMethods {
                 }
 
                 // depth-first search on the field types of type c that are value classes
-                List<Class<?>> nodes = unvisitedEdges.computeIfAbsent(c, k -> {
-                    List<Class<?>> fieldTypes = new ArrayList<>();
-                    Arrays.stream(k.getDeclaredFields())
-                          .filter(f -> !Modifier.isStatic(f.getModifiers()))
-                          .map(f -> f.getType())
-                          .filter(ft -> isValueClass(ft) && !fieldTypes.contains(ft))
-                          .forEach(fieldTypes::add);
-                    return fieldTypes;
-                });
+                List<Class<?>> nodes = unvisitedEdges.computeIfAbsent(c, (k) -> fieldTypes(k));
                 if (nodes.isEmpty()) {
                     // all field types are traversed
                     deque.pop();
@@ -232,38 +239,74 @@ final class ValueObjectMethods {
                     deque.push(n);
                 }
             }
-            return recursiveTypes;
+
+            if (recursiveTypes.isEmpty())
+                return Set.of();
+
+            return Arrays.stream(type.getDeclaredFields())
+                         .filter(f -> !Modifier.isStatic(f.getModifiers()))
+                         .map(f -> f.getType())
+                         .filter(recursiveTypes::contains)
+                         .collect(Collectors.toSet());
+        }
+
+        private static List<Class<?>> fieldTypes(Class<?> type) {
+            List<Class<?>> result = new ArrayList<>();
+            Arrays.stream(type.getDeclaredFields())
+                  .filter(f -> !Modifier.isStatic(f.getModifiers()))
+                  .map(f -> f.getType())
+                  .filter(ft -> isValueClass(ft) && !result.contains(ft))
+                  .forEach(result::add);
+            return result;
         }
 
         private static ConcurrentHashMap<Class<?>, Boolean> inProgress = new ConcurrentHashMap<>();
+        private static ClassValue<MethodHandle> RECUR_METHOD_HANDLES = new ClassValue<>() {
+            @Override protected MethodHandle computeValue(Class<?> type) {
+                return MethodHandleBuilder.recurValueTypeEquals(type);
+            }
+        };
 
         /*
          * Produces a MethodHandle that returns boolean if two value objects
-         * are substitutable.
+         * are substitutable.  The method type is (V, V)boolean.
          */
         static MethodHandle valueTypeEquals(Class<?> type) {
             // ensure the reference type of a primitive class not used in the method handle
             assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
 
-            if (inProgress.putIfAbsent(type, true) != null) {
-                throw new StackOverflowError("cyclic class membership: " + type.getName());
+            try {
+                if (inProgress.putIfAbsent(type, true) != null) {
+                    throw new StackOverflowError("cyclic class membership: " + type.getName());
+                }
+
+                Set<Class<?>> recursiveTypes = recursiveValueTypes(type);
+                if (recursiveTypes.isEmpty()) {
+                    return valueTypeEquals(type, getters(type, TYPE_SORTER));
+                } else {
+                    MethodHandle target = recurValueTypeEquals(type, recursiveValueTypes(type));
+                    return MethodHandles.insertArguments(target, 2, new AtomicInteger(THRESHOLD))
+                                        .asType(methodType(boolean.class, type, type));
+                }
+            } finally {
+                inProgress.remove(type);
             }
+        }
+
+        /*
+         * Produces a MethodHandle that returns boolean if the given fields
+         * of the two value objects are substitutable. The method type is (V, V)boolean
+         */
+        static MethodHandle valueTypeEquals(Class<?> type, List<MethodHandle> getters) {
+            // ensure the reference type of a primitive class not used in the method handle
+            assert isValueClass(type) || PrimitiveClass.isPrimitiveValueType(type);
 
             MethodType mt = methodType(boolean.class, type, type);
-            MethodHandle[] getters = getters(type, TYPE_SORTER);;
-            Set<Class<?>> recursiveTypes = recursiveValueTypes(type);
-            try {
                 MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
                 MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class).asType(mt);
                 MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
-                List<MethodHandle> recursiveTypeGetters = new ArrayList<>();
                 for (MethodHandle getter : getters) {
                     Class<?> ftype = fieldType(getter);
-                    if (recursiveTypes.contains(ftype)) {
-                        // skip the value class that is involved in a cyclic membership
-                        recursiveTypeGetters.add(getter);
-                        continue;
-                    }
                     MethodHandle eq = substitutableInvoker(ftype).asType(methodType(boolean.class, ftype, ftype));
                     MethodHandle thisFieldEqual = filterArguments(eq, 0, getter, getter);
                     accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
@@ -271,27 +314,65 @@ final class ValueObjectMethods {
 
                 // if both arguments are null, return true;
                 // otherwise return accumulator;
-                MethodHandle target = guardWithTest(IS_NULL.asType(mt),
-                                                    instanceTrue,
-                                                    guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
-                                                                  accumulator,
-                                                                  instanceFalse));
-                if (recursiveTypeGetters.isEmpty()) {
-                    return target;
-                } else {
-                    // This value class contains cyclic membership
-                    // Create a method handle that is capable of calling itself.
-                    // - the base method first calls the method handle that tests the substitutability of
-                    //   all fields that are not a recursive data type
-                    // - for a field of its own type, call the recursive method
-                    // - for a field of a recursive data type, call isSubstitutable
-                    Object[] arguments = new Object[] { type, target, recursiveTypeGetters.toArray(MethodHandle[]::new) };
-                    MethodHandle recur = MethodHandles.insertArguments(RECUR_EQUALS, 0, arguments);
-                    return recursive(recur).asType(mt);
+                return guardWithTest(IS_NULL.asType(mt),
+                                     instanceTrue,
+                                     guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
+                                                   accumulator,
+                                                   instanceFalse));
+        }
+
+        /*
+         * Produces a MethodHandle that returns boolean if two value objects of
+         * a recursive data type are substitutable.  This method is invoked by
+         * the base method.
+         *
+         * The method type is (Object, Object, AtomicInteger)boolean.
+         */
+        static MethodHandle recurValueTypeEquals(Class<?> type) {
+            try {
+                if (inProgress.putIfAbsent(type, true) != null) {
+                    throw new StackOverflowError("cyclic class membership: " + type.getName());
                 }
+                return recurValueTypeEquals(type, recursiveValueTypes(type));
             } finally {
                 inProgress.remove(type);
             }
+        }
+
+        /*
+         * Produces a MethodHandle that returns boolean if two value objects of
+         * a recursive data type are substitutable.
+         *
+         * The method type is (Object, Object, AtomicInteger)boolean.
+         */
+        static MethodHandle recurValueTypeEquals(Class<?> type, Set<Class<?>> recursiveTypes) {
+            Stream<MethodHandle> getterStream = getterStream(type, TYPE_SORTER);;
+            List<MethodHandle> nonRecurTypeGetters = new ArrayList<>();
+            List<MethodHandle> recurTypeGetters = new ArrayList<>();
+            getterStream.forEach(getter -> {
+                Class<?> ftype = fieldType(getter);
+                if (recursiveTypes.contains(ftype)) {
+                    // skip the value class that is involved in a cyclic membership
+                    recurTypeGetters.add(getter);
+                } else {
+                    nonRecurTypeGetters.add(getter);
+                }
+            });
+
+            if (recurTypeGetters.isEmpty()) {
+                throw new InternalError("must be a recursive data type: " + type.getName());
+            }
+
+            MethodHandle target = valueTypeEquals(type, nonRecurTypeGetters);
+            // This value class contains cyclic membership
+            // Create a method handle that is capable of calling itself.
+            // - the base method first calls the method handle that tests the substitutability of
+            //   all fields that are not a recursive data type
+            // - for a field of its own type, call the recursive method
+            // - for a field of a recursive data type, call isSubstitutable
+            Object[] arguments = new Object[]{type, target, recurTypeGetters.toArray(MethodHandle[]::new)};
+            target = MethodHandles.insertArguments(RECUR_EQUALS, 0, arguments);
+            return recursive(target);
         }
 
         /*
@@ -307,7 +388,7 @@ final class ValueObjectMethods {
             MethodHandle combiner = filterArguments(HASH_COMBINER, 0, target, classHashCode);
             // int v = SALT * 31 + type.hashCode();
             MethodHandle init = permuteArguments(combiner, target.type(), 0, 0);
-            MethodHandle[] getters = MethodHandleBuilder.getters(type);
+            MethodHandle[] getters = getterStream(type, null).toArray(MethodHandle[]::new);
             MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, type);
             MethodHandle[] hashers = new MethodHandle[getters.length];
             for (int i=0; i < getters.length; i++) {
@@ -406,7 +487,7 @@ final class ValueObjectMethods {
 
         private static final MethodHandle RECUR_EQUALS =
                 findStatic("base", methodType(boolean.class, Class.class, MethodHandle.class, MethodHandle[].class,
-                                                MethodHandle.class, Object.class, Object.class));
+                                                MethodHandle.class, Object.class, Object.class, AtomicInteger.class));
 
         private static MethodHandle[] initHashCode() {
             MethodHandle[] mhs = new MethodHandle[Wrapper.COUNT];
