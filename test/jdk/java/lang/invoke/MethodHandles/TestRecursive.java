@@ -23,20 +23,28 @@
 
 /*
  * @test
- * @bug 8888888
+ * @modules java.base/java.lang.runtime:open
  * @run testng TestRecursive
  */
 
 import org.testng.annotations.Test;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Method;
 
 import static java.lang.invoke.MethodHandles.lookup;
 import static java.lang.invoke.MethodType.methodType;
 import static org.testng.Assert.assertEquals;
 
 public class TestRecursive {
+    static MethodHandle recursive(MethodHandle base, MethodHandle... moreBases) throws ReflectiveOperationException {
+        // temporarily place this API in an internal class
+        Class<?> c = Class.forName("java.lang.runtime.ValueObjectMethods");
+        Method m = c.getDeclaredMethod("recursive", MethodHandle.class, MethodHandle[].class);
+        m.setAccessible(true);
+        return (MethodHandle) m.invoke(null, base, moreBases);
+    }
+
     static class Snippet1 {
         // classic recursive implementation of the factorial function
         static int base(MethodHandle recur, int k) throws Throwable {
@@ -47,7 +55,7 @@ public class TestRecursive {
             var MT_base = methodType(int.class, MethodHandle.class, int.class);
             var MH_base = lookup().findStatic(Snippet1.class, "base", MT_base);
             // assume MH_base is a handle to the above method
-            MethodHandle recur = MethodHandles.recursive(MH_base);
+            MethodHandle recur = recursive(MH_base);
             assertEquals(120, (int) recur.invoke(5));
         }
     }
@@ -101,9 +109,9 @@ public class TestRecursive {
             mt = mt.appendParameterTypes(float.class);
             var MH_factorialEven = lookup().findStatic(DoubleRecursion.class,
                                                        "factorialEven", mt);
-            MethodHandle recur = MethodHandles.recursive(MH_entryPoint,
-                                                         MH_factorialOdd,
-                                                         MH_factorialEven);
+            MethodHandle recur = recursive(MH_entryPoint,
+                                           MH_factorialOdd,
+                                           MH_factorialEven);
             long fact = 1;
             for (long k = 0; k < 20; k++) {
                 assertEquals(fact, (long) recur.invoke(k));
