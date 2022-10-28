@@ -23,11 +23,17 @@
 
 /*
  * @test
- * @compile  -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -Xint -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
+ * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
+ * @run junit/othervm -XX:TieredStopAtLevel=1 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
  */
 
-import org.junit.jupiter.api.Test;
+/*
+ * @ignore 8296056
+ * @test
+ * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
+ * @run junit/othervm -Xcomp -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
+ */
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.Arguments;
