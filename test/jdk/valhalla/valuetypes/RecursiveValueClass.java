@@ -24,16 +24,17 @@
 /*
  * @test
  * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -XX:TieredStopAtLevel=1 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
+ * @run junit/othervm -XX:TieredStopAtLevel=1 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.threshold=1000000 RecursiveValueClass
  */
 
 /*
  * @ignore 8296056
  * @test
  * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -Xcomp -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
+ * @run junit/othervm -Xcomp -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.threshold=1000000 RecursiveValueClass
  */
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.Arguments;
@@ -170,5 +171,39 @@ public class RecursiveValueClass {
     public void testAcmp(Object o1, Object o2, boolean expected) {
         var value = o1 == o2;
         assertEquals(expected, value, o1 + " == " + o2);
+    }
+
+    static value class N {
+        N l;
+        N r;
+        int id;
+        N(N l, N r, int id) {
+            this.l = l;
+            this.r = r;
+            this.id = id;
+        }
+    }
+
+    private static N build() {
+        N n1 = new N(null, null, 0);
+        N n2 = new N(null, null, 0);
+        for (int id = 1; id < 100; ++id) {
+            N l = new N(n1, n2, id);
+            N r = new N(n1, n2, id);
+            n1 = l;
+            n2 = r;
+        }
+        return new N(n1, n2, 100);
+    }
+
+    /*
+     * Throw SOE for large graph
+     */
+    @Test
+    public void largeGraph() {
+        N node = build();
+        long start = System.nanoTime();
+        assertThrows(StackOverflowError.class, () -> { boolean v = node.l == node.r; });
+        System.out.format("testing large graph: %d ms%n", (System.nanoTime() - start) / 1000);
     }
 }
