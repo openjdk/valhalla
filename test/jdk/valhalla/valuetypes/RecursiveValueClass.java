@@ -24,7 +24,7 @@
 /*
  * @test
  * @compile  -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
+ * @run junit/othervm -Xint -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RecursiveValueClass
  */
 
 import org.junit.jupiter.api.Test;
@@ -166,4 +166,3 @@ public class RecursiveValueClass {
         assertEquals(expected, value, o1 + " == " + o2);
     }
 }
-

@@ -29,9 +29,18 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
@@ -119,12 +128,16 @@ final class ValueObjectMethods {
 
 
         /**
-         * Substitutable test on the given value class containing fields of its own type.
+         * A base method for testing substitutability on a recursive data type,
+         * a value class with cyclic membership.
          *
          * This method will first invoke a method handle to test the substitutability
-         * of other fields that are not of its own type.  If true, then
-         * for each field of its own type {@code f}, invoke the method handle for
-         * this method with the value of {@code f} of the given objects.
+         * of fields that are not of its own type.  If true, then compares the
+         * value of the fields whose type is a recursive data type.
+         * For a field of its own type {@code f}, invoke the method handle for
+         * this base method on the field value of the given objects.
+         * For a field of other recursive data type, invoke {@link #isSubstitutable(Object, Object)}
+         * on the field value of the given objects.
          *
          * @param type  a value class
          * @param mh    a MethodHandle that tests substitutability of all fields that are
@@ -150,7 +163,7 @@ final class ValueObjectMethods {
             if (result) {
                 assert o1.getClass() == type && o2.getClass() == type;
 
-                // test if the fields of its own type are substitutable
+                // test if the fields of a recursive data type are substitutable
                 for (MethodHandle getter : getters) {
                     Class<?> ftype = fieldType(getter);
                     Object f1 = getter.invoke(o1);
@@ -165,8 +178,6 @@ final class ValueObjectMethods {
             return result;
         }
 
-        private static ConcurrentHashMap<Class<?>, Boolean> inProgress = new ConcurrentHashMap<>();
-
         /*
          * Finds all value class memberships of the given type involved in cycles
          */
@@ -178,7 +189,7 @@ final class ValueObjectMethods {
             Deque<Class<?>> deque = new ArrayDeque<>();
             Set<Class<?>> visited = new HashSet<>();
             Set<Class<?>> recursiveTypes = new HashSet<>();
-            Map<Class<?>, List<Class<?>>> unvisitedNodes = new HashMap<>();
+            Map<Class<?>, List<Class<?>>> unvisitedEdges = new HashMap<>();
 
             Class<?> c;
             deque.add(type);
@@ -204,7 +215,7 @@ final class ValueObjectMethods {
                 }
 
                 // depth-first search on the field types of type c that are value classes
-                List<Class<?>> nodes = unvisitedNodes.computeIfAbsent(c, k -> {
+                List<Class<?>> nodes = unvisitedEdges.computeIfAbsent(c, k -> {
                     List<Class<?>> fieldTypes = new ArrayList<>();
                     Arrays.stream(k.getDeclaredFields())
                           .filter(f -> !Modifier.isStatic(f.getModifiers()))
@@ -223,6 +234,8 @@ final class ValueObjectMethods {
             }
             return recursiveTypes;
         }
+
+        private static ConcurrentHashMap<Class<?>, Boolean> inProgress = new ConcurrentHashMap<>();
 
         /*
          * Produces a MethodHandle that returns boolean if two value objects
