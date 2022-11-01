@@ -24,14 +24,21 @@
 /*
  * @test
  * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -XX:TieredStopAtLevel=1 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.threshold=1000000 RecursiveValueClass
+ * @run junit/othervm -Xint -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
 
 /*
  * @ignore 8296056
  * @test
  * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
- * @run junit/othervm -Xcomp -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.threshold=1000000 RecursiveValueClass
+ * @run junit/othervm -XX:TieredStopAtLevel=1 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.recursion.threshold=100000 RecursiveValueClass
+ */
+
+/*
+ * @ignore 8296056
+ * @test
+ * @compile -XDenablePrimitiveClasses RecursiveValueClass.java
+ * @run junit/othervm -Xcomp -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Djdk.value.recursion.threshold=100000 RecursiveValueClass
  */
 
 import org.junit.jupiter.api.Test;

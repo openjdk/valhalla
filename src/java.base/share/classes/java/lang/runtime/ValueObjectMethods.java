@@ -72,7 +72,7 @@ final class ValueObjectMethods {
     private static final boolean VERBOSE =
             GetPropertyAction.privilegedGetProperty("value.bsm.debug") != null;
     private static final int THRESHOLD =
-            GetIntegerAction.privilegedGetProperty("jdk.value.threshold", Integer.MAX_VALUE);
+            GetIntegerAction.privilegedGetProperty("jdk.value.recursion.threshold", Integer.MAX_VALUE);
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
     static class MethodHandleBuilder {
@@ -260,8 +260,8 @@ final class ValueObjectMethods {
             return result;
         }
 
-        private static ConcurrentHashMap<Class<?>, Boolean> inProgress = new ConcurrentHashMap<>();
-        private static ClassValue<MethodHandle> RECUR_METHOD_HANDLES = new ClassValue<>() {
+        private static final ConcurrentHashMap<Class<?>, Boolean> inProgress = new ConcurrentHashMap<>();
+        private static final ClassValue<MethodHandle> RECUR_METHOD_HANDLES = new ClassValue<>() {
             @Override protected MethodHandle computeValue(Class<?> type) {
                 return MethodHandleBuilder.recurValueTypeEquals(type);
             }
@@ -666,7 +666,7 @@ final class ValueObjectMethods {
     }
 
     // store the method handle for value classes in ClassValue
-    private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
+    private static final ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
             return MethodHandleBuilder.valueTypeEquals(type);
         }
@@ -702,7 +702,7 @@ final class ValueObjectMethods {
         return type.isValue() && !PrimitiveClass.isPrimitiveClass(type);
     }
 
-    private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
+    private static final ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
             return MethodHandleBuilder.valueTypeHashCode(type);
         }
