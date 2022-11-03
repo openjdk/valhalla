@@ -25,8 +25,7 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccessString.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=2000 VarHandleTestMethodHandleAccessString
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccessString
  */
 
 import org.testng.annotations.BeforeClass;
@@ -47,7 +46,7 @@ public class VarHandleTestMethodHandleAccessString extends VarHandleBaseTest {
 
     static final String static_final_v = "foo";
 
-    static String static_v;
+    static String static_v = "foo";
 
     final String final_v = "foo";
 
@@ -62,7 +61,6 @@ public class VarHandleTestMethodHandleAccessString extends VarHandleBaseTest {
     VarHandle vhStaticFinalField;
 
     VarHandle vhArray;
-
 
     @BeforeClass
     public void setup() throws Exception {
@@ -79,7 +77,6 @@ public class VarHandleTestMethodHandleAccessString extends VarHandleBaseTest {
             VarHandleTestMethodHandleAccessString.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(String[].class);
-
     }
 
 
