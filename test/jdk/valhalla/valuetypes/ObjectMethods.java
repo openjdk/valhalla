@@ -24,14 +24,12 @@
 
 /*
  * @test
- * @summary test Object methods on primitive classes
+ * @summary test Object methods on value classes and primitive classes
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 ObjectMethods
- * @compile -XDenablePrimitiveClasses ObjectMethods.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Dvalue.bsm.salt=1 -XX:InlineFieldMaxFlatSize=0 ObjectMethods
  */
-import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
@@ -53,24 +51,24 @@ public class ObjectMethods {
     static final Line LINE2 = Line.makeLine(10, 20, 3, 4);
     static final MutablePath MUTABLE_PATH = MutablePath.makePath(10, 20, 30, 40);
     static final MixedValues MIXED_VALUES = new MixedValues(P1, LINE1, MUTABLE_PATH, "value");
-    static final Value VALUE = new Value.Builder()
-                                        .setChar('z')
-                                        .setBoolean(false)
-                                        .setByte((byte)0x1)
-                                        .setShort((short)3)
-                                        .setLong(4L)
-                                        .setPoint(Point.makePoint(200, 200))
-                                        .setNumber(Value.Number.intValue(10)).build();
-    static final Value VALUE1 = new Value.Builder()
-                                        .setChar('z')
-                                        .setBoolean(false)
-                                        .setByte((byte)0x1)
-                                        .setShort((short)3)
-                                        .setLong(4L)
-                                        .setPoint(Point.makePoint(100, 100))
-                                        .setPointRef(Point.makePoint(200, 200))
-                                        .setReference(Point.makePoint(300, 300))
-                                        .setNumber(Value.Number.intValue(20)).build();
+    static final InlinableValue VALUE = new InlinableValue.Builder()
+                                                .setChar('z')
+                                                .setBoolean(false)
+                                                .setByte((byte)0x1)
+                                                .setShort((short)3)
+                                                .setLong(4L)
+                                                .setPoint(Point.makePoint(200, 200))
+                                                .setNumber(InlinableValue.Number.intValue(10)).build();
+    static final InlinableValue VALUE1 = new InlinableValue.Builder()
+                                                .setChar('z')
+                                                .setBoolean(false)
+                                                .setByte((byte)0x1)
+                                                .setShort((short)3)
+                                                .setLong(4L)
+                                                .setPoint(Point.makePoint(100, 100))
+                                                .setPointRef(Point.makePoint(200, 200))
+                                                .setReference(Point.makePoint(300, 300))
+                                                .setNumber(InlinableValue.Number.intValue(20)).build();
 
     @DataProvider(name="Identities")
     Object[][] identitiesData() {
@@ -124,16 +122,16 @@ public class ObjectMethods {
             { LINE1, Line.makeLine(1, 2, 3, 4), true},
             { LINE1, LINE2, false},
             { LINE1, LINE1, true},
-            { VALUE, new Value.Builder()
+            { VALUE, new InlinableValue.Builder()
                               .setChar('z')
                               .setBoolean(false)
                               .setByte((byte)0x1)
                               .setShort((short)3)
                               .setLong(4L)
                               .setPoint(Point.makePoint(200, 200))
-                              .setNumber(Value.Number.intValue(10)).build(), true},
-            { new Value.Builder().setNumber(new Value.IntNumber(10)).build(),
-              new Value.Builder().setNumber(new Value.IntNumber(10)).build(), false},
+                              .setNumber(InlinableValue.Number.intValue(10)).build(), true},
+            { new InlinableValue.Builder().setNumber(new InlinableValue.IntNumber(10)).build(),
+              new InlinableValue.Builder().setNumber(new InlinableValue.IntNumber(10)).build(), false},
             // reference classes containing fields of primitive class
             { MUTABLE_PATH, MutablePath.makePath(10, 20, 30, 40), false},
             { MIXED_VALUES, MIXED_VALUES, true},
@@ -174,13 +172,11 @@ public class ObjectMethods {
         };
     }
 
-
     @Test(dataProvider="interfaceEqualsTests")
     public void testNumber(Number n1, Number n2, boolean isSubstitutable, boolean isEquals) {
         assertTrue((n1 == n2) == isSubstitutable);
         assertTrue(n1.equals(n2) == isEquals);
     }
-
 
     @DataProvider(name="toStringTests")
     Object[][] toStringTests() {
@@ -189,9 +185,9 @@ public class ObjectMethods {
             { Line.makeLine(1, 2, 3, 4) },
             { VALUE },
             { VALUE1 },
-            { new Value.Builder()
+            { new InlinableValue.Builder()
                         .setReference(List.of("ref"))
-                        .setNumber(new Value.IntNumber(99)).build() },
+                        .setNumber(new InlinableValue.IntNumber(99)).build() },
             // enclosing instance field `this$0` should be filtered
             { MyValue1.default },
             { new MyValue1(0,0, null) },

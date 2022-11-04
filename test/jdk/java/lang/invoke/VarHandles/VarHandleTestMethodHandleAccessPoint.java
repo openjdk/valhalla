@@ -41,7 +41,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import jdk.internal.value.PrimitiveClass;
-
 import static org.testng.Assert.*;
 
 public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
@@ -49,7 +48,7 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
 
     static final Point static_final_v = Point.getInstance(1,1);
 
-    static Point static_v;
+    static Point static_v = Point.getInstance(1,1);
 
     final Point final_v = Point.getInstance(1,1);
 
@@ -64,8 +63,6 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
     VarHandle vhStaticFinalField;
 
     VarHandle vhArray;
-
-    VarHandle vhValueTypeField;
 
     @BeforeClass
     public void setup() throws Exception {
@@ -82,9 +79,6 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
             VarHandleTestMethodHandleAccessPoint.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
-
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "point_v", type);
     }
 
 
@@ -113,11 +107,6 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
             cases.add(new MethodHandleAccessTestCase("Array index out of bounds",
                                                      vhArray, f, VarHandleTestMethodHandleAccessPoint::testArrayIndexOutOfBounds,
                                                      false));
-        cases.add(new MethodHandleAccessTestCase("Value type field",
-                                                 vhValueTypeField, f, hs -> testValueTypeField(Value.getInstance(), hs)));
-        cases.add(new MethodHandleAccessTestCase("Value type field unsupported",
-                                                 vhValueTypeField, f, hs -> testValueTypeFieldUnsupported(Value.getInstance(), hs),
-                                                 false));
         }
 
         // Work around issue with jtreg summary reporting which truncates
@@ -327,34 +316,6 @@ public class VarHandleTestMethodHandleAccessPoint extends VarHandleBaseTest {
         }
     }
 
-    static void testValueTypeField(Value recv, Handles hs) throws Throwable {
-        // Plain
-        {
-            Point x = (Point) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, Point.getInstance(1,1), "get Point value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, Handles hs) throws Throwable {
-        // Plain
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
-            checkUOE(am, () -> {
-                hs.get(am).invokeExact(recv, Point.getInstance(1,1));
-            });
-        }
-
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
-            checkUOE(am, () -> {
-                Point r = (Point) hs.get(am).invokeExact(recv, Point.getInstance(1,1));
-            });
-        }
-
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
-            checkUOE(am, () -> {
-                Point r = (Point) hs.get(am).invokeExact(recv, Point.getInstance(1,1));
-            });
-        }
-    }
 
     static void testStaticField(Handles hs) throws Throwable {
         // Plain

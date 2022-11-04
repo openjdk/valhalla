@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @summary test MethodHandle/VarHandle on primitive classes
  * @modules java.base/java.lang.runtime:open
  *          java.base/jdk.internal.org.objectweb.asm
  * @compile -XDenablePrimitiveClasses SubstitutabilityTest.java
@@ -48,7 +47,7 @@ public class SubstitutabilityTest {
         Line l1 = Line.makeLine(p1, p2);
         var mpath = MutablePath.makePath(10, 20, 30, 40);
         var mixedValues = new MixedValues(p1, l1, mpath, "value");
-        var number = Value.Number.intValue(99);
+        var number = InlinableValue.Number.intValue(99);
         var list = List.of("list");
         return new Object[][] {
             new Object[] { p1, Point.makePoint(10, 10) },
@@ -65,11 +64,11 @@ public class SubstitutabilityTest {
             new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(p1).build(),
                            valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(l1.p1).build() },
             new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(number).build(),
-                           valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(Value.Number.intValue(99)).build() },
+                           valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(InlinableValue.Number.intValue(99)).build() },
             new Object[] { valueBuilder().setFloat(+0.0f).setDouble(+0.0).setReference(list).build(),
                            valueBuilder().setFloat(+0.0f).setDouble(+0.0).setReference(list).build() },
-            new Object[] { valueBuilder().setNumber(Value.Number.intValue(100)).build(),
-                           valueBuilder().setNumber(Value.Number.intValue(100)).build() },
+            new Object[] { valueBuilder().setNumber(InlinableValue.Number.intValue(100)).build(),
+                           valueBuilder().setNumber(InlinableValue.Number.intValue(100)).build() },
             new Object[] { valueBuilder().setReference(list).build(),
                            valueBuilder().setReference(list).build() },
             new Object[] { new ValueOptional(p1), new ValueOptional(p1)},
@@ -88,7 +87,7 @@ public class SubstitutabilityTest {
     Object[][] notSubstitutableCases() {
         var point = Point.makePoint(10, 10);
         var mpath = MutablePath.makePath(10, 20, 30, 40);
-        var number = Value.Number.intValue(99);
+        var number = InlinableValue.Number.intValue(99);
         return new Object[][] {
             new Object[] { Point.makePoint(10, 10), Point.makePoint(10, 20)},
             new Object[] { mpath, MutablePath.makePath(10, 20, 30, 40)},
@@ -102,23 +101,23 @@ public class SubstitutabilityTest {
             new Object[] { valueBuilder().setPointRef(point).build(),
                            valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
             new Object[] { valueBuilder().setNumber(number).build(),
-                           valueBuilder().setNumber(new Value.IntNumber(99)).build() },
-            new Object[] { valueBuilder().setNumber(Value.Number.intValue(1)).build(),
-                           valueBuilder().setNumber(Value.Number.shortValue((short)1)).build() },
-            new Object[] { valueBuilder().setNumber(new Value.IntNumber(99)).build(),
-                           valueBuilder().setNumber(new Value.IntNumber(99)).build() },
+                           valueBuilder().setNumber(new InlinableValue.IntNumber(99)).build() },
+            new Object[] { valueBuilder().setNumber(InlinableValue.Number.intValue(1)).build(),
+                           valueBuilder().setNumber(InlinableValue.Number.shortValue((short)1)).build() },
+            new Object[] { valueBuilder().setNumber(new InlinableValue.IntNumber(99)).build(),
+                           valueBuilder().setNumber(new InlinableValue.IntNumber(99)).build() },
             new Object[] { valueBuilder().setReference(List.of("list")).build(),
                            valueBuilder().setReference(List.of("list")).build() },
             new Object[] { new ValueOptional(point), new ValueOptional(mpath)},
-            new Object[] { new ValueOptional(Value.Number.intValue(1)), new ValueOptional(Value.Number.shortValue((short)1))},
+            new Object[] { new ValueOptional(InlinableValue.Number.intValue(1)), new ValueOptional(InlinableValue.Number.shortValue((short)1))},
         };
     }
     @Test(dataProvider="notSubstitutable")
     public void notSubstitutableTest(Object a, Object b) {
         assertFalse(isSubstitutable(a, b));
     }
-    private static Value.Builder valueBuilder() {
-        Value.Builder builder = new Value.Builder();
+    private static InlinableValue.Builder valueBuilder() {
+        InlinableValue.Builder builder = new InlinableValue.Builder();
         return builder.setChar('a')
                        .setBoolean(true)
                        .setByte((byte)0x1)

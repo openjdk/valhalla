@@ -25,11 +25,10 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestAccessDouble.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=10    -Xint                   VarHandleTestAccessDouble
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessDouble
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000                         VarHandleTestAccessDouble
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessDouble
+ * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessDouble
+ * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessDouble
+ * @run testng/othervm -Diters=20000                         VarHandleTestAccessDouble
+ * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessDouble
  */
 
 import org.testng.annotations.BeforeClass;
@@ -73,7 +72,6 @@ public class VarHandleTestAccessDouble extends VarHandleBaseTest {
 
     VarHandle vhArray;
 
-    VarHandle vhValueTypeField;
 
     VarHandle[] allocate(boolean same) {
         List<VarHandle> vhs = new ArrayList<>();
@@ -125,9 +123,6 @@ public class VarHandleTestAccessDouble extends VarHandleBaseTest {
             VarHandleTestAccessDouble.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(double[].class);
-
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "double_v", type);
     }
 
 
@@ -283,11 +278,6 @@ public class VarHandleTestAccessDouble extends VarHandleBaseTest {
         cases.add(new VarHandleAccessTestCase("Array index out of bounds",
                                               vhArray, VarHandleTestAccessDouble::testArrayIndexOutOfBounds,
                                               false));
-        cases.add(new VarHandleAccessTestCase("Value type field",
-                                              vhValueTypeField, vh -> testValueTypeField(Value.getInstance(), vh)));
-        cases.add(new VarHandleAccessTestCase("Value type field unsupported",
-                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.getInstance(), vh),
-                                              false));
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
         // the first dummy argument
@@ -386,20 +376,6 @@ public class VarHandleTestAccessDouble extends VarHandleBaseTest {
 
         checkUOE(() -> {
             double o = (double) vh.getAndBitwiseXorRelease(recv, 1.0d);
-        });
-    }
-
-    static void testValueTypeField(Value recv, VarHandle vh) {
-        // Plain
-        {
-            double x = (double) vh.get(recv);
-            assertEquals(x, 1.0d, "get double value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, VarHandle vh) {
-        checkUOE(() -> {
-            vh.set(recv, 2.0d);
         });
     }
 

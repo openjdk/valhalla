@@ -232,14 +232,14 @@ public final class Unsafe {
      * @param offset indication of where the variable resides in a Java heap
      *        object, if any, else a memory address locating the variable
      *        statically
-     * @param pc primitive class
+     * @param valueType value type
      * @param <V> the type of a value
      * @return the value fetched from the indicated Java variable
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
     @IntrinsicCandidate
-    public native <V> V getValue(Object o, long offset, Class<?> pc);
+    public native <V> V getValue(Object o, long offset, Class<?> valueType);
 
     /**
      * Stores the given value into a given Java variable.
@@ -252,46 +252,47 @@ public final class Unsafe {
      * @param offset indication of where the variable resides in a Java heap
      *        object, if any, else a memory address locating the variable
      *        statically
-     * @param pc primitive class
+     * @param valueType value type
      * @param v the value to store into the indicated Java variable
      * @param <V> the type of a value
      * @throws RuntimeException No defined exceptions are thrown, not even
      *         {@link NullPointerException}
      */
     @IntrinsicCandidate
-    public native <V> void putValue(Object o, long offset, Class<?> pc, V v);
+    public native <V> void putValue(Object o, long offset, Class<?> valueType, V v);
 
     /**
-     * Fetches a reference value of type {@code pc} from a given Java variable.
-     * This method can return a reference to a value or a null reference
-     * for a nullable reference of a primitive type.
+     * Fetches a reference value of the given type from a given Java variable.
+     * This method can return a reference to a value if it is non-null.
+     * If the value is null, this method returns a default value for
+     * primitive value types or null for identity classes and value classes.
      *
-     * @param pc primitive class
+     * @param type type
      */
-    public Object getReference(Object o, long offset, Class<?> pc) {
+    public Object getReference(Object o, long offset, Class<?> type) {
         Object ref = getReference(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(pc)) {
-            // If the type of the returned reference is a regular primitive type
+        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
+            // If the type of the returned reference is a primitive value type,
             // return an uninitialized default value if null
-            ref = uninitializedDefaultValue(pc);
+            ref = uninitializedDefaultValue(type);
         }
         return ref;
     }
 
-    public Object getReferenceVolatile(Object o, long offset, Class<?> pc) {
+    public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && PrimitiveClass.isPrimitiveValueType(pc)) {
-            // If the type of the returned reference is a regular primitive type
+        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
+            // If the type of the returned reference is a primitive value type,
             // return an uninitialized default value if null
-            ref = uninitializedDefaultValue(pc);
+            ref = uninitializedDefaultValue(type);
         }
         return ref;
     }
 
     /**
-     * Returns an uninitialized default value of the given primitive class.
+     * Returns an uninitialized default value of the given value type.
      */
-    public native <V> V uninitializedDefaultValue(Class<?> pc);
+    public native <V> V uninitializedDefaultValue(Class<?> type);
 
     /**
      * Returns an object instance with a private buffered value whose layout
@@ -314,13 +315,12 @@ public final class Unsafe {
     public native <V> V finishPrivateBuffer(V value);
 
     /**
-     * Returns the header size of the given primitive class.
+     * Returns the header size of the given value type.
      *
-     * @param pc primitive class
-     * @param <V> value clas
-     * @return the header size of the primitive class
+     * @param valueType value type
+     * @return the header size of the value type
      */
-    public native <V> long valueHeaderSize(Class<V> pc);
+    public native <V> long valueHeaderSize(Class<V> valueType);
 
     /** @see #getInt(Object, long) */
     @IntrinsicCandidate
@@ -1548,8 +1548,8 @@ public final class Unsafe {
                                                        Object expected,
                                                        Object x);
 
-    private final boolean isInlineType(Object o) {
-        return o != null && PrimitiveClass.isPrimitiveClass(o.getClass());
+    private final boolean isValueObject(Object o) {
+        return o != null && o.getClass().isValue();
     }
 
     /*
@@ -1560,10 +1560,10 @@ public final class Unsafe {
      * change the JDK 13 xxxReference method signature freely.
      */
     public final <V> boolean compareAndSetReference(Object o, long offset,
-                                                    Class<?> valueType,
+                                                    Class<?> type,
                                                     V expected,
                                                     V x) {
-        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
+        if (type.isValue() || isValueObject(expected)) {
             synchronized (valueLock) {
                 Object witness = getReference(o, offset);
                 if (witness == expected) {
@@ -1604,7 +1604,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
+        if (valueType.isValue() || isValueObject(expected)) {
             synchronized (valueLock) {
                 Object witness = getReference(o, offset);
                 if (witness == expected) {
@@ -1686,7 +1686,7 @@ public final class Unsafe {
                                                              Class<?> valueType,
                                                              V expected,
                                                              V x) {
-        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
+        if (valueType.isValue() || isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1712,7 +1712,7 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
+        if (valueType.isValue() || isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1738,7 +1738,7 @@ public final class Unsafe {
                                                                Class<?> valueType,
                                                                V expected,
                                                                V x) {
-        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
+        if (valueType.isValue() || isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -1764,7 +1764,7 @@ public final class Unsafe {
                                                         Class<?> valueType,
                                                         V expected,
                                                         V x) {
-        if (PrimitiveClass.isPrimitiveClass(valueType) || isInlineType(expected)) {
+        if (valueType.isValue() || isValueObject(expected)) {
             return compareAndSetReference(o, offset, valueType, expected, x);
         } else {
             return weakCompareAndSetReferencePlain(o, offset, expected, x);
@@ -2396,8 +2396,8 @@ public final class Unsafe {
 
     /**
      * Global lock for atomic and volatile strength access to any value of
-     * a primitive type.  This is a temporary workaround until better localized
-     * atomic access mechanisms are supported for primitive types.
+     * a value type.  This is a temporary workaround until better localized
+     * atomic access mechanisms are supported for value class and primitive class.
      */
     private static final Object valueLock = new Object();
 

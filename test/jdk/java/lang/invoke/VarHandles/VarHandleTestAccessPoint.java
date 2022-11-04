@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import jdk.internal.value.PrimitiveClass;
-
 import static org.testng.Assert.*;
 
 public class VarHandleTestAccessPoint extends VarHandleBaseTest {
@@ -76,7 +75,6 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
     VarHandle vhArray;
 
     VarHandle vhArrayObject;
-    VarHandle vhValueTypeField;
 
     VarHandle[] allocate(boolean same) {
         List<VarHandle> vhs = new ArrayList<>();
@@ -129,9 +127,6 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
 
         vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
         vhArrayObject = MethodHandles.arrayElementVarHandle(Object[].class);
-
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "point_v", type);
     }
 
 
@@ -292,11 +287,6 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
         cases.add(new VarHandleAccessTestCase("Array store exception",
                                               vhArrayObject, VarHandleTestAccessPoint::testArrayStoreException,
                                               false));
-        cases.add(new VarHandleAccessTestCase("Value type field",
-                                              vhValueTypeField, vh -> testValueTypeField(Value.getInstance(), vh)));
-        cases.add(new VarHandleAccessTestCase("Value type field unsupported",
-                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.getInstance(), vh),
-                                              false));
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
         // the first dummy argument
@@ -406,20 +396,6 @@ public class VarHandleTestAccessPoint extends VarHandleBaseTest {
 
         checkUOE(() -> {
             Point o = (Point) vh.getAndBitwiseXorRelease(recv, Point.getInstance(1,1));
-        });
-    }
-
-    static void testValueTypeField(Value recv, VarHandle vh) {
-        // Plain
-        {
-            Point x = (Point) vh.get(recv);
-            assertEquals(x, Point.getInstance(1,1), "get Point value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, VarHandle vh) {
-        checkUOE(() -> {
-            vh.set(recv, Point.getInstance(2,2));
         });
     }
 

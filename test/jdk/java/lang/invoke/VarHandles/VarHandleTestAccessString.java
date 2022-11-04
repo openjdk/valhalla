@@ -25,11 +25,10 @@
 
 /*
  * @test
- * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestAccessString.java
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=10    -Xint                   VarHandleTestAccessString
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessString
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000                         VarHandleTestAccessString
- * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessString
+ * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessString
+ * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessString
+ * @run testng/othervm -Diters=20000                         VarHandleTestAccessString
+ * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessString
  */
 
 import org.testng.annotations.BeforeClass;
@@ -126,7 +125,6 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
 
         vhArray = MethodHandles.arrayElementVarHandle(String[].class);
         vhArrayObject = MethodHandles.arrayElementVarHandle(Object[].class);
-
     }
 
 
@@ -398,7 +396,6 @@ public class VarHandleTestAccessString extends VarHandleBaseTest {
             String o = (String) vh.getAndBitwiseXorRelease(recv, "foo");
         });
     }
-
 
     static void testStaticFinalField(VarHandle vh) {
         // Plain

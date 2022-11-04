@@ -25,8 +25,12 @@
 
 /*
  * @test
+#if[Value]
  * @compile -XDenablePrimitiveClasses Point.java Value.java VarHandleTestMethodHandleAccess$Type$.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Diters=2000 VarHandleTestMethodHandleAccess$Type$
+#else[Value]
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccess$Type$
+#end[Value]
  */
 
 import org.testng.annotations.BeforeClass;
@@ -42,7 +46,6 @@ import java.util.List;
 
 #if[Point]
 import jdk.internal.value.PrimitiveClass;
-
 #end[Point]
 import static org.testng.Assert.*;
 
@@ -55,7 +58,7 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
 
     static final $type$ static_final_v = $value1$;
 
-    static $type$ static_v;
+    static $type$ static_v = $value1$;
 
     final $type$ final_v = $value1$;
 
@@ -70,10 +73,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
     VarHandle vhStaticFinalField;
 
     VarHandle vhArray;
-
-#if[Value]
-    VarHandle vhValueTypeField;
-#end[Value]
 
     @BeforeClass
     public void setup() throws Exception {
@@ -90,11 +89,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             VarHandleTestMethodHandleAccess$Type$.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle($type$[].class);
-
-#if[Value]
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "$varType$_v", type);
-#end[Value]
     }
 
 
@@ -123,13 +117,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
             cases.add(new MethodHandleAccessTestCase("Array index out of bounds",
                                                      vhArray, f, VarHandleTestMethodHandleAccess$Type$::testArrayIndexOutOfBounds,
                                                      false));
-#if[Value]
-        cases.add(new MethodHandleAccessTestCase("Value type field",
-                                                 vhValueTypeField, f, hs -> testValueTypeField(Value.getInstance(), hs)));
-        cases.add(new MethodHandleAccessTestCase("Value type field unsupported",
-                                                 vhValueTypeField, f, hs -> testValueTypeFieldUnsupported(Value.getInstance(), hs),
-                                                 false));
-#end[Value]
         }
 
         // Work around issue with jtreg summary reporting which truncates
@@ -478,59 +465,6 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
 #end[Bitwise]
     }
 
-#if[Value]
-    static void testValueTypeField(Value recv, Handles hs) throws Throwable {
-        // Plain
-        {
-            $type$ x = ($type$) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, $value1$, "get $type$ value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, Handles hs) throws Throwable {
-        // Plain
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
-            checkUOE(am, () -> {
-                hs.get(am).invokeExact(recv, $value1$);
-            });
-        }
-#if[!CAS]
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
-            checkUOE(am, () -> {
-                boolean r = (boolean) hs.get(am).invokeExact(recv, $value1$, $value2$);
-            });
-        }
-
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
-            checkUOE(am, () -> {
-                $type$ r = ($type$) hs.get(am).invokeExact(recv, $value1$, $value2$);
-            });
-        }
-
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
-            checkUOE(am, () -> {
-                $type$ r = ($type$) hs.get(am).invokeExact(recv, $value1$);
-            });
-        }
-#end[CAS]
-
-#if[!AtomicAdd]
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_ADD)) {
-            checkUOE(am, () -> {
-                $type$ r = ($type$) hs.get(am).invokeExact(recv, $value1$);
-            });
-        }
-#end[AtomicAdd]
-
-#if[!Bitwise]
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
-            checkUOE(am, () -> {
-                $type$ r = ($type$) hs.get(am).invokeExact(recv, $value1$);
-            });
-        }
-#end[Bitwise]
-    }
-#end[Value]
 
     static void testStaticField(Handles hs) throws Throwable {
         // Plain
