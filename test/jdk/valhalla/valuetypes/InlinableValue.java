@@ -21,7 +21,7 @@
  * questions.
  */
 
-public primitive class Value {
+public primitive class InlinableValue {
     char char_v;
     byte byte_v;
     boolean boolean_v;
@@ -35,7 +35,7 @@ public primitive class Value {
     Point.ref point_ref;
     Object ref_v;
 
-    Value(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Object o) {
+    InlinableValue(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Object o) {
         char_v = c;
         byte_v = b;
         boolean_v = z;
@@ -49,7 +49,7 @@ public primitive class Value {
         point_ref = null;
         ref_v = o;
     }
-    Value(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Point.ref pref, Object o) {
+    InlinableValue(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Point.ref pref, Object o) {
         char_v = c;
         byte_v = b;
         boolean_v = z;
@@ -126,8 +126,8 @@ public primitive class Value {
             this.ref = o;
             return this;
         }
-        Value build() {
-            return new Value(c, z, b, i, s, l, f, d, n, p, pref, ref);
+        InlinableValue build() {
+            return new InlinableValue(c, z, b, i, s, l, f, d, n, p, pref, ref);
         }
     }
 

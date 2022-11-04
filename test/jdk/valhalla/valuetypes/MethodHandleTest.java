@@ -24,7 +24,7 @@
 
 /*
  * @test
- * @summary test MethodHandle/VarHandle o primitive classes
+ * @summary test MethodHandle/VarHandle of value classes and primitive classes
  * @compile -XDenablePrimitiveClasses MethodHandleTest.java
  * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses MethodHandleTest
  */
@@ -45,6 +45,7 @@ public class MethodHandleTest {
     private static final Point P = Point.makePoint(10, 20);
     private static final Line L = Line.makeLine(10, 20, 30, 40);
     private static final MutablePath PATH = MutablePath.makePath(10, 20, 30, 40);
+    private static final Value V = new Value(P, new ValueOptional(L));
 
     @DataProvider(name="fields")
     static Object[][] fields() {
@@ -62,6 +63,7 @@ public class MethodHandleTest {
                 // identity class whose non-final fields are of primitive value type,
                 // primitive reference type, reference type and value class
                 new Object[] { "MixedValues", mv, new String[] {"p", "l", "mutablePath", "list", "nfp", "voptional"} },
+                new Object[] { "MethodHandleTest$Value", V, new String[] {"p", "vo"} },
         };
     }
 
@@ -110,7 +112,7 @@ public class MethodHandleTest {
         MixedValues mv = new MixedValues(P, L, PATH, "mixed", "types");
         Point p = Point.makePoint(100, 200);
         Line l = Line.makeLine(100, 200, 300, 400);
-        ValueOptional v = new ValueOptional(P);
+        ValueOptional vo = new ValueOptional(P);
 
         setValueField(MutablePath.class, "p1", path, p);
         setValueField(MutablePath.class, "p2", path, p);
@@ -119,11 +121,11 @@ public class MethodHandleTest {
         setValueField(MixedValues.class, "staticPoint", null, p);
         // the following are nullable fields
         setField(MixedValues.class, "nfp", mv, p, false);
-        setField(MixedValues.class, "voptional", mv, v, false);
+        setField(MixedValues.class, "voptional", mv, vo, false);
         // static fields of reference type
         setField(MixedValues.class, "staticLine", null, l, false);
         setField(MixedValues.class, "staticLine", null, null, false);
-        setField(MixedValues.class, "staticValue", null, v, false);
+        setField(MixedValues.class, "staticValue", null, vo, false);
     }
 
     @DataProvider(name="arrays")
@@ -133,6 +135,7 @@ public class MethodHandleTest {
                 new Object[] { Point.ref[].class, P },
                 new Object[] { Line[].class, L },
                 new Object[] { MutablePath[].class, PATH },
+                new Object[] { Value[].class, V },
         };
     }
 
@@ -155,7 +158,7 @@ public class MethodHandleTest {
         try {
             Object v = (Object)setter.invoke(array, 1, null);
             assertFalse(PrimitiveClass.isPrimitiveValueType(elementType), "should fail to set a primitive class array element to null");
-            assertNull((Object)getter.invoke(array, 1));
+            assertNull((Object) getter.invoke(array, 1));
         } catch (NullPointerException e) {
             assertTrue(PrimitiveClass.isPrimitiveValueType(elementType), "should only fail to set a primitive class array element to null");
         }
@@ -324,6 +327,15 @@ public class MethodHandleTest {
             assertEquals(f.get(null), value);
         } finally {
             f.set(null, v);
+        }
+    }
+
+    static value class Value {
+        Point p;
+        ValueOptional vo;
+        Value(Point p, ValueOptional vo) {
+            this.p = p;
+            this.vo = vo;
         }
     }
 }

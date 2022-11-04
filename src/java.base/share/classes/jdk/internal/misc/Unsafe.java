@@ -26,6 +26,7 @@
 package jdk.internal.misc;
 
 import jdk.internal.ref.Cleaner;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.nio.ch.DirectBuffer;
@@ -262,15 +263,16 @@ public final class Unsafe {
 
     /**
      * Fetches a reference value of the given type from a given Java variable.
-     * This method can return a reference to a value or a null reference
-     * for a nullable reference of a primitive type.
+     * This method can return a reference to a value if it is non-null.
+     * If the value is null, this method returns a default value for
+     * primitive value types or null for identity classes and value classes.
      *
      * @param type type
      */
     public Object getReference(Object o, long offset, Class<?> type) {
         Object ref = getReference(o, offset);
-        if (ref == null && type.isValue()) {
-            // If the type of the returned reference is a regular primitive type
+        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
+            // If the type of the returned reference is a primitive value type,
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(type);
         }
@@ -279,8 +281,8 @@ public final class Unsafe {
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> type) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && type.isValue()) {
-            // If the type of the returned reference is a regular primitive type
+        if (ref == null && PrimitiveClass.isPrimitiveValueType(type)) {
+            // If the type of the returned reference is a primitive value type,
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(type);
         }
