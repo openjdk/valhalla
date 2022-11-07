@@ -180,6 +180,61 @@ public class RecursiveValueClass {
         assertEquals(expected, value, o1 + " == " + o2);
     }
 
+    static Stream<Arguments> hashCodeProvider() {
+        var n1 = Node.default;
+        var n2 = new Node(n1, null);
+        var n3 = new Node(n2, n1);
+        var p1 = new P(n3);
+
+        var e1 = new E(F.default);
+        var f1 = new F(e1);
+        var e2 = new E(f1);
+        var f2 = new F(e2);
+
+        var a = new A(B.default, E.default);
+
+        var d1 = new D(1);
+        var d2 = new D(2);
+        var c1 = new C(a);
+
+        var b1 = new B(c1, d1);
+        var b2 = new B(c1, d2);
+        var a1 = new A(b1, e1);
+        var a2 = new A(b2, e2);
+
+        return Stream.of(
+                // Node -> Node left & right
+                Arguments.of(n1),
+                Arguments.of(n2),
+                Arguments.of(n3),
+
+
+                // primitive class P -> value class V -> P.ref
+                Arguments.of(p1),
+
+                // E -> F -> E
+                Arguments.of(e1),
+                Arguments.of(e2),
+                Arguments.of(f1),
+                Arguments.of(f2),
+
+                // two cyclic memberships from A
+                // A -> B -> C -> A and E -> F -> E
+                Arguments.of(a1),
+                Arguments.of(a2),
+                Arguments.of(b1),
+                Arguments.of(b2),
+                Arguments.of(c1)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("hashCodeProvider")
+    public void testHashCode(Object o) {
+        int hc = o.hashCode();
+        assertEquals(System.identityHashCode(o), hc, o.toString());
+    }
+
     static value class N {
         N l;
         N r;
@@ -211,6 +266,7 @@ public class RecursiveValueClass {
         N node = build();
         long start = System.nanoTime();
         assertThrows(StackOverflowError.class, () -> { boolean v = node.l == node.r; });
+        assertThrows(StackOverflowError.class, () -> { int hc = node.hashCode(); });
         System.out.format("testing large graph: %d ms%n", (System.nanoTime() - start) / 1000);
     }
 }
