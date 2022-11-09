@@ -29,6 +29,7 @@ import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.module.ModuleDescriptor;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -570,5 +571,10 @@ public interface JavaLangAccess {
      * Returns {@code true} if this class is a primitive class.
      */
     boolean isPrimitiveClass(Class<?> klass);
+
+    /**
+     * Returns the class file format version of the class.
+     */
+    int classFileFormatVersion(Class<?> klass);
 
 }

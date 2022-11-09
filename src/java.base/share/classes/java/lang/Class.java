@@ -38,6 +38,7 @@ import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.AccessFlag;
 import java.lang.reflect.Array;
+import java.lang.reflect.ClassFileFormatVersion;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
@@ -1513,10 +1514,12 @@ public final class Class<T> implements java.io.Serializable,
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
+        var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
         return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
                                             getClassAccessFlagsRaw() & (~0x800) :
                                             getModifiers() & (~0x800), // suppress unspecified bit
-                                            location);
+                                            location,
+                                            cffv);
     }
 
    /**
@@ -4851,7 +4854,8 @@ public final class Class<T> implements java.io.Serializable,
      * type is returned.  If the class is a primitive type then the latest class
      * file major version is returned and zero is returned for the minor version.
      */
-    private int getClassFileVersion() {
+    /* package-private */
+    int getClassFileVersion() {
         Class<?> c = isArray() ? elementType() : this;
         return c.getClassFileVersion0();
     }

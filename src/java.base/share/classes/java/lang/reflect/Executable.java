@@ -221,8 +221,11 @@ public abstract sealed class Executable extends AccessibleObject
      */
     @Override
     public Set<AccessFlag> accessFlags() {
+        int major = SharedSecrets.getJavaLangAccess().classFileFormatVersion(getDeclaringClass()) & 0xffff;
+        var cffv = ClassFileFormatVersion.fromMajor(major);
         return AccessFlag.maskToAccessFlags(getModifiers(),
-                                            AccessFlag.Location.METHOD);
+                                            AccessFlag.Location.METHOD,
+                                            cffv);
     }
 
     /**
