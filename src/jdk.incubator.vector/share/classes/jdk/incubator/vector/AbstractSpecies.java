@@ -333,7 +333,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     }
 
     VectorSupport.VectorPayloadMF createVectorMF(Object initarr) {
-	VectorSupport.VectorPayloadMF za = null;
+        VectorSupport.VectorPayloadMF za = null;
         switch (laneType.switchKey) {
         case LaneType.SK_FLOAT:
             za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceF(elementByteSize(), laneCount, (float[])initarr);
@@ -356,12 +356,12 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         default:
             assert false : "Unsupported elemType in createVectorMF";
             break;
-	}
+        }
         return za;
     }
 
     private AbstractVector<E> makeDummyVectorMF() {
-	Object za = null;
+        Object za = null;
         switch (laneType.switchKey) {
         case LaneType.SK_FLOAT:
         case LaneType.SK_DOUBLE:
@@ -374,7 +374,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         default:
             assert false : "Unsupported elemType in makeDummyVectorMF";
             break;
-	}
+        }
         return dummyVector = vectorFactory.apply(za);
         // This is the only use of vectorFactory.
         // All other factory requests are routed
