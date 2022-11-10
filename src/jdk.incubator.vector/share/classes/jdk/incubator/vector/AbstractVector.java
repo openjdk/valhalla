@@ -33,7 +33,7 @@ import java.util.function.IntUnaryOperator;
 
 import static jdk.incubator.vector.VectorOperators.*;
 
-@SuppressWarnings("cast")
+@SuppressWarnings({"cast", "missing-explicit-ctor"})
 abstract class AbstractVector<E> extends Vector<E> {
     /**
      * The order of vector bytes when stored in natural,
@@ -68,15 +68,13 @@ abstract class AbstractVector<E> extends Vector<E> {
     /*package-private*/
     static final int OFFSET_OUT_OF_RANGE = 0;
 
-    /*package-private*/
-    AbstractVector(Object bits) {
-        super(bits);
-    }
-
     // Extractors
 
     /*package-private*/
     abstract AbstractSpecies<E> vspecies();
+
+    /*package-private*/
+    abstract long multiFieldOffset();
 
     @Override
     @ForceInline
@@ -699,8 +697,8 @@ abstract class AbstractVector<E> extends Vector<E> {
             rlength = rspi.laneCount();
             etype = vspi.elementType();
             vlength = vspi.laneCount();
-            rvtype = rspi.dummyVector().getClass();
-            vtype = vspi.dummyVector().getClass();
+            rvtype = rspi.dummyVectorMF().getClass();
+            vtype = vspi.dummyVectorMF().getClass();
             int opc = vspi.elementSize() < rspi.elementSize() ? VectorSupport.VECTOR_OP_UCAST : VectorSupport.VECTOR_OP_CAST;
             AbstractVector<?> bitv = VectorSupport.convert(opc,
                     vtype, etype, vlength,
@@ -713,7 +711,7 @@ abstract class AbstractVector<E> extends Vector<E> {
             rlength = rsp.laneCount();
             etype = this.elementType(); // (profile)
             vlength = this.length();  // (profile)
-            rvtype = rsp.dummyVector().getClass();  // (profile)
+            rvtype = rsp.dummyVectorMF().getClass();  // (profile)
             vtype = this.getClass();
             return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
                     vtype, etype, vlength,
@@ -725,7 +723,7 @@ abstract class AbstractVector<E> extends Vector<E> {
             rlength = rsp.laneCount();
             etype = this.elementType(); // (profile)
             vlength = this.length();  // (profile)
-            rvtype = rsp.dummyVector().getClass();  // (profile)
+            rvtype = rsp.dummyVectorMF().getClass();  // (profile)
             vtype = this.getClass();
             return VectorSupport.convert(VectorSupport.VECTOR_OP_REINTERPRET,
                     vtype, etype, vlength,

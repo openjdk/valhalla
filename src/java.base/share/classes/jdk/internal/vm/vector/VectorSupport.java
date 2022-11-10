@@ -25,10 +25,14 @@
 
 package jdk.internal.vm.vector;
 
+import java.util.Objects;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
+import jdk.internal.vm.annotation.MultiField;
 import jdk.internal.misc.Unsafe;
 
+
 import java.util.function.*;
+import java.lang.reflect.*;
 
 public class VectorSupport {
     static {
@@ -148,35 +152,182 @@ public class VectorSupport {
 
     /* ============================================================================ */
 
-    public static class VectorSpecies<E> {}
+    public static class VectorSpecies<E> { }
 
-    public static class VectorPayload {
+    public abstract static class VectorPayload {
+        protected abstract Object getPayload();
+    }
+
+    public static abstract class Vector<E> extends VectorPayload { }
+
+    public static class VectorShuffle<E> extends VectorPayload {
         private final Object payload; // array of primitives
-
-        public VectorPayload(Object payload) {
-            this.payload = payload;
-        }
 
         protected final Object getPayload() {
             return VectorSupport.maybeRebox(this).payload;
         }
-    }
-
-    public static class Vector<E> extends VectorPayload {
-        public Vector(Object payload) {
-            super(payload);
-        }
-    }
-
-    public static class VectorShuffle<E> extends VectorPayload {
         public VectorShuffle(Object payload) {
-            super(payload);
+            this.payload = payload;
         }
     }
+
     public static class VectorMask<E> extends VectorPayload {
-        public VectorMask(Object payload) {
-            super(payload);
+        private final Object payload; // array of primitives
+
+        protected final Object getPayload() {
+            return VectorSupport.maybeRebox(this).payload;
         }
+        public VectorMask(Object payload) {
+            this.payload = payload;
+        }
+    }
+
+    public abstract static class VectorPayloadMF {
+        public abstract long multiFieldOffset();
+
+	private static VectorPayloadMF newInstanceFactory(int elemSize, int length)  {
+	    VectorPayloadMF obj = null;
+            int vecSize = elemSize * length;
+            switch(vecSize) {
+                case 8: obj = new VectorPayloadMF64(); break;
+                case 16: obj = new VectorPayloadMF128(); break;
+                case 32: obj = new VectorPayloadMF256(); break;
+                case 64: obj = new VectorPayloadMF512(); break;
+                default: assert false : "Unhandled vector size";
+            }
+            return obj;
+	}
+
+        public static VectorPayloadMF createVectPayloadInstance(int elemSize, int length) {
+	    return newInstanceFactory(elemSize, length);
+        }
+
+        public static VectorPayloadMF createVectPayloadInstanceB(int elemSize, int length, byte [] init) {
+	    VectorPayloadMF obj = newInstanceFactory(elemSize, length);
+            long start_offset = obj.multiFieldOffset();
+            obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
+            for (int i = 0; i < length; i++) {
+                Unsafe.getUnsafe().putByte(obj, start_offset + i * Byte.BYTES, init[i]);
+            }
+            obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
+	    return obj;
+        }
+
+        public static VectorPayloadMF createVectPayloadInstanceS(int elemSize, int length, short [] init) {
+	    VectorPayloadMF obj = newInstanceFactory(elemSize, length);
+            long start_offset = obj.multiFieldOffset();
+            obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
+            for (int i = 0; i < length; i++) {
+                Unsafe.getUnsafe().putShort(obj, start_offset + i * Short.BYTES, init[i]);
+            }
+            obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
+	    return obj;
+        }
+
+        public static VectorPayloadMF createVectPayloadInstanceI(int elemSize, int length, int [] init) {
+	    VectorPayloadMF obj = newInstanceFactory(elemSize, length);
+            long start_offset = obj.multiFieldOffset();
+            obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
+            for (int i = 0; i < length; i++) {
+                Unsafe.getUnsafe().putInt(obj, start_offset + i * Integer.BYTES, init[i]);
+            }
+            obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
+	    return obj;
+        }
+
+        public static VectorPayloadMF createVectPayloadInstanceL(int elemSize, int length, long [] init) {
+	    VectorPayloadMF obj = newInstanceFactory(elemSize, length);
+            long start_offset = obj.multiFieldOffset();
+            obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
+            for (int i = 0; i < length; i++) {
+                Unsafe.getUnsafe().putLong(obj, start_offset + i * Long.BYTES, init[i]);
+            }
+            obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
+	    return obj;
+        }
+
+        public static VectorPayloadMF createVectPayloadInstanceF(int elemSize, int length, float [] init) {
+	    VectorPayloadMF obj = newInstanceFactory(elemSize, length);
+            long start_offset = obj.multiFieldOffset();
+            obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
+            for (int i = 0; i < length; i++) {
+                Unsafe.getUnsafe().putFloat(obj, start_offset + i * Float.BYTES, init[i]);
+            }
+            obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
+	    return obj;
+        }
+
+        public static VectorPayloadMF createVectPayloadInstanceD(int elemSize, int length, double [] init) {
+	    VectorPayloadMF obj = newInstanceFactory(elemSize, length);
+            long start_offset = obj.multiFieldOffset();
+            obj = Unsafe.getUnsafe().makePrivateBuffer(obj);
+            for (int i = 0; i < length; i++) {
+                Unsafe.getUnsafe().putDouble(obj, start_offset + i * Double.BYTES, init[i]);
+            }
+            obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
+	    return obj;
+        }
+
+        public int length(int elemSize) {
+            try {
+                var field = this.getClass().getDeclaredField("mfield");
+                var msanno = field.getAnnotationsByType(MultiField.class);
+
+                Objects.nonNull(msanno);
+
+                assert msanno.length == 1;
+                return msanno[0].value() / elemSize;
+	    } catch (Exception e) {
+                System.out.println(e);
+	    }
+	    return -1;
+        }
+
+        public static long multiFieldOffset(Class<? extends VectorPayloadMF> cls) {
+           try {
+               var field = cls.getDeclaredField("mfield");
+               return Unsafe.getUnsafe().objectFieldOffset(field);
+           } catch (Exception e) {
+               System.out.println(e);
+           }
+           return -1L;
+        }
+    }
+
+    public primitive static class VectorPayloadMF64 extends VectorPayloadMF {
+        @MultiField(value = 8)
+        byte mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMF64.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET;}
+    }
+
+    public primitive static class VectorPayloadMF128 extends VectorPayloadMF {
+        @MultiField(value = 16)
+        byte mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMF128.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET;}
+    }
+
+    public primitive static class VectorPayloadMF256 extends VectorPayloadMF {
+        @MultiField(value = 32)
+        byte mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMF256.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET;}
+    }
+
+    public primitive static class VectorPayloadMF512 extends VectorPayloadMF {
+        @MultiField(value = 64)
+        byte mfield = 0;
+        static long MFOFFSET = multiFieldOffset(VectorPayloadMF512.class);
+
+        @Override
+        public long multiFieldOffset() { return MFOFFSET;}
     }
 
     /* ============================================================================ */

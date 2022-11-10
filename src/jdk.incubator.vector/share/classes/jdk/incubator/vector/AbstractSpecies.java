@@ -32,8 +32,10 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.function.IntUnaryOperator;
+import jdk.internal.vm.vector.VectorSupport;
 
-abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.VectorSpecies<E>
+
+abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
                                   implements VectorSpecies<E> {
     @Stable
     final VectorShape vectorShape;
@@ -111,6 +113,8 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
     @Stable //lazy JIT constant
     AbstractVector<E> dummyVector;
 
+    @Stable //lazy JIT constant
+    AbstractVector<E> dummyVectorMF;
     @Override
     @ForceInline
     public final int length() {
@@ -310,6 +314,16 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
         // The rest of this computation is probably not JIT-ted.
         return makeDummyVector();
     }
+    @ForceInline
+    /*package-private*/
+    AbstractVector<E> dummyVectorMF() {
+        // This JITs to a constant value:
+        AbstractVector<E> dummy = dummyVectorMF;
+        if (dummy != null)  return dummy;
+        // The rest of this computation is probably not JIT-ted.
+        return makeDummyVectorMF();
+    }
+
     private AbstractVector<E> makeDummyVector() {
         Object za = Array.newInstance(elementType(), laneCount);
         return dummyVector = vectorFactory.apply(za);
@@ -318,6 +332,54 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
         // through the dummy vector.
     }
 
+    VectorSupport.VectorPayloadMF createVectorMF(Object initarr) {
+	VectorSupport.VectorPayloadMF za = null;
+        switch (laneType.switchKey) {
+        case LaneType.SK_FLOAT:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceF(elementByteSize(), laneCount, (float[])initarr);
+            break;
+        case LaneType.SK_DOUBLE:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceD(elementByteSize(), laneCount, (double[])initarr);
+            break;
+        case LaneType.SK_BYTE:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceB(elementByteSize(), laneCount, (byte[])initarr);
+            break;
+        case LaneType.SK_SHORT:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceS(elementByteSize(), laneCount, (short[])initarr);
+            break;
+        case LaneType.SK_INT:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceI(elementByteSize(), laneCount, (int[])initarr);
+            break;
+        case LaneType.SK_LONG:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceL(elementByteSize(), laneCount, (long[])initarr);
+            break;
+        default:
+            assert false : "Unsupported elemType in createVectorMF";
+            break;
+	}
+        return za;
+    }
+
+    private AbstractVector<E> makeDummyVectorMF() {
+	Object za = null;
+        switch (laneType.switchKey) {
+        case LaneType.SK_FLOAT:
+        case LaneType.SK_DOUBLE:
+        case LaneType.SK_BYTE:
+        case LaneType.SK_SHORT:
+        case LaneType.SK_INT:
+        case LaneType.SK_LONG:
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstance(elementByteSize(), laneCount);
+            break;
+        default:
+            assert false : "Unsupported elemType in makeDummyVectorMF";
+            break;
+	}
+        return dummyVector = vectorFactory.apply(za);
+        // This is the only use of vectorFactory.
+        // All other factory requests are routed
+        // through the dummy vector.
+    }
     /**
      * Build a mask by directly calling its constructor.
      * It is an error if the array is aliased elsewhere.
@@ -325,28 +387,28 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
     @ForceInline
     /*package-private*/
     AbstractMask<E> maskFactory(boolean[] bits) {
-        return dummyVector().maskFromArray(bits);
+        return dummyVectorMF().maskFromArray(bits);
     }
 
     public final
     @Override
     @ForceInline
     VectorShuffle<E> shuffleFromArray(int[] sourceIndexes, int offset) {
-        return dummyVector().shuffleFromArray(sourceIndexes, offset);
+        return dummyVectorMF().shuffleFromArray(sourceIndexes, offset);
     }
 
     public final
     @Override
     @ForceInline
     VectorShuffle<E> shuffleFromValues(int... sourceIndexes) {
-        return dummyVector().shuffleFromArray(sourceIndexes, 0);
+        return dummyVectorMF().shuffleFromArray(sourceIndexes, 0);
     }
 
     public final
     @Override
     @ForceInline
     VectorShuffle<E> shuffleFromOp(IntUnaryOperator fn) {
-        return dummyVector().shuffleFromOp(fn);
+        return dummyVectorMF().shuffleFromOp(fn);
     }
 
     public final
@@ -355,9 +417,9 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
     VectorShuffle<E> iotaShuffle(int start, int step, boolean wrap) {
         AbstractShuffle<E> res;
         if (start == 0 && step == 1)
-            return dummyVector().iotaShuffle();
+            return dummyVectorMF().iotaShuffle();
         else
-            return dummyVector().iotaShuffle(start, step, wrap);
+            return dummyVectorMF().iotaShuffle(start, step, wrap);
     }
 
     @ForceInline
@@ -452,7 +514,7 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
     }
 
     /*package-private*/
-    abstract AbstractVector<E> rvOp(RVOp f);
+    abstract AbstractVector<E> rvOpMF(RVOp f);
 
     /*package-private*/
     interface FOpm {
@@ -464,7 +526,7 @@ abstract class AbstractSpecies<E> extends jdk.internal.vm.vector.VectorSupport.V
         for (int i = 0; i < res.length; i++) {
             res[i] = f.apply(i);
         }
-        return dummyVector().maskFromArray(res);
+        return dummyVectorMF().maskFromArray(res);
     }
 
     @Override

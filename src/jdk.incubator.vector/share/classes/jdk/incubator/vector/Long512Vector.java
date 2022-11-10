@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Long512Vector extends LongVector {
+value class Long512Vector extends LongVector {
     static final LongSpecies VSPECIES =
         (LongSpecies) LongVector.SPECIES_512;
 
@@ -54,24 +55,31 @@ final class Long512Vector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    Long512Vector(long[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512.class);
+
+    private final VectorSupport.VectorPayloadMF512 payload;
+
+    Long512Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF512)value;
     }
 
-    // For compatibility as Long512Vector::new,
-    // stored into species.vectorFactory.
-    Long512Vector(Object v) {
-        this((long[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Long512Vector ZERO = new Long512Vector(new long[VLENGTH]);
-    static final Long512Vector IOTA = new Long512Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Long512Vector ZERO = new Long512Vector(VectorPayloadMF.createVectPayloadInstance(Long.BYTES, 8));
+    static final Long512Vector IOTA = new Long512Vector(VectorPayloadMF.createVectPayloadInstanceL(Long.BYTES, 8, (long [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Long512Vector extends LongVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -166,6 +178,13 @@ final class Long512Vector extends LongVector {
         return new Long512Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Long512Vector vectorFactory(VectorPayloadMF vec) {
+        return new Long512Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte512Vector asByteVectorRaw() {
@@ -182,57 +201,57 @@ final class Long512Vector extends LongVector {
 
     @ForceInline
     final @Override
-    Long512Vector uOp(FUnOp f) {
-        return (Long512Vector) super.uOpTemplate(f);  // specialize
+    Long512Vector uOpMF(FUnOp f) {
+        return (Long512Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Long512Vector uOp(VectorMask<Long> m, FUnOp f) {
+    Long512Vector uOpMF(VectorMask<Long> m, FUnOp f) {
         return (Long512Vector)
-            super.uOpTemplate((Long512Mask)m, f);  // specialize
+            super.uOpTemplateMF((Long512Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Long512Vector bOp(Vector<Long> v, FBinOp f) {
-        return (Long512Vector) super.bOpTemplate((Long512Vector)v, f);  // specialize
+    Long512Vector bOpMF(Vector<Long> v, FBinOp f) {
+        return (Long512Vector) super.bOpTemplateMF((Long512Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Long512Vector bOp(Vector<Long> v,
+    Long512Vector bOpMF(Vector<Long> v,
                      VectorMask<Long> m, FBinOp f) {
         return (Long512Vector)
-            super.bOpTemplate((Long512Vector)v, (Long512Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Long512Vector)v, (Long512Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Long512Vector tOp(Vector<Long> v1, Vector<Long> v2, FTriOp f) {
+    Long512Vector tOpMF(Vector<Long> v1, Vector<Long> v2, FTriOp f) {
         return (Long512Vector)
-            super.tOpTemplate((Long512Vector)v1, (Long512Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Long512Vector)v1, (Long512Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Long512Vector tOp(Vector<Long> v1, Vector<Long> v2,
+    Long512Vector tOpMF(Vector<Long> v1, Vector<Long> v2,
                      VectorMask<Long> m, FTriOp f) {
         return (Long512Vector)
-            super.tOpTemplate((Long512Vector)v1, (Long512Vector)v2,
-                              (Long512Mask)m, f);  // specialize
+            super.tOpTemplateMF((Long512Vector)v1, (Long512Vector)v2,
+                                (Long512Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    long rOp(long v, VectorMask<Long> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    long rOpMF(long v, VectorMask<Long> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -515,12 +534,13 @@ final class Long512Vector extends LongVector {
 
     public long laneHelper(int i) {
         return (long) VectorSupport.extract(
-                                VCLASS, ETYPE, VLENGTH,
-                                this, i,
-                                (vec, ix) -> {
-                                    long[] vecarr = vec.vec();
-                                    return (long)vecarr[ix];
-                                });
+                             VCLASS, ETYPE, VLENGTH,
+                             this, i,
+                             (vec, ix) -> {
+                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 long start_offset = vecpayload.multiFieldOffset();
+                                 return (long)Unsafe.getUnsafe().getLong(vecpayload, start_offset + ix * Long.BYTES);
+                             });
     }
 
     @ForceInline
@@ -540,13 +560,16 @@ final class Long512Vector extends LongVector {
     }
 
     public Long512Vector withLaneHelper(int i, long e) {
-        return VectorSupport.insert(
+       return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    long[] res = v.vec().clone();
-                                    res[ix] = (long)bits;
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putLong(tpayload, start_offset + ix * Long.BYTES, (long)bits);
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 

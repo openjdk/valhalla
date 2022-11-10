@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Double128Vector extends DoubleVector {
+value class Double128Vector extends DoubleVector {
     static final DoubleSpecies VSPECIES =
         (DoubleSpecies) DoubleVector.SPECIES_128;
 
@@ -54,24 +55,31 @@ final class Double128Vector extends DoubleVector {
 
     static final Class<Double> ETYPE = double.class; // used by the JVM
 
-    Double128Vector(double[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128.class);
+
+    private final VectorSupport.VectorPayloadMF128 payload;
+
+    Double128Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF128)value;
     }
 
-    // For compatibility as Double128Vector::new,
-    // stored into species.vectorFactory.
-    Double128Vector(Object v) {
-        this((double[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Double128Vector ZERO = new Double128Vector(new double[VLENGTH]);
-    static final Double128Vector IOTA = new Double128Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Double128Vector ZERO = new Double128Vector(VectorPayloadMF.createVectPayloadInstance(Double.BYTES, 2));
+    static final Double128Vector IOTA = new Double128Vector(VectorPayloadMF.createVectPayloadInstanceD(Double.BYTES, 2, (double [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Double128Vector extends DoubleVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -171,6 +183,13 @@ final class Double128Vector extends DoubleVector {
         return new Double128Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Double128Vector vectorFactory(VectorPayloadMF vec) {
+        return new Double128Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte128Vector asByteVectorRaw() {
@@ -187,57 +206,57 @@ final class Double128Vector extends DoubleVector {
 
     @ForceInline
     final @Override
-    Double128Vector uOp(FUnOp f) {
-        return (Double128Vector) super.uOpTemplate(f);  // specialize
+    Double128Vector uOpMF(FUnOp f) {
+        return (Double128Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Double128Vector uOp(VectorMask<Double> m, FUnOp f) {
+    Double128Vector uOpMF(VectorMask<Double> m, FUnOp f) {
         return (Double128Vector)
-            super.uOpTemplate((Double128Mask)m, f);  // specialize
+            super.uOpTemplateMF((Double128Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Double128Vector bOp(Vector<Double> v, FBinOp f) {
-        return (Double128Vector) super.bOpTemplate((Double128Vector)v, f);  // specialize
+    Double128Vector bOpMF(Vector<Double> v, FBinOp f) {
+        return (Double128Vector) super.bOpTemplateMF((Double128Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Double128Vector bOp(Vector<Double> v,
+    Double128Vector bOpMF(Vector<Double> v,
                      VectorMask<Double> m, FBinOp f) {
         return (Double128Vector)
-            super.bOpTemplate((Double128Vector)v, (Double128Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Double128Vector)v, (Double128Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Double128Vector tOp(Vector<Double> v1, Vector<Double> v2, FTriOp f) {
+    Double128Vector tOpMF(Vector<Double> v1, Vector<Double> v2, FTriOp f) {
         return (Double128Vector)
-            super.tOpTemplate((Double128Vector)v1, (Double128Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Double128Vector)v1, (Double128Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Double128Vector tOp(Vector<Double> v1, Vector<Double> v2,
+    Double128Vector tOpMF(Vector<Double> v1, Vector<Double> v2,
                      VectorMask<Double> m, FTriOp f) {
         return (Double128Vector)
-            super.tOpTemplate((Double128Vector)v1, (Double128Vector)v2,
-                              (Double128Mask)m, f);  // specialize
+            super.tOpTemplateMF((Double128Vector)v1, (Double128Vector)v2,
+                                (Double128Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    double rOp(double v, VectorMask<Double> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    double rOpMF(double v, VectorMask<Double> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -511,8 +530,9 @@ final class Double128Vector extends DoubleVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                     double[] vecarr = vec.vec();
-                     return (long)Double.doubleToLongBits(vecarr[ix]);
+                         VectorPayloadMF vecpayload = vec.vec_mf();
+                         long start_offset = vecpayload.multiFieldOffset();
+                         return (long)Double.doubleToLongBits(Unsafe.getUnsafe().getDouble(vecpayload, start_offset + ix * Double.BYTES));
                      });
     }
 
@@ -531,9 +551,12 @@ final class Double128Vector extends DoubleVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Double.doubleToLongBits(e),
                                 (v, ix, bits) -> {
-                                    double[] res = v.vec().clone();
-                                    res[ix] = Double.longBitsToDouble((long)bits);
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putDouble(tpayload, start_offset + ix * Double.BYTES, Double.longBitsToDouble((long)bits));
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 

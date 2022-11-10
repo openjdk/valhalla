@@ -5149,7 +5149,11 @@ int vector_VectorPayload::_payload_offset;
 
 void vector_VectorPayload::compute_offsets() {
   InstanceKlass* k = vmClasses::vector_VectorPayload_klass();
-  VECTORPAYLOAD_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+  //FIXME: VectorPayload class no longer holds the Object payload.
+  //Multi-field based payloads have been moved to leaf level
+  //concrete classes. Offset recorded here is used for object
+  //re-construction during de-opt.
+  // VECTORPAYLOAD_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 
 #if INCLUDE_CDS

@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Float512Vector extends FloatVector {
+value class Float512Vector extends FloatVector {
     static final FloatSpecies VSPECIES =
         (FloatSpecies) FloatVector.SPECIES_512;
 
@@ -54,24 +55,31 @@ final class Float512Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    Float512Vector(float[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512.class);
+
+    private final VectorSupport.VectorPayloadMF512 payload;
+
+    Float512Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF512)value;
     }
 
-    // For compatibility as Float512Vector::new,
-    // stored into species.vectorFactory.
-    Float512Vector(Object v) {
-        this((float[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Float512Vector ZERO = new Float512Vector(new float[VLENGTH]);
-    static final Float512Vector IOTA = new Float512Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Float512Vector ZERO = new Float512Vector(VectorPayloadMF.createVectPayloadInstance(Float.BYTES, 16));
+    static final Float512Vector IOTA = new Float512Vector(VectorPayloadMF.createVectPayloadInstanceF(Float.BYTES, 16, (float [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Float512Vector extends FloatVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -171,6 +183,13 @@ final class Float512Vector extends FloatVector {
         return new Float512Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Float512Vector vectorFactory(VectorPayloadMF vec) {
+        return new Float512Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte512Vector asByteVectorRaw() {
@@ -187,57 +206,57 @@ final class Float512Vector extends FloatVector {
 
     @ForceInline
     final @Override
-    Float512Vector uOp(FUnOp f) {
-        return (Float512Vector) super.uOpTemplate(f);  // specialize
+    Float512Vector uOpMF(FUnOp f) {
+        return (Float512Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float512Vector uOp(VectorMask<Float> m, FUnOp f) {
+    Float512Vector uOpMF(VectorMask<Float> m, FUnOp f) {
         return (Float512Vector)
-            super.uOpTemplate((Float512Mask)m, f);  // specialize
+            super.uOpTemplateMF((Float512Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Float512Vector bOp(Vector<Float> v, FBinOp f) {
-        return (Float512Vector) super.bOpTemplate((Float512Vector)v, f);  // specialize
+    Float512Vector bOpMF(Vector<Float> v, FBinOp f) {
+        return (Float512Vector) super.bOpTemplateMF((Float512Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float512Vector bOp(Vector<Float> v,
+    Float512Vector bOpMF(Vector<Float> v,
                      VectorMask<Float> m, FBinOp f) {
         return (Float512Vector)
-            super.bOpTemplate((Float512Vector)v, (Float512Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Float512Vector)v, (Float512Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Float512Vector tOp(Vector<Float> v1, Vector<Float> v2, FTriOp f) {
+    Float512Vector tOpMF(Vector<Float> v1, Vector<Float> v2, FTriOp f) {
         return (Float512Vector)
-            super.tOpTemplate((Float512Vector)v1, (Float512Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Float512Vector)v1, (Float512Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Float512Vector tOp(Vector<Float> v1, Vector<Float> v2,
+    Float512Vector tOpMF(Vector<Float> v1, Vector<Float> v2,
                      VectorMask<Float> m, FTriOp f) {
         return (Float512Vector)
-            super.tOpTemplate((Float512Vector)v1, (Float512Vector)v2,
-                              (Float512Mask)m, f);  // specialize
+            super.tOpTemplateMF((Float512Vector)v1, (Float512Vector)v2,
+                                (Float512Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    float rOp(float v, VectorMask<Float> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    float rOpMF(float v, VectorMask<Float> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -525,8 +544,9 @@ final class Float512Vector extends FloatVector {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                     float[] vecarr = vec.vec();
-                     return (long)Float.floatToIntBits(vecarr[ix]);
+                         VectorPayloadMF vecpayload = vec.vec_mf();
+                         long start_offset = vecpayload.multiFieldOffset();
+                         return (long)Float.floatToIntBits(Unsafe.getUnsafe().getFloat(vecpayload, start_offset + ix * Float.BYTES));
                      });
     }
 
@@ -559,9 +579,12 @@ final class Float512Vector extends FloatVector {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)Float.floatToIntBits(e),
                                 (v, ix, bits) -> {
-                                    float[] res = v.vec().clone();
-                                    res[ix] = Float.intBitsToFloat((int)bits);
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putFloat(tpayload, start_offset + ix * Float.BYTES, Float.intBitsToFloat((int)bits));
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 

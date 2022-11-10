@@ -48,8 +48,8 @@
 #define VM_SYMBOL_IGNORE(id, name)                       /*ignored*/
 #define VM_ALIAS_IGNORE(id, id2)                         /*ignored*/
 
-// Mapping function names to values. New entries should be added below.
 
+// Mapping function names to values. New entries should be added below.
 #define VM_SYMBOLS_DO(template, do_alias)                                                         \
   /* commonly used class, package, module names */                                                \
   template(java_base,                                 "java.base")                                \
@@ -94,9 +94,13 @@
   template(jdk_internal_vm_vector_Vector,             "jdk/internal/vm/vector/VectorSupport$Vector")        \
   template(jdk_internal_vm_vector_VectorMask,         "jdk/internal/vm/vector/VectorSupport$VectorMask")    \
   template(jdk_internal_vm_vector_VectorShuffle,      "jdk/internal/vm/vector/VectorSupport$VectorShuffle") \
-  template(payload_name,                              "payload")                                            \
-  template(ETYPE_name,                                "ETYPE")                                              \
-  template(VLENGTH_name,                              "VLENGTH")                                            \
+  template(jdk_internal_vm_vector_VectorPayloadMF64,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF64")  \
+  template(jdk_internal_vm_vector_VectorPayloadMF128, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128") \
+  template(jdk_internal_vm_vector_VectorPayloadMF256, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256") \
+  template(jdk_internal_vm_vector_VectorPayloadMF512, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF512") \
+  template(payload_name,                              "payload")                                  \
+  template(ETYPE_name,                                "ETYPE")                                    \
+  template(VLENGTH_name,                              "VLENGTH")                                  \
                                                                                                   \
   template(jdk_internal_vm_FillerObject,              "jdk/internal/vm/FillerObject")             \
                                                                                                   \
@@ -264,6 +268,12 @@
   template(jdk_internal_vm_annotation_ReservedStackAccess_signature,         "Ljdk/internal/vm/annotation/ReservedStackAccess;") \
   template(jdk_internal_vm_annotation_MultiField_signature,                  "Ljdk/internal/vm/annotation/MultiField;") \
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
+                                                                                                  \
+  /* VectorAPI support */                                                                         \
+  template(vector_VectorPayloadMF64_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64;")  \
+  template(vector_VectorPayloadMF128_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128;") \
+  template(vector_VectorPayloadMF256_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256;") \
+  template(vector_VectorPayloadMF512_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512;") \
                                                                                                   \
   /* class symbols needed by intrinsics */                                                        \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, template, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \

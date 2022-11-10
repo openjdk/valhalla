@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 #warn This file is preprocessed before being compiled
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class $vectortype$ extends $abstractvectortype$ {
+value class $vectortype$ extends $abstractvectortype$ {
     static final $Type$Species VSPECIES =
         ($Type$Species) $Type$Vector.SPECIES_$BITS$;
 
@@ -54,24 +55,31 @@ final class $vectortype$ extends $abstractvectortype$ {
 
     static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
-    $vectortype$($type$[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF$bits$.class);
+
+    private final VectorSupport.VectorPayloadMF$bits$ payload;
+
+    $vectortype$(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF$bits$)value;
     }
 
-    // For compatibility as $vectortype$::new,
-    // stored into species.vectorFactory.
-    $vectortype$(Object v) {
-        this(($type$[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final $vectortype$ ZERO = new $vectortype$(new $type$[VLENGTH]);
-    static final $vectortype$ IOTA = new $vectortype$(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.createVectPayloadInstance($Boxtype$.BYTES, $numLanes$));
+    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$($Boxtype$.BYTES, $numLanes$, ($type$ [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class $vectortype$ extends $abstractvectortype$ {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -173,6 +185,13 @@ final class $vectortype$ extends $abstractvectortype$ {
         return new $vectortype$(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    $vectortype$ vectorFactory(VectorPayloadMF vec) {
+        return new $vectortype$(vec);
+    }
+
     @ForceInline
     final @Override
     Byte$bits$Vector asByteVectorRaw() {
@@ -189,57 +208,57 @@ final class $vectortype$ extends $abstractvectortype$ {
 
     @ForceInline
     final @Override
-    $vectortype$ uOp(FUnOp f) {
-        return ($vectortype$) super.uOpTemplate(f);  // specialize
+    $vectortype$ uOpMF(FUnOp f) {
+        return ($vectortype$) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    $vectortype$ uOp(VectorMask<$Boxtype$> m, FUnOp f) {
+    $vectortype$ uOpMF(VectorMask<$Boxtype$> m, FUnOp f) {
         return ($vectortype$)
-            super.uOpTemplate(($masktype$)m, f);  // specialize
+            super.uOpTemplateMF(($masktype$)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    $vectortype$ bOp(Vector<$Boxtype$> v, FBinOp f) {
-        return ($vectortype$) super.bOpTemplate(($vectortype$)v, f);  // specialize
+    $vectortype$ bOpMF(Vector<$Boxtype$> v, FBinOp f) {
+        return ($vectortype$) super.bOpTemplateMF(($vectortype$)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    $vectortype$ bOp(Vector<$Boxtype$> v,
+    $vectortype$ bOpMF(Vector<$Boxtype$> v,
                      VectorMask<$Boxtype$> m, FBinOp f) {
         return ($vectortype$)
-            super.bOpTemplate(($vectortype$)v, ($masktype$)m,
-                              f);  // specialize
+            super.bOpTemplateMF(($vectortype$)v, ($masktype$)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    $vectortype$ tOp(Vector<$Boxtype$> v1, Vector<$Boxtype$> v2, FTriOp f) {
+    $vectortype$ tOpMF(Vector<$Boxtype$> v1, Vector<$Boxtype$> v2, FTriOp f) {
         return ($vectortype$)
-            super.tOpTemplate(($vectortype$)v1, ($vectortype$)v2,
-                              f);  // specialize
+            super.tOpTemplateMF(($vectortype$)v1, ($vectortype$)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    $vectortype$ tOp(Vector<$Boxtype$> v1, Vector<$Boxtype$> v2,
+    $vectortype$ tOpMF(Vector<$Boxtype$> v1, Vector<$Boxtype$> v2,
                      VectorMask<$Boxtype$> m, FTriOp f) {
         return ($vectortype$)
-            super.tOpTemplate(($vectortype$)v1, ($vectortype$)v2,
-                              ($masktype$)m, f);  // specialize
+            super.tOpTemplateMF(($vectortype$)v1, ($vectortype$)v2,
+                                ($masktype$)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    $type$ rOp($type$ v, VectorMask<$Boxtype$> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    $type$ rOpMF($type$ v, VectorMask<$Boxtype$> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -560,8 +579,9 @@ final class $vectortype$ extends $abstractvectortype$ {
                      VCLASS, ETYPE, VLENGTH,
                      this, i,
                      (vec, ix) -> {
-                     $type$[] vecarr = vec.vec();
-                     return (long)$Type$.$type$To$Bitstype$Bits(vecarr[ix]);
+                         VectorPayloadMF vecpayload = vec.vec_mf();
+                         long start_offset = vecpayload.multiFieldOffset();
+                         return (long)$Type$.$type$To$Bitstype$Bits(Unsafe.getUnsafe().get$Type$(vecpayload, start_offset + ix * $Boxtype$.BYTES));
                      });
     }
 
@@ -609,9 +629,12 @@ final class $vectortype$ extends $abstractvectortype$ {
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)$Type$.$type$To$Bitstype$Bits(e),
                                 (v, ix, bits) -> {
-                                    $type$[] res = v.vec().clone();
-                                    res[ix] = $Type$.$bitstype$BitsTo$Type$(($bitstype$)bits);
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().put$Type$(tpayload, start_offset + ix * $Boxtype$.BYTES, $Type$.$bitstype$BitsTo$Type$(($bitstype$)bits));
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 #else[FP]
@@ -708,12 +731,13 @@ final class $vectortype$ extends $abstractvectortype$ {
 
     public $type$ laneHelper(int i) {
         return ($type$) VectorSupport.extract(
-                                VCLASS, ETYPE, VLENGTH,
-                                this, i,
-                                (vec, ix) -> {
-                                    $type$[] vecarr = vec.vec();
-                                    return (long)vecarr[ix];
-                                });
+                             VCLASS, ETYPE, VLENGTH,
+                             this, i,
+                             (vec, ix) -> {
+                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 long start_offset = vecpayload.multiFieldOffset();
+                                 return (long)Unsafe.getUnsafe().get$Type$(vecpayload, start_offset + ix * $Boxtype$.BYTES);
+                             });
     }
 
     @ForceInline
@@ -808,13 +832,16 @@ final class $vectortype$ extends $abstractvectortype$ {
     }
 
     public $vectortype$ withLaneHelper(int i, $type$ e) {
-        return VectorSupport.insert(
+       return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    $type$[] res = v.vec().clone();
-                                    res[ix] = ($type$)bits;
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().put$Type$(tpayload, start_offset + ix * $Boxtype$.BYTES, ($type$)bits);
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 #end[FP]

@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Int64Vector extends IntVector {
+value class Int64Vector extends IntVector {
     static final IntSpecies VSPECIES =
         (IntSpecies) IntVector.SPECIES_64;
 
@@ -54,24 +55,31 @@ final class Int64Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    Int64Vector(int[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64.class);
+
+    private final VectorSupport.VectorPayloadMF64 payload;
+
+    Int64Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF64)value;
     }
 
-    // For compatibility as Int64Vector::new,
-    // stored into species.vectorFactory.
-    Int64Vector(Object v) {
-        this((int[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Int64Vector ZERO = new Int64Vector(new int[VLENGTH]);
-    static final Int64Vector IOTA = new Int64Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Int64Vector ZERO = new Int64Vector(VectorPayloadMF.createVectPayloadInstance(Integer.BYTES, 2));
+    static final Int64Vector IOTA = new Int64Vector(VectorPayloadMF.createVectPayloadInstanceI(Integer.BYTES, 2, (int [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Int64Vector extends IntVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -171,6 +183,13 @@ final class Int64Vector extends IntVector {
         return new Int64Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Int64Vector vectorFactory(VectorPayloadMF vec) {
+        return new Int64Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte64Vector asByteVectorRaw() {
@@ -187,57 +206,57 @@ final class Int64Vector extends IntVector {
 
     @ForceInline
     final @Override
-    Int64Vector uOp(FUnOp f) {
-        return (Int64Vector) super.uOpTemplate(f);  // specialize
+    Int64Vector uOpMF(FUnOp f) {
+        return (Int64Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Int64Vector uOp(VectorMask<Integer> m, FUnOp f) {
+    Int64Vector uOpMF(VectorMask<Integer> m, FUnOp f) {
         return (Int64Vector)
-            super.uOpTemplate((Int64Mask)m, f);  // specialize
+            super.uOpTemplateMF((Int64Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Int64Vector bOp(Vector<Integer> v, FBinOp f) {
-        return (Int64Vector) super.bOpTemplate((Int64Vector)v, f);  // specialize
+    Int64Vector bOpMF(Vector<Integer> v, FBinOp f) {
+        return (Int64Vector) super.bOpTemplateMF((Int64Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Int64Vector bOp(Vector<Integer> v,
+    Int64Vector bOpMF(Vector<Integer> v,
                      VectorMask<Integer> m, FBinOp f) {
         return (Int64Vector)
-            super.bOpTemplate((Int64Vector)v, (Int64Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Int64Vector)v, (Int64Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Int64Vector tOp(Vector<Integer> v1, Vector<Integer> v2, FTriOp f) {
+    Int64Vector tOpMF(Vector<Integer> v1, Vector<Integer> v2, FTriOp f) {
         return (Int64Vector)
-            super.tOpTemplate((Int64Vector)v1, (Int64Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Int64Vector)v1, (Int64Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Int64Vector tOp(Vector<Integer> v1, Vector<Integer> v2,
+    Int64Vector tOpMF(Vector<Integer> v1, Vector<Integer> v2,
                      VectorMask<Integer> m, FTriOp f) {
         return (Int64Vector)
-            super.tOpTemplate((Int64Vector)v1, (Int64Vector)v2,
-                              (Int64Mask)m, f);  // specialize
+            super.tOpTemplateMF((Int64Vector)v1, (Int64Vector)v2,
+                                (Int64Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    int rOp(int v, VectorMask<Integer> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    int rOpMF(int v, VectorMask<Integer> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -519,12 +538,13 @@ final class Int64Vector extends IntVector {
 
     public int laneHelper(int i) {
         return (int) VectorSupport.extract(
-                                VCLASS, ETYPE, VLENGTH,
-                                this, i,
-                                (vec, ix) -> {
-                                    int[] vecarr = vec.vec();
-                                    return (long)vecarr[ix];
-                                });
+                             VCLASS, ETYPE, VLENGTH,
+                             this, i,
+                             (vec, ix) -> {
+                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 long start_offset = vecpayload.multiFieldOffset();
+                                 return (long)Unsafe.getUnsafe().getInt(vecpayload, start_offset + ix * Integer.BYTES);
+                             });
     }
 
     @ForceInline
@@ -538,13 +558,16 @@ final class Int64Vector extends IntVector {
     }
 
     public Int64Vector withLaneHelper(int i, int e) {
-        return VectorSupport.insert(
+       return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    int[] res = v.vec().clone();
-                                    res[ix] = (int)bits;
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putInt(tpayload, start_offset + ix * Integer.BYTES, (int)bits);
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 
