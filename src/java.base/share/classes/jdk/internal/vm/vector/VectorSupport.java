@@ -197,11 +197,11 @@ public class VectorSupport {
             }
             return obj;
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstance(int elemSize, int length) {
             return newInstanceFactory(elemSize, length);
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstanceB(int elemSize, int length, byte [] init) {
             VectorPayloadMF obj = newInstanceFactory(elemSize, length);
             long start_offset = obj.multiFieldOffset();
@@ -212,7 +212,7 @@ public class VectorSupport {
             obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
             return obj;
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstanceS(int elemSize, int length, short [] init) {
             VectorPayloadMF obj = newInstanceFactory(elemSize, length);
             long start_offset = obj.multiFieldOffset();
@@ -223,7 +223,7 @@ public class VectorSupport {
             obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
             return obj;
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstanceI(int elemSize, int length, int [] init) {
             VectorPayloadMF obj = newInstanceFactory(elemSize, length);
             long start_offset = obj.multiFieldOffset();
@@ -234,7 +234,7 @@ public class VectorSupport {
             obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
             return obj;
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstanceL(int elemSize, int length, long [] init) {
             VectorPayloadMF obj = newInstanceFactory(elemSize, length);
             long start_offset = obj.multiFieldOffset();
@@ -245,7 +245,7 @@ public class VectorSupport {
             obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
             return obj;
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstanceF(int elemSize, int length, float [] init) {
             VectorPayloadMF obj = newInstanceFactory(elemSize, length);
             long start_offset = obj.multiFieldOffset();
@@ -256,7 +256,7 @@ public class VectorSupport {
             obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
             return obj;
         }
-    
+
         public static VectorPayloadMF createVectPayloadInstanceD(int elemSize, int length, double [] init) {
             VectorPayloadMF obj = newInstanceFactory(elemSize, length);
             long start_offset = obj.multiFieldOffset();
@@ -267,14 +267,14 @@ public class VectorSupport {
             obj = Unsafe.getUnsafe().finishPrivateBuffer(obj);
             return obj;
         }
-    
+
         public int length(int elemSize) {
             try {
                 var field = this.getClass().getDeclaredField("mfield");
                 var msanno = field.getAnnotationsByType(MultiField.class);
-    
+
                 Objects.nonNull(msanno);
-    
+
                 assert msanno.length == 1;
                 return msanno[0].value() / elemSize;
             } catch (Exception e) {
