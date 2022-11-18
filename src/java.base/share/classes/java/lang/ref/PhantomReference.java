@@ -91,8 +91,8 @@ public non-sealed class PhantomReference<T> extends Reference<T> {
      * @param referent the object the new phantom reference will refer to
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
-     * @throws IllegalArgumentException if the referent is an instance of an
-     *         {@link Class#isValue() value class}
+     * @throws IdentityException if the referent is not an
+     *         {@link java.util.Objects#isIdentityObject(Object) identity object}
      */
     public PhantomReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

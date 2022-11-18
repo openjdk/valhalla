@@ -71,11 +71,7 @@ class ClassFileStream;
 class ClassLoadInfo;
 class Dictionary;
 class AllFieldStream;
-template <MEMFLAGS F> class HashtableBucket;
-class SymbolPropertyTable;
 class PackageEntry;
-class ProtectionDomainCacheTable;
-class ProtectionDomainCacheEntry;
 class GCTimer;
 class EventClassLoad;
 class Symbol;
@@ -197,9 +193,6 @@ class SystemDictionary : AllStatic {
   // loaders.  Returns "true" iff something was unloaded.
   static bool do_unloading(GCTimer* gc_timer);
 
-  // Protection Domain Table
-  static ProtectionDomainCacheTable* pd_cache_table() { return _pd_cache_table; }
-
   // Printing
   static void print();
   static void print_on(outputStream* st);
@@ -302,15 +295,6 @@ public:
                                   const char* message);
   static const char* find_nest_host_error(const constantPoolHandle& pool, int which);
 
- private:
-  // Static tables owned by the SystemDictionary
-
-  // Invoke methods (JSR 292)
-  static SymbolPropertyTable*    _invoke_method_table;
-
-  // ProtectionDomain cache
-  static ProtectionDomainCacheTable*   _pd_cache_table;
-
 protected:
   static InstanceKlass* _well_known_klasses[];
 
@@ -320,8 +304,6 @@ private:
 
   static OopHandle  _java_system_loader;
   static OopHandle  _java_platform_loader;
-
-  static SymbolPropertyTable* invoke_method_table() { return _invoke_method_table; }
 
 private:
   // Basic loading operations

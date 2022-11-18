@@ -2936,11 +2936,13 @@ void ClassVerifier::verify_invoke_instructions(
   }
 
   if (method_name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
-    // Make sure <init> can only be invoked by invokespecial or invokestatic.
-    // The allowed invocation mode of <init> depends on its signature.
-    if ((opcode != Bytecodes::_invokespecial &&
-         opcode != Bytecodes::_invokestatic) ||
-        method_name != vmSymbols::object_initializer_name()) {
+    // Make sure:
+    //   <init> can only be invoked by invokespecial.
+    //   <vnew> can only be invoked by invokestatic.
+    if (!((opcode == Bytecodes::_invokestatic &&
+           method_name == vmSymbols::inline_factory_name()) ||
+         (opcode == Bytecodes::_invokespecial &&
+          method_name == vmSymbols::object_initializer_name()))) {
       verify_error(ErrorContext::bad_code(bci),
           "Illegal call to internal method");
       return;
@@ -2980,7 +2982,6 @@ void ClassVerifier::verify_invoke_instructions(
   if (opcode != Bytecodes::_invokestatic &&
       opcode != Bytecodes::_invokedynamic) {
     if (method_name == vmSymbols::object_initializer_name()) {  // <init> method
-      // (use of <init> as a static factory is handled under invokestatic)
       verify_invoke_init(bcs, index, ref_class_type, current_frame,
         code_length, in_try_block, this_uninit, cp, stackmap_table,
         CHECK_VERIFY(this));
@@ -3033,9 +3034,8 @@ void ClassVerifier::verify_invoke_instructions(
   // Push the result type.
   int sig_verif_types_len = sig_verif_types->length();
   if (sig_verif_types_len > nargs) {  // There's a return type
-    if (method_name == vmSymbols::object_initializer_name() &&
-        opcode != Bytecodes::_invokestatic) {
-      // an <init> method must have a void return type, unless it's a static factory
+    if (method_name == vmSymbols::object_initializer_name()) {
+      // an <init> method must have a void return type
       verify_error(ErrorContext::bad_code(bci),
           "Return type must be void in <init> method");
       return;
@@ -3048,12 +3048,11 @@ void ClassVerifier::verify_invoke_instructions(
              sig_verif_types->at(i).is_double2(), "Unexpected return verificationType");
       current_frame->push_stack(sig_verif_types->at(i), CHECK_VERIFY(this));
     }
-  } else {
-    // an <init> method may not have a void return type, if it's a static factory
-    if (method_name == vmSymbols::object_initializer_name() &&
-        opcode != Bytecodes::_invokespecial) {
+  } else { // no return type
+    // <vnew> method may not have a void return type
+    if (method_name == vmSymbols::inline_factory_name()) {
       verify_error(ErrorContext::bad_code(bci),
-          "Return type must be non-void in <init> static factory method");
+          "Return type must be non-void in <vnew> static factory method");
       return;
     }
   }

@@ -36,7 +36,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test on stack replacement (OSR) with inline types
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestOnStackReplacement
+ * @compile -XDenablePrimitiveClasses TestOnStackReplacement.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestOnStackReplacement
  */
 
 public class TestOnStackReplacement {

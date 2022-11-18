@@ -85,8 +85,8 @@ public non-sealed class SoftReference<T> extends Reference<T> {
      * reference is not registered with any queue.
      *
      * @param referent object the new soft reference will refer to
-     * @throws IllegalArgumentException if the referent is an instance of a
-     *         {@link Class#isValue() value class}
+     * @throws IdentityException if the referent is not an
+     *         {@link java.util.Objects#isIdentityObject(Object) identity object}
      */
     public SoftReference(T referent) {
         super(referent);
@@ -100,8 +100,8 @@ public non-sealed class SoftReference<T> extends Reference<T> {
      * @param referent object the new soft reference will refer to
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
-     * @throws IllegalArgumentException if the referent is an instance of a
-     *         {@link Class#isValue() value class}
+     * @throws IdentityException if the referent is not an
+     *         {@link java.util.Objects#isIdentityObject(Object) identity object}
      */
     public SoftReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

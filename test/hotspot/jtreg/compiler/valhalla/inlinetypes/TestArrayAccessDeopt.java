@@ -25,7 +25,8 @@
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
- * @run driver TestArrayAccessDeopt
+ * @compile -XDenablePrimitiveClasses TestArrayAccessDeopt.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestArrayAccessDeopt
  */
 
 import java.io.File;
@@ -86,7 +87,8 @@ public class TestArrayAccessDeopt {
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Run test in new VM instance
-            String[] arg = {"-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
+            String[] arg = {"-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
+                            "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
             String output = oa.getOutput();

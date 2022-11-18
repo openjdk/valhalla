@@ -288,30 +288,32 @@ int C2SafepointPollStubTable::estimate_stub_size() const {
 
 // Nmethod entry barrier stubs
 C2EntryBarrierStub* C2EntryBarrierStubTable::add_entry_barrier() {
-  assert(_stub == NULL, "There can only be one entry barrier stub");
-  _stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
-  return _stub;
+  C2EntryBarrierStub* stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
+  _stubs.append(stub);
+  return stub;
 }
 
 void C2EntryBarrierStubTable::emit(CodeBuffer& cb) {
-  if (_stub == NULL) {
+  if (_stubs.is_empty()) {
     // No stub - nothing to do
     return;
   }
 
   C2_MacroAssembler masm(&cb);
-  // Make sure there is enough space in the code buffer
-  if (cb.insts()->maybe_expand_to_ensure_remaining(PhaseOutput::MAX_inst_size) && cb.blob() == NULL) {
-    ciEnv::current()->record_failure("CodeCache is full");
-    return;
-  }
+  for (C2EntryBarrierStub* stub : _stubs) {
+    // Make sure there is enough space in the code buffer
+    if (cb.insts()->maybe_expand_to_ensure_remaining(PhaseOutput::MAX_inst_size) && cb.blob() == NULL) {
+      ciEnv::current()->record_failure("CodeCache is full");
+      return;
+    }
 
-  intptr_t before = masm.offset();
-  masm.emit_entry_barrier_stub(_stub);
-  intptr_t after = masm.offset();
-  int actual_size = (int)(after - before);
-  int expected_size = masm.entry_barrier_stub_size();
-  assert(actual_size == expected_size, "Estimated size is wrong, expected %d, was %d", expected_size, actual_size);
+    intptr_t before = masm.offset();
+    masm.emit_entry_barrier_stub(stub);
+    intptr_t after = masm.offset();
+    int actual_size = (int)(after - before);
+    int expected_size = masm.entry_barrier_stub_size();
+    assert(actual_size == expected_size, "Estimated size is wrong, expected %d, was %d", expected_size, actual_size);
+  }
 }
 
 int C2EntryBarrierStubTable::estimate_stub_size() const {
@@ -992,8 +994,16 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
                t->base() == Type::VectorD || t->base() == Type::VectorX ||
                t->base() == Type::VectorY || t->base() == Type::VectorZ) {
       array->append(new_loc_value( C->regalloc(), regnum, Location::vector ));
+    } else if (C->regalloc()->is_oop(local)) {
+      assert(t->base() == Type::OopPtr || t->base() == Type::InstPtr ||
+             t->base() == Type::AryPtr,
+             "Unexpected type: %s", t->msg());
+      array->append(new_loc_value( C->regalloc(), regnum, Location::oop ));
     } else {
-      array->append(new_loc_value( C->regalloc(), regnum, C->regalloc()->is_oop(local) ? Location::oop : Location::normal ));
+      assert(t->base() == Type::Int || t->base() == Type::Half ||
+             t->base() == Type::FloatCon || t->base() == Type::FloatBot,
+             "Unexpected type: %s", t->msg());
+      array->append(new_loc_value( C->regalloc(), regnum, Location::normal ));
     }
     return;
   }
@@ -1539,7 +1549,7 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
     if (!block->is_connector()) {
       stringStream st;
       block->dump_head(C->cfg(), &st);
-      MacroAssembler(cb).block_comment(st.as_string());
+      MacroAssembler(cb).block_comment(st.freeze());
     }
     jmp_target[i] = 0;
     jmp_offset[i] = 0;
@@ -1993,13 +2003,13 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
       }
       if (C->method() != NULL) {
         tty->print_cr("----------------------- MetaData before Compile_id = %d ------------------------", C->compile_id());
-        tty->print_raw(method_metadata_str.as_string());
+        tty->print_raw(method_metadata_str.freeze());
       } else if (C->stub_name() != NULL) {
         tty->print_cr("----------------------------- RuntimeStub %s -------------------------------", C->stub_name());
       }
       tty->cr();
       tty->print_cr("------------------------ OptoAssembly for Compile_id = %d -----------------------", C->compile_id());
-      tty->print_raw(dump_asm_str.as_string());
+      tty->print_raw(dump_asm_str.freeze());
       tty->print_cr("--------------------------------------------------------------------------------");
       if (xtty != NULL) {
         xtty->tail("opto_assembly");
@@ -3437,12 +3447,6 @@ uint PhaseOutput::scratch_emit_size(const Node* n) {
     masm.bind(fakeL);
     n->as_MachBranch()->save_label(&saveL, &save_bnum);
     n->as_MachBranch()->label_set(&fakeL, 0);
-  } else if (n->is_MachProlog()) {
-    saveL = ((MachPrologNode*)n)->_verified_entry;
-    ((MachPrologNode*)n)->_verified_entry = &fakeL;
-  } else if (n->is_MachVEP()) {
-    saveL = ((MachVEPNode*)n)->_verified_entry;
-    ((MachVEPNode*)n)->_verified_entry = &fakeL;
   }
   n->emit(buf, C->regalloc());
 
@@ -3452,10 +3456,6 @@ uint PhaseOutput::scratch_emit_size(const Node* n) {
   // Restore label.
   if (is_branch) {
     n->as_MachBranch()->label_set(saveL, save_bnum);
-  } else if (n->is_MachProlog()) {
-    ((MachPrologNode*)n)->_verified_entry = saveL;
-  } else if (n->is_MachVEP()) {
-    ((MachVEPNode*)n)->_verified_entry = saveL;
   }
 
   // End scratch_emit_size section.

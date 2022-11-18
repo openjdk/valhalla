@@ -34,9 +34,9 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rI;
  * @summary Test the handling of fields of unloaded inline classes.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
- * @compile TestUnloadedInlineTypeField.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
+ * @compile -XDenablePrimitiveClasses hack/GetUnresolvedInlineFieldWrongSignature.java
+ * @compile -XDenablePrimitiveClasses TestUnloadedInlineTypeField.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 
 public class TestUnloadedInlineTypeField {
@@ -53,7 +53,8 @@ public class TestUnloadedInlineTypeField {
                 new Scenario(3, "-XX:InlineFieldMaxFlatSize=0",
                                 "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+PatchALot")
         };
-        final String[] flags = {// Prevent IR Test Framework from loading classes
+        final String[] flags = { "-XX:+EnableValhalla" ,"-XX:+EnablePrimitiveClasses",
+                                // Prevent IR Test Framework from loading classes
                                 "-DIgnoreCompilerControls=true",
                                 // Some tests trigger frequent re-compilation. Don't mark them as non-compilable.
                                 "-XX:PerMethodRecompilationCutoff=-1", "-XX:PerBytecodeRecompilationCutoff=-1"};

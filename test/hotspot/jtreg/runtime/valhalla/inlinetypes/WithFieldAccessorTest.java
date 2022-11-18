@@ -32,7 +32,8 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict WithFieldAccessorTestClasses.jasm
- * @run main/othervm runtime.valhalla.inlinetypes.WithFieldAccessorTest
+ * @compile -XDenablePrimitiveClasses WithFieldAccessorTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.WithFieldAccessorTest
  */
 
 public class WithFieldAccessorTest {

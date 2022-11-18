@@ -91,9 +91,7 @@ public class Types {
     final Symtab syms;
     final JavacMessages messages;
     final Names names;
-    final boolean allowDefaultMethods;
-    final boolean mapCapturesToBounds;
-    final boolean allowValueBasedClasses;
+    final boolean allowPrimitiveClasses;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -115,8 +113,6 @@ public class Types {
         syms = Symtab.instance(context);
         names = Names.instance(context);
         Source source = Source.instance(context);
-        allowDefaultMethods = Feature.DEFAULT_METHODS.allowedInSource(source);
-        mapCapturesToBounds = Feature.MAP_CAPTURES_TO_BOUNDS.allowedInSource(source);
         chk = Check.instance(context);
         enter = Enter.instance(context);
         capturedName = names.fromString("<captured wildcard>");
@@ -124,7 +120,7 @@ public class Types {
         diags = JCDiagnostic.Factory.instance(context);
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
-        allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
     // </editor-fold>
 
@@ -605,12 +601,14 @@ public class Types {
             return true;
         }
 
-        boolean tValue = t.isPrimitiveClass();
-        boolean sValue = s.isPrimitiveClass();
-        if (tValue != sValue) {
-            return tValue ?
-                    isSubtype(t.referenceProjection(), s) :
-                    !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
+        if (allowPrimitiveClasses) {
+            boolean tValue = t.isPrimitiveClass();
+            boolean sValue = s.isPrimitiveClass();
+            if (tValue != sValue) {
+                return tValue ?
+                        isSubtype(t.referenceProjection(), s) :
+                        !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
+            }
         }
 
         boolean tPrimitive = t.isPrimitive();
@@ -979,7 +977,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        t.name != names.init &&
+                        !names.isInitOrVNew(t.name) &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }
@@ -1053,10 +1051,12 @@ public class Types {
                     // if T.ref <: S, then T[] <: S[]
                     Type es = elemtype(s);
                     Type et = elemtype(t);
-                    if (et.isPrimitiveClass()) {
-                        et = et.referenceProjection();
-                        if (es.isPrimitiveClass())
-                            es = es.referenceProjection();  // V <: V, surely
+                    if (allowPrimitiveClasses) {
+                        if (et.isPrimitiveClass()) {
+                            et = et.referenceProjection();
+                            if (es.isPrimitiveClass())
+                                es = es.referenceProjection();  // V <: V, surely
+                        }
                     }
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
                         return false;
@@ -1157,7 +1157,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
+                         s.hasTag(BOT) || (s.hasTag(CLASS) && (!allowPrimitiveClasses || !s.isPrimitiveClass())) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1240,7 +1240,7 @@ public class Types {
                         // if T.ref <: S, then T[] <: S[]
                         Type es = elemtype(s);
                         Type et = elemtype(t);
-                        if (et.isPrimitiveClass()) {
+                        if (allowPrimitiveClasses && et.isPrimitiveClass()) {
                             et = et.referenceProjection();
                             if (es.isPrimitiveClass())
                                 es = es.referenceProjection();  // V <: V, surely
@@ -1793,7 +1793,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !t.isPrimitiveClass()))
+                if (s.hasTag(ERROR) || (s.hasTag(BOT) && (!allowPrimitiveClasses || !t.isPrimitiveClass())))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -1812,13 +1812,15 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
-                    if (t.isPrimitiveClass()) {
-                        // (s) Value ? == (s) Value.ref
-                        t = t.referenceProjection();
-                    }
-                    if (s.isPrimitiveClass()) {
-                        // (Value) t ? == (Value.ref) t
-                        s = s.referenceProjection();
+                    if (allowPrimitiveClasses) {
+                        if (t.isPrimitiveClass()) {
+                            // (s) Value ? == (s) Value.ref
+                            t = t.referenceProjection();
+                        }
+                        if (s.isPrimitiveClass()) {
+                            // (Value) t ? == (Value.ref) t
+                            s = s.referenceProjection();
+                        }
                     }
                     boolean upcast;
                     if ((upcast = isSubtype(erasure(t), erasure(s)))
@@ -1925,11 +1927,7 @@ public class Types {
                     if (elemtype(t).isPrimitive() || elemtype(s).isPrimitive()) {
                         return elemtype(t).hasTag(elemtype(s).getTag());
                     } else {
-                        Type et = elemtype(t);
-                        Type es = elemtype(s);
-                        if (!visit(et, es))
-                            return false;
-                        return true;
+                        return isCastable(elemtype(t), elemtype(s), warnStack.head);
                     }
                 default:
                     return false;
@@ -2259,7 +2257,7 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
 
-        if (t.isPrimitiveClass()) {
+        if (allowPrimitiveClasses && t.isPrimitiveClass()) {
             // No man may be an island, but the bell tolls for a value.
             return t.tsym == sym ? t : null;
         }
@@ -2402,7 +2400,7 @@ public class Types {
            where the hierarchy is navigable. V and V.ref have identical membership
            with no bridging needs.
         */
-        if (t.isPrimitiveClass())
+        if (allowPrimitiveClasses && t.isPrimitiveClass())
             t = t.referenceProjection();
 
         return memberType.visit(t, sym);
@@ -2626,9 +2624,8 @@ public class Types {
         if (allInterfaces) {
             bounds = bounds.prepend(syms.objectType);
         }
-        long flags = ABSTRACT | PUBLIC | SYNTHETIC | COMPOUND | ACYCLIC;
         ClassSymbol bc =
-            new ClassSymbol(flags,
+            new ClassSymbol(ABSTRACT|PUBLIC|SYNTHETIC|COMPOUND|ACYCLIC,
                             Type.moreInfo
                                 ? names.fromString(bounds.toString())
                                 : names.empty,
@@ -2928,11 +2925,7 @@ public class Types {
      * @return true if t is a subsignature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return isSubSignature(t, s, true);
-    }
-
-    public boolean isSubSignature(Type t, Type s, boolean strict) {
-        return hasSameArgs(t, s, strict) || hasSameArgs(t, erasure(s), strict);
+        return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
     }
 
     /**
@@ -3255,11 +3248,9 @@ public class Types {
                         MethodSymbol implmeth = absmeth.implementation(impl, this, true);
                         if (implmeth == null || implmeth == absmeth) {
                             //look for default implementations
-                            if (allowDefaultMethods) {
-                                MethodSymbol prov = interfaceCandidates(impl.type, absmeth).head;
-                                if (prov != null && prov.overrides(absmeth, impl, this, true)) {
-                                    implmeth = prov;
-                                }
+                            MethodSymbol prov = interfaceCandidates(impl.type, absmeth).head;
+                            if (prov != null && prov.overrides(absmeth, impl, this, true)) {
+                                implmeth = prov;
                             }
                         }
                         if (implmeth == null || implmeth == absmeth) {
@@ -4097,6 +4088,7 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
+
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
@@ -5258,7 +5250,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (type.isPrimitiveClass())
+                    if (types.allowPrimitiveClasses && type.isPrimitiveClass())
                         append('Q');
                     else
                         append('L');

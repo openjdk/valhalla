@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.Unsafe;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.Stable;
@@ -79,7 +80,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         if (!member.isStatic()) {
             if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isObjectConstructor())
                 throw new InternalError(member.toString());
-            Class<?> receiverType = refc.isPrimitiveClass() ? refc.asValueType() : refc;
+            Class<?> receiverType = PrimitiveClass.isPrimitiveClass(refc) ? PrimitiveClass.asValueType(refc) : refc;
             mtype = mtype.insertParameterTypes(0, receiverType);
         }
         if (!member.isField()) {

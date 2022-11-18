@@ -58,7 +58,7 @@ class compiler/valhalla/inlinetypes/MyValue5 {
     Utf8 "Code"; // #11
     Utf8 "LineNumberTable"; // #12
     Utf8 "(Lcompiler/valhalla/inlinetypes/MyValue5;I)Lcompiler/valhalla/inlinetypes/MyValue5;"; // #13
-    Utf8 "<init>"; // #14
+    Utf8 "<vnew>"; // #14
     Utf8 "()Qcompiler/valhalla/inlinetypes/MyValue5;"; // #15
     Utf8 "SourceFile"; // #16
     Utf8 "MyValue5.java"; // #17

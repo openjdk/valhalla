@@ -29,7 +29,7 @@
  * @compile NotAbstract.java HasNonStaticFields.java CtorHasArgs.java CtorIsNotEmpty.java
  * @compile HasSynchMethod.java ValidSuper.java
  * @compile InlineClassWithBadSupers.jcod
- * @run main/othervm -verify TestSuperClasses
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -verify TestSuperClasses
  */
 
 public class TestSuperClasses {

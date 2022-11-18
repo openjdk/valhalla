@@ -27,7 +27,8 @@
  * @summary Verify that the native clone intrinsic handles inline types.
  * @library /test/lib
  * @modules java.base/java.lang:+open
- * @run main/othervm -Xbatch -XX:-UseTypeProfile
+ * @compile -XDenablePrimitiveClasses TestNativeClone.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestNativeClone::test*
  *                   -XX:CompileCommand=compileonly,jdk.internal.reflect.GeneratedMethodAccessor1::invoke

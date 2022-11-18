@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
 
     static final float static_final_v = 1.0f;
 
-    static float static_v;
+    static float static_v = 1.0f;
 
     final float final_v = 1.0f;
 
@@ -60,8 +61,6 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
     VarHandle vhStaticFinalField;
 
     VarHandle vhArray;
-
-    VarHandle vhValueTypeField;
 
     @BeforeClass
     public void setup() throws Exception {
@@ -78,9 +77,6 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
             VarHandleTestMethodHandleAccessFloat.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(float[].class);
-
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "float_v", type);
     }
 
 
@@ -109,11 +105,6 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
             cases.add(new MethodHandleAccessTestCase("Array index out of bounds",
                                                      vhArray, f, VarHandleTestMethodHandleAccessFloat::testArrayIndexOutOfBounds,
                                                      false));
-        cases.add(new MethodHandleAccessTestCase("Value type field",
-                                                 vhValueTypeField, f, hs -> testValueTypeField(Value.getInstance(), hs)));
-        cases.add(new MethodHandleAccessTestCase("Value type field unsupported",
-                                                 vhValueTypeField, f, hs -> testValueTypeFieldUnsupported(Value.getInstance(), hs),
-                                                 false));
         }
 
         // Work around issue with jtreg summary reporting which truncates
@@ -222,9 +213,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(recv, 1.0f, 2.0f);
+                success = (boolean) mh.invokeExact(recv, 1.0f, 2.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -239,9 +232,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(recv, 2.0f, 1.0f);
+                success = (boolean) mh.invokeExact(recv, 2.0f, 1.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -256,9 +251,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(recv, 1.0f, 2.0f);
+                success = (boolean) mh.invokeExact(recv, 1.0f, 2.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -274,8 +271,10 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
 
         {
             boolean success = false;
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(recv, 2.0f, 1.0f);
+                success = (boolean) mh.invokeExact(recv, 2.0f, 1.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact(recv);
@@ -337,29 +336,6 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
     }
 
-    static void testValueTypeField(Value recv, Handles hs) throws Throwable {
-        // Plain
-        {
-            float x = (float) hs.get(TestAccessMode.GET).invokeExact(recv);
-            assertEquals(x, 1.0f, "get float value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, Handles hs) throws Throwable {
-        // Plain
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
-            checkUOE(am, () -> {
-                hs.get(am).invokeExact(recv, 1.0f);
-            });
-        }
-
-
-        for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_BITWISE)) {
-            checkUOE(am, () -> {
-                float r = (float) hs.get(am).invokeExact(recv, 1.0f);
-            });
-        }
-    }
 
     static void testStaticField(Handles hs) throws Throwable {
         // Plain
@@ -451,9 +427,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(1.0f, 2.0f);
+                success = (boolean) mh.invokeExact(1.0f, 2.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact();
@@ -468,9 +446,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(2.0f, 1.0f);
+                success = (boolean) mh.invokeExact(2.0f, 1.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact();
@@ -478,16 +458,19 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
-            boolean success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(2.0f, 3.0f);
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
+            boolean success = (boolean) mh.invokeExact(2.0f, 3.0f);
             assertEquals(success, false, "failing weakCompareAndSetAcquire float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact();
             assertEquals(x, 1.0f, "failing weakCompareAndSetAcquire float value");
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(1.0f, 2.0f);
+                success = (boolean) mh.invokeExact(1.0f, 2.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact();
@@ -502,9 +485,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
         }
 
         {
+            MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(2.0f, 1.0f);
+                success = (boolean) mh.invokeExact(2.0f, 1.0f);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet float");
             float x = (float) hs.get(TestAccessMode.GET).invokeExact();
@@ -682,9 +667,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_PLAIN).invokeExact(array, i, 1.0f, 2.0f);
+                    success = (boolean) mh.invokeExact(array, i, 1.0f, 2.0f);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain float");
                 float x = (float) hs.get(TestAccessMode.GET).invokeExact(array, i);
@@ -699,9 +686,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_ACQUIRE).invokeExact(array, i, 2.0f, 1.0f);
+                    success = (boolean) mh.invokeExact(array, i, 2.0f, 1.0f);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire float");
                 float x = (float) hs.get(TestAccessMode.GET).invokeExact(array, i);
@@ -716,9 +705,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET_RELEASE).invokeExact(array, i, 1.0f, 2.0f);
+                    success = (boolean) mh.invokeExact(array, i, 1.0f, 2.0f);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease float");
                 float x = (float) hs.get(TestAccessMode.GET).invokeExact(array, i);
@@ -733,9 +724,11 @@ public class VarHandleTestMethodHandleAccessFloat extends VarHandleBaseTest {
             }
 
             {
+                MethodHandle mh = hs.get(TestAccessMode.WEAK_COMPARE_AND_SET);
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
-                    success = (boolean) hs.get(TestAccessMode.WEAK_COMPARE_AND_SET).invokeExact(array, i, 2.0f, 1.0f);
+                    success = (boolean) mh.invokeExact(array, i, 2.0f, 1.0f);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet float");
                 float x = (float) hs.get(TestAccessMode.GET).invokeExact(array, i);

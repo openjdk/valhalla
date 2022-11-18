@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@
 
 package java.lang.invoke;
 
+import jdk.internal.value.PrimitiveClass;
 import sun.invoke.util.Wrapper;
 
 import java.lang.reflect.Constructor;
@@ -225,7 +226,7 @@ final class VarHandles {
             // the redundant componentType.isPrimitiveValueType() check is
             // there to minimize the performance impact to non-value array.
             // It should be removed when Unsafe::isFlattenedArray is intrinsified.
-            return maybeAdapt(componentType.isPrimitiveValueType() && UNSAFE.isFlattenedArray(arrayClass)
+            return maybeAdapt(PrimitiveClass.isPrimitiveValueType(componentType) && UNSAFE.isFlattenedArray(arrayClass)
                 ? new VarHandleValues.Array(aoffset, ashift, arrayClass)
                 : new VarHandleReferences.Array(aoffset, ashift, arrayClass));
         }

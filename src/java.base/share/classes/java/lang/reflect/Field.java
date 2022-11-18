@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.FieldAccessor;
 import jdk.internal.reflect.Reflection;
@@ -129,7 +130,7 @@ class Field extends AccessibleObject implements Member {
           String signature,
           byte[] annotations)
     {
-        assert declaringClass.isPrimaryType();
+        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.name = name;
         this.type = type;
@@ -356,8 +357,8 @@ class Field extends AccessibleObject implements Member {
 
     String getDeclaringClassTypeName() {
         Class<?> c = getDeclaringClass();
-        if (c.isPrimitiveClass()) {
-            c = c.asValueType();
+        if (PrimitiveClass.isPrimitiveClass(c)) {
+            c = PrimitiveClass.asValueType(c);
         }
         return c.getTypeName();
     }

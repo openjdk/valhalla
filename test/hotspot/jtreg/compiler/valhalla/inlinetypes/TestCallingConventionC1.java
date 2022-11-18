@@ -36,7 +36,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestCallingConventionC1
+ * @compile -XDenablePrimitiveClasses TestCallingConventionC1.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestCallingConventionC1
  */
 
 @ForceCompileClassInitializer
@@ -46,11 +47,13 @@ public class TestCallingConventionC1 {
         final Scenario[] scenarios = {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(0,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation"),
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
                 new Scenario(1,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
@@ -59,16 +62,19 @@ public class TestCallingConventionC1 {
                 // Same as above, but flip all the compLevel=CompLevel.C1_SIMPLE and compLevel=CompLevel.C2, so we test
                 // the compliment of the above scenario.
                 new Scenario(2,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:CICompilerCount=2",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:+TieredCompilation",
                              "-DFlipC1C2=true"),
                 // Only C1. Tiered compilation disabled.
                 new Scenario(3,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=1",
                              "-XX:+TieredCompilation"),
                 // Only C2.
                 new Scenario(4,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=4",
                              "-XX:-TieredCompilation")
         };

@@ -537,4 +537,38 @@ public interface JavaLangAccess {
     StackWalker newStackWalkerInstance(Set<StackWalker.Option> options,
                                        ContinuationScope contScope,
                                        Continuation continuation);
+
+    /**
+     * {@return the primary class for a primitive class}
+     *
+     * @param klass a class
+     */
+    Class<?> asPrimaryType(Class<?> klass);
+
+    /**
+     * {@return the value type of a primitive class}
+     *
+     * @param klass a class
+     */
+    Class<?> asValueType(Class<?> klass);
+
+    /**
+     * {@return true if the class is the primary type of a primitive class}
+     *
+     * @param klass a class
+     */
+    boolean isPrimaryType(Class<?> klass);
+
+    /**
+     * {@return true if the class is the primary type of a primitive class}
+     *
+     * @param klass a class
+     */
+    boolean isPrimitiveValueType(Class<?> klass);
+
+    /**
+     * Returns {@code true} if this class is a primitive class.
+     */
+    boolean isPrimitiveClass(Class<?> klass);
+
 }

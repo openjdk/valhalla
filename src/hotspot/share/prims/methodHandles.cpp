@@ -816,13 +816,12 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller, int lookup
       LinkInfo link_info(defc, name, type, caller, access_check, loader_constraint_check);
       {
         assert(!HAS_PENDING_EXCEPTION, "");
-        if (name != vmSymbols::object_initializer_name()) {
-          break;                // will throw after end of switch
-        } else if (type->is_void_method_signature()) {
+        if (name == vmSymbols::object_initializer_name() && type->is_void_method_signature()) {
           LinkResolver::resolve_special_call(result, Handle(), link_info, THREAD);
-        } else {
-          // LinkageError unless it returns something reasonable
+        } else if (name == vmSymbols::inline_factory_name()) {
           LinkResolver::resolve_static_call(result, link_info, false, THREAD);
+        } else {
+          break;                // will throw after end of switch
         }
         if (HAS_PENDING_EXCEPTION) {
           if (speculative_resolve) {
@@ -995,6 +994,7 @@ int MethodHandles::find_MemberNames(Klass* k,
     // watch out for these guys:
     Symbol* init_name   = vmSymbols::object_initializer_name();
     Symbol* clinit_name = vmSymbols::class_initializer_name();
+    Symbol* factory_name = vmSymbols::inline_factory_name();
     if (name == clinit_name)  clinit_name = NULL; // hack for exposing <clinit>
     bool ctor_ok = true, sfac_ok = true;
     // fix name so that it captures the intention of IS_OBJECT_CONSTRUCTOR
@@ -1008,7 +1008,7 @@ int MethodHandles::find_MemberNames(Klass* k,
       sfac_ok = false;
     } else if (!(match_flags & IS_OBJECT_CONSTRUCTOR)) {
       // methods only
-      ctor_ok = false;  // but sfac_ok is true, so we might find <init>
+      ctor_ok = false;  // but sfac_ok is true
     } else {
       // caller will accept either sort; no need to adjust name
     }
@@ -1022,9 +1022,11 @@ int MethodHandles::find_MemberNames(Klass* k,
           continue;
       if (sig != NULL && m->signature() != sig)
         continue;
-      if (m_name == init_name) {  // might be either ctor or sfac
+      if (m_name == init_name) {  // might be ctor
         if (m->is_object_constructor()  && !ctor_ok)  continue;
-        if (m->is_static_init_factory() && !sfac_ok)  continue;
+      }
+      if (m_name == factory_name) { // might be sfac
+        if (m->is_static_vnew_factory() && !sfac_ok) continue;
       }
       // passed the filters
       if (rskip > 0) {

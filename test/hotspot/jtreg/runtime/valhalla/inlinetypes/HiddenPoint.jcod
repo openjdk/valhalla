@@ -22,7 +22,7 @@
  */
 
 // These classes are based on the following source.  The return type of factory
-// method <init> in class HiddenPoint was changed to java.lang.Object because
+// method <vnew> in class HiddenPoint was changed to java.lang.Object because
 // HiddenPoint will be defined as an inline hidden class.
 //
 //  inline class HiddenPoint {
@@ -63,7 +63,7 @@ class HiddenPoint {
     Utf8 "()Ljava/lang/String;"; // #17     at 0x99
     Utf8 "Code"; // #18     at 0xB0
     Utf8 "LineNumberTable"; // #19     at 0xB7
-    Utf8 "<init>"; // #20     at 0xC9
+    Utf8 "<vnew>"; // #20     at 0xC9
     Utf8 "()Ljava/lang/Object;"; // #21     at 0xD2
     Utf8 "SourceFile"; // #22     at 0xE4
     Utf8 "HiddenPoint.java"; // #23     at 0xF1
@@ -138,7 +138,7 @@ class HiddenPoint {
     ;
     {  // method at 0x02BB
       0x0008; // access
-      #20; // name_index       : <init>
+      #20; // name_index       : <vnew>
       #21; // descriptor_index : ()LHiddenPoint;
       [1] { // Attributes
         Attr(#18, 56) { // Code at 0x02C3

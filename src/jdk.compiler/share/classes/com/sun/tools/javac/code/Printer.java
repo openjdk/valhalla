@@ -328,15 +328,11 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
                         visit(norm.supertype_field, locale));
             }
             return s;
-        }
-        String s;
-        if (longform) {
-             s =  sym.getQualifiedName().toString();
+        } else if (longform) {
+            return sym.getQualifiedName().toString();
         } else {
-            s =  sym.name.toString();
+            return sym.name.toString();
         }
-
-        return s;
     }
 
     /**
@@ -385,9 +381,7 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
         if (s.isStaticOrInstanceInit()) {
             return s.owner.name.toString();
         } else {
-            String ms = (s.name == s.name.table.names.init)
-                    ? s.owner.name.toString()
-                    : s.name.toString();
+            String ms = s.isInitOrVNew() ? s.owner.name.toString() : s.name.toString();
             if (s.type != null) {
                 if (s.type.hasTag(FORALL)) {
                     ms = "<" + visitTypes(s.type.getTypeArguments(), locale) + ">" + ms;

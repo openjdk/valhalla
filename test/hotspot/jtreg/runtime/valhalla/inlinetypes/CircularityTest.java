@@ -28,8 +28,8 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Test initialization of static inline fields with circularity
  * @library /test/lib
- * @compile CircularityTest.java
- * @run main runtime.valhalla.inlinetypes.CircularityTest
+ * @compile -XDenablePrimitiveClasses CircularityTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.CircularityTest
  */
 
 

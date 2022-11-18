@@ -12,7 +12,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
-    NameAndType #5 #11; // #9
+    NameAndType #42 #11; // #9
     Utf8 "compiler/valhalla/inlinetypes/RectangleN"; // #10
     Utf8 "()Qcompiler/valhalla/inlinetypes/RectangleN;"; // #11
     Field #13 #14; // #12
@@ -45,6 +45,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
     Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)Qcompiler/valhalla/inlinetypes/PointN;"; // #39
     Utf8 "SourceFile"; // #40
     Utf8 "NamedRectangleN.java"; // #41
+    Utf8 "<vnew>"; // #42
   } // Constant Pool
 
   0x0021; // access
@@ -172,7 +173,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
     Utf8 "()V"; // #6
     Method #8 #9; // #7
     class #10; // #8
-    NameAndType #5 #11; // #9
+    NameAndType #42 #11; // #9
     Utf8 "compiler/valhalla/inlinetypes/RectangleP"; // #10
     Utf8 "()Qcompiler/valhalla/inlinetypes/RectangleP;"; // #11
     Field #13 #14; // #12
@@ -205,6 +206,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleP {
     Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleP;)Qcompiler/valhalla/inlinetypes/Point;"; // #39
     Utf8 "SourceFile"; // #40
     Utf8 "NamedRectangleP.java"; // #41
+    Utf8 "<vnew>"; // #42
   } // Constant Pool
 
   0x0021; // access
@@ -342,7 +344,7 @@ class compiler/valhalla/inlinetypes/PointN {
     Utf8 "()Ljava/lang/String;"; // #16
     Utf8 "Code"; // #17
     Utf8 "LineNumberTable"; // #18
-    Utf8 "<init>"; // #19
+    Utf8 "<vnew>"; // #19
     Utf8 "()Qcompiler/valhalla/inlinetypes/PointN;"; // #20
     Utf8 "SourceFile"; // #21
     Utf8 "PointN.java"; // #22
@@ -481,7 +483,7 @@ class compiler/valhalla/inlinetypes/RectangleN {
     class #6; // #4
     NameAndType #7 #8; // #5
     Utf8 "compiler/valhalla/inlinetypes/PointN"; // #6
-    Utf8 "<init>"; // #7
+    Utf8 "<vnew>"; // #7
     Utf8 "()Qcompiler/valhalla/inlinetypes/PointN;"; // #8
     Field #1 #10; // #9
     NameAndType #11 #12; // #10
@@ -637,7 +639,7 @@ class compiler/valhalla/inlinetypes/RectangleP {
     class #6; // #4
     NameAndType #7 #8; // #5
     Utf8 "compiler/valhalla/inlinetypes/Point"; // #6
-    Utf8 "<init>"; // #7
+    Utf8 "<vnew>"; // #7
     Utf8 "()Qcompiler/valhalla/inlinetypes/Point;"; // #8
     Field #1 #10; // #9
     NameAndType #11 #12; // #10

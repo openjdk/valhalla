@@ -910,7 +910,7 @@ class Circ {
     Utf8 "()Ljava/lang/String;"; // #27     at 0xD1
     Utf8 "<clinit>"; // #28     at 0xE8
     Utf8 "()V"; // #29     at 0xF3
-    Utf8 "<init>"; // #30     at 0xF9
+    Utf8 "<vnew>"; // #30     at 0xF9
     Utf8 "()QCirc;"; // #31     at 0x0102
     Utf8 "SourceFile"; // #32     at 0x010D
     Utf8 "Circ.java"; // #33     at 0x011A
@@ -1188,7 +1188,7 @@ class Circ2 {
     Utf8 "()Ljava/lang/String;"; // #26     at 0xCF
     Utf8 "<clinit>"; // #27     at 0xE6
     Utf8 "()V"; // #28     at 0xF1
-    Utf8 "<init>"; // #29     at 0xF7
+    Utf8 "<vnew>"; // #29     at 0xF7
     Utf8 "()QCirc2;"; // #30     at 0x0100
     Utf8 "SourceFile"; // #31     at 0x010C
     Utf8 "Circ2.java"; // #32     at 0x0119
@@ -1503,7 +1503,7 @@ class CircStaticA {
     Utf8 "()Ljava/lang/String;"; // #27     at 0xEC
     Utf8 "<clinit>"; // #28     at 0x0103
     Utf8 "()V"; // #29     at 0x010E
-    Utf8 "<init>"; // #30     at 0x0114
+    Utf8 "<vnew>"; // #30     at 0x0114
     Utf8 "()QCircStaticA;"; // #31     at 0x011D
     Utf8 "SourceFile"; // #32     at 0x012F
     Utf8 "CircStaticA.java"; // #33     at 0x013C
@@ -1781,7 +1781,7 @@ class CircStaticB {
     Utf8 "()Ljava/lang/String;"; // #27     at 0xEC
     Utf8 "<clinit>"; // #28     at 0x0103
     Utf8 "()V"; // #29     at 0x010E
-    Utf8 "<init>"; // #30     at 0x0114
+    Utf8 "<vnew>"; // #30     at 0x0114
     Utf8 "()QCircStaticB;"; // #31     at 0x011D
     Utf8 "SourceFile"; // #32     at 0x012F
     Utf8 "CircStaticB.java"; // #33     at 0x013C
@@ -2056,7 +2056,7 @@ class ValueCloneable {
     Utf8 "(Ljava/lang/Object;)Z"; // #15     at 0x66
     Utf8 "toString"; // #16     at 0x7E
     Utf8 "()Ljava/lang/String;"; // #17     at 0x89
-    Utf8 "<init>"; // #18     at 0xA0
+    Utf8 "<vnew>"; // #18     at 0xA0
     Utf8 "()QValueCloneable;"; // #19     at 0xA9
     Utf8 "SourceFile"; // #20     at 0xBE
     Utf8 "ValueCloneable.java"; // #21     at 0xCB

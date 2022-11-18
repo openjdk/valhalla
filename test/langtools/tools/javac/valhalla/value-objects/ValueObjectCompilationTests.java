@@ -43,6 +43,15 @@ import java.io.File;
 import java.util.List;
 
 import com.sun.tools.classfile.ClassFile;
+import com.sun.tools.classfile.Code_attribute;
+import com.sun.tools.classfile.ConstantPool;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Fieldref_info;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Methodref_info;
+import com.sun.tools.classfile.Field;
+import com.sun.tools.classfile.Instruction;
+import com.sun.tools.classfile.Method;
+
 import com.sun.tools.javac.code.Flags;
 
 import static org.testng.Assert.assertTrue;
@@ -62,13 +71,13 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testAbstractValueClassConstraints() {
-        assertFail("compiler.err.super.field.not.allowed",
+        assertFail("compiler.err.instance.field.not.allowed",
                 """
                 abstract value class V {
                     int f;  // Error, abstract value class may not declare an instance field.
                 }
                 """);
-        assertFail("compiler.err.super.class.cannot.be.inner",
+        assertFail("compiler.err.abstract.value.class.cannot.be.inner",
                 """
                 class Outer {
                     abstract value class V {
@@ -84,13 +93,13 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     }
                 }
                 """);
-        assertFail("compiler.err.super.class.declares.init.block",
+        assertFail("compiler.err.abstract.value.class.declares.init.block",
                 """
                 abstract value class V {
                     { int f = 42; } // Error, abstract value class may not declare an instance initializer.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.take.arguments",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
                 abstract value class V {
                     V(int x) {}  // Error, abstract value class may not declare a non-trivial constructor.
@@ -121,7 +130,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testSuperClassConstraints() {
-        assertFail("compiler.err.super.field.not.allowed",
+        assertFail("compiler.err.instance.field.not.allowed",
                 """
                 abstract class I { // identity class since it declares an instance field.
                     int f;
@@ -129,15 +138,15 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V extends I {}
                 """);
 
-        assertFail("compiler.err.super.class.cannot.be.inner",
+        assertFail("compiler.err.abstract.value.class.cannot.be.inner",
                 """
                 class Outer {
-                    abstract class I { /* has identity since is an inner class */ }
+                    abstract class I {} // has identity since is an inner class
                     static value class V extends I
                 }
                 """);
 
-        assertFail("compiler.err.super.method.cannot.be.synchronized",
+        assertFail("compiler.err.super.class.method.cannot.be.synchronized",
                 """
                 abstract class I { // has identity since it declared a synchronized instance method.
                     synchronized void foo() {}
@@ -145,7 +154,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V extends I {}
                 """);
 
-        assertFail("compiler.err.super.class.declares.init.block",
+        assertFail("compiler.err.abstract.value.class.declares.init.block",
                 """
                 abstract class I { // has identity since it declares an instance initializer
                     { int f = 42; }
@@ -153,12 +162,18 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class V extends I {}
                 """);
 
-        assertFail("compiler.err.super.constructor.cannot.take.arguments",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
                 abstract class I { // has identity since it declares a non-trivial constructor
                     I(int x) {}
                 }
                 value class V extends I {}
+                """);
+        assertFail("compiler.err.concrete.supertype.for.value.class",
+                """
+                class ConcreteSuperType {
+                    static abstract value class V extends ConcreteSuperType {}  // Error: concrete super.
+                }
                 """);
     }
 
@@ -174,14 +189,21 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
     }
 
     public void testRepeatedModifiers() {
-        String[] sources = new String[] {
-                "static static class StaticTest {}",
-                "native native class NativeTest {}",
-                "value value primitive class ValueTest {}",
-                "primitive primitive value class PrimitiveTest {}"
-        };
-        for (String source : sources) {
-            assertFail("compiler.err.repeated.modifier", source);
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"-XDenablePrimitiveClasses"};
+            setCompileOptions(testOptions);
+            String[] sources = new String[] {
+                    "static static class StaticTest {}",
+                    "native native class NativeTest {}",
+                    "value value primitive class ValueTest {}",
+                    "primitive primitive value class PrimitiveTest {}"
+            };
+            for (String source : sources) {
+                assertFail("compiler.err.repeated.modifier", source);
+            }
+        } finally {
+            setCompileOptions(previousOptions);
         }
     }
 
@@ -233,7 +255,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 value class Base {}
                 class Subclass extends Base {}
                 """);
-        assertFail("compiler.err.super.class.cannot.be.inner",
+        assertFail("compiler.err.abstract.value.class.cannot.be.inner",
                 """
                 class Outer {
                     abstract value class AbsValue {}
@@ -278,7 +300,11 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 """);
         assertFail("compiler.err.illegal.combination.of.modifiers",
                 """
-                value identity class IdentityValue {}
+                value identity class ValueIdentity {}
+                """);
+        assertFail("compiler.err.illegal.combination.of.modifiers",
+                """
+                identity value class IdentityValue {}
                 """);
         assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
                 """
@@ -319,6 +345,16 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                     int x;
                     V() {
                         foo(this); // Error.
+                        x = 10;
+                    }
+                    void foo(V v) {}
+                }
+                """);
+        assertOK(
+                """
+                value class V {
+                    int x;
+                    V() {
                         x = 10;
                         foo(this); // Ok.
                     }
@@ -364,35 +400,35 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         assertOK(
                 """
                 abstract value class V {
-                    public V() { /* trivial ctor */ }
+                    public V() {} // trivial ctor
                 }
                 """
         );
-        assertFail("compiler.err.super.constructor.access.restricted",
+        assertFail("compiler.err.abstract.value.class.constructor.has.weaker.access",
                 """
                 abstract value class V {
                     private V() {} // non-trivial, more restrictive access than the class.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.take.arguments",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.take.arguments",
                 """
                 abstract value class V {
                     public V(int x) {} // non-trivial ctor as it declares formal parameters.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.be.generic",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.be.generic",
                 """
                 abstract value class V {
                     <T> V() {} // non trivial as it declares type parameters.
                 }
                 """);
-        assertFail("compiler.err.super.constructor.cannot.throw",
+        assertFail("compiler.err.abstract.value.class.constructor.cannot.throw",
                 """
                 abstract value class V {
                     V() throws Exception {} // non-trivial as it throws
                 }
                 """);
-        assertFail("compiler.err.super.no.arg.constructor.must.be.empty",
+        assertFail("compiler.err.abstract.value.class.no.arg.constructor.must.be.empty",
                 """
                 abstract value class V {
                     V() {
@@ -565,7 +601,7 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
         );
     }
 
-    public void testCheckThatAnonymousIsIdentity() throws Exception {
+    public void testCheckClassFileFlags() throws Exception {
         for (String source : List.of(
                 """
                 interface I {}
@@ -583,13 +619,231 @@ public class ValueObjectCompilationTests extends CompilationTestCase {
                 class Test {
                     Object o = new Object() {};
                 }
+                """,
+                """
+                class Test {
+                    // abstract inner class is implicitly an `identity` class
+                    abstract class Inner {}
+                }
                 """
         )) {
             File dir = assertOK(true, source);
             for (final File fileEntry : dir.listFiles()) {
                 if (fileEntry.getName().contains("$")) {
                     ClassFile classFile = ClassFile.read(fileEntry);
-                    assertTrue(classFile.access_flags.flags == Flags.ACC_IDENTITY);
+                    assertTrue((classFile.access_flags.flags & Flags.ACC_IDENTITY) != 0);
+                }
+            }
+        }
+
+        for (String source : List.of(
+                """
+                identity interface I {}
+                class Sub implements I {}
+                """,
+                """
+                abstract class A {
+                    // declares a non-static field so it is implicitly an identity class
+                    int i;
+                }
+                """,
+                """
+                abstract class A {
+                    // declares a synchronized method so it is implicitly an identity class
+                    synchronized void m() {}
+                }
+                """,
+                """
+                class C {
+                    // declares a synchronized method so it is implicitly an identity class
+                    synchronized void m() {}
+                }
+                """,
+                """
+                abstract class A {
+                    int i;
+                    // declares an instance initializer so it is implicitly an identity class
+                    { i = 0; }
+                }
+                """,
+                """
+                abstract class A {
+                    // declares a non-trivial constructor
+                    A(int i) {}
+                }
+                """,
+                """
+                    enum E {}
+                """,
+                """
+                    identity enum E {}
+                """,
+                """
+                    record R() {}
+                """,
+                """
+                   identity record R() {}
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                assertTrue(classFile.access_flags.is(Flags.ACC_IDENTITY));
+                assertTrue(!classFile.access_flags.is(Flags.VALUE_CLASS));
+            }
+        }
+
+        {
+            String source =
+                    """
+                            value interface I {}
+                            abstract class A implements I {} // not a value class as it doens't have the value modifier
+                            value class Sub extends A {} //implicitly final
+                            """;
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                switch (classFile.getName()) {
+                    case "Sub":
+                        assertTrue((classFile.access_flags.flags & (Flags.VALUE_CLASS | Flags.FINAL)) != 0);
+                        break;
+                    case "A":
+                        assertTrue((classFile.access_flags.flags & (Flags.ABSTRACT)) != 0);
+                        break;
+                    case "I":
+                        assertTrue((classFile.access_flags.flags & (Flags.INTERFACE | Flags.VALUE_CLASS)) != 0);
+                        break;
+                    default:
+                        throw new AssertionError("you shoulnd't be here");
+                }
+            }
+        }
+
+        for (String source : List.of(
+                """
+                value class V {
+                    int i = 0;
+                    static int j;
+                }
+                """,
+                """
+                abstract value class A {
+                    static int j;
+                }
+
+                value class V extends A {
+                    int i = 0;
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                for (Field field : classFile.fields) {
+                    if (!field.access_flags.is(Flags.STATIC)) {
+                        assertTrue(field.access_flags.is(Flags.FINAL));
+                    }
+                }
+            }
+        }
+    }
+
+    public void testCheckVnew() throws Exception {
+        for (String source : List.of(
+                """
+                abstract value class A {}
+                """,
+                """
+                value class A {}
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                boolean isAbstract = classFile.access_flags.is(Flags.ABSTRACT);
+                for (Method method : classFile.methods) {
+                    if (isAbstract) {
+                        assertTrue(method.getName(classFile.constant_pool).equals("<init>"));
+                        assertTrue(!method.access_flags.is(Flags.STATIC));
+                    } else {
+                        assertTrue(method.getName(classFile.constant_pool).equals("<vnew>"));
+                        assertTrue(method.access_flags.is(Flags.STATIC));
+                        assertTrue(!method.access_flags.is(Flags.ABSTRACT));
+                        assertTrue(method.descriptor.getReturnType(classFile.constant_pool).equals("A"));
+                    }
+                }
+            }
+        }
+
+        // check that <vnew> is invoked with invokestatic
+        for (String source : List.of(
+                """
+                value class A {
+                    void FIND_ME() {
+                        A a = new A();
+                    }
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                for (Method method : classFile.methods) {
+                    if (method.getName(classFile.constant_pool).equals("FIND_ME")) {
+                        Code_attribute code_attribute = (Code_attribute)method.attributes.get("Code");
+                        boolean firstInst = true;
+                        for (Instruction inst: code_attribute.getInstructions()) {
+                            if (firstInst) {
+                                assertTrue(inst.getMnemonic().equals("invokestatic"));
+                                CONSTANT_Methodref_info methodInfo =
+                                        (CONSTANT_Methodref_info)classFile.constant_pool.get(inst.getUnsignedShort(1));
+                                assertTrue(methodInfo.getClassInfo().getName().equals("A"));
+                                assertTrue(methodInfo.getNameAndTypeInfo().getName().equals("<vnew>"));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // checking the aconst_init and withfield instructions
+        for (String source : List.of(
+                """
+                value class A {
+                    int i;
+                    String s;
+
+                    A(int i, String s) {
+                        this.i = i;
+                        this.s = s;
+                    }
+                }
+                """
+        )) {
+            File dir = assertOK(true, source);
+            for (final File fileEntry : dir.listFiles()) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                for (Method method : classFile.methods) {
+                    if (method.getName(classFile.constant_pool).equals("<vnew>")) {
+                        Code_attribute code_attribute = (Code_attribute)method.attributes.get("Code");
+                        for (Instruction inst: code_attribute.getInstructions()) {
+                            if (inst.getMnemonic().equals("aconst_init")) {
+                                CONSTANT_Class_info classInfo =
+                                        (CONSTANT_Class_info)classFile.constant_pool.get(inst.getUnsignedShort(1));
+                                assertTrue(classInfo.getName().equals("A"));
+                            } else if (inst.getMnemonic().equals("withfield")) {
+                                CONSTANT_Fieldref_info fieldInfo = (CONSTANT_Fieldref_info)classFile.constant_pool.get(inst.getUnsignedShort(1));
+                                assertTrue(fieldInfo.getClassName().equals("A"));
+                                ConstantPool.CONSTANT_NameAndType_info nameAndType = fieldInfo.getNameAndTypeInfo();
+                                if (nameAndType.getName().equals("i")) {
+                                    assertTrue(nameAndType.getType().equals("I"));
+                                } else if (nameAndType.getName().equals("s")) {
+                                    assertTrue(nameAndType.getType().equals("Ljava/lang/String;"));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

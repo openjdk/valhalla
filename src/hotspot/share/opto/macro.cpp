@@ -387,7 +387,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
     Node *in = mem->in(j);
     if (in == NULL || in->is_top()) {
       values.at_put(j, in);
-    } else  {
+    } else {
       Node *val = scan_mem_chain(in, alias_idx, offset, start_mem, alloc, &_igvn);
       if (val == start_mem || val == alloc_mem) {
         // hit a sentinel, return appropriate 0 value
@@ -572,7 +572,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   // Subtract the offset of the first field to account for the missing oop header
   offset -= vk->first_field_offset();
   // Create a new InlineTypeNode and retrieve the field values from memory
-  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk)->as_InlineType();
+  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk);
   transform_later(vt);
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
@@ -691,11 +691,24 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         } else {
           safepoints.append_if_missing(sfpt);
         }
-      } else if (use->is_InlineType() && use->isa_InlineType()->get_oop() == res) {
-        // ok to eliminate
-      } else if (use->is_InlineTypePtr() && use->isa_InlineTypePtr()->get_oop() == res) {
-        // Process users
-        worklist.push(use);
+      } else if (use->is_InlineType() && use->as_InlineType()->get_oop() == res) {
+        // Look at uses
+        for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
+          Node* u = use->fast_out(k);
+          if (u->is_InlineType()) {
+            // Use in flat field can be eliminated
+            InlineTypeNode* vt = u->as_InlineType();
+            for (uint i = 0; i < vt->field_count(); ++i) {
+              if (vt->field_value(i) == use && !vt->field_is_flattened(i)) {
+                can_eliminate = false; // Use in non-flattened field
+                break;
+              }
+            }
+          } else {
+            // Add other uses to the worklist to process individually
+            worklist.push(u);
+          }
+        }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
@@ -917,11 +930,11 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         // to be able scalar replace the allocation.
         if (field_val->is_EncodeP()) {
           field_val = field_val->in(1);
-        } else if (!field_val->is_InlineTypeBase()) {
+        } else if (!field_val->is_InlineType()) {
           field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
         }
       }
-      if (field_val->is_InlineTypeBase()) {
+      if (field_val->is_InlineType()) {
         // Keep track of inline types to scalarize them later
         value_worklist.push(field_val);
       }
@@ -942,7 +955,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   // because Deoptimization::reassign_flat_array_elements needs field values.
   bool allow_oop = res_type != NULL && (!res_type->isa_aryptr() || !res_type->is_aryptr()->is_flat());
   for (uint i = 0; i < value_worklist.size(); ++i) {
-    InlineTypeBaseNode* vt = value_worklist.at(i)->as_InlineTypeBase();
+    InlineTypeNode* vt = value_worklist.at(i)->as_InlineType();
     vt->make_scalar_in_safepoints(&_igvn, allow_oop);
   }
   return true;
@@ -1030,15 +1043,20 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         }
         _igvn._worklist.push(ac);
       } else if (use->is_InlineType()) {
-        assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
+        assert(use->as_InlineType()->get_oop() == res, "unexpected inline type ptr use");
+        // Cut off oop input and remove known instance id from type
         _igvn.rehash_node_delayed(use);
-        use->isa_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
-      } else if (use->is_InlineTypePtr()) {
-        assert(use->isa_InlineTypePtr()->get_oop() == res, "unexpected inline type ptr use");
-        _igvn.rehash_node_delayed(use);
-        use->isa_InlineTypePtr()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        use->as_InlineType()->set_oop(_igvn.zerocon(T_PRIMITIVE_OBJECT));
+        const TypeOopPtr* toop = _igvn.type(use)->is_oopptr()->cast_to_instance_id(TypeOopPtr::InstanceBot);
+        _igvn.set_type(use, toop);
+        use->as_InlineType()->set_type(toop);
         // Process users
-        worklist.push(use);
+        for (DUIterator_Fast kmax, k = use->fast_outs(kmax); k < kmax; k++) {
+          Node* u = use->fast_out(k);
+          if (!u->is_InlineType()) {
+            worklist.push(u);
+          }
+        }
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // Store to mark word of inline type larval buffer
         assert(inline_alloc, "Unexpected store to mark word");
@@ -1317,7 +1335,8 @@ void PhaseMacroExpand::expand_allocate_common(
             AllocateNode* alloc, // allocation node to be expanded
             Node* length,  // array length for an array allocation
             const TypeFunc* slow_call_type, // Type of slow call
-            address slow_call_address  // Address of slow call
+            address slow_call_address,  // Address of slow call
+            Node* valid_length_test // whether length is valid or not
     )
 {
   Node* ctrl = alloc->in(TypeFunc::Control);
@@ -1506,6 +1525,12 @@ void PhaseMacroExpand::expand_allocate_common(
   // Copy debug information and adjust JVMState information, then replace
   // allocate node with the call
   call->copy_call_debug_info(&_igvn, alloc);
+  // For array allocations, copy the valid length check to the call node so Compile::final_graph_reshaping() can verify
+  // that the call has the expected number of CatchProj nodes (in case the allocation always fails and the fallthrough
+  // path dies).
+  if (valid_length_test != NULL) {
+    call->add_req(valid_length_test);
+  }
   if (expand_fast_path) {
     call->set_cnt(PROB_UNLIKELY_MAG(4));  // Same effect as RC_UNCOMMON.
   } else {
@@ -1748,7 +1773,7 @@ void PhaseMacroExpand::expand_dtrace_alloc_probe(AllocateNode* alloc, Node* oop,
     int size = TypeFunc::Parms + 2;
     CallLeafNode *call = new CallLeafNode(OptoRuntime::dtrace_object_alloc_Type(),
                                           CAST_FROM_FN_PTR(address,
-                                          static_cast<int (*)(Thread*, oopDesc*)>(SharedRuntime::dtrace_object_alloc)),
+                                          static_cast<int (*)(JavaThread*, oopDesc*)>(SharedRuntime::dtrace_object_alloc)),
                                           "dtrace_object_alloc",
                                           TypeRawPtr::BOTTOM);
 
@@ -1993,11 +2018,12 @@ Node* PhaseMacroExpand::prefetch_allocation(Node* i_o, Node*& needgc_false,
 void PhaseMacroExpand::expand_allocate(AllocateNode *alloc) {
   expand_allocate_common(alloc, NULL,
                          OptoRuntime::new_instance_Type(),
-                         OptoRuntime::new_instance_Java());
+                         OptoRuntime::new_instance_Java(), NULL);
 }
 
 void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   Node* length = alloc->in(AllocateNode::ALength);
+  Node* valid_length_test = alloc->in(AllocateNode::ValidLengthTest);
   InitializeNode* init = alloc->initialization();
   Node* klass_node = alloc->in(AllocateNode::KlassNode);
   const TypeAryKlassPtr* ary_klass_t = _igvn.type(klass_node)->isa_aryklassptr();
@@ -2012,7 +2038,7 @@ void PhaseMacroExpand::expand_allocate_array(AllocateArrayNode *alloc) {
   }
   expand_allocate_common(alloc, length,
                          OptoRuntime::new_array_Type(),
-                         slow_call_address);
+                         slow_call_address, valid_length_test);
 }
 
 //-------------------mark_eliminated_box----------------------------------
@@ -2214,7 +2240,7 @@ void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
 
   assert(unc->peek_monitor_box() == lock->box_node(), "wrong monitor");
   assert((obj_type->is_inlinetypeptr() && unc->peek_monitor_obj()->is_SafePointScalarObject()) ||
-         (obj->is_InlineTypePtr() && obj->in(1) == unc->peek_monitor_obj()) ||
+         (obj->is_InlineType() && obj->in(1) == unc->peek_monitor_obj()) ||
          (obj == unc->peek_monitor_obj()), "wrong monitor");
 
   // pop monitor and push obj back on stack: we trap before the monitorenter
@@ -2225,7 +2251,7 @@ void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
 
   unc_ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
   Node* halt = _igvn.transform(new HaltNode(unc_ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on inline type"));
-  C->root()->add_req(halt);
+  _igvn.add_input_to(C->root(), halt);
 }
 
 // we have determined that this lock/unlock can be eliminated, we simply
@@ -2608,6 +2634,17 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(mem_phi);
   transform_later(io_phi);
   transform_later(res_phi);
+
+  // Do not let stores that initialize this buffer be reordered with a subsequent
+  // store that would make this buffer accessible by other threads.
+  MemBarNode* mb = MemBarNode::make(C, Op_MemBarStoreStore, Compile::AliasIdxBot);
+  transform_later(mb);
+  mb->init_req(TypeFunc::Memory, mem_phi);
+  mb->init_req(TypeFunc::Control, r);
+  r = new ProjNode(mb, TypeFunc::Control);
+  transform_later(r);
+  mem_phi = new ProjNode(mb, TypeFunc::Memory);
+  transform_later(mem_phi);
 
   assert(projs->nb_resproj == 1, "unexpected number of results");
   _igvn.replace_in_uses(projs->fallthrough_catchproj, r);

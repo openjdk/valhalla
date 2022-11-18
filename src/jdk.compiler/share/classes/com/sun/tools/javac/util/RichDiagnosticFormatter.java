@@ -388,13 +388,10 @@ public class RichDiagnosticFormatter extends
                     !getConfiguration().isEnabled(RichFormatterFeature.SIMPLE_NAMES)) {
                 return super.className(t, longform, locale);
             }
-            String s;
-            if (longform)
-                s =  nameSimplifier.simplify(sym).toString();
+            else if (longform)
+                return nameSimplifier.simplify(sym).toString();
             else
-                s = sym.name.toString();
-
-            return s;
+                return sym.name.toString();
         }
 
         @Override
@@ -431,9 +428,7 @@ public class RichDiagnosticFormatter extends
             if (s.isStaticOrInstanceInit()) {
                return ownerName;
             } else {
-                String ms = (s.name == s.name.table.names.init)
-                    ? ownerName
-                    : s.name.toString();
+                String ms = (s.isInitOrVNew()) ? ownerName : s.name.toString();
                 if (s.type != null) {
                     if (s.type.hasTag(FORALL)) {
                         ms = "<" + visitTypes(s.type.getTypeArguments(), locale) + ">" + ms;

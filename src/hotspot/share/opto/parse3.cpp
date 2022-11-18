@@ -50,9 +50,9 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineTypeBase()) {
+  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
     assert(is_get, "inline type field store not supported");
-    InlineTypeBaseNode* vt = peek()->as_InlineTypeBase();
+    InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
     pop();
     Node* value = vt->field_value_by_offset(field->offset());
@@ -229,7 +229,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
-  assert(!field->is_null_free() || val->is_InlineType() || !gvn().type(val)->maybe_null(), "Null store to inline type field");
+  assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to inline type field");
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
@@ -239,7 +239,7 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
     inc_sp(1);
-    val->as_InlineTypeBase()->store_flattened(this, obj, obj, field->holder(), offset);
+    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset);
     dec_sp(1);
   } else {
     // Store the value.

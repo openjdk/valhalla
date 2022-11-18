@@ -32,7 +32,7 @@
     Utf8 "ValueClassExtendingIdentityClass"; // #2
     class #4; // #3
     Utf8 "IdentityAbstract"; // #4
-    Utf8 "<init>"; // #5
+    Utf8 "<vnew>"; // #5
     Utf8 "()LValueClassExtendingIdentityClass;"; // #6
     Utf8 "Code"; // #7
     Utf8 "LineNumberTable"; // #8
@@ -93,7 +93,7 @@ class ValueClassExtendingAbstractClassWithField {
     Utf8 "ValueClassExtendingAbstractClassWithField"; // #2
     class #4; // #3
     Utf8 "AbstractWithField"; // #4
-    Utf8 "<init>"; // #5
+    Utf8 "<vnew>"; // #5
     Utf8 "()LValueClassExtendingAbstractClassWithField;"; // #6
     Utf8 "Code"; // #7
     Utf8 "LineNumberTable"; // #8
@@ -154,7 +154,7 @@ class ValueClassExtendingAbstractClassWithSynchMethod {
     Utf8 "ValueClassExtendingAbstractClassWithSynchMethod"; // #2
     class #4; // #3
     Utf8 "AbstractWithSynchMethod"; // #4
-    Utf8 "<init>"; // #5
+    Utf8 "<vnew>"; // #5
     Utf8 "()LValueClassExtendingAbstractClassWithSynchMethod;"; // #6
     Utf8 "Code"; // #7
     Utf8 "LineNumberTable"; // #8
@@ -217,7 +217,7 @@ class ValueClassImplementingIdentityInterface {
     Utf8 "java/lang/Object"; // #4
     class #6; // #5
     Utf8 "IdentityInterface"; // #6
-    Utf8 "<init>"; // #7
+    Utf8 "<vnew>"; // #7
     Utf8 "()LValueClassImplementingIdentityInterface;"; // #8
     Utf8 "Code"; // #9
     Utf8 "LineNumberTable"; // #10

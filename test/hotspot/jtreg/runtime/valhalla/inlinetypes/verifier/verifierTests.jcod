@@ -74,7 +74,7 @@ class defValBadCP {
     Utf8 "LdefValBadCP;"; // #9     at 0x2E
     Utf8 "int_v"; // #10     at 0x38
     Utf8 "I"; // #11     at 0x40
-    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "<vnew>"; // #12     at 0x44
     Utf8 "()V"; // #13     at 0x4D
     Utf8 "Code"; // #14     at 0x53
     Utf8 "LineNumberTable"; // #15     at 0x5A
@@ -276,7 +276,7 @@ class defValWrongCPType {
     Utf8 "LdefValWrongCPType;"; // #9     at 0x2E
     Utf8 "int_v"; // #10     at 0x38
     Utf8 "I"; // #11     at 0x40
-    Utf8 "<init>"; // #12     at 0x44
+    Utf8 "<vnew>"; // #12     at 0x44
     Utf8 "()V"; // #13     at 0x4D
     Utf8 "Code"; // #14     at 0x53
     Utf8 "LineNumberTable"; // #15     at 0x5A
@@ -372,7 +372,7 @@ class wthFldBadCP {
     class #19; // #4     at 0x17
     Utf8 "int_v"; // #5     at 0x1A
     Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
+    Utf8 "<vnew>"; // #7     at 0x26
     Utf8 "()V"; // #8     at 0x2F
     Utf8 "Code"; // #9     at 0x35
     Utf8 "LineNumberTable"; // #10     at 0x3C
@@ -463,7 +463,7 @@ class wthFldBadFldVal {
     class #19; // #4     at 0x17
     Utf8 "int_v"; // #5     at 0x1A
     Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
+    Utf8 "<vnew>"; // #7     at 0x26
     Utf8 "()V"; // #8     at 0x2F
     Utf8 "Code"; // #9     at 0x35
     Utf8 "LineNumberTable"; // #10     at 0x3C
@@ -553,7 +553,7 @@ class wthFldBadFldRef {
     class #19; // #4     at 0x17
     Utf8 "int_v"; // #5     at 0x1A
     Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
+    Utf8 "<vnew>"; // #7     at 0x26
     Utf8 "()V"; // #8     at 0x2F
     Utf8 "Code"; // #9     at 0x35
     Utf8 "LineNumberTable"; // #10     at 0x3C
@@ -745,7 +745,7 @@ class wthFldWrongCPType {
     class #19; // #4     at 0x17
     Utf8 "int_v"; // #5     at 0x1A
     Utf8 "I"; // #6     at 0x22
-    Utf8 "<init>"; // #7     at 0x26
+    Utf8 "<vnew>"; // #7     at 0x26
     Utf8 "()V"; // #8     at 0x2F
     Utf8 "Code"; // #9     at 0x35
     Utf8 "LineNumberTable"; // #10     at 0x3C
@@ -848,7 +848,7 @@ class defValueObj {
     Utf8 "(Ljava/lang/Object;)Z"; // #16     at 0x86
     Utf8 "toString"; // #17     at 0x9E
     Utf8 "()Ljava/lang/String;"; // #18     at 0xA9
-    Utf8 "<init>"; // #19     at 0xC0
+    Utf8 "<vnew>"; // #19     at 0xC0
     Utf8 "()QdefValueObj;"; // #20     at 0xC9
     Utf8 "SourceFile"; // #21     at 0xDA
     Utf8 "defValueObj.java"; // #22     at 0xE7
@@ -1072,7 +1072,7 @@ class withfieldL {
     Utf8 "(II)QwithfieldL;"; // #16     at 0x6B
     Utf8 "Code"; // #17     at 0x7B
     Utf8 "LineNumberTable"; // #18     at 0x82
-    Utf8 "<init>"; // #19     at 0x94
+    Utf8 "<vnew>"; // #19     at 0x94
     Utf8 "()QwithfieldL;"; // #20     at 0x9D
     Utf8 "SourceFile"; // #21     at 0xAB
     Utf8 "X.java"; // #22     at 0xB8
@@ -1141,7 +1141,7 @@ class withfieldL {
     ;
     {  // method at 0x0152
       0x000A; // access
-      #19; // name_index       : <init>
+      #19; // name_index       : <vnew>
       #20; // descriptor_index : ()QwithfieldL;
       [1] { // Attributes
         Attr(#17, 55) { // Code at 0x015A
@@ -1267,7 +1267,7 @@ class NoNullVT {
     Utf8 "hashCode"; // #29     at 0x0108
     Utf8 "toString"; // #30     at 0x0113
     Utf8 "()Ljava/lang/String;"; // #31     at 0x011E
-    Utf8 "<init>"; // #32     at 0x0135
+    Utf8 "<vnew>"; // #32     at 0x0135
     Utf8 "()QNoNullVT;"; // #33     at 0x013E
     Utf8 "SourceFile"; // #34     at 0x014D
     Utf8 "NoNullVT.java"; // #35     at 0x015A

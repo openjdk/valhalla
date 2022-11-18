@@ -146,14 +146,14 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register val,
                          DecoratorSet decorators) {
   assert(val == noreg || val == r0, "parameter is just for looks");
-  __ store_heap_oop(dst, val, r10, r1, r3, decorators);
+  __ store_heap_oop(dst, val, r10, r11, r3, decorators);
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,
                         Address src,
                         Register dst,
                         DecoratorSet decorators) {
-  __ load_heap_oop(dst, src, r10, r1, decorators);
+  __ load_heap_oop(dst, src, r10, r11, decorators);
 }
 
 Address TemplateTable::at_bcp(int offset) {
@@ -413,7 +413,7 @@ void TemplateTable::fast_aldc(bool wide)
     // Stash null_sentinel address to get its value later
     __ movptr(rarg, (uintptr_t)Universe::the_null_sentinel_addr());
     __ ldr(tmp, Address(rarg));
-    __ resolve_oop_handle(tmp);
+    __ resolve_oop_handle(tmp, r5, rscratch2);
     __ cmpoop(result, tmp);
     __ br(Assembler::NE, notNull);
     __ mov(result, 0);  // NULL object reference
@@ -1168,7 +1168,7 @@ void TemplateTable::aastore() {
 
   // Have a NULL in r0, r3=array, r2=index.  Store NULL at ary[idx]
   __ bind(is_null);
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses) {
     Label is_null_into_value_array_npe, store_null;
 
     // No way to store null in flat null-free array
@@ -1185,7 +1185,7 @@ void TemplateTable::aastore() {
   do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ b(done);
 
-  if (EnableValhalla) {
+  if (UseFlatArray) {
      Label is_type_ok;
     __ bind(is_flat_array); // Store non-null value to flat
 
@@ -2443,7 +2443,7 @@ void TemplateTable::load_field_cp_cache_entry(Register obj,
                                         ConstantPoolCacheEntry::f1_offset())));
     const int mirror_offset = in_bytes(Klass::java_mirror_offset());
     __ ldr(obj, Address(obj, mirror_offset));
-    __ resolve_oop_handle(obj);
+    __ resolve_oop_handle(obj, r5, rscratch2);
   }
 }
 
@@ -2609,7 +2609,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   __ cmp(flags, (u1)atos);
   __ br(Assembler::NE, notObj);
   // atos
-  if (!EnableValhalla) {
+  if (!EnablePrimitiveClasses) {
     do_oop_load(_masm, field, r0, IN_HEAP);
     __ push(atos);
     if (rc == may_rewrite) {
@@ -2618,7 +2618,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     __ b(Done);
   } else { // Valhalla
     if (is_static) {
-      __ load_heap_oop(r0, field);
+      __ load_heap_oop(r0, field, rscratch1, rscratch2);
       Label is_null_free_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
       __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_null_free_inline_type);
@@ -2648,7 +2648,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       Label is_inlined, nonnull, is_inline_type, rewrite_inline;
       __ test_field_is_null_free_inline_type(raw_flags, noreg /*temp*/, is_inline_type);
         // Non-inline field case
-        __ load_heap_oop(r0, field);
+        __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ push(atos);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
@@ -2657,7 +2657,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(is_inline_type);
         __ test_field_is_inlined(raw_flags, noreg /* temp */, is_inlined);
          // field is not inlined
-          __ load_heap_oop(r0, field);
+          __ load_heap_oop(r0, field, rscratch1, rscratch2);
           __ cbnz(r0, nonnull);
             __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
             __ get_inline_type_field_klass(klass, raw_flags, inline_klass);
@@ -2917,7 +2917,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   // atos
   {
-     if (!EnableValhalla) {
+     if (!EnablePrimitiveClasses) {
       __ pop(atos);
       if (!is_static) pop_and_check_object(obj);
       // Store into the field
@@ -3311,7 +3311,7 @@ void TemplateTable::fast_accessfield(TosState state)
       Label is_inlined, nonnull, Done;
       __ test_field_is_inlined(r3, noreg /* temp */, is_inlined);
         // field is not inlined
-        __ load_heap_oop(r0, field);
+        __ load_heap_oop(r0, field, rscratch1, rscratch2);
         __ cbnz(r0, nonnull);
           __ andw(index, r3, ConstantPoolCacheEntry::field_index_mask);
           __ ldr(klass, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
@@ -3917,7 +3917,7 @@ void TemplateTable::checkcast()
     __ profile_null_seen(r2);
   }
 
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses) {
     // Get cpool & tags index
     __ get_cpool_and_tags(r2, r3); // r2=cpool, r3=tags array
     __ get_unsigned_2_byte_index_at_bcp(r19, 1); // r19=index

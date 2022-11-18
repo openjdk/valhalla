@@ -92,6 +92,7 @@ public class Names {
     public final Name getClass;
     public final Name hasNext;
     public final Name hashCode;
+    public final Name vnew;
     public final Name init;
     public final Name iterator;
     public final Name length;
@@ -116,10 +117,6 @@ public class Names {
     public final Name java_lang_Enum;
     public final Name java_lang_Object;
     public final Name java_lang_System;
-    public final Name __primitive__;
-    public final Name java_lang___primitive__;
-    public final Name __value__;
-    public final Name java_lang___value__;
 
     // names of builtin classes
     public final Name Array;
@@ -289,6 +286,7 @@ public class Names {
         getClass = fromString("getClass");
         hasNext = fromString("hasNext");
         hashCode = fromString("hashCode");
+        vnew = fromString("<vnew>");
         init = fromString("<init>");
         iterator = fromString("iterator");
         length = fromString("length");
@@ -314,10 +312,6 @@ public class Names {
         java_lang_Enum = fromString("java.lang.Enum");
         java_lang_Object = fromString("java.lang.Object");
         java_lang_System = fromString("java.lang.System");
-        __primitive__ = fromString("__primitive__");
-        java_lang___primitive__ = fromString("java.lang.__primitive__");
-        __value__ = fromString("__value__");
-        java_lang___value__ = fromString("java.lang.__value__");
 
         // names of builtin classes
         Array = fromString("Array");
@@ -437,6 +431,10 @@ public class Names {
             return UnsharedNameTable.create(this);
         else
             return SharedNameTable.create(this);
+    }
+
+    public boolean isInitOrVNew(Name name) {
+        return name == init || name == vnew;
     }
 
     public void dispose() {

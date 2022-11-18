@@ -729,6 +729,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             super.setPos(pos);
             return this;
         }
+
         public boolean isPoly() { return false; }
         public boolean isStandalone() { return true; }
 
@@ -957,6 +958,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return METHODDEF;
+        }
+
+        public boolean isInitOrVNew() {
+            return name.table.names.isInitOrVNew(name);
         }
   }
 
