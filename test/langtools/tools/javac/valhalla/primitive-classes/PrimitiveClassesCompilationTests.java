@@ -89,7 +89,6 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     public long longValue() { return 0; }
                     public int intValue() { return 0; }
                 }
-                
                 primitive class PC extends Integer {}
                 """);
 
@@ -233,5 +232,94 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """
         );
+    }
+
+    public void testWithFieldNeg() {
+        String[] sources = new String[] {
+                """
+                primitive final class A {
+                    final int x = 10;
+                    primitive final class B {
+                        final A a = A.default;
+                        void foo(A a) {
+                            a.x = 100;
+                        }
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    static final int sx = 10;
+                    primitive final class B {
+                        final A a = A.default;
+                        void foo(A a) {
+                            a.sx = 100;
+                        }
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    primitive final class B {
+                        final A a = A.default;
+                    }
+                    void withfield(B b) {
+                            b.a.x = 11;
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    void foo(A a) {
+                        a.x = 100;
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    void foo(A a) {
+                        (a).x = 100;
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    void foo(final A fa) {
+                        fa.x = 100;
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    void foo() {
+                        x = 100;
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    void foo() {
+                        this.x = 100;
+                    }
+                }
+                """,
+                """
+                primitive final class A {
+                    final int x = 10;
+                    void foo() {
+                        A.this.x = 100;
+                    }
+                }
+                """,
+        };
+        for (String source : sources) {
+            assertFail("compiler.err.cant.assign.val.to.final.var", source);
+        }
     }
 }
