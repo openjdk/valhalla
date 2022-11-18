@@ -322,4 +322,93 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
             assertFail("compiler.err.cant.assign.val.to.final.var", source);
         }
     }
+
+    public void testIllegalModifiers() {
+        assertFail("compiler.err.illegal.combination.of.modifiers", "primitive interface I {}");
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                class Test {
+                    primitive public void m() {}
+                }
+                """);
+        /*
+        // this test is passing, not sure if this is correct
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                class Test {
+                    interface I {}
+                    void m() {
+                        new primitive I() {};
+                    }
+                }
+                """);
+        */
+    }
+
+    public void testPrimitivesAsTypeParams() {
+        String[] sources = new String[] {
+                """
+                import java.util.ArrayList;
+                primitive class ValueOverGenericsTest {
+                    ArrayList<ValueOverGenericsTest> ax = null;
+                }
+                """,
+                """
+                import java.util.ArrayList;
+                primitive class ValueOverGenericsTest {
+                    void foo(ArrayList<? extends ValueOverGenericsTest> p) {}
+                }
+                """,
+                """
+                import java.util.ArrayList;
+                primitive class ValueOverGenericsTest {
+                    void foo() {
+                        new <ValueOverGenericsTest> ArrayList<Object>();
+                    }
+                }
+                """,
+                """
+                import java.util.ArrayList;
+                primitive class ValueOverGenericsTest {
+                    void foo() {
+                        this.<ValueOverGenericsTest>foo();
+                    }
+                }
+                """,
+                """
+                import java.util.ArrayList;
+                primitive class ValueOverGenericsTest {
+                    void foo() {
+                        Object o = (ValueOverGenericsTest & Serializable) null;
+                    }
+                }
+                """,
+        };
+        for (String source : sources) {
+            assertFail("compiler.err.type.found.req", source);
+        }
+    }
+
+    public void testLocalPrimitiveClasses() {
+        assertFail("compiler.err.cant.inherit.from.final",
+                """
+                class ValueModifierTest {
+                    interface Value {}
+                    void goo() {
+                        primitive class Value {}
+                        new Value() {};
+                    }
+                }
+                """);
+        assertFail("compiler.err.cant.inherit.from.final",
+                """
+                class ValueModifierTest {
+                    interface Value {}
+                    void goo() {
+                        primitive class Value {}
+                        new primitive Value() {};
+                    }
+                }
+                """);
+    }
 }
