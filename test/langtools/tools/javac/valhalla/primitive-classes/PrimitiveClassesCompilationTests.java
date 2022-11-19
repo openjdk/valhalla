@@ -411,4 +411,232 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """);
     }
+
+    public void testDefaultOnUnknownClass() {
+        assertFail("compiler.err.cant.resolve.location",
+                """
+                class Test {
+                    void m() {
+                        Object o = Unknown.default;
+                    }
+                }
+                """);
+        assertFail("compiler.err.cant.resolve.location",
+                """
+                class Test {
+                    void m() {
+                        Object o = Unknown1.Unknown2.default;
+                    }
+                }
+                """);
+    }
+
+    public void testUncheckedDefaultWarning() {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"-Xlint:all", "-XDenablePrimitiveClasses"};
+            setCompileOptions(testOptions);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    primitive class UncheckedDefault<E> {
+                        void m() {
+                            UncheckedDefault<String> foo = UncheckedDefault.default;
+                        }
+                    }
+                    """);
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
+    public void testRefProjection() {
+        assertFail("compiler.err.prob.found.req",
+                """
+                primitive class PC {
+                    void foo() {
+                        PC x = null;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                primitive class PC {
+                    void foo() {
+                        PC.ref x = null;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                primitive class PC {
+                    void foo(PC x) {
+                        PC.ref xq = null;
+                        xq = x;
+                        xq = (PC.ref) x;
+                        xq = (PC) x;
+                        x = xq;
+                        x = (PC.ref) xq;
+                        x = (PC) xq;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                primitive class PC {
+                    void foo() {
+                        PC[] xa = new PC[] { null };
+                    }
+                }
+                """);
+        assertOK(
+                """
+                primitive class PC {
+                    void foo() {
+                        PC.ref [] xqa = new PC.ref[] { null };
+                    }
+                }
+                """);
+        assertOK(
+                """
+                primitive class PC {
+                    void foo(PC[] xa) {
+                        PC.ref[] xqa = xa;
+                        xqa = (PC.ref[]) xa;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                primitive class PC {
+                    void foo(PC[] xa, PC.ref[] xqa) {
+                        xa = xqa;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                primitive class PC {
+                    void foo(PC[] xa, PC.ref[] xqa) {
+                        xa = (PC[]) xqa;
+                    }
+                }
+                """);
+    }
+
+    public void testSuperInvocation() {
+        assertFail("compiler.err.call.to.super.not.allowed.in.value.ctor",
+                """
+                primitive class PC {
+                    PC(String s) {
+                        super();  // Error.
+                    }
+                }
+                """);
+    }
+
+    public void testProjectionInstantiation() {
+        assertFail("compiler.err.projection.cant.be.instantiated",
+                """
+                primitive class PC {
+                    void m() {
+                        new PC.ref();
+                    }
+                }
+                """);
+        assertFail("compiler.err.projection.cant.be.instantiated",
+                """
+                primitive class PC {
+                    void m() {
+                        new PC.val();
+                    }
+                }
+                """);
+        assertOK(
+                """
+                import java.util.function.Supplier;
+                primitive class PC {
+                    void m() {
+                        foo(PC::new);
+                    }
+                    static void foo(Supplier<PC.ref> sx) {}
+                }
+                """);
+        assertFail("compiler.err.projection.cant.be.instantiated",
+                """
+                import java.util.function.Supplier;
+                primitive class PC {
+                    void m() {
+                        foo(PC.ref::new);
+                    }
+                    static void foo(Supplier<PC.ref> sx) {}
+                }
+                """);
+        assertFail("compiler.err.projection.cant.be.instantiated",
+                """
+                import java.util.function.Supplier;
+                primitive class PC {
+                    void m() {
+                        foo(PC.val::new);
+                    }
+                    static void foo(Supplier<PC.ref> sx) {}
+                }
+                """);
+    }
+
+    public void testOverloadResolution() {
+        assertFail("compiler.err.ref.ambiguous",
+                """
+                class OverloadingPhaseTest {
+                    static primitive class V {}
+                    static String roo(V.ref v, int i) {
+                        return "";
+                    }
+                    static String roo(V.ref v, Integer i) {
+                        return "";
+                    }
+                    void m(V o) {
+                        String result = roo(o, 0);
+                    }
+                }
+                """);
+        assertFail("compiler.err.ref.ambiguous",
+                """
+                class OverloadingPhaseTest {
+                    static primitive class V {}
+                    static String roo(V.ref v, int i) {
+                        return "";
+                    }
+                    static String roo(V.ref v, Integer i) {
+                        return "";
+                    }
+                    void m(V o) {
+                        String result = roo(o, Integer.valueOf(0));
+                    }
+                }
+                """);
+    }
+
+    public void testNoVolatileFields() {
+        assertFail("compiler.err.illegal.combination.of.modifiers",
+                """
+                primitive class Bar {
+                    volatile int i = 0;
+                }
+                """);
+    }
+
+    public void testDualPath() {
+        assertFail("compiler.err.already.defined",
+                """
+                primitive class DualPathInnerType  {
+                    class Inner { }
+
+                    static DualPathInnerType.Inner xi = new DualPathInnerType().new Inner();
+                    DualPathInnerType.ref.Inner xri = xi;
+
+                    void f (DualPathInnerType.Inner xri) {}
+                    void f (DualPathInnerType.ref.Inner xri) {}
+                }
+                """);
+    }
 }
