@@ -331,6 +331,22 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                     primitive public void m() {}
                 }
                 """);
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                class Test {
+                    void m() {
+                        int[] ia = new primitive int[10];
+                    }
+                }
+                """);
+        assertFail("compiler.err.mod.not.allowed.here",
+                """
+                class Test {
+                    void m() {
+                        new primitive String("Hello");
+                    }
+                }
+                """);
         /*
         // this test is passing, not sure if this is correct
         assertFail("compiler.err.mod.not.allowed.here",
@@ -636,6 +652,514 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
 
                     void f (DualPathInnerType.Inner xri) {}
                     void f (DualPathInnerType.ref.Inner xri) {}
+                }
+                """);
+    }
+
+    public void testGenericArray() {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"-Xlint:all", "-XDenablePrimitiveClasses"};
+            setCompileOptions(testOptions);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo() {
+                                Value<T>[] v = new Value[1];
+                            }
+                        }
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo() {
+                                Value<Test>[] vx = new Value[1];
+                            }
+                        }
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo() {
+                                Value<String>[] vs = new Value[1];
+                            }
+                        }
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo(Value<T>[] v) {
+                                v = (Value<T> []) new Value[1];
+                            }
+                        }
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo(Value<Test>[] vx) {
+                                vx = (Value<Test>[]) new Value[1];
+                            }
+                        }
+                    }
+                    """);
+            assertOKWithWarning("compiler.warn.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo(Value<String>[] vs) {
+                                vs = (Value<String>[]) new Value[1];
+                            }
+                        }
+                    }
+                    """);
+            assertFail("compiler.err.prob.found.req",
+                    """
+                    class Test {
+                        primitive class Value<T> {
+                            T t = null;
+                            void foo(Value<Test>[] vx, Value<String>[] vs) {
+                                vx = vs;
+                            }
+                        }
+                    }
+                    """);
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
+    public void testAdditionalGenericTests() {
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo() {
+                        GenericInlineTest<String, Integer> g = new GenericInlineTest<String, Integer>();
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, High<String, Integer> h1) {
+                        h1 = g;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, High<Integer, String> h2) {
+                        h2 = g;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, Mid<String, Integer> m1) {
+                        m1 = g;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, Mid<Integer, String> m2) {
+                        m2 = g;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, Low<String, Integer> l1) {
+                        l1 = g;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, Low<Integer, String> l2) {
+                        l2 = g;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, Low<Integer, String> l2) {
+                        l2 = g;
+                        g = l2;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, Low<Integer, String> l2) {
+                        l2 = g;
+                        g = (GenericInlineTest<String, Integer>) l2;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<String, Integer> r1) {
+                        r1 = g;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<Integer, String> r2) {
+                        r2 = g;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<String, Integer> r1) {
+                        r1 = g;
+                        g = r1;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<Integer, String> r2) {
+                        r2 = g;
+                        g = r2;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                abstract class Low<T, U> {}
+                abstract class Mid<T, U> extends Low<U, T> {}
+                abstract class High<T, U> extends Mid<U, T> {}
+
+                primitive class GenericInlineTest<T, U> extends High<U, T> {
+                    void foo(GenericInlineTest<String, Integer> g, GenericInlineTest.ref<Integer, String> r2) {
+                        r2 = g;
+                        g = (GenericInlineTest<String, Integer>) r2;
+                    }
+                }
+                """);
+    }
+
+    public void testValRefTokensNegative() {
+        assertFail("compiler.err.cant.resolve.location",
+                """
+                class ValRefTokensNegativeTest {
+                    ValRefTokensNegativeTest.ref aa = null;
+                }
+                """);
+        assertFail("compiler.err.cant.resolve.location",
+                """
+                class ValRefTokensNegativeTest {
+                    static ValRefTokensNegativeTest.val bb = ValRefTokensNegativeTest.default;
+                }
+                """);
+        assertOK(
+                """
+                class ValRefTokensNegativeTest {
+                    EmptyValue empty = EmptyValue.default;
+
+                    static class ValRefTokensTestWrapper {
+                        ValRefTokensNegativeTest val = ValRefTokensNegativeTest.default;
+                        ValRefTokensNegativeTest ref = ValRefTokensNegativeTest.default;
+                    }
+
+                    public EmptyValue test(int x) {
+                        ValRefTokensTestWrapper w = new ValRefTokensTestWrapper();
+                        return x == 0 ? w.val.empty : w.ref.empty;
+                    }
+
+                    static class EmptyValue {
+                        static int x = 42;
+                    }
+                }
+                """);
+        assertFail("compiler.err.cant.resolve.location",
+                """
+                class ValRefTokensNegativeTest {
+                    int valx() {
+                        return EmptyValue.val.x;
+                    }
+
+                    static class EmptyValue {
+                        static int x = 42;
+                    }
+                }
+                """);
+        assertFail("compiler.err.cant.resolve.location",
+                """
+                class ValRefTokensNegativeTest {
+                    int refx() {
+                        return EmptyValue.ref.x;
+                    }
+                    static class EmptyValue {
+                        static int x = 42;
+                    }
+                }
+                """);
+    }
+
+    public void testPrimitiveAsTypeName() {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"--source", "16"};
+            setCompileOptions(testOptions);
+            assertFail("compiler.err.primitive.classes.not.supported",
+                    """
+                    class primitive {
+                        primitive x;
+                        primitive foo(int l) {}
+                        Object o = new primitive primitive() {};
+                    }
+                    """);
+            setCompileOptions(previousOptions);
+            assertFail("compiler.err.restricted.type.not.allowed",
+                    """
+                    class primitive {}
+                    """);
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
+
+    public void testMiscThisLeak() {
+        assertFail("compiler.err.this.exposed.prematurely",
+                """
+                class MiscThisLeak {
+                    interface I {
+                        void foo();
+                    }
+                    primitive class V {
+                        int f;
+                        V() {
+                            I i = this::foo;
+                        }
+
+                        void foo() {}
+                    }
+                }
+                """);
+        assertOK(
+                """
+                class MiscThisLeak {
+                    interface I {
+                        void foo();
+                    }
+                    primitive class V {
+                        int f;
+                        V() {
+                            I i = MiscThisLeak.this::foo;
+                            f = 10;
+                        }
+
+                        void foo() {}
+                    }
+                    void foo() {}
+                }
+                """);
+        assertFail("compiler.err.this.exposed.prematurely",
+                """
+                class MiscThisLeak {
+                    interface I {
+                        void foo();
+                    }
+                    primitive class V {
+                        class K {}
+                        int f;
+                        V() {
+                            new K();
+                            f = 10;
+                        }
+
+                        void foo() {}
+                    }
+                    void foo() {}
+                }
+                """);
+        assertFail("compiler.err.this.exposed.prematurely",
+                """
+                class MiscThisLeak {
+                    interface I {
+                        void foo();
+                    }
+                    primitive class V {
+                        class K {}
+                        int f;
+                        V() {
+                            this.new K();
+                            f = 10;
+                        }
+
+                        void foo() {}
+                    }
+                    void foo() {}
+                }
+                """);
+        assertOK(
+                """
+                class MiscThisLeak {
+                    interface I {
+                        void foo();
+                    }
+                    primitive class V {
+                        class K {}
+                        int f;
+                        V() {
+                            f = 10;
+                            I i = this::foo;
+                        }
+                        void foo() {}
+                    }
+                    void foo() {}
+                }
+                """);
+    }
+
+    public void testCovariantArrayTest() {
+        assertFail("compiler.err.prob.found.req",
+                """
+                class CovariantArrayTest {
+                    primitive class V {
+                        public final int v1;
+                        private V () { v1 = 0; }
+                    }
+                    void m(int[] ia, Object[] oa) {
+                        oa = (Object[])ia;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                class CovariantArrayTest {
+                    primitive class V {
+                        public final int v1;
+                        private V () { v1 = 0; }
+                    }
+                    void m(int[] ia, Object[] oa) {
+                        oa = ia;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                class CovariantArrayTest {
+                    primitive class V {
+                        public final int v1;
+                        private V () { v1 = 0; }
+                    }
+                    void m(int[] ia, Object[] oa) {
+                        V[] va = new V[1];
+                        Object[] oa2 = (Object[])va;
+                        oa2 = va;
+                    }
+                }
+                """);
+        assertFail("compiler.err.prob.found.req",
+                """
+                class CovariantArrayTest {
+                    primitive class V {
+                        public final int v1;
+                        private V () { v1 = 0; }
+                    }
+                    void m(int[] ia, Object[] oa) {
+                        V[] va = new V[1];
+                        Object[] oa2 = (Object[])va;
+                        oa2 = va;
+                        va = oa2;
+                    }
+                }
+                """);
+        assertOK(
+                """
+                class CovariantArrayTest {
+                    primitive class V {
+                        public final int v1;
+                        private V () { v1 = 0; }
+                    }
+                    void m(int[] ia, Object[] oa) {
+                        V[] va = new V[1];
+                        Object[] oa2 = (Object[])va;
+                        oa2 = va;
+                        va = (V[]) oa2;
+                    }
                 }
                 """);
     }
