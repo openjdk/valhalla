@@ -63,8 +63,7 @@ import java.util.function.Consumer;
  *     <LI> {@linkplain ValuePolicy#STRONG STRONG} - entries are retained until removed,
  *     <LI> {@linkplain ValuePolicy#STRONG DISCARD} - entries are discarded and not put in the map,
  *     <LI> {@linkplain ValuePolicy#STRONG THROW} - entries are not inserted and
- *          {@link #put(Object, Object) put(k,v)} throws
- *          {@link UnsupportedOperationException}
+ *          {@link #put(Object, Object) put(k,v)} throws {@link IdentityException}
  * </UL>
  *
  * <p> Both null values and the null key are supported. This class has
@@ -362,7 +361,7 @@ public class WeakHashMap<K,V>
         // check if the given entry refers to the given key without
         // keeping a strong reference to the entry's referent
         // only identity objects can be compared to a reference
-        if (!key.getClass().isValue() &&e.refersTo(key)) return true;
+        if (Objects.isIdentityObject(key) && e.refersTo(key)) return true;
 
         // then check for equality if the referent is not cleared
         Object k = e.get();
@@ -526,16 +525,16 @@ public class WeakHashMap<K,V>
      *         {@code null} if there was no mapping for {@code key}.
      *         (A {@code null} return can also indicate that the map
      *         previously associated {@code null} with {@code key}.)
-     * @throws UnsupportedOperationException if {@code key} is a value object
+     * @throws IdentityException if {@code key} is a value object
      *         and the {@link #valuePolicy() valuePolicy} is {@link ValuePolicy#THROW}.
      */
     public V put(K key, V value) {
-        final boolean isValue = key.getClass().isValue();
+        Object k = maskNull(key);
+        final boolean isValue = Objects.isValueObject(k);
         if (isValue && valuePolicy == ValuePolicy.DISCARD) {
             // put of a value object key with value policy DISCARD is more like remove(key)
             return remove(key);
         }
-        Object k = maskNull(key);
         int h = hash(k);
         Entry<K,V>[] tab = getTable();
         int i = indexFor(h, tab.length);
@@ -563,7 +562,7 @@ public class WeakHashMap<K,V>
      * Return a new entry for keys that are value objects.
      * The {@link ValuePolicy} for this WeakHashMap determines what entry is returned.
      * <ul>
-     *     <li> THROW - Throws an UnsupportedOperationException</li>
+     *     <li> THROW - Throws an IdentityException</li>
      *     <li> STRONG - a StrongEntry </li>
      *     <li> SOFT - a SoftEntry</li>
      *     <li> DISCARD - null</li>
@@ -575,13 +574,13 @@ public class WeakHashMap<K,V>
      * @param hash hash
      * @param next next
      * @return a new entry or null to discard
+     * @throws IdentityException if the valuePolicy is {@link ValuePolicy#THROW}
      */
     private Entry<K, V> newValueEntry(Object key, V value,
                                       ReferenceQueue<Object> queue,
                                       int hash, Entry<K,V> next) {
         return switch (valuePolicy) {
-            case THROW -> throw new UnsupportedOperationException("Value objects not allowed as keys: " +
-                    key.getClass().getName());
+            case THROW -> throw new IdentityException(key.getClass());
             case STRONG -> StrongEntry.newStrongEntry(key, value, queue, hash,  next);
             case SOFT ->  SoftEntry.newSoftEntry(key, value, queue, hash,  next);
             case DISCARD -> null;
@@ -656,7 +655,7 @@ public class WeakHashMap<K,V>
      *
      * @param m mappings to be stored in this map.
      * @throws  NullPointerException if the specified map is null.
-     * @throws  UnsupportedOperationException if any of the {@code keys} is a value object
+     * @throws  IdentityException if any of the {@code keys} is a value object
      *         and the {@link #valuePolicy() valuePolicy} is {@link ValuePolicy#THROW}.
      */
     public void putAll(Map<? extends K, ? extends V> m) {
@@ -694,7 +693,7 @@ public class WeakHashMap<K,V>
      * @param value {@inheritDoc}
      * @return {@inheritDoc}
      *
-     * @throws  UnsupportedOperationException if {@code key} is a value object
+     * @throws  IdentityException if {@code key} is a value object
      *         and the {@link #valuePolicy() valuePolicy} is {@link ValuePolicy#THROW}.
      */
     public V putIfAbsent(K key, V value) {
@@ -1604,7 +1603,7 @@ public class WeakHashMap<K,V>
          */
         DISCARD,
         /**
-         * If the key is a value object, throw {@link UnsupportedOperationException};
+         * If the key is a value object, throw {@link IdentityException};
          * such keys and values are not retained.
          */
         THROW;

@@ -100,7 +100,7 @@ public class WeakValuePolicyTest {
     @Test
     public void putValueThrows() {
         final WeakHashMap<Object, String> map = new WeakHashMap<>(0, 0.75f, WeakHashMap.ValuePolicy.THROW);
-        Assert.assertThrows(UnsupportedOperationException.class, () -> map.put(new IntValue(1), "IntValue(1)"));
+        Assert.assertThrows(IdentityException.class, () -> map.put(new IntValue(1), "IntValue(1)"));
     }
 
     private void forceGC()  {
