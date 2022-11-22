@@ -1163,4 +1163,107 @@ public class PrimitiveClassesCompilationTests extends CompilationTestCase {
                 }
                 """);
     }
+
+    public void testConflictingSuperInterface() {
+        assertFail("compiler.err.cant.inherit.diff.arg",
+                """
+                class ConflictingSuperInterfaceTest {
+                    interface I<T> {}
+                    static abstract class S implements I<String> {}
+                    primitive static class Foo extends S implements I<Integer> {
+                        String s = "";
+                    }
+                }
+                """);
+    }
+
+    public void testClassLiteralTypingNegativeTest() {
+        String[] previousOptions = getCompileOptions();
+        try {
+            String[] testOptions = {"--add-exports", "java.base/jdk.internal.value=ALL-UNNAMED", "-XDenablePrimitiveClasses"};
+            setCompileOptions(testOptions);
+            assertFail("compiler.err.prob.found.req",
+                    """
+                    import jdk.internal.value.PrimitiveClass;
+                    class ClassLiteralTypingNegativeTest {
+                        interface I {}
+                        static primitive class Foo implements I {
+                            final int value = 0;
+                            void m() {
+                                Class<? extends Foo.ref> cFooRef = PrimitiveClass.asValueType(Foo.class);
+                            }
+                        }
+                    }
+                    """);
+            assertOK(
+                    """
+                    import jdk.internal.value.PrimitiveClass;
+                    class ClassLiteralTypingNegativeTest {
+                        interface I {}
+                        static primitive class Foo implements I {
+                            final int value = 0;
+                            void m() {
+                                Class<? extends Foo.ref> cFooRef = new Foo().getClass();
+                            }
+                        }
+                    }
+                    """);
+            assertOK(
+                    """
+                    import jdk.internal.value.PrimitiveClass;
+                    class ClassLiteralTypingNegativeTest {
+                        interface I {}
+                        static primitive class Foo implements I {
+                            final int value = 0;
+                            void m() {
+                                Class<? extends Foo.ref> cFooRef = Foo.ref.class;
+                            }
+                        }
+                    }
+                    """);
+            assertFail("compiler.err.prob.found.req",
+                    """
+                    import jdk.internal.value.PrimitiveClass;
+                    class ClassLiteralTypingNegativeTest {
+                        interface I {}
+                        static primitive class Foo implements I {
+                            final int value = 0;
+                            void m() {
+                                Class<? extends Foo.ref> cFooRef = Foo.val.class;
+                            }
+                        }
+                    }
+                    """);
+            assertOK(
+                    """
+                    import jdk.internal.value.PrimitiveClass;
+                    class ClassLiteralTypingNegativeTest {
+                        interface I {}
+                        static primitive class Foo implements I {
+                            final int value = 0;
+                            void m() {
+                                Foo.val xv = new Foo();
+                                Class<? extends Foo.ref> cFooRef = xv.getClass();
+                            }
+                        }
+                    }
+                    """);
+            assertOK(
+                    """
+                    import jdk.internal.value.PrimitiveClass;
+                    class ClassLiteralTypingNegativeTest {
+                        interface I {}
+                        static primitive class Foo implements I {
+                            final int value = 0;
+                            void m() {
+                                Foo.ref xr = new Foo();
+                                Class<? extends Foo.ref> cFooRef = xr.getClass();
+                            }
+                        }
+                    }
+                    """);
+        } finally {
+            setCompileOptions(previousOptions);
+        }
+    }
 }
