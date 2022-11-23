@@ -48,14 +48,14 @@ import static jdk.incubator.vector.VectorOperators.*;
  * A specialized {@link Vector} representing an ordered immutable sequence of
  * {@code byte} values.
  */
-@SuppressWarnings("cast")  // warning: redundant cast
+@SuppressWarnings({"cast"})  // warning: redundant cast
 public abstract class ByteVector extends AbstractVector<Byte> {
 
-    ByteVector(byte[] vec) {
-        super(vec);
-    }
-
     static final int FORBID_OPCODE_KIND = VO_ONLYFP;
+    /**
+     * Default Constructor for abstract vector.
+     */
+    public ByteVector() {}
 
     static final ValueLayout.OfByte ELEMENT_LAYOUT = ValueLayout.JAVA_BYTE.withBitAlignment(8);
 
@@ -96,6 +96,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     abstract byte[] vec();
 
+    abstract VectorPayloadMF vec_mf();
+
     // Virtualized constructors
 
     /**
@@ -104,6 +106,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
      */
     /*package-private*/
     abstract ByteVector vectorFactory(byte[] vec);
+
+    abstract ByteVector vectorFactory(VectorPayloadMF vec);
 
     /**
      * Build a mask directly using my species.
@@ -124,17 +128,18 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     @ForceInline
     final
-    ByteVector vOp(FVOp f) {
+    ByteVector vOpMF(FVOp f) {
         byte[] res = new byte[length()];
         for (int i = 0; i < res.length; i++) {
             res[i] = f.apply(i);
         }
-        return vectorFactory(res);
+        VectorPayloadMF vec_mf = vspecies().createVectorMF(res);
+        return vectorFactory(vec_mf);
     }
 
     @ForceInline
     final
-    ByteVector vOp(VectorMask<Byte> m, FVOp f) {
+    ByteVector vOpMF(VectorMask<Byte> m, FVOp f) {
         byte[] res = new byte[length()];
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
         for (int i = 0; i < res.length; i++) {
@@ -142,7 +147,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 res[i] = f.apply(i);
             }
         }
-        return vectorFactory(res);
+        VectorPayloadMF vec_mf = vspecies().createVectorMF(res);
+        return vectorFactory(vec_mf);
     }
 
     // Unary operator
@@ -154,36 +160,44 @@ public abstract class ByteVector extends AbstractVector<Byte> {
 
     /*package-private*/
     abstract
-    ByteVector uOp(FUnOp f);
+    ByteVector uOpMF(FUnOp f);
     @ForceInline
     final
-    ByteVector uOpTemplate(FUnOp f) {
-        byte[] vec = vec();
-        byte[] res = new byte[length()];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i, vec[i]);
+    ByteVector uOpTemplateMF(FUnOp f) {
+        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v = Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES);
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(i, v));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     abstract
-    ByteVector uOp(VectorMask<Byte> m,
+    ByteVector uOpMF(VectorMask<Byte> m,
                              FUnOp f);
     @ForceInline
     final
-    ByteVector uOpTemplate(VectorMask<Byte> m,
+    ByteVector uOpTemplateMF(VectorMask<Byte> m,
                                      FUnOp f) {
         if (m == null) {
-            return uOpTemplate(f);
+            return uOpTemplateMF(f);
         }
-        byte[] vec = vec();
-        byte[] res = new byte[length()];
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = mbits[i] ? f.apply(i, vec[i]) : vec[i];
+        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v = Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES);
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, mbits[i] ? f.apply(i, v): v);
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     // Binary operator
@@ -195,42 +209,52 @@ public abstract class ByteVector extends AbstractVector<Byte> {
 
     /*package-private*/
     abstract
-    ByteVector bOp(Vector<Byte> o,
+    ByteVector bOpMF(Vector<Byte> o,
                              FBinOp f);
     @ForceInline
     final
-    ByteVector bOpTemplate(Vector<Byte> o,
+    ByteVector bOpTemplateMF(Vector<Byte> o,
                                      FBinOp f) {
-        byte[] res = new byte[length()];
-        byte[] vec1 = this.vec();
-        byte[] vec2 = ((ByteVector)o).vec();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i, vec1[i], vec2[i]);
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((ByteVector)o).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec1, start_offset + i * Byte.BYTES);
+            byte v2 = Unsafe.getUnsafe().getByte(vec2, start_offset + i * Byte.BYTES);
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(i, v1, v2));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     abstract
-    ByteVector bOp(Vector<Byte> o,
+    ByteVector bOpMF(Vector<Byte> o,
                              VectorMask<Byte> m,
                              FBinOp f);
     @ForceInline
     final
-    ByteVector bOpTemplate(Vector<Byte> o,
+    ByteVector bOpTemplateMF(Vector<Byte> o,
                                      VectorMask<Byte> m,
                                      FBinOp f) {
         if (m == null) {
-            return bOpTemplate(o, f);
+            return bOpTemplateMF(o, f);
         }
-        byte[] res = new byte[length()];
-        byte[] vec1 = this.vec();
-        byte[] vec2 = ((ByteVector)o).vec();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = mbits[i] ? f.apply(i, vec1[i], vec2[i]) : vec1[i];
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((ByteVector)o).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec1, start_offset + i * Byte.BYTES);
+            byte v2 = Unsafe.getUnsafe().getByte(vec2, start_offset + i * Byte.BYTES);
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, mbits[i] ? f.apply(i, v1, v2): v1);
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     // Ternary operator
@@ -242,76 +266,94 @@ public abstract class ByteVector extends AbstractVector<Byte> {
 
     /*package-private*/
     abstract
-    ByteVector tOp(Vector<Byte> o1,
+    ByteVector tOpMF(Vector<Byte> o1,
                              Vector<Byte> o2,
                              FTriOp f);
     @ForceInline
     final
-    ByteVector tOpTemplate(Vector<Byte> o1,
+    ByteVector tOpTemplateMF(Vector<Byte> o1,
                                      Vector<Byte> o2,
                                      FTriOp f) {
-        byte[] res = new byte[length()];
-        byte[] vec1 = this.vec();
-        byte[] vec2 = ((ByteVector)o1).vec();
-        byte[] vec3 = ((ByteVector)o2).vec();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i, vec1[i], vec2[i], vec3[i]);
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((ByteVector)o1).vec_mf();
+        VectorPayloadMF vec3 = ((ByteVector)o2).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec1, start_offset + i * Byte.BYTES);
+            byte v2 = Unsafe.getUnsafe().getByte(vec2, start_offset + i * Byte.BYTES);
+            byte v3 = Unsafe.getUnsafe().getByte(vec3, start_offset + i * Byte.BYTES);
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(i, v1, v2, v3));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     abstract
-    ByteVector tOp(Vector<Byte> o1,
+    ByteVector tOpMF(Vector<Byte> o1,
                              Vector<Byte> o2,
                              VectorMask<Byte> m,
                              FTriOp f);
     @ForceInline
     final
-    ByteVector tOpTemplate(Vector<Byte> o1,
+    ByteVector tOpTemplateMF(Vector<Byte> o1,
                                      Vector<Byte> o2,
                                      VectorMask<Byte> m,
                                      FTriOp f) {
         if (m == null) {
-            return tOpTemplate(o1, o2, f);
+            return tOpTemplateMF(o1, o2, f);
         }
-        byte[] res = new byte[length()];
-        byte[] vec1 = this.vec();
-        byte[] vec2 = ((ByteVector)o1).vec();
-        byte[] vec3 = ((ByteVector)o2).vec();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = mbits[i] ? f.apply(i, vec1[i], vec2[i], vec3[i]) : vec1[i];
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((ByteVector)o1).vec_mf();
+        VectorPayloadMF vec3 = ((ByteVector)o2).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec1, start_offset + i * Byte.BYTES);
+            byte v2 = Unsafe.getUnsafe().getByte(vec2, start_offset + i * Byte.BYTES);
+            byte v3 = Unsafe.getUnsafe().getByte(vec3, start_offset + i * Byte.BYTES);
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, mbits[i] ? f.apply(i, v1, v2, v3): v1);
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     // Reduction operator
 
     /*package-private*/
     abstract
-    byte rOp(byte v, VectorMask<Byte> m, FBinOp f);
+    byte rOpMF(byte v, VectorMask<Byte> m, FBinOp f);
 
     @ForceInline
     final
-    byte rOpTemplate(byte v, VectorMask<Byte> m, FBinOp f) {
+    byte rOpTemplateMF(byte v, VectorMask<Byte> m, FBinOp f) {
         if (m == null) {
-            return rOpTemplate(v, f);
+            return rOpTemplateMF(v, f);
         }
-        byte[] vec = vec();
+        VectorPayloadMF vec = this.vec_mf();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < vec.length; i++) {
-            v = mbits[i] ? f.apply(i, v, vec[i]) : v;
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES);
+            v = mbits[i] ? f.apply(i, v, v1) : v;
         }
         return v;
     }
 
     @ForceInline
     final
-    byte rOpTemplate(byte v, FBinOp f) {
-        byte[] vec = vec();
-        for (int i = 0; i < vec.length; i++) {
-            v = f.apply(i, v, vec[i]);
+    byte rOpTemplateMF(byte v, FBinOp f) {
+        VectorPayloadMF vec = this.vec_mf();
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES);
+            v = f.apply(i, v, v1);
         }
         return v;
     }
@@ -326,32 +368,41 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     @ForceInline
     final
-    <M> ByteVector ldOp(M memory, int offset,
+    <M> ByteVector ldOpMF(M memory, int offset,
                                   FLdOp<M> f) {
-        //dummy; no vec = vec();
-        byte[] res = new byte[length()];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(memory, offset, i);
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Byte.BYTES, length));
+        long start_offset = this.multiFieldOffset();
+        for (int i = 0; i < length; i++) {
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(memory, offset, i));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     @ForceInline
     final
-    <M> ByteVector ldOp(M memory, int offset,
+    <M> ByteVector ldOpMF(M memory, int offset,
                                   VectorMask<Byte> m,
                                   FLdOp<M> f) {
-        //byte[] vec = vec();
-        byte[] res = new byte[length()];
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Byte.BYTES, length));
+        long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                res[i] = f.apply(memory, offset, i);
+                Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(memory, offset, i));
             }
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
+
 
     /*package-private*/
     interface FLdLongOp {
@@ -361,31 +412,39 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     @ForceInline
     final
-    ByteVector ldLongOp(MemorySegment memory, long offset,
+    ByteVector ldLongOpMF(MemorySegment memory, long offset,
                                   FLdLongOp f) {
-        //dummy; no vec = vec();
-        byte[] res = new byte[length()];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(memory, offset, i);
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Byte.BYTES, length));
+        long start_offset = this.multiFieldOffset();
+        for (int i = 0; i < length; i++) {
+            Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(memory, offset, i));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     @ForceInline
     final
-    ByteVector ldLongOp(MemorySegment memory, long offset,
+    ByteVector ldLongOpMF(MemorySegment memory, long offset,
                                   VectorMask<Byte> m,
                                   FLdLongOp f) {
-        //byte[] vec = vec();
-        byte[] res = new byte[length()];
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Byte.BYTES, length));
+        long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                res[i] = f.apply(memory, offset, i);
+                Unsafe.getUnsafe().putByte(tpayload, start_offset + i * Byte.BYTES, f.apply(memory, offset, i));
             }
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     static byte memorySegmentGet(MemorySegment ms, long o, int i) {
@@ -399,28 +458,33 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     @ForceInline
     final
-    <M> void stOp(M memory, int offset,
+    <M> void stOpMF(M memory, int offset,
                   FStOp<M> f) {
-        byte[] vec = vec();
-        for (int i = 0; i < vec.length; i++) {
-            f.apply(memory, offset, i, vec[i]);
+        VectorPayloadMF vec = vec_mf();
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES));
         }
     }
 
     /*package-private*/
-    @ForceInline
+   @ForceInline
     final
-    <M> void stOp(M memory, int offset,
+    <M> void stOpMF(M memory, int offset,
                   VectorMask<Byte> m,
                   FStOp<M> f) {
-        byte[] vec = vec();
+        VectorPayloadMF vec = vec_mf();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < vec.length; i++) {
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                f.apply(memory, offset, i, vec[i]);
+                f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES));
             }
         }
     }
+
 
     interface FStLongOp {
         void apply(MemorySegment memory, long offset, int i, byte a);
@@ -429,25 +493,29 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     @ForceInline
     final
-    void stLongOp(MemorySegment memory, long offset,
+    void stLongOpMF(MemorySegment memory, long offset,
                   FStLongOp f) {
-        byte[] vec = vec();
-        for (int i = 0; i < vec.length; i++) {
-            f.apply(memory, offset, i, vec[i]);
+        VectorPayloadMF vec = vec_mf();
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES));
         }
     }
 
     /*package-private*/
     @ForceInline
     final
-    void stLongOp(MemorySegment memory, long offset,
+    void stLongOpMF(MemorySegment memory, long offset,
                   VectorMask<Byte> m,
                   FStLongOp f) {
-        byte[] vec = vec();
+        VectorPayloadMF vec = vec_mf();
         boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
-        for (int i = 0; i < vec.length; i++) {
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                f.apply(memory, offset, i, vec[i]);
+                f.apply(memory, offset, i, Unsafe.getUnsafe().getByte(vec, start_offset + i * Byte.BYTES));
             }
         }
     }
@@ -466,14 +534,18 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     /*package-private*/
     @ForceInline
     final
-    AbstractMask<Byte> bTest(int cond,
+    AbstractMask<Byte> bTestMF(int cond,
                                   Vector<Byte> o,
                                   FBinTest f) {
-        byte[] vec1 = vec();
-        byte[] vec2 = ((ByteVector)o).vec();
-        boolean[] bits = new boolean[length()];
-        for (int i = 0; i < length(); i++){
-            bits[i] = f.apply(cond, i, vec1[i], vec2[i]);
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((ByteVector)o).vec_mf();
+        int length = vspecies().length();
+        long start_offset = this.multiFieldOffset();
+        boolean[] bits = new boolean[length];
+        for (int i = 0; i < length; i++) {
+            byte v1 = Unsafe.getUnsafe().getByte(vec1, start_offset + i * Byte.BYTES);
+            byte v2 = Unsafe.getUnsafe().getByte(vec2, start_offset + i * Byte.BYTES);
+            bits[i] = f.apply(cond, i, v1, v2);
         }
         return maskFactory(bits);
     }
@@ -562,7 +634,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         ByteSpecies vsp = (ByteSpecies) species;
         return VectorSupport.fromBitsCoerced(vsp.vectorType(), byte.class, species.length(),
                                 0, MODE_BROADCAST, vsp,
-                                ((bits_, s_) -> s_.rvOp(i -> bits_)));
+                                ((bits_, s_) -> s_.rvOpMF(i -> bits_)));
     }
 
     /**
@@ -722,19 +794,19 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     private static UnaryOperation<ByteVector, VectorMask<Byte>> unaryOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_NEG: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (byte) -a);
+                    v0.uOpMF(m, (i, a) -> (byte) -a);
             case VECTOR_OP_ABS: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (byte) Math.abs(a));
+                    v0.uOpMF(m, (i, a) -> (byte) Math.abs(a));
             case VECTOR_OP_BIT_COUNT: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (byte) bitCount(a));
+                    v0.uOpMF(m, (i, a) -> (byte) bitCount(a));
             case VECTOR_OP_TZ_COUNT: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (byte) numberOfTrailingZeros(a));
+                    v0.uOpMF(m, (i, a) -> (byte) numberOfTrailingZeros(a));
             case VECTOR_OP_LZ_COUNT: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (byte) numberOfLeadingZeros(a));
+                    v0.uOpMF(m, (i, a) -> (byte) numberOfLeadingZeros(a));
             case VECTOR_OP_REVERSE: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> reverse(a));
+                    v0.uOpMF(m, (i, a) -> reverse(a));
             case VECTOR_OP_REVERSE_BYTES: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> a);
+                    v0.uOpMF(m, (i, a) -> a);
             default: return null;
         }
     }
@@ -784,7 +856,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         return VectorSupport.binaryOp(
             opc, getClass(), null, byte.class, length(),
             this, that, null,
-            BIN_IMPL.find(op, opc, ByteVector::binaryOperations));
+            BIN_IMPL.find(op, opc, ByteVector::binaryOperationsMF));
     }
 
     /**
@@ -844,36 +916,71 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     private static BinaryOperation<ByteVector, VectorMask<Byte>> binaryOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_ADD: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a + b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a + b));
             case VECTOR_OP_SUB: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a - b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a - b));
             case VECTOR_OP_MUL: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a * b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a * b));
             case VECTOR_OP_DIV: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a / b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a / b));
             case VECTOR_OP_MAX: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)Math.max(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)Math.max(a, b));
             case VECTOR_OP_MIN: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)Math.min(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)Math.min(a, b));
             case VECTOR_OP_AND: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a & b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a & b));
             case VECTOR_OP_OR: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a | b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a | b));
             case VECTOR_OP_XOR: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (byte)(a ^ b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a ^ b));
             case VECTOR_OP_LSHIFT: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, n) -> (byte)(a << n));
+                    v0.bOpMF(v1, vm, (i, a, n) -> (byte)(a << n));
             case VECTOR_OP_RSHIFT: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, n) -> (byte)(a >> n));
+                    v0.bOpMF(v1, vm, (i, a, n) -> (byte)(a >> n));
             case VECTOR_OP_URSHIFT: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, n) -> (byte)((a & LSHR_SETUP_MASK) >>> n));
+                    v0.bOpMF(v1, vm, (i, a, n) -> (byte)((a & LSHR_SETUP_MASK) >>> n));
             case VECTOR_OP_LROTATE: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, n) -> rotateLeft(a, (int)n));
+                    v0.bOpMF(v1, vm, (i, a, n) -> rotateLeft(a, (int)n));
             case VECTOR_OP_RROTATE: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, n) -> rotateRight(a, (int)n));
+                    v0.bOpMF(v1, vm, (i, a, n) -> rotateRight(a, (int)n));
             default: return null;
         }
     }
+
+    private static BinaryOperation<ByteVector, VectorMask<Byte>> binaryOperationsMF(int opc_) {
+        switch (opc_) {
+            case VECTOR_OP_ADD: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a + b));
+            case VECTOR_OP_SUB: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a - b));
+            case VECTOR_OP_MUL: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a * b));
+            case VECTOR_OP_DIV: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a / b));
+            case VECTOR_OP_MAX: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)Math.max(a, b));
+            case VECTOR_OP_MIN: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)Math.min(a, b));
+            case VECTOR_OP_AND: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a & b));
+            case VECTOR_OP_OR: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a | b));
+            case VECTOR_OP_XOR: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (byte)(a ^ b));
+            case VECTOR_OP_LSHIFT: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, n) -> (byte)(a << n));
+            case VECTOR_OP_RSHIFT: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, n) -> (byte)(a >> n));
+            case VECTOR_OP_URSHIFT: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, n) -> (byte)((a & LSHR_SETUP_MASK) >>> n));
+            case VECTOR_OP_LROTATE: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, n) -> rotateLeft(a, (int)n));
+            case VECTOR_OP_RROTATE: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, n) -> rotateRight(a, (int)n));
+            default: return null;
+        }
+    }
+
 
     // FIXME: Maybe all of the public final methods in this file (the
     // simple ones that just call lanewise) should be pushed down to
@@ -1039,15 +1146,15 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     private static VectorBroadcastIntOp<ByteVector, VectorMask<Byte>> broadcastIntOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_LSHIFT: return (v, n, m) ->
-                    v.uOp(m, (i, a) -> (byte)(a << n));
+                    v.uOpMF(m, (i, a) -> (byte)(a << n));
             case VECTOR_OP_RSHIFT: return (v, n, m) ->
-                    v.uOp(m, (i, a) -> (byte)(a >> n));
+                    v.uOpMF(m, (i, a) -> (byte)(a >> n));
             case VECTOR_OP_URSHIFT: return (v, n, m) ->
-                    v.uOp(m, (i, a) -> (byte)((a & LSHR_SETUP_MASK) >>> n));
+                    v.uOpMF(m, (i, a) -> (byte)((a & LSHR_SETUP_MASK) >>> n));
             case VECTOR_OP_LROTATE: return (v, n, m) ->
-                    v.uOp(m, (i, a) -> rotateLeft(a, (int)n));
+                    v.uOpMF(m, (i, a) -> rotateLeft(a, (int)n));
             case VECTOR_OP_RROTATE: return (v, n, m) ->
-                    v.uOp(m, (i, a) -> rotateRight(a, (int)n));
+                    v.uOpMF(m, (i, a) -> rotateRight(a, (int)n));
             default: return null;
         }
     }
@@ -2046,7 +2153,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             this, that, null,
             (cond, v0, v1, m1) -> {
                 AbstractMask<Byte> m
-                    = v0.bTest(cond, v1, (cond_, i, a, b)
+                    = v0.bTestMF(cond, v1, (cond_, i, a, b)
                                -> compareWithOp(cond, a, b));
                 @SuppressWarnings("unchecked")
                 M m2 = (M) m;
@@ -2068,7 +2175,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             this, that, m,
             (cond, v0, v1, m1) -> {
                 AbstractMask<Byte> cmpM
-                    = v0.bTest(cond, v1, (cond_, i, a, b)
+                    = v0.bTestMF(cond, v1, (cond_, i, a, b)
                                -> compareWithOp(cond, a, b));
                 @SuppressWarnings("unchecked")
                 M m2 = (M) cmpM.and(m1);
@@ -2197,7 +2304,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         return VectorSupport.blend(
             getClass(), maskType, byte.class, length(),
             this, v, m,
-            (v0, v1, m_) -> v0.bOp(v1, m_, (i, a, b) -> b));
+            (v0, v1, m_) -> v0.bOpMF(v1, m_, (i, a, b) -> b));
     }
 
     /**
@@ -2404,7 +2511,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         return VectorSupport.rearrangeOp(
             getClass(), shuffletype, null, byte.class, length(),
             this, shuffle, null,
-            (v1, s_, m_) -> v1.uOp((i, a) -> {
+            (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                 int ei = s_.laneSource(i);
                 return v1.lane(ei);
             }));
@@ -2436,7 +2543,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         return VectorSupport.rearrangeOp(
                    getClass(), shuffletype, masktype, byte.class, length(),
                    this, shuffle, m,
-                   (v1, s_, m_) -> v1.uOp((i, a) -> {
+                   (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                         int ei = s_.laneSource(i);
                         return ei < 0  || !m_.laneIsSet(i) ? 0 : v1.lane(ei);
                    }));
@@ -2464,7 +2571,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             VectorSupport.rearrangeOp(
                 getClass(), shuffletype, null, byte.class, length(),
                 this, ws, null,
-                (v0, s_, m_) -> v0.uOp((i, a) -> {
+                (v0, s_, m_) -> v0.uOpMF((i, a) -> {
                     int ei = s_.laneSource(i);
                     return v0.lane(ei);
                 }));
@@ -2472,7 +2579,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             VectorSupport.rearrangeOp(
                 getClass(), shuffletype, null, byte.class, length(),
                 v, ws, null,
-                (v1, s_, m_) -> v1.uOp((i, a) -> {
+                (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                     int ei = s_.laneSource(i);
                     return v1.lane(ei);
                 }));
@@ -2814,19 +2921,19 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     private static ReductionOperation<ByteVector, VectorMask<Byte>> reductionOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_ADD: return (v, m) ->
-                    toBits(v.rOp((byte)0, m, (i, a, b) -> (byte)(a + b)));
+                    toBits(v.rOpMF((byte)0, m, (i, a, b) -> (byte)(a + b)));
             case VECTOR_OP_MUL: return (v, m) ->
-                    toBits(v.rOp((byte)1, m, (i, a, b) -> (byte)(a * b)));
+                    toBits(v.rOpMF((byte)1, m, (i, a, b) -> (byte)(a * b)));
             case VECTOR_OP_MIN: return (v, m) ->
-                    toBits(v.rOp(MAX_OR_INF, m, (i, a, b) -> (byte) Math.min(a, b)));
+                    toBits(v.rOpMF(MAX_OR_INF, m, (i, a, b) -> (byte) Math.min(a, b)));
             case VECTOR_OP_MAX: return (v, m) ->
-                    toBits(v.rOp(MIN_OR_INF, m, (i, a, b) -> (byte) Math.max(a, b)));
+                    toBits(v.rOpMF(MIN_OR_INF, m, (i, a, b) -> (byte) Math.max(a, b)));
             case VECTOR_OP_AND: return (v, m) ->
-                    toBits(v.rOp((byte)-1, m, (i, a, b) -> (byte)(a & b)));
+                    toBits(v.rOpMF((byte)-1, m, (i, a, b) -> (byte)(a & b)));
             case VECTOR_OP_OR: return (v, m) ->
-                    toBits(v.rOp((byte)0, m, (i, a, b) -> (byte)(a | b)));
+                    toBits(v.rOpMF((byte)0, m, (i, a, b) -> (byte)(a | b)));
             case VECTOR_OP_XOR: return (v, m) ->
-                    toBits(v.rOp((byte)0, m, (i, a, b) -> (byte)(a ^ b)));
+                    toBits(v.rOpMF((byte)0, m, (i, a, b) -> (byte)(a ^ b)));
             default: return null;
         }
     }
@@ -2974,7 +3081,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                    byte[] a, int offset) {
         offset = checkFromIndexSize(offset, species.length(), a.length);
         ByteSpecies vsp = (ByteSpecies) species;
-        return vsp.dummyVector().fromArray0(a, offset);
+        return vsp.dummyVectorMF().fromArray0(a, offset);
     }
 
     /**
@@ -3049,7 +3156,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                    byte[] a, int offset,
                                    int[] indexMap, int mapOffset) {
         ByteSpecies vsp = (ByteSpecies) species;
-        return vsp.vOp(n -> a[offset + indexMap[mapOffset + n]]);
+        return vsp.vOpMF(n -> a[offset + indexMap[mapOffset + n]]);
     }
 
     /**
@@ -3095,7 +3202,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                    int[] indexMap, int mapOffset,
                                    VectorMask<Byte> m) {
         ByteSpecies vsp = (ByteSpecies) species;
-        return vsp.vOp(m, n -> a[offset + indexMap[mapOffset + n]]);
+        return vsp.vOpMF(m, n -> a[offset + indexMap[mapOffset + n]]);
     }
 
 
@@ -3206,7 +3313,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                           int[] indexMap, int mapOffset) {
         // FIXME: optimize
         ByteSpecies vsp = (ByteSpecies) species;
-        return vsp.vOp(n -> (byte) (a[offset + indexMap[mapOffset + n]] ? 1 : 0));
+        return vsp.vOpMF(n -> (byte) (a[offset + indexMap[mapOffset + n]] ? 1 : 0));
     }
 
     /**
@@ -3253,7 +3360,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                                           VectorMask<Byte> m) {
         // FIXME: optimize
         ByteSpecies vsp = (ByteSpecies) species;
-        return vsp.vOp(m, n -> (byte) (a[offset + indexMap[mapOffset + n]] ? 1 : 0));
+        return vsp.vOpMF(m, n -> (byte) (a[offset + indexMap[mapOffset + n]] ? 1 : 0));
     }
 
     /**
@@ -3381,8 +3488,9 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             this,
             a, offset,
             (arr, off, v)
-            -> v.stOp(arr, (int) off,
+            -> v.stOpMF(arr, (int) off,
                       (arr_, off_, i, e) -> arr_[off_ + i] = e));
+
     }
 
     /**
@@ -3454,7 +3562,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     public final
     void intoArray(byte[] a, int offset,
                    int[] indexMap, int mapOffset) {
-        stOp(a, offset,
+        stOpMF(a, offset,
              (arr, off, i, e) -> {
                  int j = indexMap[mapOffset + i];
                  arr[off + j] = e;
@@ -3496,7 +3604,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     void intoArray(byte[] a, int offset,
                    int[] indexMap, int mapOffset,
                    VectorMask<Byte> m) {
-        stOp(a, offset, m,
+        stOpMF(a, offset, m,
              (arr, off, i, e) -> {
                  int j = indexMap[mapOffset + i];
                  arr[off + j] = e;
@@ -3534,7 +3642,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             normalized,
             a, offset,
             (arr, off, v)
-            -> v.stOp(arr, (int) off,
+            -> v.stOpMF(arr, (int) off,
                       (arr_, off_, i, e) -> arr_[off_ + i] = (e & 1) != 0));
     }
 
@@ -3617,7 +3725,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
     void intoBooleanArray(boolean[] a, int offset,
                           int[] indexMap, int mapOffset) {
         // FIXME: optimize
-        stOp(a, offset,
+        stOpMF(a, offset,
              (arr, off, i, e) -> {
                  int j = indexMap[mapOffset + i];
                  arr[off + j] = (e & 1) != 0;
@@ -3665,7 +3773,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                           int[] indexMap, int mapOffset,
                           VectorMask<Byte> m) {
         // FIXME: optimize
-        stOp(a, offset, m,
+        stOpMF(a, offset, m,
              (arr, off, i, e) -> {
                  int j = indexMap[mapOffset + i];
                  arr[off + j] = (e & 1) != 0;
@@ -3743,7 +3851,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             vsp.vectorType(), vsp.elementType(), vsp.laneCount(),
             a, arrayAddress(a, offset),
             a, offset, vsp,
-            (arr, off, s) -> s.ldOp(arr, (int) off,
+            (arr, off, s) -> s.ldOpMF(arr, (int) off,
                                     (arr_, off_, i) -> arr_[off_ + i]));
     }
 
@@ -3760,7 +3868,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             vsp.vectorType(), maskClass, vsp.elementType(), vsp.laneCount(),
             a, arrayAddress(a, offset), m, offsetInRange,
             a, offset, vsp,
-            (arr, off, s, vm) -> s.ldOp(arr, (int) off, vm,
+            (arr, off, s, vm) -> s.ldOpMF(arr, (int) off, vm,
                                         (arr_, off_, i) -> arr_[off_ + i]));
     }
 
@@ -3777,7 +3885,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             vsp.vectorType(), vsp.elementType(), vsp.laneCount(),
             a, booleanArrayAddress(a, offset),
             a, offset, vsp,
-            (arr, off, s) -> s.ldOp(arr, (int) off,
+            (arr, off, s) -> s.ldOpMF(arr, (int) off,
                                     (arr_, off_, i) -> (byte) (arr_[off_ + i] ? 1 : 0)));
     }
 
@@ -3794,7 +3902,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             vsp.vectorType(), maskClass, vsp.elementType(), vsp.laneCount(),
             a, booleanArrayAddress(a, offset), m, offsetInRange,
             a, offset, vsp,
-            (arr, off, s, vm) -> s.ldOp(arr, (int) off, vm,
+            (arr, off, s, vm) -> s.ldOpMF(arr, (int) off, vm,
                                         (arr_, off_, i) -> (byte) (arr_[off_ + i] ? 1 : 0)));
     }
 
@@ -3808,7 +3916,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 vsp.vectorType(), vsp.elementType(), vsp.laneCount(),
                 (AbstractMemorySegmentImpl) ms, offset, vsp,
                 (msp, off, s) -> {
-                    return s.ldLongOp((MemorySegment) msp, off, ByteVector::memorySegmentGet);
+                    return s.ldLongOpMF((MemorySegment) msp, off, ByteVector::memorySegmentGet);
                 });
     }
 
@@ -3824,7 +3932,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 vsp.vectorType(), maskClass, vsp.elementType(), vsp.laneCount(),
                 (AbstractMemorySegmentImpl) ms, offset, m, vsp, offsetInRange,
                 (msp, off, s, vm) -> {
-                    return s.ldLongOp((MemorySegment) msp, off, vm, ByteVector::memorySegmentGet);
+                    return s.ldLongOpMF((MemorySegment) msp, off, vm, ByteVector::memorySegmentGet);
                 });
     }
 
@@ -3843,7 +3951,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             a, arrayAddress(a, offset),
             this, a, offset,
             (arr, off, v)
-            -> v.stOp(arr, (int) off,
+            -> v.stOpMF(arr, (int) off,
                       (arr_, off_, i, e) -> arr_[off_+i] = e));
     }
 
@@ -3860,7 +3968,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             a, arrayAddress(a, offset),
             this, m, a, offset,
             (arr, off, v, vm)
-            -> v.stOp(arr, (int) off, vm,
+            -> v.stOpMF(arr, (int) off, vm,
                       (arr_, off_, i, e) -> arr_[off_ + i] = e));
     }
 
@@ -3879,7 +3987,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             a, booleanArrayAddress(a, offset),
             normalized, m, a, offset,
             (arr, off, v, vm)
-            -> v.stOp(arr, (int) off, vm,
+            -> v.stOpMF(arr, (int) off, vm,
                       (arr_, off_, i, e) -> arr_[off_ + i] = (e & 1) != 0));
     }
 
@@ -3892,7 +4000,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 this,
                 (AbstractMemorySegmentImpl) ms, offset,
                 (msp, off, v) -> {
-                    v.stLongOp((MemorySegment) msp, off, ByteVector::memorySegmentSet);
+                    v.stLongOpMF((MemorySegment) msp, off, ByteVector::memorySegmentSet);
                 });
     }
 
@@ -3909,7 +4017,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 this, m,
                 (AbstractMemorySegmentImpl) ms, offset,
                 (msp, off, v, vm) -> {
-                    v.stLongOp((MemorySegment) msp, off, vm, ByteVector::memorySegmentSet);
+                    v.stLongOpMF((MemorySegment) msp, off, vm, ByteVector::memorySegmentSet);
                 });
     }
 
@@ -4139,7 +4247,7 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 VectorSupport.fromBitsCoerced(
                     vectorType, byte.class, laneCount,
                     bits, MODE_BROADCAST, this,
-                    (bits_, s_) -> s_.rvOp(i -> bits_));
+                    (bits_, s_) -> s_.rvOpMF(i -> bits_));
         }
 
         /*package-private*/
@@ -4209,27 +4317,35 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             return (ByteVector) super.dummyVector();
         }
 
+        @ForceInline
+        @Override final
+        ByteVector dummyVectorMF() {
+            return (ByteVector) super.dummyVectorMF();
+        }
+
         /*package-private*/
         final @Override
         @ForceInline
-        ByteVector rvOp(RVOp f) {
+        ByteVector rvOpMF(RVOp f) {
             byte[] res = new byte[laneCount()];
             for (int i = 0; i < res.length; i++) {
                 byte bits = (byte) f.apply(i);
                 res[i] = fromBits(bits);
             }
-            return dummyVector().vectorFactory(res);
+            VectorPayloadMF vec_mf = createVectorMF(res);
+            return dummyVectorMF().vectorFactory(vec_mf);
         }
 
-        ByteVector vOp(FVOp f) {
+        ByteVector vOpMF(FVOp f) {
             byte[] res = new byte[laneCount()];
             for (int i = 0; i < res.length; i++) {
                 res[i] = f.apply(i);
             }
-            return dummyVector().vectorFactory(res);
+            VectorPayloadMF vec_mf = createVectorMF(res);
+            return dummyVectorMF().vectorFactory(vec_mf);
         }
 
-        ByteVector vOp(VectorMask<Byte> m, FVOp f) {
+        ByteVector vOpMF(VectorMask<Byte> m, FVOp f) {
             byte[] res = new byte[laneCount()];
             boolean[] mbits = ((AbstractMask<Byte>)m).getBits();
             for (int i = 0; i < res.length; i++) {
@@ -4237,65 +4353,68 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                     res[i] = f.apply(i);
                 }
             }
-            return dummyVector().vectorFactory(res);
+            VectorPayloadMF vec_mf = createVectorMF(res);
+            return dummyVectorMF().vectorFactory(vec_mf);
         }
 
         /*package-private*/
         @ForceInline
-        <M> ByteVector ldOp(M memory, int offset,
+        <M> ByteVector ldOpMF(M memory, int offset,
                                       FLdOp<M> f) {
-            return dummyVector().ldOp(memory, offset, f);
+            return dummyVectorMF().ldOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        <M> ByteVector ldOp(M memory, int offset,
+        <M> ByteVector ldOpMF(M memory, int offset,
                                       VectorMask<Byte> m,
                                       FLdOp<M> f) {
-            return dummyVector().ldOp(memory, offset, m, f);
+            return dummyVectorMF().ldOpMF(memory, offset, m, f);
         }
+
 
         /*package-private*/
         @ForceInline
-        ByteVector ldLongOp(MemorySegment memory, long offset,
+        ByteVector ldLongOpMF(MemorySegment memory, long offset,
                                       FLdLongOp f) {
-            return dummyVector().ldLongOp(memory, offset, f);
+            return dummyVectorMF().ldLongOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        ByteVector ldLongOp(MemorySegment memory, long offset,
+        ByteVector ldLongOpMF(MemorySegment memory, long offset,
                                       VectorMask<Byte> m,
                                       FLdLongOp f) {
-            return dummyVector().ldLongOp(memory, offset, m, f);
+            return dummyVectorMF().ldLongOpMF(memory, offset, m, f);
         }
 
         /*package-private*/
         @ForceInline
-        <M> void stOp(M memory, int offset, FStOp<M> f) {
-            dummyVector().stOp(memory, offset, f);
+        <M> void stOpMF(M memory, int offset, FStOp<M> f) {
+            dummyVectorMF().stOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        <M> void stOp(M memory, int offset,
-                      AbstractMask<Byte> m,
+        <M> void stOpMF(M memory, int offset,
+                     AbstractMask<Byte> m,
                       FStOp<M> f) {
-            dummyVector().stOp(memory, offset, m, f);
+            dummyVectorMF().stOpMF(memory, offset, m, f);
+        }
+
+
+        /*package-private*/
+        @ForceInline
+        void stLongOpMF(MemorySegment memory, long offset, FStLongOp f) {
+            dummyVectorMF().stLongOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        void stLongOp(MemorySegment memory, long offset, FStLongOp f) {
-            dummyVector().stLongOp(memory, offset, f);
-        }
-
-        /*package-private*/
-        @ForceInline
-        void stLongOp(MemorySegment memory, long offset,
+        void stLongOpMF(MemorySegment memory, long offset,
                       AbstractMask<Byte> m,
                       FStLongOp f) {
-            dummyVector().stLongOp(memory, offset, m, f);
+            dummyVectorMF().stLongOpMF(memory, offset, m, f);
         }
 
         // N.B. Make sure these constant vectors and
@@ -4309,8 +4428,9 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         @Override
         @ForceInline
         public final ByteVector zero() {
-            if ((Class<?>) vectorType() == ByteMaxVector.class)
-                return ByteMaxVector.ZERO;
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //if ((Class<?>) vectorType() == ByteMaxVector.class)
+            //    return ByteMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Byte64Vector.ZERO;
                 case 128: return Byte128Vector.ZERO;
@@ -4323,8 +4443,9 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         @Override
         @ForceInline
         public final ByteVector iota() {
-            if ((Class<?>) vectorType() == ByteMaxVector.class)
-                return ByteMaxVector.IOTA;
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //if ((Class<?>) vectorType() == ByteMaxVector.class)
+            //    return ByteMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Byte64Vector.IOTA;
                 case 128: return Byte128Vector.IOTA;
@@ -4338,8 +4459,9 @@ public abstract class ByteVector extends AbstractVector<Byte> {
         @Override
         @ForceInline
         public final VectorMask<Byte> maskAll(boolean bit) {
-            if ((Class<?>) vectorType() == ByteMaxVector.class)
-                return ByteMaxVector.ByteMaxMask.maskAll(bit);
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //if ((Class<?>) vectorType() == ByteMaxVector.class)
+            //    return ByteMaxVector.ByteMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Byte64Vector.Byte64Mask.maskAll(bit);
                 case 128: return Byte128Vector.Byte128Mask.maskAll(bit);
@@ -4347,6 +4469,16 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                 case 512: return Byte512Vector.Byte512Mask.maskAll(bit);
             }
             throw new AssertionError();
+        }
+
+        @Override
+        Object iotaArray() {
+            int laneCount = laneCount();
+            byte [] init = new byte[laneCount];
+            for (int i = 0; i < laneCount; i++) {
+                init[i] = (byte)i;
+            }
+           return init;
         }
     }
 
@@ -4364,7 +4496,8 @@ public abstract class ByteVector extends AbstractVector<Byte> {
             case VectorShape.SK_128_BIT: return (ByteSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (ByteSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (ByteSpecies) SPECIES_512;
-            case VectorShape.SK_Max_BIT: return (ByteSpecies) SPECIES_MAX;
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //case VectorShape.SK_Max_BIT: return (ByteSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -4398,11 +4531,13 @@ public abstract class ByteVector extends AbstractVector<Byte> {
                             Byte512Vector::new);
 
     /** Species representing {@link ByteVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    public static final VectorSpecies<Byte> SPECIES_MAX
+    // FIXME: Enable once multi-field based MaxVector is supported.
+    /*public static final VectorSpecies<Byte> SPECIES_MAX
         = new ByteSpecies(VectorShape.S_Max_BIT,
                             ByteMaxVector.class,
                             ByteMaxVector.ByteMaxMask.class,
                             ByteMaxVector::new);
+     */
 
     /**
      * Preferred species for {@link ByteVector}s.

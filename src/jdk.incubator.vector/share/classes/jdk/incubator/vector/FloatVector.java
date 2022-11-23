@@ -48,14 +48,14 @@ import static jdk.incubator.vector.VectorOperators.*;
  * A specialized {@link Vector} representing an ordered immutable sequence of
  * {@code float} values.
  */
-@SuppressWarnings("cast")  // warning: redundant cast
+@SuppressWarnings({"cast"})  // warning: redundant cast
 public abstract class FloatVector extends AbstractVector<Float> {
 
-    FloatVector(float[] vec) {
-        super(vec);
-    }
-
     static final int FORBID_OPCODE_KIND = VO_NOFP;
+    /**
+     * Default Constructor for abstract vector.
+     */
+    public FloatVector() {}
 
     static final ValueLayout.OfFloat ELEMENT_LAYOUT = ValueLayout.JAVA_FLOAT.withBitAlignment(8);
 
@@ -96,6 +96,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     abstract float[] vec();
 
+    abstract VectorPayloadMF vec_mf();
+
     // Virtualized constructors
 
     /**
@@ -104,6 +106,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
      */
     /*package-private*/
     abstract FloatVector vectorFactory(float[] vec);
+
+    abstract FloatVector vectorFactory(VectorPayloadMF vec);
 
     /**
      * Build a mask directly using my species.
@@ -124,17 +128,18 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     @ForceInline
     final
-    FloatVector vOp(FVOp f) {
+    FloatVector vOpMF(FVOp f) {
         float[] res = new float[length()];
         for (int i = 0; i < res.length; i++) {
             res[i] = f.apply(i);
         }
-        return vectorFactory(res);
+        VectorPayloadMF vec_mf = vspecies().createVectorMF(res);
+        return vectorFactory(vec_mf);
     }
 
     @ForceInline
     final
-    FloatVector vOp(VectorMask<Float> m, FVOp f) {
+    FloatVector vOpMF(VectorMask<Float> m, FVOp f) {
         float[] res = new float[length()];
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
         for (int i = 0; i < res.length; i++) {
@@ -142,7 +147,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 res[i] = f.apply(i);
             }
         }
-        return vectorFactory(res);
+        VectorPayloadMF vec_mf = vspecies().createVectorMF(res);
+        return vectorFactory(vec_mf);
     }
 
     // Unary operator
@@ -154,36 +160,44 @@ public abstract class FloatVector extends AbstractVector<Float> {
 
     /*package-private*/
     abstract
-    FloatVector uOp(FUnOp f);
+    FloatVector uOpMF(FUnOp f);
     @ForceInline
     final
-    FloatVector uOpTemplate(FUnOp f) {
-        float[] vec = vec();
-        float[] res = new float[length()];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i, vec[i]);
+    FloatVector uOpTemplateMF(FUnOp f) {
+        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v = Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES);
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(i, v));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     abstract
-    FloatVector uOp(VectorMask<Float> m,
+    FloatVector uOpMF(VectorMask<Float> m,
                              FUnOp f);
     @ForceInline
     final
-    FloatVector uOpTemplate(VectorMask<Float> m,
+    FloatVector uOpTemplateMF(VectorMask<Float> m,
                                      FUnOp f) {
         if (m == null) {
-            return uOpTemplate(f);
+            return uOpTemplateMF(f);
         }
-        float[] vec = vec();
-        float[] res = new float[length()];
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = mbits[i] ? f.apply(i, vec[i]) : vec[i];
+        VectorPayloadMF vec = this.vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v = Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES);
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, mbits[i] ? f.apply(i, v): v);
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     // Binary operator
@@ -195,42 +209,52 @@ public abstract class FloatVector extends AbstractVector<Float> {
 
     /*package-private*/
     abstract
-    FloatVector bOp(Vector<Float> o,
+    FloatVector bOpMF(Vector<Float> o,
                              FBinOp f);
     @ForceInline
     final
-    FloatVector bOpTemplate(Vector<Float> o,
+    FloatVector bOpTemplateMF(Vector<Float> o,
                                      FBinOp f) {
-        float[] res = new float[length()];
-        float[] vec1 = this.vec();
-        float[] vec2 = ((FloatVector)o).vec();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i, vec1[i], vec2[i]);
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((FloatVector)o).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec1, start_offset + i * Float.BYTES);
+            float v2 = Unsafe.getUnsafe().getFloat(vec2, start_offset + i * Float.BYTES);
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(i, v1, v2));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     abstract
-    FloatVector bOp(Vector<Float> o,
+    FloatVector bOpMF(Vector<Float> o,
                              VectorMask<Float> m,
                              FBinOp f);
     @ForceInline
     final
-    FloatVector bOpTemplate(Vector<Float> o,
+    FloatVector bOpTemplateMF(Vector<Float> o,
                                      VectorMask<Float> m,
                                      FBinOp f) {
         if (m == null) {
-            return bOpTemplate(o, f);
+            return bOpTemplateMF(o, f);
         }
-        float[] res = new float[length()];
-        float[] vec1 = this.vec();
-        float[] vec2 = ((FloatVector)o).vec();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = mbits[i] ? f.apply(i, vec1[i], vec2[i]) : vec1[i];
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((FloatVector)o).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec1, start_offset + i * Float.BYTES);
+            float v2 = Unsafe.getUnsafe().getFloat(vec2, start_offset + i * Float.BYTES);
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, mbits[i] ? f.apply(i, v1, v2): v1);
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     // Ternary operator
@@ -242,76 +266,94 @@ public abstract class FloatVector extends AbstractVector<Float> {
 
     /*package-private*/
     abstract
-    FloatVector tOp(Vector<Float> o1,
+    FloatVector tOpMF(Vector<Float> o1,
                              Vector<Float> o2,
                              FTriOp f);
     @ForceInline
     final
-    FloatVector tOpTemplate(Vector<Float> o1,
+    FloatVector tOpTemplateMF(Vector<Float> o1,
                                      Vector<Float> o2,
                                      FTriOp f) {
-        float[] res = new float[length()];
-        float[] vec1 = this.vec();
-        float[] vec2 = ((FloatVector)o1).vec();
-        float[] vec3 = ((FloatVector)o2).vec();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(i, vec1[i], vec2[i], vec3[i]);
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((FloatVector)o1).vec_mf();
+        VectorPayloadMF vec3 = ((FloatVector)o2).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec1, start_offset + i * Float.BYTES);
+            float v2 = Unsafe.getUnsafe().getFloat(vec2, start_offset + i * Float.BYTES);
+            float v3 = Unsafe.getUnsafe().getFloat(vec3, start_offset + i * Float.BYTES);
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(i, v1, v2, v3));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     abstract
-    FloatVector tOp(Vector<Float> o1,
+    FloatVector tOpMF(Vector<Float> o1,
                              Vector<Float> o2,
                              VectorMask<Float> m,
                              FTriOp f);
     @ForceInline
     final
-    FloatVector tOpTemplate(Vector<Float> o1,
+    FloatVector tOpTemplateMF(Vector<Float> o1,
                                      Vector<Float> o2,
                                      VectorMask<Float> m,
                                      FTriOp f) {
         if (m == null) {
-            return tOpTemplate(o1, o2, f);
+            return tOpTemplateMF(o1, o2, f);
         }
-        float[] res = new float[length()];
-        float[] vec1 = this.vec();
-        float[] vec2 = ((FloatVector)o1).vec();
-        float[] vec3 = ((FloatVector)o2).vec();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
-            res[i] = mbits[i] ? f.apply(i, vec1[i], vec2[i], vec3[i]) : vec1[i];
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((FloatVector)o1).vec_mf();
+        VectorPayloadMF vec3 = ((FloatVector)o2).vec_mf();
+        VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec1);
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec1, start_offset + i * Float.BYTES);
+            float v2 = Unsafe.getUnsafe().getFloat(vec2, start_offset + i * Float.BYTES);
+            float v3 = Unsafe.getUnsafe().getFloat(vec3, start_offset + i * Float.BYTES);
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, mbits[i] ? f.apply(i, v1, v2, v3): v1);
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     // Reduction operator
 
     /*package-private*/
     abstract
-    float rOp(float v, VectorMask<Float> m, FBinOp f);
+    float rOpMF(float v, VectorMask<Float> m, FBinOp f);
 
     @ForceInline
     final
-    float rOpTemplate(float v, VectorMask<Float> m, FBinOp f) {
+    float rOpTemplateMF(float v, VectorMask<Float> m, FBinOp f) {
         if (m == null) {
-            return rOpTemplate(v, f);
+            return rOpTemplateMF(v, f);
         }
-        float[] vec = vec();
+        VectorPayloadMF vec = this.vec_mf();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < vec.length; i++) {
-            v = mbits[i] ? f.apply(i, v, vec[i]) : v;
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES);
+            v = mbits[i] ? f.apply(i, v, v1) : v;
         }
         return v;
     }
 
     @ForceInline
     final
-    float rOpTemplate(float v, FBinOp f) {
-        float[] vec = vec();
-        for (int i = 0; i < vec.length; i++) {
-            v = f.apply(i, v, vec[i]);
+    float rOpTemplateMF(float v, FBinOp f) {
+        VectorPayloadMF vec = this.vec_mf();
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES);
+            v = f.apply(i, v, v1);
         }
         return v;
     }
@@ -326,32 +368,41 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     @ForceInline
     final
-    <M> FloatVector ldOp(M memory, int offset,
+    <M> FloatVector ldOpMF(M memory, int offset,
                                   FLdOp<M> f) {
-        //dummy; no vec = vec();
-        float[] res = new float[length()];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(memory, offset, i);
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Float.BYTES, length));
+        long start_offset = this.multiFieldOffset();
+        for (int i = 0; i < length; i++) {
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(memory, offset, i));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     @ForceInline
     final
-    <M> FloatVector ldOp(M memory, int offset,
+    <M> FloatVector ldOpMF(M memory, int offset,
                                   VectorMask<Float> m,
                                   FLdOp<M> f) {
-        //float[] vec = vec();
-        float[] res = new float[length()];
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Float.BYTES, length));
+        long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                res[i] = f.apply(memory, offset, i);
+                Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(memory, offset, i));
             }
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
+
 
     /*package-private*/
     interface FLdLongOp {
@@ -361,31 +412,39 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     @ForceInline
     final
-    FloatVector ldLongOp(MemorySegment memory, long offset,
+    FloatVector ldLongOpMF(MemorySegment memory, long offset,
                                   FLdLongOp f) {
-        //dummy; no vec = vec();
-        float[] res = new float[length()];
-        for (int i = 0; i < res.length; i++) {
-            res[i] = f.apply(memory, offset, i);
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Float.BYTES, length));
+        long start_offset = this.multiFieldOffset();
+        for (int i = 0; i < length; i++) {
+            Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(memory, offset, i));
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     /*package-private*/
     @ForceInline
     final
-    FloatVector ldLongOp(MemorySegment memory, long offset,
+    FloatVector ldLongOpMF(MemorySegment memory, long offset,
                                   VectorMask<Float> m,
                                   FLdLongOp f) {
-        //float[] vec = vec();
-        float[] res = new float[length()];
+        int length = vspecies().length();
+        VectorPayloadMF tpayload =
+            Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
+                Float.BYTES, length));
+        long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < res.length; i++) {
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                res[i] = f.apply(memory, offset, i);
+                Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(memory, offset, i));
             }
         }
-        return vectorFactory(res);
+        tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+        return vectorFactory(tpayload);
     }
 
     static float memorySegmentGet(MemorySegment ms, long o, int i) {
@@ -399,28 +458,33 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     @ForceInline
     final
-    <M> void stOp(M memory, int offset,
+    <M> void stOpMF(M memory, int offset,
                   FStOp<M> f) {
-        float[] vec = vec();
-        for (int i = 0; i < vec.length; i++) {
-            f.apply(memory, offset, i, vec[i]);
+        VectorPayloadMF vec = vec_mf();
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            f.apply(memory, offset, i, Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES));
         }
     }
 
     /*package-private*/
-    @ForceInline
+   @ForceInline
     final
-    <M> void stOp(M memory, int offset,
+    <M> void stOpMF(M memory, int offset,
                   VectorMask<Float> m,
                   FStOp<M> f) {
-        float[] vec = vec();
+        VectorPayloadMF vec = vec_mf();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < vec.length; i++) {
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                f.apply(memory, offset, i, vec[i]);
+                f.apply(memory, offset, i, Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES));
             }
         }
     }
+
 
     interface FStLongOp {
         void apply(MemorySegment memory, long offset, int i, float a);
@@ -429,25 +493,29 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     @ForceInline
     final
-    void stLongOp(MemorySegment memory, long offset,
+    void stLongOpMF(MemorySegment memory, long offset,
                   FStLongOp f) {
-        float[] vec = vec();
-        for (int i = 0; i < vec.length; i++) {
-            f.apply(memory, offset, i, vec[i]);
+        VectorPayloadMF vec = vec_mf();
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
+            f.apply(memory, offset, i, Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES));
         }
     }
 
     /*package-private*/
     @ForceInline
     final
-    void stLongOp(MemorySegment memory, long offset,
+    void stLongOpMF(MemorySegment memory, long offset,
                   VectorMask<Float> m,
                   FStLongOp f) {
-        float[] vec = vec();
+        VectorPayloadMF vec = vec_mf();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
-        for (int i = 0; i < vec.length; i++) {
+        long start_offset = this.multiFieldOffset();
+        int length = vspecies().length();
+        for (int i = 0; i < length; i++) {
             if (mbits[i]) {
-                f.apply(memory, offset, i, vec[i]);
+                f.apply(memory, offset, i, Unsafe.getUnsafe().getFloat(vec, start_offset + i * Float.BYTES));
             }
         }
     }
@@ -466,14 +534,18 @@ public abstract class FloatVector extends AbstractVector<Float> {
     /*package-private*/
     @ForceInline
     final
-    AbstractMask<Float> bTest(int cond,
+    AbstractMask<Float> bTestMF(int cond,
                                   Vector<Float> o,
                                   FBinTest f) {
-        float[] vec1 = vec();
-        float[] vec2 = ((FloatVector)o).vec();
-        boolean[] bits = new boolean[length()];
-        for (int i = 0; i < length(); i++){
-            bits[i] = f.apply(cond, i, vec1[i], vec2[i]);
+        VectorPayloadMF vec1 = this.vec_mf();
+        VectorPayloadMF vec2 = ((FloatVector)o).vec_mf();
+        int length = vspecies().length();
+        long start_offset = this.multiFieldOffset();
+        boolean[] bits = new boolean[length];
+        for (int i = 0; i < length; i++) {
+            float v1 = Unsafe.getUnsafe().getFloat(vec1, start_offset + i * Float.BYTES);
+            float v2 = Unsafe.getUnsafe().getFloat(vec2, start_offset + i * Float.BYTES);
+            bits[i] = f.apply(cond, i, v1, v2);
         }
         return maskFactory(bits);
     }
@@ -551,7 +623,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         FloatSpecies vsp = (FloatSpecies) species;
         return VectorSupport.fromBitsCoerced(vsp.vectorType(), float.class, species.length(),
                         toBits(0.0f), MODE_BROADCAST, vsp,
-                        ((bits_, s_) -> s_.rvOp(i -> bits_)));
+                        ((bits_, s_) -> s_.rvOpMF(i -> bits_)));
     }
 
     /**
@@ -705,41 +777,41 @@ public abstract class FloatVector extends AbstractVector<Float> {
     private static UnaryOperation<FloatVector, VectorMask<Float>> unaryOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_NEG: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) -a);
+                    v0.uOpMF(m, (i, a) -> (float) -a);
             case VECTOR_OP_ABS: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.abs(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.abs(a));
             case VECTOR_OP_SIN: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.sin(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.sin(a));
             case VECTOR_OP_COS: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.cos(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.cos(a));
             case VECTOR_OP_TAN: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.tan(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.tan(a));
             case VECTOR_OP_ASIN: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.asin(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.asin(a));
             case VECTOR_OP_ACOS: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.acos(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.acos(a));
             case VECTOR_OP_ATAN: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.atan(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.atan(a));
             case VECTOR_OP_EXP: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.exp(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.exp(a));
             case VECTOR_OP_LOG: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.log(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.log(a));
             case VECTOR_OP_LOG10: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.log10(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.log10(a));
             case VECTOR_OP_SQRT: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.sqrt(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.sqrt(a));
             case VECTOR_OP_CBRT: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.cbrt(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.cbrt(a));
             case VECTOR_OP_SINH: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.sinh(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.sinh(a));
             case VECTOR_OP_COSH: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.cosh(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.cosh(a));
             case VECTOR_OP_TANH: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.tanh(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.tanh(a));
             case VECTOR_OP_EXPM1: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.expm1(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.expm1(a));
             case VECTOR_OP_LOG1P: return (v0, m) ->
-                    v0.uOp(m, (i, a) -> (float) Math.log1p(a));
+                    v0.uOpMF(m, (i, a) -> (float) Math.log1p(a));
             default: return null;
         }
     }
@@ -774,7 +846,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         return VectorSupport.binaryOp(
             opc, getClass(), null, float.class, length(),
             this, that, null,
-            BIN_IMPL.find(op, opc, FloatVector::binaryOperations));
+            BIN_IMPL.find(op, opc, FloatVector::binaryOperationsMF));
     }
 
     /**
@@ -818,28 +890,55 @@ public abstract class FloatVector extends AbstractVector<Float> {
     private static BinaryOperation<FloatVector, VectorMask<Float>> binaryOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_ADD: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float)(a + b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a + b));
             case VECTOR_OP_SUB: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float)(a - b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a - b));
             case VECTOR_OP_MUL: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float)(a * b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a * b));
             case VECTOR_OP_DIV: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float)(a / b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a / b));
             case VECTOR_OP_MAX: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float)Math.max(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)Math.max(a, b));
             case VECTOR_OP_MIN: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float)Math.min(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)Math.min(a, b));
             case VECTOR_OP_OR: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> fromBits(toBits(a) | toBits(b)));
+                    v0.bOpMF(v1, vm, (i, a, b) -> fromBits(toBits(a) | toBits(b)));
             case VECTOR_OP_ATAN2: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float) Math.atan2(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float) Math.atan2(a, b));
             case VECTOR_OP_POW: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float) Math.pow(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float) Math.pow(a, b));
             case VECTOR_OP_HYPOT: return (v0, v1, vm) ->
-                    v0.bOp(v1, vm, (i, a, b) -> (float) Math.hypot(a, b));
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float) Math.hypot(a, b));
             default: return null;
         }
     }
+
+    private static BinaryOperation<FloatVector, VectorMask<Float>> binaryOperationsMF(int opc_) {
+        switch (opc_) {
+            case VECTOR_OP_ADD: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a + b));
+            case VECTOR_OP_SUB: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a - b));
+            case VECTOR_OP_MUL: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a * b));
+            case VECTOR_OP_DIV: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)(a / b));
+            case VECTOR_OP_MAX: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)Math.max(a, b));
+            case VECTOR_OP_MIN: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float)Math.min(a, b));
+            case VECTOR_OP_OR: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> fromBits(toBits(a) | toBits(b)));
+            case VECTOR_OP_ATAN2: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float) Math.atan2(a, b));
+            case VECTOR_OP_POW: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float) Math.pow(a, b));
+            case VECTOR_OP_HYPOT: return (v0, v1, vm) ->
+                    v0.bOpMF(v1, vm, (i, a, b) -> (float) Math.hypot(a, b));
+            default: return null;
+        }
+    }
+
 
     // FIXME: Maybe all of the public final methods in this file (the
     // simple ones that just call lanewise) should be pushed down to
@@ -1028,7 +1127,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
     private static TernaryOperation<FloatVector, VectorMask<Float>> ternaryOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_FMA: return (v0, v1_, v2_, m) ->
-                    v0.tOp(v1_, v2_, m, (i, a, b, c) -> Math.fma(a, b, c));
+                    v0.tOpMF(v1_, v2_, m, (i, a, b, c) -> Math.fma(a, b, c));
             default: return null;
         }
     }
@@ -1904,7 +2003,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             this, that, null,
             (cond, v0, v1, m1) -> {
                 AbstractMask<Float> m
-                    = v0.bTest(cond, v1, (cond_, i, a, b)
+                    = v0.bTestMF(cond, v1, (cond_, i, a, b)
                                -> compareWithOp(cond, a, b));
                 @SuppressWarnings("unchecked")
                 M m2 = (M) m;
@@ -1926,7 +2025,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             this, that, m,
             (cond, v0, v1, m1) -> {
                 AbstractMask<Float> cmpM
-                    = v0.bTest(cond, v1, (cond_, i, a, b)
+                    = v0.bTestMF(cond, v1, (cond_, i, a, b)
                                -> compareWithOp(cond, a, b));
                 @SuppressWarnings("unchecked")
                 M m2 = (M) cmpM.and(m1);
@@ -2051,7 +2150,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         return VectorSupport.blend(
             getClass(), maskType, float.class, length(),
             this, v, m,
-            (v0, v1, m_) -> v0.bOp(v1, m_, (i, a, b) -> b));
+            (v0, v1, m_) -> v0.bOpMF(v1, m_, (i, a, b) -> b));
     }
 
     /**
@@ -2258,7 +2357,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         return VectorSupport.rearrangeOp(
             getClass(), shuffletype, null, float.class, length(),
             this, shuffle, null,
-            (v1, s_, m_) -> v1.uOp((i, a) -> {
+            (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                 int ei = s_.laneSource(i);
                 return v1.lane(ei);
             }));
@@ -2290,7 +2389,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         return VectorSupport.rearrangeOp(
                    getClass(), shuffletype, masktype, float.class, length(),
                    this, shuffle, m,
-                   (v1, s_, m_) -> v1.uOp((i, a) -> {
+                   (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                         int ei = s_.laneSource(i);
                         return ei < 0  || !m_.laneIsSet(i) ? 0 : v1.lane(ei);
                    }));
@@ -2318,7 +2417,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             VectorSupport.rearrangeOp(
                 getClass(), shuffletype, null, float.class, length(),
                 this, ws, null,
-                (v0, s_, m_) -> v0.uOp((i, a) -> {
+                (v0, s_, m_) -> v0.uOpMF((i, a) -> {
                     int ei = s_.laneSource(i);
                     return v0.lane(ei);
                 }));
@@ -2326,7 +2425,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             VectorSupport.rearrangeOp(
                 getClass(), shuffletype, null, float.class, length(),
                 v, ws, null,
-                (v1, s_, m_) -> v1.uOp((i, a) -> {
+                (v1, s_, m_) -> v1.uOpMF((i, a) -> {
                     int ei = s_.laneSource(i);
                     return v1.lane(ei);
                 }));
@@ -2654,13 +2753,13 @@ public abstract class FloatVector extends AbstractVector<Float> {
     private static ReductionOperation<FloatVector, VectorMask<Float>> reductionOperations(int opc_) {
         switch (opc_) {
             case VECTOR_OP_ADD: return (v, m) ->
-                    toBits(v.rOp((float)0, m, (i, a, b) -> (float)(a + b)));
+                    toBits(v.rOpMF((float)0, m, (i, a, b) -> (float)(a + b)));
             case VECTOR_OP_MUL: return (v, m) ->
-                    toBits(v.rOp((float)1, m, (i, a, b) -> (float)(a * b)));
+                    toBits(v.rOpMF((float)1, m, (i, a, b) -> (float)(a * b)));
             case VECTOR_OP_MIN: return (v, m) ->
-                    toBits(v.rOp(MAX_OR_INF, m, (i, a, b) -> (float) Math.min(a, b)));
+                    toBits(v.rOpMF(MAX_OR_INF, m, (i, a, b) -> (float) Math.min(a, b)));
             case VECTOR_OP_MAX: return (v, m) ->
-                    toBits(v.rOp(MIN_OR_INF, m, (i, a, b) -> (float) Math.max(a, b)));
+                    toBits(v.rOpMF(MIN_OR_INF, m, (i, a, b) -> (float) Math.max(a, b)));
             default: return null;
         }
     }
@@ -2796,7 +2895,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                                    float[] a, int offset) {
         offset = checkFromIndexSize(offset, species.length(), a.length);
         FloatSpecies vsp = (FloatSpecies) species;
-        return vsp.dummyVector().fromArray0(a, offset);
+        return vsp.dummyVectorMF().fromArray0(a, offset);
     }
 
     /**
@@ -2889,7 +2988,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             a, ARRAY_BASE, vix, null,
             a, offset, indexMap, mapOffset, vsp,
             (c, idx, iMap, idy, s, vm) ->
-            s.vOp(n -> c[idx + iMap[idy+n]]));
+            s.vOpMF(n -> c[idx + iMap[idy+n]]));
     }
 
     /**
@@ -3075,8 +3174,9 @@ public abstract class FloatVector extends AbstractVector<Float> {
             this,
             a, offset,
             (arr, off, v)
-            -> v.stOp(arr, (int) off,
+            -> v.stOpMF(arr, (int) off,
                       (arr_, off_, i, e) -> arr_[off_ + i] = e));
+
     }
 
     /**
@@ -3164,7 +3264,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             this, null,
             a, offset, indexMap, mapOffset,
             (arr, off, v, map, mo, vm)
-            -> v.stOp(arr, off,
+            -> v.stOpMF(arr, off,
                       (arr_, off_, i, e) -> {
                           int j = map[mo + i];
                           arr[off + j] = e;
@@ -3287,7 +3387,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             vsp.vectorType(), vsp.elementType(), vsp.laneCount(),
             a, arrayAddress(a, offset),
             a, offset, vsp,
-            (arr, off, s) -> s.ldOp(arr, (int) off,
+            (arr, off, s) -> s.ldOpMF(arr, (int) off,
                                     (arr_, off_, i) -> arr_[off_ + i]));
     }
 
@@ -3304,7 +3404,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             vsp.vectorType(), maskClass, vsp.elementType(), vsp.laneCount(),
             a, arrayAddress(a, offset), m, offsetInRange,
             a, offset, vsp,
-            (arr, off, s, vm) -> s.ldOp(arr, (int) off, vm,
+            (arr, off, s, vm) -> s.ldOpMF(arr, (int) off, vm,
                                         (arr_, off_, i) -> arr_[off_ + i]));
     }
 
@@ -3339,7 +3439,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             a, ARRAY_BASE, vix, m,
             a, offset, indexMap, mapOffset, vsp,
             (c, idx, iMap, idy, s, vm) ->
-            s.vOp(vm, n -> c[idx + iMap[idy+n]]));
+            s.vOpMF(vm, n -> c[idx + iMap[idy+n]]));
     }
 
 
@@ -3354,7 +3454,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 vsp.vectorType(), vsp.elementType(), vsp.laneCount(),
                 (AbstractMemorySegmentImpl) ms, offset, vsp,
                 (msp, off, s) -> {
-                    return s.ldLongOp((MemorySegment) msp, off, FloatVector::memorySegmentGet);
+                    return s.ldLongOpMF((MemorySegment) msp, off, FloatVector::memorySegmentGet);
                 });
     }
 
@@ -3370,7 +3470,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 vsp.vectorType(), maskClass, vsp.elementType(), vsp.laneCount(),
                 (AbstractMemorySegmentImpl) ms, offset, m, vsp, offsetInRange,
                 (msp, off, s, vm) -> {
-                    return s.ldLongOp((MemorySegment) msp, off, vm, FloatVector::memorySegmentGet);
+                    return s.ldLongOpMF((MemorySegment) msp, off, vm, FloatVector::memorySegmentGet);
                 });
     }
 
@@ -3389,7 +3489,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             a, arrayAddress(a, offset),
             this, a, offset,
             (arr, off, v)
-            -> v.stOp(arr, (int) off,
+            -> v.stOpMF(arr, (int) off,
                       (arr_, off_, i, e) -> arr_[off_+i] = e));
     }
 
@@ -3406,7 +3506,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             a, arrayAddress(a, offset),
             this, m, a, offset,
             (arr, off, v, vm)
-            -> v.stOp(arr, (int) off, vm,
+            -> v.stOpMF(arr, (int) off, vm,
                       (arr_, off_, i, e) -> arr_[off_ + i] = e));
     }
 
@@ -3437,7 +3537,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
             this, m,
             a, offset, indexMap, mapOffset,
             (arr, off, v, map, mo, vm)
-            -> v.stOp(arr, off, vm,
+            -> v.stOpMF(arr, off, vm,
                       (arr_, off_, i, e) -> {
                           int j = map[mo + i];
                           arr[off + j] = e;
@@ -3454,7 +3554,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 this,
                 (AbstractMemorySegmentImpl) ms, offset,
                 (msp, off, v) -> {
-                    v.stLongOp((MemorySegment) msp, off, FloatVector::memorySegmentSet);
+                    v.stLongOpMF((MemorySegment) msp, off, FloatVector::memorySegmentSet);
                 });
     }
 
@@ -3471,7 +3571,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 this, m,
                 (AbstractMemorySegmentImpl) ms, offset,
                 (msp, off, v, vm) -> {
-                    v.stLongOp((MemorySegment) msp, off, vm, FloatVector::memorySegmentSet);
+                    v.stLongOpMF((MemorySegment) msp, off, vm, FloatVector::memorySegmentSet);
                 });
     }
 
@@ -3692,7 +3792,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 VectorSupport.fromBitsCoerced(
                     vectorType, float.class, laneCount,
                     bits, MODE_BROADCAST, this,
-                    (bits_, s_) -> s_.rvOp(i -> bits_));
+                    (bits_, s_) -> s_.rvOpMF(i -> bits_));
         }
 
         /*package-private*/
@@ -3762,27 +3862,35 @@ public abstract class FloatVector extends AbstractVector<Float> {
             return (FloatVector) super.dummyVector();
         }
 
+        @ForceInline
+        @Override final
+        FloatVector dummyVectorMF() {
+            return (FloatVector) super.dummyVectorMF();
+        }
+
         /*package-private*/
         final @Override
         @ForceInline
-        FloatVector rvOp(RVOp f) {
+        FloatVector rvOpMF(RVOp f) {
             float[] res = new float[laneCount()];
             for (int i = 0; i < res.length; i++) {
                 int bits = (int) f.apply(i);
                 res[i] = fromBits(bits);
             }
-            return dummyVector().vectorFactory(res);
+            VectorPayloadMF vec_mf = createVectorMF(res);
+            return dummyVectorMF().vectorFactory(vec_mf);
         }
 
-        FloatVector vOp(FVOp f) {
+        FloatVector vOpMF(FVOp f) {
             float[] res = new float[laneCount()];
             for (int i = 0; i < res.length; i++) {
                 res[i] = f.apply(i);
             }
-            return dummyVector().vectorFactory(res);
+            VectorPayloadMF vec_mf = createVectorMF(res);
+            return dummyVectorMF().vectorFactory(vec_mf);
         }
 
-        FloatVector vOp(VectorMask<Float> m, FVOp f) {
+        FloatVector vOpMF(VectorMask<Float> m, FVOp f) {
             float[] res = new float[laneCount()];
             boolean[] mbits = ((AbstractMask<Float>)m).getBits();
             for (int i = 0; i < res.length; i++) {
@@ -3790,65 +3898,68 @@ public abstract class FloatVector extends AbstractVector<Float> {
                     res[i] = f.apply(i);
                 }
             }
-            return dummyVector().vectorFactory(res);
+            VectorPayloadMF vec_mf = createVectorMF(res);
+            return dummyVectorMF().vectorFactory(vec_mf);
         }
 
         /*package-private*/
         @ForceInline
-        <M> FloatVector ldOp(M memory, int offset,
+        <M> FloatVector ldOpMF(M memory, int offset,
                                       FLdOp<M> f) {
-            return dummyVector().ldOp(memory, offset, f);
+            return dummyVectorMF().ldOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        <M> FloatVector ldOp(M memory, int offset,
+        <M> FloatVector ldOpMF(M memory, int offset,
                                       VectorMask<Float> m,
                                       FLdOp<M> f) {
-            return dummyVector().ldOp(memory, offset, m, f);
+            return dummyVectorMF().ldOpMF(memory, offset, m, f);
         }
+
 
         /*package-private*/
         @ForceInline
-        FloatVector ldLongOp(MemorySegment memory, long offset,
+        FloatVector ldLongOpMF(MemorySegment memory, long offset,
                                       FLdLongOp f) {
-            return dummyVector().ldLongOp(memory, offset, f);
+            return dummyVectorMF().ldLongOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        FloatVector ldLongOp(MemorySegment memory, long offset,
+        FloatVector ldLongOpMF(MemorySegment memory, long offset,
                                       VectorMask<Float> m,
                                       FLdLongOp f) {
-            return dummyVector().ldLongOp(memory, offset, m, f);
+            return dummyVectorMF().ldLongOpMF(memory, offset, m, f);
         }
 
         /*package-private*/
         @ForceInline
-        <M> void stOp(M memory, int offset, FStOp<M> f) {
-            dummyVector().stOp(memory, offset, f);
+        <M> void stOpMF(M memory, int offset, FStOp<M> f) {
+            dummyVectorMF().stOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        <M> void stOp(M memory, int offset,
-                      AbstractMask<Float> m,
+        <M> void stOpMF(M memory, int offset,
+                     AbstractMask<Float> m,
                       FStOp<M> f) {
-            dummyVector().stOp(memory, offset, m, f);
+            dummyVectorMF().stOpMF(memory, offset, m, f);
+        }
+
+
+        /*package-private*/
+        @ForceInline
+        void stLongOpMF(MemorySegment memory, long offset, FStLongOp f) {
+            dummyVectorMF().stLongOpMF(memory, offset, f);
         }
 
         /*package-private*/
         @ForceInline
-        void stLongOp(MemorySegment memory, long offset, FStLongOp f) {
-            dummyVector().stLongOp(memory, offset, f);
-        }
-
-        /*package-private*/
-        @ForceInline
-        void stLongOp(MemorySegment memory, long offset,
+        void stLongOpMF(MemorySegment memory, long offset,
                       AbstractMask<Float> m,
                       FStLongOp f) {
-            dummyVector().stLongOp(memory, offset, m, f);
+            dummyVectorMF().stLongOpMF(memory, offset, m, f);
         }
 
         // N.B. Make sure these constant vectors and
@@ -3862,8 +3973,9 @@ public abstract class FloatVector extends AbstractVector<Float> {
         @Override
         @ForceInline
         public final FloatVector zero() {
-            if ((Class<?>) vectorType() == FloatMaxVector.class)
-                return FloatMaxVector.ZERO;
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //if ((Class<?>) vectorType() == FloatMaxVector.class)
+            //    return FloatMaxVector.ZERO;
             switch (vectorBitSize()) {
                 case 64: return Float64Vector.ZERO;
                 case 128: return Float128Vector.ZERO;
@@ -3876,8 +3988,9 @@ public abstract class FloatVector extends AbstractVector<Float> {
         @Override
         @ForceInline
         public final FloatVector iota() {
-            if ((Class<?>) vectorType() == FloatMaxVector.class)
-                return FloatMaxVector.IOTA;
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //if ((Class<?>) vectorType() == FloatMaxVector.class)
+            //    return FloatMaxVector.IOTA;
             switch (vectorBitSize()) {
                 case 64: return Float64Vector.IOTA;
                 case 128: return Float128Vector.IOTA;
@@ -3891,8 +4004,9 @@ public abstract class FloatVector extends AbstractVector<Float> {
         @Override
         @ForceInline
         public final VectorMask<Float> maskAll(boolean bit) {
-            if ((Class<?>) vectorType() == FloatMaxVector.class)
-                return FloatMaxVector.FloatMaxMask.maskAll(bit);
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //if ((Class<?>) vectorType() == FloatMaxVector.class)
+            //    return FloatMaxVector.FloatMaxMask.maskAll(bit);
             switch (vectorBitSize()) {
                 case 64: return Float64Vector.Float64Mask.maskAll(bit);
                 case 128: return Float128Vector.Float128Mask.maskAll(bit);
@@ -3900,6 +4014,16 @@ public abstract class FloatVector extends AbstractVector<Float> {
                 case 512: return Float512Vector.Float512Mask.maskAll(bit);
             }
             throw new AssertionError();
+        }
+
+        @Override
+        Object iotaArray() {
+            int laneCount = laneCount();
+            float [] init = new float[laneCount];
+            for (int i = 0; i < laneCount; i++) {
+                init[i] = (float)i;
+            }
+           return init;
         }
     }
 
@@ -3917,7 +4041,8 @@ public abstract class FloatVector extends AbstractVector<Float> {
             case VectorShape.SK_128_BIT: return (FloatSpecies) SPECIES_128;
             case VectorShape.SK_256_BIT: return (FloatSpecies) SPECIES_256;
             case VectorShape.SK_512_BIT: return (FloatSpecies) SPECIES_512;
-            case VectorShape.SK_Max_BIT: return (FloatSpecies) SPECIES_MAX;
+            // FIXME: Enable once multi-field based MaxVector is supported.
+            //case VectorShape.SK_Max_BIT: return (FloatSpecies) SPECIES_MAX;
             default: throw new IllegalArgumentException("Bad shape: " + s);
         }
     }
@@ -3951,11 +4076,13 @@ public abstract class FloatVector extends AbstractVector<Float> {
                             Float512Vector::new);
 
     /** Species representing {@link FloatVector}s of {@link VectorShape#S_Max_BIT VectorShape.S_Max_BIT}. */
-    public static final VectorSpecies<Float> SPECIES_MAX
+    // FIXME: Enable once multi-field based MaxVector is supported.
+    /*public static final VectorSpecies<Float> SPECIES_MAX
         = new FloatSpecies(VectorShape.S_Max_BIT,
                             FloatMaxVector.class,
                             FloatMaxVector.FloatMaxMask.class,
                             FloatMaxVector::new);
+     */
 
     /**
      * Preferred species for {@link FloatVector}s.

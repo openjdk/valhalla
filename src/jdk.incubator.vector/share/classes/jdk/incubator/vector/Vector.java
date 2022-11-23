@@ -1171,14 +1171,13 @@ import java.util.Arrays;
  *           the element type of a vector
  *
  */
-@SuppressWarnings("exports")
+@SuppressWarnings({"exports", "missing-explicit-ctor"})
 public abstract class Vector<E> extends jdk.internal.vm.vector.VectorSupport.Vector<E> {
 
-    // This type is sealed within its package.
-    // Users cannot roll their own vector types.
-    Vector(Object bits) {
-        super(bits);
-    }
+    /**
+     * Default Constructor for abstract vector.
+     */
+    public Vector() {}
 
     /**
      * Returns the species of this vector.

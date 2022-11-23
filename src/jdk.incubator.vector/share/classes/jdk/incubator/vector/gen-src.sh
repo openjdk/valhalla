@@ -57,6 +57,7 @@ for type in byte short int long float double
 do
   Type="$(tr '[:lower:]' '[:upper:]' <<< ${type:0:1})${type:1}"
   TYPE="$(tr '[:lower:]' '[:upper:]' <<< ${type})"
+  Boxinitials="$(tr '[:lower:]' '[:upper:]' <<< ${type:0:1})"
   args=$globalArgs
   args="$args -K$type -Dtype=$type -DType=$Type -DTYPE=$TYPE"
 
@@ -119,7 +120,7 @@ do
       ;;
   esac
 
-  args="$args -K$kind -DBoxtype=$Boxtype -DWideboxtype=$Wideboxtype"
+  args="$args -K$kind -DBoxtype=$Boxtype -DBoxinitials=$Boxinitials -DWideboxtype=$Wideboxtype"
   args="$args -Dbitstype=$bitstype -DBitstype=$Bitstype -DBoxbitstype=$Boxbitstype"
   args="$args -Dfptype=$fptype -DFptype=$Fptype -DBoxfptype=$Boxfptype"
   args="$args -DsizeInBytes=$sizeInBytes"
@@ -144,7 +145,8 @@ do
   esac
 
   old_args="$args"
-  for bits in 64 128 256 512 Max
+  # for bits in 64 128 256 512 Max
+  for bits in 64 128 256 512
   do
     vectortype=${typeprefix}${Type}${bits}Vector
     masktype=${typeprefix}${Type}${bits}Mask
@@ -190,7 +192,7 @@ do
     if [[ "${vectortype}" == "IntMaxVector" ]]; then
       args="$args -KintAndMax"
     fi
-    bitargs="$args -Dbits=$bits -DBITS=$BITS -Dvectortype=$vectortype -Dmasktype=$masktype -Dshuffletype=$shuffletype -Dbitsvectortype=$bitsvectortype -Dfpvectortype=$fpvectortype -Dvectorindextype=$vectorindextype -Dshape=$shape -DShape=$Shape"
+    bitargs="$args -Dbits=$bits -DBITS=$BITS -Dvectortype=$vectortype -DnumLanes=$numLanes  -Dmasktype=$masktype -Dshuffletype=$shuffletype -Dbitsvectortype=$bitsvectortype -Dfpvectortype=$fpvectortype -Dvectorindextype=$vectorindextype -Dshape=$shape -DShape=$Shape"
 
     case $vectortype in
     $CLASS_FILTER)

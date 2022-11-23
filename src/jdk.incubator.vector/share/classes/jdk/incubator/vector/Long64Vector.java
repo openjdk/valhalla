@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Long64Vector extends LongVector {
+value class Long64Vector extends LongVector {
     static final LongSpecies VSPECIES =
         (LongSpecies) LongVector.SPECIES_64;
 
@@ -54,24 +55,31 @@ final class Long64Vector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    Long64Vector(long[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64.class);
+
+    private final VectorSupport.VectorPayloadMF64 payload;
+
+    Long64Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF64)value;
     }
 
-    // For compatibility as Long64Vector::new,
-    // stored into species.vectorFactory.
-    Long64Vector(Object v) {
-        this((long[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Long64Vector ZERO = new Long64Vector(new long[VLENGTH]);
-    static final Long64Vector IOTA = new Long64Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Long64Vector ZERO = new Long64Vector(VectorPayloadMF.createVectPayloadInstance(Long.BYTES, 1));
+    static final Long64Vector IOTA = new Long64Vector(VectorPayloadMF.createVectPayloadInstanceL(Long.BYTES, 1, (long [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Long64Vector extends LongVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -166,6 +178,13 @@ final class Long64Vector extends LongVector {
         return new Long64Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Long64Vector vectorFactory(VectorPayloadMF vec) {
+        return new Long64Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte64Vector asByteVectorRaw() {
@@ -182,57 +201,57 @@ final class Long64Vector extends LongVector {
 
     @ForceInline
     final @Override
-    Long64Vector uOp(FUnOp f) {
-        return (Long64Vector) super.uOpTemplate(f);  // specialize
+    Long64Vector uOpMF(FUnOp f) {
+        return (Long64Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Long64Vector uOp(VectorMask<Long> m, FUnOp f) {
+    Long64Vector uOpMF(VectorMask<Long> m, FUnOp f) {
         return (Long64Vector)
-            super.uOpTemplate((Long64Mask)m, f);  // specialize
+            super.uOpTemplateMF((Long64Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Long64Vector bOp(Vector<Long> v, FBinOp f) {
-        return (Long64Vector) super.bOpTemplate((Long64Vector)v, f);  // specialize
+    Long64Vector bOpMF(Vector<Long> v, FBinOp f) {
+        return (Long64Vector) super.bOpTemplateMF((Long64Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Long64Vector bOp(Vector<Long> v,
+    Long64Vector bOpMF(Vector<Long> v,
                      VectorMask<Long> m, FBinOp f) {
         return (Long64Vector)
-            super.bOpTemplate((Long64Vector)v, (Long64Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Long64Vector)v, (Long64Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Long64Vector tOp(Vector<Long> v1, Vector<Long> v2, FTriOp f) {
+    Long64Vector tOpMF(Vector<Long> v1, Vector<Long> v2, FTriOp f) {
         return (Long64Vector)
-            super.tOpTemplate((Long64Vector)v1, (Long64Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Long64Vector)v1, (Long64Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Long64Vector tOp(Vector<Long> v1, Vector<Long> v2,
+    Long64Vector tOpMF(Vector<Long> v1, Vector<Long> v2,
                      VectorMask<Long> m, FTriOp f) {
         return (Long64Vector)
-            super.tOpTemplate((Long64Vector)v1, (Long64Vector)v2,
-                              (Long64Mask)m, f);  // specialize
+            super.tOpTemplateMF((Long64Vector)v1, (Long64Vector)v2,
+                                (Long64Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    long rOp(long v, VectorMask<Long> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    long rOpMF(long v, VectorMask<Long> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -508,12 +527,13 @@ final class Long64Vector extends LongVector {
 
     public long laneHelper(int i) {
         return (long) VectorSupport.extract(
-                                VCLASS, ETYPE, VLENGTH,
-                                this, i,
-                                (vec, ix) -> {
-                                    long[] vecarr = vec.vec();
-                                    return (long)vecarr[ix];
-                                });
+                             VCLASS, ETYPE, VLENGTH,
+                             this, i,
+                             (vec, ix) -> {
+                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 long start_offset = vecpayload.multiFieldOffset();
+                                 return (long)Unsafe.getUnsafe().getLong(vecpayload, start_offset + ix * Long.BYTES);
+                             });
     }
 
     @ForceInline
@@ -526,13 +546,16 @@ final class Long64Vector extends LongVector {
     }
 
     public Long64Vector withLaneHelper(int i, long e) {
-        return VectorSupport.insert(
+       return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    long[] res = v.vec().clone();
-                                    res[ix] = (long)bits;
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putLong(tpayload, start_offset + ix * Long.BYTES, (long)bits);
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 

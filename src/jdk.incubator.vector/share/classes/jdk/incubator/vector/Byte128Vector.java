@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Byte128Vector extends ByteVector {
+value class Byte128Vector extends ByteVector {
     static final ByteSpecies VSPECIES =
         (ByteSpecies) ByteVector.SPECIES_128;
 
@@ -54,24 +55,31 @@ final class Byte128Vector extends ByteVector {
 
     static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-    Byte128Vector(byte[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128.class);
+
+    private final VectorSupport.VectorPayloadMF128 payload;
+
+    Byte128Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF128)value;
     }
 
-    // For compatibility as Byte128Vector::new,
-    // stored into species.vectorFactory.
-    Byte128Vector(Object v) {
-        this((byte[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Byte128Vector ZERO = new Byte128Vector(new byte[VLENGTH]);
-    static final Byte128Vector IOTA = new Byte128Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Byte128Vector ZERO = new Byte128Vector(VectorPayloadMF.createVectPayloadInstance(Byte.BYTES, 16));
+    static final Byte128Vector IOTA = new Byte128Vector(VectorPayloadMF.createVectPayloadInstanceB(Byte.BYTES, 16, (byte [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Byte128Vector extends ByteVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -171,6 +183,13 @@ final class Byte128Vector extends ByteVector {
         return new Byte128Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Byte128Vector vectorFactory(VectorPayloadMF vec) {
+        return new Byte128Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte128Vector asByteVectorRaw() {
@@ -187,57 +206,57 @@ final class Byte128Vector extends ByteVector {
 
     @ForceInline
     final @Override
-    Byte128Vector uOp(FUnOp f) {
-        return (Byte128Vector) super.uOpTemplate(f);  // specialize
+    Byte128Vector uOpMF(FUnOp f) {
+        return (Byte128Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Byte128Vector uOp(VectorMask<Byte> m, FUnOp f) {
+    Byte128Vector uOpMF(VectorMask<Byte> m, FUnOp f) {
         return (Byte128Vector)
-            super.uOpTemplate((Byte128Mask)m, f);  // specialize
+            super.uOpTemplateMF((Byte128Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Byte128Vector bOp(Vector<Byte> v, FBinOp f) {
-        return (Byte128Vector) super.bOpTemplate((Byte128Vector)v, f);  // specialize
+    Byte128Vector bOpMF(Vector<Byte> v, FBinOp f) {
+        return (Byte128Vector) super.bOpTemplateMF((Byte128Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Byte128Vector bOp(Vector<Byte> v,
+    Byte128Vector bOpMF(Vector<Byte> v,
                      VectorMask<Byte> m, FBinOp f) {
         return (Byte128Vector)
-            super.bOpTemplate((Byte128Vector)v, (Byte128Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Byte128Vector)v, (Byte128Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Byte128Vector tOp(Vector<Byte> v1, Vector<Byte> v2, FTriOp f) {
+    Byte128Vector tOpMF(Vector<Byte> v1, Vector<Byte> v2, FTriOp f) {
         return (Byte128Vector)
-            super.tOpTemplate((Byte128Vector)v1, (Byte128Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Byte128Vector)v1, (Byte128Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Byte128Vector tOp(Vector<Byte> v1, Vector<Byte> v2,
+    Byte128Vector tOpMF(Vector<Byte> v1, Vector<Byte> v2,
                      VectorMask<Byte> m, FTriOp f) {
         return (Byte128Vector)
-            super.tOpTemplate((Byte128Vector)v1, (Byte128Vector)v2,
-                              (Byte128Mask)m, f);  // specialize
+            super.tOpTemplateMF((Byte128Vector)v1, (Byte128Vector)v2,
+                                (Byte128Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    byte rOp(byte v, VectorMask<Byte> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    byte rOpMF(byte v, VectorMask<Byte> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -533,12 +552,13 @@ final class Byte128Vector extends ByteVector {
 
     public byte laneHelper(int i) {
         return (byte) VectorSupport.extract(
-                                VCLASS, ETYPE, VLENGTH,
-                                this, i,
-                                (vec, ix) -> {
-                                    byte[] vecarr = vec.vec();
-                                    return (long)vecarr[ix];
-                                });
+                             VCLASS, ETYPE, VLENGTH,
+                             this, i,
+                             (vec, ix) -> {
+                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 long start_offset = vecpayload.multiFieldOffset();
+                                 return (long)Unsafe.getUnsafe().getByte(vecpayload, start_offset + ix * Byte.BYTES);
+                             });
     }
 
     @ForceInline
@@ -566,13 +586,16 @@ final class Byte128Vector extends ByteVector {
     }
 
     public Byte128Vector withLaneHelper(int i, byte e) {
-        return VectorSupport.insert(
+       return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    byte[] res = v.vec().clone();
-                                    res[ix] = (byte)bits;
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putByte(tpayload, start_offset + ix * Byte.BYTES, (byte)bits);
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 

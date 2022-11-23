@@ -27,6 +27,7 @@ package jdk.incubator.vector;
 import java.lang.foreign.MemorySegment;
 import java.util.Arrays;
 import java.util.Objects;
+import jdk.internal.misc.Unsafe;
 import java.util.function.IntUnaryOperator;
 
 import jdk.internal.vm.annotation.ForceInline;
@@ -39,7 +40,7 @@ import static jdk.incubator.vector.VectorOperators.*;
 // -- This file was mechanically generated: Do not edit! -- //
 
 @SuppressWarnings("cast")  // warning: redundant cast
-final class Short128Vector extends ShortVector {
+value class Short128Vector extends ShortVector {
     static final ShortSpecies VSPECIES =
         (ShortSpecies) ShortVector.SPECIES_128;
 
@@ -54,24 +55,31 @@ final class Short128Vector extends ShortVector {
 
     static final Class<Short> ETYPE = short.class; // used by the JVM
 
-    Short128Vector(short[] v) {
-        super(v);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128.class);
+
+    private final VectorSupport.VectorPayloadMF128 payload;
+
+    Short128Vector(Object value) {
+        this.payload = (VectorSupport.VectorPayloadMF128)value;
     }
 
-    // For compatibility as Short128Vector::new,
-    // stored into species.vectorFactory.
-    Short128Vector(Object v) {
-        this((short[]) v);
+    VectorPayloadMF vec_mf() {
+        return payload;
     }
 
-    static final Short128Vector ZERO = new Short128Vector(new short[VLENGTH]);
-    static final Short128Vector IOTA = new Short128Vector(VSPECIES.iotaArray());
+    @Override
+    protected final Object getPayload() {
+       return vec_mf();
+    }
+
+    static final Short128Vector ZERO = new Short128Vector(VectorPayloadMF.createVectPayloadInstance(Short.BYTES, 8));
+    static final Short128Vector IOTA = new Short128Vector(VectorPayloadMF.createVectPayloadInstanceS(Short.BYTES, 8, (short [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
         // If we do this too much we will
         // get NPEs from bootstrap circularity.
-        VSPECIES.dummyVector();
+        VSPECIES.dummyVectorMF();
         VSPECIES.withLanes(LaneType.BYTE);
     }
 
@@ -109,6 +117,10 @@ final class Short128Vector extends ShortVector {
     @ForceInline
     @Override
     public final int byteSize() { return VSIZE / Byte.SIZE; }
+
+    @ForceInline
+    @Override
+    public final long multiFieldOffset() { return MFOFFSET; }
 
     /*package-private*/
     @ForceInline
@@ -171,6 +183,13 @@ final class Short128Vector extends ShortVector {
         return new Short128Vector(vec);
     }
 
+    // Make a vector of the same species but the given elements:
+    @ForceInline
+    final @Override
+    Short128Vector vectorFactory(VectorPayloadMF vec) {
+        return new Short128Vector(vec);
+    }
+
     @ForceInline
     final @Override
     Byte128Vector asByteVectorRaw() {
@@ -187,57 +206,57 @@ final class Short128Vector extends ShortVector {
 
     @ForceInline
     final @Override
-    Short128Vector uOp(FUnOp f) {
-        return (Short128Vector) super.uOpTemplate(f);  // specialize
+    Short128Vector uOpMF(FUnOp f) {
+        return (Short128Vector) super.uOpTemplateMF(f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Short128Vector uOp(VectorMask<Short> m, FUnOp f) {
+    Short128Vector uOpMF(VectorMask<Short> m, FUnOp f) {
         return (Short128Vector)
-            super.uOpTemplate((Short128Mask)m, f);  // specialize
+            super.uOpTemplateMF((Short128Mask)m, f);  // specialize
     }
 
     // Binary operator
 
     @ForceInline
     final @Override
-    Short128Vector bOp(Vector<Short> v, FBinOp f) {
-        return (Short128Vector) super.bOpTemplate((Short128Vector)v, f);  // specialize
+    Short128Vector bOpMF(Vector<Short> v, FBinOp f) {
+        return (Short128Vector) super.bOpTemplateMF((Short128Vector)v, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Short128Vector bOp(Vector<Short> v,
+    Short128Vector bOpMF(Vector<Short> v,
                      VectorMask<Short> m, FBinOp f) {
         return (Short128Vector)
-            super.bOpTemplate((Short128Vector)v, (Short128Mask)m,
-                              f);  // specialize
+            super.bOpTemplateMF((Short128Vector)v, (Short128Mask)m,
+                                f);  // specialize
     }
 
     // Ternary operator
 
     @ForceInline
     final @Override
-    Short128Vector tOp(Vector<Short> v1, Vector<Short> v2, FTriOp f) {
+    Short128Vector tOpMF(Vector<Short> v1, Vector<Short> v2, FTriOp f) {
         return (Short128Vector)
-            super.tOpTemplate((Short128Vector)v1, (Short128Vector)v2,
-                              f);  // specialize
+            super.tOpTemplateMF((Short128Vector)v1, (Short128Vector)v2,
+                                f);  // specialize
     }
 
     @ForceInline
     final @Override
-    Short128Vector tOp(Vector<Short> v1, Vector<Short> v2,
+    Short128Vector tOpMF(Vector<Short> v1, Vector<Short> v2,
                      VectorMask<Short> m, FTriOp f) {
         return (Short128Vector)
-            super.tOpTemplate((Short128Vector)v1, (Short128Vector)v2,
-                              (Short128Mask)m, f);  // specialize
+            super.tOpTemplateMF((Short128Vector)v1, (Short128Vector)v2,
+                                (Short128Mask)m, f);  // specialize
     }
 
     @ForceInline
     final @Override
-    short rOp(short v, VectorMask<Short> m, FBinOp f) {
-        return super.rOpTemplate(v, m, f);  // specialize
+    short rOpMF(short v, VectorMask<Short> m, FBinOp f) {
+        return super.rOpTemplateMF(v, m, f);  // specialize
     }
 
     @Override
@@ -525,12 +544,13 @@ final class Short128Vector extends ShortVector {
 
     public short laneHelper(int i) {
         return (short) VectorSupport.extract(
-                                VCLASS, ETYPE, VLENGTH,
-                                this, i,
-                                (vec, ix) -> {
-                                    short[] vecarr = vec.vec();
-                                    return (long)vecarr[ix];
-                                });
+                             VCLASS, ETYPE, VLENGTH,
+                             this, i,
+                             (vec, ix) -> {
+                                 VectorPayloadMF vecpayload = vec.vec_mf();
+                                 long start_offset = vecpayload.multiFieldOffset();
+                                 return (long)Unsafe.getUnsafe().getShort(vecpayload, start_offset + ix * Short.BYTES);
+                             });
     }
 
     @ForceInline
@@ -550,13 +570,16 @@ final class Short128Vector extends ShortVector {
     }
 
     public Short128Vector withLaneHelper(int i, short e) {
-        return VectorSupport.insert(
+       return VectorSupport.insert(
                                 VCLASS, ETYPE, VLENGTH,
                                 this, i, (long)e,
                                 (v, ix, bits) -> {
-                                    short[] res = v.vec().clone();
-                                    res[ix] = (short)bits;
-                                    return v.vectorFactory(res);
+                                    VectorPayloadMF vec = v.vec_mf();
+                                    VectorPayloadMF tpayload = Unsafe.getUnsafe().makePrivateBuffer(vec);
+                                    long start_offset = tpayload.multiFieldOffset();
+                                    Unsafe.getUnsafe().putShort(tpayload, start_offset + ix * Short.BYTES, (short)bits);
+                                    tpayload = Unsafe.getUnsafe().finishPrivateBuffer(tpayload);
+                                    return v.vectorFactory(tpayload);
                                 });
     }
 
