@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -88,6 +88,12 @@ SRC_SUBDIRS += $(OPENJDK_TARGET_OS)/classes
 ifneq ($(OPENJDK_TARGET_OS), $(OPENJDK_TARGET_OS_TYPE))
   SRC_SUBDIRS += $(OPENJDK_TARGET_OS_TYPE)/classes
 endif
+
+# Add Valhalla value classes in SRC_SUBDIRS; *before* share/classes
+ifeq ($(INCLUDE_VALUE_CLASSES), true)
+  SRC_SUBDIRS += valhalla/classes
+endif
+
 SRC_SUBDIRS += share/classes
 
 SPEC_SUBDIRS += share/specs

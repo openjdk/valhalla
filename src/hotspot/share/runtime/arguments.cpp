@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -122,6 +122,9 @@ SystemProperty *Arguments::_vm_info = NULL;
 GrowableArray<ModulePatchPath*> *Arguments::_patch_mod_prefix = NULL;
 PathString *Arguments::_boot_class_path = NULL;
 bool Arguments::_has_jimage = false;
+
+// JAVA_HOME/lib relative path of value class replacements for java.base
+#define VALUE_CLASSES_JAR "ValueClasses.jar"
 
 char* Arguments::_ext_dirs = NULL;
 
@@ -3087,6 +3090,35 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
 
   if (!check_vm_args_consistency()) {
     return JNI_ERR;
+  }
+
+  if (enable_preview()) {
+    if (patch_mod_javabase) {
+      // TBD: consider replacing the path in ModulePatchPath for java.base base with
+      //      one that has the valueClass jar appended.
+      jio_fprintf(defaultStream::output_stream(),
+                    "Warning: java.base already patched, "
+                    "--enable-preview can't add module patch java.base with " VALUE_CLASSES_JAR "\n");
+      return JNI_OK;
+    }
+
+    // Add equivalent of patch-module for preview enabled Valhalla classes
+    char path[JVM_MAXPATHLEN];
+    const char* fileSep = os::file_separator();
+    jio_snprintf(path, JVM_MAXPATHLEN, "java.base=%s%slib%s" VALUE_CLASSES_JAR,
+      Arguments::get_java_home(), fileSep, fileSep);
+
+    struct stat st;
+    if (os::stat(path + 10, &st) < 0) {
+      jio_fprintf(defaultStream::output_stream(),
+              "<JAVA_HOME>/lib/" VALUE_CLASSES_JAR " does not exist.\n");
+      return JNI_ERR;
+    }
+
+    int res = process_patch_mod_option(path, &patch_mod_javabase);
+    if (res != JNI_OK) {
+      return res;
+    }
   }
 
 #if INCLUDE_CDS
