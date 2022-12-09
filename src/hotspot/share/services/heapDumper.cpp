@@ -1912,7 +1912,7 @@ void InlinedObjects::release() {
 
 void InlinedObjects::inlined_field_names_callback(InlinedObjects* _this, const Klass* klass, uintx base_index, int count) {
   if (_this->_inlined_field_map == nullptr) {
-    _this->_inlined_field_map = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<ClassInlinedFields>(100, mtServiceability);
+    _this->_inlined_field_map = new (mtServiceability) GrowableArray<ClassInlinedFields>(100, mtServiceability);
   }
   _this->_inlined_field_map->append(ClassInlinedFields(klass, base_index));
 
@@ -1966,7 +1966,7 @@ void InlinedObjects::dump_classed_with_inlined_fields(AbstractDumpWriter* writer
 
 void InlinedObjects::add_flat_array(oop array) {
   if (_flat_arrays == nullptr) {
-    _flat_arrays = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<oop>(100, mtServiceability);
+    _flat_arrays = new (mtServiceability) GrowableArray<oop>(100, mtServiceability);
   }
   _flat_arrays->append(array);
 }

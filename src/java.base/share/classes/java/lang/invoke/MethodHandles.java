@@ -3453,11 +3453,11 @@ return mh1;
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
             Class<?> defc = c.getDeclaringClass();
             if (ctor.isObjectConstructor()) {
-                assert(ctor.getReturnType() == void.class);
+                assert(ctor.getMethodType().returnType() == void.class);
                 return lookup.getDirectConstructorNoSecurityManager(defc, ctor);
             } else {
                 // static init factory is a static method
-                assert(ctor.isMethod() && ctor.getReturnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
+                assert(ctor.isMethod() && ctor.getMethodType().returnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
                 assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
                 return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
             }

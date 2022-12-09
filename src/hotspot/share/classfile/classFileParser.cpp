@@ -904,7 +904,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
 
   } else {
     assert(itfs_len > 0, "only called for len>0");
-    _local_interface_indexes = new GrowableArray<u2>(itfs_len, mtNone);
+    _local_interface_indexes = new GrowableArray<u2>(itfs_len);
     int index = 0;
     for (index = 0; index < itfs_len; index++) {
       const u2 interface_index = stream->get_u2(CHECK);

@@ -129,7 +129,7 @@ sealed class DirectMethodHandle extends MethodHandle {
         return make(refKind, refc, member, null /* no callerClass context */);
     }
     static DirectMethodHandle make(MemberName member) {
-        if (member.isObjectConstructor() && member.getReturnType() == void.class)
+        if (member.isObjectConstructor() && member.getMethodType().returnType() == void.class)
             return makeAllocator(member);
         return make(member.getDeclaringClass(), member);
     }

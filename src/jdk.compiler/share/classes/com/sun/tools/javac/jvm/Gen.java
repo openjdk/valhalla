@@ -1129,7 +1129,7 @@ public class Gen extends JCTree.Visitor {
                 Symbol sym = ((JCIdent) tree.field).sym;
                 items.makeThisItem().load();
                 genExpr(tree.value, tree.field.type).load();
-                sym = binaryQualifier(sym, env.enclClass.type);
+                sym = types.binaryQualifier(sym, env.enclClass.type);
                 code.emitop2(withfield, sym, PoolWriter::putMember);
                 result = items.makeStackItem(tree.type);
                 break;
@@ -1145,7 +1145,7 @@ public class Gen extends JCTree.Visitor {
                 } else {
                     code.emitop0(swap);
                 }
-                sym = binaryQualifier(sym, fieldAccess.selected.type);
+                sym = types.binaryQualifier(sym, fieldAccess.selected.type);
                 code.emitop2(withfield, sym, PoolWriter::putMember);
                 result = items.makeStackItem(tree.type);
                 break;

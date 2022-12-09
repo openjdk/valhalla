@@ -97,6 +97,8 @@ class InstanceKlassMiscStatus {
 
   void assign_class_loader_type(const ClassLoaderData* cld);
 
+  u4 flags() const { return _flags; }
+
   static u4 is_empty_inline_type_value() {
     return _misc_is_empty_inline_type;
   }

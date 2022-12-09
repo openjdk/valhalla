@@ -3149,7 +3149,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
                                                StubRoutines::throw_AbstractMethodError_entry(),
                                                wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
                                                wrong_method_abstract, wrong_method_abstract);
-      GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro().length(), mtInternal);
+      GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro().length(), mtInternal);
       heap_sig->appendAll(&ces.sig_cc_ro());
       entry->set_sig_cc(heap_sig);
       return entry;
@@ -3215,7 +3215,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_ada
 
   if (ces.has_scalarized_args()) {
     // Save a C heap allocated version of the scalarized signature and store it in the adapter
-    GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(ces.sig_cc().length(), mtInternal);
+    GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc().length(), mtInternal);
     heap_sig->appendAll(&ces.sig_cc());
     entry->set_sig_cc(heap_sig);
   }

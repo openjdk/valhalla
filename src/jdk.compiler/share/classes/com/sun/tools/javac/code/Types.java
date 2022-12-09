@@ -121,6 +121,7 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        qualifiedSymbolCache = new HashMap<>();
     }
     // </editor-fold>
 

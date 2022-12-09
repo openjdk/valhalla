@@ -2907,8 +2907,8 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
     bind(done_check);
   }
 #endif
-  movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  testl(temp_reg, InstanceKlass::misc_flag_is_empty_inline_type());
+  movl(temp_reg, Address(klass, InstanceKlass::misc_status_offset()));
+  testl(temp_reg, InstanceKlassMiscStatus::is_empty_inline_type_value());
   jcc(Assembler::notZero, is_empty_inline_type);
 }
 
