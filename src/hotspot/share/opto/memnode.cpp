@@ -841,7 +841,17 @@ void LoadNode::dump_spec(outputStream *st) const {
     st->print(" #"); _type->dump_on(st);
   }
   if (!depends_only_on_test()) {
-    st->print(" (does not depend only on test)");
+    st->print(" (does not depend only on test, ");
+    if (control_dependency() == UnknownControl) {
+      st->print("unknown control");
+    } else if (control_dependency() == Pinned) {
+      st->print("pinned");
+    } else if (adr_type() == TypeRawPtr::BOTTOM) {
+      st->print("raw access");
+    } else {
+      st->print("unknown reason");
+    }
+    st->print(")");
   }
 }
 #endif
