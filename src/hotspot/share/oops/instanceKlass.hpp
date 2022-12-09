@@ -30,6 +30,7 @@
 #include "oops/annotations.hpp"
 #include "oops/constMethod.hpp"
 #include "oops/fieldInfo.hpp"
+#include "oops/instanceKlassMiscStatus.hpp"
 #include "oops/instanceOop.hpp"
 #include "runtime/handles.hpp"
 #include "utilities/accessFlags.hpp"
@@ -244,47 +245,15 @@ class InstanceKlass: public Klass {
   volatile u2     _idnum_allocated_count;   // JNI/JVMTI: increments with the addition of methods, old ids don't change
 
   // _is_marked_dependent can be set concurrently, thus cannot be part of the
-  // _misc_flags.
+  // _misc_status right now.
   bool            _is_marked_dependent;     // used for marking during flushing and deoptimization
 
   ClassState      _init_state;              // state of class
 
   u1              _reference_type;          // reference type
 
-  enum {
-    _misc_rewritten                           = 1 << 0,  // methods rewritten.
-    _misc_has_nonstatic_fields                = 1 << 1,  // for sizing with UseCompressedOops
-    _misc_should_verify_class                 = 1 << 2,  // allow caching of preverification
-    _misc_unused                              = 1 << 3,  // not currently used
-    _misc_is_contended                        = 1 << 4,  // marked with contended annotation
-    _misc_has_nonstatic_concrete_methods      = 1 << 5,  // class/superclass/implemented interfaces has non-static, concrete methods
-    _misc_declares_nonstatic_concrete_methods = 1 << 6,  // directly declares non-static, concrete methods
-    _misc_has_been_redefined                  = 1 << 7,  // class has been redefined
-    _misc_shared_loading_failed               = 1 << 8,  // class has been loaded from shared archive
-    _misc_is_scratch_class                    = 1 << 9,  // class is the redefined scratch class
-    _misc_is_shared_boot_class                = 1 << 10, // defining class loader is boot class loader
-    _misc_is_shared_platform_class            = 1 << 11, // defining class loader is platform class loader
-    _misc_is_shared_app_class                 = 1 << 12, // defining class loader is app class loader
-    _misc_has_contended_annotations           = 1 << 13, // has @Contended annotation
-    _misc_has_inline_type_fields              = 1 << 14, // has inline fields and related embedded section is not empty
-    _misc_is_empty_inline_type                = 1 << 15, // empty inline type (*)
-    _misc_is_naturally_atomic                 = 1 << 16, // loaded/stored in one instruction
-    _misc_is_declared_atomic                  = 1 << 17, // implements jl.NonTearable
-    // _misc_invalid_value_super                 = 1 << 18, // invalid super type for an value type
-    // _misc_invalid_identity_super              = 1 << 19, // invalid super type for an identity type
-    _misc_carries_value_modifier              = 1 << 20, // the class or one of its super types has the ACC_VALUE modifier
-    _misc_carries_identity_modifier           = 1 << 21, // the class or one of its super types has the ACC_IDENTITY modifier
-  };
-
-  // (*) An inline type is considered empty if it contains no non-static fields or
-  // if it contains only empty inline fields. Note that JITs have a slightly different
-  // definition: empty inline fields must be flattened otherwise the container won't
-  // be considered empty
-
-  u2 shared_loader_type_bits() const {
-    return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
-  }
-  u4              _misc_flags;           // There is more space in access_flags for more flags.
+  // State is set while executing, eventually atomically to not disturb other state
+  InstanceKlassMiscStatus _misc_status;
 
   Monitor*        _init_monitor;         // mutual exclusion to _init_state and _init_thread.
   Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recursive initialization)
@@ -371,102 +340,54 @@ class InstanceKlass: public Klass {
   static void set_finalization_enabled(bool val) { _finalization_enabled = val; }
 
   // The three BUILTIN class loader types
-  bool is_shared_boot_class() const {
-    return (_misc_flags & _misc_is_shared_boot_class) != 0;
-  }
-  bool is_shared_platform_class() const {
-    return (_misc_flags & _misc_is_shared_platform_class) != 0;
-  }
-  bool is_shared_app_class() const {
-    return (_misc_flags & _misc_is_shared_app_class) != 0;
-  }
+  bool is_shared_boot_class() const { return _misc_status.is_shared_boot_class(); }
+  bool is_shared_platform_class() const { return _misc_status.is_shared_platform_class(); }
+  bool is_shared_app_class() const {  return _misc_status.is_shared_app_class(); }
   // The UNREGISTERED class loader type
-  bool is_shared_unregistered_class() const {
-    return (_misc_flags & shared_loader_type_bits()) == 0;
-  }
+  bool is_shared_unregistered_class() const { return _misc_status.is_shared_unregistered_class(); }
 
   // Check if the class can be shared in CDS
   bool is_shareable() const;
 
-  bool shared_loading_failed() const {
-    return (_misc_flags & _misc_shared_loading_failed) != 0;
-  }
+  bool shared_loading_failed() const { return _misc_status.shared_loading_failed(); }
 
-  void set_shared_loading_failed() {
-    _misc_flags |= _misc_shared_loading_failed;
-  }
+  void set_shared_loading_failed() { _misc_status.set_shared_loading_failed(true); }
 
-  void set_shared_class_loader_type(s2 loader_type);
+#if INCLUDE_CDS
+  void set_shared_class_loader_type(s2 loader_type) { _misc_status.set_shared_class_loader_type(loader_type); }
+  void assign_class_loader_type() { _misc_status.assign_class_loader_type(_class_loader_data); }
+#endif
 
-  void assign_class_loader_type();
+  bool has_nonstatic_fields() const        { return _misc_status.has_nonstatic_fields(); }
+  void set_has_nonstatic_fields(bool b)    { _misc_status.set_has_nonstatic_fields(b); }
 
-  bool has_nonstatic_fields() const        {
-    return (_misc_flags & _misc_has_nonstatic_fields) != 0;
-  }
-  void set_has_nonstatic_fields(bool b)    {
-    assert(!has_nonstatic_fields(), "set once");
-    if (b) {
-      _misc_flags |= _misc_has_nonstatic_fields;
-    }
-  }
+  bool has_inline_type_fields() const { return _misc_status.has_inline_type_fields(); }
+  void set_has_inline_type_fields()   { _misc_status.set_has_inline_type_fields(true); }
 
-  bool has_inline_type_fields() const          {
-    return (_misc_flags & _misc_has_inline_type_fields) != 0;
-  }
-  void set_has_inline_type_fields()  {
-    _misc_flags |= _misc_has_inline_type_fields;
-  }
-
-  bool is_empty_inline_type() const {
-    return (_misc_flags & _misc_is_empty_inline_type) != 0;
-  }
-  void set_is_empty_inline_type() {
-    _misc_flags |= _misc_is_empty_inline_type;
-  }
+  bool is_empty_inline_type() const   { return _misc_status.is_empty_inline_type(); }
+  void set_is_empty_inline_type()     { _misc_status.set_is_empty_inline_type(true); }
 
   // Note:  The naturally_atomic property only applies to
   // inline classes; it is never true on identity classes.
   // The bit is placed on instanceKlass for convenience.
 
   // Query if h/w provides atomic load/store for instances.
-  bool is_naturally_atomic() const {
-    return (_misc_flags & _misc_is_naturally_atomic) != 0;
-  }
-  // Initialized in the class file parser, not changed later.
-  void set_is_naturally_atomic() {
-    _misc_flags |= _misc_is_naturally_atomic;
-  }
+  bool is_naturally_atomic() const  { return _misc_status.is_naturally_atomic(); }
+  void set_is_naturally_atomic()    { _misc_status.set_is_naturally_atomic(true); }
 
   // Query if this class implements jl.NonTearable or was
   // mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers along with NonTearable.
-  bool is_declared_atomic() const {
-    return (_misc_flags & _misc_is_declared_atomic) != 0;
-  }
-  // Initialized in the class file parser, not changed later.
-  void set_is_declared_atomic() {
-    _misc_flags |= _misc_is_declared_atomic;
-  }
+  bool is_declared_atomic() const { return _misc_status.is_declared_atomic(); }
+  void set_is_declared_atomic()   { _misc_status.set_is_declared_atomic(true); }
 
-  bool carries_value_modifier() const {
-    return (_misc_flags &  _misc_carries_value_modifier) != 0;
-  }
+  bool carries_value_modifier() const { return _misc_status.carries_value_modifier(); }
+  void set_carries_value_modifier()   { _misc_status.set_carries_value_modifier(true); }
 
-  // Initialized in the class file parser, not changed later.
-  void set_carries_value_modifier() {
-    _misc_flags |= _misc_carries_value_modifier;
-  }
-
-  bool carries_identity_modifier() const {
-    return (_misc_flags & _misc_carries_identity_modifier) != 0;
-  }
-
-  // Initialized in the class file parser, not changed later.
-  void set_carries_identity_modifier() {
-    _misc_flags |= _misc_carries_identity_modifier;
-  }
+  bool carries_identity_modifier() const  { return _misc_status.carries_identity_modifier(); }
+  void set_carries_identity_modifier()    { _misc_status.set_carries_identity_modifier(true); }
 
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
@@ -648,7 +569,7 @@ public:
   bool is_init_thread(Thread *thread)      { return thread == _init_thread; }
   ClassState  init_state() const           { return Atomic::load(&_init_state); }
   const char* init_state_name() const;
-  bool is_rewritten() const                { return (_misc_flags & _misc_rewritten) != 0; }
+  bool is_rewritten() const                { return _misc_status.rewritten(); }
 
   class LockLinkState : public StackObj {
     InstanceKlass* _ik;
@@ -669,23 +590,15 @@ public:
   bool is_sealed() const;
 
   // defineClass specified verification
-  bool should_verify_class() const         {
-    return (_misc_flags & _misc_should_verify_class) != 0;
-  }
-  void set_should_verify_class(bool value) {
-    assert(!should_verify_class(), "set once");
-    if (value) {
-      _misc_flags |= _misc_should_verify_class;
-    }
-  }
+  bool should_verify_class() const         { return _misc_status.should_verify_class(); }
+  void set_should_verify_class(bool value) { _misc_status.set_should_verify_class(value); }
 
   // marking
   bool is_marked_dependent() const         { return _is_marked_dependent; }
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
 
   static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
-  static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
-  static u4 misc_flag_is_empty_inline_type() { return _misc_is_empty_inline_type; }
+  static ByteSize misc_status_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_status)); }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called
@@ -797,15 +710,8 @@ public:
   // signers
   objArrayOop signers() const;
 
-  bool is_contended() const                {
-    return (_misc_flags & _misc_is_contended) != 0;
-  }
-  void set_is_contended(bool value)        {
-    assert(!is_contended(), "set once");
-    if (value) {
-      _misc_flags |= _misc_is_contended;
-    }
-  }
+  bool is_contended() const                { return _misc_status.is_contended(); }
+  void set_is_contended(bool value)        { _misc_status.set_is_contended(value); }
 
   // source file name
   Symbol* source_file_name() const               { return _constants->source_file_name(); }
@@ -834,15 +740,8 @@ public:
     _nonstatic_oop_map_size = words;
   }
 
-  bool has_contended_annotations() const {
-    return ((_misc_flags & _misc_has_contended_annotations) != 0);
-  }
-  void set_has_contended_annotations(bool value)  {
-    assert(!has_contended_annotations(), "set once");
-    if (value) {
-      _misc_flags |= _misc_has_contended_annotations;
-    }
-  }
+  bool has_contended_annotations() const { return _misc_status.has_contended_annotations(); }
+  void set_has_contended_annotations(bool value)  { _misc_status.set_has_contended_annotations(value); }
 
 #if INCLUDE_JVMTI
   // Redefinition locking.  Class can only be redefined by one thread at a time.
@@ -877,20 +776,11 @@ public:
     return NULL;
   }
 
-  bool has_been_redefined() const {
-    return (_misc_flags & _misc_has_been_redefined) != 0;
-  }
-  void set_has_been_redefined() {
-    _misc_flags |= _misc_has_been_redefined;
-  }
+  bool has_been_redefined() const { return _misc_status.has_been_redefined(); }
+  void set_has_been_redefined() { _misc_status.set_has_been_redefined(true); }
 
-  bool is_scratch_class() const {
-    return (_misc_flags & _misc_is_scratch_class) != 0;
-  }
-
-  void set_is_scratch_class() {
-    _misc_flags |= _misc_is_scratch_class;
-  }
+  bool is_scratch_class() const { return _misc_status.is_scratch_class(); }
+  void set_is_scratch_class() { _misc_status.set_is_scratch_class(true); }
 
   bool has_resolved_methods() const {
     return _access_flags.has_resolved_methods();
@@ -946,25 +836,11 @@ public:
 
 #endif // INCLUDE_JVMTI
 
-  bool has_nonstatic_concrete_methods() const {
-    return (_misc_flags & _misc_has_nonstatic_concrete_methods) != 0;
-  }
-  void set_has_nonstatic_concrete_methods(bool b) {
-    assert(!has_nonstatic_concrete_methods(), "set once");
-    if (b) {
-      _misc_flags |= _misc_has_nonstatic_concrete_methods;
-    }
-  }
+  bool has_nonstatic_concrete_methods() const { return _misc_status.has_nonstatic_concrete_methods(); }
+  void set_has_nonstatic_concrete_methods(bool b) { _misc_status.set_has_nonstatic_concrete_methods(b); }
 
-  bool declares_nonstatic_concrete_methods() const {
-    return (_misc_flags & _misc_declares_nonstatic_concrete_methods) != 0;
-  }
-  void set_declares_nonstatic_concrete_methods(bool b) {
-    assert(!declares_nonstatic_concrete_methods(), "set once");
-    if (b) {
-      _misc_flags |= _misc_declares_nonstatic_concrete_methods;
-    }
-  }
+  bool declares_nonstatic_concrete_methods() const { return _misc_status.declares_nonstatic_concrete_methods(); }
+  void set_declares_nonstatic_concrete_methods(bool b) { _misc_status.set_declares_nonstatic_concrete_methods(b); }
 
   // for adding methods, ConstMethod::UNSET_IDNUM means no more ids available
   inline u2 next_method_idnum();
@@ -1274,7 +1150,7 @@ public:
  private:
   // initialization state
   void set_init_state(ClassState state);
-  void set_rewritten()                  { _misc_flags |= _misc_rewritten; }
+  void set_rewritten()                  { _misc_status.set_rewritten(true); }
   void set_init_thread(Thread *thread)  {
     assert(thread == nullptr || _init_thread == nullptr, "Only one thread is allowed to own initialization");
     _init_thread = thread;

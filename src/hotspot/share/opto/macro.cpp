@@ -61,9 +61,6 @@
 #if INCLUDE_G1GC
 #include "gc/g1/g1ThreadLocalData.hpp"
 #endif // INCLUDE_G1GC
-#if INCLUDE_SHENANDOAHGC
-#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
-#endif
 
 
 //
@@ -641,6 +638,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
   }
 
   while (can_eliminate && worklist.size() > 0) {
+    BarrierSetC2 *bs = BarrierSet::barrier_set()->barrier_set_c2();
     res = worklist.pop();
     for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax && can_eliminate; j++) {
       Node* use = res->fast_out(j);
@@ -657,8 +655,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         for (DUIterator_Fast kmax, k = use->fast_outs(kmax);
                                    k < kmax && can_eliminate; k++) {
           Node* n = use->fast_out(k);
-          if (!n->is_Store() && n->Opcode() != Op_CastP2X
-              SHENANDOAHGC_ONLY(&& (!UseShenandoahGC || !ShenandoahBarrierSetC2::is_shenandoah_wb_pre_call(n))) ) {
+          if (!n->is_Store() && n->Opcode() != Op_CastP2X && !bs->is_gc_pre_barrier_node(n)) {
             DEBUG_ONLY(disq_node = n;)
             if (n->is_Load() || n->is_LoadStore()) {
               NOT_PRODUCT(fail_eliminate = "Field load";)
@@ -2889,7 +2886,6 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
         break;
       default:
         assert(n->Opcode() == Op_LoopLimit ||
-               n->Opcode() == Op_Opaque2   ||
                n->Opcode() == Op_Opaque3   ||
                n->Opcode() == Op_Opaque4   ||
                BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(n),
@@ -2935,7 +2931,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
           _igvn._worklist.push(n);
           success = true;
         }
-      } else if (n->is_Opaque1() || n->Opcode() == Op_Opaque2) {
+      } else if (n->is_Opaque1()) {
         _igvn.replace_node(n, n->in(1));
         success = true;
 #if INCLUDE_RTM_OPT

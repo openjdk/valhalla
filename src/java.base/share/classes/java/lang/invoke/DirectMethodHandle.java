@@ -173,8 +173,8 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     @Override
-    String internalProperties() {
-        return "\n& DMH.MN="+internalMemberName();
+    String internalProperties(int indentLevel) {
+        return "\n" + debugPrefix(indentLevel) + "& DMH.MN=" + internalMemberName();
     }
 
     //// Implementation methods.
@@ -613,7 +613,7 @@ sealed class DirectMethodHandle extends MethodHandle {
     }
 
     Object checkCast(Object obj) {
-        return member.getReturnType().cast(obj);
+        return member.getMethodType().returnType().cast(obj);
     }
 
     // Caching machinery for field accessors:

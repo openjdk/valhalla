@@ -84,7 +84,10 @@ protected:
 
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
 
+  static bool is_g1_pre_val_load(Node* n);
  public:
+  virtual bool is_gc_pre_barrier_node(Node* node) const;
+
   virtual bool is_gc_barrier_node(Node* node) const;
   virtual void eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const;
   virtual Node* step_over_gc_barrier(Node* c) const;

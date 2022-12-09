@@ -858,7 +858,7 @@ bool LoadNode::is_immutable_value(Node* adr) {
       in_bytes(JavaThread::osthread_offset()),
       in_bytes(JavaThread::threadObj_offset()),
       in_bytes(JavaThread::vthread_offset()),
-      in_bytes(JavaThread::extentLocalCache_offset()),
+      in_bytes(JavaThread::scopedValueCache_offset()),
     };
 
     for (size_t i = 0; i < sizeof offsets / sizeof offsets[0]; i++) {
@@ -1243,9 +1243,16 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
     }
     // (This works even when value is a Con, but LoadNode::Value
     // usually runs first, producing the singleton type of the Con.)
-    return value;
+    if (!has_pinned_control_dependency() || value->is_Con()) {
+      return value;
+    } else {
+      return this;
+    }
   }
 
+  if (has_pinned_control_dependency()) {
+    return this;
+  }
   // Search for an existing data phi which was generated before for the same
   // instance's field to avoid infinite generation of phis in a loop.
   Node *region = mem->in(0);
@@ -2443,7 +2450,7 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   Node* x = LoadNode::Identity(phase);
   if (x != this)  return x;
 
-  // Take apart the address into an oop and and offset.
+  // Take apart the address into an oop and offset.
   // Return 'this' if we cannot.
   Node*    adr    = in(MemNode::Address);
   intptr_t offset = 0;
@@ -2544,7 +2551,7 @@ Node *LoadRangeNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   Node* p = MemNode::Ideal_common(phase, can_reshape);
   if (p)  return (p == NodeSentinel) ? NULL : p;
 
-  // Take apart the address into an oop and and offset.
+  // Take apart the address into an oop and offset.
   // Return 'this' if we cannot.
   Node*    adr    = in(MemNode::Address);
   intptr_t offset = 0;
@@ -2576,7 +2583,7 @@ Node* LoadRangeNode::Identity(PhaseGVN* phase) {
   Node* x = LoadINode::Identity(phase);
   if (x != this)  return x;
 
-  // Take apart the address into an oop and and offset.
+  // Take apart the address into an oop and offset.
   // Return 'this' if we cannot.
   Node*    adr    = in(MemNode::Address);
   intptr_t offset = 0;
@@ -3344,7 +3351,6 @@ MemBarNode* MemBarNode::make(Compile* C, int opcode, int atp, Node* pn) {
   case Op_MemBarCPUOrder:    return new MemBarCPUOrderNode(C, atp, pn);
   case Op_OnSpinWait:        return new OnSpinWaitNode(C, atp, pn);
   case Op_Initialize:        return new InitializeNode(C, atp, pn);
-  case Op_Blackhole:         return new BlackholeNode(C, atp, pn);
   default: ShouldNotReachHere(); return NULL;
   }
 }
@@ -3584,26 +3590,6 @@ MemBarNode* MemBarNode::leading_membar() const {
   return mb;
 }
 
-#ifndef PRODUCT
-void BlackholeNode::format(PhaseRegAlloc* ra, outputStream* st) const {
-  st->print("blackhole ");
-  bool first = true;
-  for (uint i = 0; i < req(); i++) {
-    Node* n = in(i);
-    if (n != NULL && OptoReg::is_valid(ra->get_reg_first(n))) {
-      if (first) {
-        first = false;
-      } else {
-        st->print(", ");
-      }
-      char buf[128];
-      ra->dump_register(n, buf);
-      st->print("%s", buf);
-    }
-  }
-  st->cr();
-}
-#endif
 
 //===========================InitializeNode====================================
 // SUMMARY:
@@ -5001,7 +4987,7 @@ static void verify_memory_slice(const MergeMemNode* m, int alias_idx, Node* n) {
 //-----------------------------memory_at---------------------------------------
 Node* MergeMemNode::memory_at(uint alias_idx) const {
   assert(alias_idx >= Compile::AliasIdxRaw ||
-         alias_idx == Compile::AliasIdxBot && Compile::current()->AliasLevel() == 0,
+         alias_idx == Compile::AliasIdxBot && !Compile::current()->do_aliasing(),
          "must avoid base_memory and AliasIdxTop");
 
   // Otherwise, it is a narrow slice.
@@ -5014,9 +5000,9 @@ Node* MergeMemNode::memory_at(uint alias_idx) const {
            || n->adr_type() == NULL // address is TOP
            || n->adr_type() == TypePtr::BOTTOM
            || n->adr_type() == TypeRawPtr::BOTTOM
-           || Compile::current()->AliasLevel() == 0,
+           || !Compile::current()->do_aliasing(),
            "must be a wide memory");
-    // AliasLevel == 0 if we are organizing the memory states manually.
+    // do_aliasing == false if we are organizing the memory states manually.
     // See verify_memory_slice for comments on TypeRawPtr::BOTTOM.
   } else {
     // make sure the stored slice is sane
