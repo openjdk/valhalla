@@ -66,6 +66,6 @@ public class InlineTypeRegexes {
     public static final String CHECKCAST_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*checkcast_arraycopy.*" + END;
     public static final String JLONG_ARRAYCOPY = "(.*" + CALL_LEAF_NOFP + ".*jlong_disjoint_arraycopy.*" + END;
     public static final String FIELD_ACCESS = "(.*Field: *" + END;
-    public static final String SUBSTITUTABILITY_TEST = START + "CallStaticJava" + MID + "java.lang.runtime.PrimitiveObjectMethods::isSubstitutable" + END;
+    public static final String SUBSTITUTABILITY_TEST = START + "CallStaticJava" + MID + "java.lang.runtime.ValueObjectMethods::isSubstitutable" + END;
     public static final String CMPP = START + "(CmpP|CmpN)" + MID + "" + END;
 }
