@@ -25,7 +25,7 @@
  class ValueClassExtendingIdentityClass {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -86,7 +86,7 @@
 class ValueClassExtendingAbstractClassWithField {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -147,7 +147,7 @@ class ValueClassExtendingAbstractClassWithField {
 class ValueClassExtendingAbstractClassWithSynchMethod {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -208,7 +208,7 @@ class ValueClassExtendingAbstractClassWithSynchMethod {
 class ValueClassImplementingIdentityInterface {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     class #2; // #1
@@ -272,7 +272,7 @@ class ValueClassImplementingIdentityInterface {
 class IdentityClassExtendingValueClass {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -335,7 +335,7 @@ class IdentityClassExtendingValueClass {
 class IdentityClassImplementingValueInterface {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -401,7 +401,7 @@ class IdentityClassImplementingValueInterface {
 class AbstractClassWithFieldExtendingValueClass {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -473,7 +473,7 @@ class AbstractClassWithFieldExtendingValueClass {
 class AbstractClassWithFieldImplementingValueInterface {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -548,7 +548,7 @@ class AbstractClassWithFieldImplementingValueInterface {
 class AbstractClassWithFieldWithNoIdentityModifier {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -620,7 +620,7 @@ class AbstractClassWithFieldWithNoIdentityModifier {
 class AbstractClassWithSynchMethodWithNoIdentityModifier {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -708,7 +708,7 @@ class AbstractClassWithSynchMethodWithNoIdentityModifier {
 class AbstractClassWithBothModifiers {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -771,7 +771,7 @@ class AbstractClassWithBothModifiers {
 class ConcreteClassWithNoModifiers {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1

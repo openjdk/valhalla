@@ -219,7 +219,7 @@ public class InstructionHelper {
 
                 return new IsolatedMethodBuilder(className, lookup)
                     .withSuperclass(Object.class)
-                    .withMajorVersion(64)
+                    .withMajorVersion(65)
                     .withMinorVersion(0)
                     .withFlags(Flag.ACC_PUBLIC, Flag.ACC_IDENTITY)
                     .withMethod(methodName, type, M ->
