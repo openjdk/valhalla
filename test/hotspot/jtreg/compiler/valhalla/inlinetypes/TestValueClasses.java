@@ -28,12 +28,9 @@ import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
 import test.java.lang.invoke.lib.InstructionHelper;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import jdk.internal.value.PrimitiveClass;

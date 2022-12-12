@@ -1207,7 +1207,7 @@ public class IRNode {
      * Apply {@code regex} on all machine independent ideal graph phases up to and including
      * {@link CompilePhase#BEFORE_MATCHING}.
      */
-    private static void beforeMatching(String irNodePlaceholder, String regex) {
+    public static void beforeMatching(String irNodePlaceholder, String regex) {
         IR_NODE_MAPPINGS.put(irNodePlaceholder, new RegexTypeEntry(RegexType.IDEAL_INDEPENDENT, regex));
     }
 
@@ -1239,7 +1239,7 @@ public class IRNode {
      * Apply {@code regex} on all machine dependant ideal graph phases (i.e. on the mach graph) starting from
      * {@link CompilePhase#MATCHING}.
      */
-    private static void optoOnly(String irNodePlaceholder, String regex) {
+    public static void optoOnly(String irNodePlaceholder, String regex) {
         IR_NODE_MAPPINGS.put(irNodePlaceholder, new RegexTypeEntry(RegexType.OPTO_ASSEMBLY, regex));
     }
 
