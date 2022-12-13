@@ -39,7 +39,7 @@ public abstract value class AbstractV {
 class AbstractVField {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -181,7 +181,7 @@ class AbstractVField {
 class AbstractVFinal {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -323,7 +323,7 @@ class AbstractVFinal {
 class AbstractVintf {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -465,7 +465,7 @@ class AbstractVintf {
 class AbstractVMethod {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A

@@ -188,6 +188,7 @@ Node* Parse::check_interpreter_type(Node* l, const Type* type,
     l = gen_checkcast(l, makecon(tp->as_klass_type()->cast_to_exactness(true)), &bad_type_ctrl);
     bad_type_exit->control()->add_req(bad_type_ctrl);
   }
+
   assert(_gvn.type(l)->higher_equal(type), "must constrain OSR typestate");
   return l;
 }

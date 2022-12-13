@@ -47,6 +47,7 @@ import java.util.Objects;
  *
  * @author   Mark Reinhold
  * @since    1.2
+ * @sealedGraph
  */
 
 public abstract sealed class Reference<T>

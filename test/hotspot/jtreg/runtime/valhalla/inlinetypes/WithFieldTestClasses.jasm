@@ -23,7 +23,7 @@
  */
 
 public final primitive value class runtime/valhalla/inlinetypes/WithFieldPoint
-    version 64:0
+    version 65:0
 {
 
     private final Field x:I;
@@ -104,7 +104,7 @@ public final primitive value class runtime/valhalla/inlinetypes/WithFieldPoint
 }
 
 public final primitive value class runtime/valhalla/inlinetypes/AllTypes
-    version 64:0
+    version 65:0
 {
 
     public final Field z:Z;

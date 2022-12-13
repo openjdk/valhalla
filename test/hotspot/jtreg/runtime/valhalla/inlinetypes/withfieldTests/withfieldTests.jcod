@@ -45,7 +45,7 @@
 class withfieldObject {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [26] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -184,7 +184,7 @@ class withfieldObject {
 class putfieldObject {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [24] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -341,7 +341,7 @@ public primitive final class putfieldPrimitive {
 class putfieldPrimitive {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -482,7 +482,7 @@ public primitive final class withfieldPrimitive {
 class withfieldPrimitive {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -610,7 +610,7 @@ public primitive final class withfieldNull {
 class withfieldNull {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [15] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -715,7 +715,7 @@ public class WrongPrimWF {
 class WrongPrimWF$Dot {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -804,7 +804,7 @@ class WrongPrimWF$Dot {
 class WrongPrimWF$Loc {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [20] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -893,7 +893,7 @@ class WrongPrimWF$Loc {
 class WrongPrimWF$Both {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [34] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
@@ -1019,7 +1019,7 @@ class WrongPrimWF$Both {
 class WrongPrimWF {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [34] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A

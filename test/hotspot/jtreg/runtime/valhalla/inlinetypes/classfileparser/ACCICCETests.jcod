@@ -38,7 +38,7 @@ public abstract class NonPVSuper {
 class NonPVSuper {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [33] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1     at 0x0A
@@ -191,7 +191,7 @@ public value final class Dot extends NonPVSuper {
 class Dot {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [18] { // Constant Pool
     ; // first element is empty
     class #2; // #1     at 0x0A
