@@ -26,6 +26,7 @@
 package java.lang.reflect;
 
 import jdk.internal.access.SharedSecrets;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
@@ -131,7 +132,7 @@ public final class Method extends Executable {
            byte[] annotations,
            byte[] parameterAnnotations,
            byte[] annotationDefault) {
-        assert declaringClass.isPrimaryType();
+        assert PrimitiveClass.isPrimaryType(declaringClass);
         this.clazz = declaringClass;
         this.name = name;
         this.parameterTypes = parameterTypes;
@@ -606,13 +607,17 @@ public final class Method extends Executable {
         return callerSensitive ? ma.invoke(obj, args, caller) : ma.invoke(obj, args);
     }
 
-    @Stable private Boolean callerSensitive;       // lazily initialize
+    //  0 = not initialized (@Stable contract)
+    //  1 = initialized, CS
+    // -1 = initialized, not CS
+    @Stable private byte callerSensitive;
+
     private boolean isCallerSensitive() {
-        Boolean cs = callerSensitive;
-        if (cs == null) {
-            callerSensitive = cs = Reflection.isCallerSensitive(this);
+        byte cs = callerSensitive;
+        if (cs == 0) {
+            callerSensitive = cs = (byte)(Reflection.isCallerSensitive(this) ? 1 : -1);
         }
-        return cs;
+        return (cs > 0);
     }
 
     /**

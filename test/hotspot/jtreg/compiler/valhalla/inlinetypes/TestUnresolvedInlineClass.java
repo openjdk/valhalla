@@ -26,8 +26,8 @@
  * @bug 8187679
  * @summary The VM should exit gracefully when unable to resolve an inline type argument
  * @library /test/lib
- * @build SimpleInlineType
- * @run main/othervm TestUnresolvedInlineClass
+ * @compile -XDenablePrimitiveClasses SimpleInlineType.java TestUnresolvedInlineClass.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestUnresolvedInlineClass
  */
 
 import java.io.File;
@@ -51,7 +51,7 @@ public class TestUnresolvedInlineClass {
             }
 
             // Run test in new VM instance
-            String[] arg = {"-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
+            String[] arg = {"-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses", "-XX:+InlineTypePassFieldsAsArgs", "TestUnresolvedInlineClass", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
 
             // Adapter creation for TestUnresolvedInlineClass::test1 should fail with a

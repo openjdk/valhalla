@@ -260,7 +260,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_getClass(Intrinsic* x);
   void do_getObjectSize(Intrinsic* x);
   void do_currentCarrierThread(Intrinsic* x);
-  void do_extentLocalCache(Intrinsic* x);
+  void do_scopedValueCache(Intrinsic* x);
   void do_vthread(Intrinsic* x);
   void do_JavaThreadField(Intrinsic* x, ByteSize offset);
   void do_FmaIntrinsic(Intrinsic* x);
@@ -275,7 +275,6 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
   void do_blackhole(Intrinsic* x);
-  void do_continuation_doYield(Intrinsic* x);
 
   bool inline_type_field_access_prolog(AccessField* x);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);

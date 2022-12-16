@@ -58,7 +58,6 @@
   do_klass(System_klass,                                java_lang_System                                      ) \
   do_klass(Throwable_klass,                             java_lang_Throwable                                   ) \
   do_klass(Error_klass,                                 java_lang_Error                                       ) \
-  do_klass(ThreadDeath_klass,                           java_lang_ThreadDeath                                 ) \
   do_klass(Exception_klass,                             java_lang_Exception                                   ) \
   do_klass(RuntimeException_klass,                      java_lang_RuntimeException                            ) \
   do_klass(SecurityManager_klass,                       java_lang_SecurityManager                             ) \
@@ -132,7 +131,7 @@
   do_klass(Context_klass,                               java_lang_invoke_MethodHandleNatives_CallSiteContext  ) \
   do_klass(ConstantCallSite_klass,                      java_lang_invoke_ConstantCallSite                     ) \
   do_klass(MutableCallSite_klass,                       java_lang_invoke_MutableCallSite                      ) \
-  do_klass(PrimitiveObjectMethods_klass,                java_lang_runtime_PrimitiveObjectMethods              ) \
+  do_klass(ValueObjectMethods_klass,                    java_lang_runtime_ValueObjectMethods                  ) \
   do_klass(VolatileCallSite_klass,                      java_lang_invoke_VolatileCallSite                     ) \
                                                                                                                 \
   do_klass(AssertionStatusDirectives_klass,             java_lang_AssertionStatusDirectives                   ) \
@@ -198,4 +197,3 @@
   /*end*/
 
 #endif // SHARE_CLASSFILE_VMCLASSMACROS_HPP
-

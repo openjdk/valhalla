@@ -72,7 +72,6 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
 
     VarHandle vhArray;
 
-    VarHandle vhValueTypeField;
 
     VarHandle[] allocate(boolean same) {
         List<VarHandle> vhs = new ArrayList<>();
@@ -124,9 +123,6 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             VarHandleTestAccessByte.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(byte[].class);
-
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "byte_v", type);
     }
 
 
@@ -282,11 +278,6 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
         cases.add(new VarHandleAccessTestCase("Array index out of bounds",
                                               vhArray, VarHandleTestAccessByte::testArrayIndexOutOfBounds,
                                               false));
-        cases.add(new VarHandleAccessTestCase("Value type field",
-                                              vhValueTypeField, vh -> testValueTypeField(Value.getInstance(), vh)));
-        cases.add(new VarHandleAccessTestCase("Value type field unsupported",
-                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.getInstance(), vh),
-                                              false));
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
         // the first dummy argument
@@ -351,20 +342,6 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
 
 
 
-    }
-
-    static void testValueTypeField(Value recv, VarHandle vh) {
-        // Plain
-        {
-            byte x = (byte) vh.get(recv);
-            assertEquals(x, (byte)0x01, "get byte value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, VarHandle vh) {
-        checkUOE(() -> {
-            vh.set(recv, (byte)0x23);
-        });
     }
 
     static void testStaticFinalField(VarHandle vh) {
@@ -509,6 +486,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain(recv, (byte)0x01, (byte)0x23);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain byte");
             byte x = (byte) vh.get(recv);
@@ -526,6 +504,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire(recv, (byte)0x23, (byte)0x01);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire byte");
             byte x = (byte) vh.get(recv);
@@ -543,6 +522,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease(recv, (byte)0x01, (byte)0x23);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease byte");
             byte x = (byte) vh.get(recv);
@@ -560,6 +540,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet(recv, (byte)0x23, (byte)0x01);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet byte");
             byte x = (byte) vh.get(recv);
@@ -813,6 +794,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain((byte)0x01, (byte)0x23);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain byte");
             byte x = (byte) vh.get();
@@ -830,6 +812,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire((byte)0x23, (byte)0x01);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire byte");
             byte x = (byte) vh.get();
@@ -847,6 +830,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease((byte)0x01, (byte)0x23);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease byte");
             byte x = (byte) vh.get();
@@ -864,6 +848,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet((byte)0x23, (byte)0x01);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet byte");
             byte x = (byte) vh.get();
@@ -1120,6 +1105,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetPlain(array, i, (byte)0x01, (byte)0x23);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain byte");
                 byte x = (byte) vh.get(array, i);
@@ -1137,6 +1123,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetAcquire(array, i, (byte)0x23, (byte)0x01);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire byte");
                 byte x = (byte) vh.get(array, i);
@@ -1154,6 +1141,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetRelease(array, i, (byte)0x01, (byte)0x23);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease byte");
                 byte x = (byte) vh.get(array, i);
@@ -1171,6 +1159,7 @@ public class VarHandleTestAccessByte extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSet(array, i, (byte)0x23, (byte)0x01);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet byte");
                 byte x = (byte) vh.get(array, i);

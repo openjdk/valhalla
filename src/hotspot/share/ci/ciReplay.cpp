@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciSymbol.hpp"
@@ -36,6 +35,7 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jvm.h"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -634,6 +634,7 @@ class CompileReplay : public StackObj {
       }
       line_no++;
     }
+    reset();
   }
 
   void process_command(TRAPS) {
@@ -732,13 +733,7 @@ class CompileReplay : public StackObj {
     Method* method = parse_method(CHECK);
     if (had_error()) return;
     int entry_bci = parse_int("entry_bci");
-    const char* comp_level_label = "comp_level";
-    int comp_level = parse_int(comp_level_label);
-    // old version w/o comp_level
-    if (had_error() && (error_message() == comp_level_label)) {
-      // use highest available tier
-      comp_level = CompilationPolicy::highest_compile_level();
-    }
+    int comp_level = parse_int("comp_level");
     if (!is_valid_comp_level(comp_level)) {
       return;
     }
@@ -809,7 +804,6 @@ class CompileReplay : public StackObj {
     CompileBroker::compile_method(methodHandle(THREAD, method), entry_bci, comp_level,
                                   methodHandle(), 0, CompileTask::Reason_Replay, THREAD);
     replay_state = NULL;
-    reset();
   }
 
   // ciMethod <klass> <name> <signature> <invocation_counter> <backedge_counter> <interpreter_invocation_count> <interpreter_throwout_count> <instructions_size>
@@ -831,20 +825,12 @@ class CompileReplay : public StackObj {
     /* just copied from Method, to build interpret data*/
 
     // To be properly initialized, some profiling in the MDO needs the
-    // method to be rewritten (number of arguments at a call for
-    // instance)
+    // method to be rewritten (number of arguments at a call for instance)
     method->method_holder()->link_class(CHECK);
-    // Method::build_profiling_method_data(method, CHECK);
-    {
-      // Grab a lock here to prevent multiple
-      // MethodData*s from being created.
-      MutexLocker ml(THREAD, MethodData_lock);
-      if (method->method_data() == NULL) {
-        ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
-        MethodData* method_data = MethodData::allocate(loader_data, methodHandle(THREAD, method), CHECK);
-        method->set_method_data(method_data);
-      }
-    }
+    assert(method->method_data() == NULL, "Should only be initialized once");
+    ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
+    MethodData* method_data = MethodData::allocate(loader_data, methodHandle(THREAD, method), CHECK);
+    method->set_method_data(method_data);
 
     // collect and record all the needed information for later
     ciMethodDataRecord* rec = new_ciMethodData(method);

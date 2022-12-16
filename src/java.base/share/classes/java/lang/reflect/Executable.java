@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.Stable;
+import jdk.internal.value.PrimitiveClass;
 import sun.reflect.annotation.AnnotationParser;
 import sun.reflect.annotation.AnnotationSupport;
 import sun.reflect.annotation.TypeAnnotationParser;
@@ -330,7 +331,7 @@ public abstract sealed class Executable extends AccessibleObject
         } else {
             final boolean realParamData = hasRealParameterData();
             final Type[] genericParamTypes = getGenericParameterTypes();
-            final Type[] nonGenericParamTypes = getParameterTypes();
+            final Type[] nonGenericParamTypes = getSharedParameterTypes();
             // If we have real parameter data, then we use the
             // synthetic and mandate flags to our advantage.
             if (realParamData) {
@@ -357,7 +358,7 @@ public abstract sealed class Executable extends AccessibleObject
                 // synthetic/mandated, thus, no way to match up the
                 // indexes.
                 return genericParamTypes.length == nonGenericParamTypes.length ?
-                    genericParamTypes : nonGenericParamTypes;
+                    genericParamTypes : getParameterTypes();
             }
         }
     }
@@ -790,8 +791,8 @@ public abstract sealed class Executable extends AccessibleObject
 
     String getDeclaringClassTypeName() {
         Class<?> c = getDeclaringClass();
-        if (c.isPrimitiveClass()) {
-            c = c.asValueType();
+        if (PrimitiveClass.isPrimitiveClass(c)) {
+            c = PrimitiveClass.asValueType(c);
         }
         return c.getTypeName();
     }

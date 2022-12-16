@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
 
 import java.lang.reflect.Method;
 
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
@@ -39,7 +39,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @library /test/lib /
  * @compile InlineTypes.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestBasicFunctionality
+ * @compile -XDenablePrimitiveClasses TestBasicFunctionality.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestBasicFunctionality
  */
 
 @ForceCompileClassInitializer

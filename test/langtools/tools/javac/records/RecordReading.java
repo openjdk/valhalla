@@ -32,11 +32,11 @@
  * @run main RecordReading
  */
 
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Objects;
 import toolbox.TestRunner;
 import toolbox.ToolBox;
@@ -144,13 +144,14 @@ public class RecordReading extends TestRunner {
 
         new JavacTask(tb)
                 .outdir(out)
+                .options("-XDenablePrimitiveClasses")
                 .files(findJavaFiles(src))
                 .run();
 
         //read the class file back, to verify javac's ClassReader
         //reads the Record attribute properly:
         String output = new JavacTask(tb)
-                .options("-Xprint")
+                .options("-Xprint", "-XDenablePrimitiveClasses")
                 .classpath(out.toString())
                 .classes("R")
                 .run()
@@ -189,5 +190,4 @@ public class RecordReading extends TestRunner {
             throw new AssertionError("Unexpected output: " + output);
         }
     }
-
 }

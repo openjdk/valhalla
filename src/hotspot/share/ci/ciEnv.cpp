@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "ci/ciConstant.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
@@ -37,7 +36,6 @@
 #include "ci/ciUtilities.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/javaClasses.inline.hpp"
-#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -54,6 +52,7 @@
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "jvm.h"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
@@ -66,6 +65,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/symbolHandle.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -361,14 +361,8 @@ bool ciEnv::jvmti_state_changed() const {
 // Cache DTrace flags
 void ciEnv::cache_dtrace_flags() {
   // Need lock?
-  _dtrace_extended_probes = ExtendedDTraceProbes;
-  if (_dtrace_extended_probes) {
-    _dtrace_method_probes   = true;
-    _dtrace_alloc_probes    = true;
-  } else {
-    _dtrace_method_probes   = DTraceMethodProbes;
-    _dtrace_alloc_probes    = DTraceAllocProbes;
-  }
+  _dtrace_method_probes = DTraceMethodProbes;
+  _dtrace_alloc_probes  = DTraceAllocProbes;
 }
 
 // ------------------------------------------------------------------
@@ -1118,8 +1112,7 @@ void ciEnv::register_method(ciMethod* target,
 
     // Change in DTrace flags may invalidate compilation.
     if (!failing() &&
-        ( (!dtrace_extended_probes() && ExtendedDTraceProbes) ||
-          (!dtrace_method_probes() && DTraceMethodProbes) ||
+        ( (!dtrace_method_probes() && DTraceMethodProbes) ||
           (!dtrace_alloc_probes() && DTraceAllocProbes) )) {
       record_failure("DTrace flags change invalidated dependencies");
     }
@@ -1678,6 +1671,12 @@ void ciEnv::find_dynamic_call_sites() {
 void ciEnv::dump_compile_data(outputStream* out) {
   CompileTask* task = this->task();
   if (task) {
+#ifdef COMPILER2
+    if (ReplayReduce && compiler_data() != NULL) {
+      // Dump C2 "reduced" inlining data.
+      ((Compile*)compiler_data())->dump_inline_data_reduced(out);
+    }
+#endif
     Method* method = task->method();
     int entry_bci = task->osr_bci();
     int comp_level = task->comp_level();

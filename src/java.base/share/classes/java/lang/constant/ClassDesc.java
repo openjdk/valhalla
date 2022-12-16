@@ -65,18 +65,44 @@ public sealed interface ClassDesc
      * (To create a descriptor for an array type, either use {@link #ofDescriptor(String)}
      * or {@link #arrayType()}; to create a descriptor for a primitive type, use
      * {@link #ofDescriptor(String)} or use the predefined constants in
-     * {@link ConstantDescs}; to create a descriptor for a primitive value type,
-     * use {@link #ofDescriptor(String)}).
+     * {@link ConstantDescs}).
      *
      * @param name the fully qualified (dot-separated) binary class name
      * @return a {@linkplain ClassDesc} describing the desired class
      * @throws NullPointerException if the argument is {@code null}
      * @throws IllegalArgumentException if the name string is not in the
      * correct format
+     * @see ClassDesc#ofDescriptor(String)
+     * @see ClassDesc#ofInternalName(String)
      */
     static ClassDesc of(String name) {
         ConstantUtils.validateBinaryClassName(requireNonNull(name));
         return ClassDesc.ofDescriptor("L" + binaryToInternal(name) + ";");
+    }
+
+    /**
+     * Returns a {@linkplain ClassDesc} for a class or interface type,
+     * given the name of the class or interface in internal form,
+     * such as {@code "java/lang/String"}.
+     *
+     * @apiNote
+     * To create a descriptor for an array type, either use {@link #ofDescriptor(String)}
+     * or {@link #arrayType()}; to create a descriptor for a primitive type, use
+     * {@link #ofDescriptor(String)} or use the predefined constants in
+     * {@link ConstantDescs}.
+     *
+     * @param name the fully qualified class name, in internal (slash-separated) form
+     * @return a {@linkplain ClassDesc} describing the desired class
+     * @throws NullPointerException if the argument is {@code null}
+     * @throws IllegalArgumentException if the name string is not in the
+     * correct format
+     * @jvms 4.2.1 Binary Class and Interface Names
+     * @see ClassDesc#of(String)
+     * @see ClassDesc#ofDescriptor(String)
+     */
+    static ClassDesc ofInternalName(String name) {
+        ConstantUtils.validateInternalClassName(requireNonNull(name));
+        return ClassDesc.ofDescriptor("L" + name + ";");
     }
 
     /**
@@ -111,14 +137,12 @@ public sealed interface ClassDesc
      *
      * A field type descriptor string for a non-array type is either
      * a one-letter code corresponding to a primitive type
-     * ({@code "J", "I", "C", "S", "B", "D", "F", "Z", "V"}),
-     * or the letter {@code "L"} or {@code "Q"} followed
+     * ({@code "J", "I", "C", "S", "B", "D", "F", "Z", "V"}), or the letter {@code "L"}, followed
      * by the fully qualified binary name of a class, followed by {@code ";"}.
      * A field type descriptor for an array type is the character {@code "["}
      * followed by the field descriptor for the component type.  Examples of
-     * valid type descriptor strings include {@code "Ljava/lang/String;"},
-     * {@code "QPoint;}, {@code "I"}, {@code "[I"}, {@code "V"},
-     * {@code "[Ljava/lang/String;"}, {@code "[LPoint;"}, {@code "[[QPoint;} etc.
+     * valid type descriptor strings include {@code "Ljava/lang/String;"}, {@code "I"},
+     * {@code "[I"}, {@code "V"}, {@code "[Ljava/lang/String;"}, etc.
      * See JVMS {@jvms 4.3.2 }("Field Descriptors") for more detail.
      *
      * @param descriptor a field descriptor string
@@ -128,6 +152,8 @@ public sealed interface ClassDesc
      * correct format
      * @jvms 4.3.2 Field Descriptors
      * @jvms 4.4.1 The CONSTANT_Class_info Structure
+     * @see ClassDesc#of(String)
+     * @see ClassDesc#ofInternalName(String)
      */
     static ClassDesc ofDescriptor(String descriptor) {
         requireNonNull(descriptor);
@@ -270,17 +296,6 @@ public sealed interface ClassDesc
      */
     default boolean isClassOrInterface() {
         return descriptorString().startsWith("L") || descriptorString().startsWith("Q");
-    }
-
-    /**
-     * Returns whether this {@linkplain ClassDesc} describes a
-     * {@linkplain Class#isPrimitiveValueType() primitive value type}.
-     *
-     * @return whether this {@linkplain ClassDesc} describes a primitive value type.
-     * @since Valhalla
-     */
-    default boolean isPrimitiveValueType() {
-        return descriptorString().startsWith("Q");
     }
 
     /**

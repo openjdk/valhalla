@@ -49,7 +49,6 @@ import java.util.List;
  * @since 1.6
  */
 public interface NewClassTree extends ExpressionTree {
-
     /**
      * Returns the enclosing expression, or {@code null} if none.
      * @return the enclosing expression

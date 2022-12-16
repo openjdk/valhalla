@@ -47,7 +47,6 @@ class GrowableArray;
 class InstanceKlass;
 class RecordComponent;
 class Symbol;
-class TempNewSymbol;
 class FieldLayoutBuilder;
 
 // Utility to collect and compact oop maps during layout

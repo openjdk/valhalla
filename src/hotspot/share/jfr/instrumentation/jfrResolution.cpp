@@ -32,11 +32,9 @@
 #include "oops/method.inline.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/vframe.inline.hpp"
-
 #ifdef COMPILER1
 #include "c1/c1_GraphBuilder.hpp"
 #endif
-
 #ifdef COMPILER2
 #include "opto/parse.hpp"
 #endif
@@ -127,8 +125,10 @@ void JfrResolution::on_c2_resolution(const Parse * parse, const ciKlass * holder
 #if INCLUDE_JVMCI
 // JVMCI
 void JfrResolution::on_jvmci_resolution(const Method* caller, const Method* target, TRAPS) {
-  if (is_compiler_linking_event_writer(target->method_holder()->name(), target->name()) && !IS_METHOD_BLESSED(caller)) {
-    THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), link_error_msg);
+  if (is_compiler_linking_event_writer(target->method_holder()->name(), target->name())) {
+    if (caller == nullptr || !IS_METHOD_BLESSED(caller)) {
+      THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), link_error_msg);
+    }
   }
 }
 #endif

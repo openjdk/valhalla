@@ -23,11 +23,11 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "classfile/classFileParser.hpp"
 #include "classfile/fieldLayoutBuilder.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jvm.h"
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -99,7 +99,7 @@ void FieldGroup::add_oop_field(AllFieldStream fs) {
   int size = type2aelembytes(T_OBJECT);
   LayoutRawBlock* block = new LayoutRawBlock(fs.index(), LayoutRawBlock::REGULAR, size, size /* alignment == size for oops */, true);
   if (_oop_fields == NULL) {
-    _oop_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+    _oop_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _oop_fields->append(block);
   _oop_count++;
@@ -126,14 +126,14 @@ void FieldGroup::sort_by_size() {
 
 void FieldGroup::add_to_small_primitive_list(LayoutRawBlock* block) {
   if (_small_primitive_fields == NULL) {
-    _small_primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+    _small_primitive_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _small_primitive_fields->append(block);
 }
 
 void FieldGroup::add_to_big_primitive_list(LayoutRawBlock* block) {
   if (_big_primitive_fields == NULL) {
-    _big_primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+    _big_primitive_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _big_primitive_fields->append(block);
 }

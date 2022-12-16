@@ -31,6 +31,7 @@
 #include "code/icBuffer.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/serial/defNewGeneration.hpp"
+#include "gc/serial/genMarkSweep.hpp"
 #include "gc/serial/markSweep.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
@@ -535,7 +536,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
   if (do_young_collection) {
     GCIdMark gc_id_mark;
-    GCTraceCPUTime tcpu;
+    GCTraceCPUTime tcpu(((DefNewGeneration*)_young_gen)->gc_tracer());
     GCTraceTime(Info, gc) t("Pause Young", NULL, gc_cause(), true);
 
     print_heap_before_gc();
@@ -585,7 +586,7 @@ void GenCollectedHeap::do_collection(bool           full,
 
   if (do_full_collection) {
     GCIdMark gc_id_mark;
-    GCTraceCPUTime tcpu;
+    GCTraceCPUTime tcpu(GenMarkSweep::gc_tracer());
     GCTraceTime(Info, gc) t("Pause Full", NULL, gc_cause(), true);
 
     print_heap_before_gc();
@@ -627,6 +628,10 @@ void GenCollectedHeap::do_collection(bool           full,
     // Delete metaspaces for unloaded class loaders and clean up loader_data graph
     ClassLoaderDataGraph::purge(/*at_safepoint*/true);
     DEBUG_ONLY(MetaspaceUtils::verify();)
+
+    // Need to clear claim bits for the next mark.
+    ClassLoaderDataGraph::clear_claimed_marks();
+
     // Resize the metaspace capacity after full collections
     MetaspaceGC::compute_new_size();
     update_full_collections_completed();
@@ -788,20 +793,6 @@ void GenCollectedHeap::process_roots(ScanningOption so,
   DEBUG_ONLY(ScavengableNMethods::asserted_non_scavengable_nmethods_do(&assert_code_is_non_scavengable));
 }
 
-void GenCollectedHeap::full_process_roots(bool is_adjust_phase,
-                                          ScanningOption so,
-                                          bool only_strong_roots,
-                                          OopClosure* root_closure,
-                                          CLDClosure* cld_closure) {
-  // Called from either the marking phase or the adjust phase.
-  const bool is_marking_phase = !is_adjust_phase;
-
-  MarkingCodeBlobClosure mark_code_closure(root_closure, is_adjust_phase, is_marking_phase);
-  CLDClosure* weak_cld_closure = only_strong_roots ? NULL : cld_closure;
-
-  process_roots(so, root_closure, cld_closure, weak_cld_closure, &mark_code_closure);
-}
-
 void GenCollectedHeap::gen_process_weak_roots(OopClosure* root_closure) {
   WeakProcessor::oops_do(root_closure);
 }
@@ -812,29 +803,7 @@ bool GenCollectedHeap::no_allocs_since_save_marks() {
 }
 
 // public collection interfaces
-
 void GenCollectedHeap::collect(GCCause::Cause cause) {
-  if ((cause == GCCause::_wb_young_gc) ||
-      (cause == GCCause::_gc_locker)) {
-    // Young collection for WhiteBox or GCLocker.
-    collect(cause, YoungGen);
-  } else {
-#ifdef ASSERT
-  if (cause == GCCause::_scavenge_alot) {
-    // Young collection only.
-    collect(cause, YoungGen);
-  } else {
-    // Stop-the-world full collection.
-    collect(cause, OldGen);
-  }
-#else
-    // Stop-the-world full collection.
-    collect(cause, OldGen);
-#endif
-  }
-}
-
-void GenCollectedHeap::collect(GCCause::Cause cause, GenerationType max_generation) {
   // The caller doesn't have the Heap_lock
   assert(!Heap_lock->owned_by_self(), "this thread should not own the Heap_lock");
 
@@ -851,6 +820,14 @@ void GenCollectedHeap::collect(GCCause::Cause cause, GenerationType max_generati
   if (GCLocker::should_discard(cause, gc_count_before)) {
     return;
   }
+
+  bool should_run_young_gc =  (cause == GCCause::_wb_young_gc)
+                           || (cause == GCCause::_gc_locker)
+                DEBUG_ONLY(|| (cause == GCCause::_scavenge_alot));
+
+  const GenerationType max_generation = should_run_young_gc
+                                      ? YoungGen
+                                      : OldGen;
 
   VM_GenCollectFull op(gc_count_before, full_gc_count_before,
                        cause, max_generation);
@@ -882,10 +859,10 @@ void GenCollectedHeap::do_full_collection(bool clear_all_soft_refs,
   }
 }
 
-bool GenCollectedHeap::is_in_young(oop p) const {
-  bool result = cast_from_oop<HeapWord*>(p) < _old_gen->reserved().start();
+bool GenCollectedHeap::is_in_young(const void* p) const {
+  bool result = p < _old_gen->reserved().start();
   assert(result == _young_gen->is_in_reserved(p),
-         "incorrect test - result=%d, p=" INTPTR_FORMAT, result, p2i((void*)p));
+         "incorrect test - result=%d, p=" PTR_FORMAT, result, p2i(p));
   return result;
 }
 
@@ -1075,7 +1052,7 @@ void GenCollectedHeap::verify(VerifyOption option /* ignored */) {
   log_debug(gc, verify)("%s", _old_gen->name());
   _old_gen->verify();
 
-  log_debug(gc, verify)("%s", _old_gen->name());
+  log_debug(gc, verify)("%s", _young_gen->name());
   _young_gen->verify();
 
   log_debug(gc, verify)("RemSet");

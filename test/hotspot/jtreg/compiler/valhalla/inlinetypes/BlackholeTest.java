@@ -26,7 +26,8 @@ package compiler.valhalla.inlinetypes;
 /*
  * @test BlackholeTest
  * @summary Check that blackholes work with inline types
- * @run main/othervm
+ * @compile -XDenablePrimitiveClasses BlackholeTest.java
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
  *      -Xbatch
  *      -XX:+UnlockExperimentalVMOptions
  *      -XX:CompileCommand=blackhole,compiler/valhalla/inlinetypes/BlackholeTest.blackhole

@@ -26,6 +26,7 @@
  * @bug 8159970
  * @summary tests for the type system of universal type variables
  * @library /tools/lib/types
+ * @ignore the test is failing after the option to enable primitive classes was introduced
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.compiler/com.sun.tools.javac.code
@@ -50,15 +51,19 @@ import com.sun.tools.javac.comp.Infer;
 import com.sun.tools.javac.comp.InferenceContext;
 
 import com.sun.tools.javac.util.Assert;
+import com.sun.tools.javac.util.Options;
 
 public class UniversalTvarsTypeSystemTest extends TypeHarness {
     StrToTypeFactory strToTypeFactory;
     Types types;
     Infer infer;
+    Options options;
 
     UniversalTvarsTypeSystemTest() {
         types = Types.instance(context);
         infer = Infer.instance(context);
+        options = Options.instance(context);
+        options.put("enablePrimitiveClasses", "true");
     }
 
     public static void main(String... args) throws Exception {

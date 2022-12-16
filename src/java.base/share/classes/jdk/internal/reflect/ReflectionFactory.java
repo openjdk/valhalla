@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -177,13 +177,12 @@ public class ReflectionFactory {
                                 method.getName(),
                                 method.getParameterTypes(),
                                 method.getReturnType(),
-                                method.getExceptionTypes(),
                                 method.getModifiers());
     }
 
     public ConstructorAccessor newConstructorAccessor(Constructor<?> c) {
         Class<?> declaringClass = c.getDeclaringClass();
-        if (Modifier.isAbstract(declaringClass.getModifiers()) && declaringClass != Object.class) {
+        if (Modifier.isAbstract(declaringClass.getModifiers())) {
             return new InstantiationExceptionConstructorAccessorImpl(null);
         }
         if (declaringClass == Class.class) {
@@ -211,7 +210,6 @@ public class ReflectionFactory {
                 return new MethodAccessorGenerator().
                         generateConstructor(c.getDeclaringClass(),
                                             c.getParameterTypes(),
-                                            c.getExceptionTypes(),
                                             c.getModifiers());
             } else {
                 NativeConstructorAccessorImpl acc = new NativeConstructorAccessorImpl(c);
@@ -316,6 +314,9 @@ public class ReflectionFactory {
         if (!Externalizable.class.isAssignableFrom(cl)) {
             return null;
         }
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForExternalization does not support value classes");
+        }
         try {
             Constructor<?> cons = cl.getConstructor();
             cons.setAccessible(true);
@@ -331,6 +332,9 @@ public class ReflectionFactory {
         if (constructorToCall.getDeclaringClass() == cl) {
             constructorToCall.setAccessible(true);
             return constructorToCall;
+        }
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
         }
         return generateConstructor(cl, constructorToCall);
     }
@@ -391,6 +395,10 @@ public class ReflectionFactory {
      * @return the generated constructor, or null if none is available
      */
     public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
+        }
+
         Class<?> initCl = cl;
         while (Serializable.class.isAssignableFrom(initCl)) {
             Class<?> prev = initCl;
@@ -421,7 +429,6 @@ public class ReflectionFactory {
         ConstructorAccessor acc = new MethodAccessorGenerator().
             generateSerializationConstructor(cl,
                                              constructorToCall.getParameterTypes(),
-                                             constructorToCall.getExceptionTypes(),
                                              constructorToCall.getModifiers(),
                                              constructorToCall.getDeclaringClass());
         Constructor<?> c = newConstructor(constructorToCall.getDeclaringClass(),

@@ -342,7 +342,7 @@ int Method::bci_from(address bcp) const {
   // Do not have a ResourceMark here because AsyncGetCallTrace stack walking code
   // may call this after interrupting a nested ResourceMark.
   assert(is_native() && bcp == code_base() || contains(bcp) || VMError::is_error_reported(),
-         "bcp doesn't belong to this method. bcp: " INTPTR_FORMAT, p2i(bcp));
+         "bcp doesn't belong to this method. bcp: " PTR_FORMAT, p2i(bcp));
 
   return bcp - code_base();
 }
@@ -600,26 +600,25 @@ void Method::build_profiling_method_data(const methodHandle& method, TRAPS) {
     return;
   }
 
-  // Grab a lock here to prevent multiple
-  // MethodData*s from being created.
-  MutexLocker ml(THREAD, MethodData_lock);
-  if (method->method_data() == NULL) {
-    ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
-    MethodData* method_data = MethodData::allocate(loader_data, method, THREAD);
-    if (HAS_PENDING_EXCEPTION) {
-      CompileBroker::log_metaspace_failure();
-      ClassLoaderDataGraph::set_metaspace_oom(true);
-      return;   // return the exception (which is cleared)
-    }
+  ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
+  MethodData* method_data = MethodData::allocate(loader_data, method, THREAD);
+  if (HAS_PENDING_EXCEPTION) {
+    CompileBroker::log_metaspace_failure();
+    ClassLoaderDataGraph::set_metaspace_oom(true);
+    return;   // return the exception (which is cleared)
+  }
 
-    method->set_method_data(method_data);
-    if (PrintMethodData && (Verbose || WizardMode)) {
-      ResourceMark rm(THREAD);
-      tty->print("build_profiling_method_data for ");
-      method->print_name(tty);
-      tty->cr();
-      // At the end of the run, the MDO, full of data, will be dumped.
-    }
+  if (!Atomic::replace_if_null(&method->_method_data, method_data)) {
+    MetadataFactory::free_metadata(loader_data, method_data);
+    return;
+  }
+
+  if (PrintMethodData && (Verbose || WizardMode)) {
+    ResourceMark rm(THREAD);
+    tty->print("build_profiling_method_data for ");
+    method->print_name(tty);
+    tty->cr();
+    // At the end of the run, the MDO, full of data, will be dumped.
   }
 }
 
@@ -940,14 +939,14 @@ bool Method::is_class_initializer() const {
            method_holder()->major_version() < 51));
 }
 
-// A method named <init>, if non-static, is a classic object constructor.
+// A method named <init>, is a classic object constructor.
 bool Method::is_object_constructor() const {
-   return name() == vmSymbols::object_initializer_name() && !is_static();
+  return name() == vmSymbols::object_initializer_name();
 }
 
-// A static method named <init> is a factory for an inline class.
-bool Method::is_static_init_factory() const {
-   return name() == vmSymbols::object_initializer_name() && is_static();
+// A method named <vnew> is a factory for an inline class.
+bool Method::is_static_vnew_factory() const {
+  return name() == vmSymbols::inline_factory_name();
 }
 
 bool Method::needs_clinit_barrier() const {
@@ -1285,10 +1284,11 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
 
   // ONLY USE the h_method now as make_adapter may have blocked
 
-  if (h_method->is_continuation_enter_intrinsic()) {
+  if (h_method->is_continuation_native_intrinsic()) {
     // the entry points to this method will be set in set_code, called when first resolving this method
     _from_interpreted_entry = NULL;
     _from_compiled_entry = NULL;
+    _i2i_entry = NULL;
   }
 }
 
@@ -1313,25 +1313,6 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   mh->_from_compiled_inline_entry = adapter->get_c2i_inline_entry();
   mh->_from_compiled_inline_ro_entry = adapter->get_c2i_inline_ro_entry();
   return adapter->get_c2i_entry();
-}
-
-address Method::from_compiled_entry_no_trampoline(bool caller_is_c1) const {
-  CompiledMethod *code = Atomic::load_acquire(&_code);
-  if (caller_is_c1) {
-    // C1 - inline type arguments are passed as objects
-    if (code) {
-      return code->verified_inline_entry_point();
-    } else {
-      return adapter()->get_c2i_inline_entry();
-    }
-  } else {
-    // C2 - inline type arguments may be passed as fields
-    if (code) {
-      return code->verified_entry_point();
-    } else {
-      return adapter()->get_c2i_entry();
-    }
-  }
 }
 
 // The verified_code_entry() must be called when a invoke is resolved
@@ -1394,11 +1375,17 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
   mh->_from_compiled_inline_ro_entry = code->verified_inline_ro_entry_point();
   OrderAccess::storestore();
 
-  if (mh->is_continuation_enter_intrinsic()) {
+  if (mh->is_continuation_native_intrinsic()) {
     assert(mh->_from_interpreted_entry == NULL, "initialized incorrectly"); // see link_method
 
-    // This is the entry used when we're in interpreter-only mode; see InterpreterMacroAssembler::jump_from_interpreted
-    mh->_i2i_entry = ContinuationEntry::interpreted_entry();
+    if (mh->is_continuation_enter_intrinsic()) {
+      // This is the entry used when we're in interpreter-only mode; see InterpreterMacroAssembler::jump_from_interpreted
+      mh->_i2i_entry = ContinuationEntry::interpreted_entry();
+    } else if (mh->is_continuation_yield_intrinsic()) {
+      mh->_i2i_entry = mh->get_i2c_entry();
+    } else {
+      guarantee(false, "Unknown Continuation native intrinsic");
+    }
     // This must come last, as it is what's tested in LinkResolver::resolve_static_call
     Atomic::release_store(&mh->_from_interpreted_entry , mh->get_i2c_entry());
   } else if (!mh->is_method_handle_intrinsic()) {
@@ -1797,20 +1784,6 @@ bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
   return sig_is_loaded;
 }
 
-bool Method::has_unloaded_classes_in_signature(const methodHandle& m, TRAPS) {
-  ResourceMark rm(THREAD);
-  for(ResolvingSignatureStream ss(m()); !ss.is_done(); ss.next()) {
-    if (ss.type() == T_OBJECT) {
-      // Do not use ss.is_reference() here, since we don't care about
-      // unloaded array component types.
-      Klass* klass = ss.as_klass_if_loaded(THREAD);
-      assert(!HAS_PENDING_EXCEPTION, "as_klass_if_loaded contract");
-      if (klass == NULL) return true;
-    }
-  }
-  return false;
-}
-
 // Exposed so field engineers can debug VM
 void Method::print_short_name(outputStream* st) const {
   ResourceMark rm;
@@ -1901,18 +1874,15 @@ void Method::print_name(outputStream* st) const {
 #endif // !PRODUCT || INCLUDE_JVMTI
 
 
-void Method::print_codes_on(outputStream* st) const {
-  print_codes_on(0, code_size(), st);
+void Method::print_codes_on(outputStream* st, int flags) const {
+  print_codes_on(0, code_size(), st, flags);
 }
 
-void Method::print_codes_on(int from, int to, outputStream* st) const {
+void Method::print_codes_on(int from, int to, outputStream* st, int flags) const {
   Thread *thread = Thread::current();
   ResourceMark rm(thread);
   methodHandle mh (thread, (Method*)this);
-  BytecodeStream s(mh);
-  s.set_interval(from, to);
-  BytecodeTracer::set_closure(BytecodeTracer::std_closure());
-  while (s.next() >= 0) BytecodeTracer::trace(mh, s.bcp(), st);
+  BytecodeTracer::print_method_codes(mh, from, to, st, flags);
 }
 
 CompressedLineNumberReadStream::CompressedLineNumberReadStream(u_char* buffer) : CompressedReadStream(buffer) {
@@ -2390,6 +2360,8 @@ bool Method::is_valid_method(const Method* m) {
   } else if ((intptr_t(m) & (wordSize-1)) != 0) {
     // Quick sanity check on pointer.
     return false;
+  } else if (!os::is_readable_range(m, m + 1)) {
+    return false;
   } else if (m->is_shared()) {
     return CppVtables::is_valid_shared_method(m);
   } else if (Metaspace::contains_non_shared(m)) {
@@ -2439,9 +2411,9 @@ void Method::print_on(outputStream* st) const {
   ResourceMark rm;
   assert(is_method(), "must be method");
   st->print_cr("%s", internal_name());
-  st->print_cr(" - this oop:          " INTPTR_FORMAT, p2i(this));
+  st->print_cr(" - this oop:          " PTR_FORMAT, p2i(this));
   st->print   (" - method holder:     "); method_holder()->print_value_on(st); st->cr();
-  st->print   (" - constants:         " INTPTR_FORMAT " ", p2i(constants()));
+  st->print   (" - constants:         " PTR_FORMAT " ", p2i(constants()));
   constants()->print_value_on(st); st->cr();
   st->print   (" - access:            0x%x  ", access_flags().as_int()); access_flags().print_on(st); st->cr();
   st->print   (" - name:              ");    name()->print_value_on(st); st->cr();
@@ -2459,28 +2431,28 @@ void Method::print_on(outputStream* st) const {
   if (valid_itable_index())
     st->print_cr(" - itable index:      %d",   itable_index());
 #endif
-  st->print_cr(" - i2i entry:         " INTPTR_FORMAT, p2i(interpreter_entry()));
+  st->print_cr(" - i2i entry:         " PTR_FORMAT, p2i(interpreter_entry()));
   st->print(   " - adapters:          ");
   AdapterHandlerEntry* a = ((Method*)this)->adapter();
   if (a == NULL)
-    st->print_cr(INTPTR_FORMAT, p2i(a));
+    st->print_cr(PTR_FORMAT, p2i(a));
   else
     a->print_adapter_on(st);
-  st->print_cr(" - compiled entry           " INTPTR_FORMAT, p2i(from_compiled_entry()));
-  st->print_cr(" - compiled inline entry    " INTPTR_FORMAT, p2i(from_compiled_inline_entry()));
-  st->print_cr(" - compiled inline ro entry " INTPTR_FORMAT, p2i(from_compiled_inline_ro_entry()));
+  st->print_cr(" - compiled entry           " PTR_FORMAT, p2i(from_compiled_entry()));
+  st->print_cr(" - compiled inline entry    " PTR_FORMAT, p2i(from_compiled_inline_entry()));
+  st->print_cr(" - compiled inline ro entry " PTR_FORMAT, p2i(from_compiled_inline_ro_entry()));
   st->print_cr(" - code size:         %d",   code_size());
   if (code_size() != 0) {
-    st->print_cr(" - code start:        " INTPTR_FORMAT, p2i(code_base()));
-    st->print_cr(" - code end (excl):   " INTPTR_FORMAT, p2i(code_base() + code_size()));
+    st->print_cr(" - code start:        " PTR_FORMAT, p2i(code_base()));
+    st->print_cr(" - code end (excl):   " PTR_FORMAT, p2i(code_base() + code_size()));
   }
   if (method_data() != NULL) {
-    st->print_cr(" - method data:       " INTPTR_FORMAT, p2i(method_data()));
+    st->print_cr(" - method data:       " PTR_FORMAT, p2i(method_data()));
   }
   st->print_cr(" - checked ex length: %d",   checked_exceptions_length());
   if (checked_exceptions_length() > 0) {
     CheckedExceptionElement* table = checked_exceptions_start();
-    st->print_cr(" - checked ex start:  " INTPTR_FORMAT, p2i(table));
+    st->print_cr(" - checked ex start:  " PTR_FORMAT, p2i(table));
     if (Verbose) {
       for (int i = 0; i < checked_exceptions_length(); i++) {
         st->print_cr("   - throws %s", constants()->printable_name_at(table[i].class_cp_index));
@@ -2489,7 +2461,7 @@ void Method::print_on(outputStream* st) const {
   }
   if (has_linenumber_table()) {
     u_char* table = compressed_linenumber_table();
-    st->print_cr(" - linenumber start:  " INTPTR_FORMAT, p2i(table));
+    st->print_cr(" - linenumber start:  " PTR_FORMAT, p2i(table));
     if (Verbose) {
       CompressedLineNumberReadStream stream(table);
       while (stream.read_pair()) {
@@ -2500,7 +2472,7 @@ void Method::print_on(outputStream* st) const {
   st->print_cr(" - localvar length:   %d",   localvariable_table_length());
   if (localvariable_table_length() > 0) {
     LocalVariableTableElement* table = localvariable_table_start();
-    st->print_cr(" - localvar start:    " INTPTR_FORMAT, p2i(table));
+    st->print_cr(" - localvar start:    " PTR_FORMAT, p2i(table));
     if (Verbose) {
       for (int i = 0; i < localvariable_table_length(); i++) {
         int bci = table[i].start_bci;
@@ -2517,8 +2489,8 @@ void Method::print_on(outputStream* st) const {
     code()->print_value_on(st);
   }
   if (is_native()) {
-    st->print_cr(" - native function:   " INTPTR_FORMAT, p2i(native_function()));
-    st->print_cr(" - signature handler: " INTPTR_FORMAT, p2i(signature_handler()));
+    st->print_cr(" - native function:   " PTR_FORMAT, p2i(native_function()));
+    st->print_cr(" - signature handler: " PTR_FORMAT, p2i(signature_handler()));
   }
 }
 

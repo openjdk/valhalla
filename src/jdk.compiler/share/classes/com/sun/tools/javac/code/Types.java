@@ -92,9 +92,7 @@ public class Types {
     final Symtab syms;
     final JavacMessages messages;
     final Names names;
-    final boolean allowDefaultMethods;
-    final boolean mapCapturesToBounds;
-    final boolean allowValueBasedClasses;
+    final boolean allowPrimitiveClasses;
     final boolean allowUniversalTVars;
     final Check chk;
     final Enter enter;
@@ -117,8 +115,6 @@ public class Types {
         syms = Symtab.instance(context);
         names = Names.instance(context);
         Source source = Source.instance(context);
-        allowDefaultMethods = Feature.DEFAULT_METHODS.allowedInSource(source);
-        mapCapturesToBounds = Feature.MAP_CAPTURES_TO_BOUNDS.allowedInSource(source);
         chk = Check.instance(context);
         enter = Enter.instance(context);
         capturedName = names.fromString("<captured wildcard>");
@@ -126,8 +122,8 @@ public class Types {
         diags = JCDiagnostic.Factory.instance(context);
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
-        Preview preview = Preview.instance(context);
-        allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
+        qualifiedSymbolCache = new HashMap<>();
         allowUniversalTVars = Feature.UNIVERSAL_TVARS.allowedInSource(source);
     }
     // </editor-fold>
@@ -609,6 +605,16 @@ public class Types {
             return true;
         }
 
+        if (allowPrimitiveClasses) {
+            boolean tValue = t.isPrimitiveClass();
+            boolean sValue = s.isPrimitiveClass();
+            if (tValue != sValue) {
+                return tValue ?
+                        isSubtype(t.referenceProjection(), s) :
+                        !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
+            }
+        }
+
         if (allowUniversalTVars && ((s.hasTag(TYPEVAR)) && ((TypeVar)s).isValueProjection() &&
                 (t.hasTag(BOT) || t.hasTag(TYPEVAR) && !((TypeVar)t).isValueProjection()))) {
             if (t.hasTag(BOT)) {
@@ -659,8 +665,8 @@ public class Types {
         }
 
         return tPrimitive
-                ? isSubtype(boxedClass(t).type, s)
-                : isSubtype(unboxedType(t), s);
+            ? isSubtype(boxedClass(t).type, s)
+            : isSubtype(unboxedType(t), s);
     }
 
     /**
@@ -1010,7 +1016,7 @@ public class Types {
         private Predicate<Symbol> bridgeFilter = new Predicate<Symbol>() {
             public boolean test(Symbol t) {
                 return t.kind == MTH &&
-                        t.name != names.init &&
+                        !names.isInitOrVNew(t.name) &&
                         t.name != names.clinit &&
                         (t.flags() & SYNTHETIC) == 0;
             }
@@ -1132,10 +1138,12 @@ public class Types {
                     // if T.ref <: S, then T[] <: S[]
                     Type es = elemtype(s);
                     Type et = elemtype(t);
-                    if (et.isPrimitiveClass()) {
-                        et = et.referenceProjection();
-                        if (es.isPrimitiveClass())
-                            es = es.referenceProjection();  // V <: V, surely
+                    if (allowPrimitiveClasses) {
+                        if (et.isPrimitiveClass()) {
+                            et = et.referenceProjection();
+                            if (es.isPrimitiveClass())
+                                es = es.referenceProjection();  // V <: V, surely
+                        }
                     }
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
                         return false;
@@ -1344,7 +1352,7 @@ public class Types {
                      return isSubtype(t.getUpperBound(), s, false);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && !s.isPrimitiveClass()) ||
+                         s.hasTag(BOT) || (s.hasTag(CLASS) && (!allowPrimitiveClasses || !s.isPrimitiveClass())) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
@@ -1385,15 +1393,15 @@ public class Types {
                     Type s = rewriteSupers(orig);
                     if (s.isSuperBound() && !s.isExtendsBound()) {
                         s = new WildcardType(syms.objectType,
-                                BoundKind.UNBOUND,
-                                syms.boundClass,
-                                s.getMetadata());
+                                             BoundKind.UNBOUND,
+                                             syms.boundClass,
+                                             s.getMetadata());
                         changed = true;
                     } else if (s != orig) {
                         s = new WildcardType(wildUpperBound(s),
-                                BoundKind.EXTENDS,
-                                syms.boundClass,
-                                s.getMetadata());
+                                             BoundKind.EXTENDS,
+                                             syms.boundClass,
+                                             s.getMetadata());
                         changed = true;
                     }
                     rewrite.append(s);
@@ -1427,7 +1435,7 @@ public class Types {
                         // if T.ref <: S, then T[] <: S[]
                         Type es = elemtype(s);
                         Type et = elemtype(t);
-                        if (et.isPrimitiveClass()) {
+                        if (allowPrimitiveClasses && et.isPrimitiveClass()) {
                             et = et.referenceProjection();
                             if (es.isPrimitiveClass())
                                 es = es.referenceProjection();  // V <: V, surely
@@ -1576,6 +1584,7 @@ public class Types {
         return isSameTypeVisitor.visit(t, s);
     }
     // where
+
         /**
          * Type-equality relation - type variables are considered
          * equals if they share the same object identity.
@@ -1761,7 +1770,7 @@ public class Types {
 
     boolean containsType(List<Type> ts, List<Type> ss) {
         while (ts.nonEmpty() && ss.nonEmpty()
-                && containsType(ts.head, ss.head)) {
+               && containsType(ts.head, ss.head)) {
             ts = ts.tail;
             ss = ss.tail;
         }
@@ -1881,7 +1890,7 @@ public class Types {
 
     public boolean containsTypeEquivalent(List<Type> ts, List<Type> ss) {
         while (ts.nonEmpty() && ss.nonEmpty()
-                && containsTypeEquivalent(ts.head, ss.head)) {
+               && containsTypeEquivalent(ts.head, ss.head)) {
             ts = ts.tail;
             ss = ss.tail;
         }
@@ -1988,7 +1997,7 @@ public class Types {
 
             @Override
             public Boolean visitClassType(ClassType t, Type s) {
-                if (s.hasTag(ERROR) || (s.hasTag(BOT) && !t.isPrimitiveClass()))
+                if (s.hasTag(ERROR) || (s.hasTag(BOT) && (!allowPrimitiveClasses || !t.isPrimitiveClass())))
                     return true;
 
                 if (s.hasTag(TYPEVAR)) {
@@ -2007,13 +2016,15 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
-                    if (t.isPrimitiveClass()) {
-                        // (s) Value ? == (s) Value.ref
-                        t = t.referenceProjection();
-                    }
-                    if (s.isPrimitiveClass()) {
-                        // (Value) t ? == (Value.ref) t
-                        s = s.referenceProjection();
+                    if (allowPrimitiveClasses) {
+                        if (t.isPrimitiveClass()) {
+                            // (s) Value ? == (s) Value.ref
+                            t = t.referenceProjection();
+                        }
+                        if (s.isPrimitiveClass()) {
+                            // (Value) t ? == (Value.ref) t
+                            s = s.referenceProjection();
+                        }
                     }
                     boolean upcast;
                     if ((upcast = isSubtype(erasure(t), erasure(s)))
@@ -2120,11 +2131,7 @@ public class Types {
                     if (elemtype(t).isPrimitive() || elemtype(s).isPrimitive()) {
                         return elemtype(t).hasTag(elemtype(s).getTag());
                     } else {
-                        Type et = elemtype(t);
-                        Type es = elemtype(s);
-                        if (!visit(et, es))
-                            return false;
-                        return true;
+                        return isCastable(elemtype(t), elemtype(s), warnStack.head);
                     }
                 default:
                     return false;
@@ -2454,7 +2461,7 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
 
-        if (t.isPrimitiveClass()) {
+        if (allowPrimitiveClasses && t.isPrimitiveClass()) {
             // No man may be an island, but the bell tolls for a value.
             return t.tsym == sym ? t : null;
         }
@@ -2597,7 +2604,7 @@ public class Types {
            where the hierarchy is navigable. V and V.ref have identical membership
            with no bridging needs.
         */
-        if (t.isPrimitiveClass())
+        if (allowPrimitiveClasses && t.isPrimitiveClass())
             t = t.referenceProjection();
 
         return memberType.visit(t, sym);
@@ -2821,9 +2828,8 @@ public class Types {
         if (allInterfaces) {
             bounds = bounds.prepend(syms.objectType);
         }
-        long flags = ABSTRACT | PUBLIC | SYNTHETIC | COMPOUND | ACYCLIC;
         ClassSymbol bc =
-            new ClassSymbol(flags,
+            new ClassSymbol(ABSTRACT|PUBLIC|SYNTHETIC|COMPOUND|ACYCLIC,
                             Type.moreInfo
                                 ? names.fromString(bounds.toString())
                                 : names.empty,
@@ -3123,11 +3129,7 @@ public class Types {
      * @return true if t is a subsignature of s.
      */
     public boolean isSubSignature(Type t, Type s) {
-        return isSubSignature(t, s, true);
-    }
-
-    public boolean isSubSignature(Type t, Type s, boolean strict) {
-        return hasSameArgs(t, s, strict) || hasSameArgs(t, erasure(s), strict);
+        return hasSameArgs(t, s, true) || hasSameArgs(t, erasure(s), true);
     }
 
     /**
@@ -3450,11 +3452,9 @@ public class Types {
                         MethodSymbol implmeth = absmeth.implementation(impl, this, true);
                         if (implmeth == null || implmeth == absmeth) {
                             //look for default implementations
-                            if (allowDefaultMethods) {
-                                MethodSymbol prov = interfaceCandidates(impl.type, absmeth).head;
-                                if (prov != null && prov.overrides(absmeth, impl, this, true)) {
-                                    implmeth = prov;
-                                }
+                            MethodSymbol prov = interfaceCandidates(impl.type, absmeth).head;
+                            if (prov != null && prov.overrides(absmeth, impl, this, true)) {
+                                implmeth = prov;
                             }
                         }
                         if (implmeth == null || implmeth == absmeth) {
@@ -3982,6 +3982,56 @@ public class Types {
         }
     }
     // </editor-fold>
+
+    /** Cache the symbol to reflect the qualifying type.
+     *  key: corresponding type
+     *  value: qualified symbol
+     */
+    private Map<Type, Symbol> qualifiedSymbolCache;
+
+    public void clearQualifiedSymbolCache() {
+        qualifiedSymbolCache.clear();
+    }
+
+    /** Construct a symbol to reflect the qualifying type that should
+     *  appear in the byte code as per JLS 13.1.
+     *
+     *  For {@literal target >= 1.2}: Clone a method with the qualifier as owner (except
+     *  for those cases where we need to work around VM bugs).
+     *
+     *  For {@literal target <= 1.1}: If qualified variable or method is defined in a
+     *  non-accessible class, clone it with the qualifier class as owner.
+     *
+     *  @param sym    The accessed symbol
+     *  @param site   The qualifier's type.
+     */
+    public Symbol binaryQualifier(Symbol sym, Type site) {
+
+        if (site.hasTag(ARRAY)) {
+            if (sym == syms.lengthVar ||
+                    sym.owner != syms.arrayClass)
+                return sym;
+            // array clone can be qualified by the array type in later targets
+            Symbol qualifier;
+            if ((qualifier = qualifiedSymbolCache.get(site)) == null) {
+                qualifier = new ClassSymbol(Flags.PUBLIC, site.tsym.name, site, syms.noSymbol);
+                qualifiedSymbolCache.put(site, qualifier);
+            }
+            return sym.clone(qualifier);
+        }
+
+        if (sym.owner == site.tsym ||
+                (sym.flags() & (STATIC | SYNTHETIC)) == (STATIC | SYNTHETIC)) {
+            return sym;
+        }
+
+        // leave alone methods inherited from Object
+        // JLS 13.1.
+        if (sym.owner == syms.objectType.tsym)
+            return sym;
+
+        return sym.clone(site.tsym);
+    }
 
     /**
      * Helper method for generating a string representation of a given type
@@ -5489,7 +5539,7 @@ public class Types {
                     if (type.isCompound()) {
                         reportIllegalSignature(type);
                     }
-                    if (type.isPrimitiveClass())
+                    if (types.allowPrimitiveClasses && type.isPrimitiveClass())
                         append('Q');
                     else
                         append('L');

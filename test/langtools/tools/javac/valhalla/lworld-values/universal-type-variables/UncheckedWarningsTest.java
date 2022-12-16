@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary unchecked warning test for universal type variables
- * @compile/ref=UncheckedWarningsTest.out -Xlint:unchecked -XDrawDiagnostics UncheckedWarningsTest.java
+ * @compile/ref=UncheckedWarningsTest.out -Xlint:unchecked -XDrawDiagnostics -XDenablePrimitiveClasses UncheckedWarningsTest.java
  */
 
 class UncheckedWarningsTest {

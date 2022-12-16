@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check various semantic constraints on value creation via default
  *
- * @compile/fail/ref=CheckMakeDefault.out -XDrawDiagnostics CheckMakeDefault.java
+ * @compile/fail/ref=CheckMakeDefault.out -XDrawDiagnostics -XDenablePrimitiveClasses CheckMakeDefault.java
  */
 value final class Point {
 
