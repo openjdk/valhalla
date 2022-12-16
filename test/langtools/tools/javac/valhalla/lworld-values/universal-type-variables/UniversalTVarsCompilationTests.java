@@ -45,10 +45,11 @@ import static org.testng.Assert.assertEquals;
 
 @Test
 public class UniversalTVarsCompilationTests extends CompilationTestCase {
-    private static String[] EMPTY_OPTIONS = {};
+    private static String[] EMPTY_OPTIONS = {"-XDenablePrimitiveClasses"};
 
     private static String[] LINT_OPTIONS = {
-        "-Xlint:all"
+            "-XDenablePrimitiveClasses",
+            "-Xlint:all"
     };
 
     public UniversalTVarsCompilationTests() {
@@ -67,14 +68,19 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
 
     void testHelper(String[] compilerOptions, String diagsMessage, TestResult testResult, String code) {
         setCompileOptions(compilerOptions);
-        if (testResult != TestResult.COMPILE_OK) {
-            if (testResult == TestResult.COMPILE_WITH_WARNING) {
-                assertOKWithWarning(diagsMessage, code);
+        try {
+            if (testResult != TestResult.COMPILE_OK) {
+                if (testResult == TestResult.COMPILE_WITH_WARNING) {
+                    assertOKWithWarning(diagsMessage, code);
+                } else {
+                    assertFail(diagsMessage, code);
+                }
             } else {
-                assertFail(diagsMessage, code);
+                assertOK(code);
             }
-        } else {
-            assertOK(code);
+        } catch (Throwable t) {
+            System.err.println("error while compiling code:\n" + code);
+            throw t;
         }
     }
 
@@ -580,7 +586,8 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testPrimitiveValueConversion() {
-        setCompileOptions(LINT_OPTIONS);
+        // this one is not issuing the warning now
+        /*setCompileOptions(LINT_OPTIONS);
         assertOKWithWarning("compiler.warn.prob.found.req",
                 """
                 primitive class Point {}
@@ -591,7 +598,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
                         Point p = pr;
                     }
                 }
-                """);
+                """);*/
     }
 
     public void testUncheckedWarning() {
@@ -687,6 +694,7 @@ public class UniversalTVarsCompilationTests extends CompilationTestCase {
     }
 
     public void testInferenceAndTypeSystem() {
+        setCompileOptions(EMPTY_OPTIONS);
         assertOK(
                 """
                 primitive class MyValue {

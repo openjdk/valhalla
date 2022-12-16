@@ -609,7 +609,7 @@ public class Infer {
     TypeMapping<Void> fromTypeVarFun = new StructuralTypeMapping<Void>() {
         @Override
         public Type visitTypeVar(TypeVar tv, Void aVoid) {
-            UndetVar uv = new UndetVar(tv, incorporationEngine(), types);
+            UndetVar uv = new UndetVar(tv, incorporationEngine, types);
             if ((tv.tsym.flags() & Flags.THROWS) != 0) {
                 uv.setThrow();
             }

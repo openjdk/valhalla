@@ -1,7 +1,7 @@
 /*
  * @test /nodynamiccopyright/
  * @summary overload resolution tests for universal type variables
- * @compile/ref=UniversalTVarsOverloadResolutionTest.out -XDrawDiagnostics --should-stop=ifError=ATTR --should-stop=ifNoError=ATTR --debug=verboseResolution=applicable,success,deferred-inference UniversalTVarsOverloadResolutionTest.java
+ * @compile/ref=UniversalTVarsOverloadResolutionTest.out -XDrawDiagnostics --should-stop=ifError=ATTR --should-stop=ifNoError=ATTR --debug=verboseResolution=applicable,success,deferred-inference -XDenablePrimitiveClasses UniversalTVarsOverloadResolutionTest.java
  */
 
 class UniversalTVarsOverloadResolutionTest {
