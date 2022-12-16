@@ -53,6 +53,15 @@ bool BarrierSetNMethod::supports_entry_barrier(nmethod* nm) {
     return false;
   }
 
+  if (nm->method()->is_continuation_yield_intrinsic()) {
+    return false;
+  }
+
+  if (nm->method()->is_continuation_native_intrinsic()) {
+    guarantee(false, "Unknown Continuation native intrinsic");
+    return false;
+  }
+
   if (!nm->is_native_method() && !nm->is_compiled_by_c2() && !nm->is_compiled_by_c1()) {
     return false;
   }
@@ -186,5 +195,6 @@ bool BarrierSetNMethod::nmethod_osr_entry_barrier(nmethod* nm) {
 
   assert(nm->is_osr_method(), "Should not reach here");
   log_trace(nmethod, barrier)("Running osr nmethod entry barrier: " PTR_FORMAT, p2i(nm));
+  OrderAccess::cross_modify_fence();
   return nmethod_entry_barrier(nm);
 }

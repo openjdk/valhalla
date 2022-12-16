@@ -593,14 +593,14 @@ public class Pretty extends JCTree.Visitor {
     public void visitMethodDef(JCMethodDecl tree) {
         try {
             // when producing source output, omit anonymous constructors
-            if (tree.name == tree.name.table.names.init &&
+            if (tree.isInitOrVNew() &&
                     enclClassName == null &&
                     sourceOutput) return;
             println(); align();
             printDocComment(tree);
             printExpr(tree.mods);
             printTypeParameters(tree.typarams);
-            if (tree.name == tree.name.table.names.init) {
+            if (tree.isInitOrVNew()) {
                 print(enclClassName != null ? enclClassName : tree.name);
             } else {
                 printExpr(tree.restype);
@@ -822,7 +822,7 @@ public class Pretty extends JCTree.Visitor {
     public void visitForeachLoop(JCEnhancedForLoop tree) {
         try {
             print("for (");
-            printExpr(tree.var);
+            printExpr(tree.varOrRecordPattern);
             print(" : ");
             printExpr(tree.expr);
             print(") ");
@@ -966,10 +966,6 @@ public class Pretty extends JCTree.Visitor {
             print("(");
             printExprs(tree.nested);
             print(")");
-            if (tree.var != null) {
-                print(" ");
-                print(tree.var.name);
-            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

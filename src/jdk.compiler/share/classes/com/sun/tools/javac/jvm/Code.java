@@ -182,6 +182,7 @@ public class Code {
     final MethodSymbol meth;
 
     private int letExprStackPos = 0;
+    private boolean allowPrimitiveClasses;
 
     /** Construct a code object, given the settings of the fatcode,
      *  debugging info switches and the CharacterRangeTable.
@@ -195,7 +196,8 @@ public class Code {
                 CRTable crt,
                 Symtab syms,
                 Types types,
-                PoolWriter poolWriter) {
+                PoolWriter poolWriter,
+                boolean allowPrimitiveClasses) {
         this.meth = meth;
         this.fatcode = fatcode;
         this.lineMap = lineMap;
@@ -217,6 +219,7 @@ public class Code {
         }
         state = new State();
         lvar = new LocalVar[20];
+        this.allowPrimitiveClasses = allowPrimitiveClasses;
     }
 
 
@@ -460,7 +463,7 @@ public class Code {
         if (!alive) return;
         emit2(poolWriter.putMember(member));
         state.pop(argsize);
-        if (member.isConstructor())
+        if (member.isInitOrVNew())
             state.markInitialized((UninitializedType)state.peek());
         state.pop(1);
         state.push(mtype.getReturnType());
@@ -1382,7 +1385,7 @@ public class Code {
         if (!meth.isStatic()) {
             Type thisType = meth.owner.type;
             frame.locals = new Type[len+1];
-            if (meth.isConstructor() && thisType != syms.objectType) {
+            if (meth.isInitOrVNew() && thisType != syms.objectType) {
                 frame.locals[count++] = UninitializedType.uninitializedThis(thisType);
             } else {
                 frame.locals[count++] = types.erasure(thisType);
@@ -1780,8 +1783,12 @@ public class Code {
             case ARRAY:
                 int width = width(t);
                 Type old = stack[stacksize-width];
-                Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
-                        (old.isPrimitiveClass() != t.isPrimitiveClass() && types.isConvertible(types.erasure(old), types.erasure(t))));
+                if (!allowPrimitiveClasses) {
+                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)));
+                } else {
+                    Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
+                            (old.isPrimitiveClass() != t.isPrimitiveClass() && types.isConvertible(types.erasure(old), types.erasure(t))));
+                }
                 stack[stacksize-width] = t;
                 break;
             default:

@@ -241,7 +241,7 @@ JVMState* VirtualCallGenerator::generate(JVMState* jvms) {
   // correctly, but may bail out in final_graph_reshaping, because
   // the call instruction will have a seemingly deficient out-count.
   // (The bailout says something misleading about an "infinite loop".)
-  if (!receiver->is_InlineType() && kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
+  if (kit.gvn().type(receiver)->higher_equal(TypePtr::NULL_PTR)) {
     assert(Bytecodes::is_invoke(kit.java_bc()), "%d: %s", kit.java_bc(), Bytecodes::name(kit.java_bc()));
     ciMethod* declared_method = kit.method()->get_method_at_bci(kit.bci());
     int arg_size = declared_method->signature()->arg_size_for_bc(kit.java_bc());
@@ -789,7 +789,7 @@ void CallGenerator::do_late_inline_helper() {
     C->set_do_cleanup(kit.stopped()); // path is dead; needs cleanup
 
     // Handle inline type returns
-    InlineTypeBaseNode* vt = result->isa_InlineTypeBase();
+    InlineTypeNode* vt = result->isa_InlineType();
     if (vt != NULL) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
@@ -823,8 +823,9 @@ void CallGenerator::do_late_inline_helper() {
 
           // Update oop input to buffer
           kit.gvn().hash_delete(vt);
+          vt->set_is_buffered();
           vt->set_oop(kit.gvn().transform(oop));
-          vt = kit.gvn().transform(vt)->as_InlineTypeBase();
+          vt = kit.gvn().transform(vt)->as_InlineType();
 
           kit.set_control(kit.gvn().transform(region));
           kit.set_all_memory(kit.gvn().transform(mem));
@@ -832,7 +833,7 @@ void CallGenerator::do_late_inline_helper() {
           kit.record_for_igvn(oop);
           kit.record_for_igvn(mem);
         }
-        result = vt->as_ptr(&kit.gvn(), inline_method->signature()->returns_null_free_inline_type());
+        result = vt;
       }
       DEBUG_ONLY(buffer_oop = NULL);
     } else {
@@ -1069,12 +1070,13 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     Node* m = kit.map()->in(i);
     Node* n = slow_map->in(i);
     const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
-    if (m->is_InlineType() && !t->isa_inlinetype()) {
+    // TODO 8284443 still needed?
+    if (m->is_InlineType() && !t->is_inlinetypeptr()) {
       // Allocate inline type in fast path
       m = m->as_InlineType()->buffer(&kit);
       kit.map()->set_req(i, m);
     }
-    if (n->is_InlineType() && !t->isa_inlinetype()) {
+    if (n->is_InlineType() && !t->is_inlinetypeptr()) {
       // Allocate inline type in slow path
       PreserveJVMState pjvms(&kit);
       kit.set_map(slow_map);
@@ -1164,7 +1166,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit, bool 
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
     kit.set_argument(arg_nb, arg);
   }
-  if (sig_type->is_inlinetypeptr() && !arg->is_InlineType()) {
+  if (sig_type->is_inlinetypeptr()) {
     arg = InlineTypeNode::make_from_oop(&kit, arg, t->as_inline_klass(), !kit.gvn().type(arg)->maybe_null());
     kit.set_argument(arg_nb, arg);
   }

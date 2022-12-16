@@ -76,12 +76,6 @@ public class TransTypes extends TreeTranslator {
     private final Resolve resolve;
     private final CompileStates compileStates;
 
-    /** Switch: is complex graph inference supported? */
-    private final boolean allowGraphInference;
-
-    /** Switch: are default methods supported? */
-    private final boolean allowInterfaceBridges;
-
     protected TransTypes(Context context) {
         context.put(transTypesKey, this);
         compileStates = CompileStates.instance(context);
@@ -92,9 +86,6 @@ public class TransTypes extends TreeTranslator {
         types = Types.instance(context);
         make = TreeMaker.instance(context);
         resolve = Resolve.instance(context);
-        Source source = Source.instance(context);
-        allowInterfaceBridges = Feature.DEFAULT_METHODS.allowedInSource(source);
-        allowGraphInference = Feature.GRAPH_INFERENCE.allowedInSource(source);
         annotate = Annotate.instance(context);
         attr = Attr.instance(context);
     }
@@ -330,7 +321,7 @@ public class TransTypes extends TreeTranslator {
                            ClassSymbol origin,
                            ListBuffer<JCTree> bridges) {
         if (sym.kind == MTH &&
-                sym.name != names.init &&
+                !names.isInitOrVNew(sym.name) &&
                 (sym.flags() & (PRIVATE | STATIC)) == 0 &&
                 (sym.flags() & SYNTHETIC) != SYNTHETIC &&
                 sym.isMemberOf(origin, types)) {
@@ -527,7 +518,7 @@ public class TransTypes extends TreeTranslator {
     }
 
     public void visitForeachLoop(JCEnhancedForLoop tree) {
-        tree.var = translate(tree.var, null);
+        tree.varOrRecordPattern = translate(tree.varOrRecordPattern, null);
         Type iterableType = tree.expr.type;
         tree.expr = translate(tree.expr, erasure(tree.expr.type));
         if (types.elemtype(tree.expr.type) == null)
@@ -594,7 +585,7 @@ public class TransTypes extends TreeTranslator {
             selsuper.tsym == syms.enumSym;
         Type target = enumSwitch ? erasure(tree.selector.type) : syms.intType;
         tree.selector = translate(tree.selector, target);
-        tree.cases = translate(tree.cases);
+        tree.cases = translate(tree.cases, tree.type);
         tree.type = erasure(tree.type);
         result = retype(tree, tree.type, pt);
     }
@@ -682,11 +673,11 @@ public class TransTypes extends TreeTranslator {
         tree.meth = translate(tree.meth, null);
         Symbol meth = TreeInfo.symbol(tree.meth);
         Type mt = meth.erasure(types);
-        boolean useInstantiatedPtArgs =
-                allowGraphInference && !types.isSignaturePolymorphic((MethodSymbol)meth.baseSymbol());
+        boolean useInstantiatedPtArgs = !types.isSignaturePolymorphic((MethodSymbol)meth.baseSymbol());
         List<Type> argtypes = useInstantiatedPtArgs ?
                 tree.meth.type.getParameterTypes() :
                 mt.getParameterTypes();
+        // TODO - is enum so <init>
         if (meth.name == names.init && meth.owner == syms.enumSym)
             argtypes = argtypes.tail.tail;
         if (tree.varargsElement != null)
@@ -717,7 +708,7 @@ public class TransTypes extends TreeTranslator {
                 erasure(tree.constructorType) :
                 null;
 
-        List<Type> argtypes = erasedConstructorType != null && allowGraphInference ?
+        List<Type> argtypes = erasedConstructorType != null ?
                 erasedConstructorType.getParameterTypes() :
                 tree.constructor.erasure(types).getParameterTypes();
 
@@ -978,9 +969,7 @@ public class TransTypes extends TreeTranslator {
                 super.visitClassDef(tree);
                 make.at(tree.pos);
                 ListBuffer<JCTree> bridges = new ListBuffer<>();
-                if (allowInterfaceBridges || (tree.sym.flags() & INTERFACE) == 0) {
-                    addBridges(tree.pos(), c, bridges);
-                }
+                addBridges(tree.pos(), c, bridges);
                 tree.defs = bridges.toList().prependList(tree.defs);
                 tree.type = erasure(tree.type);
             } finally {

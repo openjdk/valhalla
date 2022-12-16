@@ -38,7 +38,8 @@ import static compiler.valhalla.inlinetypes.InlineTypes.rL;
  * @summary Various tests that are specific for C1.
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestC1
+ * @compile -XDenablePrimitiveClasses TestC1.java
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestC1
  */
 
 public class TestC1 {
@@ -46,18 +47,23 @@ public class TestC1 {
         final Scenario[] scenarios = {
                 // C1 only
                 new Scenario(0,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation"),
                 // C2 only. (Make sure the tests are correctly written)
                 new Scenario(1,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation"),
                 // interpreter only
                 new Scenario(2,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-Xint"),
                 // Xcomp Only C1.
                 new Scenario(3,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=1", "-XX:+TieredCompilation", "-Xcomp"),
                 // Xcomp Only C2.
                 new Scenario(4,
+                             "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=4", "-XX:-TieredCompilation", "-Xcomp")
         };
 

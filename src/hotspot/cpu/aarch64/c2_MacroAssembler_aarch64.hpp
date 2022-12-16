@@ -35,6 +35,7 @@
                                   enum shift_kind kind = Assembler::LSL, unsigned shift = 0);
 
  public:
+  void entry_barrier();
   void emit_entry_barrier_stub(C2EntryBarrierStub* stub);
   static int entry_barrier_stub_size();
 

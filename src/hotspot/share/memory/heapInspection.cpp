@@ -54,7 +54,7 @@ inline KlassInfoEntry::~KlassInfoEntry() {
 
 inline void KlassInfoEntry::add_subclass(KlassInfoEntry* cie) {
   if (_subclasses == NULL) {
-    _subclasses = new  (ResourceObj::C_HEAP, mtServiceability) GrowableArray<KlassInfoEntry*>(4, mtServiceability);
+    _subclasses = new (mtServiceability) GrowableArray<KlassInfoEntry*>(4, mtServiceability);
   }
   _subclasses->append(cie);
 }
@@ -282,7 +282,7 @@ int KlassInfoHisto::sort_helper(KlassInfoEntry** e1, KlassInfoEntry** e2) {
 
 KlassInfoHisto::KlassInfoHisto(KlassInfoTable* cit) :
   _cit(cit) {
-  _elements = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<KlassInfoEntry*>(_histo_initial_size, mtServiceability);
+  _elements = new (mtServiceability) GrowableArray<KlassInfoEntry*>(_histo_initial_size, mtServiceability);
 }
 
 KlassInfoHisto::~KlassInfoHisto() {
@@ -446,7 +446,7 @@ static void print_classname(outputStream* st, Klass* klass) {
   if (loader_oop == NULL) {
     st->print("null");
   } else {
-    st->print(INTPTR_FORMAT, p2i(klass->class_loader_data()));
+    st->print(PTR_FORMAT, p2i(klass->class_loader_data()));
   }
 }
 
@@ -582,7 +582,7 @@ static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, 
 static void print_inlined_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
   assert(klass->is_inline_klass(), "Only inline types can be inlined");
   InlineKlass* vklass = InlineKlass::cast(klass);
-  GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
+  GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
   for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {
     if (!fd.access_flags().is_static()) {
       fields->append(FieldDesc(fd.field_descriptor()));
@@ -612,7 +612,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
 
   Symbol* classname = SymbolTable::probe(class_name, (int)strlen(class_name));
 
-  GrowableArray<Klass*>* klasses = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
+  GrowableArray<Klass*>* klasses = new (mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
 
   FindClassByNameClosure fbnc(klasses, classname);
   cit.iterate(&fbnc);
@@ -625,7 +625,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     st->print_cr("Class %s [@%s]:", klass->name()->as_C_string(),
         klass->class_loader_data()->loader_name());
     ResourceMark rm;
-    GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
+    GrowableArray<FieldDesc>* fields = new (mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
     for (FieldStream fd(ik, false, false); !fd.eos(); fd.next()) {
       if (!fd.access_flags().is_static()) {
         fields->append(FieldDesc(fd.field_descriptor()));

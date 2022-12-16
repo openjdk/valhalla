@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.DontInline;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
@@ -1684,8 +1685,8 @@ public abstract sealed class VarHandle implements Constable
             // the field type (value) is mapped to the return type of MethodType
             // the receiver type is mapped to a parameter type of MethodType
             // So use the value type if it's a primitive class
-            if (receiver != null && receiver.isPrimitiveClass()) {
-                receiver = receiver.asValueType();
+            if (receiver != null && PrimitiveClass.isPrimitiveClass(receiver)) {
+                receiver = PrimitiveClass.asValueType(receiver);
             }
             switch (this) {
                 case GET:

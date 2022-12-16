@@ -72,12 +72,14 @@ import java.util.stream.Collectors;
 import jdk.internal.loader.BootLoader;
 import jdk.internal.loader.BuiltinClassLoader;
 import jdk.internal.misc.Unsafe;
+import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.module.Resources;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.CallerSensitiveAdapter;
 import jdk.internal.reflect.ConstantPool;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.reflect.ReflectionFactory;
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import sun.invoke.util.Wrapper;
@@ -203,7 +205,6 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int PRIMITIVE_CLASS = 0x00000800;
 
     private static native void registerNatives();
     static {
@@ -632,21 +633,29 @@ public final class Class<T> implements java.io.Serializable,
      * @see #asValueType()
      * @since Valhalla
      */
-    public boolean isPrimitiveClass() {
-        return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
+    /* package */ boolean isPrimitiveClass() {
+        return (this.getModifiers() & PrimitiveClass.PRIMITIVE_CLASS) != 0;
     }
 
     /**
-     * {@return {@code true} if this class is an identity class, otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents an identity
+     * class or interface; otherwise {@code false}}
+     *
+     * If this {@code Class} object represents an array type, then this method
+     * returns {@code true}.
+     * If this {@code Class} object represents a primitive type, or {@code void},
+     * then this method returns {@code false}.
      *
      * @since Valhalla
      */
-    public boolean isIdentity() {
-        return (this.getModifiers() & Modifier.IDENTITY) != 0;
-    }
+    public native boolean isIdentity();
 
     /**
-     * {@return {@code true} if this class is a value class, otherwise {@code false}}
+     * {@return {@code true} if this {@code Class} object represents a value
+     * class or interface; otherwise {@code false}}
+     *
+     * If this {@code Class} object represents an array type, a primitive type, or
+     * {@code void}, then this method returns {@code false}.
      *
      * @since Valhalla
      */
@@ -673,7 +682,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     @IntrinsicCandidate
-    public Class<?> asPrimaryType() {
+    /* package */ Class<?> asPrimaryType() {
         return isPrimitiveClass() ? primaryType : this;
     }
 
@@ -691,7 +700,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since Valhalla
      */
     @IntrinsicCandidate
-    public Class<?> asValueType() {
+    /* package */ Class<?> asValueType() {
         if (isPrimitiveClass())
             return secondaryType;
 
@@ -717,7 +726,7 @@ public final class Class<T> implements java.io.Serializable,
      * the primary type of this class or interface
      * @since Valhalla
      */
-    public boolean isPrimaryType() {
+    /* package */ boolean isPrimaryType() {
         if (isPrimitiveClass()) {
             return this == primaryType;
         }
@@ -732,7 +741,7 @@ public final class Class<T> implements java.io.Serializable,
      * the value type of a primitive class
      * @since Valhalla
      */
-    public boolean isPrimitiveValueType() {
+    /* package */ boolean isPrimitiveValueType() {
         return isPrimitiveClass() && this == secondaryType;
     }
 
@@ -880,10 +889,6 @@ public final class Class<T> implements java.io.Serializable,
      * superinterface of, the class or interface represented by the specified
      * {@code Class} parameter. It returns {@code true} if so;
      * otherwise it returns {@code false}. If this {@code Class}
-     * object represents the {@linkplain #isPrimaryType() reference type}
-     * of a {@linkplain #isPrimitiveClass() primitive class}, this method
-     * return {@code true} if the specified {@code Class} parameter represents
-     * the same primitive class. If this {@code Class}
      * object represents a primitive type, this method returns
      * {@code true} if the specified {@code Class} parameter is
      * exactly this {@code Class} object; otherwise it returns
@@ -892,9 +897,9 @@ public final class Class<T> implements java.io.Serializable,
      * <p> Specifically, this method tests whether the type represented by the
      * specified {@code Class} parameter can be converted to the type
      * represented by this {@code Class} object via an identity conversion
-     * or via a widening reference conversion or via a primitive widening
-     * conversion. See <cite>The Java Language Specification</cite>,
-     * sections {@jls 5.1.1} and {@jls 5.1.4}, for details.
+     * or via a widening reference conversion. See <cite>The Java Language
+     * Specification</cite>, sections {@jls 5.1.1} and {@jls 5.1.4},
+     * for details.
      *
      * @param     cls the {@code Class} object to be checked
      * @return    the {@code boolean} value indicating whether objects of the
@@ -1022,8 +1027,6 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="row"> {@code char}    <td style="text-align:center"> {@code C}
      * <tr><th scope="row"> class or interface with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
      *                                      <td style="text-align:center"> {@code L}<em>N</em>{@code ;}
-     * <tr><th scope="row"> {@linkplain #isPrimitiveClass() primitive class} with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
-     *                                      <td style="text-align:center"> {@code Q}<em>N</em>{@code ;}
      * <tr><th scope="row"> {@code double}  <td style="text-align:center"> {@code D}
      * <tr><th scope="row"> {@code float}   <td style="text-align:center"> {@code F}
      * <tr><th scope="row"> {@code int}     <td style="text-align:center"> {@code I}
@@ -1042,14 +1045,8 @@ public final class Class<T> implements java.io.Serializable,
      *     returns "java.lang.String"
      * byte.class.getName()
      *     returns "byte"
-     * Point.class.getName()
-     *     returns "Point"
      * (new Object[3]).getClass().getName()
      *     returns "[Ljava.lang.Object;"
-     * (new Point[3]).getClass().getName()
-     *     returns "[QPoint;"
-     * (new Point.ref[3][4]).getClass().getName()
-     *     returns "[[LPoint;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
@@ -1458,17 +1455,21 @@ public final class Class<T> implements java.io.Serializable,
      * The modifiers also include the Java Virtual Machine's constants for
      * {@code identity class} and {@code value class}.
      *
-     * <p> If the underlying class is an array class, then its
-     * {@code public}, {@code private} and {@code protected}
-     * modifiers are the same as those of its component type.  If this
-     * {@code Class} object represents a primitive type or void, its
-     * {@code public} modifier is always {@code true}, and its
-     * {@code protected} and {@code private} modifiers are always
-     * {@code false}. If this {@code Class} object represents an array class, a
-     * primitive type or void, then its {@code final} modifier is always
-     * {@code true} and its interface modifier is always
-     * {@code false}. The values of its other modifiers are not determined
-     * by this specification.
+     * <p> If the underlying class is an array class:
+     * <ul>
+     * <li> its {@code public}, {@code private} and {@code protected}
+     *      modifiers are the same as those of its component type
+     * <li> its {@code abstract} and {@code final} modifiers are always
+     *      {@code true}
+     * <li> its interface modifier is always {@code false}, even when
+     *      the component type is an interface
+     * </ul>
+     * If this {@code Class} object represents a primitive type or
+     * void, its {@code public}, {@code abstract}, and {@code final}
+     * modifiers are always {@code true}.
+     * For {@code Class} objects representing void, primitive types, and
+     * arrays, the values of other modifiers are {@code false} other
+     * than as specified above.
      *
      * <p> The modifier encodings are defined in section {@jvms 4.1}
      * of <cite>The Java Virtual Machine Specification</cite>.
@@ -1482,6 +1483,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since 1.1
      * @jls 8.1.1 Class Modifiers
      * @jls 9.1.1. Interface Modifiers
+     * @jvms 4.1 The {@code ClassFile} Structure
      */
     @IntrinsicCandidate
     public native int getModifiers();
@@ -1490,17 +1492,19 @@ public final class Class<T> implements java.io.Serializable,
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
      * flags} for this class, possibly empty}
      *
-     * <p> If the underlying class is an array class, then its
-     * {@code PUBLIC}, {@code PRIVATE} and {@code PROTECTED}
-     * access flags are the same as those of its component type.  If this
-     * {@code Class} object represents a primitive type or void, the
-     * {@code PUBLIC} access flag is present, and the
-     * {@code PROTECTED} and {@code PRIVATE} access flags are always
-     * absent. If this {@code Class} object represents an array class, a
-     * primitive type or void, then the {@code FINAL} access flag is always
-     * present and the interface access flag is always
-     * absent. The values of its other access flags are not determined
-     * by this specification.
+     * <p> If the underlying class is an array class:
+     * <ul>
+     * <li> its {@code PUBLIC}, {@code PRIVATE} and {@code PROTECTED}
+     *      access flags are the same as those of its component type
+     * <li> its {@code ABSTRACT} and {@code FINAL} flags are present
+     * <li> its {@code INTERFACE} flag is absent, even when the
+     *      component type is an interface
+     * </ul>
+     * If this {@code Class} object represents a primitive type or
+     * void, the flags are {@code PUBLIC}, {@code ABSTRACT}, and
+     * {@code FINAL}.
+     * For {@code Class} objects representing void, primitive types, and
+     * arrays, access flags are absent other than as specified above.
      *
      * @see #getModifiers()
      * @jvms 4.1 The ClassFile Structure
@@ -1517,8 +1521,8 @@ public final class Class<T> implements java.io.Serializable,
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
         return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
-                                            getClassAccessFlagsRaw() :
-                                            getModifiers(),
+                                            getClassAccessFlagsRaw() & (~0x800) :
+                                            getModifiers() & (~0x800), // suppress unspecified bit
                                             location);
     }
 
@@ -1677,9 +1681,13 @@ public final class Class<T> implements java.io.Serializable,
             return enclosingClass == null || name == null || descriptor == null;
         }
 
-        boolean isConstructor() { return !isPartial() && "<init>".equals(name); }
+        boolean isObjectConstructor() { return !isPartial() && "<init>".equals(name); }
 
-        boolean isMethod() { return !isPartial() && !isConstructor() && !"<clinit>".equals(name); }
+        boolean isValueFactoryMethod() { return !isPartial() && "<vnew>".equals(name); }
+
+        boolean isMethod() { return !isPartial() && !isObjectConstructor()
+                                        && !isValueFactoryMethod()
+                                        && !"<clinit>".equals(name); }
 
         Class<?> getEnclosingClass() { return enclosingClass; }
 
@@ -1738,7 +1746,7 @@ public final class Class<T> implements java.io.Serializable,
         if (enclosingInfo == null)
             return null;
         else {
-            if (!enclosingInfo.isConstructor())
+            if (!enclosingInfo.isObjectConstructor() && !enclosingInfo.isValueFactoryMethod())
                 return null;
 
             ConstructorRepository typeInfo = ConstructorRepository.make(enclosingInfo.getDescriptor(),
@@ -3840,7 +3848,7 @@ public final class Class<T> implements java.io.Serializable,
                 return constructor;
             }
         }
-        throw new NoSuchMethodException(methodToString("<init>", parameterTypes));
+        throw new NoSuchMethodException(methodToString(isValue() ? "<vnew>" : "<init>", parameterTypes));
     }
 
     //
@@ -4099,7 +4107,8 @@ public final class Class<T> implements java.io.Serializable,
             // These can happen when users concoct enum-like classes
             // that don't comply with the enum spec.
             catch (InvocationTargetException | NoSuchMethodException |
-                   IllegalAccessException ex) { return null; }
+                   IllegalAccessException | NullPointerException |
+                   ClassCastException ex) { return null; }
         }
         return constants;
     }
@@ -4137,9 +4146,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return the object after casting, or null if obj is null
      *
      * @throws ClassCastException if the object is not
-     * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this class is an {@linkplain #isPrimitiveValueType()
-     * primitive value type} and the object is {@code null}
+     * null and is not assignable to the type T.
      *
      * @since 1.5
      */

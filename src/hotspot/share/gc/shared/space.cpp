@@ -189,9 +189,9 @@ HeapWord* ContiguousSpaceDCTOC::get_actual_top(HeapWord* top,
   return top;
 }
 
-void FilteringDCTOC::walk_mem_region(MemRegion mr,
-                                     HeapWord* bottom,
-                                     HeapWord* top) {
+void ContiguousSpaceDCTOC::walk_mem_region(MemRegion mr,
+                                           HeapWord* bottom,
+                                           HeapWord* top) {
   // Note that this assumption won't hold if we have a concurrent
   // collector in this space, which may have freed up objects after
   // they were dirtied and before the stop-the-world GC that is
@@ -585,21 +585,21 @@ void Space::print() const { print_on(tty); }
 
 void Space::print_on(outputStream* st) const {
   print_short_on(st);
-  st->print_cr(" [" INTPTR_FORMAT ", " INTPTR_FORMAT ")",
+  st->print_cr(" [" PTR_FORMAT ", " PTR_FORMAT ")",
                 p2i(bottom()), p2i(end()));
 }
 
 void ContiguousSpace::print_on(outputStream* st) const {
   print_short_on(st);
-  st->print_cr(" [" INTPTR_FORMAT ", " INTPTR_FORMAT ", " INTPTR_FORMAT ")",
+  st->print_cr(" [" PTR_FORMAT ", " PTR_FORMAT ", " PTR_FORMAT ")",
                 p2i(bottom()), p2i(top()), p2i(end()));
 }
 
 #if INCLUDE_SERIALGC
 void OffsetTableContigSpace::print_on(outputStream* st) const {
   print_short_on(st);
-  st->print_cr(" [" INTPTR_FORMAT ", " INTPTR_FORMAT ", "
-                INTPTR_FORMAT ", " INTPTR_FORMAT ")",
+  st->print_cr(" [" PTR_FORMAT ", " PTR_FORMAT ", "
+                PTR_FORMAT ", " PTR_FORMAT ")",
               p2i(bottom()), p2i(top()), p2i(_offsets.threshold()), p2i(end()));
 }
 #endif

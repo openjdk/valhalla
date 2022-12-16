@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -39,6 +38,7 @@
 #include "interpreter/bytecode.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/oopMapCache.hpp"
+#include "jvm.h"
 #include "logging/log.hpp"
 #include "logging/logLevel.hpp"
 #include "logging/logMessage.hpp"
@@ -101,8 +101,6 @@
 #include "jfr/metadata/jfrSerializer.hpp"
 #endif
 
-bool DeoptimizationMarker::_is_active = false;
-
 Deoptimization::UnrollBlock::UnrollBlock(int  size_of_deoptimized_frame,
                                          int  caller_adjustment,
                                          int  caller_actual_parameters,
@@ -129,20 +127,11 @@ Deoptimization::UnrollBlock::UnrollBlock(int  size_of_deoptimized_frame,
   assert(exec_mode >= 0 && exec_mode < Unpack_LIMIT, "Unexpected exec_mode");
 }
 
-
 Deoptimization::UnrollBlock::~UnrollBlock() {
   FREE_C_HEAP_ARRAY(intptr_t, _frame_sizes);
   FREE_C_HEAP_ARRAY(intptr_t, _frame_pcs);
   FREE_C_HEAP_ARRAY(intptr_t, _register_block);
 }
-
-
-intptr_t* Deoptimization::UnrollBlock::value_addr_at(int register_number) const {
-  assert(register_number < RegisterMap::reg_count, "checking register number");
-  return &_register_block[register_number * 2];
-}
-
-
 
 int Deoptimization::UnrollBlock::size_of_frames() const {
   // Account first for the adjustment of the initial frame
@@ -152,7 +141,6 @@ int Deoptimization::UnrollBlock::size_of_frames() const {
   }
   return result;
 }
-
 
 void Deoptimization::UnrollBlock::print() {
   ResourceMark rm;
@@ -164,9 +152,8 @@ void Deoptimization::UnrollBlock::print() {
     st.print(INTX_FORMAT " ", frame_sizes()[index]);
   }
   st.cr();
-  tty->print_raw(st.as_string());
+  tty->print_raw(st.freeze());
 }
-
 
 // In order to make fetch_unroll_info work properly with escape
 // analysis, the method was changed from JRT_LEAF to JRT_BLOCK_ENTRY.
@@ -221,7 +208,7 @@ static void print_objects(JavaThread* deoptee_thread,
       k->oop_print_on(obj(), &st);
     }
   }
-  tty->print_raw(st.as_string());
+  tty->print_raw(st.freeze());
 }
 
 static bool rematerialize_objects(JavaThread* thread, int exec_mode, CompiledMethod* compiled_method,
@@ -352,7 +339,7 @@ static void restore_eliminated_locks(JavaThread* thread, GrowableArray<compiledV
             }
           }
         }
-        tty->print_raw(st.as_string());
+        tty->print_raw(st.freeze());
       }
 #endif // !PRODUCT
     }
@@ -485,11 +472,8 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   vframeArray* array = create_vframeArray(current, deoptee, &map, chunk, realloc_failures);
 #if COMPILER2_OR_JVMCI
   if (realloc_failures) {
-    // FIXME: This very crudely destroys all ExtentLocal bindings. This
-    // is better than a bound value escaping, but far from ideal.
-    oop java_thread = current->threadObj();
-    current->set_extentLocalCache(NULL);
-    java_lang_Thread::clear_extentLocalBindings(java_thread);
+    // This destroys all ScopedValue bindings.
+    current->clear_scopedValueBindings();
     pop_frames_failed_reallocs(current, array);
   }
 #endif
@@ -775,6 +759,7 @@ static bool falls_through(Bytecodes::Code bc) {
 
 // Return BasicType of value being returned
 JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_mode))
+  assert(thread == JavaThread::current(), "pre-condition");
 
   // We are already active in the special DeoptResourceMark any ResourceObj's we
   // allocate will be freed at the end of the routine.
@@ -963,7 +948,6 @@ class DeoptimizeMarkedClosure : public HandshakeClosure {
 
 void Deoptimization::deoptimize_all_marked(nmethod* nmethod_only) {
   ResourceMark rm;
-  DeoptimizationMarker dm;
 
   // Make the dependent methods not entrant
   if (nmethod_only != NULL) {
@@ -1679,7 +1663,7 @@ vframeArray* Deoptimization::create_vframeArray(JavaThread* thread, frame fr, Re
       st.print(" - %s", code_name);
       st.print_cr(" @ bci=%d ", bci);
     }
-    tty->print_raw(st.as_string());
+    tty->print_raw(st.freeze());
     tty->cr();
   }
 
@@ -1751,7 +1735,6 @@ void Deoptimization::deoptimize(JavaThread* thread, frame fr, DeoptReason reason
     return;
   }
   ResourceMark rm;
-  DeoptimizationMarker dm;
   deoptimize_single_frame(thread, fr, reason);
 }
 
@@ -1830,6 +1813,7 @@ void Deoptimization::deoptimize_frame(JavaThread* thread, intptr_t* id) {
 // JVMTI PopFrame support
 JRT_LEAF(void, Deoptimization::popframe_preserve_args(JavaThread* thread, int bytes_to_save, void* start_address))
 {
+  assert(thread == JavaThread::current(), "pre-condition");
   thread->popframe_preserve_args(in_ByteSize(bytes_to_save), start_address);
 }
 JRT_END
@@ -1995,7 +1979,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
   frame fr = stub_frame.sender(&reg_map);
 
   // Log a message
-  Events::log_deopt_message(current, "Uncommon trap: trap_request=" PTR32_FORMAT " fr.pc=" INTPTR_FORMAT " relative=" INTPTR_FORMAT,
+  Events::log_deopt_message(current, "Uncommon trap: trap_request=" INT32_FORMAT_X_0 " fr.pc=" INTPTR_FORMAT " relative=" INTPTR_FORMAT,
               trap_request, p2i(fr.pc()), fr.pc() - fr.cb()->code_begin());
 
   {
@@ -2160,7 +2144,7 @@ JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* current, jint tr
           class_name->print_symbol_on(&st);
         }
         st.cr();
-        tty->print_raw(st.as_string());
+        tty->print_raw(st.freeze());
       }
       if (xtty != NULL) {
         // Log the precise location of the trap.

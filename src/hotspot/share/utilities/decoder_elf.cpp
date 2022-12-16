@@ -55,7 +55,12 @@ bool ElfDecoder::decode(address addr, char *buf, int buflen, int* offset, const 
 }
 
 bool ElfDecoder::get_source_info(address pc, char* filename, size_t filename_len, int* line, bool is_pc_after_call) {
-  assert(filename != nullptr && filename_len > 0 && line != nullptr, "Argument error");
+#if defined(__clang_major__) && (__clang_major__ < 5)
+  DWARF_LOG_ERROR("The DWARF parser only supports Clang 5.0+.");
+  return false;
+#else
+  assert(filename != nullptr && line != nullptr, "arguments should not be null");
+  assert(filename_len > 1, "buffer must be able to at least hold 1 character with a null terminator");
   filename[0] = '\0';
   *line = -1;
 
@@ -64,7 +69,7 @@ bool ElfDecoder::get_source_info(address pc, char* filename, size_t filename_len
   int offset_in_library = -1;
   if (!os::dll_address_to_library_name(pc, filepath, sizeof(filepath), &offset_in_library)) {
     // Method not found. offset_in_library should not overflow.
-    DWARF_LOG_ERROR("Did not find library for address " INTPTR_FORMAT, p2i(pc))
+    DWARF_LOG_ERROR("Did not find library for address " PTR_FORMAT, p2i(pc))
     return false;
   }
 
@@ -79,17 +84,21 @@ bool ElfDecoder::get_source_info(address pc, char* filename, size_t filename_len
   if (file == NULL) {
     return false;
   }
-  DWARF_LOG_INFO("##### Find filename and line number for offset " PTR32_FORMAT " in library %s #####",
+  DWARF_LOG_INFO("##### Find filename and line number for offset " INT32_FORMAT_X_0 " in library %s #####",
                  unsigned_offset_in_library, filepath);
 
   if (!file->get_source_info(unsigned_offset_in_library, filename, filename_len, line, is_pc_after_call)) {
+    // Return sane values.
+    filename[0] = '\0';
+    *line = -1;
     return false;
   }
 
-  DWARF_LOG_SUMMARY("pc: " INTPTR_FORMAT ", offset: " PTR32_FORMAT ", filename: %s, line: %u",
+  DWARF_LOG_SUMMARY("pc: " PTR_FORMAT ", offset: " INT32_FORMAT_X_0 ", filename: %s, line: %u",
                        p2i(pc), offset_in_library, filename, *line);
   DWARF_LOG_INFO("") // To structure the debug output better.
   return true;
+#endif // clang
 }
 
 

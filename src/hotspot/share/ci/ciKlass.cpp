@@ -242,6 +242,7 @@ markWord ciKlass::prototype_header() const {
 void ciKlass::print_impl(outputStream* st) {
   st->print(" name=");
   print_name_on(st);
+  st->print(" loaded=%s", (is_loaded() ? "true" : "false"));
 }
 
 // ------------------------------------------------------------------

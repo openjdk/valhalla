@@ -72,6 +72,7 @@ import com.sun.tools.javac.tree.JCTree.JCMemberReference;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 import com.sun.tools.javac.util.*;
+import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.Factory;
 import com.sun.tools.javac.util.Log.DiagnosticHandler;
@@ -88,11 +89,15 @@ import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.main.Option.*;
+import com.sun.tools.javac.tree.JCTree.JCBindingPattern;
 import static com.sun.tools.javac.util.JCDiagnostic.DiagnosticFlag.*;
 
 import static javax.tools.StandardLocation.CLASS_OUTPUT;
 
 import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
+import com.sun.tools.javac.tree.JCTree.JCRecordPattern;
+import com.sun.tools.javac.tree.JCTree.JCSwitch;
+import com.sun.tools.javac.tree.JCTree.JCSwitchExpression;
 
 /** This class could be the main entry point for GJC when GJC is used as a
  *  component in a larger software system. It provides operations to
@@ -990,7 +995,7 @@ public class JavaCompiler {
      * Parses a list of files.
      */
    public List<JCCompilationUnit> parseFiles(Iterable<JavaFileObject> fileObjects) {
-       return parseFiles(fileObjects, false);
+       return InitialFileParser.instance(context).parse(fileObjects);
    }
 
    public List<JCCompilationUnit> parseFiles(Iterable<JavaFileObject> fileObjects, boolean force) {
@@ -1464,6 +1469,7 @@ public class JavaCompiler {
         class ScanNested extends TreeScanner {
             Set<Env<AttrContext>> dependencies = new LinkedHashSet<>();
             protected boolean hasLambdas;
+            protected boolean hasPatterns;
             @Override
             public void visitClassDef(JCClassDecl node) {
                 Type st = types.supertype(node.sym.type);
@@ -1474,16 +1480,19 @@ public class JavaCompiler {
                     if (stEnv != null && env != stEnv) {
                         if (dependencies.add(stEnv)) {
                             boolean prevHasLambdas = hasLambdas;
+                            boolean prevHasPatterns = hasPatterns;
                             try {
                                 scan(stEnv.tree);
                             } finally {
                                 /*
-                                 * ignore any updates to hasLambdas made during
-                                 * the nested scan, this ensures an initialized
-                                 * LambdaToMethod is available only to those
-                                 * classes that contain lambdas
+                                 * ignore any updates to hasLambdas and hasPatterns
+                                 * made during the nested scan, this ensures an
+                                 * initialized LambdaToMethod or TransPatterns is
+                                 * available only to those classes that contain
+                                 * lambdas or patterns, respectivelly
                                  */
                                 hasLambdas = prevHasLambdas;
+                                hasPatterns = prevHasPatterns;
                             }
                         }
                         envForSuperTypeFound = true;
@@ -1501,6 +1510,31 @@ public class JavaCompiler {
             public void visitReference(JCMemberReference tree) {
                 hasLambdas = true;
                 super.visitReference(tree);
+            }
+            @Override
+            public void visitBindingPattern(JCBindingPattern tree) {
+                hasPatterns = true;
+                super.visitBindingPattern(tree);
+            }
+            @Override
+            public void visitRecordPattern(JCRecordPattern that) {
+                hasPatterns = true;
+                super.visitRecordPattern(that);
+            }
+            @Override
+            public void visitParenthesizedPattern(JCTree.JCParenthesizedPattern tree) {
+                hasPatterns = true;
+                super.visitParenthesizedPattern(tree);
+            }
+            @Override
+            public void visitSwitch(JCSwitch tree) {
+                hasPatterns |= tree.patternSwitch;
+                super.visitSwitch(tree);
+            }
+            @Override
+            public void visitSwitchExpression(JCSwitchExpression tree) {
+                hasPatterns |= tree.patternSwitch;
+                super.visitSwitchExpression(tree);
             }
         }
         ScanNested scanner = new ScanNested();
@@ -1550,10 +1584,13 @@ public class JavaCompiler {
             if (shouldStop(CompileState.TRANSPATTERNS))
                 return;
 
-            env.tree = TransPatterns.instance(context).translateTopLevelClass(env, env.tree, localMake);
+            if (scanner.hasPatterns) {
+                env.tree = TransPatterns.instance(context).translateTopLevelClass(env, env.tree, localMake);
+            }
+
             compileStates.put(env, CompileState.TRANSPATTERNS);
 
-            if (Feature.LAMBDA.allowedInSource(source) && scanner.hasLambdas) {
+            if (scanner.hasLambdas) {
                 if (shouldStop(CompileState.UNLAMBDA))
                     return;
 
@@ -1698,7 +1735,7 @@ public class JavaCompiler {
                         case METHODDEF:
                             if (isInterface ||
                                 (((JCMethodDecl) t).mods.flags & (Flags.PROTECTED|Flags.PUBLIC)) != 0 ||
-                                ((JCMethodDecl) t).sym.name == names.init ||
+                                names.isInitOrVNew(((JCMethodDecl) t).sym.name) ||
                                 (((JCMethodDecl) t).mods.flags & (Flags.PRIVATE)) == 0 && ((JCMethodDecl) t).sym.packge().getQualifiedName() == names.java_lang)
                                 newdefs.append(t);
                             break;
@@ -1865,5 +1902,33 @@ public class JavaCompiler {
     public void newRound() {
         inputFiles.clear();
         if (todo != null) todo.clear();
+    }
+
+    public interface InitialFileParserIntf {
+        public List<JCCompilationUnit> parse(Iterable<JavaFileObject> files);
+    }
+
+    public static class InitialFileParser implements InitialFileParserIntf {
+
+        public static final Key<InitialFileParserIntf> initialParserKey = new Key<>();
+
+        public static InitialFileParserIntf instance(Context context) {
+            InitialFileParserIntf instance = context.get(initialParserKey);
+            if (instance == null)
+                instance = new InitialFileParser(context);
+            return instance;
+        }
+
+        private final JavaCompiler compiler;
+
+        private InitialFileParser(Context context) {
+            context.put(initialParserKey, this);
+            this.compiler = JavaCompiler.instance(context);
+        }
+
+        @Override
+        public List<JCCompilationUnit> parse(Iterable<JavaFileObject> fileObjects) {
+           return compiler.parseFiles(fileObjects, false);
+        }
     }
 }

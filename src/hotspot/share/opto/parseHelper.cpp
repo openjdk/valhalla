@@ -333,8 +333,7 @@ void Parse::do_aconst_init() {
     if (stopped())  return;
   }
 
-  InlineTypeNode* vt = InlineTypeNode::make_default(_gvn, vk);
-  push(vt);
+  push(InlineTypeNode::make_default(_gvn, vk));
 }
 
 //------------------------------do_withfield------------------------------------
@@ -350,7 +349,7 @@ void Parse::do_withfield() {
   Node* val = pop_node(field->layout_type());
   Node* holder = pop();
 
-  if (!val->is_InlineTypeBase() && field->type()->is_inlinetype()) {
+  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
     // Scalarize inline type field value
     assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to null-free field");
     val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass(), field->is_null_free());
@@ -362,14 +361,6 @@ void Parse::do_withfield() {
     int nargs = 1 + field->type()->size();
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
-  }
-  if (val->is_InlineTypePtr() && field->is_null_free()) {
-    // TODO 8284443 Remove this
-    Node* newVal = InlineTypeNode::make_uninitialized(gvn(), field->type()->as_inline_klass());
-    for (uint i = 1; i < val->req(); ++i) {
-      newVal->set_req(i, val->in(i));
-    }
-    val = gvn().transform(newVal);
   }
 
   // Clone the inline type node and set the new field value

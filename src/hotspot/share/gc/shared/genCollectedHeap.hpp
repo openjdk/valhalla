@@ -186,20 +186,15 @@ public:
   // supports. Caller does not hold the Heap_lock on entry.
   virtual void collect(GCCause::Cause cause);
 
-  // Perform a full collection of generations up to and including max_generation.
-  // Mostly used for testing purposes. Caller does not hold the Heap_lock on entry.
-  void collect(GCCause::Cause cause, GenerationType max_generation);
-
   // Returns "TRUE" iff "p" points into the committed areas of the heap.
   // The methods is_in() and is_in_youngest() may be expensive to compute
   // in general, so, to prevent their inadvertent use in product jvm's, we
   // restrict their use to assertion checking or verification only.
   bool is_in(const void* p) const;
 
-  // Returns true if the reference is to an object in the reserved space
-  // for the young generation.
+  // Returns true if p points into the reserved space for the young generation.
   // Assumes the young gen address range is less than that of the old gen.
-  bool is_in_young(oop p) const;
+  bool is_in_young(const void* p) const;
 
   virtual bool requires_barriers(stackChunkOop obj) const;
 
@@ -331,21 +326,16 @@ public:
   };
 
  protected:
+  virtual void gc_prologue(bool full);
+  virtual void gc_epilogue(bool full);
+
+ public:
+  // Apply closures on various roots in Young GC or marking/adjust phases of Full GC.
   void process_roots(ScanningOption so,
                      OopClosure* strong_roots,
                      CLDClosure* strong_cld_closure,
                      CLDClosure* weak_cld_closure,
                      CodeBlobToOopClosure* code_roots);
-
-  virtual void gc_prologue(bool full);
-  virtual void gc_epilogue(bool full);
-
- public:
-  void full_process_roots(bool is_adjust_phase,
-                          ScanningOption so,
-                          bool only_strong_roots,
-                          OopClosure* root_closure,
-                          CLDClosure* cld_closure);
 
   // Apply "root_closure" to all the weak roots of the system.
   // These include JNI weak roots, string table,

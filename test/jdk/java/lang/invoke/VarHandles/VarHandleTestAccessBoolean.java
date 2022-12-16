@@ -72,7 +72,6 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
 
     VarHandle vhArray;
 
-    VarHandle vhValueTypeField;
 
     VarHandle[] allocate(boolean same) {
         List<VarHandle> vhs = new ArrayList<>();
@@ -124,9 +123,6 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             VarHandleTestAccessBoolean.class, "static_v", type);
 
         vhArray = MethodHandles.arrayElementVarHandle(boolean[].class);
-
-        vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "boolean_v", type);
     }
 
 
@@ -282,11 +278,6 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
         cases.add(new VarHandleAccessTestCase("Array index out of bounds",
                                               vhArray, VarHandleTestAccessBoolean::testArrayIndexOutOfBounds,
                                               false));
-        cases.add(new VarHandleAccessTestCase("Value type field",
-                                              vhValueTypeField, vh -> testValueTypeField(Value.getInstance(), vh)));
-        cases.add(new VarHandleAccessTestCase("Value type field unsupported",
-                                              vhValueTypeField, vh -> testValueTypeFieldUnsupported(Value.getInstance(), vh),
-                                              false));
         // Work around issue with jtreg summary reporting which truncates
         // the String result of Object.toString to 30 characters, hence
         // the first dummy argument
@@ -362,20 +353,6 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean o = (boolean) vh.getAndAddRelease(recv, true);
         });
 
-    }
-
-    static void testValueTypeField(Value recv, VarHandle vh) {
-        // Plain
-        {
-            boolean x = (boolean) vh.get(recv);
-            assertEquals(x, true, "get boolean value");
-        }
-    }
-
-    static void testValueTypeFieldUnsupported(Value recv, VarHandle vh) {
-        checkUOE(() -> {
-            vh.set(recv, false);
-        });
     }
 
     static void testStaticFinalField(VarHandle vh) {
@@ -531,6 +508,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain(recv, true, false);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain boolean");
             boolean x = (boolean) vh.get(recv);
@@ -548,6 +526,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire(recv, false, true);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire boolean");
             boolean x = (boolean) vh.get(recv);
@@ -565,6 +544,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease(recv, true, false);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease boolean");
             boolean x = (boolean) vh.get(recv);
@@ -582,6 +562,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet(recv, false, true);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet boolean");
             boolean x = (boolean) vh.get(recv);
@@ -819,6 +800,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetPlain(true, false);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetPlain boolean");
             boolean x = (boolean) vh.get();
@@ -836,6 +818,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetAcquire(false, true);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetAcquire boolean");
             boolean x = (boolean) vh.get();
@@ -853,6 +836,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSetRelease(true, false);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSetRelease boolean");
             boolean x = (boolean) vh.get();
@@ -870,6 +854,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
             boolean success = false;
             for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                 success = vh.weakCompareAndSet(false, true);
+                if (!success) weakDelay();
             }
             assertEquals(success, true, "success weakCompareAndSet boolean");
             boolean x = (boolean) vh.get();
@@ -1110,6 +1095,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetPlain(array, i, true, false);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetPlain boolean");
                 boolean x = (boolean) vh.get(array, i);
@@ -1127,6 +1113,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetAcquire(array, i, false, true);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetAcquire boolean");
                 boolean x = (boolean) vh.get(array, i);
@@ -1144,6 +1131,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSetRelease(array, i, true, false);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSetRelease boolean");
                 boolean x = (boolean) vh.get(array, i);
@@ -1161,6 +1149,7 @@ public class VarHandleTestAccessBoolean extends VarHandleBaseTest {
                 boolean success = false;
                 for (int c = 0; c < WEAK_ATTEMPTS && !success; c++) {
                     success = vh.weakCompareAndSet(array, i, false, true);
+                    if (!success) weakDelay();
                 }
                 assertEquals(success, true, "success weakCompareAndSet boolean");
                 boolean x = (boolean) vh.get(array, i);

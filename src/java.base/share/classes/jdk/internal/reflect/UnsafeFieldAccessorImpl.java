@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package jdk.internal.reflect;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+
+import jdk.internal.value.PrimitiveClass;
 import jdk.internal.misc.Unsafe;
 
 /** Base class for jdk.internal.misc.Unsafe-based FieldAccessors. The
@@ -57,7 +59,8 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     }
 
     protected boolean canBeNull() {
-        return !field.getType().isPrimitiveClass() || field.getType().isPrimaryType();
+        return !PrimitiveClass.isPrimitiveClass(field.getType()) ||
+                PrimitiveClass.isPrimaryType(field.getType());
     }
 
     protected Object checkValue(Object value) {
@@ -66,8 +69,8 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
 
         if (value != null) {
             Class<?> type = value.getClass();
-            if (type.isPrimitiveClass()) {
-                type = type.asValueType();
+            if (PrimitiveClass.isPrimitiveClass(type)) {
+                type = PrimitiveClass.asValueType(type);
             }
             if (!field.getType().isInstance(value)) {
                 throwSetIllegalArgumentException(value);

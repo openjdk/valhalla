@@ -120,8 +120,8 @@ class Universe: AllStatic {
   static LatestMethodCache* _throw_illegal_access_error_cache; // Unsafe.throwIllegalAccessError() method
   static LatestMethodCache* _throw_no_such_method_error_cache; // Unsafe.throwNoSuchMethodError() method
   static LatestMethodCache* _do_stack_walk_cache;      // method for stack walker callback
-  static LatestMethodCache* _is_substitutable_cache;   // PrimitiveObjectMethods.isSubstitutable() method
-  static LatestMethodCache* _primitive_type_hash_code_cache;  // PrimitiveObjectMethods.primitiveObjectHashCode() method
+  static LatestMethodCache* _is_substitutable_cache;   // ValueObjectMethods.isSubstitutable() method
+  static LatestMethodCache* _value_object_hash_code_cache;  // ValueObjectMethods.valueObjectHashCode() method
 
   static Array<int>*            _the_empty_int_array;            // Canonicalized int array
   static Array<u2>*             _the_empty_short_array;          // Canonicalized short array
@@ -199,6 +199,16 @@ class Universe: AllStatic {
   static uintptr_t _verify_oop_mask;
   static uintptr_t _verify_oop_bits;
 
+  // Table of primitive type mirrors, excluding T_OBJECT and T_ARRAY
+  // but including T_VOID, hence the index including T_VOID
+  static OopHandle _basic_type_mirrors[T_VOID+1];
+
+#if INCLUDE_CDS_JAVA_HEAP
+  // Each slot i stores an index that can be used to restore _basic_type_mirrors[i]
+  // from the archive heap using HeapShared::get_root(int)
+  static int _archived_basic_type_mirror_indices[T_VOID+1];
+#endif
+
  public:
   static void calculate_verify_data(HeapWord* low_boundary, HeapWord* high_boundary) PRODUCT_RETURN;
 
@@ -234,12 +244,12 @@ class Universe: AllStatic {
   static oop short_mirror();
   static oop void_mirror();
 
-  // Table of primitive type mirrors, excluding T_OBJECT and T_ARRAY
-  // but including T_VOID, hence the index including T_VOID
-  static OopHandle _mirrors[T_VOID+1];
-
   static oop java_mirror(BasicType t);
-  static void replace_mirror(BasicType t, oop obj);
+
+#if INCLUDE_CDS_JAVA_HEAP
+  static void set_archived_basic_type_mirror_index(BasicType t, int index);
+  static void update_archived_basic_type_mirrors();
+#endif
 
   static oop      main_thread_group();
   static void set_main_thread_group(oop group);
@@ -267,7 +277,7 @@ class Universe: AllStatic {
   static Method*      do_stack_walk_method()          { return _do_stack_walk_cache->get_method(); }
 
   static Method*      is_substitutable_method()       { return _is_substitutable_cache->get_method(); }
-  static Method*      primitive_type_hash_code_method()  { return _primitive_type_hash_code_cache->get_method(); }
+  static Method*      value_object_hash_code_method() { return _value_object_hash_code_cache->get_method(); }
 
   static oop          the_null_sentinel();
   static address      the_null_sentinel_addr()        { return (address) &_the_null_sentinel;  }

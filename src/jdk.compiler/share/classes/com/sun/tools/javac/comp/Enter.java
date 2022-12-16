@@ -105,6 +105,7 @@ public class Enter extends JCTree.Visitor {
     TypeEnvs typeEnvs;
     Modules modules;
     JCDiagnostic.Factory diags;
+    boolean allowPrimitiveClasses;
 
     private final Todo todo;
 
@@ -144,6 +145,8 @@ public class Enter extends JCTree.Visitor {
         Options options = Options.instance(context);
         pkginfoOpt = PkgInfo.get(options);
         typeEnvs = TypeEnvs.instance(context);
+        Source source = Source.instance(context);
+        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** Accessor for typeEnvs
@@ -498,10 +501,13 @@ public class Enter extends JCTree.Visitor {
         c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree) | FROM_SOURCE;
         c.classfile = c.sourcefile = env.toplevel.sourcefile;
         c.members_field = WriteableScope.create(c);
+        c.isPermittedExplicit = tree.permitting.nonEmpty();
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;
-        ct.flavor = ct.flavor.metamorphose((c.flags_field & PRIMITIVE_CLASS) != 0);
+        if (allowPrimitiveClasses) {
+            ct.flavor = ct.flavor.metamorphose((c.flags_field & PRIMITIVE_CLASS) != 0);
+        }
 
         if (owner.kind != PCK && (c.flags_field & STATIC) == 0) {
             // We are seeing a local or inner class.
@@ -521,7 +527,7 @@ public class Enter extends JCTree.Visitor {
         // Enter type parameters.
         ct.typarams_field = classEnter(tree.typarams, localEnv);
         ct.allparams_field = null;
-        if (ct.isPrimitiveClass()) {
+        if (allowPrimitiveClasses && ct.isPrimitiveClass()) {
             if (ct.projection != null) {
                 ct.projection.typarams_field = ct.typarams_field;
                 ct.projection.allparams_field = ct.allparams_field;

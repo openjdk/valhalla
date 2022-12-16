@@ -27,6 +27,7 @@ package com.sun.tools.javac.jvm;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.tree.TreeInfo.PosKind;
@@ -133,7 +134,8 @@ public class Gen extends JCTree.Visitor {
         // ignore cldc because we cannot have both stackmap formats
         this.stackMap = StackMapFormat.JSR202;
         annotate = Annotate.instance(context);
-        qualifiedSymbolCache = new HashMap<>();
+        Source source = Source.instance(context);
+        allowPrimitiveClasses = Source.Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** Switches
@@ -174,12 +176,10 @@ public class Gen extends JCTree.Visitor {
     Chain switchExpressionFalseChain;
     List<LocalItem> stackBeforeSwitchExpression;
     LocalItem switchResult;
+    Set<JCMethodInvocation> invocationsWithPatternMatchingCatch = Set.of();
+    ListBuffer<int[]> patternMatchingInvocationRanges;
 
-    /** Cache the symbol to reflect the qualifying type.
-     *  key: corresponding type
-     *  value: qualified symbol
-     */
-    Map<Type, Symbol> qualifiedSymbolCache;
+    boolean allowPrimitiveClasses;
 
     /** Generate code to load an integer constant.
      *  @param n     The integer to be loaded.
@@ -222,46 +222,6 @@ public class Gen extends JCTree.Visitor {
         } else {
             code.emitop0(iconst_m1);
         }
-    }
-
-    /** Construct a symbol to reflect the qualifying type that should
-     *  appear in the byte code as per JLS 13.1.
-     *
-     *  For {@literal target >= 1.2}: Clone a method with the qualifier as owner (except
-     *  for those cases where we need to work around VM bugs).
-     *
-     *  For {@literal target <= 1.1}: If qualified variable or method is defined in a
-     *  non-accessible class, clone it with the qualifier class as owner.
-     *
-     *  @param sym    The accessed symbol
-     *  @param site   The qualifier's type.
-     */
-    Symbol binaryQualifier(Symbol sym, Type site) {
-
-        if (site.hasTag(ARRAY)) {
-            if (sym == syms.lengthVar ||
-                sym.owner != syms.arrayClass)
-                return sym;
-            // array clone can be qualified by the array type in later targets
-            Symbol qualifier;
-            if ((qualifier = qualifiedSymbolCache.get(site)) == null) {
-                qualifier = new ClassSymbol(Flags.PUBLIC, site.tsym.name, site, syms.noSymbol);
-                qualifiedSymbolCache.put(site, qualifier);
-            }
-            return sym.clone(qualifier);
-        }
-
-        if (sym.owner == site.tsym ||
-            (sym.flags() & (STATIC | SYNTHETIC)) == (STATIC | SYNTHETIC)) {
-            return sym;
-        }
-
-        // leave alone methods inherited from Object
-        // JLS 13.1.
-        if (sym.owner == syms.objectType.tsym)
-            return sym;
-
-        return sym.clone(site.tsym);
     }
 
     /** Insert a reference to given type in the constant pool,
@@ -338,7 +298,7 @@ public class Gen extends JCTree.Visitor {
         Symbol msym = rs.
             resolveInternalMethod(pos, attrEnv, site, name, argtypes, null);
         if (isStatic) items.makeStaticItem(msym).invoke();
-        else items.makeMemberItem(msym, name == names.init).invoke();
+        else items.makeMemberItem(msym, names.isInitOrVNew(name)).invoke();
     }
 
     /** Is the given method definition an access method
@@ -561,7 +521,7 @@ public class Gen extends JCTree.Visitor {
      *  @param initTAs  Type annotations from the initializer expression.
      */
     void normalizeMethod(JCMethodDecl md, List<JCStatement> initCode, List<TypeCompound> initTAs) {
-        if (md.name == names.init && TreeInfo.isInitialConstructor(md)) {
+        if (names.isInitOrVNew(md.name) && TreeInfo.isInitialConstructor(md)) {
             // We are seeing a constructor that does not call another
             // constructor of the same class.
             List<JCStatement> stats = md.body.stats;
@@ -964,7 +924,7 @@ public class Gen extends JCTree.Visitor {
             MethodSymbol meth = tree.sym;
             int extras = 0;
             // Count up extra parameters
-            if (meth.isConstructor()) {
+            if (meth.isInitOrVNew()) {
                 extras++;
                 if (meth.enclClass().isInner() &&
                     !meth.enclClass().isStatic()) {
@@ -1061,7 +1021,8 @@ public class Gen extends JCTree.Visitor {
                                                : null,
                                         syms,
                                         types,
-                                        poolWriter);
+                                        poolWriter,
+                                        allowPrimitiveClasses);
             items = new Items(poolWriter, code, syms, types);
             if (code.debugCode) {
                 System.err.println(meth + " for body " + tree);
@@ -1071,7 +1032,7 @@ public class Gen extends JCTree.Visitor {
             // for `this'.
             if ((tree.mods.flags & STATIC) == 0) {
                 Type selfType = meth.owner.type;
-                if (meth.isConstructor() && selfType != syms.objectType)
+                if (meth.isInitOrVNew() && selfType != syms.objectType)
                     selfType = UninitializedType.uninitializedThis(selfType);
                 code.setDefined(
                         code.newLocal(
@@ -1120,6 +1081,29 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitBlock(JCBlock tree) {
+        if (tree.patternMatchingCatch != null) {
+            Set<JCMethodInvocation> prevInvocationsWithPatternMatchingCatch = invocationsWithPatternMatchingCatch;
+            ListBuffer<int[]> prevRanges = patternMatchingInvocationRanges;
+            State startState = code.state.dup();
+            try {
+                invocationsWithPatternMatchingCatch = tree.patternMatchingCatch.calls2Handle();
+                patternMatchingInvocationRanges = new ListBuffer<>();
+                doVisitBlock(tree);
+            } finally {
+                Chain skipCatch = code.branch(goto_);
+                JCCatch handler = tree.patternMatchingCatch.handler();
+                code.entryPoint(startState, handler.param.sym.type);
+                genPatternMatchingCatch(handler, env, patternMatchingInvocationRanges.toList());
+                code.resolve(skipCatch);
+                invocationsWithPatternMatchingCatch = prevInvocationsWithPatternMatchingCatch;
+                patternMatchingInvocationRanges = prevRanges;
+            }
+        } else {
+            doVisitBlock(tree);
+        }
+    }
+
+    private void doVisitBlock(JCBlock tree) {
         int limit = code.nextreg;
         Env<GenContext> localEnv = env.dup(tree, new GenContext());
         genStats(tree.stats, localEnv);
@@ -1145,7 +1129,7 @@ public class Gen extends JCTree.Visitor {
                 Symbol sym = ((JCIdent) tree.field).sym;
                 items.makeThisItem().load();
                 genExpr(tree.value, tree.field.type).load();
-                sym = binaryQualifier(sym, env.enclClass.type);
+                sym = types.binaryQualifier(sym, env.enclClass.type);
                 code.emitop2(withfield, sym, PoolWriter::putMember);
                 result = items.makeStackItem(tree.type);
                 break;
@@ -1161,7 +1145,7 @@ public class Gen extends JCTree.Visitor {
                 } else {
                     code.emitop0(swap);
                 }
-                sym = binaryQualifier(sym, fieldAccess.selected.type);
+                sym = types.binaryQualifier(sym, fieldAccess.selected.type);
                 code.emitop2(withfield, sym, PoolWriter::putMember);
                 result = items.makeStackItem(tree.type);
                 break;
@@ -1713,17 +1697,32 @@ public class Gen extends JCTree.Visitor {
                         }
                     }
                 }
-                VarSymbol exparam = tree.param.sym;
-                code.statBegin(tree.pos);
-                code.markStatBegin();
-                int limit = code.nextreg;
-                code.newLocal(exparam);
-                items.makeLocalItem(exparam).store();
-                code.statBegin(TreeInfo.firstStatPos(tree.body));
-                genStat(tree.body, env, CRT_BLOCK);
-                code.endScopes(limit);
-                code.statBegin(TreeInfo.endPos(tree.body));
+                genCatchBlock(tree, env);
             }
+        }
+        void genPatternMatchingCatch(JCCatch tree,
+                                     Env<GenContext> env,
+                                     List<int[]> ranges) {
+            for (int[] range : ranges) {
+                JCExpression subCatch = tree.param.vartype;
+                int catchType = makeRef(tree.pos(), subCatch.type);
+                registerCatch(tree.pos(),
+                              range[0], range[1], code.curCP(),
+                              catchType);
+            }
+            genCatchBlock(tree, env);
+        }
+        void genCatchBlock(JCCatch tree, Env<GenContext> env) {
+            VarSymbol exparam = tree.param.sym;
+            code.statBegin(tree.pos);
+            code.markStatBegin();
+            int limit = code.nextreg;
+            code.newLocal(exparam);
+            items.makeLocalItem(exparam).store();
+            code.statBegin(TreeInfo.firstStatPos(tree.body));
+            genStat(tree.body, env, CRT_BLOCK);
+            code.endScopes(limit);
+            code.statBegin(TreeInfo.endPos(tree.body));
         }
         // where
         List<Pair<List<Attribute.TypeCompound>, JCExpression>> catchTypesWithAnnotations(JCCatch tree) {
@@ -1941,7 +1940,13 @@ public class Gen extends JCTree.Visitor {
         if (!msym.isDynamic()) {
             code.statBegin(tree.pos);
         }
-        result = m.invoke();
+        if (invocationsWithPatternMatchingCatch.contains(tree)) {
+            int start = code.curCP();
+            result = m.invoke();
+            patternMatchingInvocationRanges.add(new int[] {start, code.curCP()});
+        } else {
+            result = m.invoke();
+        }
     }
 
     public void visitConditional(JCConditional tree) {
@@ -2026,7 +2031,6 @@ public class Gen extends JCTree.Visitor {
         genArgs(tree.args, tree.constructor.externalType(types).getParameterTypes());
 
         items.makeMemberItem(tree.constructor, true).invoke();
-
         result = items.makeStackItem(tree.type);
     }
 
@@ -2344,11 +2348,11 @@ public class Gen extends JCTree.Visitor {
             result = items.makeLocalItem((VarSymbol)sym);
         } else if ((sym.flags() & STATIC) != 0) {
             if (!isAccessSuper(env.enclMethod))
-                sym = binaryQualifier(sym, env.enclClass.type);
+                sym = types.binaryQualifier(sym, env.enclClass.type);
             result = items.makeStaticItem(sym);
         } else {
             items.makeThisItem().load();
-            sym = binaryQualifier(sym, env.enclClass.type);
+            sym = types.binaryQualifier(sym, env.enclClass.type);
             result = items.makeMemberItem(sym, nonVirtualForPrivateAccess(sym));
         }
     }
@@ -2401,7 +2405,7 @@ public class Gen extends JCTree.Visitor {
                 result = items.makeDynamicItem(sym);
                 return;
             } else {
-                sym = binaryQualifier(sym, tree.selected.type);
+                sym = types.binaryQualifier(sym, tree.selected.type);
             }
             if ((sym.flags() & STATIC) != 0) {
                 if (!selectSuper && (ssym == null || ssym.kind != TYP))
@@ -2520,7 +2524,7 @@ public class Gen extends JCTree.Visitor {
             toplevel = null;
             endPosTable = null;
             nerrs = 0;
-            qualifiedSymbolCache.clear();
+            types.clearQualifiedSymbolCache();
         }
     }
 

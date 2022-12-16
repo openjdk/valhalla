@@ -30,7 +30,7 @@
  * @compile NeutralInterface.java ValueInterface.java IdentityInterface.java
  * @compile NeutralAbstract.java ValueAbstract.java IdentityAbstract.java AbstractWithField.java AbstractWithSynchMethod.java
  * @compile ClassesWithInvalidModifiers.jcod
- * @run main/othervm -verify TestClassModifiers
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses -verify TestClassModifiers
  */
 
 import jdk.test.lib.Asserts;
