@@ -30,6 +30,8 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
 import java.lang.reflect.Modifier;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,6 +84,28 @@ final class ValueObjectMethods {
     private static final JavaLangInvokeAccess JLIA = SharedSecrets.getJavaLangInvokeAccess();
 
     static class MethodHandleBuilder {
+        private static final HashMap<Class<?>, MethodHandle> primitiveSubstitutable = new HashMap<>();
+
+        static {
+            try {
+                MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+                @SuppressWarnings("removal")
+                ClassLoader loader = AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+                    @Override public ClassLoader run() { return ClassLoader.getPlatformClassLoader(); }
+                });
+
+                primitiveSubstitutable.putAll(primitiveEquals); // adopt all the primitive eq methods
+                primitiveSubstitutable.put(float.class, lookup.findStatic(MethodHandleBuilder.class, "eqValue",
+                        MethodType.fromMethodDescriptorString("(FF)Z", loader)));
+                primitiveSubstitutable.put(double.class, lookup.findStatic(MethodHandleBuilder.class, "eqValue",
+                        MethodType.fromMethodDescriptorString("(DD)Z", loader)));
+
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         static Stream<MethodHandle> getterStream(Class<?> type, Comparator<MethodHandle> comparator) {
             // filter static fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
@@ -108,8 +132,8 @@ final class ValueObjectMethods {
             }
         }
 
-        static MethodHandle builtinPrimitiveEquals(Class<?> type) {
-            return primitiveEquals.get(type);
+        static MethodHandle builtinPrimitiveSubstitutable(Class<?> type) {
+            return primitiveSubstitutable.get(type);
         }
 
         /*
@@ -309,6 +333,14 @@ final class ValueObjectMethods {
 
         private static final MethodHandle FALSE = constant(boolean.class, false);
         private static final MethodHandle TRUE = constant(boolean.class, true);
+        // Substitutability test for float
+        private static boolean eqValue(float a, float b) {
+            return Float.floatToRawIntBits(a) == Float.floatToRawIntBits(b);
+        }
+        // Substitutability test for double
+        private static boolean eqValue(double a, double b) {
+            return Double.doubleToRawLongBits(a) == Double.doubleToRawLongBits(b);
+        }
         private static final MethodHandle OBJECT_EQUALS =
                 findStatic("eq", methodType(boolean.class, Object.class, Object.class));
         private static final MethodHandle IS_SAME_VALUE_CLASS =
@@ -1054,13 +1086,9 @@ final class ValueObjectMethods {
      * <li>If {@code a} and {@code b} are both values of the same builtin primitive type,
      *     this method returns {@code a == b} with the following exception:
      *     <ul>
-     *     <li> If {@code a} and {@code b} both represent {@code NaN},
-     *          this method returns {@code true}, even though {@code NaN == NaN}
-     *          has the value {@code false}.
-     *     <li> If {@code a} is floating point positive zero while {@code b} is
-     *          floating point negative zero, or vice versa, this method
-     *          returns {@code false}, even though {@code +0.0 == -0.0} has
-     *          the value {@code true}.
+     *     <li> For primitive types {@code float} and {@code double} the
+     *          comparison uses the raw bits corresponding to {@link Float#floatToRawIntBits(float)}
+     *          and {@link Double#doubleToRawLongBits(double)} respectively.
      *     </ul>
      * <li>If {@code a} and {@code b} are both instances of the same reference type,
      *     this method returns {@code a == b}.
@@ -1104,8 +1132,8 @@ final class ValueObjectMethods {
      * @return {@code true} if the arguments are substitutable to each other;
      *         {@code false} otherwise.
      * @param <T> type
-     * @see Float#equals(Object)
-     * @see Double#equals(Object)
+     * @see Float#floatToRawIntBits(float)
+     * @see Double#doubleToRawLongBits(double)
      */
     private static <T> boolean isSubstitutable(T a, Object b) {
         if (VERBOSE) {
@@ -1142,8 +1170,8 @@ final class ValueObjectMethods {
      *     returns a method handle testing the two arguments are the same value,
      *     i.e. {@code a == b}.
      * <li>If {@code T} is {@code float} or {@code double}, this method
-     *     returns a method handle representing {@link Float#equals(Object)} or
-     *     {@link Double#equals(Object)} respectively.
+     *     returns a method handle representing {@link Float#floatToRawIntBits(float)} or
+     *     {@link Double#doubleToRawLongBits(double)} respectively.
      * <li>If {@code T} is a reference type that is not {@code Object} and not an
      *     interface, this method returns a method handle testing
      *     the two arguments are the same reference, i.e. {@code a == b}.
@@ -1164,7 +1192,7 @@ final class ValueObjectMethods {
      */
     private static <T> MethodHandle substitutableInvoker(Class<T> type) {
         if (type.isPrimitive()) {
-            return MethodHandleBuilder.builtinPrimitiveEquals(type);
+            return MethodHandleBuilder.builtinPrimitiveSubstitutable(type);
         }
         if (type.isValue()) {
             return SUBST_TEST_METHOD_HANDLES.get(type);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -91,6 +91,32 @@ public class SubstitutabilityTest {
         }
     }
 
+    @ImplicitlyConstructible
+    static value class MyFloat {
+        public static float NaN1 = Float.intBitsToFloat(0x7ff00001);
+        public static float NaN2 = Float.intBitsToFloat(0x7ff00002);
+        float x;
+        MyFloat(float x) {
+            this.x = x;
+        }
+        public String toString() {
+            return Float.toString(x);
+        }
+    }
+
+    @ImplicitlyConstructible
+    static value class MyDouble {
+        public static double NaN1 = Double.longBitsToDouble(0x7ff0000000000001L);
+        public static double NaN2 = Double.longBitsToDouble(0x7ff0000000000002L);
+        double x;
+        MyDouble(double x) {
+            this.x = x;
+        }
+        public String toString() {
+            return Double.toString(x);
+        }
+    }
+
     static Stream<Arguments> substitutableCases() {
         Point p1 = new Point(10, 10);
         Point p2 = new Point(20, 20);
@@ -101,6 +127,10 @@ public class SubstitutabilityTest {
         MyValue2 value3 = new MyValue2(3);
         MyValue[] va = new MyValue[1];
         return Stream.of(
+                Arguments.of(new MyFloat(1.0f), new MyFloat(1.0f)),
+                Arguments.of(new MyDouble(1.0), new MyDouble(1.0)),
+                Arguments.of(new MyFloat(Float.NaN), new MyFloat(Float.NaN)),
+                Arguments.of(new MyDouble(Double.NaN), new MyDouble(Double.NaN)),
                 Arguments.of(p1, new Point(10, 10)),
                 Arguments.of(p2, new Point(20, 20)),
                 Arguments.of(l1, new Line(10,10, 20,20)),
@@ -121,6 +151,10 @@ public class SubstitutabilityTest {
         MyValue[] va = new MyValue[] { ValueClass.zeroInstance(MyValue.class) };
         Object[] oa = new Object[] { va };
         return Stream.of(
+                Arguments.of(new MyFloat(1.0f), new MyFloat(2.0f)),
+                Arguments.of(new MyDouble(1.0), new MyDouble(2.0)),
+                Arguments.of(new MyFloat(MyFloat.NaN1), new MyFloat(MyFloat.NaN2)),
+                Arguments.of(new MyDouble(MyDouble.NaN1), new MyDouble(MyDouble.NaN2)),
                 Arguments.of(new Point(10, 10), new Point(20, 20)),
                 /*
                  * Verify ValueObjectMethods::isSubstitutable that does not
