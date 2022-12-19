@@ -45,7 +45,7 @@
 class PrimitiveUsersField {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -120,7 +120,7 @@ class PrimitiveUsersField {
 class PrimitiveUsersStaticQArg {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -211,7 +211,7 @@ class PrimitiveUsersStaticQArg {
 class PrimitiveUsersStaticQReturn {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -304,7 +304,7 @@ class PrimitiveUsersStaticQReturn {
 class PrimitiveUsersQArg {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -395,7 +395,7 @@ class PrimitiveUsersQArg {
 class PrimitiveUsersQReturn {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1
@@ -489,7 +489,7 @@ class PrimitiveUsersQReturn {
 class MyPrimitive {
   0xCAFEBABE;
   0; // minor version
-  64; // version
+  65; // version
   [] { // Constant Pool
     ; // first element is empty
     Method #2 #3; // #1

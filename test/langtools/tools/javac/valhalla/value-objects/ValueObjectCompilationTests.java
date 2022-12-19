@@ -64,8 +64,6 @@ import toolbox.ToolBox;
 @Test
 public class ValueObjectCompilationTests extends CompilationTestCase {
 
-    ToolBox tb = new ToolBox();
-
     public ValueObjectCompilationTests() {
         setDefaultFilename("ValueObjectsTest.java");
     }

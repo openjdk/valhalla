@@ -36,7 +36,7 @@ import java.util.Arrays;
 
 import jdk.internal.value.PrimitiveClass;
 
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*

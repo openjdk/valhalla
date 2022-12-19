@@ -23,7 +23,7 @@
  */
 
 public final primitive value class compiler/valhalla/inlinetypes/MyValue1
-    version 64:0
+    version 65:0
 {
     static Field cnt:I;
     final Field x:I;
@@ -77,7 +77,7 @@ public final primitive value class compiler/valhalla/inlinetypes/MyValue1
 }
 
 public final primitive value class compiler/valhalla/inlinetypes/MyValue2
-    version 64:0
+    version 65:0
 {
     static Field cnt:I;
     final Field x:I;

@@ -46,8 +46,8 @@ import sun.security.util.SecurityConstants;
 
 import java.lang.constant.ConstantDescs;
 import java.lang.foreign.GroupLayout;
-import java.lang.foreign.MemoryAddress;
 import java.lang.foreign.MemoryLayout;
+import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.LambdaForm.BasicType;
 import java.lang.reflect.Constructor;
@@ -3453,11 +3453,11 @@ return mh1;
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
             Class<?> defc = c.getDeclaringClass();
             if (ctor.isObjectConstructor()) {
-                assert(ctor.getReturnType() == void.class);
+                assert(ctor.getMethodType().returnType() == void.class);
                 return lookup.getDirectConstructorNoSecurityManager(defc, ctor);
             } else {
                 // static init factory is a static method
-                assert(ctor.isMethod() && ctor.getReturnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
+                assert(ctor.isMethod() && ctor.getMethodType().returnType() == defc && ctor.getReferenceKind() == REF_invokeStatic) : ctor.toString();
                 assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
                 return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), defc, ctor, lookup);
             }
@@ -7947,21 +7947,21 @@ assertEquals("boojum", (String) catTrace.invokeExact("boo", "jum"));
      *     access modes {@code get} and {@code set} for {@code long} and
      *     {@code double} on 32-bit platforms.
      * <li>atomic update access modes for {@code int}, {@code long},
-     *     {@code float}, {@code double} or {@link MemoryAddress}.
+     *     {@code float}, {@code double} or {@link MemorySegment}.
      *     (Future major platform releases of the JDK may support additional
      *     types for certain currently unsupported access modes.)
-     * <li>numeric atomic update access modes for {@code int}, {@code long} and {@link MemoryAddress}.
+     * <li>numeric atomic update access modes for {@code int}, {@code long} and {@link MemorySegment}.
      *     (Future major platform releases of the JDK may support additional
      *     numeric types for certain currently unsupported access modes.)
-     * <li>bitwise atomic update access modes for {@code int}, {@code long} and {@link MemoryAddress}.
+     * <li>bitwise atomic update access modes for {@code int}, {@code long} and {@link MemorySegment}.
      *     (Future major platform releases of the JDK may support additional
      *     numeric types for certain currently unsupported access modes.)
      * </ul>
      *
-     * If {@code T} is {@code float}, {@code double} or {@link MemoryAddress} then atomic
+     * If {@code T} is {@code float}, {@code double} or {@link MemorySegment} then atomic
      * update access modes compare values using their bitwise representation
      * (see {@link Float#floatToRawIntBits},
-     * {@link Double#doubleToRawLongBits} and {@link MemoryAddress#toRawLongValue()}, respectively).
+     * {@link Double#doubleToRawLongBits} and {@link MemorySegment#address()}, respectively).
      * <p>
      * Alternatively, a memory access operation is <em>partially aligned</em> if it occurs at a memory address {@code A}
      * which is only compatible with the alignment constraint {@code B}; in such cases, access for anything other than the
