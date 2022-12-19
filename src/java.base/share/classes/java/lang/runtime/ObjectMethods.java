@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -179,8 +179,12 @@ public class ObjectMethods {
     private static boolean eq(char a, char b) { return a == b; }
     private static boolean eq(int a, int b) { return a == b; }
     private static boolean eq(long a, long b) { return a == b; }
-    private static boolean eq(float a, float b) { return Float.compare(a, b) == 0; }
-    private static boolean eq(double a, double b) { return Double.compare(a, b) == 0; }
+    private static boolean eq(float a, float b) {
+        return Float.floatToRawIntBits(a) == Float.floatToRawIntBits(b);
+    }
+    private static boolean eq(double a, double b) {
+        return Double.doubleToRawLongBits(a) == Double.doubleToRawLongBits(b);
+    }
     private static boolean eq(boolean a, boolean b) { return a == b; }
 
     /** Get the method handle for combining two values of a given type */
