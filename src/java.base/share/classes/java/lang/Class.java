@@ -94,6 +94,8 @@ import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
 
+import static java.lang.reflect.ClassFileFormatVersion.RELEASE_17;
+
 /**
  * Instances of the class {@code Class} represent classes and
  * interfaces in a running Java application. An enum class and a record
@@ -1492,6 +1494,7 @@ public final class Class<T> implements java.io.Serializable,
    /**
      * {@return an unmodifiable set of the {@linkplain AccessFlag access
      * flags} for this class, possibly empty}
+     * The {@code AccessFlags} may depend on the class file format version of the class.
      *
      * <p> If the underlying class is an array class:
      * <ul>
@@ -1521,12 +1524,14 @@ public final class Class<T> implements java.io.Serializable,
                         isAnonymousClass() || isArray()) ?
             AccessFlag.Location.INNER_CLASS :
             AccessFlag.Location.CLASS;
+        int accessFlags = (location == AccessFlag.Location.CLASS) ?
+                getClassAccessFlagsRaw() : getModifiers();
         var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
-        return AccessFlag.maskToAccessFlags((location == AccessFlag.Location.CLASS) ?
-                                            getClassAccessFlagsRaw() & (~0x800) :
-                                            getModifiers() & (~0x800), // suppress unspecified bit
-                                            location,
-                                            cffv);
+        if (cffv.compareTo(RELEASE_17) >= 0) {
+            // For 17 and later ignore unspecified (0x800) access flag
+            accessFlags &= ~0x0800;
+        }
+        return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
     }
 
    /**

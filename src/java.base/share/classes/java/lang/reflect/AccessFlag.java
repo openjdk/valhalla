@@ -195,7 +195,7 @@ public enum AccessFlag {
             new Function<ClassFileFormatVersion, Set<Location>>() {
             @Override
             public Set<Location> apply(ClassFileFormatVersion cffv) {
-                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_20) >= 0 &&
+                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
                         ValhallaFeatures.isEnabled()) ?
                         Location.SET_CLASS_SUPER_VALHALLA :
                         Location.SET_CLASS;}
@@ -211,7 +211,7 @@ public enum AccessFlag {
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
                 public Set<Location> apply(ClassFileFormatVersion cffv) {
-                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_20) >= 0 &&
+                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
                             ValhallaFeatures.isEnabled()) ?
                             Location.SET_CLASS_IDENTITY_VALHALLA :
                             Location.EMPTY_SET;}
@@ -280,6 +280,7 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#VOLATILE}</code>.
      */
     VOLATILE(Modifier.VOLATILE, true, Location.SET_FIELD, null),
+
     /**
      * The access flag {@code ACC_BRIDGE} with a mask value of
      * <code>{@value "0x%04x" Modifier#BRIDGE}</code>
@@ -522,7 +523,7 @@ public enum AccessFlag {
      * @param mask bit mask of access flags
      * @param location context to interpret mask value
      * @throws IllegalArgumentException if the mask contains bit
-     * positions not support for the location in question
+     * positions not supported for the location in question
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
         Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
@@ -556,11 +557,6 @@ public enum AccessFlag {
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location,
                                                     ClassFileFormatVersion cffv) {
-        if (cffv == ClassFileFormatVersion.latest()) {
-            // for the current version use the precomputed locations
-            return maskToAccessFlags(mask, location);
-        }
-
         Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
         for (var accessFlag : AccessFlag.values()) {
             int accessMask = accessFlag.mask();
