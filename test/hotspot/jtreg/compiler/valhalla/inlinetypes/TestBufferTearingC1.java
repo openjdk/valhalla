@@ -29,7 +29,8 @@ package compiler.valhalla.inlinetypes;
  * @key randomness
  * @summary Additional tests for C1 missing barriers when buffering inline types.
  * @compile -XDenablePrimitiveClasses TestBufferTearingC1.java
- * @run main/othervm -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:InlineFieldMaxFlatSize=-1 -XX:FlatArrayElementMaxSize=-1
  *                   -XX:TieredStopAtLevel=1
  *                   compiler.valhalla.inlinetypes.TestBufferTearingC1
  */

@@ -998,10 +998,8 @@ public class TypeEnter implements Completer {
 
                     memberEnter.memberEnter(field, env);
 
-                    sym.createRecordComponent(rc, field,
-                            field.mods.annotations.isEmpty() ?
-                                    List.nil() :
-                                    new TreeCopier<JCTree>(make.at(field.pos)).copy(field.mods.annotations));
+                    JCVariableDecl rcDecl = new TreeCopier<JCTree>(make.at(field.pos)).copy(field);
+                    sym.createRecordComponent(rc, rcDecl, field.sym);
                 }
 
                 enterThisAndSuper(sym, env);
@@ -1151,7 +1149,7 @@ public class TypeEnter implements Completer {
                         case MTH:
                             if ((s.flags() & (SYNCHRONIZED | STATIC)) == SYNCHRONIZED) {
                                 return true;
-                            } else if (s.isConstructor()) {
+                            } else if (s.isInitOrVNew()) {
                                 MethodSymbol m = (MethodSymbol)s;
                                 if (m.getParameters().size() > 0
                                         || m.getTypeParameters().size() > 0
@@ -1361,7 +1359,8 @@ public class TypeEnter implements Completer {
                 } else {
                     flags = (owner().flags() & AccessFlags) | GENERATEDCONSTR;
                 }
-                constructorSymbol = new MethodSymbol(flags, names.init,
+                Name constructorName = owner().isConcreteValueClass() ? names.vnew : names.init;
+                constructorSymbol = new MethodSymbol(flags, constructorName,
                     constructorType(), owner());
             }
             return constructorSymbol;
@@ -1474,7 +1473,7 @@ public class TypeEnter implements Completer {
             /* if we have to generate a default constructor for records we will treat it as the compact one
              * to trigger field initialization later on
              */
-            csym.flags_field |= Flags.COMPACT_RECORD_CONSTRUCTOR | GENERATEDCONSTR;
+            csym.flags_field |= GENERATEDCONSTR;
             ListBuffer<VarSymbol> params = new ListBuffer<>();
             JCVariableDecl lastField = recordFieldDecls.last();
             for (JCVariableDecl field : recordFieldDecls) {

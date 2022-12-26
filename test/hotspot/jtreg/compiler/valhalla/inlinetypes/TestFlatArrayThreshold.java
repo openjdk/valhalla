@@ -26,9 +26,9 @@
  * @summary Test accessing inline type arrays that exceed the flattening threshold.
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses TestFlatArrayThreshold.java
- * @run main/othervm -Xbatch TestFlatArrayThreshold
- * @run main/othervm -XX:FlatArrayElementMaxOops=1 -Xbatch TestFlatArrayThreshold
- * @run main/othervm -XX:FlatArrayElementMaxSize=1 -Xbatch TestFlatArrayThreshold
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -Xbatch TestFlatArrayThreshold
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxOops=1 -Xbatch TestFlatArrayThreshold
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=1 -Xbatch TestFlatArrayThreshold
  */
 
 import jdk.test.lib.Asserts;

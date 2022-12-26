@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @build org.openjdk.asmtools.* org.openjdk.asmtools.jasm.*
  * @run driver org.openjdk.asmtools.JtregDriver jasm -strict WithFieldTestClasses.jasm
  * @compile -XDenablePrimitiveClasses Point.java WithFieldTest.java
- * @run main runtime.valhalla.inlinetypes.WithFieldTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.WithFieldTest
  */
 
 public class WithFieldTest {

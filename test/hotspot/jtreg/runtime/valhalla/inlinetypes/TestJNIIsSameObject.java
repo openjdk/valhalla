@@ -32,7 +32,7 @@ import jdk.test.lib.Asserts;
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @requires (os.family == "linux" | os.family == "mac")
  * @compile -XDenablePrimitiveClasses TestJNIIsSameObject.java
- * @run main/othervm/native TestJNIIsSameObject
+ * @run main/othervm/native -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestJNIIsSameObject
  */
 
 /** test was failing before adding the -XDenablePrimitiveClasses option, but the option should stay as it declares a primitive class  */

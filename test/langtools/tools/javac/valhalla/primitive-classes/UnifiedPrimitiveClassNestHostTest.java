@@ -29,7 +29,7 @@
  * @summary Experimental support for generating a single class file per primitive class
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses UnifiedPrimitiveClassNestHostTest.java
- * @run main UnifiedPrimitiveClassNestHostTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses UnifiedPrimitiveClassNestHostTest
  */
 
 import java.util.Arrays;

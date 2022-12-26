@@ -1,4 +1,0 @@
-- compiler.warn.source.no.system.modules.path: 16
-PrimitiveAsTypeName.java:12:24: compiler.err.primitive.classes.not.supported: 19
-1 error
-1 warning

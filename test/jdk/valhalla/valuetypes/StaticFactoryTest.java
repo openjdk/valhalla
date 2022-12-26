@@ -27,7 +27,7 @@
  * @bug 8273360
  * @summary Test reflection of constructors for value classes
  * @compile -XDenablePrimitiveClasses StaticFactoryTest.java
- * @run testng/othervm StaticFactoryTest
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StaticFactoryTest
  */
 
 import java.lang.reflect.Constructor;
@@ -97,7 +97,9 @@ public final identity class StaticFactoryTest {
 
     @Test(dataProvider = "classes")
     public void testConstructor(Class<?> c, boolean isIdentityClass,
-                                boolean isValueClass, boolean isPrimitiveClass) throws ReflectiveOperationException {
+                                boolean isValueClass, boolean isPrimitiveClass)
+            throws ReflectiveOperationException
+    {
         String cn = c.getName();
         Class<?> clz = Class.forName(cn);
         System.out.printf("cn: %s, mod: 0x%04X%n", cn, c.getModifiers());

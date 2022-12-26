@@ -29,6 +29,8 @@ import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 
+import java.lang.constant.ClassDesc;
+
 /**
  * Utilities to access Primitive Classes as described in JEP 401.
  */
@@ -144,5 +146,16 @@ public class PrimitiveClass {
      */
     public static boolean isPrimitiveClass(Class<?> aClass) {
         return javaLangAccess.isPrimitiveClass(aClass);
+    }
+
+    /**
+     * Returns whether this {@linkplain ClassDesc} describes a
+     * {@linkplain #isPrimitiveValueType(Class)}  primitive value type}.
+     *
+     * @return whether this {@linkplain ClassDesc} describes a primitive value type.
+     * @since Valhalla
+     */
+    public static boolean isPrimitiveValueClassDesc(ClassDesc classDesc) {
+        return classDesc.descriptorString().startsWith("Q");
     }
 }

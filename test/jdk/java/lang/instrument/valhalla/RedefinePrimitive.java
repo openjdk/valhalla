@@ -28,7 +28,7 @@
  * @summary [lworld] Primitive classes can't be retransformed
  * @modules java.instrument
  * @compile -XDenablePrimitiveClasses RedefinePrimitive.java
- * @run driver RedefinePrimitive master
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses RedefinePrimitive master
  */
 
 import java.io.File;
@@ -306,6 +306,7 @@ public class RedefinePrimitive {
                 log("Starting " + tests[i].name + "...");
                 ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                         "-javaagent:redefineagent.jar",
+                        "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                         getPropOpt("test.jdk"),
                         getPropOpt("test.classes"),
                         getPropOpt("test.java.opts"),

@@ -106,16 +106,10 @@ import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Notes;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
 import com.sun.tools.javac.tree.DCTree;
-import com.sun.tools.javac.tree.DCTree.DCBlockTag;
-import com.sun.tools.javac.tree.DCTree.DCComment;
 import com.sun.tools.javac.tree.DCTree.DCDocComment;
-import com.sun.tools.javac.tree.DCTree.DCEndPosTree;
-import com.sun.tools.javac.tree.DCTree.DCEntity;
-import com.sun.tools.javac.tree.DCTree.DCErroneous;
 import com.sun.tools.javac.tree.DCTree.DCIdentifier;
 import com.sun.tools.javac.tree.DCTree.DCParam;
 import com.sun.tools.javac.tree.DCTree.DCReference;
-import com.sun.tools.javac.tree.DCTree.DCText;
 import com.sun.tools.javac.tree.DocCommentTable;
 import com.sun.tools.javac.tree.DocTreeMaker;
 import com.sun.tools.javac.tree.EndPosTable;
@@ -615,7 +609,8 @@ public class JavacTrees extends DocTrees {
     }
 
     MethodSymbol findConstructor(ClassSymbol tsym, List<Type> paramTypes, boolean strict) {
-        for (Symbol sym : tsym.members().getSymbolsByName(names.init)) {
+        Name constructorName = tsym.isConcreteValueClass() ? names.vnew : names.init;
+        for (Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
             if (sym.kind == MTH) {
                 if (hasParameterTypes((MethodSymbol) sym, paramTypes, strict)) {
                     return (MethodSymbol) sym;
@@ -635,7 +630,7 @@ public class JavacTrees extends DocTrees {
         //### Note that this search is not necessarily what the compiler would do!
 
         // do not match constructors
-        if (methodName == names.init)
+        if (names.isInitOrVNew(methodName))
             return null;
 
         if (searched.contains(tsym))

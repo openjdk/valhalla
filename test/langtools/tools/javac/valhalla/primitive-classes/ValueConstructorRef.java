@@ -26,7 +26,7 @@
  * @bug 8198749
  * @summary Test that qualified this based access to instance fields works ok.
  * @compile -XDenablePrimitiveClasses ValueConstructorRef.java
- * @run main/othervm ValueConstructorRef
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ValueConstructorRef
  */
 
 import java.util.function.Supplier;

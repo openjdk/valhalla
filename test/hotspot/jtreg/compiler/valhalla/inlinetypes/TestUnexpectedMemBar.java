@@ -27,17 +27,20 @@
  * @summary Membars of non-escaping inline type buffer allocations should be removed.
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses TestUnexpectedMemBar.java
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks
  *                   -XX:+AlwaysIncrementalInline -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM -XX:StressSeed=851121348
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -XX:-TieredCompilation -XX:-ReduceInitialCardMarks -XX:+AlwaysIncrementalInline
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                   -Xbatch -XX:CompileCommand=compileonly,*TestUnexpectedMemBar::test*
  *                   -XX:+StressIGVN -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.inlinetypes.TestUnexpectedMemBar

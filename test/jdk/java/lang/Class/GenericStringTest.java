@@ -27,7 +27,7 @@
  * @summary Check Class.toGenericString()
  * @author Joseph D. Darcy
  * @compile -XDenablePrimitiveClasses GenericStringTest.java
- * @run main GenericStringTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericStringTest
  */
 
 import java.lang.reflect.*;

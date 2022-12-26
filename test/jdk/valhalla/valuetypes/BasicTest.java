@@ -26,7 +26,7 @@
  * @test
  * @summary test reflection on primitive classes
  * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses BasicTest.java
- * @run testng/othervm --enable-preview BasicTest
+ * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses BasicTest
  */
 
 import org.testng.annotations.DataProvider;

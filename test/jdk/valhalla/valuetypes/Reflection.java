@@ -26,7 +26,7 @@
  * @test
  * @summary test reflection on primitive classes
  * @compile --enable-preview --source ${jdk.version} -XDenablePrimitiveClasses Reflection.java
- * @run testng/othervm --enable-preview Reflection
+ * @run testng/othervm --enable-preview -XX:+EnableValhalla -XX:+EnablePrimitiveClasses Reflection
  */
 
 import java.lang.constant.ClassDesc;

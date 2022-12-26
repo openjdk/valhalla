@@ -70,15 +70,6 @@ Node* SubNode::Identity(PhaseGVN* phase) {
     if (in(1)->in(1) == in(2)) {
       return in(1)->in(2);
     }
-
-    // Also catch: "(X + Opaque2(Y)) - Y".  In this case, 'Y' is a loop-varying
-    // trip counter and X is likely to be loop-invariant (that's how O2 Nodes
-    // are originally used, although the optimizer sometimes jiggers things).
-    // This folding through an O2 removes a loop-exit use of a loop-varying
-    // value and generally lowers register pressure in and around the loop.
-    if (in(1)->in(2)->Opcode() == Op_Opaque2 && in(1)->in(2)->in(1) == in(2)) {
-      return in(1)->in(1);
-    }
   }
 
   return ( phase->type( in(2) )->higher_equal( zero ) ) ? in(1) : this;
@@ -1107,10 +1098,10 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // TODO 8284443 in(1) could be cast?
-  if (in(1)->is_InlineTypePtr() && phase->type(in(2))->is_zero_type()) {
+  if (in(1)->is_InlineType() && phase->type(in(2))->is_zero_type()) {
     // Null checking a scalarized but nullable inline type. Check the IsInit
     // input instead of the oop input to avoid keeping buffer allocations alive.
-    return new CmpINode(in(1)->as_InlineTypePtr()->get_is_init(), phase->intcon(0));
+    return new CmpINode(in(1)->as_InlineType()->get_is_init(), phase->intcon(0));
   }
 
   // Normalize comparisons between Java mirrors into comparisons of the low-
@@ -1553,7 +1544,7 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Move constants to the right of compare's to canonicalize.
   // Do not muck with Opaque1 nodes, as this indicates a loop
   // guard that cannot change shape.
-  if( con->is_Con() && !cmp2->is_Con() && cmp2_op != Op_Opaque1 &&
+  if (con->is_Con() && !cmp2->is_Con() && cmp2_op != Op_OpaqueZeroTripGuard &&
       // Because of NaN's, CmpD and CmpF are not commutative
       cop != Op_CmpD && cop != Op_CmpF &&
       // Protect against swapping inputs to a compare when it is used by a

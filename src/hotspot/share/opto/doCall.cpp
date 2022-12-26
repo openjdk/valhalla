@@ -569,12 +569,7 @@ void Parse::do_call() {
   ciKlass* speculative_receiver_type = NULL;
   if (is_virtual_or_interface) {
     Node* receiver_node             = stack(sp() - nargs);
-    const TypeOopPtr* receiver_type = NULL;
-    if (receiver_node->is_InlineType()) {
-      receiver_type = TypeInstPtr::make(TypePtr::NotNull, _gvn.type(receiver_node)->inline_klass());
-    } else {
-      receiver_type = _gvn.type(receiver_node)->isa_oopptr();
-    }
+    const TypeOopPtr* receiver_type = _gvn.type(receiver_node)->isa_oopptr();
     // call_does_dispatch and vtable_index are out-parameters.  They might be changed.
     // For arrays, klass below is Object. When vtable calls are used,
     // resolving the call with Object would allow an illegal call to
@@ -659,7 +654,7 @@ void Parse::do_call() {
   Node* receiver = has_receiver ? argument(0) : NULL;
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
-  if (receiver != NULL && !receiver->is_InlineType() && !call_does_dispatch && !cg->is_string_late_inline()) {
+  if (receiver != NULL && !call_does_dispatch && !cg->is_string_late_inline()) {
     // Feed profiling data for a single receiver to the type system so
     // it can propagate it as a speculative type
     receiver = record_profiled_receiver_for_speculation(receiver);
@@ -735,7 +730,7 @@ void Parse::do_call() {
             if (declared_signature->returns_null_free_inline_type()) {
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_InlineType()) {
+            if (arg_type != NULL && !arg_type->higher_equal(sig_type)) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               push(cast_obj);
@@ -781,7 +776,7 @@ void Parse::do_call() {
     if (is_reference_type(ct)) {
       record_profiled_return_for_speculation();
     }
-    if (rtype->basic_type() == T_PRIMITIVE_OBJECT && !peek()->is_InlineTypeBase()) {
+    if (rtype->basic_type() == T_PRIMITIVE_OBJECT && !peek()->is_InlineType()) {
       Node* retnode = pop();
       retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass(), !gvn().type(retnode)->maybe_null());
       push_node(T_PRIMITIVE_OBJECT, retnode);

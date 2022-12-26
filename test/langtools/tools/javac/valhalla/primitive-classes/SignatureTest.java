@@ -29,7 +29,7 @@
  * @summary Incorrect Signature attribute in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses SignatureTest.java
- * @run main SignatureTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SignatureTest
  */
 
 import com.sun.tools.classfile.*;

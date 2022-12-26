@@ -32,6 +32,7 @@ import javax.tools.JavaFileObject;
 
 import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.RecordComponent;
 import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.CapturedType;
@@ -84,6 +85,7 @@ import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Log;
 import com.sun.tools.javac.util.Names;
 
+import static com.sun.tools.javac.code.Flags.RECORD;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
 
 /**
@@ -214,7 +216,7 @@ public class TypeAnnotations {
                 return AnnotationType.DECLARATION;
         } else if (e.value.name == names.METHOD) {
             if (s.kind == MTH &&
-                    !s.isConstructor())
+                    !s.isInitOrVNew())
                 return AnnotationType.DECLARATION;
         } else if (e.value.name == names.PARAMETER) {
             if (s.kind == VAR &&
@@ -240,9 +242,9 @@ public class TypeAnnotations {
         } else if (e.value.name == names.TYPE_USE) {
             if (s.kind == TYP ||
                     s.kind == VAR ||
-                    (s.kind == MTH && !s.isConstructor() &&
+                    (s.kind == MTH && !s.isInitOrVNew() &&
                     !s.type.getReturnType().hasTag(TypeTag.VOID)) ||
-                    (s.kind == MTH && s.isConstructor()))
+                    (s.kind == MTH && s.isInitOrVNew()))
                 return AnnotationType.TYPE;
         } else if (e.value.name == names.TYPE_PARAMETER) {
             /* Irrelevant in this case */
@@ -1053,7 +1055,7 @@ public class TypeAnnotations {
                     final int type_index = invocation.typeargs.indexOf(tree);
                     if (exsym == null) {
                         throw new AssertionError("could not determine symbol for {" + invocation + "}");
-                    } else if (exsym.isConstructor()) {
+                    } else if (exsym.isInitOrVNew()) {
                         return TypeAnnotationPosition
                             .constructorInvocationTypeArg(location.toList(),
                                                           currentLambda,
@@ -1084,7 +1086,11 @@ public class TypeAnnotations {
                                         newPath, currentLambda,
                                         outer_type_index, location);
                 }
-
+                case DECONSTRUCTION_PATTERN: {
+                    // TODO: Treat case labels as full type contexts for complete type annotation support in Record Patterns
+                    //    https://bugs.openjdk.org/browse/JDK-8298154
+                    return TypeAnnotationPosition.unknown;
+                }
                 default:
                     throw new AssertionError("Unresolved frame: " + frame +
                                              " of kind: " + frame.getKind() +
@@ -1156,7 +1162,7 @@ public class TypeAnnotations {
             }
             if (sigOnly) {
                 if (!tree.mods.annotations.isEmpty()) {
-                    if (tree.sym.isConstructor()) {
+                    if (tree.sym.isInitOrVNew()) {
                         final TypeAnnotationPosition pos =
                             TypeAnnotationPosition.methodReturn(tree.pos);
                         // Use null to mark that the annotations go
@@ -1301,6 +1307,16 @@ public class TypeAnnotations {
             scan(tree.vartype);
             if (!sigOnly) {
                 scan(tree.init);
+            }
+
+            // Now that type and declaration annotations have been segregated into their own buckets ...
+            if (sigOnly) {
+                if (tree.sym != null && tree.sym.getKind() == ElementKind.FIELD && (tree.sym.flags_field & RECORD) != 0) {
+                    RecordComponent rc = ((ClassSymbol)tree.sym.owner).getRecordComponent(tree.sym);
+                    rc.setTypeAttributes(tree.sym.getRawTypeAttributes());
+                    // to get all the type annotations applied to the type
+                    rc.type = tree.sym.type;
+                }
             }
         }
 

@@ -66,6 +66,7 @@ public class Method extends Metadata {
     */
 
     objectInitializerName = null;
+    valueFactoryName = null;
     classInitializerName = null;
   }
 
@@ -95,12 +96,19 @@ public class Method extends Metadata {
   // constant method names - <init>, <clinit>
   // Initialized lazily to avoid initialization ordering dependencies between ArrayKlass and String
   private static String objectInitializerName;
+  private static String valueFactoryName;
   private static String classInitializerName;
   private static String objectInitializerName() {
     if (objectInitializerName == null) {
       objectInitializerName = "<init>";
     }
     return objectInitializerName;
+  }
+  private static String valueFactoryName() {
+    if (valueFactoryName == null) {
+      valueFactoryName = "<vnew>";
+    }
+    return classInitializerName;
   }
   private static String classInitializerName() {
     if (classInitializerName == null) {
@@ -245,7 +253,7 @@ public class Method extends Metadata {
   public boolean isSynthetic()      { return getAccessFlagsObj().isSynthetic();                        }
 
   public boolean isConstructor() {
-     return (!isStatic()) && getName().equals(objectInitializerName());
+     return (!isStatic()) && (getName().equals(objectInitializerName()) || getName().equals(valueFactoryName()));
   }
 
   public boolean isStaticInitializer() {

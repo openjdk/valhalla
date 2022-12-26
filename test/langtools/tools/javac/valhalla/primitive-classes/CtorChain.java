@@ -26,7 +26,7 @@
  * @bug 8198749
  * @summary Test value instatiation using new/ctors by chaining constructors.
  * @compile -XDenablePrimitiveClasses CtorChain.java
- * @run main/othervm CtorChain
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CtorChain
  */
 
 public primitive class CtorChain {
