@@ -34,7 +34,7 @@ import jdk.internal.value.PrimitiveClass;
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses VarArgsArray.java NewInstanceFromConstructor.java IntValue.java
- * @run main runtime.valhalla.inlinetypes.VarArgsArray
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.VarArgsArray
  */
 public class VarArgsArray {
 

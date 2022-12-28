@@ -27,7 +27,7 @@
  * @summary Check array creation with V and V.ref
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDenablePrimitiveClasses ArrayCreationWithQuestion.java
- * @run main/othervm -Xverify:none ArrayCreationWithQuestion
+ * @run main/othervm -Xverify:none -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ArrayCreationWithQuestion
  * @modules jdk.compiler
  */
 

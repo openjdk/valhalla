@@ -26,7 +26,7 @@
  * @bug 8244982
  * @summary Javac has trouble compiling method references
  * @compile -XDenablePrimitiveClasses StreamsTest.java
- * @run main StreamsTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses StreamsTest
  */
 
 import java.util.Arrays;

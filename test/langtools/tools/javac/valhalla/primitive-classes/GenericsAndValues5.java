@@ -28,7 +28,7 @@
  * @bug 8230121
  * @summary Javac does not properly parse nullable projection types of parameterized inline types
  * @compile -XDenablePrimitiveClasses GenericsAndValues5.java
- * @run main/othervm GenericsAndValues5
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses GenericsAndValues5
  */
 
 import java.util.NoSuchElementException;

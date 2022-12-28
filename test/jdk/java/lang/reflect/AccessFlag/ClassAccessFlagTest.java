@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8266670 8291734
+ * @bug 8266670 8291734 8296743
  * @summary Test expected AccessFlag's on classes.
  */
 
@@ -54,6 +54,8 @@ public final class ClassAccessFlagTest {
         Class<?>[] testClasses = {
             ClassAccessFlagTest.class,
             TestInterface.class,
+            TestIdentityInterface.class,
+            TestValueInterface.class,
             ExpectedClassFlags.class,
             TestOuterEnum.class
         };
@@ -98,23 +100,14 @@ public final class ClassAccessFlagTest {
             void.class // same access flag rules
         };
 
-        var mustBePresent = Set.of(AccessFlag.PUBLIC, AccessFlag.FINAL);
-        var mustBeAbsent = Set.of(AccessFlag.PRIVATE,
-                                  AccessFlag.PROTECTED,
-                                  AccessFlag.INTERFACE);
+        var expected = Set.of(AccessFlag.PUBLIC,
+                              AccessFlag.FINAL,
+                              AccessFlag.ABSTRACT);
 
         for(var primClass : primitives) {
-            // PUBLIC must be present, PROTECTED and PRIVATE must be
-            // absent.
-            // FINAL must be present, INTERFACE must be absent.
             var accessFlags = primClass.accessFlags();
-            if (!accessFlags.containsAll(mustBePresent)) {
-                throw new RuntimeException("Missing mandatory flags on " +
-                                           primClass);
-            }
-
-            if (containsAny(accessFlags, mustBeAbsent)) {
-                throw new RuntimeException("Unexpected flags present on " +
+            if (!accessFlags.equals(expected)) {
+                throw new RuntimeException("Unexpected flags on " +
                                            primClass);
             }
         }
@@ -161,6 +154,18 @@ public final class ClassAccessFlagTest {
                                                arrayClass);
                 }
             }
+            // Verify IDENTITY, ABSTRACT, FINAL, and access mode
+            Set<AccessFlag> expected = new HashSet<>(4);
+            expected.add(AccessFlag.ABSTRACT);
+            expected.add(AccessFlag.FINAL);
+//            expected.add(AccessFlag.IDENTITY);  // NYI Pending: JDK-8294866
+            if (accessLevel != null)
+                expected.add(accessLevel);
+            if (!expected.equals(arrayClass.accessFlags())) {
+                throw new RuntimeException("Unexpected access flags for array: " + accessClass +
+                        ": actual: " + arrayClass.accessFlags() +
+                        ", expected: " + expected);
+            }
         }
 
     }
@@ -169,21 +174,45 @@ public final class ClassAccessFlagTest {
     // locations:
     // PUBLIC, PRIVATE, PROTECTED, STATIC, FINAL, INTERFACE, ABSTRACT,
     // SYNTHETIC, ANNOTATION, ENUM.
+    // Include cases for classes with identity, value modifier, or no modifier.
 
     @ExpectedClassFlags("[PUBLIC, STATIC, INTERFACE, ABSTRACT]")
     public      interface PublicInterface {}
+    @ExpectedClassFlags("[PUBLIC, STATIC, IDENTITY, INTERFACE, ABSTRACT]")
+    public      identity interface PublicIdentityInterface {}
+    @ExpectedClassFlags("[PUBLIC, STATIC, VALUE, INTERFACE, ABSTRACT]")
+    public      value interface PublicValueInterface {}
+
     @ExpectedClassFlags("[PROTECTED, STATIC, INTERFACE, ABSTRACT]")
     protected   interface ProtectedInterface {}
+    @ExpectedClassFlags("[PROTECTED, STATIC, IDENTITY, INTERFACE, ABSTRACT]")
+    protected   identity interface ProtectedIdentityInterface {}
+    @ExpectedClassFlags("[PROTECTED, STATIC, VALUE, INTERFACE, ABSTRACT]")
+    protected   value interface ProtectedValueInterface {}
+
     @ExpectedClassFlags("[PRIVATE, STATIC, INTERFACE, ABSTRACT]")
     private     interface PrivateInterface {}
+    @ExpectedClassFlags("[PRIVATE, STATIC, IDENTITY, INTERFACE, ABSTRACT]")
+    private     identity interface PrivateIdentityInterface {}
+    @ExpectedClassFlags("[PRIVATE, STATIC, VALUE, INTERFACE, ABSTRACT]")
+    private     value interface PrivateValueInterface {}
+
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     /*package*/ interface PackageInterface {}
+    @ExpectedClassFlags("[STATIC, IDENTITY, INTERFACE, ABSTRACT]")
+    /*package*/ identity interface PackageIdentityInterface {}
+    @ExpectedClassFlags("[STATIC, VALUE, INTERFACE, ABSTRACT]")
+    /*package*/ value interface PackageValueInterface {}
 
     @ExpectedClassFlags("[FINAL, IDENTITY]")
     /*package*/ final class TestFinalClass {}
+    @ExpectedClassFlags("[FINAL, IDENTITY]")
+    /*package*/ final identity class TestFinalIdentityClass {}
 
     @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
     /*package*/ abstract class TestAbstractClass {}
+    @ExpectedClassFlags("[IDENTITY, ABSTRACT]")
+    /*package*/ abstract identity class TestAbstractIdentityClass {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT, ANNOTATION]")
     /*package*/ @interface TestMarkerAnnotation {}
@@ -206,9 +235,15 @@ public final class ClassAccessFlagTest {
 
     @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
     private abstract class Foo {}
+    @ExpectedClassFlags("[PRIVATE, IDENTITY, ABSTRACT]")
+    private abstract identity class IdentityFoo {}
 
     @ExpectedClassFlags("[STATIC, INTERFACE, ABSTRACT]")
     interface StaticTestInterface {}
+    @ExpectedClassFlags("[STATIC, IDENTITY, INTERFACE, ABSTRACT]")
+    identity interface StaticTestIdentityInterface {}
+    @ExpectedClassFlags("[STATIC, VALUE, INTERFACE, ABSTRACT]")
+    value interface StaticTestValueInterface {}
 }
 
 @Retention(RetentionPolicy.RUNTIME)
@@ -219,6 +254,10 @@ public final class ClassAccessFlagTest {
 
 @ExpectedClassFlags("[INTERFACE, ABSTRACT]")
 interface TestInterface {}
+@ExpectedClassFlags("[SUPER, IDENTITY, INTERFACE, ABSTRACT]")
+identity interface TestIdentityInterface {}
+@ExpectedClassFlags("[VALUE, INTERFACE, ABSTRACT]")
+value interface TestValueInterface {}
 
 
 @ExpectedClassFlags("[FINAL, SUPER, IDENTITY, ENUM]")

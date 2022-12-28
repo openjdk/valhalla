@@ -30,8 +30,8 @@ import jdk.test.lib.Asserts;
  * @summary Flattenable field semantic test
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses Point.java JumboInline.java FlattenableSemanticTest.java
- * @run main/othervm -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.FlattenableSemanticTest
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.FlattenableSemanticTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.FlattenableSemanticTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.FlattenableSemanticTest
  * // debug: -XX:+PrintInlineLayout -XX:-ShowMessageBoxOnError
  */
 public class FlattenableSemanticTest {

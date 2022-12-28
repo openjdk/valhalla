@@ -570,7 +570,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       if (opAllocObj->_tmp3->is_valid())         do_temp(opAllocObj->_tmp3);
       if (opAllocObj->_tmp4->is_valid())         do_temp(opAllocObj->_tmp4);
       if (opAllocObj->_result->is_valid())       do_output(opAllocObj->_result);
-                                                 do_stub(opAllocObj->_stub);
+      if (opAllocObj->_stub != nullptr)          do_stub(opAllocObj->_stub);
       break;
     }
 
@@ -871,7 +871,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       if (opTypeCheck->_tmp2->is_valid())         do_temp(opTypeCheck->_tmp2);
       if (opTypeCheck->_tmp3->is_valid())         do_temp(opTypeCheck->_tmp3);
       if (opTypeCheck->_result->is_valid())       do_output(opTypeCheck->_result);
-                                                  do_stub(opTypeCheck->_stub);
+      if (opTypeCheck->_stub != nullptr)          do_stub(opTypeCheck->_stub);
       break;
     }
 
@@ -883,7 +883,8 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       if (opFlattenedArrayCheck->_array->is_valid()) do_input(opFlattenedArrayCheck->_array);
       if (opFlattenedArrayCheck->_value->is_valid()) do_input(opFlattenedArrayCheck->_value);
       if (opFlattenedArrayCheck->_tmp->is_valid())   do_temp(opFlattenedArrayCheck->_tmp);
-                                                     do_stub(opFlattenedArrayCheck->_stub);
+
+      do_stub(opFlattenedArrayCheck->_stub);
 
       break;
     }
@@ -915,8 +916,9 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       if (opSubstitutabilityCheck->_left_klass_op->is_valid())  do_temp(opSubstitutabilityCheck->_left_klass_op);
       if (opSubstitutabilityCheck->_right_klass_op->is_valid()) do_temp(opSubstitutabilityCheck->_right_klass_op);
       if (opSubstitutabilityCheck->_result->is_valid())         do_output(opSubstitutabilityCheck->_result);
-                                                                do_info(opSubstitutabilityCheck->_info);
-                                                                do_stub(opSubstitutabilityCheck->_stub);
+
+      do_info(opSubstitutabilityCheck->_info);
+      do_stub(opSubstitutabilityCheck->_stub);
       break;
     }
 
@@ -925,21 +927,18 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_cas_obj:
     case lir_cas_int: {
       assert(op->as_OpCompareAndSwap() != NULL, "must be");
-      LIR_OpCompareAndSwap* opCompareAndSwap = (LIR_OpCompareAndSwap*)op;
+      LIR_OpCompareAndSwap* opCmpAndSwap = (LIR_OpCompareAndSwap*)op;
 
-      assert(opCompareAndSwap->_addr->is_valid(),      "used");
-      assert(opCompareAndSwap->_cmp_value->is_valid(), "used");
-      assert(opCompareAndSwap->_new_value->is_valid(), "used");
-      if (opCompareAndSwap->_info)                    do_info(opCompareAndSwap->_info);
-                                                      do_input(opCompareAndSwap->_addr);
-                                                      do_temp(opCompareAndSwap->_addr);
-                                                      do_input(opCompareAndSwap->_cmp_value);
-                                                      do_temp(opCompareAndSwap->_cmp_value);
-                                                      do_input(opCompareAndSwap->_new_value);
-                                                      do_temp(opCompareAndSwap->_new_value);
-      if (opCompareAndSwap->_tmp1->is_valid())        do_temp(opCompareAndSwap->_tmp1);
-      if (opCompareAndSwap->_tmp2->is_valid())        do_temp(opCompareAndSwap->_tmp2);
-      if (opCompareAndSwap->_result->is_valid())      do_output(opCompareAndSwap->_result);
+      if (opCmpAndSwap->_info)                              do_info(opCmpAndSwap->_info);
+      assert(opCmpAndSwap->_addr->is_valid(), "used");      do_input(opCmpAndSwap->_addr);
+                                                            do_temp(opCmpAndSwap->_addr);
+      assert(opCmpAndSwap->_cmp_value->is_valid(), "used"); do_input(opCmpAndSwap->_cmp_value);
+                                                            do_temp(opCmpAndSwap->_cmp_value);
+      assert(opCmpAndSwap->_new_value->is_valid(), "used"); do_input(opCmpAndSwap->_new_value);
+                                                            do_temp(opCmpAndSwap->_new_value);
+      if (opCmpAndSwap->_tmp1->is_valid())                  do_temp(opCmpAndSwap->_tmp1);
+      if (opCmpAndSwap->_tmp2->is_valid())                  do_temp(opCmpAndSwap->_tmp2);
+      if (opCmpAndSwap->_result->is_valid())                do_output(opCmpAndSwap->_result);
 
       break;
     }
@@ -951,14 +950,18 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       LIR_OpAllocArray* opAllocArray = (LIR_OpAllocArray*)op;
 
       if (opAllocArray->_info)                        do_info(opAllocArray->_info);
-      if (opAllocArray->_klass->is_valid())           do_input(opAllocArray->_klass); do_temp(opAllocArray->_klass);
-      if (opAllocArray->_len->is_valid())             do_input(opAllocArray->_len);   do_temp(opAllocArray->_len);
+      if (opAllocArray->_klass->is_valid()) {         do_input(opAllocArray->_klass);
+                                                      do_temp(opAllocArray->_klass);
+                                            }
+      if (opAllocArray->_len->is_valid())   {         do_input(opAllocArray->_len);
+                                                      do_temp(opAllocArray->_len);
+                                            }
       if (opAllocArray->_tmp1->is_valid())            do_temp(opAllocArray->_tmp1);
       if (opAllocArray->_tmp2->is_valid())            do_temp(opAllocArray->_tmp2);
       if (opAllocArray->_tmp3->is_valid())            do_temp(opAllocArray->_tmp3);
       if (opAllocArray->_tmp4->is_valid())            do_temp(opAllocArray->_tmp4);
       if (opAllocArray->_result->is_valid())          do_output(opAllocArray->_result);
-                                                      do_stub(opAllocArray->_stub);
+      if (opAllocArray->_stub != nullptr)             do_stub(opAllocArray->_stub);
       break;
     }
 

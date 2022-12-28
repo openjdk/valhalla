@@ -63,8 +63,9 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
      * @jvms 4.2.2 Unqualified Names
      */
     DirectMethodHandleDescImpl(Kind kind, ClassDesc owner, String name, MethodTypeDesc type) {
-        if (kind == CONSTRUCTOR)
+        if (kind == CONSTRUCTOR) {
             name = "<init>";
+        }
 
         requireNonNull(kind);
         validateClassOrInterface(requireNonNull(owner));
@@ -72,7 +73,7 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
         requireNonNull(type);
 
         switch (kind) {
-            case CONSTRUCTOR   -> validateConstructor(type);
+            case CONSTRUCTOR   -> validateObjectConstructor(type);
             case GETTER        -> validateFieldType(type, false, true);
             case SETTER        -> validateFieldType(type, true, true);
             case STATIC_GETTER -> validateFieldType(type, false, false);
@@ -102,7 +103,7 @@ final class DirectMethodHandleDescImpl implements DirectMethodHandleDesc {
         }
     }
 
-    private static void validateConstructor(MethodTypeDesc type) {
+    private static void validateObjectConstructor(MethodTypeDesc type) {
         if (!type.returnType().descriptorString().equals("V")) {
             throw new IllegalArgumentException(String.format("Expected type of (T*)V for constructor, found %s", type));
         }

@@ -25,7 +25,7 @@
 package compiler/valhalla/inlinetypes;
 
 public final primitive value class FooValue
-    version 64:0
+    version 65:0
 {
     public final Field x:I;
     public final Field y:I;

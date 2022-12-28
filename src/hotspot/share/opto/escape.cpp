@@ -292,7 +292,9 @@ bool ConnectionGraph::compute_escape() {
   // 3. Adjust scalar_replaceable state of nonescaping objects and push
   //    scalar replaceable allocations on alloc_worklist for processing
   //    in split_unique_types().
+  GrowableArray<JavaObjectNode*> jobj_worklist;
   int non_escaped_length = non_escaped_allocs_worklist.length();
+  bool found_nsr_alloc = false;
   for (int next = 0; next < non_escaped_length; next++) {
     JavaObjectNode* ptn = non_escaped_allocs_worklist.at(next);
     bool noescape = (ptn->escape_state() == PointsToNode::NoEscape);
@@ -303,8 +305,22 @@ bool ConnectionGraph::compute_escape() {
     if (noescape && ptn->scalar_replaceable()) {
       adjust_scalar_replaceable_state(ptn);
       if (ptn->scalar_replaceable()) {
-        alloc_worklist.append(ptn->ideal_node());
+        jobj_worklist.push(ptn);
+      } else {
+        found_nsr_alloc = true;
       }
+    }
+  }
+
+  // Propagate NSR (Not Scalar Replaceable) state.
+  if (found_nsr_alloc) {
+    find_scalar_replaceable_allocs(jobj_worklist);
+  }
+
+  for (int next = 0; next < jobj_worklist.length(); ++next) {
+    JavaObjectNode* jobj = jobj_worklist.at(next);
+    if (jobj->scalar_replaceable()) {
+      alloc_worklist.append(jobj->ideal_node());
     }
   }
 
@@ -350,8 +366,8 @@ bool ConnectionGraph::compute_escape() {
 
   // 5. Separate memory graph for scalar replaceable allcations.
   bool has_scalar_replaceable_candidates = (alloc_worklist.length() > 0);
-  if (has_scalar_replaceable_candidates &&
-      C->AliasLevel() >= 3 && EliminateAllocations) {
+  if (has_scalar_replaceable_candidates && EliminateAllocations) {
+    assert(C->do_aliasing(), "Aliasing should be enabled");
     // Now use the escape information to create unique types for
     // scalar replaceable objects.
     split_unique_types(alloc_worklist, arraycopy_worklist, mergemem_worklist);
@@ -369,8 +385,6 @@ bool ConnectionGraph::compute_escape() {
       tty->print(" since EliminateAllocations is off ===");
     } else if(!has_scalar_replaceable_candidates) {
       tty->print(" since there are no scalar replaceable candidates ===");
-    } else if(C->AliasLevel() < 3) {
-      tty->print(" since AliasLevel < 3 ===");
     }
     tty->cr();
 #endif
@@ -561,7 +575,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       map_ideal_node(n, phantom_obj);
       break;
     }
-    case Op_InlineTypePtr:
+    case Op_InlineType:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -735,7 +749,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
       add_base(n_ptn->as_Field(), ptn_base);
       break;
     }
-    case Op_InlineTypePtr:
+    case Op_InlineType:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -1182,7 +1196,9 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "electronicCodeBook_decryptAESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "counterMode_AESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "galoisCounterMode_AESCrypt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "poly1305_processBlocks") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "ghash_processBlocks") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "chacha20Block") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "encodeBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "decodeBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "md5_implCompress") == 0 ||
@@ -1904,15 +1920,19 @@ void ConnectionGraph::adjust_scalar_replaceable_state(JavaObjectNode* jobj) {
         set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "is stored at unknown offset"));
         return;
       }
-      // 2. An object is not scalar replaceable if the field into which it is
-      // stored has multiple bases one of which is null.
-      if (field->base_count() > 1) {
-        for (BaseIterator i(field); i.has_next(); i.next()) {
-          PointsToNode* base = i.get();
-          if (base == null_obj) {
-            set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "is stored into field with potentially null base"));
-            return;
-          }
+      for (BaseIterator i(field); i.has_next(); i.next()) {
+        PointsToNode* base = i.get();
+        // 2. An object is not scalar replaceable if the field into which it is
+        // stored has multiple bases one of which is null.
+        if ((base == null_obj) && (field->base_count() > 1)) {
+          set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "is stored into field with potentially null base"));
+          return;
+        }
+        // 2.5. An object is not scalar replaceable if the field into which it is
+        // stored has NSR base.
+        if (!base->scalar_replaceable()) {
+          set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "is stored into field with NSR base"));
+          return;
         }
       }
     }
@@ -1996,6 +2016,36 @@ void ConnectionGraph::adjust_scalar_replaceable_state(JavaObjectNode* jobj) {
           // Mark all bases.
           set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "may point to more than one object"));
           set_not_scalar_replaceable(base NOT_PRODUCT(COMMA "may point to more than one object"));
+        }
+      }
+    }
+  }
+}
+
+// Propagate NSR (Not scalar replaceable) state.
+void ConnectionGraph::find_scalar_replaceable_allocs(GrowableArray<JavaObjectNode*>& jobj_worklist) {
+  int jobj_length = jobj_worklist.length();
+  bool found_nsr_alloc = true;
+  while (found_nsr_alloc) {
+    found_nsr_alloc = false;
+    for (int next = 0; next < jobj_length; ++next) {
+      JavaObjectNode* jobj = jobj_worklist.at(next);
+      for (UseIterator i(jobj); (jobj->scalar_replaceable() && i.has_next()); i.next()) {
+        PointsToNode* use = i.get();
+        if (use->is_Field()) {
+          FieldNode* field = use->as_Field();
+          assert(field->is_oop() && field->scalar_replaceable(), "sanity");
+          assert(field->offset() != Type::OffsetBot, "sanity");
+          for (BaseIterator i(field); i.has_next(); i.next()) {
+            PointsToNode* base = i.get();
+            // An object is not scalar replaceable if the field into which
+            // it is stored has NSR base.
+            if ((base != null_obj) && !base->scalar_replaceable()) {
+              set_not_scalar_replaceable(jobj NOT_PRODUCT(COMMA "is stored into field with NSR base"));
+              found_nsr_alloc = true;
+              break;
+            }
+          }
         }
       }
     }
@@ -2087,8 +2137,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
         AbstractLockNode* alock = n->as_AbstractLock();
         if (!alock->is_non_esc_obj()) {
           const Type* obj_type = igvn->type(alock->obj_node());
-          if (not_global_escape(alock->obj_node()) &&
-              !obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
+          if (not_global_escape(alock->obj_node()) && !obj_type->is_inlinetypeptr()) {
             assert(!alock->is_eliminated() || alock->is_coarsened(), "sanity");
             // The lock could be marked eliminated by lock coarsening
             // code during first IGVN before EA. Replace coarsened flag
@@ -2129,7 +2178,7 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
     Node* storestore = storestore_worklist.at(i);
     Node* alloc = storestore->in(MemBarNode::Precedent)->in(0);
     if (alloc->is_Allocate() && not_global_escape(alloc)) {
-      if (alloc->in(AllocateNode::InlineTypeNode) != NULL) {
+      if (alloc->in(AllocateNode::InlineType) != NULL) {
         // Non-escaping inline type buffer allocations don't require a membar
         storestore->as_MemBar()->remove(_igvn);
       } else {
@@ -3478,7 +3527,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_CountPositives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
-              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_InlineTypePtr || op == Op_FlatArrayCheck ||
+              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_FlatArrayCheck ||
               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
           n->dump();
           use->dump();

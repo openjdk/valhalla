@@ -95,6 +95,8 @@ public class Symtab {
         return instance;
     }
 
+    private final boolean allowPrimitiveClasses;
+
     /** Builtin types.
      */
     public final JCPrimitiveType byteType = new JCPrimitiveType(BYTE, null);
@@ -192,6 +194,7 @@ public class Symtab {
     public final Type incompatibleClassChangeErrorType;
     public final Type cloneNotSupportedExceptionType;
     public final Type matchExceptionType;
+    public final Type nullPointerExceptionType;
     public final Type annotationType;
     public final TypeSymbol enumSym;
     public final Type listType;
@@ -280,7 +283,7 @@ public class Symtab {
                     /* Temporary treatment for primitive class: Given a primitive class V that implements
                        I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
                     */
-                    if (type.isPrimitiveClass()) {
+                    if (allowPrimitiveClasses && type.isPrimitiveClass()) {
                         List<Type> bounds = List.of(objectType).appendList(((ClassSymbol) type.tsym).getInterfaces());
                         arg = new WildcardType(bounds.size() > 1 ? types.makeIntersectionType(bounds) : objectType, BoundKind.EXTENDS, boundClass);
                     } else {
@@ -566,6 +569,7 @@ public class Symtab {
         incompatibleClassChangeErrorType = enterClass("java.lang.IncompatibleClassChangeError");
         cloneNotSupportedExceptionType = enterClass("java.lang.CloneNotSupportedException");
         matchExceptionType = enterClass("java.lang.MatchException");
+        nullPointerExceptionType = enterClass("java.lang.NullPointerException");
         annotationType = enterClass("java.lang.annotation.Annotation");
         classLoaderType = enterClass("java.lang.ClassLoader");
         enumSym = enterClass(java_base, names.java_lang_Enum);
@@ -645,9 +649,7 @@ public class Symtab {
         // It has a final length field and a clone method.
         ClassType arrayClassType = (ClassType)arrayClass.type;
         arrayClassType.supertype_field = objectType;
-        arrayClassType.interfaces_field =
-                List.of(cloneableType, serializableType);
-
+        arrayClassType.interfaces_field = List.of(cloneableType, serializableType);
         arrayClass.members_field = WriteableScope.create(arrayClass);
         lengthVar = new VarSymbol(
             PUBLIC | FINAL,
@@ -665,7 +667,8 @@ public class Symtab {
 
         if (java_base != noModule)
             java_base.completer = moduleCompleter::complete; //bootstrap issues
-
+        Options options = Options.instance(context);
+        allowPrimitiveClasses = Feature.PRIMITIVE_CLASSES.allowedInSource(source) && options.isSet("enablePrimitiveClasses");
     }
 
     /** Define a new class given its name and owner.

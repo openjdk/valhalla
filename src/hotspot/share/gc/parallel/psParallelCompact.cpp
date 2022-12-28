@@ -433,8 +433,6 @@ bool ParallelCompactData::initialize(MemRegion covered_region)
 
   assert(region_align_down(_region_start) == _region_start,
          "region start not aligned");
-  assert((region_size & RegionSizeOffsetMask) == 0,
-         "region size not a multiple of RegionSize");
 
   bool result = initialize_region_data(region_size) && initialize_block_data();
   return result;
@@ -471,7 +469,10 @@ ParallelCompactData::create_vspace(size_t count, size_t element_size)
 
 bool ParallelCompactData::initialize_region_data(size_t region_size)
 {
-  const size_t count = (region_size + RegionSizeOffsetMask) >> Log2RegionSize;
+  assert((region_size & RegionSizeOffsetMask) == 0,
+         "region size not a multiple of RegionSize");
+
+  const size_t count = region_size >> Log2RegionSize;
   _region_vspace = create_vspace(count, sizeof(RegionData));
   if (_region_vspace != 0) {
     _region_data = (RegionData*)_region_vspace->reserved_low_addr();
@@ -1032,6 +1033,9 @@ void PSParallelCompact::post_compact()
   // Delete metaspaces for unloaded class loaders and clean up loader_data graph
   ClassLoaderDataGraph::purge(/*at_safepoint*/true);
   DEBUG_ONLY(MetaspaceUtils::verify();)
+
+  // Need to clear claim bits for the next mark.
+  ClassLoaderDataGraph::clear_claimed_marks();
 
   heap->prune_scavengable_nmethods();
 
@@ -1965,7 +1969,7 @@ public:
     PCMarkAndPushClosure mark_and_push_closure(cm);
 
     {
-      CLDToOopClosure cld_closure(&mark_and_push_closure, ClassLoaderData::_claim_strong);
+      CLDToOopClosure cld_closure(&mark_and_push_closure, ClassLoaderData::_claim_stw_fullgc_mark);
       ClassLoaderDataGraph::always_strong_cld_do(&cld_closure);
 
       // Do the real work
@@ -2016,9 +2020,7 @@ void PSParallelCompact::marking_phase(ParallelOldTracer *gc_tracer) {
 
   uint active_gc_threads = ParallelScavengeHeap::heap()->workers().active_workers();
 
-  // Need new claim bits before marking starts.
-  ClassLoaderDataGraph::clear_claimed_marks();
-
+  ClassLoaderDataGraph::verify_claimed_marks_cleared(ClassLoaderData::_claim_stw_fullgc_mark);
   {
     GCTraceTime(Debug, gc, phases) tm("Par Mark", &_gc_timer);
 
@@ -2094,8 +2096,8 @@ public:
     _sub_tasks(PSAdjustSubTask_num_elements),
     _weak_proc_task(nworkers),
     _nworkers(nworkers) {
-    // Need new claim bits when tracing through and adjusting pointers.
-    ClassLoaderDataGraph::clear_claimed_marks();
+
+    ClassLoaderDataGraph::verify_claimed_marks_cleared(ClassLoaderData::_claim_stw_fullgc_adjust);
     if (nworkers > 1) {
       Threads::change_thread_claim_token();
     }
@@ -2114,7 +2116,7 @@ public:
     }
     _oop_storage_iter.oops_do(&adjust);
     {
-      CLDToOopClosure cld_closure(&adjust, ClassLoaderData::_claim_strong);
+      CLDToOopClosure cld_closure(&adjust, ClassLoaderData::_claim_stw_fullgc_adjust);
       ClassLoaderDataGraph::cld_do(&cld_closure);
     }
     {
@@ -2406,14 +2408,12 @@ static void compaction_with_stealing_work(TaskTerminator* terminator, uint worke
 class UpdateDensePrefixAndCompactionTask: public WorkerTask {
   TaskQueue& _tq;
   TaskTerminator _terminator;
-  uint _active_workers;
 
 public:
   UpdateDensePrefixAndCompactionTask(TaskQueue& tq, uint active_workers) :
       WorkerTask("UpdateDensePrefixAndCompactionTask"),
       _tq(tq),
-      _terminator(active_workers, ParCompactionManager::region_task_queues()),
-      _active_workers(active_workers) {
+      _terminator(active_workers, ParCompactionManager::region_task_queues()) {
   }
   virtual void work(uint worker_id) {
     ParCompactionManager* cm = ParCompactionManager::gc_thread_compaction_manager(worker_id);

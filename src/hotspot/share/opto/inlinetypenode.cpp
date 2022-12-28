@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,15 +33,27 @@
 #include "opto/rootnode.hpp"
 #include "opto/phaseX.hpp"
 
+uint InlineTypeNode::size_of() const {
+  return sizeof(*this);
+}
+
+uint InlineTypeNode::hash() const {
+  return TypeNode::hash() + _is_buffered;
+}
+
+bool InlineTypeNode::cmp(const Node& n) const {
+  return TypeNode::cmp(n) && ((InlineTypeNode&)n)._is_buffered == _is_buffered;
+}
+
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
-InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init) {
-  InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
-  if (vt->is_InlineTypePtr()) {
+InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init) {
+  InlineTypeNode* vt = clone()->as_InlineType();
+  if (vt->is_InlineType()) {
     // Use nullable type
     const Type* t = Type::get_const_type(inline_klass());
     gvn->set_type(vt, t);
-    vt->as_InlineTypePtr()->set_type(t);
+    vt->as_InlineType()->set_type(t);
   }
 
   // Create a PhiNode for merging the oop values
@@ -67,9 +79,9 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
-    if (value->is_InlineTypeBase()) {
+    if (value->is_InlineType()) {
       // Handle inline type fields recursively
-      value = value->as_InlineTypeBase()->clone_with_phis(gvn, region);
+      value = value->as_InlineType()->clone_with_phis(gvn, region);
     } else {
       phi_type = Type::get_const_type(type);
       value = PhiNode::make(region, value, phi_type);
@@ -83,9 +95,9 @@ InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* reg
   return vt;
 }
 
-// Checks if the inputs of the InlineTypeBaseTypeNode were replaced by PhiNodes
-// for the given region (see InlineTypeBaseTypeNode::clone_with_phis).
-bool InlineTypeBaseNode::has_phi_inputs(Node* region) {
+// Checks if the inputs of the InlineTypeNode were replaced by PhiNodes
+// for the given region (see InlineTypeNode::clone_with_phis).
+bool InlineTypeNode::has_phi_inputs(Node* region) {
   // Check oop input
   bool result = get_oop()->is_Phi() && get_oop()->as_Phi()->region() == region;
 #ifdef ASSERT
@@ -93,8 +105,8 @@ bool InlineTypeBaseNode::has_phi_inputs(Node* region) {
     // Check all field value inputs for consistency
     for (uint i = Values; i < field_count(); ++i) {
       Node* n = in(i);
-      if (n->is_InlineTypeBase()) {
-        assert(n->as_InlineTypeBase()->has_phi_inputs(region), "inconsistent phi inputs");
+      if (n->is_InlineType()) {
+        assert(n->as_InlineType()->has_phi_inputs(region), "inconsistent phi inputs");
       } else {
         assert(n->is_Phi() && n->as_Phi()->region() == region, "inconsistent phi inputs");
       }
@@ -104,21 +116,9 @@ bool InlineTypeBaseNode::has_phi_inputs(Node* region) {
   return result;
 }
 
-// Check if all inline type fields have inline type node values
-bool InlineTypeBaseNode::can_merge() {
-  for (uint i = 0; i < field_count(); ++i) {
-    ciType* type = field_type(i);
-    Node* val = field_value(i);
-    if (type->is_inlinetype() &&
-        (!val->is_InlineTypeBase() || !val->as_InlineTypeBase()->can_merge())) {
-      return false;
-    }
-  }
-  return true;
-}
-
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
-InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTypeBaseNode* other, int pnum, bool transform) {
+InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
+  _is_buffered = _is_buffered && other->_is_buffered;
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
   phi->set_req(pnum, other->get_oop());
@@ -141,8 +141,8 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
   for (uint i = 0; i < field_count(); ++i) {
     Node* val1 =        field_value(i);
     Node* val2 = other->field_value(i);
-    if (val1->is_InlineTypeBase()) {
-      val1->as_InlineTypeBase()->merge_with(gvn, val2->as_InlineTypeBase(), pnum, transform);
+    if (val1->is_InlineType()) {
+      val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
       val1->set_req(pnum, val2);
@@ -155,7 +155,7 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
 }
 
 // Adds a new merge path to an inline type node with phi inputs
-void InlineTypeBaseNode::add_new_path(Node* region) {
+void InlineTypeNode::add_new_path(Node* region) {
   assert(has_phi_inputs(region), "must have phi inputs");
 
   PhiNode* phi = get_oop()->as_Phi();
@@ -168,8 +168,8 @@ void InlineTypeBaseNode::add_new_path(Node* region) {
 
   for (uint i = 0; i < field_count(); ++i) {
     Node* val = field_value(i);
-    if (val->is_InlineTypeBase()) {
-      val->as_InlineTypeBase()->add_new_path(region);
+    if (val->is_InlineType()) {
+      val->as_InlineType()->add_new_path(region);
     } else {
       val->as_Phi()->add_req(NULL);
       assert(val->req() == region->req(), "must be same size as region");
@@ -177,24 +177,24 @@ void InlineTypeBaseNode::add_new_path(Node* region) {
   }
 }
 
-Node* InlineTypeBaseNode::field_value(uint index) const {
+Node* InlineTypeNode::field_value(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return in(Values + index);
 }
 
 // Get the value of the field at the given offset.
 // If 'recursive' is true, flattened inline type fields will be resolved recursively.
-Node* InlineTypeBaseNode::field_value_by_offset(int offset, bool recursive) const {
+Node* InlineTypeNode::field_value_by_offset(int offset, bool recursive) const {
   // If the field at 'offset' belongs to a flattened inline type field, 'index' refers to the
   // corresponding InlineTypeNode input and 'sub_offset' is the offset in flattened inline type.
   int index = inline_klass()->field_index_by_offset(offset);
   int sub_offset = offset - field_offset(index);
   Node* value = field_value(index);
   assert(value != NULL, "field value not found");
-  if (recursive && value->is_InlineTypeBase()) {
+  if (recursive && value->is_InlineType()) {
     if (field_is_flattened(index)) {
       // Flattened inline type field
-      InlineTypeBaseNode* vt = value->as_InlineTypeBase();
+      InlineTypeNode* vt = value->as_InlineType();
       sub_offset += vt->inline_klass()->first_field_offset(); // Add header size
       return vt->field_value_by_offset(sub_offset, recursive);
     } else {
@@ -202,59 +202,59 @@ Node* InlineTypeBaseNode::field_value_by_offset(int offset, bool recursive) cons
       return value;
     }
   }
-  assert(!(recursive && value->is_InlineTypeBase()), "should not be an inline type");
+  assert(!(recursive && value->is_InlineType()), "should not be an inline type");
   assert(sub_offset == 0, "offset mismatch");
   return value;
 }
 
-void InlineTypeBaseNode::set_field_value(uint index, Node* value) {
+void InlineTypeNode::set_field_value(uint index, Node* value) {
   assert(index < field_count(), "index out of bounds");
   set_req(Values + index, value);
 }
 
-void InlineTypeBaseNode::set_field_value_by_offset(int offset, Node* value) {
+void InlineTypeNode::set_field_value_by_offset(int offset, Node* value) {
   set_field_value(field_index(offset), value);
 }
 
-int InlineTypeBaseNode::field_offset(uint index) const {
+int InlineTypeNode::field_offset(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return inline_klass()->declared_nonstatic_field_at(index)->offset();
 }
 
-uint InlineTypeBaseNode::field_index(int offset) const {
+uint InlineTypeNode::field_index(int offset) const {
   uint i = 0;
   for (; i < field_count() && field_offset(i) != offset; i++) { }
   assert(i < field_count(), "field not found");
   return i;
 }
 
-ciType* InlineTypeBaseNode::field_type(uint index) const {
+ciType* InlineTypeNode::field_type(uint index) const {
   assert(index < field_count(), "index out of bounds");
   return inline_klass()->declared_nonstatic_field_at(index)->type();
 }
 
-bool InlineTypeBaseNode::field_is_flattened(uint index) const {
+bool InlineTypeNode::field_is_flattened(uint index) const {
   assert(index < field_count(), "index out of bounds");
   ciField* field = inline_klass()->declared_nonstatic_field_at(index);
   assert(!field->is_flattened() || field->type()->is_inlinetype(), "must be an inline type");
   return field->is_flattened();
 }
 
-bool InlineTypeBaseNode::field_is_null_free(uint index) const {
+bool InlineTypeNode::field_is_null_free(uint index) const {
   assert(index < field_count(), "index out of bounds");
   ciField* field = inline_klass()->declared_nonstatic_field_at(index);
   assert(!field->is_flattened() || field->type()->is_inlinetype(), "must be an inline type");
   return field->is_null_free();
 }
 
-void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
+void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != NULL, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
-  SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(inline_ptr(),
+  SafePointScalarObjectNode* sobj = new SafePointScalarObjectNode(type()->isa_instptr(),
 #ifdef ASSERT
                                                                   NULL,
 #endif
@@ -272,7 +272,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Nod
   for (uint j = 0; j < nfields; ++j) {
     int offset = vk->nonstatic_field_at(j)->offset();
     Node* value = field_value_by_offset(offset, true /* include flattened inline type fields */);
-    if (value->is_InlineTypeBase()) {
+    if (value->is_InlineType()) {
       // Add inline type field to the worklist to process later
       worklist.push(value);
     }
@@ -289,11 +289,11 @@ void InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Nod
   }
 }
 
-void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
+void InlineTypeNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
   // If the inline type has a constant or loaded oop, use the oop instead of scalarization
   // in the safepoint to avoid keeping field loads live just for the debug info.
   Node* oop = get_oop();
-  bool use_oop = allow_oop && (is_InlineTypePtr() || is_allocated(igvn)) &&
+  bool use_oop = allow_oop && is_allocated(igvn) &&
                  (oop->is_Con() || oop->is_Parm() || oop->is_Load() || (oop->isa_DecodeN() && oop->in(1)->is_Load()));
 
   ResourceMark rm;
@@ -330,7 +330,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
   }
   // Now scalarize non-flattened fields
   for (uint i = 0; i < vt_worklist.size(); ++i) {
-    InlineTypeBaseNode* vt = vt_worklist.at(i)->isa_InlineTypeBase();
+    InlineTypeNode* vt = vt_worklist.at(i)->isa_InlineType();
     vt->make_scalar_in_safepoints(igvn);
   }
   if (outcnt() == 0) {
@@ -338,7 +338,7 @@ void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allo
   }
 }
 
-const TypePtr* InlineTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const {
+const TypePtr* InlineTypeNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const {
   const TypeAryPtr* ary_type = gvn.type(base)->isa_aryptr();
   const TypePtr* adr_type = NULL;
   bool is_array = ary_type != NULL;
@@ -355,7 +355,7 @@ const TypePtr* InlineTypeBaseNode::field_adr_type(Node* base, int offset, ciInst
   return adr_type;
 }
 
-void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
+void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
   // Initialize the inline type by loading its field values from
   // memory and adding the values as input edges to the node.
   for (uint i = 0; i < field_count(); ++i) {
@@ -409,7 +409,7 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
   }
 }
 
-void InlineTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
+void InlineTypeNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
   if (kit->gvn().type(base)->isa_aryptr()) {
     kit->C->set_flattened_accesses();
   }
@@ -422,7 +422,7 @@ void InlineTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, c
   store(kit, base, ptr, holder, holder_offset, decorators);
 }
 
-void InlineTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
+void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
   // Write field values to memory
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
@@ -430,10 +430,10 @@ void InlineTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceK
     ciType* ft = field_type(i);
     if (field_is_flattened(i)) {
       // Recursively store the flattened inline type field
-      if (!value->is_InlineTypeBase()) {
+      if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass());
       }
-      value->as_InlineTypeBase()->store_flattened(kit, base, ptr, holder, offset, decorators);
+      value->as_InlineType()->store_flattened(kit, base, ptr, holder, offset, decorators);
     } else {
       // Store field value to memory
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
@@ -450,19 +450,24 @@ void InlineTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceK
   }
 }
 
-InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_replace) {
-  assert(is_InlineType(), "sanity");
+InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
+  if (_is_buffered) {
+    // Already buffered
+    return this;
+  }
 
   // Check if inline type is already buffered
   Node* not_buffered_ctl = kit->top();
   Node* not_null_oop = kit->null_check_oop(get_oop(), &not_buffered_ctl, /* never_see_null = */ false, safe_for_replace);
   if (not_buffered_ctl->is_top()) {
     // Already buffered
-    InlineTypePtrNode* ptr = as_ptr(&kit->gvn(), false);
+    InlineTypeNode* vt = clone()->as_InlineType();
+    vt->_is_buffered = true;
+    vt = kit->gvn().transform(vt)->as_InlineType();
     if (safe_for_replace) {
-      kit->replace_in_map(this, ptr);
+      kit->replace_in_map(this, vt);
     }
-    return ptr;
+    return vt;
   }
   Node* buffered_ctl = kit->control();
   kit->set_control(not_buffered_ctl);
@@ -473,7 +478,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
   bool null_free = null_ctl->is_top();
 
   RegionNode* region = new RegionNode(4);
-  PhiNode* oop = PhiNode::make(region, not_null_oop, inline_ptr()->join_speculative(null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM));
+  PhiNode* oop = PhiNode::make(region, not_null_oop, type()->join_speculative(null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM));
 
   // InlineType is already buffered
   region->init_req(1, buffered_ctl);
@@ -527,37 +532,33 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
 
   // Use cloned InlineTypeNode to propagate oop from now on
   Node* res_oop = kit->gvn().transform(oop);
-  InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
+  InlineTypeNode* vt = clone()->as_InlineType();
+  vt->_is_buffered = true;
   vt->set_oop(res_oop);
-  vt = kit->gvn().transform(vt)->as_InlineTypeBase();
+  vt = kit->gvn().transform(vt)->as_InlineType();
   if (safe_for_replace) {
     kit->replace_in_map(this, vt);
   }
   // InlineTypeNode::remove_redundant_allocations piggybacks on split if.
   // Make sure it gets a chance to remove this allocation.
   kit->C->set_has_split_ifs(true);
-  return vt->as_ptr(&kit->gvn(), null_free);
+  return vt;
 }
 
-bool InlineTypeBaseNode::is_allocated(PhaseGVN* phase) const {
+bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
+  if (_is_buffered) {
+    return true;
+  }
   Node* oop = get_oop();
   const Type* oop_type = (phase != NULL) ? phase->type(oop) : oop->bottom_type();
   return !oop_type->maybe_null();
-}
-
-InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase, bool null_free) const {
-  assert(!null_free || is_allocated(phase), "must be allocated");
-  if (is_InlineTypePtr()) {
-    return as_InlineTypePtr();
-  }
-  return phase->transform(new InlineTypePtrNode(this, null_free))->as_InlineTypePtr();
 }
 
 // When a call returns multiple values, it has several result
 // projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
-void InlineTypeBaseNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free) {
+void InlineTypeNode::replace_call_results(GraphKit* kit, CallNode* call, Compile* C, bool null_free) {
   ciInlineKlass* vk = inline_klass();
   for (DUIterator_Fast imax, i = call->fast_outs(imax); i < imax; i++) {
     ProjNode* pn = call->fast_out(i)->as_Proj();
@@ -579,10 +580,6 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, CallNode* call, Com
       }
       ciField* f = vk->nonstatic_field_at(field_nb - extra);
       field = field_value_by_offset(f->offset(), true);
-      if (field->is_InlineType()) {
-        assert(field->as_InlineType()->is_allocated(&kit->gvn()), "must be allocated");
-        field = field->as_InlineType()->get_oop();
-      }
     }
     if (field != NULL) {
       C->gvn_replace_by(pn, field);
@@ -593,32 +590,62 @@ void InlineTypeBaseNode::replace_call_results(GraphKit* kit, CallNode* call, Com
   }
 }
 
-Node* InlineTypeBaseNode::allocate_fields(GraphKit* kit) {
-  InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
+Node* InlineTypeNode::allocate_fields(GraphKit* kit) {
+  InlineTypeNode* vt = clone()->as_InlineType();
   for (uint i = 0; i < field_count(); i++) {
      Node* value = field_value(i);
      if (field_is_flattened(i)) {
        // Flattened inline type field
-       vt->set_field_value(i, value->as_InlineTypeBase()->allocate_fields(kit));
+       vt->set_field_value(i, value->as_InlineType()->allocate_fields(kit));
      } else if (value->is_InlineType()) {
        // Non-flattened inline type field
        vt->set_field_value(i, value->as_InlineType()->buffer(kit));
      }
   }
-  vt = kit->gvn().transform(vt)->as_InlineTypeBase();
+  vt = kit->gvn().transform(vt)->as_InlineType();
   kit->replace_in_map(this, vt);
   return vt;
 }
 
-Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  Node* is_init = get_is_init();
-  if (is_init->isa_InlineTypePtr()) {
-    set_req(IsInit, is_init->as_InlineTypePtr()->get_is_init());
+// Replace a buffer allocation by a dominating allocation
+static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
+  // Remove initializing stores and GC barriers
+  for (DUIterator_Fast imax, i = res->fast_outs(imax); i < imax; i++) {
+    Node* use = res->fast_out(i);
+    if (use->is_AddP()) {
+      for (DUIterator_Fast jmax, j = use->fast_outs(jmax); j < jmax; j++) {
+        Node* store = use->fast_out(j)->isa_Store();
+        if (store != NULL) {
+          igvn->rehash_node_delayed(store);
+          igvn->replace_in_uses(store, store->in(MemNode::Memory));
+        }
+      }
+    } else if (use->Opcode() == Op_CastP2X) {
+      if (UseG1GC && use->find_out_with(Op_XorX)->in(1) != use) {
+        // The G1 pre-barrier uses a CastP2X both for the pointer of the object
+        // we store into, as well as the value we are storing. Skip if this is a
+        // barrier for storing 'res' into another object.
+        continue;
+      }
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      bs->eliminate_gc_barrier(igvn, use);
+      --i; --imax;
+    }
+  }
+  igvn->replace_node(res, dom);
+}
+
+Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  Node* oop = get_oop();
+  if (is_default(phase) && inline_klass()->is_initialized() &&
+      (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
+    // Use the pre-allocated oop for default inline types
+    set_oop(default_oop(*phase, inline_klass()));
+    assert(is_allocated(phase), "should now be allocated");
     return this;
   }
-  Node* oop = get_oop();
-  if (oop->isa_InlineTypePtr() && !phase->type(oop)->maybe_null()) {
-    InlineTypePtrNode* vtptr = oop->as_InlineTypePtr();
+  if (oop->isa_InlineType() && !phase->type(oop)->maybe_null()) {
+    InlineTypeNode* vtptr = oop->as_InlineType();
     set_oop(vtptr->get_oop());
     set_is_init(*phase);
     for (uint i = Values; i < vtptr->req(); ++i) {
@@ -626,18 +653,52 @@ Node* InlineTypeBaseNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     }
     return this;
   }
+  if (!is_allocated(phase)) {
+    // Save base oop if fields are loaded from memory and the inline
+    // type is not buffered (in this case we should not use the oop).
+    Node* base = is_loaded(phase);
+    if (base != NULL && !phase->type(base)->maybe_null()) {
+      set_oop(base);
+      assert(is_allocated(phase), "should now be allocated");
+      return this;
+    }
+  }
+
+  if (can_reshape) {
+    PhaseIterGVN* igvn = phase->is_IterGVN();
+    if (is_allocated(phase)) {
+      // Search for and remove re-allocations of this inline type. Ignore scalar replaceable ones,
+      // they will be removed anyway and changing the memory chain will confuse other optimizations.
+      // This can happen with late inlining when we first allocate an inline type argument
+      // but later decide to inline the call after the callee code also triggered allocation.
+      for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
+        AllocateNode* alloc = fast_out(i)->isa_Allocate();
+        if (alloc != NULL && alloc->in(AllocateNode::InlineType) == this && !alloc->_is_scalar_replaceable) {
+          // Found a re-allocation
+          Node* res = alloc->result_cast();
+          if (res != NULL && res->is_CheckCastPP()) {
+            // Replace allocation by oop and unlink AllocateNode
+            replace_allocation(igvn, res, oop);
+            igvn->replace_input_of(alloc, AllocateNode::InlineType, igvn->C->top());
+            --i; --imax;
+          }
+        }
+      }
+    }
+  }
+
   return NULL;
 }
 
-InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk) {
+InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free) {
   // Create a new InlineTypeNode with uninitialized values and NULL oop
   Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
-  InlineTypeNode* vt = new InlineTypeNode(vk, oop);
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop, null_free, vk->is_empty() && vk->is_initialized());
   vt->set_is_init(gvn);
   return vt;
 }
 
-Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
+Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Returns the constant oop of the default inline type allocation
   return gvn.makecon(TypeInstPtr::make(vk->default_instance()));
 }
@@ -645,7 +706,7 @@ Node* InlineTypeBaseNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
-  InlineTypeNode* vt = new InlineTypeNode(vk, oop);
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop, true, vk->is_initialized());
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
@@ -655,7 +716,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
       if (vt->field_is_null_free(i)) {
         value = make_default(gvn, vk);
       } else {
-        value = InlineTypePtrNode::make_null(gvn, vk);
+        value = InlineTypeNode::make_null(gvn, vk);
       }
     }
     vt->set_field_value(i, value);
@@ -665,43 +726,30 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
   return vt;
 }
 
-InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
-  InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT));
-  vt->set_req(IsInit, gvn.intcon(0));
-  for (uint i = 0; i < vt->field_count(); i++) {
-    ciType* field_type = vt->field_type(i);
-    Node* value = gvn.zerocon(field_type->basic_type());
-    if (field_type->is_inlinetype()) {
-      if (vt->field_is_null_free(i)) {
-        value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
-      } else {
-        value = InlineTypePtrNode::make_null(gvn, field_type->as_inline_klass());
-      }
-    }
-    vt->set_field_value(i, value);
-  }
-  return gvn.transform(vt)->as_InlineType();
-}
-
-bool InlineTypeBaseNode::is_default(PhaseGVN* gvn) const {
+bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
   const Type* tinit = gvn->type(in(IsInit));
   if (!tinit->isa_int() || !tinit->is_int()->is_con(1)) {
     return false; // May be null
   }
   for (uint i = 0; i < field_count(); ++i) {
+    ciType* ft = field_type(i);
     Node* value = field_value(i);
-    if (value->is_InlineTypePtr()) {
-      value = value->as_InlineTypePtr()->get_oop();
+    if (field_is_null_free(i)) {
+      if (!value->is_InlineType() || !value->as_InlineType()->is_default(gvn)) {
+        return false;
+      }
+      continue;
+    } else if (value->is_InlineType()) {
+      value = value->as_InlineType()->get_oop();
     }
-    if (!gvn->type(value)->is_zero_type() &&
-        !(field_is_null_free(i) && value->is_InlineType() && value->as_InlineType()->is_default(gvn))) {
+    if (!gvn->type(value)->is_zero_type()) {
       return false;
     }
   }
   return true;
 }
 
-InlineTypeBaseNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
+InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
   PhaseGVN& gvn = kit->gvn();
 
   if (vk->is_empty() && null_free) {
@@ -711,10 +759,10 @@ InlineTypeBaseNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciIn
   }
   // Create and initialize an InlineTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
-  InlineTypeBaseNode* vt = NULL;
+  InlineTypeNode* vt = NULL;
 
-  if (oop->isa_InlineTypePtr()) {
-    return oop->as_InlineTypePtr();
+  if (oop->isa_InlineType()) {
+    return oop->as_InlineType();
   } else if (gvn.type(oop)->maybe_null()) {
     // Add a null check because the oop may be null
     Node* null_ctl = kit->top();
@@ -725,21 +773,21 @@ InlineTypeBaseNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciIn
       if (null_free) {
         vt = make_default(gvn, vk);
       } else {
-        vt = InlineTypePtrNode::make_null(gvn, vk);
+        vt = InlineTypeNode::make_null(gvn, vk);
       }
       kit->record_for_igvn(vt);
       return vt;
     }
-    vt = new InlineTypePtrNode(vk, not_null_oop, null_free);
+    vt = new InlineTypeNode(vk, not_null_oop, null_free, true);
     vt->set_is_init(gvn);
     vt->load(kit, not_null_oop, not_null_oop, vk, /* holder_offset */ 0);
 
     if (null_ctl != kit->top()) {
-      InlineTypeBaseNode* null_vt = NULL;
+      InlineTypeNode* null_vt = NULL;
       if (null_free) {
-        null_vt = make_default(gvn, vk)->as_ptr(&gvn);
+        null_vt = make_default(gvn, vk);
       } else {
-        null_vt = InlineTypePtrNode::make_null(gvn, vk);
+        null_vt = InlineTypeNode::make_null(gvn, vk);
       }
       Node* region = new RegionNode(3);
       region->init_req(1, kit->control());
@@ -754,17 +802,17 @@ InlineTypeBaseNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciIn
     }
   } else {
     // Oop can never be null
-    vt = new InlineTypePtrNode(vk, oop, /* null_free= */ true);
+    vt = new InlineTypeNode(vk, oop, /* null_free= */ true, true);
     Node* init_ctl = kit->control();
     vt->set_is_init(gvn);
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
-// TODO fix with JDK-8278390
-//    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
+// TODO 8284443
+//    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
 //           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
   assert(!null_free || vt->is_allocated(&gvn), "inline type should be allocated");
   kit->record_for_igvn(vt);
-  return gvn.transform(vt)->as_InlineTypeBase();
+  return gvn.transform(vt)->as_InlineType();
 }
 
 // GraphKit wrapper for the 'make_from_flattened' method
@@ -783,18 +831,18 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeBaseNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
-  InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
+InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free) {
+  InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
   if (!in) {
     // Keep track of the oop. The returned inline type might already be buffered.
     Node* oop = kit->gvn().transform(new ProjNode(multi, base_input++));
     vt->set_oop(oop);
   }
   vt->initialize_fields(kit, multi, base_input, in, null_free);
-  return kit->gvn().transform(vt)->as_InlineTypeBase();
+  return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeBaseNode::make_larval(GraphKit* kit, bool allocate) const {
+InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const {
   ciInlineKlass* vk = inline_klass();
   InlineTypeNode* res = InlineTypeNode::make_uninitialized(kit->gvn(), vk);
   for (uint i = 1; i < req(); ++i) {
@@ -813,13 +861,14 @@ InlineTypeNode* InlineTypeBaseNode::make_larval(GraphKit* kit, bool allocate) co
     store(kit, alloc_oop, alloc_oop, vk);
     res->set_oop(alloc_oop);
   }
-  res->set_type(TypeInlineType::make(vk, true));
+  // TODO 8239003
+  //res->set_type(TypeInlineType::make(vk, true));
   res = kit->gvn().transform(res)->as_InlineType();
   assert(!allocate || res->is_allocated(&kit->gvn()), "must be allocated");
   return res;
 }
 
-InlineTypeNode* InlineTypeBaseNode::finish_larval(GraphKit* kit) const {
+InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   Node* obj = get_oop();
   Node* mark_addr = kit->basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
@@ -837,7 +886,8 @@ InlineTypeNode* InlineTypeBaseNode::finish_larval(GraphKit* kit) const {
   for (uint i = 1; i < req(); ++i) {
     res->set_req(i, in(i));
   }
-  res->set_type(TypeInlineType::make(vk, false));
+  // TODO 8239003
+  //res->set_type(TypeInlineType::make(vk, false));
   res = kit->gvn().transform(res)->as_InlineType();
   return res;
 }
@@ -859,8 +909,8 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
     Node* value = field_value(i);
-    if (value->is_InlineTypeBase()) {
-      InlineTypeBaseNode* vt = value->as_InlineTypeBase();
+    if (value->is_InlineType()) {
+      InlineTypeNode* vt = value->as_InlineType();
       if (vt->type()->inline_klass()->is_empty()) {
         continue;
       } else if (field_is_flattened(i) && vt->is_InlineType()) {
@@ -903,14 +953,14 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
   return base;
 }
 
-Node* InlineTypeBaseNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
+Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   const TypeKlassPtr* tk = TypeKlassPtr::make(vk);
   intptr_t bits = tk->get_con();
   set_nth_bit(bits, 0);
   return gvn.longcon((jlong)bits);
 }
 
-void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
+void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool in, bool null_free) {
   if (!null_free && in) {
     n->init_req(base_input++, get_is_init());
   }
@@ -918,7 +968,7 @@ void InlineTypeBaseNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, b
     Node* arg = field_value(i);
     if (field_is_flattened(i)) {
       // Flattened inline type field
-      arg->as_InlineTypeBase()->pass_fields(kit, n, base_input, in);
+      arg->as_InlineType()->pass_fields(kit, n, base_input, in);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field
@@ -1017,88 +1067,15 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
   }
 }
 
-// Replace a buffer allocation by a dominating allocation
-static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
-  // Remove initializing stores and GC barriers
-  for (DUIterator_Fast imax, i = res->fast_outs(imax); i < imax; i++) {
-    Node* use = res->fast_out(i);
-    if (use->is_AddP()) {
-      for (DUIterator_Fast jmax, j = use->fast_outs(jmax); j < jmax; j++) {
-        Node* store = use->fast_out(j)->isa_Store();
-        if (store != NULL) {
-          igvn->rehash_node_delayed(store);
-          igvn->replace_in_uses(store, store->in(MemNode::Memory));
-        }
-      }
-    } else if (use->Opcode() == Op_CastP2X) {
-      if (UseG1GC && use->find_out_with(Op_XorX)->in(1) != use) {
-        // The G1 pre-barrier uses a CastP2X both for the pointer of the object
-        // we store into, as well as the value we are storing. Skip if this is a
-        // barrier for storing 'res' into another object.
-        continue;
-      }
-      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      bs->eliminate_gc_barrier(igvn, use);
-      --i; --imax;
-    }
-  }
-  igvn->replace_node(res, dom);
-}
-
-Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  Node* oop = get_oop();
-  if (is_default(phase) && inline_klass()->is_initialized() &&
-      (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
-    // Use the pre-allocated oop for default inline types
-    set_oop(default_oop(*phase, inline_klass()));
-    assert(is_allocated(phase), "should now be allocated");
-    return this;
-  }
-
-  if (!is_allocated(phase)) {
-    // Save base oop if fields are loaded from memory and the inline
-    // type is not buffered (in this case we should not use the oop).
-    Node* base = is_loaded(phase);
-    if (base != NULL && !phase->type(base)->maybe_null()) {
-      set_oop(base);
-      assert(is_allocated(phase), "should now be allocated");
-      return this;
-    }
-  }
-
-  if (can_reshape) {
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-
-    if (is_allocated(phase)) {
-      // Search for and remove re-allocations of this inline type. Ignore scalar replaceable ones,
-      // they will be removed anyway and changing the memory chain will confuse other optimizations.
-      // This can happen with late inlining when we first allocate an inline type argument
-      // but later decide to inline the call after the callee code also triggered allocation.
-      for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-        AllocateNode* alloc = fast_out(i)->isa_Allocate();
-        if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this && !alloc->_is_scalar_replaceable) {
-          // Found a re-allocation
-          Node* res = alloc->result_cast();
-          if (res != NULL && res->is_CheckCastPP()) {
-            // Replace allocation by oop and unlink AllocateNode
-            replace_allocation(igvn, res, oop);
-            igvn->replace_input_of(alloc, AllocateNode::InlineTypeNode, igvn->C->top());
-            --i; --imax;
-          }
-        }
-      }
-    }
-  }
-  return InlineTypeBaseNode::Ideal(phase, can_reshape);
-}
-
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
-void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase) {
+// Equivalent InlineTypeNodes are merged by GVN, so we just need to search for AllocateNode users to find redundant allocations.
+void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
+  PhaseIterGVN* igvn = &phase->igvn();
   // Search for allocations of this inline type. Ignore scalar replaceable ones, they
   // will be removed anyway and changing the memory chain will confuse other optimizations.
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
-    if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this && !alloc->_is_scalar_replaceable) {
+    if (alloc != NULL && alloc->in(AllocateNode::InlineType) == this && !alloc->_is_scalar_replaceable) {
       Node* res = alloc->result_cast();
       if (res == NULL || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
@@ -1108,7 +1085,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
         AllocateNode* alloc_other = fast_out(j)->isa_Allocate();
-        if (alloc_other != NULL && alloc_other->in(AllocateNode::InlineTypeNode) == this && !alloc_other->_is_scalar_replaceable) {
+        if (alloc_other != NULL && alloc_other->in(AllocateNode::InlineType) == this && !alloc_other->_is_scalar_replaceable) {
           Node* res_other = alloc_other->result_cast();
           if (res_other != NULL && res_other->is_CheckCastPP() && res_other != res_dom &&
               phase->is_dominator(res_other->in(0), res_dom->in(0))) {
@@ -1125,52 +1102,42 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       }
     }
   }
-
-  // Process users
-  for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-    Node* out = fast_out(i);
-    if (out->is_InlineType()) {
-      // Recursively process inline type users
-      igvn->rehash_node_delayed(out);
-      out->as_InlineType()->remove_redundant_allocations(igvn, phase);
-    } else if (out->isa_Allocate() != NULL) {
-      // Unlink AllocateNode
-      assert(out->in(AllocateNode::InlineTypeNode) == this, "should be linked");
-      igvn->replace_input_of(out, AllocateNode::InlineTypeNode, igvn->C->top());
-      --i; --imax;
-    }
-  }
 }
 
-InlineTypePtrNode* InlineTypePtrNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
-  InlineTypePtrNode* ptr = new InlineTypePtrNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false);
+InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
+  InlineTypeNode* ptr = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false, true);
   ptr->set_req(IsInit, gvn.intcon(0));
   for (uint i = 0; i < ptr->field_count(); i++) {
     ciType* field_type = ptr->field_type(i);
     Node* value = gvn.zerocon(field_type->basic_type());
     if (field_type->is_inlinetype()) {
-      if (ptr->field_is_null_free(i)) {
-        value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
-      } else {
-        value = InlineTypePtrNode::make_null(gvn, field_type->as_inline_klass());
-      }
+      value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
     }
     ptr->set_field_value(i, value);
   }
-  return gvn.transform(ptr)->as_InlineTypePtr();
+  return gvn.transform(ptr)->as_InlineType();
 }
 
-Node* InlineTypePtrNode::Identity(PhaseGVN* phase) {
-  if (get_oop()->is_InlineTypePtr()) {
+Node* InlineTypeNode::Identity(PhaseGVN* phase) {
+  if (get_oop()->is_InlineType()) {
     return get_oop();
   }
   return this;
 }
 
-const Type* InlineTypePtrNode::Value(PhaseGVN* phase) const {
-  const Type* t = phase->type(get_oop())->filter_speculative(_type);
+const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
+  Node* oop = get_oop();
+  const Type* toop = phase->type(oop);
+#ifdef ASSERT
+  if (oop->is_Con() && toop->is_zero_type() && _type->isa_oopptr()->is_known_instance()) {
+    // We are not allocated (anymore) and should therefore not have an instance id
+    dump(1);
+    assert(false, "Unbuffered inline type should not have known instance id");
+  }
+#endif
+  const Type* t = toop->filter_speculative(_type);
   if (t->singleton()) {
-    // Don't replace InlineTypePtr by a constant
+    // Don't replace InlineType by a constant
     t = _type;
   }
   const Type* tinit = phase->type(in(IsInit));

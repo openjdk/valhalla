@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,29 +23,34 @@
  */
 /*
  * @test
- * @summary test that if a class file has ACC_PRIMITIVE set then it must be run
- *          with option -XX:+EnableValhalla.
+ * @summary test that if a class file has ACC_VALUE or ACC_PRIMITIVE set then it must be run
+ *          with option -XX:+EnableValhalla or -XX:+EnablePrimitiveClasses respectively.
  * @compile cfpTests.jcod
- * @run main/othervm -XX:-EnableValhalla BadACCValue
+ * @run main/othervm -XX:-EnableValhalla -XX:-EnablePrimitiveClasses BadACCValue ACC_VALUE
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses BadACCValue ACC_PRIMIITVE
  */
 
 public class BadACCValue {
 
     public static void runTest(String test_name, String message) throws Exception {
-        System.out.println("Testing: " + test_name);
+        System.out.println("Testing: " + test_name + " Expecting CFE with message: " + message);
         try {
             Class newClass = Class.forName(test_name);
+            throw new RuntimeException("Managed to load primitive class with -XX:-EnablePrimitiveClasses");
         } catch (java.lang.ClassFormatError e) {
             if (!e.getMessage().contains(message)) {
                 throw new RuntimeException( "Wrong ClassFormatError: " + e.getMessage());
             }
+        } catch (Throwable t) {
+            throw new RuntimeException( "Wrong Exeception, message: " + t.getMessage(), t);
         }
     }
 
     public static void main(String[] args) throws Exception {
-
-        // Test ACC_PRIMITIVE causes a CFE unless -XX:+EnableValhalla is specified.
-        runTest("ValueFieldNotFinal",
-                "Class modifier ACC_PRIMITIVE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
+        // Test correct error message for disabled Valhalla features
+        String message = args[0].equals("ACC_VALUE") ?
+            "Class modifier ACC_VALUE in class ValueFieldNotFinal requires option -XX:+EnableValhalla" :
+            "Class modifier ACC_PRIMITIVE in class ValueFieldNotFinal requires option -XX:+EnablePrimitiveClasses";
+        runTest("ValueFieldNotFinal", message);
     }
 }

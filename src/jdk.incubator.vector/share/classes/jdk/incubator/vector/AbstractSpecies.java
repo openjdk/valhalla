@@ -144,7 +144,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         return (Class<E>) laneType.elementType;
     }
 
-    // FIXME: appeal to general method (see https://bugs.openjdk.java.net/browse/JDK-6176992)
+    // FIXME: appeal to general method (see https://bugs.openjdk.org/browse/JDK-6176992)
     // replace usages of this method and remove
     @ForceInline
     @SuppressWarnings("unchecked")

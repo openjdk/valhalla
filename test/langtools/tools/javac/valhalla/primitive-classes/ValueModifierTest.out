@@ -1,5 +1,0 @@
-ValueModifierTest.java:15:13: compiler.err.cant.inherit.from.final: Value
-ValueModifierTest.java:15:21: compiler.err.identity.type.has.value.super.type: compiler.misc.anonymous.class: Value, Value
-ValueModifierTest.java:16:23: compiler.err.cant.inherit.from.final: Value
-ValueModifierTest.java:16:31: compiler.err.concrete.supertype.for.value.class: compiler.misc.anonymous.class: ValueModifierTest$3, Value
-4 errors

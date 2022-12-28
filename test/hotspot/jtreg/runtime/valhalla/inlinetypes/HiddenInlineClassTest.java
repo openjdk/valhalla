@@ -27,7 +27,7 @@
  * @library /test/lib
  * @modules jdk.compiler
  * @compile HiddenPoint.jcod
- * @run main HiddenInlineClassTest
+ * @run main/othervm -XX:+EnableValhalla -XX:-EnablePrimitiveClasses HiddenInlineClassTest
  */
 
 import java.io.File;

@@ -29,7 +29,7 @@
  * @summary Bogus error message: incompatible types while using separate compilation.
  * @compile -XDenablePrimitiveClasses SeparateCompileTest01.java
  * @compile -XDenablePrimitiveClasses SeparateCompileTest.java
- * @run main SeparateCompileTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses SeparateCompileTest
  */
 
 public class SeparateCompileTest {

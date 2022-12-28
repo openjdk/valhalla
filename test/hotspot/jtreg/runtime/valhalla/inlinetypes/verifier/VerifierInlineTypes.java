@@ -27,7 +27,7 @@
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile verifierTests.jcod
- * @run main/othervm -verify VerifierInlineTypes
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -verify VerifierInlineTypes
  */
 
 public class VerifierInlineTypes {

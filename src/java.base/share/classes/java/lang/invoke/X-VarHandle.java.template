@@ -31,8 +31,6 @@ import java.lang.invoke.VarHandle.VarHandleDesc;
 import java.util.Objects;
 import java.util.Optional;
 
-import jdk.internal.value.PrimitiveClass;
-
 import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 
 #warn
@@ -150,8 +148,6 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
-            if (PrimitiveClass.isPrimitiveValueType(handle.fieldType))
-                Objects.requireNonNull(value);
             return handle.fieldType.cast(value);
         }
 #end[Object]
@@ -503,8 +499,6 @@ final class VarHandle$Type$s {
 
 #if[Object]
         static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
-            if (PrimitiveClass.isPrimitiveValueType(handle.fieldType))
-                Objects.requireNonNull(value);
             return handle.fieldType.cast(value);
         }
 #end[Object]
@@ -746,7 +740,7 @@ final class VarHandle$Type$s {
 #if[Reference]
     static VarHandle makeVarHandleValuesArray(Class<?> arrayClass) {
         Class<?> componentType = arrayClass.getComponentType();
-        assert PrimitiveClass.isPrimitiveValueType(componentType) && UNSAFE.isFlattenedArray(arrayClass);
+        assert UNSAFE.isFlattenedArray(arrayClass);
         // should cache these VarHandle for performance
         return VarHandles.makeArrayElementHandle(arrayClass);
     }
@@ -805,9 +799,6 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
-            if (PrimitiveClass.isPrimitiveValueType(handle.componentType))
-                 Objects.requireNonNull(value);
-
             if (handle.arrayType == oarray.getClass()) {
                 // Fast path: static array type same as argument array type
                 return handle.componentType.cast(value);

@@ -572,7 +572,7 @@ Node *Node::clone() const {
     n->as_SafePoint()->clone_jvms(C);
     n->as_SafePoint()->clone_replaced_nodes();
   }
-  if (n->is_InlineTypeBase()) {
+  if (n->is_InlineType()) {
     C->add_inline_type(n);
   }
   Compile::current()->record_modified_node(n);
@@ -658,7 +658,7 @@ void Node::destruct(PhaseValues* phase) {
   if (for_post_loop_opts_igvn()) {
     compile->remove_from_post_loop_opts_igvn(this);
   }
-  if (is_InlineTypeBase()) {
+  if (is_InlineType()) {
     compile->remove_inline_type(this);
   }
 
@@ -2686,53 +2686,6 @@ void Node::dump_comp(const char* suffix, outputStream *st) const {
 }
 
 // VERIFICATION CODE
-// For each input edge to a node (ie - for each Use-Def edge), verify that
-// there is a corresponding Def-Use edge.
-//------------------------------verify_edges-----------------------------------
-void Node::verify_edges(Unique_Node_List &visited) {
-  uint i, j, idx;
-  int  cnt;
-  Node *n;
-
-  // Recursive termination test
-  if (visited.member(this))  return;
-  visited.push(this);
-
-  // Walk over all input edges, checking for correspondence
-  for( i = 0; i < len(); i++ ) {
-    n = in(i);
-    if (n != NULL && !n->is_top()) {
-      // Count instances of (Node *)this
-      cnt = 0;
-      for (idx = 0; idx < n->_outcnt; idx++ ) {
-        if (n->_out[idx] == (Node *)this)  cnt++;
-      }
-      assert( cnt > 0,"Failed to find Def-Use edge." );
-      // Check for duplicate edges
-      // walk the input array downcounting the input edges to n
-      for( j = 0; j < len(); j++ ) {
-        if( in(j) == n ) cnt--;
-      }
-      assert( cnt == 0,"Mismatched edge count.");
-    } else if (n == NULL) {
-      assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy() ||
-             (is_Allocate() && i >= AllocateNode::InlineTypeNode) ||
-             (is_Unlock() && i == req()-1)
-              || (is_MemBar() && i == 5), // the precedence edge to a membar can be removed during macro node expansion
-             "only region, phi, arraycopy, allocate or unlock nodes have null data edges");
-    } else {
-      assert(n->is_top(), "sanity");
-      // Nothing to check.
-    }
-  }
-  // Recursive walk over all input edges
-  for( i = 0; i < len(); i++ ) {
-    n = in(i);
-    if( n != NULL )
-      in(i)->verify_edges(visited);
-  }
-}
-
 // Verify all nodes if verify_depth is negative
 void Node::verify(int verify_depth, VectorSet& visited, Node_List& worklist) {
   assert(verify_depth != 0, "depth should not be 0");

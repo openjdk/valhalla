@@ -47,6 +47,7 @@ class       PCTableNode;
 class         JumpNode;
 class         CatchNode;
 class       NeverBranchNode;
+class     BlackholeNode;
 class   ProjNode;
 class     CProjNode;
 class       IfTrueNode;
@@ -218,7 +219,7 @@ public:
   }
   Node* try_clean_mem_phi(PhaseGVN *phase);
 
-  InlineTypeBaseNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init);
+  InlineTypeNode* push_inline_types_through(PhaseGVN* phase, bool can_reshape, ciInlineKlass* vk, bool is_init);
 
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
@@ -607,5 +608,29 @@ public:
   virtual void format( PhaseRegAlloc *, outputStream *st ) const;
 #endif
 };
+
+//------------------------------BlackholeNode----------------------------
+// Blackhole all arguments. This node would survive through the compiler
+// the effects on its arguments, and would be finally matched to nothing.
+class BlackholeNode : public MultiNode {
+public:
+  BlackholeNode(Node* ctrl) : MultiNode(1) {
+    init_req(TypeFunc::Control, ctrl);
+  }
+  virtual int   Opcode() const;
+  virtual uint ideal_reg() const { return 0; } // not matched in the AD file
+  virtual const Type* bottom_type() const { return TypeTuple::MEMBAR; }
+
+  const RegMask &in_RegMask(uint idx) const {
+    // Fake the incoming arguments mask for blackholes: accept all registers
+    // and all stack slots. This would avoid any redundant register moves
+    // for blackhole inputs.
+    return RegMask::All;
+  }
+#ifndef PRODUCT
+  virtual void format(PhaseRegAlloc* ra, outputStream* st) const;
+#endif
+};
+
 
 #endif // SHARE_OPTO_CFGNODE_HPP
