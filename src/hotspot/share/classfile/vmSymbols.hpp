@@ -93,6 +93,7 @@
   template(jdk_internal_vm_vector_Vector,             "jdk/internal/vm/vector/VectorSupport$Vector")        \
   template(jdk_internal_vm_vector_VectorMask,         "jdk/internal/vm/vector/VectorSupport$VectorMask")    \
   template(jdk_internal_vm_vector_VectorShuffle,      "jdk/internal/vm/vector/VectorSupport$VectorShuffle") \
+  template(jdk_internal_vm_vector_VectorPayloadMF,    "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF")    \
   template(jdk_internal_vm_vector_VectorPayloadMF64,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF64")  \
   template(jdk_internal_vm_vector_VectorPayloadMF128, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128") \
   template(jdk_internal_vm_vector_VectorPayloadMF256, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256") \

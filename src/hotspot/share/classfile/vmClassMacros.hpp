@@ -192,6 +192,7 @@
   do_klass(vector_VectorShuffle_klass,                  jdk_internal_vm_vector_VectorShuffle                  ) \
                                                                                                                 \
   /* support multi-field based vectors */                                                                       \
+  do_klass(vector_VectorPayloadMF_klass,                jdk_internal_vm_vector_VectorPayloadMF                ) \
   do_klass(vector_VectorPayloadMF64_klass,              jdk_internal_vm_vector_VectorPayloadMF64              ) \
   do_klass(vector_VectorPayloadMF128_klass,             jdk_internal_vm_vector_VectorPayloadMF128             ) \
   do_klass(vector_VectorPayloadMF256_klass,             jdk_internal_vm_vector_VectorPayloadMF256             ) \

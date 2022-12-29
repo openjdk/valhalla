@@ -1575,9 +1575,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // array and any unused slots will be discarded.
   ResourceMark rm(THREAD);
 
-  GrowableArray<FieldInfo>* temp_fieldinfo = new GrowableArray<FieldInfo>(total_fields, mtNone);
-  GrowableArray<u2>* temp_generic_signature = new GrowableArray<u2>(total_fields, mtNone);
-  GrowableArray<MultiFieldInfo>* temp_multifield_info = new GrowableArray<MultiFieldInfo>(0, mtNone); // could be allocated lazily
+  GrowableArray<FieldInfo>* temp_fieldinfo = new GrowableArray<FieldInfo>(total_fields);
+  GrowableArray<u2>* temp_generic_signature = new GrowableArray<u2>(total_fields);
+  GrowableArray<MultiFieldInfo>* temp_multifield_info = new GrowableArray<MultiFieldInfo>(0); // could be allocated lazily
   FieldInfo fi;
   FieldInfo* f = &fi;
   GrowableArray<AnnotationArray*>* fields_annotations = NULL;
@@ -1636,7 +1636,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
       if (parsed_annotations.field_annotations() != NULL) {
         if (fields_annotations == NULL) {
-          fields_annotations = new GrowableArray<AnnotationArray*>(length, mtNone);
+          fields_annotations = new GrowableArray<AnnotationArray*>(length);
         }
 
         fields_annotations->at_put_grow(field_index, parsed_annotations.field_annotations(), NULL);
@@ -1644,7 +1644,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
       if (parsed_annotations.field_type_annotations() != NULL) {
         if (fields_type_annotations == NULL) {
-          fields_type_annotations = new GrowableArray<AnnotationArray*>(length, mtNone);
+          fields_type_annotations = new GrowableArray<AnnotationArray*>(length);
         }
         fields_type_annotations->at_put_grow(field_index, parsed_annotations.field_type_annotations(), NULL);
         parsed_annotations.set_field_type_annotations(NULL);
@@ -3410,8 +3410,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       "outer_class_info_index %u has bad constant type in class file %s",
       outer_class_info_index, CHECK_0);
 
+    const Symbol* outer_class_name = NULL;
     if (outer_class_info_index != 0) {
-      const Symbol* const outer_class_name = cp->klass_name_at(outer_class_info_index);
+      outer_class_name = cp->klass_name_at(outer_class_info_index);
       char* bytes = (char*)outer_class_name->bytes();
       guarantee_property(bytes[0] != JVM_SIGNATURE_ARRAY,
                          "Outer class is an array class in class file %s", CHECK_0);
@@ -3455,7 +3456,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     }
 
     const char* name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
-    verify_legal_class_modifiers(flags, name, false, CHECK_0);
+    verify_legal_class_modifiers(flags, name, outer_class_name, false, CHECK_0);
     AccessFlags inner_access_flags(flags);
 
     inner_classes->at_put(index++, inner_class_info_index);
@@ -4884,9 +4885,26 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
   }
 }
 
+// utility function to skip over internal jdk primitive classes used to override the need for passing
+// an explict JVM flag EnablePrimitiveClasses.
+bool ClassFileParser::is_jdk_internal_class(const Symbol* outer_class, const char * inner_class) const {
+  if (outer_class &&
+      inner_class &&
+      (vmSymbols::jdk_internal_vm_vector_VectorSupport() == outer_class ||
+       vmSymbols::jdk_internal_vm_vector_VectorPayloadMF() == outer_class)) {
+    if (strstr(inner_class, "VectorPayloadMF64")  ||
+        strstr(inner_class, "VectorPayloadMF128") ||
+        strstr(inner_class, "VectorPayloadMF256") ||
+        strstr(inner_class, "VectorPayloadMF512")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // utility methods for format checking
 
-void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const {
+void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, const Symbol* outer_class, bool is_Object, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
   const bool is_value_class = (flags & JVM_ACC_VALUE) != 0;
   const bool is_primitive_class = (flags & JVM_ACC_PRIMITIVE) != 0;
@@ -4914,7 +4932,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     return;
   }
 
-  if (is_primitive_class && !EnablePrimitiveClasses) {
+  if (is_primitive_class && !is_jdk_internal_class(outer_class, name) && !EnablePrimitiveClasses) {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
@@ -6330,7 +6348,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
   bool is_java_lang_Object = class_name_in_cp == vmSymbols::java_lang_Object();
 
-  verify_legal_class_modifiers(flags, NULL, is_java_lang_Object, CHECK);
 
   if (EnableValhalla) {
     if(!supports_inline_types()) {
@@ -6431,6 +6448,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                                    _need_verify,
                                    CHECK);
 
+  const Symbol* super_klass_name = _super_class_index ? cp->klass_name_at(_super_class_index) : NULL;
+  verify_legal_class_modifiers(flags, _class_name->as_C_string(), super_klass_name, is_java_lang_Object, CHECK);
+
   // Interfaces
   _itfs_len = stream->get_u2_fast();
   parse_interfaces(stream,
@@ -6528,6 +6548,18 @@ void ClassFileParser::mangle_hidden_class_name(InstanceKlass* const ik) {
   _cp->unresolved_klass_at_put(_this_class_index, hidden_index, resolved_klass_index);
   assert(_cp->klass_slot_at(_this_class_index).name_index() == _orig_cp_size,
          "Bad name_index");
+}
+
+bool ClassFileParser::is_jdk_internal_class(const Klass* cls) {
+  while(cls) {
+    const Symbol* cls_name = cls->name();
+    if(cls_name == vmSymbols::jdk_internal_vm_vector_VectorPayload() ||
+       cls_name == vmSymbols::jdk_internal_vm_vector_VectorPayloadMF()) {
+      return true;
+    }
+    cls = cls->super();
+   }
+   return false;
 }
 
 void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const stream,
@@ -6673,7 +6705,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != NULL, "invariant");
 
 
-  if (EnablePrimitiveClasses) {
+  if (EnablePrimitiveClasses || is_jdk_internal_class(_super_klass)) {
     _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
                                                    java_fields_count(),
                                                    NULL,

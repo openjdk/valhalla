@@ -131,10 +131,10 @@ void FieldGroup::add_multifield(AllFieldStream fs, Array<MultiFieldInfo>* multif
       }
     }
   } else {
-    _multifields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<MultiFieldGroup*>(8);
+    _multifields = new GrowableArray<MultiFieldGroup*>(INITIAL_LIST_SIZE);
   }
   if (mfg == NULL) {
-    mfg = new(ResourceObj::RESOURCE_AREA, mtInternal) MultiFieldGroup(base, fs.signature());
+    mfg = new MultiFieldGroup(base, fs.signature());
     mfg->add_field(fs, vk);
     _multifields->append(mfg);
   } else {
@@ -188,7 +188,7 @@ void MultiFieldGroup::add_field(AllFieldStream fs, InlineKlass* vk) {
   assert(fs.multifield_base() == multifield_base(), "multifield base mismatch");
   jbyte idx = fs.multifield_index();
   if (_fields == NULL) {
-    _fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(8);
+    _fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   } else {
     guarantee(fs.signature() == signature(), "multifield signature mismatch");
   }
