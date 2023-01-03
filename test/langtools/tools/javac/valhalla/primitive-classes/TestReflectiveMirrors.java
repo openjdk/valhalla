@@ -29,7 +29,7 @@
  * @summary  javac should generate `ldc LPoint;` for class literal Point.class
  * @modules java.base/jdk.internal.value
  * @compile -XDenablePrimitiveClasses TestReflectiveMirrors.java
- * @run main TestReflectiveMirrors
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses TestReflectiveMirrors
  */
 
 import jdk.internal.value.PrimitiveClass;

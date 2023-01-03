@@ -34,7 +34,7 @@ import java.lang.reflect.Method;
 
 import jdk.internal.value.PrimitiveClass;
 
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 /*
@@ -45,7 +45,7 @@ import static compiler.valhalla.inlinetypes.InlineTypes.*;
  * @library /test/lib /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile -XDenablePrimitiveClasses TestMethodHandles.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestMethodHandles
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestMethodHandles
  */
 
 @ForceCompileClassInitializer

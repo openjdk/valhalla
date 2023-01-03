@@ -26,7 +26,7 @@
  * @summary Check separate compilation
  * @compile -XDenablePrimitiveClasses CheckSeparateCompile0.java
  * @compile -XDenablePrimitiveClasses CheckSeparateCompile.java
- * @run main/othervm -XX:+EnableValhalla CheckSeparateCompile
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CheckSeparateCompile
  */
 
 public class CheckSeparateCompile {

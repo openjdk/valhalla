@@ -26,7 +26,7 @@
  * @bug 8198749
  * @summary Test value instatiation using new/ctors.
  * @compile -XDenablePrimitiveClasses LocalValueNew.java
- * @run main/othervm LocalValueNew
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses LocalValueNew
  */
 
 

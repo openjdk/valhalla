@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @summary Inline Type get field test
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses Point.java InlineTypeGetField.java
- * @run main runtime.valhalla.inlinetypes.InlineTypeGetField
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses runtime.valhalla.inlinetypes.InlineTypeGetField
  */
 public class InlineTypeGetField {
 

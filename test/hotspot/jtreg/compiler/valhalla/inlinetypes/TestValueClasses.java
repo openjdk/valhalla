@@ -28,12 +28,9 @@ import jdk.test.lib.Asserts;
 import jdk.experimental.bytecode.TypeTag;
 import test.java.lang.invoke.lib.InstructionHelper;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 
-import static compiler.valhalla.inlinetypes.InlineTypes.IRNode.*;
+import static compiler.valhalla.inlinetypes.InlineTypeIRNode.*;
 import static compiler.valhalla.inlinetypes.InlineTypes.*;
 
 import jdk.internal.value.PrimitiveClass;
@@ -45,9 +42,9 @@ import jdk.internal.value.PrimitiveClass;
  * @modules java.base/jdk.internal.value
  * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @build test.java.lang.invoke.lib.InstructionHelper
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDenablePrimitiveClasses TestValueClasses.java
- * @run driver/timeout=300 compiler.valhalla.inlinetypes.TestValueClasses
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses compiler.valhalla.inlinetypes.TestValueClasses
  */
 
 @ForceCompileClassInitializer

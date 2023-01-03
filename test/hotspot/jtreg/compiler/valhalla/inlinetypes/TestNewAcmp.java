@@ -28,7 +28,8 @@
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile -XDenablePrimitiveClasses TestNewAcmp.java
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox
- * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ * @run main/othervm/timeout=300 -XX:+EnableValhalla -XX:+EnablePrimitiveClasses
+ *                               -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.inlinetypes.TestNewAcmp
  */
 
@@ -1870,6 +1871,8 @@ public class TestNewAcmp {
 
     private static void enumerateVMOptions() throws Exception {
         String[] baseOptions = {
+            "-XX:+EnableValhalla",
+            "-XX:+EnablePrimitiveClasses",
             "-Xbootclasspath/a:.",
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",

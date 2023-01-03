@@ -75,7 +75,7 @@ public:
 
 class C2SafepointPollStubTable {
 private:
-  struct C2SafepointPollStub: public ResourceObj {
+  struct C2SafepointPollStub: public ArenaObj {
     uintptr_t _safepoint_offset;
     Label     _stub_label;
     Label     _trampoline_label;
@@ -115,7 +115,7 @@ public:
 };
 
 // We move non-hot code of the nmethod entry barrier to an out-of-line stub
-class C2EntryBarrierStub: public ResourceObj {
+class C2EntryBarrierStub: public ArenaObj {
   Label _slow_path;
   Label _continuation;
   Label _guard; // Used on AArch64 and RISCV
@@ -133,10 +133,10 @@ public:
 };
 
 class C2EntryBarrierStubTable {
-  C2EntryBarrierStub* _stub;
+  GrowableArray<C2EntryBarrierStub*> _stubs;
 
 public:
-  C2EntryBarrierStubTable() : _stub(NULL) {}
+  C2EntryBarrierStubTable() {}
   C2EntryBarrierStub* add_entry_barrier();
   int estimate_stub_size() const;
   void emit(CodeBuffer& cb);

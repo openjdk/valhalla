@@ -270,13 +270,8 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_PRIMITIVE_OBJECT: {
-    bool is_null_free = type->is_null_free();
     ciInlineKlass* vk = type->unwrap()->as_inline_klass();
-    if (is_null_free) {
-      return TypeInlineType::make(vk);
-    } else {
-      return TypeOopPtr::make_from_klass(vk)->join_speculative(is_null_free ? TypePtr::NOTNULL : TypePtr::BOTTOM);
-    }
+    return TypeOopPtr::make_from_klass(vk)->join_speculative(type->is_null_free() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
   }
 
   default:
@@ -2112,7 +2107,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   if (ret_vt_fields) {
     arg_cnt = return_type->as_inline_klass()->inline_arg_slots() + 1;
     if (!sig->returns_null_free_inline_type()) {
-      // InlineTypeBaseNode::IsInit field used for null checking
+      // InlineTypeNode::IsInit field used for null checking
       arg_cnt++;
     }
   }
@@ -2143,7 +2138,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       field_array[pos++] = get_const_type(return_type); // Oop might be null when returning as fields
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
       if (!sig->returns_null_free_inline_type()) {
-        // InlineTypeBaseNode::IsInit field used for null checking
+        // InlineTypeNode::IsInit field used for null checking
         field_array[pos++] = get_const_basic_type(T_BOOLEAN);
       }
     } else {
@@ -2210,7 +2205,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     case T_PRIMITIVE_OBJECT: {
       if (vt_fields_as_args && method->is_scalarized_arg(i + (method->is_static() ? 0 : 1))) {
         if (!sig->is_null_free_at(i)) {
-          // InlineTypeBaseNode::IsInit field used for null checking
+          // InlineTypeNode::IsInit field used for null checking
           field_array[pos++] = get_const_basic_type(T_BOOLEAN);
         }
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
@@ -6472,6 +6467,10 @@ bool TypeAryKlassPtr::must_be_exact() const {
   if (_elem == Type::TOP   ) return false;
   const TypeKlassPtr*  tk = _elem->isa_klassptr();
   if (!tk)             return true;   // a primitive type, like int
+  // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+  if (tk->klass()->is_inlinetype() && !is_null_free()) {
+    return false;
+  }
   return tk->must_be_exact();
 }
 

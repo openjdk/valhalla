@@ -38,9 +38,9 @@ import static jdk.test.lib.Asserts.*;
  * @modules java.base/jdk.internal.value
  * @library /test/lib
  * @compile -XDenablePrimitiveClasses InlineTypeArray.java Point.java Long8Inline.java Person.java
- * @run main/othervm -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:FlatArrayElementMaxSize=0  runtime.valhalla.inlinetypes.InlineTypeArray
- * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=-1 runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:FlatArrayElementMaxSize=0  runtime.valhalla.inlinetypes.InlineTypeArray
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.InlineTypeArray
  */
 public class InlineTypeArray {
     public static void main(String[] args) {

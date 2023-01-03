@@ -30,7 +30,7 @@
  *
  * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses Point.java
  * @compile -XDallowWithFieldOperator -XDenablePrimitiveClasses CastNullCheckTest.java
- * @run main/othervm CastNullCheckTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CastNullCheckTest
  */
 
 public class CastNullCheckTest {

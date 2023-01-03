@@ -1055,7 +1055,8 @@ public class Modules extends JCTree.Visitor {
         }
 
         MethodSymbol noArgsConstructor(ClassSymbol tsym) {
-            for (Symbol sym : tsym.members().getSymbolsByName(names.init)) {
+            Name constructorName = tsym.isConcreteValueClass() ? names.vnew : names.init;
+            for (Symbol sym : tsym.members().getSymbolsByName(constructorName)) {
                 MethodSymbol mSym = (MethodSymbol)sym;
                 if (mSym.params().isEmpty()) {
                     return mSym;
@@ -1222,6 +1223,10 @@ public class Modules extends JCTree.Visitor {
     private void setupAllModules() {
         Assert.checkNonNull(rootModules);
         Assert.checkNull(allModules);
+
+        //java.base may not be completed yet and computeTransitiveClosure
+        //may not complete it either, make sure it is completed:
+        syms.java_base.complete();
 
         Set<ModuleSymbol> observable;
 

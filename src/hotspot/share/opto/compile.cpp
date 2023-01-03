@@ -21,8 +21,8 @@
  * questions.
  *
  */
+
 #include "precompiled.hpp"
-#include "jvm_io.h"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "ci/ciReplay.hpp"
@@ -36,6 +36,8 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "jvm_io.h"
+#include "memory/allocation.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -80,7 +82,6 @@
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/resourceHash.hpp"
-
 
 // -------------------- Compile::mach_constant_base_node -----------------------
 // Constant table base node singleton.
@@ -392,7 +393,7 @@ void Compile::remove_useless_node(Node* dead) {
   if (dead->for_post_loop_opts_igvn()) {
     remove_from_post_loop_opts_igvn(dead);
   }
-  if (dead->is_InlineTypeBase()) {
+  if (dead->is_InlineType()) {
     remove_inline_type(dead);
   }
   if (dead->is_Call()) {
@@ -651,7 +652,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
                   _vector_reboxing_late_inlines(comp_arena(), 2, 0, NULL),
                   _late_inlines_pos(0),
                   _number_of_mh_late_inlines(0),
-                  _print_inlining_stream(new stringStream()),
+                  _print_inlining_stream(new (mtCompiler) stringStream()),
                   _print_inlining_list(NULL),
                   _print_inlining_idx(0),
                   _print_inlining_output(NULL),
@@ -707,8 +708,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
     method()->ensure_method_data();
   }
 
-  Init(::AliasLevel);
-
+  Init(/*do_aliasing=*/ true);
 
   print_compile_messages();
 
@@ -932,7 +932,7 @@ Compile::Compile( ciEnv* ci_env,
     _initial_gvn(NULL),
     _for_igvn(NULL),
     _number_of_mh_late_inlines(0),
-    _print_inlining_stream(new stringStream()),
+    _print_inlining_stream(new (mtCompiler) stringStream()),
     _print_inlining_list(NULL),
     _print_inlining_idx(0),
     _print_inlining_output(NULL),
@@ -959,7 +959,7 @@ Compile::Compile( ciEnv* ci_env,
   set_has_irreducible_loop(false); // no loops
 
   CompileWrapper cw(this);
-  Init(/*AliasLevel=*/ 0);
+  Init(/*do_aliasing=*/ false);
   init_tf((*generator)());
 
   {
@@ -981,7 +981,8 @@ Compile::Compile( ciEnv* ci_env,
 
 //------------------------------Init-------------------------------------------
 // Prepare for a single compilation
-void Compile::Init(int aliaslevel) {
+void Compile::Init(bool aliasing) {
+  _do_aliasing = aliasing;
   _unique  = 0;
   _regalloc = NULL;
 
@@ -1078,16 +1079,6 @@ void Compile::Init(int aliaslevel) {
     set_default_node_notes(Node_Notes::make(this));
   }
 
-  // // -- Initialize types before each compile --
-  // // Update cached type information
-  // if( _method && _method->constants() )
-  //   Type::update_loaded_types(_method, _method->constants());
-
-  // Init alias_type map.
-  if (!do_escape_analysis() && aliaslevel == 3) {
-    aliaslevel = 2;  // No unique types without escape analysis
-  }
-  _AliasLevel = aliaslevel;
   const int grow_ats = 16;
   _max_alias_types = grow_ats;
   _alias_types   = NEW_ARENA_ARRAY(comp_arena(), AliasType*, grow_ats);
@@ -1324,6 +1315,7 @@ bool Compile::allow_range_check_smearing() const {
 
 //------------------------------flatten_alias_type-----------------------------
 const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
+  assert(do_aliasing(), "Aliasing should be enabled");
   int offset = tj->offset();
   TypePtr::PTR ptr = tj->ptr();
 
@@ -1365,7 +1357,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
               cast_to_ptr_type(ptr)->
               with_offset(offset);
     }
-  } else if( ta && _AliasLevel >= 2 ) {
+  } else if (ta) {
     // For arrays indexed by constant indices, we flatten the alias
     // space to include all of the array body.  Only the header, klass
     // and array length can be accessed un-aliased.
@@ -1443,7 +1435,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
   // Oop pointers need some flattening
   const TypeInstPtr *to = tj->isa_instptr();
-  if( to && _AliasLevel >= 2 && to != TypeOopPtr::BOTTOM ) {
+  if (to && to != TypeOopPtr::BOTTOM) {
     ciInstanceKlass* ik = to->instance_klass();
     if( ptr == TypePtr::Constant ) {
       if (ik != ciEnv::current()->Class_klass() ||
@@ -1545,31 +1537,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
   if (tj->base() == Type::AnyPtr)
     tj = TypePtr::BOTTOM;      // An error, which the caller must check for.
-
-  // Flatten all to bottom for now
-  switch( _AliasLevel ) {
-  case 0:
-    tj = TypePtr::BOTTOM;
-    break;
-  case 1:                       // Flatten to: oop, static, field or array
-    switch (tj->base()) {
-    //case Type::AryPtr: tj = TypeAryPtr::RANGE;    break;
-    case Type::RawPtr:   tj = TypeRawPtr::BOTTOM;   break;
-    case Type::AryPtr:   // do not distinguish arrays at all
-    case Type::InstPtr:  tj = TypeInstPtr::BOTTOM;  break;
-    case Type::KlassPtr:
-    case Type::AryKlassPtr:
-    case Type::InstKlassPtr: tj = TypeInstKlassPtr::OBJECT; break;
-    case Type::AnyPtr:   tj = TypePtr::BOTTOM;      break;  // caller checks it
-    default: ShouldNotReachHere();
-    }
-    break;
-  case 2:                       // No collapsing at level 2; keep all splits
-  case 3:                       // No collapsing at level 3; keep all splits
-    break;
-  default:
-    Unimplemented();
-  }
 
   offset = tj->offset();
   assert( offset != Type::OffsetTop, "Offset has fallen from constant" );
@@ -1677,8 +1644,9 @@ void Compile::grow_alias_types() {
 
 //--------------------------------find_alias_type------------------------------
 Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_create, ciField* original_field, bool uncached) {
-  if (_AliasLevel == 0)
+  if (!do_aliasing()) {
     return alias_type(AliasIdxBot);
+  }
 
   AliasCacheEntry* ace = NULL;
   if (!uncached) {
@@ -1936,12 +1904,12 @@ void Compile::process_for_post_loop_opts_igvn(PhaseIterGVN& igvn) {
 }
 
 void Compile::add_inline_type(Node* n) {
-  assert(n->is_InlineTypeBase(), "unexpected node");
+  assert(n->is_InlineType(), "unexpected node");
   _inline_type_nodes.push(n);
 }
 
 void Compile::remove_inline_type(Node* n) {
-  assert(n->is_InlineTypeBase(), "unexpected node");
+  assert(n->is_InlineType(), "unexpected node");
   if (_inline_type_nodes.contains(n)) {
     _inline_type_nodes.remove(n);
   }
@@ -1955,11 +1923,11 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(!n->is_InlineType(), "chain of inline type nodes");
+    assert(n == ret_val || !n->is_InlineType(), "chain of inline type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
-    } else if (n->is_InlineTypePtr()) {
+    } else if (n->is_InlineType()) {
       wq.push(n->in(1));
     } else if (n->is_Phi()) {
       for (uint j = 1; j < n->req(); j++) {
@@ -2004,52 +1972,64 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Delay this until all inlining is over to avoid getting inconsistent debug info.
   set_scalarize_in_safepoints(true);
   for (int i = _inline_type_nodes.length()-1; i >= 0; i--) {
-    _inline_type_nodes.at(i)->as_InlineTypeBase()->make_scalar_in_safepoints(&igvn);
+    _inline_type_nodes.at(i)->as_InlineType()->make_scalar_in_safepoints(&igvn);
   }
   if (remove) {
-    // Remove inline type nodes
+    // Remove inline type nodes by replacing them with their oop input
     while (_inline_type_nodes.length() > 0) {
-      InlineTypeBaseNode* vt = _inline_type_nodes.pop()->as_InlineTypeBase();
+      InlineTypeNode* vt = _inline_type_nodes.pop()->as_InlineType();
       if (vt->outcnt() == 0) {
         igvn.remove_dead_node(vt);
-      } else if (vt->is_InlineTypePtr()) {
-        igvn.replace_node(vt, vt->get_oop());
-      } else {
+        continue;
+      }
+      for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
+        DEBUG_ONLY(bool must_be_buffered = false);
+        Node* u = vt->out(i);
         // Check if any users are blackholes. If so, rewrite them to use either the
         // allocated buffer, or individual components, instead of the inline type node
         // that goes away.
-        for (DUIterator i = vt->outs(); vt->has_out(i); i++) {
-          if (vt->out(i)->is_Blackhole()) {
-            BlackholeNode* bh = vt->out(i)->as_Blackhole();
+        if (u->is_Blackhole()) {
+          BlackholeNode* bh = u->as_Blackhole();
 
-            // Unlink the old input
-            int idx = bh->find_edge(vt);
-            assert(idx != -1, "The edge should be there");
-            bh->del_req(idx);
-            --i;
+          // Unlink the old input
+          int idx = bh->find_edge(vt);
+          assert(idx != -1, "The edge should be there");
+          bh->del_req(idx);
+          --i;
 
-            if (vt->is_allocated(&igvn)) {
-              // Already has the allocated instance, blackhole that
-              bh->add_req(vt->get_oop());
-            } else {
-              // Not allocated yet, blackhole the components
-              for (uint c = 0; c < vt->field_count(); c++) {
-                bh->add_req(vt->field_value(c));
-              }
+          if (vt->is_allocated(&igvn)) {
+            // Already has the allocated instance, blackhole that
+            bh->add_req(vt->get_oop());
+          } else {
+            // Not allocated yet, blackhole the components
+            for (uint c = 0; c < vt->field_count(); c++) {
+              bh->add_req(vt->field_value(c));
             }
-
-            // Node modified, record for IGVN
-            igvn.record_for_igvn(bh);
           }
-        }
 
+          // Node modified, record for IGVN
+          igvn.record_for_igvn(bh);
+        }
 #ifdef ASSERT
-        for (DUIterator_Fast imax, i = vt->fast_outs(imax); i < imax; i++) {
-          assert(vt->fast_out(i)->is_InlineTypeBase(), "Unexpected inline type user");
+        // Verify that inline type is buffered when replacing by oop
+        else if (u->is_InlineType()) {
+          InlineTypeNode* vt2 = u->as_InlineType();
+          for (uint i = 0; i < vt2->field_count(); ++i) {
+            if (vt2->field_value(i) == vt && !vt2->field_is_flattened(i)) {
+              // Use in non-flat field
+              must_be_buffered = true;
+            }
+          }
+        } else if (u->Opcode() != Op_Return || !tf()->returns_inline_type_as_fields()) {
+          must_be_buffered = true;
+        }
+        if (must_be_buffered && !vt->is_allocated(&igvn)) {
+          vt->dump(-3);
+          assert(false, "Should have been buffered");
         }
 #endif
-        igvn.replace_node(vt, igvn.C->top());
       }
+      igvn.replace_node(vt, vt->get_oop());
     }
   }
   igvn.optimize();
@@ -3575,7 +3555,7 @@ void Compile::eliminate_redundant_card_marks(Node* n) {
 
 //------------------------------final_graph_reshaping_impl----------------------
 // Implement items 1-5 from final_graph_reshaping below.
-void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
+void Compile::final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Unique_Node_List& dead_nodes) {
 
   if ( n->outcnt() == 0 ) return; // dead node
   uint nop = n->Opcode();
@@ -3626,9 +3606,9 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   }
 #endif
   // Count FPU ops and common calls, implements item (3)
-  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->final_graph_reshaping(this, n, nop);
+  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->final_graph_reshaping(this, n, nop, dead_nodes);
   if (!gc_handled) {
-    final_graph_reshaping_main_switch(n, frc, nop);
+    final_graph_reshaping_main_switch(n, frc, nop, dead_nodes);
   }
 
   // Collect CFG split points
@@ -3637,7 +3617,7 @@ void Compile::final_graph_reshaping_impl( Node *n, Final_Reshape_Counts &frc) {
   }
 }
 
-void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop) {
+void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& frc, uint nop, Unique_Node_List& dead_nodes) {
   switch( nop ) {
   // Count all float operations that may use FPU
   case Op_AddF:
@@ -3682,7 +3662,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     frc.inc_double_count();
     break;
   case Op_Opaque1:              // Remove Opaque Nodes before matching
-  case Op_Opaque2:              // Remove Opaque Nodes before matching
   case Op_Opaque3:
     n->subsume_by(n->in(1), this);
     break;
@@ -4274,22 +4253,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       // that input may be a chain of Phis. If those phis have no
       // other use, then the MemBarAcquire keeps them alive and
       // register allocation can be confused.
-      ResourceMark rm;
-      Unique_Node_List wq;
-      wq.push(n->in(MemBarNode::Precedent));
+      dead_nodes.push(n->in(MemBarNode::Precedent));
       n->set_req(MemBarNode::Precedent, top());
-      while (wq.size() > 0) {
-        Node* m = wq.pop();
-        if (m->outcnt() == 0 && m != top()) {
-          for (uint j = 0; j < m->req(); j++) {
-            Node* in = m->in(j);
-            if (in != NULL) {
-              wq.push(in);
-            }
-          }
-          m->disconnect_inputs(this);
-        }
-      }
     }
     break;
   }
@@ -4352,7 +4317,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #ifdef ASSERT
-  case Op_InlineTypePtr:
   case Op_InlineType: {
     n->dump(-1);
     assert(false, "inline type node was not removed");
@@ -4370,7 +4334,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
 //------------------------------final_graph_reshaping_walk---------------------
 // Replacing Opaque nodes with their input in final_graph_reshaping_impl(),
 // requires that the walk visits a node's inputs before visiting the node.
-void Compile::final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_Reshape_Counts &frc ) {
+void Compile::final_graph_reshaping_walk(Node_Stack& nstack, Node* root, Final_Reshape_Counts& frc, Unique_Node_List& dead_nodes) {
   Unique_Node_List sfpt;
 
   frc._visited.set(root->_idx); // first, mark node as visited
@@ -4396,7 +4360,7 @@ void Compile::final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_
       }
     } else {
       // Now do post-visit work
-      final_graph_reshaping_impl( n, frc );
+      final_graph_reshaping_impl(n, frc, dead_nodes);
       if (nstack.is_empty())
         break;             // finished
       n = nstack.node();   // Get node from stack
@@ -4496,7 +4460,8 @@ bool Compile::final_graph_reshaping() {
   // Visit everybody reachable!
   // Allocate stack of size C->live_nodes()/2 to avoid frequent realloc
   Node_Stack nstack(live_nodes() >> 1);
-  final_graph_reshaping_walk(nstack, root(), frc);
+  Unique_Node_List dead_nodes;
+  final_graph_reshaping_walk(nstack, root(), frc, dead_nodes);
 
   // Check for unreachable (from below) code (i.e., infinite loops).
   for( uint i = 0; i < frc._tests.size(); i++ ) {
@@ -4509,7 +4474,7 @@ bool Compile::final_graph_reshaping() {
       // 'fall-thru' path, so expected kids is 1 less.
       if (n->is_PCTable() && n->in(0) && n->in(0)->in(0)) {
         if (n->in(0)->in(0)->is_Call()) {
-          CallNode *call = n->in(0)->in(0)->as_Call();
+          CallNode* call = n->in(0)->in(0)->as_Call();
           if (call->entry_point() == OptoRuntime::rethrow_stub()) {
             required_outcnt--;      // Rethrow always has 1 less kid
           } else if (call->req() > TypeFunc::Parms &&
@@ -4518,22 +4483,27 @@ bool Compile::final_graph_reshaping() {
             // detected that the virtual call will always result in a null
             // pointer exception. The fall-through projection of this CatchNode
             // will not be populated.
-            Node *arg0 = call->in(TypeFunc::Parms);
+            Node* arg0 = call->in(TypeFunc::Parms);
             if (arg0->is_Type() &&
                 arg0->as_Type()->type()->higher_equal(TypePtr::NULL_PTR)) {
               required_outcnt--;
             }
-          } else if (call->entry_point() == OptoRuntime::new_array_Java() &&
-                     call->req() > TypeFunc::Parms+1 &&
-                     call->is_CallStaticJava()) {
-            // Check for negative array length. In such case, the optimizer has
+          } else if (call->entry_point() == OptoRuntime::new_array_Java() ||
+                     call->entry_point() == OptoRuntime::new_array_nozero_Java()) {
+            // Check for illegal array length. In such case, the optimizer has
             // detected that the allocation attempt will always result in an
             // exception. There is no fall-through projection of this CatchNode .
-            Node *arg1 = call->in(TypeFunc::Parms+1);
-            if (arg1->is_Type() &&
-                arg1->as_Type()->type()->join(TypeInt::POS)->empty()) {
+            assert(call->is_CallStaticJava(), "static call expected");
+            assert(call->req() == call->jvms()->endoff() + 1, "missing extra input");
+            uint valid_length_test_input = call->req() - 1;
+            Node* valid_length_test = call->in(valid_length_test_input);
+            call->del_req(valid_length_test_input);
+            if (valid_length_test->find_int_con(1) == 0) {
               required_outcnt--;
             }
+            dead_nodes.push(valid_length_test);
+            assert(n->outcnt() == required_outcnt, "malformed control flow");
+            continue;
           }
         }
       }
@@ -4541,6 +4511,16 @@ bool Compile::final_graph_reshaping() {
       if (n->outcnt() != required_outcnt) {
         record_method_not_compilable("malformed control flow");
         return true;            // Not all targets reachable!
+      }
+    } else if (n->is_PCTable() && n->in(0) && n->in(0)->in(0) && n->in(0)->in(0)->is_Call()) {
+      CallNode* call = n->in(0)->in(0)->as_Call();
+      if (call->entry_point() == OptoRuntime::new_array_Java() ||
+          call->entry_point() == OptoRuntime::new_array_nozero_Java()) {
+        assert(call->is_CallStaticJava(), "static call expected");
+        assert(call->req() == call->jvms()->endoff() + 1, "missing extra input");
+        uint valid_length_test_input = call->req() - 1;
+        dead_nodes.push(call->in(valid_length_test_input));
+        call->del_req(valid_length_test_input); // valid length test useless now
       }
     }
     // Check that I actually visited all kids.  Unreached kids
@@ -4557,6 +4537,19 @@ bool Compile::final_graph_reshaping() {
       IfNode* init_iff = n->as_If();
       Node* iff = new IfNode(init_iff->in(0), init_iff->in(1), init_iff->_prob, init_iff->_fcnt);
       n->subsume_by(iff, this);
+    }
+  }
+
+  while (dead_nodes.size() > 0) {
+    Node* m = dead_nodes.pop();
+    if (m->outcnt() == 0 && m != top()) {
+      for (uint j = 0; j < m->req(); j++) {
+        Node* in = m->in(j);
+        if (in != NULL) {
+          dead_nodes.push(in);
+        }
+      }
+      m->disconnect_inputs(this);
     }
   }
 
@@ -4728,14 +4721,70 @@ bool Compile::needs_clinit_barrier(ciInstanceKlass* holder, ciMethod* accessing_
 }
 
 #ifndef PRODUCT
+//------------------------------verify_bidirectional_edges---------------------
+// For each input edge to a node (ie - for each Use-Def edge), verify that
+// there is a corresponding Def-Use edge.
+void Compile::verify_bidirectional_edges(Unique_Node_List &visited) {
+  // Allocate stack of size C->live_nodes()/16 to avoid frequent realloc
+  uint stack_size = live_nodes() >> 4;
+  Node_List nstack(MAX2(stack_size, (uint)OptoNodeListSize));
+  nstack.push(_root);
+
+  while (nstack.size() > 0) {
+    Node* n = nstack.pop();
+    if (visited.member(n)) {
+      continue;
+    }
+    visited.push(n);
+
+    // Walk over all input edges, checking for correspondence
+    uint length = n->len();
+    for (uint i = 0; i < length; i++) {
+      Node* in = n->in(i);
+      if (in != NULL && !visited.member(in)) {
+        nstack.push(in); // Put it on stack
+      }
+      if (in != NULL && !in->is_top()) {
+        // Count instances of `next`
+        int cnt = 0;
+        for (uint idx = 0; idx < in->_outcnt; idx++) {
+          if (in->_out[idx] == n) {
+            cnt++;
+          }
+        }
+        assert(cnt > 0, "Failed to find Def-Use edge.");
+        // Check for duplicate edges
+        // walk the input array downcounting the input edges to n
+        for (uint j = 0; j < length; j++) {
+          if (n->in(j) == in) {
+            cnt--;
+          }
+        }
+        assert(cnt == 0, "Mismatched edge count.");
+      } else if (in == NULL) {
+        assert(i == 0 || i >= n->req() ||
+               n->is_Region() || n->is_Phi() || n->is_ArrayCopy() ||
+               (n->is_Allocate() && i >= AllocateNode::InlineType) ||
+               (n->is_Unlock() && i == (n->req() - 1)) ||
+               (n->is_MemBar() && i == 5), // the precedence edge to a membar can be removed during macro node expansion
+              "only region, phi, arraycopy, allocate, unlock or membar nodes have null data edges");
+      } else {
+        assert(in->is_top(), "sanity");
+        // Nothing to check.
+      }
+    }
+  }
+}
+
 //------------------------------verify_graph_edges---------------------------
 // Walk the Graph and verify that there is a one-to-one correspondence
 // between Use-Def edges and Def-Use edges in the graph.
 void Compile::verify_graph_edges(bool no_dead_code) {
   if (VerifyGraphEdges) {
     Unique_Node_List visited;
-    // Call recursive graph walk to check edges
-    _root->verify_edges(visited);
+
+    // Call graph walk to check edges
+    verify_bidirectional_edges(visited);
     if (no_dead_code) {
       // Now make sure that no visited node is used by an unvisited node.
       bool dead_nodes = false;

@@ -29,7 +29,7 @@
  * @bug 8244713
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses AttributesTest.java
- * @run main AttributesTest
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses AttributesTest
  */
 
 import com.sun.tools.classfile.*;

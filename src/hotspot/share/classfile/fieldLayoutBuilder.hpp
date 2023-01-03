@@ -132,6 +132,7 @@ class MultiFieldGroup : public ResourceObj {
   GrowableArray<LayoutRawBlock*>* _fields;
   // total size and alignment?
 
+  static const int INITIAL_LIST_SIZE = 16;
  public:
   MultiFieldGroup(u2 base, Symbol* signature);
 

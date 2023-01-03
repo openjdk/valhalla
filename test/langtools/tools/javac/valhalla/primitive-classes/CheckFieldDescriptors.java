@@ -29,7 +29,7 @@
  * @summary Check field descriptors in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
  * @compile -XDenablePrimitiveClasses CheckFieldDescriptors.java
- * @run main/othervm CheckFieldDescriptors
+ * @run main/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses CheckFieldDescriptors
  */
 
 import com.sun.tools.classfile.*;

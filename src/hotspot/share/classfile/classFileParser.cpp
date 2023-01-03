@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "classfile/classFileParser.hpp"
 #include "classfile/classFileStream.hpp"
 #include "classfile/classLoader.hpp"
@@ -40,6 +39,7 @@
 #include "classfile/verifier.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jvm.h"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.hpp"
@@ -86,7 +86,6 @@
 #include "utilities/resourceHash.hpp"
 #include "utilities/stringUtils.hpp"
 #include "utilities/utf8.hpp"
-
 #if INCLUDE_CDS
 #include "classfile/systemDictionaryShared.hpp"
 #endif
@@ -146,7 +145,9 @@
 
 #define JAVA_20_VERSION                   64
 
-#define CONSTANT_CLASS_DESCRIPTORS        64
+#define JAVA_21_VERSION                   65
+
+#define CONSTANT_CLASS_DESCRIPTORS        65
 
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
   assert((bad_constant == JVM_CONSTANT_Module ||
@@ -170,7 +171,6 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
   const ClassFileStream cfs1 = *stream;
   const ClassFileStream* const cfs = &cfs1;
 
-  assert(cfs->allocated_on_stack_or_embedded(), "should be local");
   debug_only(const u1* const old_current = stream->current();)
 
   // Used for batching symbol allocations.
@@ -715,20 +715,22 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
               throwIllegalSignature("Method", name, signature, CHECK);
             }
           }
-          // If a class method name begins with '<', it must be "<init>" and have void signature
-          // unless it's an inline type.
+          // If a class method name begins with '<', it must be "<init>" and have void signature,
+          // or if it is an inline type, <vnew> with return.
           const unsigned int name_len = name->utf8_length();
           if (tag == JVM_CONSTANT_Methodref && name_len != 0 &&
               name->char_at(0) == JVM_SIGNATURE_SPECIAL) {
-            if (name != vmSymbols::object_initializer_name()) {
+            if (name != vmSymbols::object_initializer_name() &&
+                name != vmSymbols::inline_factory_name()) {
               classfile_parse_error(
                 "Bad method name at constant pool index %u in class file %s",
                 name_ref_index, THREAD);
               return;
             } else if (!Signature::is_void_method(signature)) {
-              // if return type is non-void then it cannot be a basic primitive
-              // and primitve types must be supported.
-              if (!signature->ends_with(JVM_SIGNATURE_ENDCLASS) || !EnableValhalla) {
+              // if return type is non-void then it must be an inline type
+              if (name == vmSymbols::object_initializer_name() ||
+                  !EnableValhalla || !supports_inline_types() ||
+                  !signature->ends_with(JVM_SIGNATURE_ENDCLASS)) {
                 throwIllegalSignature("Method", name, signature, CHECK);
               }
             }
@@ -749,14 +751,25 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
             const int name_ref_index =
               cp->name_ref_index_at(name_and_type_ref_index);
             const Symbol* const name = cp->symbol_at(name_ref_index);
-            if (name != vmSymbols::object_initializer_name()) {
+
+            if (EnableValhalla && supports_inline_types() && name == vmSymbols::inline_factory_name()) { // <vnew>
+              // <vnew> factory methods must be non-void return and invokeStatic.
+              const int signature_ref_index =
+                cp->signature_ref_index_at(name_and_type_ref_index);
+              const Symbol* const signature = cp->symbol_at(signature_ref_index);
+              if (signature->is_void_method_signature() || ref_kind != JVM_REF_invokeStatic) {
+                classfile_parse_error(
+                  "Bad factory method name at constant pool index %u in class file %s",
+                  name_ref_index, CHECK);
+              }
+            } else if (name != vmSymbols::object_initializer_name()) { // !<init>
               if (ref_kind == JVM_REF_newInvokeSpecial) {
                 classfile_parse_error(
                   "Bad constructor name at constant pool index %u in class file %s",
                     name_ref_index, THREAD);
                 return;
               }
-            } else {
+            } else { // <init>
               // The allowed invocation mode of <init> depends on its signature.
               // This test corresponds to verify_invoke_instructions in the verifier.
               const int signature_ref_index =
@@ -765,9 +778,6 @@ void ClassFileParser::parse_constant_pool(const ClassFileStream* const stream,
               if (signature->is_void_method_signature()
                   && ref_kind == JVM_REF_newInvokeSpecial) {
                 // OK, could be a constructor call
-              } else if (!signature->is_void_method_signature()
-                         && ref_kind == JVM_REF_invokeStatic) {
-                // also OK, could be a static factory call
               } else {
                 classfile_parse_error(
                   "Bad method name at constant pool index %u in class file %s",
@@ -894,7 +904,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
 
   } else {
     assert(itfs_len > 0, "only called for len>0");
-    _local_interface_indexes = new GrowableArray<u2>(itfs_len, mtNone);
+    _local_interface_indexes = new GrowableArray<u2>(itfs_len);
     int index = 0;
     for (index = 0; index < itfs_len; index++) {
       const u2 interface_index = stream->get_u2(CHECK);
@@ -1565,9 +1575,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // array and any unused slots will be discarded.
   ResourceMark rm(THREAD);
 
-  GrowableArray<FieldInfo>* temp_fieldinfo = new GrowableArray<FieldInfo>(total_fields, mtNone);
-  GrowableArray<u2>* temp_generic_signature = new GrowableArray<u2>(total_fields, mtNone);
-  GrowableArray<MultiFieldInfo>* temp_multifield_info = new GrowableArray<MultiFieldInfo>(0, mtNone); // could be allocated lazily
+  GrowableArray<FieldInfo>* temp_fieldinfo = new GrowableArray<FieldInfo>(total_fields);
+  GrowableArray<u2>* temp_generic_signature = new GrowableArray<u2>(total_fields);
+  GrowableArray<MultiFieldInfo>* temp_multifield_info = new GrowableArray<MultiFieldInfo>(0); // could be allocated lazily
   FieldInfo fi;
   FieldInfo* f = &fi;
   GrowableArray<AnnotationArray*>* fields_annotations = NULL;
@@ -1626,7 +1636,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
       if (parsed_annotations.field_annotations() != NULL) {
         if (fields_annotations == NULL) {
-          fields_annotations = new GrowableArray<AnnotationArray*>(length, mtNone);
+          fields_annotations = new GrowableArray<AnnotationArray*>(length);
         }
 
         fields_annotations->at_put_grow(field_index, parsed_annotations.field_annotations(), NULL);
@@ -1634,7 +1644,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
       if (parsed_annotations.field_type_annotations() != NULL) {
         if (fields_type_annotations == NULL) {
-          fields_type_annotations = new GrowableArray<AnnotationArray*>(length, mtNone);
+          fields_type_annotations = new GrowableArray<AnnotationArray*>(length);
         }
         fields_type_annotations->at_put_grow(field_index, parsed_annotations.field_type_annotations(), NULL);
         parsed_annotations.set_field_type_annotations(NULL);
@@ -2311,7 +2321,7 @@ void ClassFileParser::copy_localvariable_table(const ConstMethod* cm,
   ResourceMark rm(THREAD);
 
   typedef ResourceHashtable<LocalVariableTableElement, LocalVariableTableElement*,
-                            256, ResourceObj::RESOURCE_AREA, mtInternal,
+                            256, AnyObj::RESOURCE_AREA, mtInternal,
                             &LVT_Hash::hash, &LVT_Hash::equals> LVT_HashTable;
 
   LVT_HashTable* const table = new LVT_HashTable();
@@ -2486,14 +2496,14 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
     verify_legal_method_modifiers(flags, access_flags() , name, CHECK_NULL);
   }
 
-  if (name == vmSymbols::object_initializer_name()) {
+  if (EnableValhalla && supports_inline_types() && name == vmSymbols::inline_factory_name()) {
     if (is_interface) {
-      classfile_parse_error("Interface cannot have a method named <init>, class file %s", THREAD);
-      return NULL;
-    } else if ((!is_value_class || is_abstract_class) && signature->is_void_method_signature()) {
-      // OK, a constructor
-    } else if (is_value_class && !signature->is_void_method_signature()) {
-      // also OK, a static factory, as long as the return value is good
+      classfile_parse_error("Interface cannot have a method named <vnew>, class file %s", CHECK_NULL);
+    } else if (!is_value_class) {
+       classfile_parse_error("Identity class cannot have a method <vnew>, class file %s", CHECK_NULL);
+    } else if (signature->is_void_method_signature()) {
+       classfile_parse_error("Factory method <vnew> must have a non-void return type, class file %s", CHECK_NULL);
+    } else { // also OK, a static factory, as long as the return value is good
       bool ok = false;
       SignatureStream ss((Symbol*) signature, true);
       while (!ss.at_return_type())  ss.next();
@@ -2501,11 +2511,8 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
         Symbol* ret = ss.as_symbol();
         const Symbol* required = class_name();
         if (is_hidden()) {
-          // The original class name in hidden classes gets changed.  So using
-          // the original name in the return type is no longer valid.
-          // Note that expecting the return type for inline hidden class factory
-          // methods to be java.lang.Object works around a JVM Spec issue for
-          // hidden classes.
+          // The original class name for hidden classes changed.
+          /// So using the original name in the return type is no longer valid.
           required = vmSymbols::java_lang_Object();
         }
         ok = (ret == required);
@@ -2513,27 +2520,30 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       if (!ok) {
         throwIllegalSignature("Method", name, signature, CHECK_0);
       }
+      // factory method, with a non-void return.  No other
+      // definition of <vnew> is possible.
+      //
+      // The verifier (in verify_invoke_instructions) will inspect the
+      // signature of any attempt to invoke <vnew>, and ensure that it
+      // returns non-void.
+    }
+  }
+
+  if (name == vmSymbols::object_initializer_name()) {
+    if (is_interface) {
+      classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
+    } else if ((!is_value_class || is_abstract_class) && signature->is_void_method_signature()) {
+      // OK, a constructor
     } else {
       // not OK, so throw the same error as in verify_legal_method_signature.
       throwIllegalSignature("Method", name, signature, CHECK_0);
     }
-    // A declared <init> method must always be either a non-static
-    // object constructor, with a void return, or else it must be a
-    // static factory method, with a non-void return.  No other
-    // definition of <init> is possible.
+    // A declared <init> method must always be a non-static
+    // object constructor, with a void return.
     //
     // The verifier (in verify_invoke_instructions) will inspect the
-    // signature of any attempt to invoke <init>, and ensures that it
-    // returns non-void if and only if it is being invoked by
-    // invokestatic, and void if and only if it is being invoked by
-    // invokespecial.
-    //
-    // When a symbolic reference to <init> is resolved for a
-    // particular invocation mode (special or static), the mode is
-    // matched to the JVM_ACC_STATIC modifier of the <init> method.
-    // Thus, it is impossible to statically invoke a constructor, and
-    // impossible to "new + invokespecial" a static factory, either
-    // through bytecode or through reflection.
+    // signature of any attempt to invoke <init>, and ensure that it
+    // returns void.
   }
 
   if (EnableValhalla) {
@@ -3400,8 +3410,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       "outer_class_info_index %u has bad constant type in class file %s",
       outer_class_info_index, CHECK_0);
 
+    const Symbol* outer_class_name = NULL;
     if (outer_class_info_index != 0) {
-      const Symbol* const outer_class_name = cp->klass_name_at(outer_class_info_index);
+      outer_class_name = cp->klass_name_at(outer_class_info_index);
       char* bytes = (char*)outer_class_name->bytes();
       guarantee_property(bytes[0] != JVM_SIGNATURE_ARRAY,
                          "Outer class is an array class in class file %s", CHECK_0);
@@ -3422,7 +3433,6 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE, JVM_ACC_PRIMITIVE, and JVM_ACC_IDENTITY are defined for class file version 62 and later
     if (supports_inline_types()) {
       recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE | JVM_ACC_IDENTITY;
     }
@@ -3446,7 +3456,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     }
 
     const char* name = inner_name_index == 0 ? "unnamed" : cp->symbol_at(inner_name_index)->as_utf8();
-    verify_legal_class_modifiers(flags, name, false, CHECK_0);
+    verify_legal_class_modifiers(flags, name, outer_class_name, false, CHECK_0);
     AccessFlags inner_access_flags(flags);
 
     inner_classes->at_put(index++, inner_class_info_index);
@@ -4584,8 +4594,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 
 bool ClassFileParser::supports_inline_types() const {
   // Inline types are only supported by class file version 61.65535 and later
-  return _major_version > JAVA_20_VERSION ||
-         (_major_version == JAVA_20_VERSION /*&& _minor_version == JAVA_PREVIEW_MINOR_VERSION*/); // JAVA_PREVIEW_MINOR_VERSION not yet implemented by javac, check JVMS draft
+  return _major_version > JAVA_21_VERSION ||
+         (_major_version == JAVA_21_VERSION /*&& _minor_version == JAVA_PREVIEW_MINOR_VERSION*/); // JAVA_PREVIEW_MINOR_VERSION not yet implemented by javac, check JVMS draft
 }
 
 // utility methods for appending an array with check for duplicates
@@ -4875,17 +4885,32 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
   }
 }
 
+// utility function to skip over internal jdk primitive classes used to override the need for passing
+// an explict JVM flag EnablePrimitiveClasses.
+bool ClassFileParser::is_jdk_internal_class(const Symbol* outer_class, const char * inner_class) const {
+  if (outer_class &&
+      inner_class &&
+      (vmSymbols::jdk_internal_vm_vector_VectorSupport() == outer_class ||
+       vmSymbols::jdk_internal_vm_vector_VectorPayloadMF() == outer_class)) {
+    if (strstr(inner_class, "VectorPayloadMF64")  ||
+        strstr(inner_class, "VectorPayloadMF128") ||
+        strstr(inner_class, "VectorPayloadMF256") ||
+        strstr(inner_class, "VectorPayloadMF512")) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // utility methods for format checking
 
-void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const {
+void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name, const Symbol* outer_class, bool is_Object, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
   const bool is_value_class = (flags & JVM_ACC_VALUE) != 0;
   const bool is_primitive_class = (flags & JVM_ACC_PRIMITIVE) != 0;
   const bool is_identity_class = (flags & JVM_ACC_IDENTITY) != 0;
   const bool is_inner_class = name != NULL;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_inline_types() || !is_value_class, "JVM_ACC_VALUE should not be set");
-  assert(supports_inline_types() || !is_primitive_class, "JVM_ACC_PRIMITIVE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -4896,17 +4921,25 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
     return;
   }
 
-  if (!EnableValhalla) {
-    if (is_value_class || is_primitive_class) {
-      const char* bad_flag = is_primitive_class ? "ACC_PRIMITIVE" : "ACC_VALUE";
+  if (is_value_class && !EnableValhalla) {
       ResourceMark rm(THREAD);
       Exceptions::fthrow(
         THREAD_AND_LOCATION,
         vmSymbols::java_lang_ClassFormatError(),
-        "Class modifier %s in class %s requires option -XX:+EnableValhalla",
-        bad_flag, _class_name->as_C_string()
+        "Class modifier ACC_VALUE in class %s requires option -XX:+EnableValhalla",
+        _class_name->as_C_string()
       );
-    }
+    return;
+  }
+
+  if (is_primitive_class && !is_jdk_internal_class(outer_class, name) && !EnablePrimitiveClasses) {
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Class modifier ACC_PRIMITIVE in class %s requires option -XX:+EnablePrimitiveClasses",
+        _class_name->as_C_string()
+      );
     return;
   }
 
@@ -4922,12 +4955,12 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, const char* name,
 
   if ((is_abstract && is_final) ||
       (is_interface && !is_abstract) ||
-      (is_interface && major_gte_1_5 && ((is_super && !supports_inline_types()) || is_enum)) ||   //  ACC_SUPER (now ACC_IDENTITY) was illegal for interfaces
+      (is_interface && major_gte_1_5 && ((is_super && (!EnableValhalla || !supports_inline_types())) || is_enum)) ||   //  ACC_SUPER (now ACC_IDENTITY) was illegal for interfaces
       (!is_interface && major_gte_1_5 && is_annotation) ||
       (is_value_class && is_enum) ||
       (is_identity_class && is_value_class) ||
-      (supports_inline_types() && !is_module && !is_abstract && !is_Object && !(is_identity_class || is_value_class) && !is_inner_class) ||
-      (supports_inline_types() && is_primitive_class && (!is_value_class || !is_final || is_interface || is_abstract))) {
+      (EnableValhalla && supports_inline_types() && !is_module && !is_abstract && !is_Object && !(is_identity_class || is_value_class) && !is_inner_class) ||
+      (EnablePrimitiveClasses && supports_inline_types() && is_primitive_class && (!is_value_class || !is_final || is_interface || is_abstract))) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
     if (is_value_class)  class_note = " (a value class)";
@@ -5086,6 +5119,7 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
   const bool major_gte_8     = _major_version >= JAVA_8_VERSION;
   const bool major_gte_17    = _major_version >= JAVA_17_VERSION;
   const bool is_initializer  = (name == vmSymbols::object_initializer_name());
+  const bool is_factory      = (name == vmSymbols::inline_factory_name() && supports_inline_types());
   const bool is_interface    = class_access_flags.is_interface();
   const bool is_value_class  = class_access_flags.is_value_class();
   const bool is_identity_class = class_access_flags.is_identity_class();
@@ -5127,19 +5161,16 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
     if (has_illegal_visibility(flags)) {
       is_illegal = true;
     } else {
-      if (is_initializer) {
-        if (is_final || is_synchronized || is_native ||
-            is_abstract || (major_gte_1_5 && is_bridge)) {
-          is_illegal = true;
-        }
-        if (!is_static && (!is_value_class || is_abstract_class)) {
-          // OK, an object constructor in a regular class or an abstract value class
-        } else if (is_static && is_value_class) {
-          // OK, a static init factory in an inline class
-        } else {
-          // but no other combinations are allowed
+      if (is_factory) { // <vnew> factory method
+        if (is_final || is_synchronized || is_native || !is_static ||
+            is_abstract || is_bridge) {
           is_illegal = true;
           class_note = (is_value_class ? " (a value class)" : " (not a value class)");
+        }
+      } else if (is_initializer) {
+        if (is_static || is_final || is_synchronized || is_native ||
+            is_abstract || (major_gte_1_5 && is_bridge)) {
+          is_illegal = true;
         }
       } else { // not initializer
         if (!is_identity_class && is_synchronized && !is_static) {
@@ -5159,11 +5190,20 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
 
   if (is_illegal) {
     ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_ClassFormatError(),
-      "Method %s in class %s%s has illegal modifiers: 0x%X",
-      name->as_C_string(), _class_name->as_C_string(), class_note, flags);
+    if (is_value_class && is_initializer) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Method <init> is not allowed in value class %s",
+        _class_name->as_C_string());
+    } else {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_ClassFormatError(),
+        "Method %s in class %s%s has illegal modifiers: 0x%X",
+        name->as_C_string(), _class_name->as_C_string(),
+        class_note, flags);
+    }
     return;
   }
 }
@@ -5322,11 +5362,11 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
     case JVM_SIGNATURE_PRIMITIVE_OBJECT:
-      // Can't enable this check fully until JDK upgrades the bytecode generators.
+      // Can't enable this check fully until JDK upgrades the bytecode generators (TODO: JDK-8270852).
       // For now, compare to class file version 51 so old verifier doesn't see Q signatures.
-      if (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) {
+      if ( (_major_version < 51 /* CONSTANT_CLASS_DESCRIPTORS */ ) || (!EnablePrimitiveClasses)) {
         classfile_parse_error("Class name contains illegal Q-signature "
-                              "in descriptor in class file %s",
+                              "in descriptor in class file %s, requires option -XX:+EnablePrimitiveClasses",
                               CHECK_0);
         return NULL;
       }
@@ -5468,7 +5508,10 @@ void ClassFileParser::verify_legal_method_name(const Symbol* name, TRAPS) const 
 
   if (length > 0) {
     if (bytes[0] == JVM_SIGNATURE_SPECIAL) {
-      if (name == vmSymbols::object_initializer_name() || name == vmSymbols::class_initializer_name()) {
+      if (name == vmSymbols::object_initializer_name() ||
+          name == vmSymbols::class_initializer_name()  ||
+          (EnableValhalla && supports_inline_types() &&
+          name == vmSymbols::inline_factory_name())) {
         legal = true;
       }
     } else if (_major_version < JAVA_1_5_VERSION) {
@@ -5500,7 +5543,7 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
                                                    const Symbol* signature,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
-  if (!supports_inline_types() && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
+  if ((!supports_inline_types() || !EnablePrimitiveClasses) && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
     throwIllegalSignature("Field", name, signature, CHECK);
   }
 
@@ -6279,7 +6322,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE are defined for class file version 55 and later
+  // JVM_ACC_VALUE and JVM_ACC_PRIMITIVE supported version
   if (supports_inline_types()) {
     recognized_modifiers |= JVM_ACC_PRIMITIVE | JVM_ACC_VALUE;
   }
@@ -6305,7 +6348,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
   bool is_java_lang_Object = class_name_in_cp == vmSymbols::java_lang_Object();
 
-  verify_legal_class_modifiers(flags, NULL, is_java_lang_Object, CHECK);
 
   if (EnableValhalla) {
     if(!supports_inline_types()) {
@@ -6406,6 +6448,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                                    _need_verify,
                                    CHECK);
 
+  const Symbol* super_klass_name = _super_class_index ? cp->klass_name_at(_super_class_index) : NULL;
+  verify_legal_class_modifiers(flags, _class_name->as_C_string(), super_klass_name, is_java_lang_Object, CHECK);
+
   // Interfaces
   _itfs_len = stream->get_u2_fast();
   parse_interfaces(stream,
@@ -6505,6 +6550,18 @@ void ClassFileParser::mangle_hidden_class_name(InstanceKlass* const ik) {
          "Bad name_index");
 }
 
+bool ClassFileParser::is_jdk_internal_class(const Klass* cls) {
+  while(cls) {
+    const Symbol* cls_name = cls->name();
+    if(cls_name == vmSymbols::jdk_internal_vm_vector_VectorPayload() ||
+       cls_name == vmSymbols::jdk_internal_vm_vector_VectorPayloadMF()) {
+      return true;
+    }
+    cls = cls->super();
+   }
+   return false;
+}
+
 void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const stream,
                                                  ConstantPool* cp,
                                                  TRAPS) {
@@ -6556,11 +6613,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
   }
 
-  if (_class_name == vmSymbols::java_lang_NonTearable() && _loader_data->class_loader() == NULL) {
-    // This is the original source of this condition.
-    // It propagates by inheritance, as if testing "instanceof NonTearable".
-    _is_declared_atomic = true;
-  } else if (*ForceNonTearable != '\0') {
+  if (*ForceNonTearable != '\0') {
     // Allow a command line switch to force the same atomicity property:
     const char* class_name_str = _class_name->as_C_string();
     if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
@@ -6652,7 +6705,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_parsed_annotations != NULL, "invariant");
 
 
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses || is_jdk_internal_class(_super_klass)) {
     _inline_type_field_klasses = MetadataFactory::new_array<InlineKlass*>(_loader_data,
                                                    java_fields_count(),
                                                    NULL,

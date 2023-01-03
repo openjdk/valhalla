@@ -23,11 +23,11 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "classfile/classFileParser.hpp"
 #include "classfile/fieldLayoutBuilder.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "jvm.h"
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -102,7 +102,7 @@ void FieldGroup::add_oop_field(AllFieldStream fs) {
   int size = type2aelembytes(T_OBJECT);
   LayoutRawBlock* block = new LayoutRawBlock(fs.index(), LayoutRawBlock::REGULAR, size, size /* alignment == size for oops */, true, -1);
   if (_oop_fields == NULL) {
-    _oop_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+    _oop_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _oop_fields->append(block);
   _oop_count++;
@@ -131,10 +131,10 @@ void FieldGroup::add_multifield(AllFieldStream fs, Array<MultiFieldInfo>* multif
       }
     }
   } else {
-    _multifields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<MultiFieldGroup*>(8);
+    _multifields = new GrowableArray<MultiFieldGroup*>(INITIAL_LIST_SIZE);
   }
   if (mfg == NULL) {
-    mfg = new(ResourceObj::RESOURCE_AREA, mtInternal) MultiFieldGroup(base, fs.signature());
+    mfg = new MultiFieldGroup(base, fs.signature());
     mfg->add_field(fs, vk);
     _multifields->append(mfg);
   } else {
@@ -169,14 +169,14 @@ void FieldGroup::sort_by_size() {
 
 void FieldGroup::add_to_small_primitive_list(LayoutRawBlock* block) {
   if (_small_primitive_fields == NULL) {
-    _small_primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+    _small_primitive_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _small_primitive_fields->append(block);
 }
 
 void FieldGroup::add_to_big_primitive_list(LayoutRawBlock* block) {
   if (_big_primitive_fields == NULL) {
-    _big_primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+    _big_primitive_fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
   _big_primitive_fields->append(block);
 }
@@ -188,7 +188,7 @@ void MultiFieldGroup::add_field(AllFieldStream fs, InlineKlass* vk) {
   assert(fs.multifield_base() == multifield_base(), "multifield base mismatch");
   jbyte idx = fs.multifield_index();
   if (_fields == NULL) {
-    _fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(8);
+    _fields = new GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   } else {
     guarantee(fs.signature() == signature(), "multifield signature mismatch");
   }

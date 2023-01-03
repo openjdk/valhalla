@@ -72,14 +72,12 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                          String   name,
                                          Class<?>[] parameterTypes,
                                          Class<?>   returnType,
-                                         Class<?>[] checkedExceptions,
                                          int modifiers)
     {
         return (MethodAccessor) generate(declaringClass,
                                          name,
                                          parameterTypes,
                                          returnType,
-                                         checkedExceptions,
                                          modifiers,
                                          false,
                                          false,
@@ -90,7 +88,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
     /** This routine is not thread-safe */
     public ConstructorAccessor generateConstructor(Class<?> declaringClass,
                                                    Class<?>[] parameterTypes,
-                                                   Class<?>[] checkedExceptions,
                                                    int modifiers)
     {
         boolean isStaticFactory = declaringClass.isValue();
@@ -98,7 +95,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                               "<init>",
                                               parameterTypes,
                                               isStaticFactory ? PrimitiveClass.asValueType(declaringClass) : Void.TYPE,
-                                              checkedExceptions,
                                               modifiers,
                                               true,
                                               isStaticFactory,
@@ -110,7 +106,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
     public SerializationConstructorAccessorImpl
     generateSerializationConstructor(Class<?> declaringClass,
                                      Class<?>[] parameterTypes,
-                                     Class<?>[] checkedExceptions,
                                      int modifiers,
                                      Class<?> targetConstructorClass)
     {
@@ -119,7 +114,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
                      "<init>",
                      parameterTypes,
                      Void.TYPE,
-                     checkedExceptions,
                      modifiers,
                      true,
                      false,
@@ -133,7 +127,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                        String name,
                                        Class<?>[] parameterTypes,
                                        Class<?>   returnType,
-                                       Class<?>[] checkedExceptions,
                                        int modifiers,
                                        boolean isConstructor,
                                        boolean isStaticFactory,

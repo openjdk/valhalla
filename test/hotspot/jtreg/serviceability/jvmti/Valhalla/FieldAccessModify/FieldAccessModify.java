@@ -27,7 +27,7 @@
             are generated for primitive classes.
  * @requires vm.jvmti
  * @compile -XDenablePrimitiveClasses FieldAccessModify.java
- * @run main/othervm/native -agentlib:FieldAccessModify FieldAccessModify
+ * @run main/othervm/native -agentlib:FieldAccessModify -XX:+EnableValhalla -XX:+EnablePrimitiveClasses FieldAccessModify
  */
 
 import java.lang.reflect.Field;

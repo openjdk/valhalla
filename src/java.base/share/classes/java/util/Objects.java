@@ -191,7 +191,8 @@ public final class Objects {
     }
 
    /**
-    * {@return {@code true} if the specified object reference is an identity object, otherwise {@code false}}
+    * {@return {@code true} if the specified object reference is an identity object,
+    * otherwise {@code false}}
     *
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
@@ -260,6 +261,19 @@ public final class Objects {
             throw new IdentityException(messageSupplier == null ?
                     null : messageSupplier.get());
         return obj;
+    }
+
+   /**
+    * {@return {@code true} if the specified object is a {@linkplain Class#isValue value object},
+    * otherwise {@code false}}
+    *
+    * @param obj an object
+    * @throws NullPointerException if {@code obj} is {@code null}
+    */
+//    @IntrinsicCandidate
+    public static boolean isValueObject(Object obj) {
+        requireNonNull(obj, "obj");
+        return obj.getClass().isValue();
     }
 
     /**

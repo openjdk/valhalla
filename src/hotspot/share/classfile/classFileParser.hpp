@@ -498,7 +498,7 @@ class ClassFileParser {
 
   void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS);
 
-  void verify_legal_class_modifiers(jint flags, const char* name, bool is_Object, TRAPS) const;
+  void verify_legal_class_modifiers(jint flags, const char* name, const Symbol* out_class, bool is_Object, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     AccessFlags class_access_flags,
                                     TRAPS) const;
@@ -517,6 +517,9 @@ class ClassFileParser {
                                         bool void_ok,
                                         unsigned int length,
                                         TRAPS) const;
+
+  bool is_jdk_internal_class(const Symbol* outer_class, const char * inner_class) const;
+  bool is_jdk_internal_class(const Klass* cls);
 
   // Wrapper for constantTag.is_klass_[or_]reference.
   // In older versions of the VM, Klass*s cannot sneak into early phases of

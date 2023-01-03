@@ -600,26 +600,25 @@ void Method::build_profiling_method_data(const methodHandle& method, TRAPS) {
     return;
   }
 
-  // Grab a lock here to prevent multiple
-  // MethodData*s from being created.
-  MutexLocker ml(THREAD, MethodData_lock);
-  if (method->method_data() == NULL) {
-    ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
-    MethodData* method_data = MethodData::allocate(loader_data, method, THREAD);
-    if (HAS_PENDING_EXCEPTION) {
-      CompileBroker::log_metaspace_failure();
-      ClassLoaderDataGraph::set_metaspace_oom(true);
-      return;   // return the exception (which is cleared)
-    }
+  ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
+  MethodData* method_data = MethodData::allocate(loader_data, method, THREAD);
+  if (HAS_PENDING_EXCEPTION) {
+    CompileBroker::log_metaspace_failure();
+    ClassLoaderDataGraph::set_metaspace_oom(true);
+    return;   // return the exception (which is cleared)
+  }
 
-    method->set_method_data(method_data);
-    if (PrintMethodData && (Verbose || WizardMode)) {
-      ResourceMark rm(THREAD);
-      tty->print("build_profiling_method_data for ");
-      method->print_name(tty);
-      tty->cr();
-      // At the end of the run, the MDO, full of data, will be dumped.
-    }
+  if (!Atomic::replace_if_null(&method->_method_data, method_data)) {
+    MetadataFactory::free_metadata(loader_data, method_data);
+    return;
+  }
+
+  if (PrintMethodData && (Verbose || WizardMode)) {
+    ResourceMark rm(THREAD);
+    tty->print("build_profiling_method_data for ");
+    method->print_name(tty);
+    tty->cr();
+    // At the end of the run, the MDO, full of data, will be dumped.
   }
 }
 
@@ -940,14 +939,14 @@ bool Method::is_class_initializer() const {
            method_holder()->major_version() < 51));
 }
 
-// A method named <init>, if non-static, is a classic object constructor.
+// A method named <init>, is a classic object constructor.
 bool Method::is_object_constructor() const {
-   return name() == vmSymbols::object_initializer_name() && !is_static();
+  return name() == vmSymbols::object_initializer_name();
 }
 
-// A static method named <init> is a factory for an inline class.
-bool Method::is_static_init_factory() const {
-   return name() == vmSymbols::object_initializer_name() && is_static();
+// A method named <vnew> is a factory for an inline class.
+bool Method::is_static_vnew_factory() const {
+  return name() == vmSymbols::inline_factory_name();
 }
 
 bool Method::needs_clinit_barrier() const {
@@ -1314,25 +1313,6 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   mh->_from_compiled_inline_entry = adapter->get_c2i_inline_entry();
   mh->_from_compiled_inline_ro_entry = adapter->get_c2i_inline_ro_entry();
   return adapter->get_c2i_entry();
-}
-
-address Method::from_compiled_entry_no_trampoline(bool caller_is_c1) const {
-  CompiledMethod *code = Atomic::load_acquire(&_code);
-  if (caller_is_c1) {
-    // C1 - inline type arguments are passed as objects
-    if (code) {
-      return code->verified_inline_entry_point();
-    } else {
-      return adapter()->get_c2i_inline_entry();
-    }
-  } else {
-    // C2 - inline type arguments may be passed as fields
-    if (code) {
-      return code->verified_entry_point();
-    } else {
-      return adapter()->get_c2i_entry();
-    }
-  }
 }
 
 // The verified_code_entry() must be called when a invoke is resolved
@@ -1804,20 +1784,6 @@ bool Method::load_signature_classes(const methodHandle& m, TRAPS) {
   return sig_is_loaded;
 }
 
-bool Method::has_unloaded_classes_in_signature(const methodHandle& m, TRAPS) {
-  ResourceMark rm(THREAD);
-  for(ResolvingSignatureStream ss(m()); !ss.is_done(); ss.next()) {
-    if (ss.type() == T_OBJECT) {
-      // Do not use ss.is_reference() here, since we don't care about
-      // unloaded array component types.
-      Klass* klass = ss.as_klass_if_loaded(THREAD);
-      assert(!HAS_PENDING_EXCEPTION, "as_klass_if_loaded contract");
-      if (klass == NULL) return true;
-    }
-  }
-  return false;
-}
-
 // Exposed so field engineers can debug VM
 void Method::print_short_name(outputStream* st) const {
   ResourceMark rm;
@@ -1908,18 +1874,15 @@ void Method::print_name(outputStream* st) const {
 #endif // !PRODUCT || INCLUDE_JVMTI
 
 
-void Method::print_codes_on(outputStream* st) const {
-  print_codes_on(0, code_size(), st);
+void Method::print_codes_on(outputStream* st, int flags) const {
+  print_codes_on(0, code_size(), st, flags);
 }
 
-void Method::print_codes_on(int from, int to, outputStream* st) const {
+void Method::print_codes_on(int from, int to, outputStream* st, int flags) const {
   Thread *thread = Thread::current();
   ResourceMark rm(thread);
   methodHandle mh (thread, (Method*)this);
-  BytecodeStream s(mh);
-  s.set_interval(from, to);
-  BytecodeTracer::set_closure(BytecodeTracer::std_closure());
-  while (s.next() >= 0) BytecodeTracer::trace(mh, s.bcp(), st);
+  BytecodeTracer::print_method_codes(mh, from, to, st, flags);
 }
 
 CompressedLineNumberReadStream::CompressedLineNumberReadStream(u_char* buffer) : CompressedReadStream(buffer) {
@@ -2396,6 +2359,8 @@ bool Method::is_valid_method(const Method* m) {
     return false;
   } else if ((intptr_t(m) & (wordSize-1)) != 0) {
     // Quick sanity check on pointer.
+    return false;
+  } else if (!os::is_readable_range(m, m + 1)) {
     return false;
   } else if (m->is_shared()) {
     return CppVtables::is_valid_shared_method(m);

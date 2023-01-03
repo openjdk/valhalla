@@ -23,7 +23,6 @@
  */
 
 #include "precompiled.hpp"
-#include "jvm.h"
 #include "cds/archiveUtils.hpp"
 #include "cds/classListWriter.hpp"
 #include "cds/heapShared.hpp"
@@ -46,6 +45,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/oopMapCache.hpp"
 #include "interpreter/rewriter.hpp"
+#include "jvm.h"
 #include "jvmtifiles/jvmti.h"
 #include "logging/log.hpp"
 #include "logging/logMessage.hpp"
@@ -398,6 +398,7 @@ void InstanceKlass::set_nest_host(InstanceKlass* host) {
   _nest_host = host;
   // Record dependency to keep nest host from being unloaded before this class.
   ClassLoaderData* this_key = class_loader_data();
+  assert(this_key != NULL, "sanity");
   this_key->record_dependency(host);
 }
 
@@ -927,30 +928,32 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   // class uses inline types?
   if (EnableValhalla) {
     ResourceMark rm(THREAD);
-    for (int i = 0; i < methods()->length(); i++) {
-      Method* m = methods()->at(i);
-      for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
-        if (ss.is_reference()) {
-          if (ss.is_array()) {
-            continue;
-          }
-          if (ss.type() == T_PRIMITIVE_OBJECT) {
-            Symbol* symb = ss.as_symbol();
-            if (symb == name()) continue;
-            oop loader = class_loader();
-            oop protection_domain = this->protection_domain();
-            Klass* klass = SystemDictionary::resolve_or_fail(symb,
-                                                             Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
-                                                             CHECK_false);
-            if (klass == NULL) {
-              THROW_(vmSymbols::java_lang_LinkageError(), false);
+    if (EnablePrimitiveClasses) {
+      for (int i = 0; i < methods()->length(); i++) {
+        Method* m = methods()->at(i);
+        for (SignatureStream ss(m->signature()); !ss.is_done(); ss.next()) {
+          if (ss.is_reference()) {
+            if (ss.is_array()) {
+              continue;
             }
-            if (!klass->is_inline_klass()) {
-              Exceptions::fthrow(
-                THREAD_AND_LOCATION,
-                vmSymbols::java_lang_IncompatibleClassChangeError(),
-                "class %s is not an inline type",
-                klass->external_name());
+            if (ss.type() == T_PRIMITIVE_OBJECT) {
+              Symbol* symb = ss.as_symbol();
+              if (symb == name()) continue;
+              oop loader = class_loader();
+              oop protection_domain = this->protection_domain();
+              Klass* klass = SystemDictionary::resolve_or_fail(symb,
+                                                              Handle(THREAD, loader), Handle(THREAD, protection_domain), true,
+                                                              CHECK_false);
+              if (klass == NULL) {
+                THROW_(vmSymbols::java_lang_LinkageError(), false);
+              }
+              if (!klass->is_inline_klass()) {
+                Exceptions::fthrow(
+                  THREAD_AND_LOCATION,
+                  vmSymbols::java_lang_IncompatibleClassChangeError(),
+                  "class %s is not an inline type",
+                  klass->external_name());
+              }
             }
           }
         }
@@ -1108,7 +1111,7 @@ void InstanceKlass::initialize_super_interfaces(TRAPS) {
   }
 }
 
-ResourceHashtable<const InstanceKlass*, OopHandle, 107, ResourceObj::C_HEAP, mtClass>
+ResourceHashtable<const InstanceKlass*, OopHandle, 107, AnyObj::C_HEAP, mtClass>
       _initialization_error_table;
 
 void InstanceKlass::add_initialization_error(JavaThread* current, Handle exception) {
@@ -1275,7 +1278,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
 
   // Step 8
   // Initialize classes of inline fields
-  if (EnableValhalla) {
+  if (EnablePrimitiveClasses) {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_PRIMITIVE_OBJECT) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
@@ -2178,8 +2181,9 @@ Method* InstanceKlass::uncached_lookup_method(const Symbol* name,
     if (method != NULL) {
       return method;
     }
-    if (name == vmSymbols::object_initializer_name()) {
-      break;  // <init> is never inherited, not even as a static factory
+    if (name == vmSymbols::object_initializer_name() ||
+        name == vmSymbols::inline_factory_name()) {
+      break;  // <init> and <vnew> is never inherited
     }
     klass = klass->super();
     overpass_local_mode = OverpassLookupMode::skip;   // Always ignore overpass methods in superclasses
@@ -2854,36 +2858,6 @@ bool InstanceKlass::can_be_verified_at_dumptime() const {
   }
   return true;
 }
-
-void InstanceKlass::set_shared_class_loader_type(s2 loader_type) {
-  switch (loader_type) {
-  case ClassLoader::BOOT_LOADER:
-    _misc_flags |= _misc_is_shared_boot_class;
-    break;
-  case ClassLoader::PLATFORM_LOADER:
-    _misc_flags |= _misc_is_shared_platform_class;
-    break;
-  case ClassLoader::APP_LOADER:
-    _misc_flags |= _misc_is_shared_app_class;
-    break;
-  default:
-    ShouldNotReachHere();
-    break;
-  }
-}
-
-void InstanceKlass::assign_class_loader_type() {
-  ClassLoaderData *cld = class_loader_data();
-  if (cld->is_boot_class_loader_data()) {
-    set_shared_class_loader_type(ClassLoader::BOOT_LOADER);
-  }
-  else if (cld->is_platform_class_loader_data()) {
-    set_shared_class_loader_type(ClassLoader::PLATFORM_LOADER);
-  }
-  else if (cld->is_system_class_loader_data()) {
-    set_shared_class_loader_type(ClassLoader::APP_LOADER);
-  }
-}
 #endif // INCLUDE_CDS
 
 #if INCLUDE_JVMTI
@@ -3000,14 +2974,11 @@ const char* InstanceKlass::signature_name() const {
 }
 
 const char* InstanceKlass::signature_name_of_carrier(char c) const {
-  int hash_len = 0;
-  char hash_buf[40];
-
   // Get the internal name as a c string
   const char* src = (const char*) (name()->as_C_string());
   const int src_length = (int)strlen(src);
 
-  char* dest = NEW_RESOURCE_ARRAY(char, src_length + hash_len + 3);
+  char* dest = NEW_RESOURCE_ARRAY(char, src_length + 3);
 
   // Add L or Q as type indicator
   int dest_index = 0;
@@ -3025,11 +2996,6 @@ const char* InstanceKlass::signature_name_of_carrier(char c) const {
         break;
       }
     }
-  }
-
-  // If we have a hash, append it
-  for (int hash_index = 0; hash_index < hash_len; ) {
-    dest[dest_index++] = hash_buf[hash_index++];
   }
 
   // Add the semicolon and the NULL
@@ -3677,7 +3643,7 @@ void InstanceKlass::print_on(outputStream* st) const {
   st->print(BULLET"instance size:     %d", size_helper());                        st->cr();
   st->print(BULLET"klass size:        %d", size());                               st->cr();
   st->print(BULLET"access:            "); access_flags().print_on(st);            st->cr();
-  st->print(BULLET"misc flags:        0x%x", _misc_flags);                        st->cr();
+  st->print(BULLET"misc flags:        0x%x", _misc_status.flags());               st->cr();
   st->print(BULLET"state:             "); st->print_cr("%s", init_state_name());
   st->print(BULLET"name:              "); name()->print_value_on(st);             st->cr();
   st->print(BULLET"super:             "); Metadata::print_value_on_maybe_null(st, super()); st->cr();

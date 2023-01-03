@@ -25,7 +25,7 @@
 
 package java.lang.invoke;
 
-import jdk.internal.value.PrimitiveClass;
+import jdk.internal.misc.PreviewFeatures;
 import jdk.internal.misc.CDS;
 import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
@@ -321,7 +321,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             interfaceNames = itfs.toArray(new String[itfs.size()]);
         }
 
-        cw.visit(CLASSFILE_VERSION, ACC_SUPER + ACC_FINAL + ACC_SYNTHETIC,
+        int version = CLASSFILE_VERSION | (PreviewFeatures.isEnabled() ? Opcodes.V_PREVIEW : 0);
+        cw.visit(version, ACC_SUPER + ACC_FINAL + ACC_SYNTHETIC,
                  lambdaClassName, null,
                  JAVA_LANG_OBJECT, interfaceNames);
 
@@ -642,7 +643,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             while (c.isArray()) {
                 c = c.getComponentType();
             }
-            return (c.isValue() && !PrimitiveClass.isPrimitiveClass(c)) || PrimitiveClass.isPrimitiveValueType(c);
+            return c.isValue();
         }
 
         boolean isEmpty() {

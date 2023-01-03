@@ -162,11 +162,8 @@ int RegisterSaver::v0_offset_in_bytes() {
 int RegisterSaver::total_sve_predicate_in_bytes() {
 #ifdef COMPILER2
   if (_save_vectors && Matcher::supports_scalable_vector()) {
-    // The number of total predicate bytes is unlikely to be a multiple
-    // of 16 bytes so we manually align it up.
-    return align_up(Matcher::scalable_predicate_reg_slots() *
-                    VMRegImpl::stack_slot_size *
-                    PRegister::number_of_saved_registers, 16);
+    return (Matcher::scalable_vector_reg_size(T_BYTE) >> LogBitsPerByte) *
+           PRegister::number_of_registers;
   }
 #endif
   return 0;
@@ -250,14 +247,6 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
       sp_offset = FloatRegister::save_slots_per_register * i;
     }
     oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset), r->as_VMReg());
-  }
-
-  if (_save_vectors && use_sve) {
-    for (int i = 0; i < PRegister::number_of_saved_registers; i++) {
-      PRegister r = as_PRegister(i);
-      int sp_offset = sve_predicate_size_in_slots * i;
-      oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset), r->as_VMReg());
-    }
   }
 
   return oop_map;
@@ -609,12 +598,33 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
 static void gen_c2i_adapter(MacroAssembler *masm,
                             const GrowableArray<SigEntry>* sig_extended,
                             const VMRegPair *regs,
+                            bool requires_clinit_barrier,
+                            address& c2i_no_clinit_check_entry,
                             Label& skip_fixup,
                             address start,
                             OopMapSet* oop_maps,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_inline_receiver) {
+  if (requires_clinit_barrier && VM_Version::supports_fast_class_init_checks()) {
+    Label L_skip_barrier;
+
+    { // Bypass the barrier for non-static methods
+      __ ldrw(rscratch1, Address(rmethod, Method::access_flags_offset()));
+      __ andsw(zr, rscratch1, JVM_ACC_STATIC);
+      __ br(Assembler::EQ, L_skip_barrier); // non-static
+    }
+
+    __ load_method_holder(rscratch2, rmethod);
+    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
+    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
+
+    __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
+  }
+
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->c2i_entry_barrier(masm);
 
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
@@ -734,7 +744,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       ignored++;
       // get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_PRIMITIVE_OBJECT);
-      __ load_heap_oop(buf_oop, Address(buf_array, index));
+      __ load_heap_oop(buf_oop, Address(buf_array, index), tmp1, tmp2);
       next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
@@ -1025,7 +1035,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
   address i2c_entry = __ pc();
   gen_i2c_adapter(masm, comp_args_on_stack, sig, regs);
 
-  address c2i_unverified_entry = __ pc();
+  address c2i_unverified_entry        = __ pc();
+  address c2i_unverified_inline_entry = __ pc();
   Label skip_fixup;
 
   gen_inline_cache_check(masm, skip_fixup);
@@ -1035,50 +1046,30 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler* masm
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
+  address c2i_no_clinit_check_entry = NULL;
   address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
-    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    // No class init barrier needed because method is guaranteed to be non-static
+    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, /* requires_clinit_barrier = */ false, c2i_no_clinit_check_entry,
+                    skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
     skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
-  address c2i_entry = __ pc();
-
-  // Class initialization barrier for static methods
-  address c2i_no_clinit_check_entry = NULL;
-  if (VM_Version::supports_fast_class_init_checks()) {
-    Label L_skip_barrier;
-
-    { // Bypass the barrier for non-static methods
-      __ ldrw(rscratch1, Address(rmethod, Method::access_flags_offset()));
-      __ andsw(zr, rscratch1, JVM_ACC_STATIC);
-      __ br(Assembler::EQ, L_skip_barrier); // non-static
-    }
-
-    __ load_method_holder(rscratch2, rmethod);
-    __ clinit_barrier(rscratch2, rscratch1, &L_skip_barrier);
-    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub()));
-
-    __ bind(L_skip_barrier);
-    c2i_no_clinit_check_entry = __ pc();
-  }
-
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->c2i_entry_barrier(masm);
-
-  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
-
-  address c2i_unverified_inline_entry = c2i_unverified_entry;
+  address c2i_entry        = __ pc();
+  address c2i_inline_entry = __ pc();
+  gen_c2i_adapter(masm, sig_cc, regs_cc, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
+                  skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ true);
 
   // Non-scalarized c2i adapter
-  address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
-    Label inline_entry_skip_fixup;
     c2i_unverified_inline_entry = __ pc();
+    Label inline_entry_skip_fixup;
     gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
     c2i_inline_entry = __ pc();
-    gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig, regs, /* requires_clinit_barrier = */ true, c2i_no_clinit_check_entry,
+                    inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, /* alloc_inline_receiver = */ false);
   }
 
   __ flush();
@@ -1287,10 +1278,70 @@ static void verify_oop_args(MacroAssembler* masm,
   }
 }
 
-// defined in stubGenerator_aarch64.cpp
-OopMap* continuation_enter_setup(MacroAssembler* masm, int& stack_slots);
-void fill_continuation_entry(MacroAssembler* masm);
-void continuation_enter_cleanup(MacroAssembler* masm);
+// on exit, sp points to the ContinuationEntry
+static OopMap* continuation_enter_setup(MacroAssembler* masm, int& stack_slots) {
+  assert(ContinuationEntry::size() % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::cont_offset())  % VMRegImpl::stack_slot_size == 0, "");
+  assert(in_bytes(ContinuationEntry::chunk_offset()) % VMRegImpl::stack_slot_size == 0, "");
+
+  stack_slots += (int)ContinuationEntry::size()/wordSize;
+  __ sub(sp, sp, (int)ContinuationEntry::size()); // place Continuation metadata
+
+  OopMap* map = new OopMap(((int)ContinuationEntry::size() + wordSize)/ VMRegImpl::stack_slot_size, 0 /* arg_slots*/);
+
+  __ ldr(rscratch1, Address(rthread, JavaThread::cont_entry_offset()));
+  __ str(rscratch1, Address(sp, ContinuationEntry::parent_offset()));
+  __ mov(rscratch1, sp); // we can't use sp as the source in str
+  __ str(rscratch1, Address(rthread, JavaThread::cont_entry_offset()));
+
+  return map;
+}
+
+// on entry c_rarg1 points to the continuation
+//          sp points to ContinuationEntry
+//          c_rarg3 -- isVirtualThread
+static void fill_continuation_entry(MacroAssembler* masm) {
+#ifdef ASSERT
+  __ movw(rscratch1, ContinuationEntry::cookie_value());
+  __ strw(rscratch1, Address(sp, ContinuationEntry::cookie_offset()));
+#endif
+
+  __ str (c_rarg1, Address(sp, ContinuationEntry::cont_offset()));
+  __ strw(c_rarg3, Address(sp, ContinuationEntry::flags_offset()));
+  __ str (zr,      Address(sp, ContinuationEntry::chunk_offset()));
+  __ strw(zr,      Address(sp, ContinuationEntry::argsize_offset()));
+  __ strw(zr,      Address(sp, ContinuationEntry::pin_count_offset()));
+
+  __ ldr(rscratch1, Address(rthread, JavaThread::cont_fastpath_offset()));
+  __ str(rscratch1, Address(sp, ContinuationEntry::parent_cont_fastpath_offset()));
+  __ ldr(rscratch1, Address(rthread, JavaThread::held_monitor_count_offset()));
+  __ str(rscratch1, Address(sp, ContinuationEntry::parent_held_monitor_count_offset()));
+
+  __ str(zr, Address(rthread, JavaThread::cont_fastpath_offset()));
+  __ str(zr, Address(rthread, JavaThread::held_monitor_count_offset()));
+}
+
+// on entry, sp points to the ContinuationEntry
+// on exit, rfp points to the spilled rfp in the entry frame
+static void continuation_enter_cleanup(MacroAssembler* masm) {
+#ifndef PRODUCT
+  Label OK;
+  __ ldr(rscratch1, Address(rthread, JavaThread::cont_entry_offset()));
+  __ cmp(sp, rscratch1);
+  __ br(Assembler::EQ, OK);
+  __ stop("incorrect sp1");
+  __ bind(OK);
+#endif
+
+  __ ldr(rscratch1, Address(sp, ContinuationEntry::parent_cont_fastpath_offset()));
+  __ str(rscratch1, Address(rthread, JavaThread::cont_fastpath_offset()));
+  __ ldr(rscratch1, Address(sp, ContinuationEntry::parent_held_monitor_count_offset()));
+  __ str(rscratch1, Address(rthread, JavaThread::held_monitor_count_offset()));
+
+  __ ldr(rscratch2, Address(sp, ContinuationEntry::parent_offset()));
+  __ str(rscratch2, Address(rthread, JavaThread::cont_entry_offset()));
+  __ add(rfp, sp, (int)ContinuationEntry::size());
+}
 
 // enterSpecial(Continuation c, boolean isContinue, boolean isVirtualThread)
 // On entry: c_rarg1 -- the continuation object
@@ -3418,7 +3469,7 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       __ ldrd(r_1->as_FloatRegister(), from);
     } else if (bt == T_OBJECT || bt == T_ARRAY) {
       assert_different_registers(r0, r_1->as_Register());
-      __ load_heap_oop(r_1->as_Register(), from);
+      __ load_heap_oop(r_1->as_Register(), from, rscratch1, rscratch2);
     } else {
       assert(is_java_primitive(bt), "unexpected basic type");
       assert_different_registers(r0, r_1->as_Register());

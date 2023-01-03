@@ -63,9 +63,9 @@
 
 // Map BasicType to spill size in 32-bit words, matching VMReg's notion of words
 #ifdef _LP64
-static int type2spill_size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 0, 2,  1, 2, 1, 2, -1};
+static int type2spill_size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 2, 2, 2, 0, 2,  1, 2, 1, -1};
 #else
-static int type2spill_size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 0, 1, -1, 1, 1, 1, -1};
+static int type2spill_size[T_CONFLICT+1]={ -1, 0, 0, 0, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 0, 1, -1, 1, 1, -1};
 #endif
 
 
@@ -2511,12 +2511,12 @@ void LinearScan::compute_oop_map(IntervalWalker* iw, const LIR_OpVisitState &vis
 // Allocate them with new so they are never destroyed (otherwise, a
 // forced exit could destroy these objects while they are still in
 // use).
-ConstantOopWriteValue* LinearScan::_oop_null_scope_value = new (ResourceObj::C_HEAP, mtCompiler) ConstantOopWriteValue(NULL);
-ConstantIntValue*      LinearScan::_int_m1_scope_value = new (ResourceObj::C_HEAP, mtCompiler) ConstantIntValue(-1);
-ConstantIntValue*      LinearScan::_int_0_scope_value =  new (ResourceObj::C_HEAP, mtCompiler) ConstantIntValue((jint)0);
-ConstantIntValue*      LinearScan::_int_1_scope_value =  new (ResourceObj::C_HEAP, mtCompiler) ConstantIntValue(1);
-ConstantIntValue*      LinearScan::_int_2_scope_value =  new (ResourceObj::C_HEAP, mtCompiler) ConstantIntValue(2);
-LocationValue*         _illegal_value = new (ResourceObj::C_HEAP, mtCompiler) LocationValue(Location());
+ConstantOopWriteValue* LinearScan::_oop_null_scope_value = new (mtCompiler) ConstantOopWriteValue(NULL);
+ConstantIntValue*      LinearScan::_int_m1_scope_value = new (mtCompiler) ConstantIntValue(-1);
+ConstantIntValue*      LinearScan::_int_0_scope_value =  new (mtCompiler) ConstantIntValue((jint)0);
+ConstantIntValue*      LinearScan::_int_1_scope_value =  new (mtCompiler) ConstantIntValue(1);
+ConstantIntValue*      LinearScan::_int_2_scope_value =  new (mtCompiler) ConstantIntValue(2);
+LocationValue*         _illegal_value = new (mtCompiler) LocationValue(Location());
 
 void LinearScan::init_compute_debug_info() {
   // cache for frequently used scope values

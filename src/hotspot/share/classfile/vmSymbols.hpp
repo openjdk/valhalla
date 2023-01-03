@@ -68,7 +68,6 @@
   template(java_lang_BaseVirtualThread,               "java/lang/BaseVirtualThread")              \
   template(java_lang_VirtualThread,                   "java/lang/VirtualThread")                  \
   template(java_lang_Cloneable,                       "java/lang/Cloneable")                      \
-  template(java_lang_NonTearable,                     "java/lang/NonTearable")                    \
   template(java_lang_Throwable,                       "java/lang/Throwable")                      \
   template(java_lang_ClassLoader,                     "java/lang/ClassLoader")                    \
   template(java_lang_Runnable,                        "java/lang/Runnable")                       \
@@ -94,6 +93,7 @@
   template(jdk_internal_vm_vector_Vector,             "jdk/internal/vm/vector/VectorSupport$Vector")        \
   template(jdk_internal_vm_vector_VectorMask,         "jdk/internal/vm/vector/VectorSupport$VectorMask")    \
   template(jdk_internal_vm_vector_VectorShuffle,      "jdk/internal/vm/vector/VectorSupport$VectorShuffle") \
+  template(jdk_internal_vm_vector_VectorPayloadMF,    "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF")    \
   template(jdk_internal_vm_vector_VectorPayloadMF64,  "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF64")  \
   template(jdk_internal_vm_vector_VectorPayloadMF128, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128") \
   template(jdk_internal_vm_vector_VectorPayloadMF256, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256") \
@@ -161,6 +161,8 @@
   template(jdk_internal_loader_BuiltinClassLoader,    "jdk/internal/loader/BuiltinClassLoader")   \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
   template(jdk_internal_loader_ClassLoaders_PlatformClassLoader, "jdk/internal/loader/ClassLoaders$PlatformClassLoader") \
+  template(jdk_incubator_concurrent_ScopedValue,      "jdk/incubator/concurrent/ScopedValue")     \
+  template(jdk_incubator_concurrent_ScopedValue_Carrier, "jdk/incubator/concurrent/ScopedValue$Carrier") \
                                                                                                   \
   /* Java runtime version access */                                                               \
   template(java_lang_VersionProps,                    "java/lang/VersionProps")                   \
@@ -400,6 +402,7 @@
   /* common method and field names */                                                             \
   template(object_initializer_name,                   "<init>")                                   \
   template(class_initializer_name,                    "<clinit>")                                 \
+  template(inline_factory_name,                       "<vnew>")                                   \
   template(println_name,                              "println")                                  \
   template(printStackTrace_name,                      "printStackTrace")                          \
   template(getStackTrace_name,                        "getStackTrace")                            \
@@ -409,14 +412,11 @@
   template(group_name,                                "group")                                    \
   template(daemon_name,                               "daemon")                                   \
   template(run_method_name,                           "run")                                      \
+  template(runWith_method_name,                       "runWith")                                  \
   template(interrupt_method_name,                     "interrupt")                                \
   template(exit_method_name,                          "exit")                                     \
   template(remove_method_name,                        "remove")                                   \
   template(parent_name,                               "parent")                                   \
-  template(ngroups_name,                              "ngroups")                                  \
-  template(groups_name,                               "groups")                                   \
-  template(nweaks_name,                               "nweaks")                                   \
-  template(weaks_name,                                "weaks")                                    \
   template(maxPriority_name,                          "maxPriority")                              \
   template(shutdown_name,                             "shutdown")                                 \
   template(finalize_method_name,                      "finalize")                                 \
@@ -621,8 +621,10 @@
   template(string_array_string_array_void_signature,  "([Ljava/lang/String;[Ljava/lang/String;)V")                \
   template(thread_throwable_void_signature,           "(Ljava/lang/Thread;Ljava/lang/Throwable;)V")               \
   template(thread_void_signature,                     "(Ljava/lang/Thread;)V")                                    \
+  template(runnable_void_signature,                   "(Ljava/lang/Runnable;)V")                                   \
   template(threadgroup_runnable_void_signature,       "(Ljava/lang/ThreadGroup;Ljava/lang/Runnable;)V")           \
   template(threadgroup_string_void_signature,         "(Ljava/lang/ThreadGroup;Ljava/lang/String;)V")             \
+  template(void_threadgroup_array_signature,          "()[Ljava/lang/ThreadGroup;")                               \
   template(string_class_signature,                    "(Ljava/lang/String;)Ljava/lang/Class;")                    \
   template(string_boolean_class_signature,            "(Ljava/lang/String;Z)Ljava/lang/Class;")                   \
   template(object_object_object_signature,            "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;") \
@@ -761,6 +763,10 @@
   do_alias(appendToClassPathForInstrumentation_signature, string_void_signature)                                  \
   template(serializePropertiesToByteArray_name,        "serializePropertiesToByteArray")                          \
   template(serializeAgentPropertiesToByteArray_name,   "serializeAgentPropertiesToByteArray")                     \
+  template(serializeSavedPropertiesToByteArray_name,   "serializeSavedPropertiesToByteArray")                     \
+  template(encodeThrowable_name,                       "encodeThrowable")                                         \
+  template(encodeThrowable_signature,                  "(Ljava/lang/Throwable;JI)I")                              \
+  template(decodeAndThrowThrowable_name,               "decodeAndThrowThrowable")                                 \
   template(classRedefinedCount_name,                   "classRedefinedCount")                                     \
   template(classLoader_name,                           "classLoader")                                             \
   template(componentType_name,                         "componentType")                                           \
@@ -792,9 +798,9 @@
   template(url_void_signature,                              "(Ljava/net/URL;)V")                                  \
   template(url_array_classloader_void_signature,            "([Ljava/net/URL;Ljava/lang/ClassLoader;)V")          \
                                                                                                                   \
-  template(java_lang_runtime_PrimitiveObjectMethods,        "java/lang/runtime/PrimitiveObjectMethods")           \
+  template(java_lang_runtime_ValueObjectMethods,            "java/lang/runtime/ValueObjectMethods")               \
   template(isSubstitutable_name,                            "isSubstitutable")                                    \
-  template(primitiveObjectHashCode_name,                    "primitiveObjectHashCode")                            \
+  template(valueObjectHashCode_name,                        "valueObjectHashCode")                                \
   template(jdk_internal_value_PrimitiveClass,               "jdk/internal/value/PrimitiveClass")                  \
                                                                                                                   \
   /* Thread.dump_to_file jcmd */                                                                                  \

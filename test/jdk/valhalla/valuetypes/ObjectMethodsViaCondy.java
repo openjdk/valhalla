@@ -27,7 +27,7 @@
  * @modules java.base/jdk.internal.value
  * @modules java.base/jdk.internal.org.objectweb.asm
  * @compile -XDenablePrimitiveClasses ObjectMethodsViaCondy.java
- * @run testng/othervm ObjectMethodsViaCondy
+ * @run testng/othervm -XX:+EnableValhalla -XX:+EnablePrimitiveClasses ObjectMethodsViaCondy
  */
 
 import java.io.IOException;
