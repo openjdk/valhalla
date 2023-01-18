@@ -749,7 +749,7 @@ bool VM_BaseGetOrSetLocal::allow_nested_vm_operations() const {
 
 // Constructor for non-object getter
 VM_GetOrSetLocal::VM_GetOrSetLocal(JavaThread* thread, jint depth, jint index, BasicType type, bool self)
-  : VM_BaseGetOrSetLocal((JavaThread*)NULL, depth, index, type, _DEFAULT_VALUE, false, self),
+  : VM_BaseGetOrSetLocal(NULL, depth, index, type, _DEFAULT_VALUE, false, self),
     _thread(thread),
     _eb(false, NULL, NULL)
 {
@@ -757,7 +757,7 @@ VM_GetOrSetLocal::VM_GetOrSetLocal(JavaThread* thread, jint depth, jint index, B
 
 // Constructor for object or non-object setter
 VM_GetOrSetLocal::VM_GetOrSetLocal(JavaThread* thread, jint depth, jint index, BasicType type, jvalue value, bool self)
-  : VM_BaseGetOrSetLocal((JavaThread*)NULL, depth, index, type, value, true, self),
+  : VM_BaseGetOrSetLocal(NULL, depth, index, type, value, true, self),
     _thread(thread),
     _eb(type == T_OBJECT, JavaThread::current(), thread)
 {
@@ -820,7 +820,7 @@ VM_GetReceiver::VM_GetReceiver(
 // Constructor for non-object getter
 VM_VirtualThreadGetOrSetLocal::VM_VirtualThreadGetOrSetLocal(JvmtiEnv* env, Handle vthread_h, jint depth,
                                                              jint index, BasicType type, bool self)
-  : VM_BaseGetOrSetLocal((JavaThread*)NULL, depth, index, type, _DEFAULT_VALUE, false, self)
+  : VM_BaseGetOrSetLocal(NULL, depth, index, type, _DEFAULT_VALUE, false, self)
 {
   _env = env;
   _vthread_h = vthread_h;
@@ -829,7 +829,7 @@ VM_VirtualThreadGetOrSetLocal::VM_VirtualThreadGetOrSetLocal(JvmtiEnv* env, Hand
 // Constructor for object or non-object setter
 VM_VirtualThreadGetOrSetLocal::VM_VirtualThreadGetOrSetLocal(JvmtiEnv* env, Handle vthread_h, jint depth,
                                                              jint index, BasicType type, jvalue value, bool self)
-  : VM_BaseGetOrSetLocal((JavaThread*)NULL, depth, index, type, value, true, self)
+  : VM_BaseGetOrSetLocal(NULL, depth, index, type, value, true, self)
 {
   _env = env;
   _vthread_h = vthread_h;

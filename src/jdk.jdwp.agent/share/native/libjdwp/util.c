@@ -1733,7 +1733,7 @@ getSpecialJvmti(void)
     jvmtiCapabilities caps;
 
     rc = JVM_FUNC_PTR(gdata->jvm,GetEnv)
-                     (gdata->jvm, (void **)&jvmti, JVMTI_VERSION_1);
+                     (gdata->jvm, (void **)&jvmti, JVMTI_VERSION);
     if (rc != JNI_OK) {
         return NULL;
     }

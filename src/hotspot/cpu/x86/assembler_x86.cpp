@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2495,7 +2495,7 @@ void Assembler::jmp_literal(address dest, RelocationHolder const& rspec) {
   assert(dest != NULL, "must have a target");
   intptr_t disp = dest - (pc() + sizeof(int32_t));
   assert(is_simm32(disp), "must be 32bit offset (jmp)");
-  emit_data(disp, rspec.reloc(), call32_operand);
+  emit_data(disp, rspec, call32_operand);
 }
 
 void Assembler::jmpb_0(Label& L, const char* file, int line) {
@@ -5447,13 +5447,38 @@ void Assembler::vptest(XMMRegister dst, XMMRegister src, int vector_len) {
   emit_int16(0x17, (0xC0 | encode));
 }
 
+void Assembler::vtestps(XMMRegister dst, XMMRegister src, int vector_len) {
+  assert(VM_Version::supports_avx(), "");
+  InstructionAttr attributes(vector_len, /* rex_w */ false, /* legacy_mode */ true, /* no_mask_reg */ true, /* uses_vl */ false);
+  int encode = vex_prefix_and_encode(dst->encoding(), 0, src->encoding(), VEX_SIMD_66, VEX_OPCODE_0F_38, &attributes);
+  emit_int16(0x0E, (0xC0 | encode));
+}
+
 void Assembler::evptestmb(KRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
-  assert(VM_Version::supports_avx512vlbw(), "");
-  // Encoding: EVEX.NDS.XXX.66.0F.W0 DB /r
+  assert(vector_len == AVX_512bit ? VM_Version::supports_avx512bw() : VM_Version::supports_avx512vlbw(), "");
+  // Encoding: EVEX.NDS.XXX.66.0F38.W0 DB /r
   InstructionAttr attributes(vector_len, /* vex_w */ false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
   attributes.set_is_evex_instruction();
   int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_66, VEX_OPCODE_0F_38, &attributes);
-  emit_int16((unsigned char)0x26, (0xC0 | encode));
+  emit_int16(0x26, (0xC0 | encode));
+}
+
+void Assembler::evptestmd(KRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(vector_len == AVX_512bit ? VM_Version::supports_evex() : VM_Version::supports_avx512vl(), "");
+  // Encoding: EVEX.NDS.XXX.66.0F38.W0 DB /r
+  InstructionAttr attributes(vector_len, /* vex_w */ false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_66, VEX_OPCODE_0F_38, &attributes);
+  emit_int16(0x27, (0xC0 | encode));
+}
+
+void Assembler::evptestnmd(KRegister dst, XMMRegister nds, XMMRegister src, int vector_len) {
+  assert(vector_len == AVX_512bit ? VM_Version::supports_evex() : VM_Version::supports_avx512vl(), "");
+  // Encoding: EVEX.NDS.XXX.F3.0F38.W0 DB /r
+  InstructionAttr attributes(vector_len, /* vex_w */ false, /* legacy_mode */ false, /* no_mask_reg */ true, /* uses_vl */ true);
+  attributes.set_is_evex_instruction();
+  int encode = vex_prefix_and_encode(dst->encoding(), nds->encoding(), src->encoding(), VEX_SIMD_F3, VEX_OPCODE_0F_38, &attributes);
+  emit_int16(0x27, (0xC0 | encode));
 }
 
 void Assembler::punpcklbw(XMMRegister dst, Address src) {
@@ -13426,6 +13451,11 @@ void Assembler::orq(Address dst, Register src) {
 void Assembler::orq(Register dst, int32_t imm32) {
   (void) prefixq_and_encode(dst->encoding());
   emit_arith(0x81, 0xC8, dst, imm32);
+}
+
+void Assembler::orq_imm32(Register dst, int32_t imm32) {
+  (void) prefixq_and_encode(dst->encoding());
+  emit_arith_imm32(0x81, 0xC8, dst, imm32);
 }
 
 void Assembler::orq(Register dst, Address src) {

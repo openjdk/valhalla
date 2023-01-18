@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -128,8 +128,7 @@ bool LibraryCallKit::arch_supports_vector_rotate(int opc, int num_elem, BasicTyp
       lshiftopc = Op_LShiftL;
       rshiftopc = Op_URShiftL;
       break;
-    default:
-      assert(false, "Unexpected type");
+    default: fatal("Unexpected type: %s", type2name(elem_bt));
   }
   int lshiftvopc = VectorNode::opcode(lshiftopc, elem_bt);
   int rshiftvopc = VectorNode::opcode(rshiftopc, elem_bt);
@@ -1799,14 +1798,24 @@ bool LibraryCallKit::inline_vector_test() {
   }
 
   Node* opd1 = unbox_vector(argument(4), vbox_type, elem_bt, num_elem);
-  Node* opd2 = unbox_vector(argument(5), vbox_type, elem_bt, num_elem);
+  Node* opd2;
+  if (Matcher::vectortest_needs_second_argument(booltest == BoolTest::overflow,
+                                                opd1->bottom_type()->isa_vectmask())) {
+    opd2 = unbox_vector(argument(5), vbox_type, elem_bt, num_elem);
+  } else {
+    opd2 = opd1;
+  }
   if (opd1 == NULL || opd2 == NULL) {
     return false; // operand unboxing failed
   }
-  Node* test = new VectorTestNode(opd1, opd2, booltest);
-  test = gvn().transform(test);
 
-  set_result(test);
+  Node* cmp = gvn().transform(new VectorTestNode(opd1, opd2, booltest));
+  BoolTest::mask test = Matcher::vectortest_mask(booltest == BoolTest::overflow,
+                                                 opd1->bottom_type()->isa_vectmask(), num_elem);
+  Node* bol = gvn().transform(new BoolNode(cmp, test));
+  Node* res = gvn().transform(new CMoveINode(bol, gvn().intcon(0), gvn().intcon(1), TypeInt::BOOL));
+
+  set_result(res);
   C->set_max_vector_size(MAX2(C->max_vector_size(), (uint)(num_elem * type2aelembytes(elem_bt))));
   return true;
 }

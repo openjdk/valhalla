@@ -95,7 +95,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)), NULL, null_free);
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), NULL, null_free);
   if (stopped()) {
     return;
   }
@@ -134,7 +134,7 @@ void Parse::do_instanceof() {
   }
 
   // Push the bool result back on stack
-  Node* res = gen_instanceof(peek(), makecon(TypeKlassPtr::make(klass)), true);
+  Node* res = gen_instanceof(peek(), makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), true);
 
   // Pop from stack AFTER gen_instanceof because it can uncommon trap.
   pop();

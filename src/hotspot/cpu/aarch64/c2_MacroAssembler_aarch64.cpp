@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,8 +57,9 @@ void C2_MacroAssembler::entry_barrier() {
     Label* guard = &dummy_guard;
     if (!Compile::current()->output()->in_scratch_emit_size()) {
       // Use real labels from actual stub when not emitting code for the purpose of measuring its size
-      C2EntryBarrierStub* stub = Compile::current()->output()->entry_barrier_table()->add_entry_barrier();
-      slow_path = &stub->slow_path();
+      C2EntryBarrierStub* stub = new (Compile::current()->comp_arena()) C2EntryBarrierStub();
+      Compile::current()->output()->add_stub(stub);
+      slow_path = &stub->entry();
       continuation = &stub->continuation();
       guard = &stub->guard();
     }
@@ -335,7 +336,12 @@ void C2_MacroAssembler::string_indexof(Register str2, Register str1,
       stub = RuntimeAddress(StubRoutines::aarch64::string_indexof_linear_uu());
       assert(stub.target() != NULL, "string_indexof_linear_uu stub has not been generated");
     }
-    trampoline_call(stub);
+    address call = trampoline_call(stub);
+    if (call == nullptr) {
+      DEBUG_ONLY(reset_labels(LINEARSEARCH, LINEAR_MEDIUM, DONE, NOMATCH, MATCH));
+      ciEnv::current()->record_failure("CodeCache is full");
+      return;
+    }
     b(DONE);
   }
 
@@ -894,7 +900,12 @@ void C2_MacroAssembler::string_compare(Register str1, Register str2,
         ShouldNotReachHere();
      }
     assert(stub.target() != NULL, "compare_long_string stub has not been generated");
-    trampoline_call(stub);
+    address call = trampoline_call(stub);
+    if (call == nullptr) {
+      DEBUG_ONLY(reset_labels(DONE, SHORT_LOOP, SHORT_STRING, SHORT_LAST, SHORT_LOOP_TAIL, SHORT_LAST2, SHORT_LAST_INIT, SHORT_LOOP_START));
+      ciEnv::current()->record_failure("CodeCache is full");
+      return;
+    }
     b(DONE);
 
   bind(SHORT_STRING);
