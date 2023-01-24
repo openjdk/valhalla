@@ -1484,7 +1484,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       assert(offset < canonical_holder->layout_helper_size_in_bytes(), "");
       if (!ik->equals(canonical_holder) || tj->offset() != offset) {
         if( is_known_inst ) {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), canonical_holder->flatten_array(), to->instance_id());
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), to->instance_id());
         } else {
           tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset));
         }
@@ -1513,7 +1513,6 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         tj = tk = TypeAryKlassPtr::make(TypePtr::NotNull, tk->is_aryklassptr()->elem(), k, Type::Offset(offset), tk->is_not_flat(), tk->is_not_null_free(), tk->is_null_free());
       }
     }
-
     // Check for precise loads from the primary supertype array and force them
     // to the supertype cache alias index.  Check for generic array loads from
     // the primary supertype array and also force them to the supertype cache

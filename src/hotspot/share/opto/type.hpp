@@ -1061,7 +1061,7 @@ protected:
                                                             ciKlass*& res_klass, bool& res_xk, bool& res_flatten_array);
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type* elem, const Type* other_elem, const T* this_ary, const T* other_ary,
-                                                  const Type*& res_elem, ciKlass*& res_klass, bool& res_xk, bool &res_not_flat, bool &res_not_null_free));
+                                                  const Type*& res_elem, ciKlass*& res_klass, bool& res_xk, bool &res_not_flat, bool &res_not_null_free);
 
   template <class T1, class T2> static bool is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact);
   template <class T1, class T2> static bool is_same_java_type_as_helper_for_instance(const T1* this_one, const T2* other);
@@ -1386,7 +1386,7 @@ public:
   static const TypeInstPtr *make(ciObject* o) {
     ciKlass* k = o->klass();
     const TypePtr::InterfaceSet interfaces = TypePtr::interfaces(k, true, false, false, ignore_interfaces);
-    return make(TypePtr::Constant, k, interfaces, true, o, 0, Offset(0));
+    return make(TypePtr::Constant, k, interfaces, true, o, Offset(0));
   }
   // Make a pointer to a constant oop with offset.
   static const TypeInstPtr *make(ciObject* o, Offset offset) {
@@ -1422,7 +1422,7 @@ public:
 
   static const TypeInstPtr *make(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, int instance_id = InstanceBot) {
     const TypePtr::InterfaceSet interfaces = TypePtr::interfaces(k, true, false, false, ignore_interfaces);
-    return make(ptr, k, interfaces, xk, o, offset, instance_id);
+    return make(ptr, k, interfaces, xk, o, offset, false, instance_id);
   }
 
   /** Create constant type for a constant boxed value */
@@ -1495,8 +1495,8 @@ class TypeAryPtr : public TypeOopPtr {
     bool top_or_bottom = (base_element_type(dummy) == Type::TOP || base_element_type(dummy) == Type::BOTTOM);
 
     if (UseCompressedOops && (elem()->make_oopptr() != NULL && !top_or_bottom) &&
-        _offset != 0 && _offset != arrayOopDesc::length_offset_in_bytes() &&
-        _offset != arrayOopDesc::klass_offset_in_bytes()) {
+        _offset.get() != 0 && _offset.get() != arrayOopDesc::length_offset_in_bytes() &&
+        _offset.get() != arrayOopDesc::klass_offset_in_bytes()) {
       _is_ptr_to_narrowoop = true;
     }
 
@@ -1828,11 +1828,6 @@ public:
   // Convenience common pre-built types.
   static const TypeInstKlassPtr* OBJECT; // Not-null object klass or below
   static const TypeInstKlassPtr* OBJECT_OR_NULL; // Maybe-null version of same
-
-#ifndef PRODUCT
-  virtual void dump2( Dict &d, uint depth, outputStream *st ) const; // Specialized per-Type dumping
-#endif
-
 private:
   virtual bool is_meet_subtype_of_helper(const TypeKlassPtr* other, bool this_xk, bool other_xk) const;
 };
@@ -1851,7 +1846,7 @@ class TypeAryKlassPtr : public TypeKlassPtr {
   static const InterfaceSet* _array_interfaces;
   TypeAryKlassPtr(PTR ptr, const Type *elem, ciKlass* klass, Offset offset, bool not_flat, int not_null_free, bool null_free)
     : TypeKlassPtr(AryKlassPtr, ptr, klass, *_array_interfaces, offset), _elem(elem), _not_flat(not_flat), _not_null_free(not_null_free), _null_free(null_free) {
-    assert(klass == NULL || klass->is_type_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
+    assert(klass == NULL || klass->is_type_array_klass() || klass->is_flat_array_klass() || !klass->as_obj_array_klass()->base_element_klass()->is_interface(), "");
   }
 
   virtual ciKlass* exact_klass_helper() const;
@@ -1882,7 +1877,7 @@ public:
   bool  is_loaded() const { return (_elem->isa_klassptr() ? _elem->is_klassptr()->is_loaded() : true); }
 
   static const TypeAryKlassPtr* make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free);
-  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset);
+  static const TypeAryKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, InterfaceHandling interface_handling);
   static const TypeAryKlassPtr* make(ciKlass* klass, InterfaceHandling interface_handling);
 
   const Type *elem() const { return _elem; }

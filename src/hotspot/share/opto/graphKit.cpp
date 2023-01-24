@@ -1111,7 +1111,7 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
     ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
     int      size  = field->type()->size();
     inputs = size+1;
-    depth = rsize - inputs;
+    depth = rsize() - inputs;
     break;
   }
 
@@ -3368,7 +3368,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       kptr = t->is_oopptr()->as_klass_type();
     } else if (obj->is_InlineType()) {
       ciInlineKlass* vk = t->inline_klass();
-      kptr = TypeInstKlassPtr::make(TypePtr::NotNull, vk, Type::Offset(0), vk->flatten_array());
+      kptr = TypeInstKlassPtr::make(TypePtr::NotNull, vk, Type::Offset(0));
     }
     if (kptr != NULL) {
       switch (C->static_subtype_check(tk, kptr)) {
