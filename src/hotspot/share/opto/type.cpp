@@ -5007,7 +5007,12 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   }
   // Not null free implies not flat
   const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), not_null_free ? true : is_not_flat(), not_null_free);
-  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
+                               _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  if (res->speculative() == res->remove_speculative()) {
+    return res->remove_speculative();
+  }
+  return res;
 }
 
 //---------------------------------update_properties---------------------------
@@ -6653,7 +6658,7 @@ bool TypeAryKlassPtr::must_be_exact() const {
   const TypeKlassPtr*  tk = _elem->isa_klassptr();
   if (!tk)             return true;   // a primitive type, like int
   // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-  if (tk->klass()->is_inlinetype() && !is_null_free()) {
+  if (tk->isa_instklassptr() && tk->klass()->is_inlinetype() && !is_null_free()) {
     return false;
   }
   return tk->must_be_exact();
