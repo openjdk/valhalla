@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2022, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -193,44 +193,6 @@ endef
 $(foreach m, $(JAVA_MODULES), $(eval $(call DeclareCompileJavaRecipe,$m)))
 
 ALL_TARGETS += $(JAVA_TARGETS)
-
-################################################################################
-# Targets for compiling all java.base for Value Classes.
-JAVA_VALUE_MODULES := java.base
-JAVA_VALUE_TARGETS := $(addsuffix -value-java, $(JAVA_VALUE_MODULES))
-
-define DeclareCompileJavaValueRecipe
-  $1-value-java:
-	+($(CD) $(TOPDIR)/make && $(MAKE) $(MAKE_ARGS) \
-	$(patsubst %,-I%/modules/$1,$(PHASE_MAKEDIRS)) \
-	    INCLUDE_VALUE_CLASSES=true \
-	    -f CompileJavaModules.gmk $1_BIN=$(MAKESUPPORT_OUTPUTDIR)/value-classes MODULE=$1)
-	$(ECHO) Compiling $$(JAVA_VALUE_TARGETS)
-endef
-
-$(foreach m, $(JAVA_VALUE_MODULES), $(eval $(call DeclareCompileJavaValueRecipe,$m)))
-
-ALL_TARGETS += $(JAVA_VALUE_TARGETS)
-
-JAVA_VALUE_JAR_TARGETS := $(addsuffix -value-jar, $(JAVA_VALUE_MODULES))
-JAVA_VALUE_JAR_DEP_TARGETS := $(addsuffix _VALUECLASS_DEPS, $(JAVA_VALUE_MODULES))
-
-# Create value class jars
-define DeclareValueClassJarRecipe
-	$1-value-jar-files := $$(call FindFiles, $(TOPDIR)/src/$1/valhalla/classes)
-	$1-value-jar-class-files := $$(patsubst %.java, %.class, $$($1-value-jar-files))
-	$1-value-jar-bin-class-files := $$(patsubst $(TOPDIR)/src/$1/valhalla/classes/%, %, $$($1-value-jar-class-files))
-  $1-value-jar:
-	$$(eval $$(call SetupJarArchive, $1_VALUECLASS_DEPS, \
-	  SRCS:=$$($1-value-jar-bin-class-files), \
-	  JAR:=ValueClass_$1.jar, \
-	))
-	$(ECHO) $1_VALUECLASS_DEPS
-endef
-
-$(foreach m, $(JAVA_VALUE_MODULES), $(eval $(call DeclareValueClassJarRecipe,$m)))
-
-ALL_TARGETS += $(JAVA_VALUE_JAR_TARGETS) $(JAVA_VALUE_JAR_DEP_TARGETS)
 
 ################################################################################
 # Targets for compiling native libraries

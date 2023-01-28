@@ -124,7 +124,7 @@ PathString *Arguments::_boot_class_path = NULL;
 bool Arguments::_has_jimage = false;
 
 // JAVA_HOME/lib relative path of value class replacements for java.base
-#define VALUE_CLASSES_JAR "ValueClasses.jar"
+#define VALUE_CLASSES_JAR "valueclasses/java.base-valueclasses.jar"
 
 char* Arguments::_ext_dirs = NULL;
 
