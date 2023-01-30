@@ -169,7 +169,7 @@ public class TestGetfieldChains {
         StackTraceElement st = nsfe.getStackTrace()[0];
         Asserts.assertEQ(st.getMethodName(), "getP1X");
         Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
-        Asserts.assertEQ(nsfe.getMessage(), "x");
+        Asserts.assertEQ(nsfe.getMessage(), "Class compiler.valhalla.inlinetypes.PointN does not have member field 'int x'");
     }
 
     static primitive class EmptyType { }
