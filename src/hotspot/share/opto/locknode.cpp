@@ -150,7 +150,11 @@ bool FastLockNode::cmp( const Node &n ) const {
 }
 
 const Type* FastLockNode::Value(PhaseGVN* phase) const {
-  if (phase->type(in(1))->is_inlinetypeptr()) {
+  const Type* in1_t = phase->type(in(1));
+  if (in1_t == Type::TOP) {
+    return Type::TOP;
+  }
+  if (in1_t->is_inlinetypeptr()) {
     // Locking on inline types always fails
     return TypeInt::CC_GT;
   }

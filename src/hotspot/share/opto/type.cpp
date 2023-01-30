@@ -2480,7 +2480,11 @@ const TypeInlineType* TypeInlineType::BOTTOM;
 
 //------------------------------make-------------------------------------------
 const TypeInlineType* TypeInlineType::make(ciInlineKlass* vk, bool larval) {
-  return (TypeInlineType*)(new TypeInlineType(vk, larval))->hashcons();
+  TypePtr::InterfaceSet interfaces;
+  if (vk != NULL) {
+    interfaces = TypePtr::InterfaceSet(vk->transitive_interfaces());
+  }
+  return (TypeInlineType*)(new TypeInlineType(vk, interfaces, larval))->hashcons();
 }
 
 //------------------------------meet-------------------------------------------
@@ -3070,7 +3074,7 @@ ciKlass* TypePtr::speculative_type() const {
   if (_speculative != NULL && _speculative->isa_oopptr()) {
     const TypeOopPtr* speculative = _speculative->join(this)->is_oopptr();
     if (speculative->klass_is_exact()) {
-      return speculative->klass();
+      return speculative->exact_klass();
     }
   }
   return NULL;
@@ -4500,8 +4504,9 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
   case InlineType: {
     const TypeInlineType* tv = t->is_inlinetype();
+    InterfaceSet interfaces = tv->interfaces();
     if (above_centerline(ptr())) {
-      if (tv->inline_klass()->is_subtype_of(_klass)) {
+      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
         return t;
       } else {
         return TypeInstPtr::NOTNULL;
@@ -4511,7 +4516,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       if (ptr == Constant) {
         ptr = NotNull;
       }
-      if (tv->inline_klass()->is_subtype_of(_klass)) {
+      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
         return make(ptr, _klass, _interfaces, false, NULL, Offset(0), _flatten_array, InstanceBot, _speculative);
       } else {
         return make(ptr, ciEnv::current()->Object_klass());
@@ -4527,8 +4532,8 @@ template<class T> TypePtr::MeetResult TypePtr::meet_instptr(PTR& ptr, InterfaceS
                                                             ciKlass*& res_klass, bool& res_xk, bool& res_flatten_array) {
   ciKlass* this_klass = this_type->klass();
   ciKlass* other_klass = other_type->klass();
-  bool this_flatten_array = this_klass->flatten_array();
-  bool other_flatten_array = other_klass->flatten_array();
+  bool this_flatten_array = this_type->flatten_array();
+  bool other_flatten_array = other_type->flatten_array();
   bool this_flatten_array_orig = this_flatten_array;
   bool other_flatten_array_orig = other_flatten_array;
   bool this_xk = this_type->klass_is_exact();
@@ -4842,7 +4847,23 @@ template <class T1, class T2>  bool TypePtr::is_meet_subtype_of_helper_for_array
   const TypePtr* other_elem = other_ary->elem()->make_ptr();
   const TypePtr* this_elem = this_one->elem()->make_ptr();
   if (other_elem != NULL && this_elem != NULL) {
-    return this_one->is_reference_type(this_elem)->is_meet_subtype_of_helper(this_one->is_reference_type(other_elem), this_xk, other_xk);
+    return this_one->is_reference_type(this_elem)->is_meet_subtype_of_helper(this_one->is_reference_type(other_elem), this_xk, other_xk) &&
+      (this_one->is_null_free() == other_ary->is_null_free() || (this_one->is_null_free() && !other_ary->is_null_free()));
+  }
+
+  if (this_one->elem()->isa_inlinetype()) {
+    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
+    if (other_ary->elem()->isa_inlinetype()) {
+      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
+    } else {
+      auto other_inst = this_one->is_instance_type(this_one->is_reference_type(other_elem));
+      if (other_inst != nullptr) {
+        const InterfaceSet interfaces = this_one->elem()->is_inlinetype()->interfaces();
+        return inline_klass->is_subtype_of(other_inst->instance_klass()) && interfaces.contains(other_inst->interfaces());
+      } else {
+        return false;
+      }
+    }
   }
 
   if (other_elem == NULL && this_elem == NULL) {
@@ -5212,7 +5233,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
     const Type* other_elem = tap->_ary->_elem;
     if (meet_aryptr(ptr, elem, other_elem, this, tap, res_elem, res_klass, res_xk, res_not_flat, res_not_null_free) == NOT_SUBTYPE) {
       instance_id = InstanceBot;
-    } else if (klass() != NULL && tap->klass() != NULL && klass()->is_flat_array_klass() != tap->klass()->is_flat_array_klass()) {
+    } else if ((elem->isa_inlinetype() != NULL) != (other_elem->isa_inlinetype() != NULL)) {
       // Meeting flattened inline type array with non-flattened array. Adjust (field) offset accordingly.
       if (tary->_elem->isa_inlinetype()) {
         // Result is flattened
@@ -6336,8 +6357,9 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
   }
   case InlineType: {
     const TypeInlineType* tv = t->is_inlinetype();
+    InterfaceSet interfaces = tv->interfaces();
     if (above_centerline(ptr())) {
-      if (tv->inline_klass()->is_subtype_of(_klass)) {
+      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
         return t;
       } else {
         return TypeInstPtr::NOTNULL;
@@ -6347,7 +6369,7 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
       if (ptr == Constant) {
         ptr = NotNull;
       }
-      if (tv->inline_klass()->is_subtype_of(_klass)) {
+      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
         return make(ptr, _klass, _interfaces, Offset(0), _flatten_array);
       } else {
         return make(ptr, ciEnv::current()->Object_klass(), Offset(0));
@@ -6466,6 +6488,21 @@ const TypeKlassPtr* TypeInstKlassPtr::try_improve() const {
   return this;
 }
 
+bool TypeInstKlassPtr::can_be_inline_array() const {
+  return _klass->equals(ciEnv::current()->Object_klass()) && TypeAryKlassPtr::_array_interfaces->contains(_interfaces);
+}
+
+bool TypeAryKlassPtr::can_be_inline_array() const {
+  return _elem->isa_inlinetype() || (_elem->isa_instklassptr() && _elem->is_instklassptr()->_klass->can_be_inline_klass());
+}
+
+bool TypeInstPtr::can_be_inline_array() const {
+  return _klass->equals(ciEnv::current()->Object_klass()) && TypeAryPtr::_array_interfaces->contains(_interfaces);
+}
+
+bool TypeAryPtr::can_be_inline_array() const {
+  return elem()->isa_inlinetype() || (elem()->make_ptr() && elem()->make_ptr()->isa_instptr() && elem()->make_ptr()->is_instptr()->_klass->can_be_inline_klass());
+}
 
 const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
   return (TypeAryKlassPtr*)(new TypeAryKlassPtr(ptr, elem, k, offset, not_flat, not_null_free, null_free))->hashcons();
@@ -6675,20 +6712,19 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   }
   bool not_flat = is_not_flat();
   bool not_null_free = is_not_null_free();
-  /*
-  if (k != NULL && k->is_obj_array_klass()) {
-    if (klass_is_exact) {
+  if (_elem->isa_klassptr()) {
+    if (klass_is_exact || _elem->isa_aryklassptr()) {
       // An object array can't be flat or null-free if the klass is exact
       not_flat = true;
       not_null_free = true;
     } else {
+      assert(_elem->isa_instklassptr(), "");
       // Klass is not exact (anymore), re-compute null-free/flat properties
-      const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(k->as_array_klass()->element_klass());
+      const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(_elem->is_instklassptr()->instance_klass());
       not_null_free = !exact_etype->can_be_inline_type();
       not_flat = !UseFlatArray || not_null_free || (exact_etype->is_inlinetypeptr() && !exact_etype->inline_klass()->flatten_array());
     }
   }
-  */
   return make(klass_is_exact ? Constant : NotNull, elem, k, _offset, not_flat, not_null_free, _null_free);
 }
 
@@ -6908,6 +6944,20 @@ template <class T1, class T2> bool TypePtr::is_java_subtype_of_helper_for_array(
     }
     return this_one->is_reference_type(this_elem)->is_java_subtype_of_helper(this_one->is_reference_type(other_elem), this_exact, other_exact);
   }
+  if (this_one->elem()->isa_inlinetype()) {
+    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
+    if (other_ary->elem()->isa_inlinetype()) {
+      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
+    } else {
+      auto other_inst = this_one->is_instance_type(this_one->is_reference_type(other_elem));
+      if (other_inst != nullptr) {
+        const InterfaceSet interfaces = this_one->elem()->is_inlinetype()->interfaces();
+        return inline_klass->is_subtype_of(other_inst->instance_klass()) && interfaces.contains(other_inst->interfaces());
+      } else {
+        return false;
+      }
+    }
+  }
   if (this_elem == NULL && other_elem == NULL) {
     return this_one->_klass->is_subtype_of(other->_klass);
   }
@@ -6938,7 +6988,16 @@ template <class T1, class T2> bool TypePtr::is_same_java_type_as_helper_for_arra
   const TypePtr* other_elem = other_ary->elem()->make_ptr();
   const TypePtr* this_elem = this_one->elem()->make_ptr();
   if (other_elem != NULL && this_elem != NULL) {
-    return this_one->is_reference_type(this_elem)->is_same_java_type_as(this_one->is_reference_type(other_elem));
+    return this_one->is_reference_type(this_elem)->is_same_java_type_as(this_one->is_reference_type(other_elem)) &&
+            this_one->is_null_free() == other_ary->is_null_free();
+  }
+  if (this_one->elem()->isa_inlinetype()) {
+    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
+    if (other_ary->elem()->isa_inlinetype()) {
+      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
+    } else {
+      return false;
+    }
   }
   if (other_elem == NULL && this_elem == NULL) {
     assert(this_one->_klass != NULL && other->_klass != NULL, "");
@@ -6979,6 +7038,20 @@ template <class T1, class T2> bool TypePtr::maybe_java_subtype_of_helper_for_arr
   const TypePtr* other_elem = other_ary->elem()->make_ptr();
   if (other_elem != NULL && this_elem != NULL) {
     return this_one->is_reference_type(this_elem)->maybe_java_subtype_of_helper(this_one->is_reference_type(other_elem), this_exact, other_exact);
+  }
+  if (this_one->elem()->isa_inlinetype()) {
+    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
+    if (other_ary->elem()->isa_inlinetype()) {
+      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
+    } else {
+      auto other_inst = this_one->is_instance_type(this_one->is_reference_type(other_elem));
+      if (other_inst != nullptr) {
+        const InterfaceSet interfaces = this_one->elem()->is_inlinetype()->interfaces();
+        return inline_klass->is_subtype_of(other_inst->instance_klass()) && interfaces.contains(other_inst->interfaces());
+      } else {
+        return false;
+      }
+    }
   }
   if (other_elem == NULL && this_elem == NULL) {
     return this_one->_klass->is_subtype_of(other->_klass);
