@@ -69,6 +69,7 @@
 #endif
 
 #include <limits>
+#include <string.h>
 
 #define DEFAULT_JAVA_LAUNCHER  "generic"
 
@@ -122,9 +123,6 @@ SystemProperty *Arguments::_vm_info = NULL;
 GrowableArray<ModulePatchPath*> *Arguments::_patch_mod_prefix = NULL;
 PathString *Arguments::_boot_class_path = NULL;
 bool Arguments::_has_jimage = false;
-
-// JAVA_HOME/lib relative path of value class replacements for java.base
-#define VALUE_CLASSES_JAR "valueclasses/java.base-valueclasses.jar"
 
 char* Arguments::_ext_dirs = NULL;
 
@@ -3092,32 +3090,48 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     return JNI_ERR;
   }
 
+  // If --enable-preview is true, each module may have value classes that
+  // are to be patched into the module.
+  // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
+  // add the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
+  // Special handling is required for java.base, the VM classpath/module path has to be modified
   if (enable_preview()) {
-    if (patch_mod_javabase) {
-      // TBD: consider replacing the path in ModulePatchPath for java.base base with
-      //      one that has the valueClass jar appended.
-      jio_fprintf(defaultStream::output_stream(),
-                    "Warning: java.base already patched, "
-                    "--enable-preview can't add module patch java.base with " VALUE_CLASSES_JAR "\n");
-      return JNI_OK;
-    }
-
-    // Add equivalent of patch-module for preview enabled Valhalla classes
-    char path[JVM_MAXPATHLEN];
+    char valueclasses_dir[JVM_MAXPATHLEN];
     const char* fileSep = os::file_separator();
-    jio_snprintf(path, JVM_MAXPATHLEN, "java.base=%s%slib%s" VALUE_CLASSES_JAR,
-      Arguments::get_java_home(), fileSep, fileSep);
 
-    struct stat st;
-    if (os::stat(path + 10, &st) < 0) {
-      jio_fprintf(defaultStream::output_stream(),
-              "<JAVA_HOME>/lib/" VALUE_CLASSES_JAR " does not exist.\n");
-      return JNI_ERR;
-    }
+    jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%svalueclasses%s",
+        Arguments::get_java_home(), fileSep, fileSep, fileSep);
+    DIR* dir = os::opendir(valueclasses_dir);
+    if (dir != NULL) {
+      int res = JNI_OK;
+      char module[JVM_MAXPATHLEN];
+      char patch[JVM_MAXPATHLEN];
 
-    int res = process_patch_mod_option(path, &patch_mod_javabase);
-    if (res != JNI_OK) {
-      return res;
+      for (dirent* entry = os::readdir(dir); entry != NULL; entry = readdir(dir)) {
+        char *p = strstr(entry->d_name, "-valueclasses.jar");
+        int len = 0;
+        if (p == NULL || (len = p - entry->d_name) <= 0)
+          continue;
+
+          strncpy(module, entry->d_name, len);
+          module[len] = '\0';
+          if (strcmp(module, "java.base") && patch_mod_javabase) {
+            jio_fprintf(defaultStream::output_stream(),
+                "Warning: java.base already patched, "
+                "--enable-preview can't add module patch\n");
+            continue;       // TBD: ? Error or continue patching other modules?
+          }
+
+          jio_snprintf(patch, JVM_MAXPATHLEN, "%s=%s%s",
+            module, valueclasses_dir, &entry->d_name);
+          res = process_patch_mod_option(patch, &patch_mod_javabase);
+          if (res != JNI_OK) {
+            os::closedir(dir);
+            return res;
+          }
+          log_info(class)("--enable-preview overriding value classes for module %s: %s", module, entry->d_name);
+        }
+      os::closedir(dir);
     }
   }
 
