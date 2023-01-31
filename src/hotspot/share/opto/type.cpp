@@ -5228,12 +5228,10 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
     bool res_xk = false;
     bool res_not_flat = false;
     bool res_not_null_free = false;
-    const Type* res_elem = NULL;
     const Type* elem = tary->_elem;
-    const Type* other_elem = tap->_ary->_elem;
-    if (meet_aryptr(ptr, elem, other_elem, this, tap, res_elem, res_klass, res_xk, res_not_flat, res_not_null_free) == NOT_SUBTYPE) {
+    if (meet_aryptr(ptr, elem, this, tap, res_klass, res_xk, res_not_flat, res_not_null_free) == NOT_SUBTYPE) {
       instance_id = InstanceBot;
-    } else if ((elem->isa_inlinetype() != NULL) != (other_elem->isa_inlinetype() != NULL)) {
+    } else if ((this->elem()->isa_inlinetype() != NULL) != (tap->elem()->isa_inlinetype() != NULL)) {
       // Meeting flattened inline type array with non-flattened array. Adjust (field) offset accordingly.
       if (tary->_elem->isa_inlinetype()) {
         // Result is flattened
@@ -5261,7 +5259,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         ptr = NotNull;
       }
     }
-    return make(ptr, o, TypeAry::make(res_elem, tary->_size, tary->_stable, res_not_flat, res_not_null_free), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
+    return make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_not_flat, res_not_null_free), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
   }
 
   // All arrays inherit from Object class
@@ -5338,9 +5336,8 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
 }
 
 
-template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type* elem, const Type* other_elem, const T* this_ary, const T* other_ary,
-                                                           const Type*& res_elem, ciKlass*& res_klass,
-                                                           bool& res_xk, bool& res_not_flat, bool& res_not_null_free) {
+template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
+                                                           ciKlass*& res_klass, bool& res_xk, bool& res_not_flat, bool& res_not_null_free) {
   int dummy;
   bool this_top_or_bottom = (this_ary->base_element_type(dummy) == Type::TOP || this_ary->base_element_type(dummy) == Type::BOTTOM);
   bool other_top_or_bottom = (other_ary->base_element_type(dummy) == Type::TOP || other_ary->base_element_type(dummy) == Type::BOTTOM);
@@ -5356,11 +5353,10 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
   bool other_not_null_free = other_ary->is_not_null_free();
   res_klass = NULL;
   MeetResult result = SUBTYPE;
-  res_elem = elem->meet(other_elem);
   res_not_flat = this_not_flat && other_not_flat;
   res_not_null_free = this_not_null_free && other_not_null_free;
 
-  if (res_elem->isa_int()) {
+  if (elem->isa_int()) {
     // Integral array element types have irrelevant lattice relations.
     // It is the klass that determines array layout, not the element type.
       if (this_top_or_bottom) {
@@ -5371,7 +5367,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       // Something like byte[int+] meets char[int+].
       // This must fall to bottom, not (int[-128..65535])[int+].
       // instance_id = InstanceBot;
-      res_elem = Type::BOTTOM;
+      elem = Type::BOTTOM;
       result = NOT_SUBTYPE;
     }
   } else {// Non integral arrays.
@@ -5386,9 +5382,9 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
          (other_xk && !other_ary->is_meet_subtype_of(this_ary)) ||
          // 'this' is exact and super or unrelated:
          (this_xk && !this_ary->is_meet_subtype_of(other_ary)))) {
-      if (above_centerline(ptr) || (res_elem->make_ptr() && above_centerline(res_elem->make_ptr()->_ptr)) ||
-          res_elem->isa_inlinetype()) {
-        res_elem = Type::BOTTOM;
+      if (above_centerline(ptr) || (elem->make_ptr() && above_centerline(elem->make_ptr()->_ptr)) ||
+          elem->isa_inlinetype()) {
+        elem = Type::BOTTOM;
       }
       ptr = NotNull;
       res_xk = false;
@@ -5403,8 +5399,8 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       // Compute new klass on demand, do not use tap->_klass
       if (below_centerline(this_ptr)) {
         res_xk = this_xk;
-        if (elem->isa_inlinetype()) {
-          res_elem = elem;
+        if (this_ary->elem()->isa_inlinetype()) {
+          elem = this_ary->elem();
         }
       } else {
         res_xk = (other_xk || this_xk);
@@ -5426,8 +5422,8 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       // Compute new klass on demand, do not use tap->_klass
       if (above_centerline(this_ptr)) {
         res_xk = other_xk;
-        if (other_elem->isa_inlinetype()) {
-          res_elem = other_elem;
+        if (other_ary->elem()->isa_inlinetype()) {
+          elem = other_ary->elem();
         }
       } else {
         res_xk = (other_xk && this_xk) &&
@@ -5548,7 +5544,8 @@ const Type* TypeAryPtr::cleanup_speculative() const {
   }
   // Keep speculative part if it contains information about flat-/nullability
   const TypeAryPtr* spec_aryptr = speculative()->isa_aryptr();
-  if (spec_aryptr != NULL && (spec_aryptr->is_not_flat() || spec_aryptr->is_not_null_free())) {
+  if (spec_aryptr != NULL && !above_centerline(spec_aryptr->ptr()) &&
+      (spec_aryptr->is_not_flat() || spec_aryptr->is_not_null_free())) {
     return this;
   }
   return TypeOopPtr::cleanup_speculative();
@@ -6827,14 +6824,14 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
   case AryKlassPtr: {  // Meet two KlassPtr types
     const TypeAryKlassPtr *tap = t->is_aryklassptr();
     Offset off = meet_offset(tap->offset());
-    const Type* res_elem = NULL;
+    const Type* elem = _elem->meet(tap->_elem);
     PTR ptr = meet_ptr(tap->ptr());
     ciKlass* res_klass = NULL;
     bool res_xk = false;
     bool res_not_flat = false;
     bool res_not_null_free = false;
-    MeetResult res = meet_aryptr(ptr, _elem, tap->_elem, this, tap,
-                                 res_elem, res_klass, res_xk, res_not_flat, res_not_null_free);
+    MeetResult res = meet_aryptr(ptr, elem, this, tap,
+                                 res_klass, res_xk, res_not_flat, res_not_null_free);
     assert(res_xk == (ptr == Constant), "");
     bool null_free = meet_null_free(tap->_null_free);
     if (res == NOT_SUBTYPE) {
@@ -6846,7 +6843,7 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
         null_free = tap->_null_free;
       }
     }
-    return make(ptr, res_elem, res_klass, off, res_not_flat, res_not_null_free, null_free);
+    return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, null_free);
   } // End of case KlassPtr
   case InstKlassPtr: {
     const TypeInstKlassPtr *tp = t->is_instklassptr();

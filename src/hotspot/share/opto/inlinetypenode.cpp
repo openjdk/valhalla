@@ -1141,6 +1141,9 @@ const Type* InlineTypeNode::Value(PhaseGVN* phase) const {
     t = _type;
   }
   const Type* tinit = phase->type(in(IsInit));
+  if (tinit == Type::TOP) {
+    return Type::TOP;
+  }
   if (tinit->isa_int() && tinit->is_int()->is_con(1)) {
     t = t->join_speculative(TypePtr::NOTNULL);
   }

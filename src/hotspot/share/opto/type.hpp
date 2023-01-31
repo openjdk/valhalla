@@ -1022,8 +1022,8 @@ protected:
   template<class T> static TypePtr::MeetResult meet_instptr(PTR& ptr, InterfaceSet& interfaces, const T* this_type, const T* other_type,
                                                             ciKlass*& res_klass, bool& res_xk, bool& res_flatten_array);
 
-  template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type* elem, const Type* other_elem, const T* this_ary, const T* other_ary,
-                                                  const Type*& res_elem, ciKlass*& res_klass, bool& res_xk, bool &res_not_flat, bool &res_not_null_free);
+  template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
+                                                  ciKlass*& res_klass, bool& res_xk, bool &res_not_flat, bool &res_not_null_free);
 
   template <class T1, class T2> static bool is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact);
   template <class T1, class T2> static bool is_same_java_type_as_helper_for_instance(const T1* this_one, const T2* other);
