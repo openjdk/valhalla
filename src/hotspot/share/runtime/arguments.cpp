@@ -3113,24 +3113,24 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
         if (p == NULL || (len = p - entry->d_name) <= 0)
           continue;
 
-          strncpy(module, entry->d_name, len);
-          module[len] = '\0';
-          if (strcmp(module, "java.base") && patch_mod_javabase) {
-            jio_fprintf(defaultStream::output_stream(),
-                "Warning: java.base already patched, "
-                "--enable-preview can't add module patch\n");
-            continue;       // TBD: ? Error or continue patching other modules?
-          }
-
-          jio_snprintf(patch, JVM_MAXPATHLEN, "%s=%s%s",
-            module, valueclasses_dir, &entry->d_name);
-          res = process_patch_mod_option(patch, &patch_mod_javabase);
-          if (res != JNI_OK) {
-            os::closedir(dir);
-            return res;
-          }
-          log_info(class)("--enable-preview overriding value classes for module %s: %s", module, entry->d_name);
+        strncpy(module, entry->d_name, len);
+        module[len] = '\0';
+        if (strcmp(module, "java.base") && patch_mod_javabase) {
+          jio_fprintf(defaultStream::output_stream(),
+              "Warning: java.base already patched, "
+              "--enable-preview can't add module patch\n");
+          continue;       // TBD: ? Error or continue patching other modules?
         }
+
+        jio_snprintf(patch, JVM_MAXPATHLEN, "%s=%s%s",
+            module, valueclasses_dir, &entry->d_name);
+        res = process_patch_mod_option(patch, &patch_mod_javabase);
+        if (res != JNI_OK) {
+          os::closedir(dir);
+          return res;
+        }
+        log_info(class)("--enable-preview overriding value classes for module %s: %s", module, entry->d_name);
+      }
       os::closedir(dir);
     }
   }
