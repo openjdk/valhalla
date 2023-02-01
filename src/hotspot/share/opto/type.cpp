@@ -5514,6 +5514,10 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
 
 bool TypeAryPtr::empty(void) const {
   if (_ary->empty())       return true;
+  // FIXME: Does this belong here? Or in the meet code itself?
+  if (is_flat() && is_not_flat()) {
+    return true;
+  }
   return TypeOopPtr::empty();
 }
 
@@ -6702,6 +6706,9 @@ bool TypeAryKlassPtr::must_be_exact() const {
 //-----------------------------cast_to_exactness-------------------------------
 const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) const {
   if (must_be_exact() && !klass_is_exact) return this;  // cannot clear xk
+  if (klass_is_exact == this->klass_is_exact()) {
+    return this;
+  }
   ciKlass* k = _klass;
   const Type* elem = this->elem();
   if (elem->isa_klassptr() && !klass_is_exact) {
