@@ -94,8 +94,6 @@ import sun.security.util.SecurityConstants;
 import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
 
-import static java.lang.reflect.ClassFileFormatVersion.RELEASE_17;
-
 /**
  * Instances of the class {@code Class} represent classes and
  * interfaces in a running Java application. An enum class and a record
@@ -1527,8 +1525,8 @@ public final class Class<T> implements java.io.Serializable,
         int accessFlags = (location == AccessFlag.Location.CLASS) ?
                 getClassAccessFlagsRaw() : getModifiers();
         var cffv = ClassFileFormatVersion.fromMajor(getClassFileVersion() & 0xffff);
-        if (cffv.compareTo(RELEASE_17) >= 0) {
-            // For 17 and later ignore unspecified (0x800) access flag
+        if (cffv.compareTo(ClassFileFormatVersion.latest()) >= 0) {
+            // Ignore unspecified (0x800) access flag for current version
             accessFlags &= ~0x0800;
         }
         return AccessFlag.maskToAccessFlags(accessFlags, location, cffv);
