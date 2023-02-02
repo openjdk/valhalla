@@ -1271,7 +1271,7 @@ void Parse::do_method_entry() {
   // Narrow receiver type when it is too broad for the method being parsed.
   if (!method()->is_static()) {
     ciInstanceKlass* callee_holder = method()->holder();
-    const Type* holder_type = TypeInstPtr::make(TypePtr::BotPTR, callee_holder);
+    const Type* holder_type = TypeInstPtr::make(TypePtr::BotPTR, callee_holder, Type::trust_interfaces);
 
     Node* receiver_obj = local(0);
     const TypeInstPtr* receiver_type = _gvn.type(receiver_obj)->isa_instptr();
@@ -1284,7 +1284,7 @@ void Parse::do_method_entry() {
       assert(callee_holder->is_interface(), "missing subtype check");
 
       // Perform dynamic receiver subtype check against callee holder class w/ a halt on failure.
-      Node* holder_klass = _gvn.makecon(TypeKlassPtr::make(callee_holder));
+      Node* holder_klass = _gvn.makecon(TypeKlassPtr::make(callee_holder, Type::trust_interfaces));
       Node* not_subtype_ctrl = gen_subtype_check(receiver_obj, holder_klass);
       assert(!stopped(), "not a subtype");
 
@@ -2283,7 +2283,7 @@ void Parse::clinit_deopt() {
 
   set_parse_bci(0);
 
-  Node* holder = makecon(TypeKlassPtr::make(method()->holder()));
+  Node* holder = makecon(TypeKlassPtr::make(method()->holder(), Type::trust_interfaces));
   guard_klass_being_initialized(holder);
 }
 
@@ -2369,27 +2369,10 @@ void Parse::return_current(Node* value) {
       jvms()->set_should_reexecute(true);
       inc_sp(1);
       value = value->as_InlineType()->buffer(this);
-    } else if (tr && tr->isa_instptr() && tr->is_loaded() && tr->is_interface()) {
-      // If returning oops to an interface-return, there is a silent free
-      // cast from oop to interface allowed by the Verifier. Make it explicit here.
-      const TypeInstPtr* tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->is_loaded() && !tp->is_interface()) {
-        // sharpen the type eagerly; this eases certain assert checking
-        if (tp->higher_equal(TypeInstPtr::NOTNULL)) {
-          tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
-        }
-        value = _gvn.transform(new CheckCastPPNode(0, value, tr));
-      }
-    } else {
-      // Handle returns of oop-arrays to an arrays-of-interface return
-      const TypeInstPtr* phi_tip;
-      const TypeInstPtr* val_tip;
-      Type::get_arrays_base_elements(return_type, value->bottom_type(), &phi_tip, &val_tip);
-      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->is_interface() &&
-          val_tip != NULL && val_tip->is_loaded() && !val_tip->is_interface()) {
-        value = _gvn.transform(new CheckCastPPNode(0, value, return_type));
-      }
     }
+    // ...else
+    // If returning oops to an interface-return, there is a silent free
+    // cast from oop to interface allowed by the Verifier. Make it explicit here.
     phi->add_req(value);
   }
 

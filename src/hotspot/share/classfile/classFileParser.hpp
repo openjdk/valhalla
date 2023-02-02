@@ -196,6 +196,7 @@ class ClassFileParser {
 
   bool _has_nonstatic_concrete_methods;
   bool _declares_nonstatic_concrete_methods;
+  bool _has_localvariable_table;
   bool _has_final_method;
   bool _has_contended_fields;
 
@@ -287,14 +288,14 @@ class ClassFileParser {
                        bool is_value_class,
                        bool is_abstract_class,
                        const ConstantPool* cp,
-                       AccessFlags* const promoted_flags,
+                       bool* const has_localvariable_table,
                        TRAPS);
 
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
                      bool is_value_class,
                      bool is_abstract_class,
-                     AccessFlags* const promoted_flags,
+                     bool* const has_localvariable_table,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
                      TRAPS);

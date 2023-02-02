@@ -30,7 +30,6 @@ import sun.invoke.util.Wrapper;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.ref.SoftReference;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1147,7 +1146,7 @@ class LambdaFormEditor {
             }
         }
 
-        form = new LambdaForm(arity2, names2, result2);
+        form = LambdaForm.create(arity2, names2, result2);
         return putInCache(key, form);
     }
 

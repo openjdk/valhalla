@@ -46,12 +46,13 @@ class InstanceKlassMiscStatus {
     flag(is_shared_platform_class           , 1 << 11) /* defining class loader is platform class loader */ \
     flag(is_shared_app_class                , 1 << 12) /* defining class loader is app class loader */ \
     flag(has_contended_annotations          , 1 << 13) /* has @Contended annotation */ \
-    flag(has_inline_type_fields             , 1 << 14) /* has inline fields and related embedded section is not empty */ \
-    flag(is_empty_inline_type               , 1 << 15) /* empty inline type (*) */ \
-    flag(is_naturally_atomic                , 1 << 16) /* loaded/stored in one instruction */ \
-    flag(is_declared_atomic                 , 1 << 17) /* Listed -XX:ForceNonTearable=clist option */ \
-    flag(carries_value_modifier             , 1 << 18) /* the class or one of its super types has the ACC_VALUE modifier */ \
-    flag(carries_identity_modifier          , 1 << 19) /* the class or one of its super types has the ACC_IDENTITY modifier */
+    flag(has_localvariable_table            , 1 << 14) /* has localvariable information */ \
+    flag(has_inline_type_fields             , 1 << 15) /* has inline fields and related embedded section is not empty */ \
+    flag(is_empty_inline_type               , 1 << 16) /* empty inline type (*) */ \
+    flag(is_naturally_atomic                , 1 << 17) /* loaded/stored in one instruction */ \
+    flag(is_declared_atomic                 , 1 << 18) /* Listed -XX:ForceNonTearable=clist option */ \
+    flag(carries_value_modifier             , 1 << 19) /* the class or one of its super types has the ACC_VALUE modifier */ \
+    flag(carries_identity_modifier          , 1 << 20) /* the class or one of its super types has the ACC_IDENTITY modifier */
 
   /* (*) An inline type is considered empty if it contains no non-static fields or
      if it contains only empty inline fields. Note that JITs have a slightly different
@@ -83,7 +84,7 @@ class InstanceKlassMiscStatus {
 
 #define IK_FLAGS_SET(name, ignore)   \
   void set_##name(bool b) {         \
-    assert(!name(), "set once");    \
+    assert_is_safe(name());         \
     if (b) _flags |= _misc_##name; \
   }
   IK_FLAGS_DO(IK_FLAGS_SET)
@@ -102,6 +103,8 @@ class InstanceKlassMiscStatus {
   static u4 is_empty_inline_type_value() {
     return _misc_is_empty_inline_type;
   }
+
+  void assert_is_safe(bool set) NOT_DEBUG_RETURN;
 };
 
 #endif // SHARE_OOPS_INSTANCEKLASSMISCSTATUS_HPP
