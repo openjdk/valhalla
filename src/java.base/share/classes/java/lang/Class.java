@@ -683,7 +683,6 @@ public final class Class<T> implements java.io.Serializable,
      *         this class or interface
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @IntrinsicCandidate
     /* package */ Class<?> asPrimaryType() {
         return isPrimitiveClass() ? primaryType : this;
@@ -702,7 +701,6 @@ public final class Class<T> implements java.io.Serializable,
      *         is not a primitive class
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @IntrinsicCandidate
     /* package */ Class<?> asValueType() {
         if (isPrimitiveClass())
@@ -730,7 +728,6 @@ public final class Class<T> implements java.io.Serializable,
      * the primary type of this class or interface
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     /* package */ boolean isPrimaryType() {
         if (isPrimitiveClass()) {
             return this == primaryType;
@@ -746,7 +743,6 @@ public final class Class<T> implements java.io.Serializable,
      * the value type of a primitive class
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     /* package */ boolean isPrimitiveValueType() {
         return isPrimitiveClass() && this == secondaryType;
     }
