@@ -623,6 +623,7 @@ class BlackholeNode : public MultiNode {
 public:
   BlackholeNode(Node* ctrl) : MultiNode(1) {
     init_req(TypeFunc::Control, ctrl);
+    init_class_id(Class_Blackhole);
   }
   virtual int   Opcode() const;
   virtual uint ideal_reg() const { return 0; } // not matched in the AD file
