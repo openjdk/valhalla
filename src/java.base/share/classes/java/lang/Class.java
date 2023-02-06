@@ -633,7 +633,6 @@ public final class Class<T> implements java.io.Serializable,
      * @see #asValueType()
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     /* package */ boolean isPrimitiveClass() {
         return (this.getModifiers() & PrimitiveClass.PRIMITIVE_CLASS) != 0;
     }
