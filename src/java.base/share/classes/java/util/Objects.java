@@ -25,7 +25,7 @@
 
 package java.util;
 
-import jdk.internal.javac.PreviewFeature;
+import jdk.internal.misc.ValhallaFeatures;
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
 import jdk.internal.misc.Unsafe;
@@ -197,7 +197,6 @@ public final class Objects {
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
     */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 //    @IntrinsicCandidate
     public static boolean isIdentityObject(Object obj) {
         requireNonNull(obj);
@@ -215,7 +214,6 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline
     public static <T> T requireIdentity(T obj) {
         Objects.requireNonNull(obj);
@@ -236,7 +234,6 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline
     public static <T> T requireIdentity(T obj, String message) {
         Objects.requireNonNull(obj);
@@ -257,7 +254,6 @@ public final class Objects {
      * @throws IdentityException if {@code obj} is not an identity object
      * @since Valhalla
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
     @ForceInline
     public static <T> T requireIdentity(T obj, Supplier<String> messageSupplier) {
         Objects.requireNonNull(obj);
@@ -274,7 +270,6 @@ public final class Objects {
     * @param obj an object
     * @throws NullPointerException if {@code obj} is {@code null}
     */
-   @PreviewFeature(feature = PreviewFeature.Feature.VALUE_OBJECTS)
 //    @IntrinsicCandidate
     public static boolean isValueObject(Object obj) {
         requireNonNull(obj, "obj");

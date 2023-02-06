@@ -72,8 +72,6 @@ public @interface PreviewFeature {
         VIRTUAL_THREADS,
         @JEP(number=434, title="Foreign Function & Memory API", status="Second Preview")
         FOREIGN,
-        @JEP(number=8277163, title="Value Objects")
-        VALUE_OBJECTS,
         /**
          * A key for testing.
          */
