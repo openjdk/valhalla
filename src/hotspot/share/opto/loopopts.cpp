@@ -1434,7 +1434,9 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
       cast_clone->set_req(0, ctrl);
       cast_clone->set_req(1, in);
       register_new_node(cast_clone, ctrl);
-      _igvn.set_type(cast_clone, cast_clone->Value(&_igvn));
+      const Type* tcast = cast_clone->Value(&_igvn);
+      _igvn.set_type(cast_clone, tcast);
+      cast_clone->as_Type()->set_type(tcast);
       in = cast_clone;
     }
     Node* addr_clone = addr->clone();
