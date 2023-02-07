@@ -66,10 +66,6 @@ compiler/c2/Test8004741.java 8235801 generic-all
 
 compiler/codecache/jmx/PoolsIndependenceTest.java 8264632 macosx-all
 
-# Valhalla
-compiler/valhalla/inlinetypes/TestDeoptimizationWhenBuffering.java 8294624 generic-aarch64
-compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJavaType.java 8301665 generic-all
-
 #############################################################################
 
 # :hotspot_gc
