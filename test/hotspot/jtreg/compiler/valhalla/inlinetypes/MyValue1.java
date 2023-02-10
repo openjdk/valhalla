@@ -42,6 +42,7 @@ public final primitive class MyValue1 extends MyAbstract {
     static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypes.rI, InlineTypes.rD);
     final MyValue2.ref v4;
     final MyValue2 v5;
+    final MyValue1.ref vr; // Circular field
     final int c;
 
     @ForceInline
@@ -57,6 +58,7 @@ public final primitive class MyValue1 extends MyAbstract {
         this.v4 = v4;
         this.v5 = v5;
         this.c = c;
+        this.vr = MyValue1.default;
     }
 
     @DontInline

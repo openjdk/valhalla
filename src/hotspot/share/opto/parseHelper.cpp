@@ -369,6 +369,13 @@ void Parse::do_withfield() {
     new_vt->set_req(i, holder->in(i));
   }
   new_vt->set_field_value_by_offset(field->offset(), val);
+  {
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    int nargs = 1 + field->type()->size();
+    inc_sp(nargs);
+    new_vt = new_vt->fix_load(this);
+  }
   push(_gvn.transform(new_vt));
 }
 

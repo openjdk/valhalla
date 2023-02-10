@@ -33,6 +33,7 @@
 #include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
 #include "opto/connode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
@@ -574,6 +575,8 @@ Node *Node::clone() const {
   }
   if (n->is_InlineType()) {
     C->add_inline_type(n);
+    // TODO needed?
+ //   n->as_InlineType()->set_is_buffered(false);
   }
   Compile::current()->record_modified_node(n);
   return n;                     // Return the clone

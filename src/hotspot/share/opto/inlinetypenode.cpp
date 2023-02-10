@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,9 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
-    if (value->is_InlineType()) {
+    // TODO what about doing this only for cases where we can guarantee that other nodes will have inline type ptr as well?
+    // I.e. for flattened fields
+    if (value->is_InlineType() && (!gvn->is_IterGVN() || field_is_flattened(i))) {
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region);
     } else {
@@ -142,9 +144,20 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
     Node* val1 =        field_value(i);
     Node* val2 = other->field_value(i);
     if (val1->is_InlineType()) {
+      if (!val2->is_InlineType()) {
+        assert(false, "FAIL1");
+        // TODO add stress option that stops scalarization at random depth
+        //assert(!field_is_flattened(i), "flattened fields should always be scalarized");
+        // Val2 is not scalarized because we bailed out due to circularity, merge it as oop
+        // TODO fields of val1 are incomplete after this... it should not be used further...
+        // TODO this also affects fields "further up..." and some of them might not be scalarized yet...
+      }
       val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
+      if (val2->is_InlineType() && !val2->as_InlineType()->is_allocated(gvn)) {
+        assert(false, "FAIL2");
+      }
       val1->set_req(pnum, val2);
     }
     if (transform) {
@@ -355,7 +368,50 @@ const TypePtr* InlineTypeNode::field_adr_type(Node* base, int offset, ciInstance
   return adr_type;
 }
 
-void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
+InlineTypeNode* InlineTypeNode::fix_load(GraphKit* kit) {
+  GrowableArray<ciType*> visited;
+  visited.push(inline_klass());
+  return fix_load_impl(kit, visited);
+}
+
+InlineTypeNode* InlineTypeNode::fix_load_impl(GraphKit* kit, GrowableArray<ciType*>& visited) {
+// TODO only clone when needed
+  InlineTypeNode* val = clone()->as_InlineType();
+  for (uint i = 0; i < field_count(); ++i) {
+    Node* value = field_value(i);
+    ciType* ft = field_type(i);
+    if (field_is_null_free(i) && ft->as_inline_klass()->is_empty()) {
+      continue;
+    }
+    if (value->is_InlineType()) {
+      if (!field_is_flattened(i) && visited.contains(ft)) {
+        value = value->as_InlineType()->buffer(kit);
+        val->set_field_value(i, value->as_InlineType()->get_oop());
+        continue;
+      }
+      int old_len = visited.length();
+      visited.push(ft);
+      value = value->as_InlineType()->fix_load_impl(kit, visited);
+      visited.trunc_to(old_len);
+      val->set_field_value(i, value);
+    } else if (ft->is_inlinetype() && !visited.contains(ft)) {
+      int old_len = visited.length();
+      visited.push(ft);
+      //dump(1);
+      //assert(false, "detected");
+
+      // TODO but couldn't this be an issue if this "extended" tree is attached to a non-extended one???
+      // TODO should we simply fix this when creating phis?
+
+      value = make_from_oop_impl(kit, value, ft->as_inline_klass(), field_is_null_free(i), visited);
+      val->set_field_value(i, value);
+      visited.trunc_to(old_len);
+    }
+  }
+  return kit->gvn().transform(val)->as_InlineType();
+}
+
+void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, GrowableArray<ciType*>& visited, int holder_offset, DecoratorSet decorators) {
   // Initialize the inline type by loading its field values from
   // memory and adding the values as input edges to the node.
   for (uint i = 0; i < field_count(); ++i) {
@@ -365,10 +421,10 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
     bool null_free = field_is_null_free(i);
     if (null_free && ft->as_inline_klass()->is_empty()) {
       // Loading from a field of an empty inline type. Just return the default instance.
-      value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
+      value = make_default_impl(kit->gvn(), ft->as_inline_klass(), visited);
     } else if (field_is_flattened(i)) {
       // Recursively load the flattened inline type field
-      value = InlineTypeNode::make_from_flattened(kit, ft->as_inline_klass(), base, ptr, holder, offset, decorators);
+      value = make_from_flattened_impl(kit, ft->as_inline_klass(), base, ptr, holder, offset, decorators, visited);
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
@@ -396,13 +452,17 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
         assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
         const Type* val_type = Type::get_const_type(ft);
         if (is_array) {
+          // TODO correct???
           decorators |= IS_ARRAY;
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
       }
       // Loading a non-flattened inline type from memory
-      if (ft->is_inlinetype()) {
-        value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass(), null_free);
+      if (ft->is_inlinetype() && !visited.contains(ft)) {
+        int old_len = visited.length();
+        visited.push(ft);
+        value = make_from_oop_impl(kit, value, ft->as_inline_klass(), null_free, visited);
+        visited.trunc_to(old_len);
       }
     }
     set_field_value(i, value);
@@ -431,7 +491,12 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
     if (field_is_flattened(i)) {
       // Recursively store the flattened inline type field
       if (!value->is_InlineType()) {
-        value = InlineTypeNode::make_from_oop(kit, value, ft->as_inline_klass());
+        // TODO remove
+#ifdef ASSERT
+        dump(3);
+#endif
+        guarantee(false, "FAIL");
+        value = make_from_oop(kit, value, ft->as_inline_klass());
       }
       value->as_InlineType()->store_flattened(kit, base, ptr, holder, offset, decorators);
     } else {
@@ -704,20 +769,29 @@ Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 }
 
 InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
+  GrowableArray<ciType*> visited;
+  visited.push(vk);
+  return make_default_impl(gvn, vk, visited);
+}
+
+InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
-  InlineTypeNode* vt = new InlineTypeNode(vk, oop, true, vk->is_initialized());
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true, /* buffered= */ vk->is_initialized());
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
-    ciType* field_type = vt->field_type(i);
-    Node* value = gvn.zerocon(field_type->basic_type());
-    if (field_type->is_inlinetype()) {
-      ciInlineKlass* vk = field_type->as_inline_klass();
+    ciType* ft = vt->field_type(i);
+    Node* value = gvn.zerocon(ft->basic_type());
+    if (ft->is_inlinetype() && (vt->field_is_flattened(i) || !visited.contains(ft))) {
+      int old_len = visited.length();
+      visited.push(ft);
+      ciInlineKlass* vk = ft->as_inline_klass();
       if (vt->field_is_null_free(i)) {
-        value = make_default(gvn, vk);
+        value = make_default_impl(gvn, vk, visited);
       } else {
-        value = InlineTypeNode::make_null(gvn, vk);
+        value = make_null_impl(gvn, vk, visited);
       }
+      visited.trunc_to(old_len);
     }
     vt->set_field_value(i, value);
   }
@@ -750,10 +824,16 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
 }
 
 InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free) {
+  GrowableArray<ciType*> visited;
+  visited.push(vk);
+  return make_from_oop_impl(kit, oop, vk, null_free, visited);
+}
+
+InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited) {
   PhaseGVN& gvn = kit->gvn();
 
   if (vk->is_empty() && null_free) {
-    InlineTypeNode* def = make_default(gvn, vk);
+    InlineTypeNode* def = make_default_impl(gvn, vk, visited);
     kit->record_for_igvn(def);
     return def;
   }
@@ -771,23 +851,23 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
       // Constant null
       kit->set_control(null_ctl);
       if (null_free) {
-        vt = make_default(gvn, vk);
+        vt = make_default_impl(gvn, vk, visited);
       } else {
-        vt = InlineTypeNode::make_null(gvn, vk);
+        vt = make_null_impl(gvn, vk, visited);
       }
       kit->record_for_igvn(vt);
       return vt;
     }
     vt = new InlineTypeNode(vk, not_null_oop, null_free, true);
     vt->set_is_init(gvn);
-    vt->load(kit, not_null_oop, not_null_oop, vk, /* holder_offset */ 0);
+    vt->load(kit, not_null_oop, not_null_oop, vk, visited);
 
     if (null_ctl != kit->top()) {
       InlineTypeNode* null_vt = NULL;
       if (null_free) {
-        null_vt = make_default(gvn, vk);
+        null_vt = make_default_impl(gvn, vk, visited);
       } else {
-        null_vt = InlineTypeNode::make_null(gvn, vk);
+        null_vt = make_null_impl(gvn, vk, visited);
       }
       Node* region = new RegionNode(3);
       region->init_req(1, kit->control());
@@ -805,7 +885,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
     vt = new InlineTypeNode(vk, oop, /* null_free= */ true, true);
     Node* init_ctl = kit->control();
     vt->set_is_init(gvn);
-    vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
+    vt->load(kit, oop, oop, vk, visited);
 // TODO 8284443
 //    assert(!null_free || vt->as_InlineType()->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineType ||
 //           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->as_InlineType()->is_loaded(&gvn) == oop, "inline type should be loaded");
@@ -815,8 +895,14 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
   return gvn.transform(vt)->as_InlineType();
 }
 
-// GraphKit wrapper for the 'make_from_flattened' method
 InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
+  GrowableArray<ciType*> visited;
+  visited.push(vk);
+  return make_from_flattened_impl(kit, vk, obj, ptr, holder, holder_offset, decorators, visited);
+}
+
+// GraphKit wrapper for the 'make_from_flattened' method
+InlineTypeNode* InlineTypeNode::make_from_flattened_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited) {
   if (kit->gvn().type(obj)->isa_aryptr()) {
     kit->C->set_flattened_accesses();
   }
@@ -826,7 +912,7 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   // The inline type is flattened into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when loading the values.
   holder_offset -= vk->first_field_offset();
-  vt->load(kit, obj, ptr, holder, holder_offset, decorators);
+  vt->load(kit, obj, ptr, holder, visited, holder_offset, decorators);
   assert(vt->is_loaded(&kit->gvn()) != obj, "holder oop should not be used as flattened inline type oop");
   return kit->gvn().transform(vt)->as_InlineType();
 }
@@ -844,7 +930,7 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
 
 InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const {
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = InlineTypeNode::make_uninitialized(kit->gvn(), vk);
+  InlineTypeNode* res = make_uninitialized(kit->gvn(), vk);
   for (uint i = 1; i < req(); ++i) {
     res->set_req(i, in(i));
   }
@@ -882,7 +968,7 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = InlineTypeNode::make_uninitialized(kit->gvn(), vk);
+  InlineTypeNode* res = make_uninitialized(kit->gvn(), vk);
   for (uint i = 1; i < req(); ++i) {
     res->set_req(i, in(i));
   }
@@ -1041,6 +1127,10 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       // Non-flattened inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != NULL) {
+          if (parm->is_InlineType()) {
+            // TODO argh, seems to be required, can we fix it better?
+            parm = parm->as_InlineType()->fix_load(kit);
+          }
           // Holder is nullable, set field to NULL if holder is NULL to avoid loading from uninitialized memory
           parm = PhiNode::make(null_check_region, parm, TypeInstPtr::make(TypePtr::BotPTR, type->as_inline_klass()));
           parm->set_req(2, kit->zerocon(T_OBJECT));
@@ -1105,17 +1195,26 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIdealLoop* phase) {
 }
 
 InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
-  InlineTypeNode* ptr = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false, true);
-  ptr->set_req(IsInit, gvn.intcon(0));
-  for (uint i = 0; i < ptr->field_count(); i++) {
-    ciType* field_type = ptr->field_type(i);
-    Node* value = gvn.zerocon(field_type->basic_type());
-    if (field_type->is_inlinetype()) {
-      value = InlineTypeNode::make_null(gvn, field_type->as_inline_klass());
+  GrowableArray<ciType*> visited;
+  visited.push(vk);
+  return make_null_impl(gvn, vk, visited);
+}
+
+InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
+  InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false, /* buffered= */ true);
+  vt->set_req(IsInit, gvn.intcon(0));
+  for (uint i = 0; i < vt->field_count(); i++) {
+    ciType* ft = vt->field_type(i);
+    Node* value = gvn.zerocon(ft->basic_type());
+    if (ft->is_inlinetype() && (vt->field_is_flattened(i) || !visited.contains(ft))) {
+      int old_len = visited.length();
+      visited.push(ft);
+      value = make_null_impl(gvn, ft->as_inline_klass(), visited);
+      visited.trunc_to(old_len);
     }
-    ptr->set_field_value(i, value);
+    vt->set_field_value(i, value);
   }
-  return gvn.transform(ptr)->as_InlineType();
+  return gvn.transform(vt)->as_InlineType();
 }
 
 Node* InlineTypeNode::Identity(PhaseGVN* phase) {

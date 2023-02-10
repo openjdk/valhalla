@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,8 +70,12 @@ protected:
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
   void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true, Node* null_check_region = NULL);
 
-public:
+  static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
+  static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited);
+  static InlineTypeNode* make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
+  static InlineTypeNode* make_from_flattened_impl(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators, GrowableArray<ciType*>& visited);
 
+public:
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
   // Create uninitialized
@@ -82,7 +86,7 @@ public:
   static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
   static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
-
+  // Create with null field values
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
 
   // Returns the constant oop of the default inline type allocation
@@ -99,7 +103,7 @@ public:
   void  set_oop(Node* oop) { set_req(Oop, oop); }
   Node* get_is_init() const { return in(IsInit); }
   void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, gvn.intcon(1)); }
-  void  set_is_buffered() { _is_buffered = true; }
+  void  set_is_buffered(bool is_buffered = true) { _is_buffered = is_buffered; }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }
@@ -121,7 +125,10 @@ public:
   // Store the field values to memory
   void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Initialize the inline type by loading its field values from memory
-  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
+  void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, GrowableArray<ciType*>& visited, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
+  // TODO
+  InlineTypeNode* fix_load(GraphKit* kit);
+  InlineTypeNode* fix_load_impl(GraphKit* kit, GrowableArray<ciType*>& visited);
 
   // Allocates the inline type (if not yet allocated)
   InlineTypeNode* buffer(GraphKit* kit, bool safe_for_replace = true);

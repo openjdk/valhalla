@@ -1239,9 +1239,10 @@ Node* LoadNode::Identity(PhaseGVN* phase) {
   Node* addr = in(Address);
   intptr_t offset;
   Node* base = AddPNode::Ideal_base_and_offset(addr, phase, offset);
-  if (base != NULL && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
+  if (false && base != NULL && base->is_InlineType() && offset > oopDesc::klass_offset_in_bytes()) {
     Node* value = base->as_InlineType()->field_value_by_offset((int)offset, true);
     if (value != NULL) {
+      // TODO can we fix here as well? :/
       if (Opcode() == Op_LoadN) {
         // Encode oop value if we are loading a narrow oop
         assert(!phase->type(value)->isa_narrowoop(), "should already be decoded");

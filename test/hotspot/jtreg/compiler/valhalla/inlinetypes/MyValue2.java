@@ -65,11 +65,14 @@ public final primitive class MyValue2 extends MyAbstract {
     final byte y;
     final MyValue2Inline v;
 
+    final MyValue1.ref vr; // Circular field
+
     @ForceInline
     public MyValue2(int x, byte y, MyValue2Inline v) {
         this.x = x;
         this.y = y;
         this.v = v;
+        this.vr = MyValue1.default;
     }
 
     @ForceInline

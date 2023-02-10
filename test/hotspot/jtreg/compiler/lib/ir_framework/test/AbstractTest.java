@@ -163,7 +163,10 @@ abstract class AbstractTest {
     }
 
     private void enqueueMethodForCompilation(DeclaredTest test) {
-        TestVM.enqueueForCompilation(test.getTestMethod(), test.getCompLevel());
+        final Method testMethod = test.getTestMethod();
+        TestRun.check(WHITE_BOX.isMethodCompilable(testMethod, test.getCompLevel().getValue(), false),
+                      "Method " + testMethod + " not compilable (anymore) at level " + test.getCompLevel());
+        TestVM.enqueueForCompilation(testMethod, test.getCompLevel());
     }
 
     protected void checkCompilationLevel(DeclaredTest test) {
