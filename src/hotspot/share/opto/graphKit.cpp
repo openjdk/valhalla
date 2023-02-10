@@ -1921,7 +1921,6 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
     uint base_input = TypeFunc::Parms;
     ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
-    ret = ret->as_InlineType()->fix_load(this);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }

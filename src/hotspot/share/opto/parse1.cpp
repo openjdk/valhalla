@@ -873,7 +873,6 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
       parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, /* in= */ true, /* null_free= */ !t->maybe_null());
-      parm = parm->as_InlineType()->fix_load(&kit);
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {

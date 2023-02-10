@@ -68,7 +68,7 @@ protected:
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
 
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true, Node* null_check_region = NULL);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free, Node* null_check_region, GrowableArray<ciType*>& visited);
 
   static InlineTypeNode* make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited);
   static InlineTypeNode* make_from_oop_impl(GraphKit* kit, Node* oop, ciInlineKlass* vk, bool null_free, GrowableArray<ciType*>& visited);
@@ -103,7 +103,7 @@ public:
   void  set_oop(Node* oop) { set_req(Oop, oop); }
   Node* get_is_init() const { return in(IsInit); }
   void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, gvn.intcon(1)); }
-  void  set_is_buffered(bool is_buffered = true) { _is_buffered = is_buffered; }
+  void  set_is_buffered() { _is_buffered = true; }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }

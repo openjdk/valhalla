@@ -2521,7 +2521,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           int offset = adr_type->is_instptr()->offset();
           p = InlineTypeNode::make_from_flattened(this, inline_klass, base, base, holder, offset, decorators);
         } else {
-          // TODO does this work???
           p = InlineTypeNode::make_from_flattened(this, inline_klass, base, adr, NULL, 0, decorators);
         }
       } else {

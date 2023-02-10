@@ -575,8 +575,6 @@ Node *Node::clone() const {
   }
   if (n->is_InlineType()) {
     C->add_inline_type(n);
-    // TODO needed?
- //   n->as_InlineType()->set_is_buffered(false);
   }
   Compile::current()->record_modified_node(n);
   return n;                     // Return the clone
