@@ -1109,7 +1109,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
       // Non-flattened inline type field
       if (type->is_inlinetype()) {
         if (null_check_region != NULL) {
-          if (parm->is_InlineType()) {
+          if (parm->is_InlineType() && kit->C->has_circular_inline_type()) {
             parm = parm->as_InlineType()->get_oop();
           }
           // Holder is nullable, set field to NULL if holder is NULL to avoid loading from uninitialized memory
