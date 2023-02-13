@@ -1999,7 +1999,7 @@ LibraryCallKit::classify_unsafe_addr(Node* &base, Node* &offset, BasicType type)
         offset_type->_lo >= 0 &&
         !MacroAssembler::needs_explicit_null_check(offset_type->_hi)) {
       return Type::OopPtr;
-    } else if (type == T_OBJECT) {
+    } else if (type == T_OBJECT || type == T_PRIMITIVE_OBJECT) {
       // off heap access to an oop doesn't make any sense. Has to be on
       // heap.
       return Type::OopPtr;
@@ -2332,7 +2332,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
             bt = T_OBJECT;
           }
           if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
-            set_result(vt->field_value_by_offset(off, false));
+            Node* value = vt->field_value_by_offset(off, false);
+            if (value->is_InlineType()) {
+              value = value->as_InlineType()->adjust_scalarization_depth(this);
+            }
+            set_result(value);
             return true;
           }
         }
