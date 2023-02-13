@@ -2334,7 +2334,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
             Node* value = vt->field_value_by_offset(off, false);
             if (value->is_InlineType()) {
-              value = value->as_InlineType()->fix_load(this);
+              value = value->as_InlineType()->adjust_scalarization_depth(this);
             }
             set_result(value);
             return true;

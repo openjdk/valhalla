@@ -241,6 +241,7 @@ void Parse::array_store(BasicType bt) {
       jvms()->set_should_reexecute(true);
       if (!cast_val->is_InlineType()) {
         // TODO assert circularity
+        assert(false, "FAIL");
         assert(!gvn().type(cast_val)->maybe_null(), "inline type array elements should never be null");
         cast_val = InlineTypeNode::make_from_oop(this, val, _gvn.type(cast_val)->make_ptr()->inline_klass());
       }

@@ -56,7 +56,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
     null_check(vt);
     Node* value = vt->field_value_by_offset(field->offset());
     if (value->is_InlineType()) {
-      value = value->as_InlineType()->fix_load(this);
+      value = value->as_InlineType()->adjust_scalarization_depth(this);
     }
     pop();
     push_node(field->layout_type(), value);

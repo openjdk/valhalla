@@ -79,9 +79,11 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
-    // TODO Only for cases where we can guarantee that other nodes will the same scalarization depth
-    // TODO add check for circularity
-    if (value->is_InlineType() && (!gvn->is_IterGVN() || field_is_flattened(i))) {
+    // We limit scalarization for inline types with circular fields and can therefore observe nodes
+    // of the same type but with different scalarization depth during IGVN. To avoid inconsistencies
+    // during merging, make sure that we only create Phis for fields that are guaranteed to be scalarized.
+    bool no_circularity = !gvn->C->has_circular_inline_type() || !gvn->is_IterGVN() || field_is_flattened(i);
+    if (value->is_InlineType() && no_circularity) {
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region);
     } else {
@@ -363,47 +365,47 @@ const TypePtr* InlineTypeNode::field_adr_type(Node* base, int offset, ciInstance
   return adr_type;
 }
 
-InlineTypeNode* InlineTypeNode::fix_load(GraphKit* kit) {
+// We limit scalarization for inline types with circular fields and can therefore observe
+// nodes of same type but with different scalarization depth during GVN. This method adjusts
+// the scalarization depth to avoid inconsistencies during merging.
+InlineTypeNode* InlineTypeNode::adjust_scalarization_depth(GraphKit* kit) {
+  if (!kit->C->has_circular_inline_type()) {
+    return this;
+  }
   GrowableArray<ciType*> visited;
   visited.push(inline_klass());
-  return fix_load_impl(kit, visited);
+  return adjust_scalarization_depth_impl(kit, visited);
 }
 
-InlineTypeNode* InlineTypeNode::fix_load_impl(GraphKit* kit, GrowableArray<ciType*>& visited) {
-// TODO only clone when needed
-  InlineTypeNode* val = clone()->as_InlineType();
+InlineTypeNode* InlineTypeNode::adjust_scalarization_depth_impl(GraphKit* kit, GrowableArray<ciType*>& visited) {
+  InlineTypeNode* val = this;
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
+    Node* new_value = value;
     ciType* ft = field_type(i);
-    if (field_is_null_free(i) && ft->as_inline_klass()->is_empty()) {
-      continue;
-    }
     if (value->is_InlineType()) {
       if (!field_is_flattened(i) && visited.contains(ft)) {
-        value = value->as_InlineType()->buffer(kit);
-        val->set_field_value(i, value->as_InlineType()->get_oop());
-        continue;
+        new_value = value->as_InlineType()->buffer(kit)->get_oop();
+      } else {
+        int old_len = visited.length();
+        visited.push(ft);
+        new_value = value->as_InlineType()->adjust_scalarization_depth_impl(kit, visited);
+        visited.trunc_to(old_len);
       }
-      int old_len = visited.length();
-      visited.push(ft);
-      value = value->as_InlineType()->fix_load_impl(kit, visited);
-      visited.trunc_to(old_len);
-      val->set_field_value(i, value);
     } else if (ft->is_inlinetype() && !visited.contains(ft)) {
       int old_len = visited.length();
       visited.push(ft);
-      //dump(1);
-      //assert(false, "detected");
-
-      // TODO but couldn't this be an issue if this "extended" tree is attached to a non-extended one???
-      // TODO should we simply fix this when creating phis?
-
-      value = make_from_oop_impl(kit, value, ft->as_inline_klass(), field_is_null_free(i), visited);
-      val->set_field_value(i, value);
+      new_value = make_from_oop_impl(kit, value, ft->as_inline_klass(), field_is_null_free(i), visited);
       visited.trunc_to(old_len);
     }
+    if (value != new_value) {
+      if (val == this) {
+        val = clone()->as_InlineType();
+      }
+      val->set_field_value(i, new_value);
+    }
   }
-  return kit->gvn().transform(val)->as_InlineType();
+  return (val == this) ? this : kit->gvn().transform(val)->as_InlineType();
 }
 
 void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, GrowableArray<ciType*>& visited, int holder_offset, DecoratorSet decorators) {
@@ -449,7 +451,9 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, is_array ? (decorators | IS_ARRAY) : decorators);
       }
       // Loading a non-flattened inline type from memory
-      if (ft->is_inlinetype() && !visited.contains(ft)) {
+      if (visited.contains(ft)) {
+        kit->C->set_has_circular_inline_type(true);
+      } else if (ft->is_inlinetype()) {
         int old_len = visited.length();
         visited.push(ft);
         value = make_from_oop_impl(kit, value, ft->as_inline_klass(), null_free, visited);
@@ -762,7 +766,9 @@ InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* 
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());
-    if (ft->is_inlinetype() && (vt->field_is_flattened(i) || !visited.contains(ft))) {
+    if (!vt->field_is_flattened(i) && visited.contains(ft)) {
+      gvn.C->set_has_circular_inline_type(true);
+    } else if (ft->is_inlinetype()) {
       int old_len = visited.length();
       visited.push(ft);
       ciInlineKlass* vk = ft->as_inline_klass();
@@ -1117,7 +1123,9 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
           parm->set_req(2, kit->zerocon(T_OBJECT));
           parm = gvn.transform(parm);
         }
-        if (!parm->is_InlineType() && !visited.contains(type)) {
+        if (visited.contains(type)) {
+          kit->C->set_has_circular_inline_type(true);
+        } else if (!parm->is_InlineType()) {
           int old_len = visited.length();
           visited.push(type);
           parm = make_from_oop_impl(kit, parm, type->as_inline_klass(), field_is_null_free(i), visited);
@@ -1192,7 +1200,9 @@ InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk,
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());
-    if (ft->is_inlinetype() && (vt->field_is_flattened(i) || !visited.contains(ft))) {
+    if (!vt->field_is_flattened(i) && visited.contains(ft)) {
+      gvn.C->set_has_circular_inline_type(true);
+    } else if (ft->is_inlinetype()) {
       int old_len = visited.length();
       visited.push(ft);
       value = make_null_impl(gvn, ft->as_inline_klass(), visited);

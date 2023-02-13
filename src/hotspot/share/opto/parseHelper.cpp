@@ -374,7 +374,7 @@ void Parse::do_withfield() {
     jvms()->set_should_reexecute(true);
     int nargs = 1 + field->type()->size();
     inc_sp(nargs);
-    new_vt = new_vt->fix_load(this);
+    new_vt = new_vt->adjust_scalarization_depth(this);
   }
   push(_gvn.transform(new_vt));
 }
