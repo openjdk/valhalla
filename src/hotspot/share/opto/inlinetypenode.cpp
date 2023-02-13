@@ -146,15 +146,9 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
     Node* val1 =        field_value(i);
     Node* val2 = other->field_value(i);
     if (val1->is_InlineType()) {
-      if (!val2->is_InlineType()) {
-        assert(false, "FAIL1");
-      }
       val1->as_InlineType()->merge_with(gvn, val2->as_InlineType(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
-      if (val2->is_InlineType() && !val2->as_InlineType()->is_allocated(gvn)) {
-        assert(false, "FAIL2");
-      }
       val1->set_req(pnum, val2);
     }
     if (transform) {
