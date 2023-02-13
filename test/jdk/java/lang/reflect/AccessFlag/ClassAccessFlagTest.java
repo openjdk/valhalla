@@ -47,7 +47,7 @@ import java.util.*;
  * file. Therefore, this test does not attempt to probe the setting of
  * that access flag.
  */
-@ExpectedClassFlags("[PUBLIC, FINAL, SUPER, IDENTITY]")
+@ExpectedClassFlags("[PUBLIC, FINAL, IDENTITY]")
 public final class ClassAccessFlagTest {
     public static void main(String... args) {
         // Top-level and auxiliary classes; i.e. non-inner classes
@@ -254,13 +254,13 @@ public final class ClassAccessFlagTest {
 
 @ExpectedClassFlags("[INTERFACE, ABSTRACT]")
 interface TestInterface {}
-@ExpectedClassFlags("[SUPER, IDENTITY, INTERFACE, ABSTRACT]")
+@ExpectedClassFlags("[IDENTITY, INTERFACE, ABSTRACT]")
 identity interface TestIdentityInterface {}
 @ExpectedClassFlags("[VALUE, INTERFACE, ABSTRACT]")
 value interface TestValueInterface {}
 
 
-@ExpectedClassFlags("[FINAL, SUPER, IDENTITY, ENUM]")
+@ExpectedClassFlags("[FINAL, IDENTITY, ENUM]")
 enum TestOuterEnum {
     INSTANCE;
 }

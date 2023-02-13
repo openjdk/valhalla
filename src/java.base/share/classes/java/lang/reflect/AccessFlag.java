@@ -25,6 +25,8 @@
 
 package java.lang.reflect;
 
+import jdk.internal.misc.ValhallaFeatures;
+
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Map;
@@ -185,8 +187,19 @@ public enum AccessFlag {
      * @apiNote
      * In Java SE 8 and above, the JVM treats the {@code ACC_SUPER}
      * flag as set in every class file (JVMS {@jvms 4.1}).
+     * For class file versions up to Valhalla or if Valhalla is not enabled,
+     * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
+     * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
-    SUPER(0x0000_0020, false, Location.SET_CLASS, null),
+    SUPER(0x0000_0020, false, Location.SET_CLASS_SUPER_VALHALLA,
+            new Function<ClassFileFormatVersion, Set<Location>>() {
+            @Override
+            public Set<Location> apply(ClassFileFormatVersion cffv) {
+                return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
+                        ValhallaFeatures.isEnabled()) ?
+                        Location.SET_CLASS_SUPER_VALHALLA :
+                        Location.SET_CLASS;}
+        }),
 
     /**
      * The access flag {@code ACC_IDENTITY}, corresponding to the
@@ -194,7 +207,15 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
      */
-    IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_INNER_CLASS, null),
+    IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_IDENTITY_VALHALLA,
+            new Function<ClassFileFormatVersion, Set<Location>>() {
+                @Override
+                public Set<Location> apply(ClassFileFormatVersion cffv) {
+                    return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
+                            ValhallaFeatures.isEnabled()) ?
+                            Location.SET_CLASS_IDENTITY_VALHALLA :
+                            Location.EMPTY_SET;}
+            }),
 
     /**
      * The module flag {@code ACC_OPEN} with a mask value of {@code
@@ -259,6 +280,7 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#VOLATILE}</code>.
      */
     VOLATILE(Modifier.VOLATILE, true, Location.SET_FIELD, null),
+
     /**
      * The access flag {@code ACC_BRIDGE} with a mask value of
      * <code>{@value "0x%04x" Modifier#BRIDGE}</code>
@@ -501,25 +523,63 @@ public enum AccessFlag {
      * @param mask bit mask of access flags
      * @param location context to interpret mask value
      * @throws IllegalArgumentException if the mask contains bit
-     * positions not support for the location in question
+     * positions not supported for the location in question
      */
     public static Set<AccessFlag> maskToAccessFlags(int mask, Location location) {
         Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
-        int unmatchedFlags = mask;
         for (var accessFlag : LocationToFlags.locationToFlags.get(location)) {
             int accessMask = accessFlag.mask();
-            if ((mask &  accessMask) != 0) {
+            if ((mask & accessMask) != 0) {
                 result.add(accessFlag);
-                unmatchedFlags = unmatchedFlags & ~accessMask;
+                mask = mask & ~accessMask;
+                if (mask == 0) {
+                    break;      // no more mask bits
+                }
             }
         }
-        if (unmatchedFlags != 0) {
+        if (mask != 0) {
             throw new IllegalArgumentException("Unmatched bit position 0x" +
-                                               Integer.toHexString(unmatchedFlags) +
+                                               Integer.toHexString(mask) +
                                                " for location " + location);
         }
         return Collections.unmodifiableSet(result);
     }
+
+    /**
+     * {@return an unmodifiable set of access flags for the given mask value
+     * appropriate for the location in question}
+     *
+     * @param mask bit mask of access flags
+     * @param location context to interpret mask value
+     * @param cffv the class file format version
+     * @throws IllegalArgumentException if the mask contains bit
+     * positions not supported for the location in question
+     */
+    public static Set<AccessFlag> maskToAccessFlags(int mask, Location location,
+                                                    ClassFileFormatVersion cffv) {
+        Set<AccessFlag> result = java.util.EnumSet.noneOf(AccessFlag.class);
+        for (var accessFlag : AccessFlag.values()) {
+            int accessMask = accessFlag.mask();
+            if ((mask & accessMask) != 0) {
+                var locations = accessFlag.locations(cffv);
+                if (locations.contains(location)) {
+                    result.add(accessFlag);
+                    mask = mask & ~accessMask;
+                    if (mask == 0) {
+                        break;      // no more mask bits
+                    }
+                }
+            }
+        }
+        if (mask != 0) {
+            throw new IllegalArgumentException("Unmatched bit position 0x" +
+                                               Integer.toHexString(mask) +
+                                               " for location " + location +
+                                               " for class file format version " + cffv);
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
 
     /**
      * A location within a class file where flags can be applied.
@@ -607,6 +667,10 @@ public enum AccessFlag {
         private static final Set<Location> SET_CLASS = Set.of(CLASS);
         private static final Set<Location> SET_CLASS_INNER_CLASS =
             Set.of(CLASS, INNER_CLASS);
+        private static final Set<Location> SET_CLASS_SUPER_VALHALLA =
+                ValhallaFeatures.isEnabled() ? EMPTY_SET : SET_CLASS_INNER_CLASS;
+        private static final Set<Location> SET_CLASS_IDENTITY_VALHALLA =
+                ValhallaFeatures.isEnabled() ? SET_CLASS_INNER_CLASS : EMPTY_SET;
         private static final Set<Location> SET_MODULE_REQUIRES =
             Set.of(MODULE_REQUIRES);
         private static final Set<Location> SET_PUBLIC_1 =
@@ -639,7 +703,7 @@ public enum AccessFlag {
     private static class LocationToFlags {
         private static Map<Location, Set<AccessFlag>> locationToFlags =
             Map.ofEntries(entry(Location.CLASS,
-                                Set.of(PUBLIC, FINAL, SUPER, IDENTITY, VALUE,
+                                Set.of(PUBLIC, FINAL, IDENTITY, VALUE,
                                        INTERFACE, ABSTRACT,
                                        SYNTHETIC, ANNOTATION,
                                        ENUM, AccessFlag.MODULE)),
