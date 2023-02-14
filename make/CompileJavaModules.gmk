@@ -131,7 +131,7 @@ ifneq ($(COMPILER), bootjdk)
         SRC := $(wildcard $(MODULE_VALUECLASS_SRC_DIRS)), \
         INCLUDES := $(JDK_USER_DEFINED_FILTER), \
         FAIL_NO_SRC := $(FAIL_NO_SRC), \
-        BIN := $(SUPPORT_OUTPUTDIR)/valueclasses, \
+        BIN := $(SUPPORT_OUTPUTDIR)/valueclasses/, \
         JAR := $(JDK_OUTPUTDIR)/lib/valueclasses/$(MODULE)-valueclasses.jar, \
         HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
         DISABLED_WARNINGS := $(DISABLED_WARNINGS_java), \
@@ -141,7 +141,6 @@ ifneq ($(COMPILER), bootjdk)
         DEPENDS := $($(MODULE)), \
         JAVAC_FLAGS := \
             $(JAVAC_FLAGS) \
-            --class-path $(JDK_OUTPUTDIR)/modules/$(MODULE) \
             --module-source-path $(MODULE_VALUECLASS_SOURCEPATH) \
             --module-path $(JDK_OUTPUTDIR)/modules \
             --system none, \

@@ -3107,7 +3107,7 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
       char module[JVM_MAXPATHLEN];
       char patch[JVM_MAXPATHLEN];
 
-      for (dirent* entry = os::readdir(dir); entry != NULL; entry = readdir(dir)) {
+      for (dirent* entry = os::readdir(dir); entry != NULL; entry = os::readdir(dir)) {
         char *p = strstr(entry->d_name, "-valueclasses.jar");
         int len = 0;
         if (p == NULL || (len = p - entry->d_name) <= 0)
