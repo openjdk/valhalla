@@ -6384,10 +6384,9 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
   }
 
   // Get element klass
-  if (is_flat()) {
-    // TODO this comment does not make sense anymore
-    // If element type is TypeInlineType::BOTTOM, inline_klass() will be null.
-    if (el->is_inlinetypeptr() && el->inline_klass() != NULL) {
+  if (is_flat() && el->is_inlinetypeptr()) {
+    // TODO can we remove this?
+    if (el->inline_klass() != NULL) {
       k_ary = ciArrayKlass::make(el->inline_klass(), /* null_free */ true);
     }
   } else if ((tinst = el->isa_instptr()) != NULL) {
