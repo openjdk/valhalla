@@ -55,7 +55,6 @@ class     TypeNarrowOop;
 class     TypeNarrowKlass;
 class   TypeAry;
 class   TypeTuple;
-class   TypeInlineType;
 class   TypeVect;
 class     TypeVectA;
 class     TypeVectS;
@@ -103,7 +102,6 @@ public:
     VectorX,                    // 128bit Vector types
     VectorY,                    // 256bit Vector types
     VectorZ,                    // 512bit Vector types
-    InlineType,                 // Inline type
 
     AnyPtr,                     // Any old raw, klass, inst, or array pointer
     RawPtr,                     // Raw (non-oop) pointers
@@ -335,8 +333,6 @@ public:
   const TypeInstPtr  *is_instptr() const;        // Instance
   const TypeAryPtr   *isa_aryptr() const;        // Returns NULL if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
-  const TypeInlineType* isa_inlinetype() const;  // Returns NULL if not Inline Type
-  const TypeInlineType* is_inlinetype() const;   // Inline Type
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns NULL if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
@@ -916,7 +912,6 @@ public:
 class TypePtr : public Type {
   friend class TypeNarrowPtr;
   friend class Type;
-  friend class TypeInlineType;
 protected:
   class InterfaceSet {
   private:
@@ -2069,48 +2064,6 @@ public:
   // Convenience common pre-built types.
 };
 
-// TODO 8293800 Remove
-//------------------------------TypeValue---------------------------------------
-// Class of Inline Type Types
-class TypeInlineType : public Type {
-private:
-  ciInlineKlass* _vk;
-  TypePtr::InterfaceSet _interfaces;
-  bool _larval;
-
-protected:
-  TypeInlineType(ciInlineKlass* vk, TypePtr::InterfaceSet interfaces, bool larval)
-          : Type(InlineType),
-            _vk(vk), _interfaces(interfaces), _larval(larval) {
-  }
-
-public:
-  static const TypeInlineType* make(ciInlineKlass* vk, bool larval = false);
-  virtual ciInlineKlass* inline_klass() const { return _vk; }
-  TypePtr::InterfaceSet interfaces() const { return _interfaces; }
-  bool larval() const { return _larval; }
-
-  virtual bool eq(const Type* t) const;
-  virtual int  hash() const;             // Type specific hashing
-  virtual bool singleton(void) const;    // TRUE if type is a singleton
-  virtual bool empty(void) const;        // TRUE if type is vacuous
-
-  virtual const Type* xmeet(const Type* t) const;
-  virtual const Type* xdual() const;     // Compute dual right now.
-
-  virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const { return false; }
-  virtual bool would_improve_ptr(ProfilePtrKind ptr_kind) const { return false; }
-
-  virtual bool maybe_null() const { return false; }
-
-  static const TypeInlineType* BOTTOM;
-
-#ifndef PRODUCT
-  virtual void dump2(Dict &d, uint, outputStream* st) const; // Specialized per-Type dumping
-#endif
-};
-
-
 //------------------------------accessors--------------------------------------
 inline bool Type::is_ptr_to_narrowoop() const {
 #ifdef _LP64
@@ -2274,15 +2227,6 @@ inline const TypeAryPtr *Type::isa_aryptr() const {
 inline const TypeAryPtr *Type::is_aryptr() const {
   assert( _base == AryPtr, "Not an array pointer" );
   return (TypeAryPtr*)this;
-}
-
-inline const TypeInlineType* Type::isa_inlinetype() const {
-  return (_base == InlineType) ? (TypeInlineType*)this : NULL;
-}
-
-inline const TypeInlineType* Type::is_inlinetype() const {
-  assert(_base == InlineType, "Not an inline type");
-  return (TypeInlineType*)this;
 }
 
 inline const TypeNarrowOop *Type::is_narrowoop() const {

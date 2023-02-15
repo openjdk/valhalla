@@ -1412,8 +1412,9 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Initially all flattened array accesses share a single slice
-    if (ta->is_flat() && ta->elem() != TypeInlineType::BOTTOM && _flattened_accesses_share_alias) {
-      const TypeAry *tary = TypeAry::make(TypeInlineType::BOTTOM, ta->size());
+    if (ta->is_flat() && ta->elem() != TypeInstPtr::BOTTOM && _flattened_accesses_share_alias) {
+      // TODO should be flat, right?
+      const TypeAry *tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size());
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
     }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so

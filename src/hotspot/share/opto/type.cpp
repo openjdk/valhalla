@@ -136,7 +136,6 @@ const Type::TypeInfo Type::_type_info[Type::lastype] = {
   { Bad,             T_ILLEGAL,    "vectory:",      false, Op_VecY,              relocInfo::none          },  // VectorY
   { Bad,             T_ILLEGAL,    "vectorz:",      false, Op_VecZ,              relocInfo::none          },  // VectorZ
 #endif
-  { Bad,             T_PRIMITIVE_OBJECT, "inline:",      false, Node::NotAMachineReg, relocInfo::none          },  // InlineType
   { Bad,             T_ADDRESS,    "anyptr:",       false, Op_RegP,              relocInfo::none          },  // AnyPtr
   { Bad,             T_ADDRESS,    "rawptr:",       false, Op_RegP,              relocInfo::none          },  // RawPtr
   { Bad,             T_OBJECT,     "oop:",          true,  Op_RegP,              relocInfo::oop_type      },  // OopPtr
@@ -611,8 +610,6 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeMetadataPtr::BOTTOM = TypeMetadataPtr::make(TypePtr::BotPTR, NULL, Offset::bottom);
 
-  TypeInlineType::BOTTOM = TypeInlineType::make(NULL);
-
   TypeNarrowOop::NULL_PTR = TypeNarrowOop::make( TypePtr::NULL_PTR );
   TypeNarrowOop::BOTTOM   = TypeNarrowOop::make( TypeInstPtr::BOTTOM );
 
@@ -655,7 +652,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::LONGS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeLong::LONG     ,TypeInt::POS), ciTypeArrayKlass::make(T_LONG),   true,  Offset::bottom);
   TypeAryPtr::FLOATS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::FLOAT        ,TypeInt::POS), ciTypeArrayKlass::make(T_FLOAT),  true,  Offset::bottom);
   TypeAryPtr::DOUBLES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::DOUBLE       ,TypeInt::POS), ciTypeArrayKlass::make(T_DOUBLE), true,  Offset::bottom);
-  TypeAryPtr::INLINES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInlineType::BOTTOM,TypeInt::POS), NULL, false, Offset::bottom);
+  TypeAryPtr::INLINES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInstPtr::BOTTOM,TypeInt::POS, /* stable= */ false, /* flat= */ true), NULL, false, Offset::bottom);
 
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use NULL as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = NULL;
@@ -977,9 +974,6 @@ const Type *Type::xmeet( const Type *t ) const {
   case NarrowKlass:
     return t->xmeet(this);
 
-  case InlineType:
-    return t->xmeet(this);
-
   case Bad:                     // Type check
   default:                      // Bogus type not in lattice
     typerr(t);
@@ -1149,7 +1143,6 @@ Type::Category Type::category() const {
     case Type::DoubleTop:
     case Type::DoubleCon:
     case Type::DoubleBot:
-    case Type::InlineType:
       return Category::Data;
     case Type::Memory:
       return Category::Memory;
@@ -1564,7 +1557,6 @@ const Type *TypeInt::xmeet( const Type *t ) const {
   case DoubleTop:
   case DoubleCon:
   case DoubleBot:
-  case InlineType:
   case Bottom:                  // Ye Olde Default
     return Type::BOTTOM;
   default:                      // All else is a mistake
@@ -2480,137 +2472,6 @@ bool TypeAry::ary_must_be_exact() const {
   return false;
 }
 
-//==============================TypeInlineType=======================================
-
-const TypeInlineType* TypeInlineType::BOTTOM;
-
-//------------------------------make-------------------------------------------
-const TypeInlineType* TypeInlineType::make(ciInlineKlass* vk, bool larval) {
-  TypePtr::InterfaceSet interfaces;
-  if (vk != NULL) {
-    interfaces = TypePtr::InterfaceSet(vk->transitive_interfaces());
-  }
-  return (TypeInlineType*)(new TypeInlineType(vk, interfaces, larval))->hashcons();
-}
-
-//------------------------------meet-------------------------------------------
-// Compute the MEET of two types.  It returns a new Type object.
-const Type* TypeInlineType::xmeet(const Type* t) const {
-  // Perform a fast test for common case; meeting the same types together.
-  if(this == t) return this;  // Meeting same type-rep?
-
-  // Current "this->_base" is InlineType
-  switch (t->base()) {          // switch on original type
-
-  case Int:
-  case Long:
-  case FloatTop:
-  case FloatCon:
-  case FloatBot:
-  case DoubleTop:
-  case DoubleCon:
-  case DoubleBot:
-  case NarrowKlass:
-  case Bottom:
-    return Type::BOTTOM;
-
-  case OopPtr:
-  case MetadataPtr:
-  case KlassPtr:
-  case RawPtr:
-  case AnyPtr:
-    return TypePtr::BOTTOM;
-
-  case Top:
-    return this;
-
-  case NarrowOop: {
-    const Type* res = t->make_ptr()->xmeet(this);
-    if (res->isa_ptr()) {
-      return res->make_narrowoop();
-    }
-    return res;
-  }
-
-  case InstKlassPtr:
-  case AryKlassPtr:
-  case AryPtr:
-  case InstPtr: {
-    return t->xmeet(this);
-  }
-
-  case InlineType: {
-    // All inline types inherit from Object
-    const TypeInlineType* other = t->is_inlinetype();
-    if (_vk == NULL) {
-      return this;
-    } else if (other->_vk == NULL) {
-      return other;
-    } else if (_vk == other->_vk) {
-      if (_larval == other->_larval ||
-          !_larval) {
-        return this;
-      } else {
-        return t;
-      }
-    }
-    return TypeInstPtr::NOTNULL;
-  }
-
-  default:                      // All else is a mistake
-    typerr(t);
-
-  }
-  return this;
-}
-
-//------------------------------xdual------------------------------------------
-const Type* TypeInlineType::xdual() const {
-  return this;
-}
-
-//------------------------------eq---------------------------------------------
-// Structural equality check for Type representations
-bool TypeInlineType::eq(const Type* t) const {
-  const TypeInlineType* vt = t->is_inlinetype();
-  return (_vk == vt->inline_klass() && _larval == vt->larval());
-}
-
-//------------------------------hash-------------------------------------------
-// Type-specific hashing function.
-int TypeInlineType::hash(void) const {
-  return (intptr_t)_vk;
-}
-
-//------------------------------singleton--------------------------------------
-// TRUE if Type is a singleton type, FALSE otherwise. Singletons are simple constants.
-bool TypeInlineType::singleton(void) const {
-  return false;
-}
-
-//------------------------------empty------------------------------------------
-// TRUE if Type is a type with no values, FALSE otherwise.
-bool TypeInlineType::empty(void) const {
-  return false;
-}
-
-//------------------------------dump2------------------------------------------
-#ifndef PRODUCT
-void TypeInlineType::dump2(Dict &d, uint depth, outputStream* st) const {
-  if (_vk == NULL) {
-    st->print("BOTTOM inlinetype");
-    return;
-  }
-  int count = _vk->nof_declared_nonstatic_fields();
-  st->print("inlinetype[%d]:{", count);
-  st->print("%s", count != 0 ? _vk->declared_nonstatic_field_at(0)->type()->name() : "empty");
-  for (int i = 1; i < count; ++i) {
-    st->print(", %s", _vk->declared_nonstatic_field_at(i)->type()->name());
-  }
-  st->print("}%s", _larval?" : larval":"");
-}
-#endif
-
 //==============================TypeVect=======================================
 // Convenience common pre-built types.
 const TypeVect *TypeVect::VECTA = NULL; // vector length agnostic
@@ -2872,7 +2733,6 @@ const Type *TypePtr::xmeet_helper(const Type *t) const {
   case KlassPtr:
   case InstKlassPtr:
   case AryKlassPtr:
-  case InlineType:
     return t->xmeet(this);      // Call in reverse direction
   default:                      // All else is a mistake
     typerr(t);
@@ -4511,28 +4371,6 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
   } // End of case InstPtr
 
-  case InlineType: {
-    const TypeInlineType* tv = t->is_inlinetype();
-    InterfaceSet interfaces = tv->interfaces();
-    if (above_centerline(ptr())) {
-      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
-        return t;
-      } else {
-        return TypeInstPtr::NOTNULL;
-      }
-    } else {
-      PTR ptr = this->_ptr;
-      if (ptr == Constant) {
-        ptr = NotNull;
-      }
-      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
-        return make(ptr, _klass, _interfaces, false, NULL, Offset(0), _flatten_array, InstanceBot, _speculative);
-      } else {
-        return make(ptr, ciEnv::current()->Object_klass());
-      }
-    }
-  }
-
   } // End of switch
   return this;                  // Return the double constant
 }
@@ -5314,19 +5152,6 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
     default: typerr(t);
     }
   }
-
-  case InlineType: {
-    const TypeInlineType* tv = t->is_inlinetype();
-    if (above_centerline(ptr())) {
-      return TypeInstPtr::NOTNULL;
-    } else {
-      PTR ptr = this->_ptr;
-      if (ptr == Constant) {
-        ptr = NotNull;
-      }
-      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
-    }
-  }
   }
   return this;                  // Lint noise
 }
@@ -5718,9 +5543,6 @@ const Type *TypeNarrowPtr::xmeet( const Type *t ) const {
     return Type::BOTTOM;
   case Top:
     return this;
-
-  case InlineType:
-    return t->xmeet(this);
 
   default:                      // All else is a mistake
     typerr(t);
@@ -6360,27 +6182,6 @@ const Type    *TypeInstKlassPtr::xmeet( const Type *t ) const {
     default: typerr(t);
     }
   }
-  case InlineType: {
-    const TypeInlineType* tv = t->is_inlinetype();
-    InterfaceSet interfaces = tv->interfaces();
-    if (above_centerline(ptr())) {
-      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
-        return t;
-      } else {
-        return TypeInstPtr::NOTNULL;
-      }
-    } else {
-      PTR ptr = this->_ptr;
-      if (ptr == Constant) {
-        ptr = NotNull;
-      }
-      if (tv->inline_klass()->is_subtype_of(_klass) && interfaces.contains(_interfaces)) {
-        return make(ptr, _klass, _interfaces, Offset(0), _flatten_array);
-      } else {
-        return make(ptr, ciEnv::current()->Object_klass(), Offset(0));
-      }
-    }
-  }
 
   } // End of switch
   return this;                  // Return the double constant
@@ -6584,6 +6385,7 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
 
   // Get element klass
   if (is_flat()) {
+    // TODO this comment does not make sense anymore
     // If element type is TypeInlineType::BOTTOM, inline_klass() will be null.
     if (el->is_inlinetypeptr() && el->inline_klass() != NULL) {
       k_ary = ciArrayKlass::make(el->make_ptr()->inline_klass(), /* null_free */ true);
@@ -6898,18 +6700,6 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
       interfaces = this_interfaces.intersection_with(tp_interfaces);
       return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), interfaces, offset, false);
     default: typerr(t);
-    }
-  }
-  case InlineType: {
-    const TypeInlineType* tv = t->is_inlinetype();
-    if (above_centerline(ptr())) {
-      return TypeInstKlassPtr::BOTTOM;
-    } else {
-      PTR ptr = this->_ptr;
-      if (ptr == Constant) {
-        ptr = NotNull;
-      }
-      return TypeInstKlassPtr::make(ptr, ciEnv::current()->Object_klass(), Offset(0));
     }
   }
 

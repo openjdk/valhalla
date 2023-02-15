@@ -215,10 +215,9 @@ void Parse::array_store(BasicType bt) {
     // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.
     // This is only legal for non-null stores because the array_store_check always passes for null, even
     // if the array is null-free. Null stores are handled in GraphKit::gen_inline_array_null_guard().
-    bool not_inline = !tval->isa_inlinetype() &&
-                      ((!tval_init->maybe_null() && !tval_init->is_oopptr()->can_be_inline_type()) ||
-                       (!tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type()));
-    bool not_flattened = not_inline || ((tval_init->is_inlinetypeptr() || tval_init->isa_inlinetype()) && !tval_init->inline_klass()->flatten_array());
+    bool not_inline = (!tval_init->maybe_null() && !tval_init->is_oopptr()->can_be_inline_type()) ||
+                      (!tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type());
+    bool not_flattened = not_inline || (tval_init->is_inlinetypeptr() && !tval_init->inline_klass()->flatten_array());
     if (!ary_t->is_not_null_free() && not_inline) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
       ary_t = ary_t->cast_to_not_null_free();
@@ -277,9 +276,9 @@ void Parse::array_store(BasicType bt) {
         }
         // Try to determine the inline klass
         ciInlineKlass* vk = NULL;
-        if (tval->isa_inlinetype() || tval->is_inlinetypeptr()) {
+        if (tval->is_inlinetypeptr()) {
           vk = tval->inline_klass();
-        } else if (tval_init->isa_inlinetype() || tval_init->is_inlinetypeptr()) {
+        } else if (tval_init->is_inlinetypeptr()) {
           vk = tval_init->inline_klass();
         } else if (elemtype->is_inlinetypeptr()) {
           vk = elemtype->inline_klass();

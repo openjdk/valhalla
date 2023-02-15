@@ -787,12 +787,6 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       nfields = alloc->in(AllocateNode::ALength)->find_int_con(-1);
       assert(nfields >= 0, "must be an array klass.");
       basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
-      if (res_type->is_flat()) {
-        basic_elem_type = T_PRIMITIVE_OBJECT;
-      }
-      if (basic_elem_type == T_PRIMITIVE_OBJECT && !res_type->is_aryptr()->is_flat()) {
-        basic_elem_type = T_OBJECT;
-      }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
       field_type = res_type->is_aryptr()->elem();
