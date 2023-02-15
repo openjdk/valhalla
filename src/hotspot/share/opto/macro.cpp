@@ -787,6 +787,9 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       nfields = alloc->in(AllocateNode::ALength)->find_int_con(-1);
       assert(nfields >= 0, "must be an array klass.");
       basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
+      if (res_type->is_flat()) {
+        basic_elem_type = T_PRIMITIVE_OBJECT;
+      }
       if (basic_elem_type == T_PRIMITIVE_OBJECT && !res_type->is_aryptr()->is_flat()) {
         basic_elem_type = T_OBJECT;
       }
@@ -858,8 +861,9 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
       Node* field_val = NULL;
       const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
+      // TODO refactor check(s)
       if (res_type->isa_aryptr() && res_type->is_aryptr()->is_flat()) {
-        ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
+        ciInlineKlass* vk = res_type->is_aryptr()->elem()->make_ptr()->inline_klass();
         assert(vk->flatten_array(), "must be flattened");
         field_val = inline_type_from_mem(mem, ctl, vk, field_addr_type->isa_aryptr(), 0, alloc);
       } else {

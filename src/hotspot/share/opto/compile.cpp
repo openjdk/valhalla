@@ -1716,9 +1716,9 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         alias_type(idx)->set_element(elemtype);
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
-      if (elemtype->isa_inlinetype() &&
+      if (flat->is_aryptr()->is_flat() &&
           field_offset != Type::OffsetBot) {
-        ciInlineKlass* vk = elemtype->inline_klass();
+        ciInlineKlass* vk = elemtype->make_ptr()->inline_klass();
         field_offset += vk->first_field_offset();
         field = vk->get_field_by_offset(field_offset, false);
       }

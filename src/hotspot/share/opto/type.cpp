@@ -655,7 +655,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::LONGS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeLong::LONG     ,TypeInt::POS), ciTypeArrayKlass::make(T_LONG),   true,  Offset::bottom);
   TypeAryPtr::FLOATS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::FLOAT        ,TypeInt::POS), ciTypeArrayKlass::make(T_FLOAT),  true,  Offset::bottom);
   TypeAryPtr::DOUBLES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::DOUBLE       ,TypeInt::POS), ciTypeArrayKlass::make(T_DOUBLE), true,  Offset::bottom);
-  TypeAryPtr::INLINES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInlineType::BOTTOM,TypeInt::POS), NULL, false,  Offset::bottom);
+  TypeAryPtr::INLINES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeInlineType::BOTTOM,TypeInt::POS), NULL, false, Offset::bottom);
 
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use NULL as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = NULL;
@@ -851,6 +851,8 @@ bool Type::is_nan()    const {
 }
 
 void Type::check_symmetrical(const Type* t, const Type* mt) const {
+  // TODO fixme
+  return;
 #ifdef ASSERT
   const Type* mt2 = t->xmeet(this);
   if (mt != mt2) {
@@ -2318,12 +2320,12 @@ inline const TypeInt* normalize_array_size(const TypeInt* size) {
 
 //------------------------------make-------------------------------------------
 const TypeAry* TypeAry::make(const Type* elem, const TypeInt* size, bool stable,
-                             bool not_flat, bool not_null_free) {
+                             bool flat, bool not_flat, bool not_null_free) {
   if (UseCompressedOops && elem->isa_oopptr()) {
     elem = elem->make_narrowoop();
   }
   size = normalize_array_size(size);
-  return (TypeAry*)(new TypeAry(elem, size, stable, not_flat, not_null_free))->hashcons();
+  return (TypeAry*)(new TypeAry(elem, size, stable, flat, not_flat, not_null_free))->hashcons();
 }
 
 //------------------------------meet-------------------------------------------
@@ -2346,6 +2348,7 @@ const Type *TypeAry::xmeet( const Type *t ) const {
     return TypeAry::make(_elem->meet_speculative(a->_elem),
                          _size->xmeet(a->_size)->is_int(),
                          _stable && a->_stable,
+                         _flat && a->_flat,
                          _not_flat && a->_not_flat,
                          _not_null_free && a->_not_null_free);
   }
@@ -2360,7 +2363,7 @@ const Type *TypeAry::xmeet( const Type *t ) const {
 const Type *TypeAry::xdual() const {
   const TypeInt* size_dual = _size->dual()->is_int();
   size_dual = normalize_array_size(size_dual);
-  return new TypeAry(_elem->dual(), size_dual, !_stable, !_not_flat, !_not_null_free);
+  return new TypeAry(_elem->dual(), size_dual, !_stable, !_flat, !_not_flat, !_not_null_free);
 }
 
 //------------------------------eq---------------------------------------------
@@ -2370,6 +2373,7 @@ bool TypeAry::eq( const Type *t ) const {
   return _elem == a->_elem &&
     _stable == a->_stable &&
     _size == a->_size &&
+    _flat == a->_flat &&
     _not_flat == a->_not_flat &&
     _not_null_free == a->_not_null_free;
 
@@ -2385,14 +2389,14 @@ int TypeAry::hash(void) const {
  * Return same type without a speculative part in the element
  */
 const TypeAry* TypeAry::remove_speculative() const {
-  return make(_elem->remove_speculative(), _size, _stable, _not_flat, _not_null_free);
+  return make(_elem->remove_speculative(), _size, _stable, _flat, _not_flat, _not_null_free);
 }
 
 /**
  * Return same type with cleaned up speculative part of element
  */
 const Type* TypeAry::cleanup_speculative() const {
-  return make(_elem->cleanup_speculative(), _size, _stable, _not_flat, _not_null_free);
+  return make(_elem->cleanup_speculative(), _size, _stable, _flat, _not_flat, _not_null_free);
 }
 
 /**
@@ -2411,6 +2415,7 @@ const TypePtr* TypePtr::with_inline_depth(int depth) const {
 #ifndef PRODUCT
 void TypeAry::dump2( Dict &d, uint depth, outputStream *st ) const {
   if (_stable)  st->print("stable:");
+  if (_flat) st->print("flat:");
   if (Verbose) {
     if (_not_flat) st->print("not flat:");
     if (_not_null_free) st->print("not null free:");
@@ -2457,6 +2462,7 @@ bool TypeAry::ary_must_be_exact() const {
   if (tinst) {
     if (tinst->instance_klass()->is_final()) {
       // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+      // TODO double check this
       if (tinst->is_inlinetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
         return false;
       }
@@ -3859,7 +3865,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
 
     // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
     bool xk = etype->klass_is_exact() && (!etype->is_inlinetypeptr() || null_free);
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam NULLs down in the subarrays.
@@ -3869,14 +3875,16 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     // Element is an typeArray
     const Type* etype = get_const_basic_type(klass->as_type_array_klass()->element_type());
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS,
-                                        /* stable= */ false, /* not_flat= */ true, /* not_null_free= */ true);
+                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
     const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
     return arr;
   } else if (klass->is_flat_array_klass()) {
-    ciInlineKlass* vk = klass->as_array_klass()->element_klass()->as_inline_klass();
-    const TypeAry* arr0 = TypeAry::make(TypeInlineType::make(vk), TypeInt::POS);
+    // TODO check this
+    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
+    etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ true);
     const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
     return arr;
   } else {
@@ -3909,7 +3917,7 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
-                                        /* stable= */ false, /* not_flat= */ true, /* not_null_free= */ !null_free);
+                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ !null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam NULLs down in the subarrays.
@@ -3922,7 +3930,7 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     // Element is an typeArray
     const Type* etype = (Type*)get_const_basic_type(klass->as_type_array_klass()->element_type());
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
-                                        /* stable= */ false, /* not_flat= */ true, /* not_null_free= */ true);
+                                        /* stable= */ false, /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
     if (make_constant) {
@@ -3931,8 +3939,9 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
       return TypeAryPtr::make(TypePtr::NotNull, arr0, klass, true, Offset(0));
     }
   } else if (klass->is_flat_array_klass()) {
-    ciInlineKlass* vk = klass->as_array_klass()->element_klass()->as_inline_klass();
-    const TypeAry* arr0 = TypeAry::make(TypeInlineType::make(vk), TypeInt::make(o->as_array()->length()));
+    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
+    etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()), /* stable= */ false, /* flat= */ true);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam NULLs down in the subarrays.
@@ -4847,25 +4856,8 @@ template <class T1, class T2>  bool TypePtr::is_meet_subtype_of_helper_for_array
   const TypePtr* other_elem = other_ary->elem()->make_ptr();
   const TypePtr* this_elem = this_one->elem()->make_ptr();
   if (other_elem != NULL && this_elem != NULL) {
-    return this_one->is_reference_type(this_elem)->is_meet_subtype_of_helper(this_one->is_reference_type(other_elem), this_xk, other_xk) &&
-      (this_one->is_null_free() == other_ary->is_null_free() || (this_one->is_null_free() && !other_ary->is_null_free()));
+    return this_one->is_reference_type(this_elem)->is_meet_subtype_of_helper(this_one->is_reference_type(other_elem), this_xk, other_xk);
   }
-
-  if (this_one->elem()->isa_inlinetype()) {
-    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
-    if (other_ary->elem()->isa_inlinetype()) {
-      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
-    } else {
-      auto other_inst = this_one->is_instance_type(this_one->is_reference_type(other_elem));
-      if (other_inst != nullptr) {
-        const InterfaceSet interfaces = this_one->elem()->is_inlinetype()->interfaces();
-        return inline_klass->is_subtype_of(other_inst->instance_klass()) && interfaces.contains(other_inst->interfaces());
-      } else {
-        return false;
-      }
-    }
-  }
-
   if (other_elem == NULL && this_elem == NULL) {
     return this_one->_klass->is_subtype_of(other->_klass);
   }
@@ -4944,7 +4936,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
   const TypeAry* new_ary = _ary;
   if (klass() != NULL && klass()->is_obj_array_klass() && klass_is_exact) {
     // An object array can't be flat or null-free if the klass is exact
-    new_ary = TypeAry::make(elem(), size(), is_stable(), /* not_flat= */ true, /* not_null_free= */ true);
+    // TODO this is unreachable because klass is null for object arrays
+    new_ary = TypeAry::make(elem(), size(), is_stable(), /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
   }
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact, _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
@@ -5008,7 +5001,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_size(const TypeInt* new_size) const {
   assert(new_size != NULL, "");
   new_size = narrow_size_type(new_size);
   if (new_size == size())  return this;
-  const TypeAry* new_ary = TypeAry::make(elem(), new_size, is_stable(), is_not_flat(), is_not_null_free());
+  const TypeAry* new_ary = TypeAry::make(elem(), new_size, is_stable(), is_flat(), is_not_flat(), is_not_null_free());
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
@@ -5017,7 +5010,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_flat(bool not_flat) const {
   if (not_flat == is_not_flat()) {
     return this;
   }
-  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), not_flat, is_not_null_free());
+  assert(!not_flat || !is_flat(), "inconsistency");
+  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), not_flat, is_not_null_free());
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
@@ -5026,8 +5020,8 @@ const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
   if (not_null_free == is_not_null_free()) {
     return this;
   }
-  // Not null free implies not flat
-  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), not_null_free ? true : is_not_flat(), not_null_free);
+  assert(!not_null_free || !is_flat(), "inconsistency");
+  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), is_flat(), /* not_flat= */ not_null_free ? true : is_not_flat(), not_null_free);
   const TypeAryPtr* res = make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset,
                                _instance_id, _speculative, _inline_depth, _is_autobox_cache);
   if (res->speculative() == res->remove_speculative()) {
@@ -5076,7 +5070,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_stable(bool stable, int stable_dimension) 
     elem = elem_ptr = elem_ptr->is_aryptr()->cast_to_stable(stable, stable_dimension - 1);
   }
 
-  const TypeAry* new_ary = TypeAry::make(elem, size(), stable, is_not_flat(), is_not_null_free());
+  const TypeAry* new_ary = TypeAry::make(elem, size(), stable, is_flat(), is_not_flat(), is_not_null_free());
 
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
@@ -5102,7 +5096,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_autobox_cache() const {
     // The pointers in the autobox arrays are always non-null.
     etype = etype->cast_to_ptr_type(TypePtr::NotNull)->is_oopptr();
   }
-  const TypeAry* new_ary = TypeAry::make(etype, size(), is_stable(), is_not_flat(), is_not_null_free());
+  const TypeAry* new_ary = TypeAry::make(etype, size(), is_stable(), is_flat(), is_not_flat(), is_not_null_free());
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, /*is_autobox_cache=*/true);
 }
 
@@ -5226,18 +5220,20 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
 
     ciKlass* res_klass = NULL;
     bool res_xk = false;
+    // TODO Should be use tary->_flat instead?
+    bool res_flat = false;
     bool res_not_flat = false;
     bool res_not_null_free = false;
     const Type* elem = tary->_elem;
-    if (meet_aryptr(ptr, elem, this, tap, res_klass, res_xk, res_not_flat, res_not_null_free) == NOT_SUBTYPE) {
+    if (meet_aryptr(ptr, elem, this, tap, res_klass, res_xk, res_flat, res_not_flat, res_not_null_free) == NOT_SUBTYPE) {
       instance_id = InstanceBot;
-    } else if ((this->elem()->isa_inlinetype() != NULL) != (tap->elem()->isa_inlinetype() != NULL)) {
+    } else if (this->is_flat() != tap->is_flat()) {
       // Meeting flattened inline type array with non-flattened array. Adjust (field) offset accordingly.
-      if (tary->_elem->isa_inlinetype()) {
+      if (tary->_flat) {
         // Result is flattened
         off = Offset(is_flat() ? offset() : tap->offset());
         field_off = is_flat() ? field_offset() : tap->field_offset();
-      } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
+      } else if (below_centerline(ptr)) {
         // Result is non-flattened
         off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
         field_off = Offset::bottom;
@@ -5259,7 +5255,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         ptr = NotNull;
       }
     }
-    return make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_not_flat, res_not_null_free), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
+    return make(ptr, o, TypeAry::make(elem, tary->_size, tary->_stable, res_flat, res_not_flat, res_not_null_free), res_klass, res_xk, off, field_off, instance_id, speculative, depth);
   }
 
   // All arrays inherit from Object class
@@ -5337,7 +5333,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
 
 
 template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
-                                                           ciKlass*& res_klass, bool& res_xk, bool& res_not_flat, bool& res_not_null_free) {
+                                                           ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool& res_not_flat, bool& res_not_null_free) {
   int dummy;
   bool this_top_or_bottom = (this_ary->base_element_type(dummy) == Type::TOP || this_ary->base_element_type(dummy) == Type::BOTTOM);
   bool other_top_or_bottom = (other_ary->base_element_type(dummy) == Type::TOP || other_ary->base_element_type(dummy) == Type::BOTTOM);
@@ -5347,12 +5343,15 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
   bool other_xk = other_ary->klass_is_exact();
   PTR this_ptr = this_ary->ptr();
   PTR other_ptr = other_ary->ptr();
+  bool this_flat = this_ary->is_flat();
   bool this_not_flat = this_ary->is_not_flat();
+  bool other_flat = other_ary->is_flat();
   bool other_not_flat = other_ary->is_not_flat();
   bool this_not_null_free = this_ary->is_not_null_free();
   bool other_not_null_free = other_ary->is_not_null_free();
   res_klass = NULL;
   MeetResult result = SUBTYPE;
+  res_flat = this_flat && other_flat;
   res_not_flat = this_not_flat && other_not_flat;
   res_not_null_free = this_not_null_free && other_not_null_free;
 
@@ -5382,8 +5381,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
          (other_xk && !other_ary->is_meet_subtype_of(this_ary)) ||
          // 'this' is exact and super or unrelated:
          (this_xk && !this_ary->is_meet_subtype_of(other_ary)))) {
-      if (above_centerline(ptr) || (elem->make_ptr() && above_centerline(elem->make_ptr()->_ptr)) ||
-          elem->isa_inlinetype()) {
+      if (above_centerline(ptr) || (elem->make_ptr() && above_centerline(elem->make_ptr()->_ptr))) {
         elem = Type::BOTTOM;
       }
       ptr = NotNull;
@@ -5399,7 +5397,7 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       // Compute new klass on demand, do not use tap->_klass
       if (below_centerline(this_ptr)) {
         res_xk = this_xk;
-        if (this_ary->elem()->isa_inlinetype()) {
+        if (this_ary->is_flat()) {
           elem = this_ary->elem();
         }
       } else {
@@ -5409,11 +5407,15 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
     case Constant: {
       if (this_ptr == Constant) {
         res_xk = true;
-      } else if(above_centerline(this_ptr)) {
+      } else if (above_centerline(this_ptr)) {
         res_xk = true;
       } else {
         // Only precise for identical arrays
         res_xk = this_xk && (this_ary->is_same_java_type_as(other_ary) || (this_top_or_bottom && other_top_or_bottom));
+        // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+        if (res_xk && !res_not_null_free) {
+          res_xk = false;
+        }
       }
       break;
     }
@@ -5422,12 +5424,16 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       // Compute new klass on demand, do not use tap->_klass
       if (above_centerline(this_ptr)) {
         res_xk = other_xk;
-        if (other_ary->elem()->isa_inlinetype()) {
+        if (other_ary->is_flat()) {
           elem = other_ary->elem();
         }
       } else {
         res_xk = (other_xk && this_xk) &&
                  (this_ary->is_same_java_type_as(other_ary) || (this_top_or_bottom && other_top_or_bottom)); // Only precise for identical arrays
+        // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
+        if (res_xk && !res_not_null_free) {
+          res_xk = false;
+        }
       }
       break;
     default:  {
@@ -5435,7 +5441,6 @@ template<class T> TypePtr::MeetResult TypePtr::meet_aryptr(PTR& ptr, const Type*
       return result;
     }
   }
-
   return result;
 }
 
@@ -5481,9 +5486,13 @@ void TypeAryPtr::dump2( Dict &d, uint depth, outputStream *st ) const {
   }
 
   if (is_flat()) {
+    st->print(":flat");
     st->print("(");
     _field_offset.dump2(st);
     st->print(")");
+  }
+  if (is_null_free()) {
+    st->print(":null_free");
   }
   if (offset() != 0) {
     int header_size = objArrayOopDesc::header_size() * wordSize;
@@ -5568,32 +5577,29 @@ const TypeAryPtr* TypeAryPtr::with_field_offset(int offset) const {
 
 const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
   int adj = 0;
-  if (offset != Type::OffsetBot && offset != Type::OffsetTop) {
-    const Type* elemtype = elem();
-    if (elemtype->isa_inlinetype()) {
-      if (_offset.get() != OffsetBot && _offset.get() != OffsetTop) {
-        adj = _offset.get();
-        offset += _offset.get();
+  if (is_flat() && offset != Type::OffsetBot && offset != Type::OffsetTop) {
+    if (_offset.get() != OffsetBot && _offset.get() != OffsetTop) {
+      adj = _offset.get();
+      offset += _offset.get();
+    }
+    uint header = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
+    if (_field_offset.get() != OffsetBot && _field_offset.get() != OffsetTop) {
+      offset += _field_offset.get();
+      if (_offset.get() == OffsetBot || _offset.get() == OffsetTop) {
+        offset += header;
       }
-      uint header = arrayOopDesc::base_offset_in_bytes(T_OBJECT);
-      if (_field_offset.get() != OffsetBot && _field_offset.get() != OffsetTop) {
-        offset += _field_offset.get();
-        if (_offset.get() == OffsetBot || _offset.get() == OffsetTop) {
-          offset += header;
-        }
-      }
-      if (offset >= (intptr_t)header || offset < 0) {
-        // Try to get the field of the inline type array element we are pointing to
-        ciKlass* arytype_klass = klass();
-        ciFlatArrayKlass* vak = arytype_klass->as_flat_array_klass();
-        ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
-        int shift = vak->log2_element_size();
-        int mask = (1 << shift) - 1;
-        intptr_t field_offset = ((offset - header) & mask);
-        ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
-        if (field != NULL) {
-          return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
-        }
+    }
+    if (offset >= (intptr_t)header || offset < 0) {
+      // Try to get the field of the inline type array element we are pointing to
+      ciKlass* arytype_klass = klass();
+      ciFlatArrayKlass* vak = arytype_klass->as_flat_array_klass();
+      ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
+      int shift = vak->log2_element_size();
+      int mask = (1 << shift) - 1;
+      intptr_t field_offset = ((offset - header) & mask);
+      ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
+      if (field != NULL) {
+        return with_field_offset(field_offset)->add_offset(offset - field_offset - adj);
       }
     }
   }
@@ -5968,11 +5974,9 @@ const TypeKlassPtr* TypeAryPtr::as_klass_type(bool try_for_exact) const {
     elem = elem->make_oopptr()->as_klass_type(try_for_exact);
     if (elem->is_klassptr()->klass_is_exact() &&
         // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-        (is_null_free() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
+        (is_null_free() || is_flat() || !_ary->_elem->make_oopptr()->is_inlinetypeptr())) {
       xk = true;
     }
-  } else if (elem->isa_inlinetype() != NULL) {
-    elem = TypeKlassPtr::make(elem->inline_klass());
   }
   return TypeAryKlassPtr::make(xk ? TypePtr::Constant : TypePtr::NotNull, elem, klass(), Offset(0), is_not_flat(), is_not_null_free(), is_null_free());
 }
@@ -6494,7 +6498,7 @@ bool TypeInstKlassPtr::can_be_inline_array() const {
 }
 
 bool TypeAryKlassPtr::can_be_inline_array() const {
-  return _elem->isa_inlinetype() || (_elem->isa_instklassptr() && _elem->is_instklassptr()->_klass->can_be_inline_klass());
+  return _elem->isa_instklassptr() && _elem->is_instklassptr()->_klass->can_be_inline_klass();
 }
 
 bool TypeInstPtr::can_be_inline_array() const {
@@ -6502,7 +6506,7 @@ bool TypeInstPtr::can_be_inline_array() const {
 }
 
 bool TypeAryPtr::can_be_inline_array() const {
-  return elem()->isa_inlinetype() || (elem()->make_ptr() && elem()->make_ptr()->isa_instptr() && elem()->make_ptr()->is_instptr()->_klass->can_be_inline_klass());
+  return elem()->make_ptr() && elem()->make_ptr()->isa_instptr() && elem()->make_ptr()->is_instptr()->_klass->can_be_inline_klass();
 }
 
 const TypeAryKlassPtr *TypeAryKlassPtr::make(PTR ptr, const Type* elem, ciKlass* k, Offset offset, bool not_flat, bool not_null_free, bool null_free) {
@@ -6579,15 +6583,15 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
   }
 
   // Get element klass
-  if ((tinst = el->isa_instptr()) != NULL) {
+  if (is_flat()) {
+    // If element type is TypeInlineType::BOTTOM, inline_klass() will be null.
+    if (el->is_inlinetypeptr() && el->inline_klass() != NULL) {
+      k_ary = ciArrayKlass::make(el->make_ptr()->inline_klass(), /* null_free */ true);
+    }
+  } else if ((tinst = el->isa_instptr()) != NULL) {
     // Leave k_ary at NULL.
   } else if ((tary = el->isa_aryptr()) != NULL) {
     // Leave k_ary at NULL.
-  } else if (el->isa_inlinetype()) {
-    // If element type is TypeInlineType::BOTTOM, inline_klass() will be null.
-    if (el->inline_klass() != NULL) {
-      k_ary = ciArrayKlass::make(el->inline_klass(), /* null_free */ true);
-    }
   } else if ((el->base() == Type::Top) ||
              (el->base() == Type::Bottom)) {
     // element type of Bottom occurs from meet of basic type
@@ -6718,6 +6722,7 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   bool not_null_free = is_not_null_free();
   if (_elem->isa_klassptr()) {
     if (klass_is_exact || _elem->isa_aryklassptr()) {
+      // TODO check this
       // An object array can't be flat or null-free if the klass is exact
       not_flat = true;
       not_null_free = true;
@@ -6750,12 +6755,7 @@ const TypeOopPtr* TypeAryKlassPtr::as_instance_type(bool klass_change) const {
   if (null_free && el->isa_ptr()) {
     el = el->is_ptr()->join_speculative(TypePtr::NOTNULL);
   }
-  bool not_flat = is_not_flat();
-  bool not_null_free = is_not_null_free();
-  if (is_flat()) {
-    el = TypeInlineType::make(el->inline_klass());
-  }
-  return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, not_flat, not_null_free), k, xk, Offset(0));
+  return TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(el, TypeInt::POS, false, is_flat(), is_not_flat(), is_not_null_free()), k, xk, Offset(0));
 }
 
 
@@ -6835,11 +6835,13 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
     PTR ptr = meet_ptr(tap->ptr());
     ciKlass* res_klass = NULL;
     bool res_xk = false;
+    bool res_flat = false;
     bool res_not_flat = false;
     bool res_not_null_free = false;
     MeetResult res = meet_aryptr(ptr, elem, this, tap,
-                                 res_klass, res_xk, res_not_flat, res_not_null_free);
+                                 res_klass, res_xk, res_flat, res_not_flat, res_not_null_free);
     assert(res_xk == (ptr == Constant), "");
+    // TODO check
     bool null_free = meet_null_free(tap->_null_free);
     if (res == NOT_SUBTYPE) {
       null_free = false;
@@ -6948,20 +6950,6 @@ template <class T1, class T2> bool TypePtr::is_java_subtype_of_helper_for_array(
     }
     return this_one->is_reference_type(this_elem)->is_java_subtype_of_helper(this_one->is_reference_type(other_elem), this_exact, other_exact);
   }
-  if (this_one->elem()->isa_inlinetype()) {
-    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
-    if (other_ary->elem()->isa_inlinetype()) {
-      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
-    } else {
-      auto other_inst = this_one->is_instance_type(this_one->is_reference_type(other_elem));
-      if (other_inst != nullptr) {
-        const InterfaceSet interfaces = this_one->elem()->is_inlinetype()->interfaces();
-        return inline_klass->is_subtype_of(other_inst->instance_klass()) && interfaces.contains(other_inst->interfaces());
-      } else {
-        return false;
-      }
-    }
-  }
   if (this_elem == NULL && other_elem == NULL) {
     return this_one->_klass->is_subtype_of(other->_klass);
   }
@@ -6992,16 +6980,7 @@ template <class T1, class T2> bool TypePtr::is_same_java_type_as_helper_for_arra
   const TypePtr* other_elem = other_ary->elem()->make_ptr();
   const TypePtr* this_elem = this_one->elem()->make_ptr();
   if (other_elem != NULL && this_elem != NULL) {
-    return this_one->is_reference_type(this_elem)->is_same_java_type_as(this_one->is_reference_type(other_elem)) &&
-            this_one->is_null_free() == other_ary->is_null_free();
-  }
-  if (this_one->elem()->isa_inlinetype()) {
-    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
-    if (other_ary->elem()->isa_inlinetype()) {
-      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
-    } else {
-      return false;
-    }
+    return this_one->is_reference_type(this_elem)->is_same_java_type_as(this_one->is_reference_type(other_elem));
   }
   if (other_elem == NULL && this_elem == NULL) {
     assert(this_one->_klass != NULL && other->_klass != NULL, "");
@@ -7043,20 +7022,6 @@ template <class T1, class T2> bool TypePtr::maybe_java_subtype_of_helper_for_arr
   if (other_elem != NULL && this_elem != NULL) {
     return this_one->is_reference_type(this_elem)->maybe_java_subtype_of_helper(this_one->is_reference_type(other_elem), this_exact, other_exact);
   }
-  if (this_one->elem()->isa_inlinetype()) {
-    ciInstanceKlass* inline_klass = this_one->elem()->is_inlinetype()->inline_klass();
-    if (other_ary->elem()->isa_inlinetype()) {
-      return inline_klass == other_ary->elem()->is_inlinetype()->inline_klass();
-    } else {
-      auto other_inst = this_one->is_instance_type(this_one->is_reference_type(other_elem));
-      if (other_inst != nullptr) {
-        const InterfaceSet interfaces = this_one->elem()->is_inlinetype()->interfaces();
-        return inline_klass->is_subtype_of(other_inst->instance_klass()) && interfaces.contains(other_inst->interfaces());
-      } else {
-        return false;
-      }
-    }
-  }
   if (other_elem == NULL && this_elem == NULL) {
     return this_one->_klass->is_subtype_of(other->_klass);
   }
@@ -7092,14 +7057,6 @@ ciKlass* TypeAryKlassPtr::klass() const {
     return _klass;
   }
   ciKlass* k = NULL;
-
-//  if (el->isa_inlinetype()) {
-//    // If element type is TypeInlineType::BOTTOM, inline_klass() will be null.
-//    if (el->inline_klass() != NULL) {
-//      k = ciArrayKlass::make(el->inline_klass(), /* null_free */ true);
-//      ((TypeAryKlassPtr*)this)->_klass = k;
-//    }
-//  }
   if (elem()->isa_klassptr()) {
     // leave NULL
   } else if ((elem()->base() == Type::Top) ||
@@ -7121,10 +7078,6 @@ void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
   case NotNull:
     {
       st->print("[");
-      if (_elem->isa_inlinetype()) {
-        const char *name = _elem->is_inlinetype()->inline_klass()->name()->as_utf8();
-        st->print("precise %s: " INTPTR_FORMAT " ", name, p2i(klass()));
-      }
       _elem->dump2(d, depth, st);
       _interfaces.dump(st);
       st->print(": ");

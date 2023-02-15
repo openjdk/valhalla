@@ -822,11 +822,6 @@ void Parse::build_exits() {
     if (ret_oop_type && !ret_oop_type->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
-    // Scalarize inline type when returning as fields or inlining non-incrementally
-    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        ret_type->is_inlinetypeptr()) {
-      ret_type = TypeInlineType::make(ret_type->inline_klass());
-    }
     int         ret_size = type2size[ret_type->basic_type()];
     Node*       ret_phi  = new PhiNode(region, ret_type);
     gvn().set_type_bottom(ret_phi);
@@ -2347,8 +2342,8 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
-    // The return_type is set in Parse::build_exits().
-    if (return_type->isa_inlinetype()) {
+    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
+        return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());

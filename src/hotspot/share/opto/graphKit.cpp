@@ -3929,7 +3929,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         // don't share a single slice.
         assert(C->flattened_accesses_share_alias(), "should be set at parse time");
         C->set_flattened_accesses_share_alias(false);
-        ciInlineKlass* vk = arytype->elem()->inline_klass();
+        ciInlineKlass* vk = arytype->elem()->make_ptr()->inline_klass();
         for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
           ciField* field = vk->nonstatic_field_at(i);
           if (field->offset() >= TrackedInitializationLimit * HeapWordSize)
@@ -4459,7 +4459,7 @@ Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
                                                      false, NULL, Type::Offset(0));
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
   const TypeAryPtr* value_type = TypeAryPtr::make(TypePtr::NotNull,
-                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, true, true),
+                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, false, true, true),
                                                   ciTypeArrayKlass::make(T_BYTE), true, Type::Offset(0));
   Node* p = basic_plus_adr(str, str, value_offset);
   Node* load = access_load_at(str, p, value_field_type, value_type, T_OBJECT,

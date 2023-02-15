@@ -84,7 +84,7 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (ary_t->is_flat()) {
     // Load from flattened inline type array
-    Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
+    Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->make_ptr()->inline_klass(), ary, adr);
     push(vt);
     return;
   } else if (ary_t->is_null_free()) {
@@ -209,6 +209,7 @@ void Parse::array_store(BasicType bt) {
     const Type* tval = _gvn.type(cast_val);
     // We may have lost type information for 'val' here due to the casts
     // emitted by the array_store_check code (see JDK-6312651)
+    // TODO remove it now
     // TODO Remove this code once JDK-6312651 is in.
     const Type* tval_init = _gvn.type(val);
     // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.

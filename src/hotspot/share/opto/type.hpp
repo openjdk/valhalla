@@ -781,8 +781,8 @@ public:
 //------------------------------TypeAry----------------------------------------
 // Class of Array Types
 class TypeAry : public Type {
-  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool not_flat, bool not_null_free) : Type(Array),
-      _elem(elem), _size(size), _stable(stable), _not_flat(not_flat), _not_null_free(not_null_free) {}
+  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool flat, bool not_flat, bool not_null_free) : Type(Array),
+      _elem(elem), _size(size), _stable(stable), _flat(flat), _not_flat(not_flat), _not_null_free(not_null_free) {}
 public:
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
@@ -795,6 +795,7 @@ private:
   const bool _stable;           // Are elements @Stable?
 
   // Inline type array properties
+  const bool _flat;             // Array is flattened
   const bool _not_flat;         // Array is never flattened
   const bool _not_null_free;    // Array is never null-free
 
@@ -802,7 +803,7 @@ private:
 
 public:
   static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false,
-                             bool not_flat = false, bool not_null_free = false);
+                             bool flat = false, bool not_flat = false, bool not_null_free = false);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -1023,7 +1024,7 @@ protected:
                                                             ciKlass*& res_klass, bool& res_xk, bool& res_flatten_array);
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
-                                                  ciKlass*& res_klass, bool& res_xk, bool &res_not_flat, bool &res_not_null_free);
+                                                  ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free);
 
   template <class T1, class T2> static bool is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact);
   template <class T1, class T2> static bool is_same_java_type_as_helper_for_instance(const T1* this_one, const T2* other);
@@ -1504,7 +1505,7 @@ public:
   bool      is_stable() const { return _ary->_stable; }
 
   // Inline type array properties
-  bool is_flat()          const { return _ary->_elem->isa_inlinetype() != NULL; }
+  bool is_flat()          const { return _ary->_flat; }
   bool is_not_flat()      const { return _ary->_not_flat; }
   bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != NULL && _ary->_elem->make_ptr()->is_inlinetypeptr() && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull)); }
   bool is_not_null_free() const { return _ary->_not_null_free; }

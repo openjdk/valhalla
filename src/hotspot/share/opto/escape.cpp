@@ -1167,7 +1167,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                                (aat->isa_aryptr() && (aat->isa_aryptr()->elem() == Type::BOTTOM || aat->isa_aryptr()->elem()->make_oopptr() != NULL)) ||
                                (aat->isa_aryptr() && aat->isa_aryptr()->elem() != NULL &&
                                                                aat->isa_aryptr()->is_flat() &&
-                                                               aat->isa_aryptr()->elem()->inline_klass()->contains_oops()));
+                                                               aat->isa_aryptr()->elem()->make_ptr()->inline_klass()->contains_oops()));
           if (i == TypeFunc::Parms) {
             src_has_oops = arg_has_oops;
           }
@@ -2374,8 +2374,8 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
         // Ignore first AddP.
       } else {
         const Type* elemtype = adr_type->isa_aryptr()->elem();
-        if (elemtype->isa_inlinetype() && field_offset != Type::OffsetBot) {
-          ciInlineKlass* vk = elemtype->inline_klass();
+        if (adr_type->isa_aryptr()->is_flat() && field_offset != Type::OffsetBot) {
+          ciInlineKlass* vk = elemtype->make_ptr()->inline_klass();
           field_offset += vk->first_field_offset();
           bt = vk->get_field_by_offset(field_offset, false)->layout_type();
         } else {
