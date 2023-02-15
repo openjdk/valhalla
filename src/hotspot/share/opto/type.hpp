@@ -2318,8 +2318,7 @@ inline bool Type::is_inlinetypeptr() const {
 }
 
 inline ciInlineKlass* Type::inline_klass() const {
-  assert(is_inlinetypeptr(), "must be an inline type ptr");
-  return is_instptr()->instance_klass()->as_inline_klass();
+  return make_ptr()->is_instptr()->instance_klass()->as_inline_klass();
 }
 
 

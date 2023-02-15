@@ -268,7 +268,7 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
   if (elemtype->make_ptr()->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
     null_free = arytype->is_flat() || !elemtype->make_ptr()->maybe_null();
-    a_e_klass = makecon(TypeKlassPtr::make(elemtype->make_ptr()->inline_klass()));
+    a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 
   // Check (the hard way) and throw if not a subklass.

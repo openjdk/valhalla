@@ -2427,7 +2427,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   if (bt != T_ILLEGAL) {
     assert(alias_type->adr_type()->is_oopptr(), "should be on-heap access");
-    if (adr_type->isa_aryptr() && adr_type->isa_aryptr()->is_flat()) {
+    if (adr_type->is_flat()) {
       bt = T_PRIMITIVE_OBJECT;
     }
     if (bt == T_BYTE && adr_type->isa_aryptr()) {
@@ -2457,9 +2457,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       }
     } else if (adr_type->isa_aryptr()) {
       const Type* elem = adr_type->is_aryptr()->elem();
-      if (!adr_type->is_aryptr()->is_flat()) {
-        mismatched = true;
-      } else if (elem->make_ptr()->inline_klass() != inline_klass) {
+      if (!adr_type->is_flat() || elem->inline_klass() != inline_klass) {
         mismatched = true;
       }
     } else {
@@ -4327,7 +4325,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     const TypeKlassPtr* tklass = _gvn.type(klass_node)->is_klassptr();
     bool exclude_flat = UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, false, BarrierSetC2::Parsing) &&
                         // Can src array be flat and contain oops?
-                        (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->make_ptr()->inline_klass()->contains_oops()))) &&
+                        (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
                         // Can dest array be flat and contain oops?
                         tklass->can_be_inline_array() && (!tklass->is_flat() || tklass->is_aryklassptr()->elem()->is_instklassptr()->instance_klass()->as_inline_klass()->contains_oops());
     Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
@@ -5120,8 +5118,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
       if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, false, BarrierSetC2::Expansion) &&
           obj_type->can_be_inline_array() &&
-          // TODO can we move the make_ptr into the check??
-          (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->make_ptr()->inline_klass()->contains_oops())))) {
+          (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_fair_guard(flat_array_test(obj_klass), slow_region);
@@ -5524,17 +5521,11 @@ bool LibraryCallKit::inline_arraycopy() {
 
   if (has_src && has_dest && can_emit_guards) {
     BasicType src_elem = top_src->isa_aryptr()->elem()->array_element_basic_type();
-    if (top_src->is_flat()) {
-      src_elem = T_PRIMITIVE_OBJECT;
-    }
     BasicType dest_elem = top_dest->isa_aryptr()->elem()->array_element_basic_type();
-    if (top_dest->is_flat()) {
-      dest_elem = T_PRIMITIVE_OBJECT;
-    }
     if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
     if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    if (src_elem == dest_elem && src_elem == T_OBJECT) {
+    if (src_elem == dest_elem && top_src->is_flat() == top_dest->is_flat() && src_elem == T_OBJECT) {
       // If both arrays are object arrays then having the exact types
       // for both will remove the need for a subtype check at runtime
       // before the call and may make it possible to pick a faster copy

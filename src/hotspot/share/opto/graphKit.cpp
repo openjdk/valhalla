@@ -3929,7 +3929,7 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
         // don't share a single slice.
         assert(C->flattened_accesses_share_alias(), "should be set at parse time");
         C->set_flattened_accesses_share_alias(false);
-        ciInlineKlass* vk = arytype->elem()->make_ptr()->inline_klass();
+        ciInlineKlass* vk = arytype->elem()->inline_klass();
         for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
           ciField* field = vk->nonstatic_field_at(i);
           if (field->offset() >= TrackedInitializationLimit * HeapWordSize)
@@ -4242,7 +4242,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   if (ary_ptr != NULL && ary_ptr->klass_is_exact()) {
     // Array type is known
     if (ary_ptr->is_null_free() && !ary_ptr->is_flat()) {
-      ciInlineKlass* vk = ary_ptr->elem()->make_oopptr()->inline_klass();
+      ciInlineKlass* vk = ary_ptr->elem()->inline_klass();
       default_value = InlineTypeNode::default_oop(gvn(), vk);
     }
   } else if (ary_type->can_be_inline_array()) {

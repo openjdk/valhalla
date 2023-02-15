@@ -290,7 +290,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     if ((!ary_dest->is_flat() && bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization)) ||
-        (ary_dest->is_flat() && ary_src->elem()->make_ptr()->inline_klass()->contains_oops() &&
+        (ary_dest->is_flat() && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, false, BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -353,7 +353,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     if ((!ary_src->is_flat() && bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization)) ||
-        (ary_src->is_flat() && ary_src->elem()->make_ptr()->inline_klass()->contains_oops() &&
+        (ary_src->is_flat() && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -418,7 +418,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
   if (atp_dest->is_flat()) {
-    ciInlineKlass* vk = atp_src->elem()->make_ptr()->inline_klass();
+    ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
       int off_in_vt = field->offset() - vk->first_field_offset();

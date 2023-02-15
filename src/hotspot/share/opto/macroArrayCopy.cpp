@@ -1284,7 +1284,7 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
                                                        Node*& dest_length) {
 #ifdef ASSERT
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bool needs_barriers = top_dest->elem()->make_ptr()->inline_klass()->contains_oops() &&
+  bool needs_barriers = top_dest->elem()->inline_klass()->contains_oops() &&
     bs->array_copy_requires_gc_barriers(dest_length != NULL, T_OBJECT, false, false, BarrierSetC2::Optimization);
   assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
 #endif
@@ -1449,7 +1449,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   //
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   if (src_elem != dest_elem || top_src->is_flat() != top_dest->is_flat() || dest_elem == T_VOID ||
-      (top_src->is_flat() && top_dest->elem()->make_ptr()->inline_klass()->contains_oops() &&
+      (top_src->is_flat() && top_dest->elem()->inline_klass()->contains_oops() &&
        bs->array_copy_requires_gc_barriers(alloc != NULL, T_OBJECT, false, false, BarrierSetC2::Optimization))) {
     // The component types are not the same or are not recognized.  Punt.
     // (But, avoid the native method wrapper to JVM_ArrayCopy.)
