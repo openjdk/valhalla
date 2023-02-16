@@ -1931,7 +1931,6 @@ unsigned int addreads_count = 0;
 unsigned int addexports_count = 0;
 unsigned int addopens_count = 0;
 unsigned int addmods_count = 0;
-unsigned int patch_mod_count = 0;
 unsigned int enable_native_access_count = 0;
 
 // Check the consistency of vm_init_args
@@ -2226,11 +2225,8 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail, bool* patch_
       memcpy(module_name, patch_mod_tail, module_len);
       *(module_name + module_len) = '\0';
       // The path piece begins one past the module_equal sign
-      add_patch_mod_prefix(module_name, module_equal + 1, patch_mod_javabase);
+      add_patch_mod_prefix(module_name, module_equal + 1, false);
       FREE_C_HEAP_ARRAY(char, module_name);
-      if (!create_numbered_module_property("jdk.module.patch", patch_mod_tail, patch_mod_count++)) {
-        return JNI_ENOMEM;
-      }
     } else {
       return JNI_ENOMEM;
     }
@@ -2946,25 +2942,32 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
   return JNI_OK;
 }
 
-void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool* patch_mod_javabase) {
-  // For java.base check for duplicate --patch-module options being specified on the command line.
-  // This check is only required for java.base, all other duplicate module specifications
-  // will be checked during module system initialization.  The module system initialization
-  // will throw an ExceptionInInitializerError if this situation occurs.
-  if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
-    if (*patch_mod_javabase) {
-      vm_exit_during_initialization("Cannot specify " JAVA_BASE_NAME " more than once to --patch-module");
-    } else {
-      *patch_mod_javabase = true;
-    }
-  }
+bool match_module(void *module_name, ModulePatchPath *patch) {
+  return (strcmp((char *)module_name, patch->module_name()) == 0);
+}
 
+void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append) {
   // Create GrowableArray lazily, only if --patch-module has been specified
   if (_patch_mod_prefix == NULL) {
     _patch_mod_prefix = new (mtArguments) GrowableArray<ModulePatchPath*>(10, mtArguments);
   }
 
-  _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
+  // Scan patches for matching module
+  int i = _patch_mod_prefix->find((void*)module_name, match_module);
+  if (i == -1) {
+    _patch_mod_prefix->push(new ModulePatchPath(module_name, path));
+  } else {
+    if (allow_append) {
+      // append path to existing module entry
+      _patch_mod_prefix->at(i)->path()->append_value(path);
+    } else {
+      if (strcmp(module_name, JAVA_BASE_NAME) == 0) {
+        vm_exit_during_initialization("Cannot specify " JAVA_BASE_NAME " more than once to --patch-module");
+      } else {
+        vm_exit_during_initialization("Cannot specify a module more than once to --patch-module", module_name);
+      }
+    }
+  }
 }
 
 // Remove all empty paths from the app classpath (if IgnoreEmptyClassPaths is enabled)
@@ -3093,8 +3096,7 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
   // If --enable-preview is true, each module may have value classes that
   // are to be patched into the module.
   // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
-  // add the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  // Special handling is required for java.base, the VM classpath/module path has to be modified
+  // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
   if (enable_preview()) {
     char valueclasses_dir[JVM_MAXPATHLEN];
     const char* fileSep = os::file_separator();
@@ -3115,23 +3117,28 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
 
         strncpy(module, entry->d_name, len);
         module[len] = '\0';
-        if (strcmp(module, "java.base") && patch_mod_javabase) {
-          jio_fprintf(defaultStream::output_stream(),
-              "Warning: java.base already patched, "
-              "--enable-preview can't add module patch\n");
-          continue;       // TBD: ? Error or continue patching other modules?
-        }
 
-        jio_snprintf(patch, JVM_MAXPATHLEN, "%s=%s%s",
-            module, valueclasses_dir, &entry->d_name);
-        res = process_patch_mod_option(patch, &patch_mod_javabase);
-        if (res != JNI_OK) {
-          os::closedir(dir);
-          return res;
-        }
-        log_info(class)("--enable-preview overriding value classes for module %s: %s", module, entry->d_name);
+        jio_snprintf(patch, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
+        add_patch_mod_prefix(module, patch, true);
+
+        log_info(class)("--enable-preview appending value classes for module %s: %s", module, entry->d_name);
       }
       os::closedir(dir);
+    }
+  }
+
+  // Create numbered properties for each module that has been patched either
+  // by --patch-module or --enable-preview
+  // Format is "jdk.module.patch.<n>=<module_name>=<path>"
+  if (_patch_mod_prefix != NULL) {
+    char prop_value[JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1];
+    unsigned int patch_mod_count = 0;
+
+    for (GrowableArrayIterator<ModulePatchPath *> it = _patch_mod_prefix->begin(); it != _patch_mod_prefix->end(); ++it) {
+      jio_snprintf(prop_value, JVM_MAXPATHLEN, "%s=%s", (*it)->module_name(), (*it)->path_string());
+      if (!create_numbered_module_property("jdk.module.patch", prop_value, patch_mod_count++)) {
+        return JNI_ENOMEM;
+      }
     }
   }
 
