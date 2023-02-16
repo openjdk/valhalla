@@ -2453,7 +2453,6 @@ bool TypeAry::ary_must_be_exact() const {
   if (tinst) {
     if (tinst->instance_klass()->is_final()) {
       // Even if MyValue is exact, [LMyValue is not exact due to [QMyValue <: [LMyValue.
-      // TODO double check this
       if (tinst->is_inlinetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
         return false;
       }
@@ -3740,7 +3739,6 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
     return arr;
   } else if (klass->is_flat_array_klass()) {
-    // TODO check this
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass(), trust_interfaces);
     etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, /* stable= */ false, /* flat= */ true);
@@ -5056,7 +5054,6 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
 
     ciKlass* res_klass = NULL;
     bool res_xk = false;
-    // TODO Should be use tary->_flat instead?
     bool res_flat = false;
     bool res_not_flat = false;
     bool res_not_null_free = false;
