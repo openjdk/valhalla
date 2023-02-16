@@ -848,8 +848,6 @@ bool Type::is_nan()    const {
 }
 
 void Type::check_symmetrical(const Type* t, const Type* mt) const {
-  // TODO fixme
-  return;
 #ifdef ASSERT
   const Type* mt2 = t->xmeet(this);
   if (mt != mt2) {
@@ -2374,7 +2372,8 @@ bool TypeAry::eq( const Type *t ) const {
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
 int TypeAry::hash(void) const {
-  return (intptr_t)_elem + (intptr_t)_size + (_stable ? 43 : 0);
+  return (intptr_t)_elem + (intptr_t)_size + (_stable ? 43 : 0) +
+      (_flat ? 44 : 0) + (_not_flat ? 45 : 0) + (_not_null_free ? 46 : 0);
 }
 
 /**
@@ -4740,6 +4739,9 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, const TypeAry *ary, ciKlass* k, bool
       k->as_obj_array_klass()->base_element_klass()->is_interface()) {
     k = NULL;
   }
+  if (k != NULL && k->is_flat_array_klass() && !ary->_flat) {
+    k = NULL;
+  }
   return (TypeAryPtr*)(new TypeAryPtr(ptr, NULL, ary, k, xk, offset, field_offset, instance_id, false, speculative, inline_depth))->hashcons();
 }
 
@@ -4756,6 +4758,9 @@ const TypeAryPtr* TypeAryPtr::make(PTR ptr, ciObject* o, const TypeAry *ary, ciK
       k->as_obj_array_klass()->base_element_klass()->is_interface()) {
     k = NULL;
   }
+  if (k != NULL && k->is_flat_array_klass() && !ary->_flat) {
+    k = NULL;
+  }
   return (TypeAryPtr*)(new TypeAryPtr(ptr, o, ary, k, xk, offset, field_offset, instance_id, is_autobox_cache, speculative, inline_depth))->hashcons();
 }
 
@@ -4770,14 +4775,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_ptr_type(PTR ptr) const {
 const TypeAryPtr* TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
   if (_ary->ary_must_be_exact())  return this;  // cannot clear xk
-
-  const TypeAry* new_ary = _ary;
-  if (klass() != NULL && klass()->is_obj_array_klass() && klass_is_exact) {
-    // An object array can't be flat or null-free if the klass is exact
-    // TODO this is unreachable because klass is null for object arrays
-    new_ary = TypeAry::make(elem(), size(), is_stable(), /* flat= */ false, /* not_flat= */ true, /* not_null_free= */ true);
-  }
-  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact, _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+  return make(ptr(), const_oop(), _ary, klass(), klass_is_exact, _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
 //-----------------------------cast_to_instance_id----------------------------
@@ -5416,10 +5414,8 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
     }
     if (offset >= (intptr_t)header || offset < 0) {
       // Try to get the field of the inline type array element we are pointing to
-      ciKlass* arytype_klass = klass();
-      ciFlatArrayKlass* vak = arytype_klass->as_flat_array_klass();
-      ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
-      int shift = vak->log2_element_size();
+      ciInlineKlass* vk = elem()->inline_klass();
+      int shift = flat_log_elem_size();
       int mask = (1 << shift) - 1;
       intptr_t field_offset = ((offset - header) & mask);
       ciField* field = vk->get_field_by_offset(field_offset + vk->first_field_offset(), false);
@@ -6368,7 +6364,8 @@ bool TypeAryKlassPtr::eq(const Type *t) const {
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
 int TypeAryKlassPtr::hash(void) const {
-  return (intptr_t)_elem + TypeKlassPtr::hash();
+  return (intptr_t)_elem + TypeKlassPtr::hash() + (_not_flat ? 43 : 0) +
+      (_not_null_free ? 44 : 0) + (_null_free ? 45 : 0);
 }
 
 //----------------------compute_klass------------------------------------------
@@ -6385,7 +6382,7 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
 
   // Get element klass
   if (is_flat() && el->is_inlinetypeptr()) {
-    // TODO can we remove this?
+    // Klass is required by TypeAryPtr::flat_layout_helper() and others
     if (el->inline_klass() != NULL) {
       k_ary = ciArrayKlass::make(el->inline_klass(), /* null_free */ true);
     }
@@ -6523,12 +6520,11 @@ const TypeKlassPtr *TypeAryKlassPtr::cast_to_exactness(bool klass_is_exact) cons
   bool not_null_free = is_not_null_free();
   if (_elem->isa_klassptr()) {
     if (klass_is_exact || _elem->isa_aryklassptr()) {
-      // TODO check this
-      // An object array can't be flat or null-free if the klass is exact
-      not_flat = true;
+      assert(!is_null_free() && !is_flat(), "null-free (or flat) inline type arrays should always be exact");
+      // An array can't be null-free (or flat) if the klass is exact
       not_null_free = true;
+      not_flat = true;
     } else {
-      assert(_elem->isa_instklassptr(), "");
       // Klass is not exact (anymore), re-compute null-free/flat properties
       const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_unique(_elem->is_instklassptr()->instance_klass());
       not_null_free = !exact_etype->can_be_inline_type();
@@ -6642,7 +6638,6 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
     MeetResult res = meet_aryptr(ptr, elem, this, tap,
                                  res_klass, res_xk, res_flat, res_not_flat, res_not_null_free);
     assert(res_xk == (ptr == Constant), "");
-    // TODO check
     bool null_free = meet_null_free(tap->_null_free);
     if (res == NOT_SUBTYPE) {
       null_free = false;

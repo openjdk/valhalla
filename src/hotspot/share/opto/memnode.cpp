@@ -2831,7 +2831,6 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
     // a newly allocated object is already all-zeroes everywhere
     if (mem->is_Proj() && mem->in(0)->is_Allocate() &&
         (phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == val)) {
-      assert(!phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == NULL, "storing null to inline type array is forbidden");
       result = mem;
     }
 
