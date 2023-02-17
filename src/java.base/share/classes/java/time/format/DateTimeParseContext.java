@@ -118,7 +118,6 @@ final class DateTimeParseContext {
      * @param formatter  the formatter controlling the parse, not null
      */
     DateTimeParseContext(DateTimeFormatter formatter) {
-        super();
         this.formatter = formatter;
         parsed.add(new Parsed());
     }

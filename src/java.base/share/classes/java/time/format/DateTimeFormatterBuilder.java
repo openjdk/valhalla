@@ -280,7 +280,6 @@ public final class DateTimeFormatterBuilder {
      * Constructs a new instance of the builder.
      */
     public DateTimeFormatterBuilder() {
-        super();
         parent = null;
         optional = false;
     }
@@ -292,7 +291,6 @@ public final class DateTimeFormatterBuilder {
      * @param optional  whether the formatter is optional, not null
      */
     private DateTimeFormatterBuilder(DateTimeFormatterBuilder parent, boolean optional) {
-        super();
         this.parent = parent;
         this.optional = optional;
     }

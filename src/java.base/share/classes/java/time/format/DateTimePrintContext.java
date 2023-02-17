@@ -115,7 +115,6 @@ final class DateTimePrintContext {
      * @param formatter  the formatter controlling the format, not null
      */
     DateTimePrintContext(TemporalAccessor temporal, DateTimeFormatter formatter) {
-        super();
         this.temporal = adjust(temporal, formatter);
         this.formatter = formatter;
     }

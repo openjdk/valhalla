@@ -526,7 +526,6 @@ public final class Duration
      * @param nanos  the nanoseconds within the second, from 0 to 999,999,999
      */
     private Duration(long seconds, int nanos) {
-        super();
         this.seconds = seconds;
         this.nanos = nanos;
     }
