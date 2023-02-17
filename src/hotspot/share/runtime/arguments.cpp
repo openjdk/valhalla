@@ -2234,6 +2234,59 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail, bool* patch_
   return JNI_OK;
 }
 
+// Finalize --patch-module args and --enable-preview related to value class module patches.
+// Create all numbered properties passing module patches.
+int Arguments::finalize_patch_module() {
+  // If --enable-preview is true, each module may have value classes that
+  // are to be patched into the module.
+  // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
+  // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
+  if (enable_preview()) {
+    char *valueclasses_dir = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN);
+    const char* fileSep = os::file_separator();
+
+    jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%svalueclasses%s",
+        Arguments::get_java_home(), fileSep, fileSep, fileSep);
+    DIR* dir = os::opendir(valueclasses_dir);
+    if (dir != NULL) {
+      char * module = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN);
+      char * path = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN);;
+
+      for (dirent* entry = os::readdir(dir); entry != NULL; entry = os::readdir(dir)) {
+        char *p = strstr(entry->d_name, "-valueclasses.jar");
+        int len = 0;
+        if (p == NULL || (len = p - entry->d_name) <= 0)
+          continue;
+
+        strncpy(module, entry->d_name, len);
+        module[len] = '\0';
+
+        jio_snprintf(path, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
+        add_patch_mod_prefix(module, path, true);
+        log_info(class)("--enable-preview appending value classes for module %s: %s", module, entry->d_name);
+      }
+      os::closedir(dir);
+    }
+  }
+
+  // Create numbered properties for each module that has been patched either
+  // by --patch-module or --enable-preview
+  // Format is "jdk.module.patch.<n>=<module_name>=<path>"
+  if (_patch_mod_prefix != NULL) {
+    char* prop_value = NEW_RESOURCE_ARRAY(char, JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1);
+    unsigned int patch_mod_count = 0;
+
+    for (GrowableArrayIterator<ModulePatchPath *> it = _patch_mod_prefix->begin(); it != _patch_mod_prefix->end(); ++it) {
+      jio_snprintf(prop_value, JVM_MAXPATHLEN + JVM_MAXPATHLEN, "%s=%s",
+                   (*it)->module_name(), (*it)->path_string());
+      if (!create_numbered_module_property("jdk.module.patch", prop_value, patch_mod_count++)) {
+        return JNI_ENOMEM;
+      }
+    }
+  }
+  return JNI_OK;
+}
+
 // Parse -Xss memory string parameter and convert to ThreadStackSize in K.
 jint Arguments::parse_xss(const JavaVMOption* option, const char* tail, intx* out_ThreadStackSize) {
   // The min and max sizes match the values in globals.hpp, but scaled
@@ -3093,53 +3146,9 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     return JNI_ERR;
   }
 
-  // If --enable-preview is true, each module may have value classes that
-  // are to be patched into the module.
-  // For each <module>-valueclasses.jar in <JAVA_HOME>/lib/valueclasses/
-  // appends the equivalent of --patch-module <module>=<JAVA_HOME>/lib/valueclasses/<module>-valueclasses.jar
-  if (enable_preview()) {
-    char valueclasses_dir[JVM_MAXPATHLEN];
-    const char* fileSep = os::file_separator();
-
-    jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%svalueclasses%s",
-        Arguments::get_java_home(), fileSep, fileSep, fileSep);
-    DIR* dir = os::opendir(valueclasses_dir);
-    if (dir != NULL) {
-      int res = JNI_OK;
-      char module[JVM_MAXPATHLEN];
-      char patch[JVM_MAXPATHLEN];
-
-      for (dirent* entry = os::readdir(dir); entry != NULL; entry = os::readdir(dir)) {
-        char *p = strstr(entry->d_name, "-valueclasses.jar");
-        int len = 0;
-        if (p == NULL || (len = p - entry->d_name) <= 0)
-          continue;
-
-        strncpy(module, entry->d_name, len);
-        module[len] = '\0';
-
-        jio_snprintf(patch, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
-        add_patch_mod_prefix(module, patch, true);
-
-        log_info(class)("--enable-preview appending value classes for module %s: %s", module, entry->d_name);
-      }
-      os::closedir(dir);
-    }
-  }
-
-  // Create numbered properties for each module that has been patched either
-  // by --patch-module or --enable-preview
-  // Format is "jdk.module.patch.<n>=<module_name>=<path>"
-  if (_patch_mod_prefix != NULL) {
-    char prop_value[JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1];
-    unsigned int patch_mod_count = 0;
-
-    for (GrowableArrayIterator<ModulePatchPath *> it = _patch_mod_prefix->begin(); it != _patch_mod_prefix->end(); ++it) {
-      jio_snprintf(prop_value, JVM_MAXPATHLEN, "%s=%s", (*it)->module_name(), (*it)->path_string());
-      if (!create_numbered_module_property("jdk.module.patch", prop_value, patch_mod_count++)) {
-        return JNI_ENOMEM;
-      }
-    }
+  // finalize --module-patch and related --enable-preview
+  if (!finalize_patch_module()) {
+    return JNI_ERR;
   }
 
 #if INCLUDE_CDS
