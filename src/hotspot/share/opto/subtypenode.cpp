@@ -46,6 +46,7 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     }
   }
 
+  // FIXME: shouldn't this be encoded in helper methods of the type system (maybe_java_subtype_of() etc.?)
   // Similar to logic in CmpPNode::sub()
   bool unrelated_classes = false;
   // Handle inline type arrays
@@ -67,7 +68,7 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   }
 
   if (subk != NULL) {
-    switch (Compile::current()->static_subtype_check(superk, subk)) {
+    switch (Compile::current()->static_subtype_check(superk, subk, false)) {
       case Compile::SSC_always_false:
         return TypeInt::CC_GT;
       case Compile::SSC_always_true:
