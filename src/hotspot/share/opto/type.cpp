@@ -6873,11 +6873,11 @@ void TypeAryKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
   default:
     break;
   }
+  if (is_flat()) st->print(":flat");
+  if (_null_free) st->print(":null free");
   if (Verbose) {
-    if (is_flat()) st->print(":flat");
     if (_not_flat) st->print(":not flat");
     if (_not_null_free) st->print(":not null free");
-    if (_null_free) st->print(":null free");
   }
 
   _offset.dump2(st);
