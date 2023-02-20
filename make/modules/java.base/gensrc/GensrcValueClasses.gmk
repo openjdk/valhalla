@@ -51,8 +51,7 @@ $(eval $(call SetupTextFileProcessing, JAVA_BASE_VALUECLASS_REPLACEMENTS, \
     SOURCE_BASE_DIR := $(TOPDIR)/src/java.base/share/classes, \
     OUTPUT_DIR := $(SUPPORT_OUTPUTDIR)/gensrc-valueclasses/java.base/, \
     REPLACEMENTS := \
-        public final class => public final value class ; \
-        super() => // super() , \
+        public final class => public final value class, \
 ))
 
 TARGETS += $(JAVA_BASE_VALUECLASS_REPLACEMENTS)

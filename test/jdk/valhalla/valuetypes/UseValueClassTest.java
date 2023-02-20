@@ -28,6 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.ParameterizedTest;
 
 import jdk.internal.misc.PreviewFeatures;
+import jdk.internal.misc.ValhallaFeatures;
 
 import java.util.Arrays;
 import java.util.List;
@@ -54,8 +55,8 @@ import java.time.ZonedDateTime;
  * @test
  * @modules java.base/jdk.internal.misc
  * @summary Test that classes are value classes or not depending on --enable-preview
- * @run junit/othervm --enable-preview UseValueClassTest
- * @run junit/othervm UseValueClassTest
+ * @run junit/othervm -Xlog --enable-preview UseValueClassTest
+ * @run junit/othervm -Xlog UseValueClassTest
  */
 
 public class UseValueClassTest {
@@ -84,12 +85,15 @@ public class UseValueClassTest {
     }
 
     /**
-     * Verify that the class is a value class if --enable-preview it true
+     * Verify that the class is a value class if --enable-preview and -XX:+EnableValhallait true
      * @param clazz a class
      */
     @ParameterizedTest
     @MethodSource("classProvider")
     public void testValue(Class<?> clazz) {
-        assertEquals(PreviewFeatures.isEnabled(), clazz.isValue(), clazz.getName());
+        System.out.printf("isPreview: %s, Valhalla.isEnabled: %s%n",
+                PreviewFeatures.isEnabled(), ValhallaFeatures.isEnabled());
+        assertEquals(PreviewFeatures.isEnabled() && ValhallaFeatures.isEnabled(),
+                clazz.isValue(), clazz.getName());
     }
 }

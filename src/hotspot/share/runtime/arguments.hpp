@@ -88,7 +88,7 @@ public:
 
   inline const char* module_name() const { return _module_name; }
   inline char* path_string() const { return _path->value(); }
-  inline PathString* const path() {  return _path; }
+  inline void append_path(const char* path) { _path->append_value(path); }
 };
 
 // Element describing System and User (-Dkey=value flags) defined property.
