@@ -201,7 +201,6 @@ void Parse::array_store(BasicType bt) {
 
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-  assert(adr->as_AddP()->in(AddPNode::Base) == ary, "inconsistent address base");
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;

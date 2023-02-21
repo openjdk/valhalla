@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2491,10 +2491,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     bool is_init = true;
     Node_List casts;
 
-    // TODO 8284443 We need to prevent endless pushing through
-    // TODO 8284443 We could revisit the same node over and over again, right?
-    // TestLWorld -XX:+UseZGC -DScenarios=0 -DTest=test69
-    // TestLWorld -XX:-TieredCompilation -XX:-DoEscapeAnalysis -XX:+AlwaysIncrementalInline
+    // TODO 8302217 We need to prevent endless pushing through
     bool only_phi = (outcnt() != 0);
     for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
       Node* n = fast_out(i);
@@ -2550,7 +2547,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       }
     }
     if (can_optimize && vk != NULL) {
-// TODO 8275400
+// TODO 8302217
 //      assert(!_type->isa_ptr() || _type->maybe_null() || is_init, "Phi not null but a possible null was seen");
       return push_inline_types_through(phase, can_reshape, vk, is_init);
     }
