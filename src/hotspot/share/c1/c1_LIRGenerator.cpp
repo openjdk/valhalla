@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2186,6 +2186,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       __ branch_destination(L_end->label());
       set_in_conditional_code(false);
     } else {
+      info = state_for(x, x->state_before());
       __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
       __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
                                                          Deoptimization::Action_make_not_entrant));
