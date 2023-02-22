@@ -2100,8 +2100,6 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs *vm_options_args,
                                    const JavaVMInitArgs *java_tool_options_args,
                                    const JavaVMInitArgs *java_options_args,
                                    const JavaVMInitArgs *cmd_line_args) {
-  bool patch_mod_javabase = false;
-
   // Save default settings for some mode flags
   Arguments::_AlwaysCompileLoopMethods = AlwaysCompileLoopMethods;
   Arguments::_UseOnStackReplacement    = UseOnStackReplacement;
@@ -2115,27 +2113,27 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs *vm_options_args,
   set_mode_flags(_mixed);
 
   // Parse args structure generated from java.base vm options resource
-  jint result = parse_each_vm_init_arg(vm_options_args, &patch_mod_javabase, JVMFlagOrigin::JIMAGE_RESOURCE);
+  jint result = parse_each_vm_init_arg(vm_options_args, JVMFlagOrigin::JIMAGE_RESOURCE);
   if (result != JNI_OK) {
     return result;
   }
 
   // Parse args structure generated from JAVA_TOOL_OPTIONS environment
   // variable (if present).
-  result = parse_each_vm_init_arg(java_tool_options_args, &patch_mod_javabase, JVMFlagOrigin::ENVIRON_VAR);
+  result = parse_each_vm_init_arg(java_tool_options_args, JVMFlagOrigin::ENVIRON_VAR);
   if (result != JNI_OK) {
     return result;
   }
 
   // Parse args structure generated from the command line flags.
-  result = parse_each_vm_init_arg(cmd_line_args, &patch_mod_javabase, JVMFlagOrigin::COMMAND_LINE);
+  result = parse_each_vm_init_arg(cmd_line_args, JVMFlagOrigin::COMMAND_LINE);
   if (result != JNI_OK) {
     return result;
   }
 
   // Parse args structure generated from the _JAVA_OPTIONS environment
   // variable (if present) (mimics classic VM)
-  result = parse_each_vm_init_arg(java_options_args, &patch_mod_javabase, JVMFlagOrigin::ENVIRON_VAR);
+  result = parse_each_vm_init_arg(java_options_args, JVMFlagOrigin::ENVIRON_VAR);
   if (result != JNI_OK) {
     return result;
   }
@@ -2149,7 +2147,7 @@ jint Arguments::parse_vm_init_args(const JavaVMInitArgs *vm_options_args,
   os::init_container_support();
 
   // Do final processing now that all arguments have been parsed
-  result = finalize_vm_init_args(patch_mod_javabase);
+  result = finalize_vm_init_args();
   if (result != JNI_OK) {
     return result;
   }
@@ -2202,7 +2200,7 @@ bool valid_jdwp_agent(char *name, bool is_path) {
   return false;
 }
 
-int Arguments::process_patch_mod_option(const char* patch_mod_tail, bool* patch_mod_javabase) {
+int Arguments::process_patch_mod_option(const char* patch_mod_tail) {
   // --patch-module=<module>=<file>(<pathsep><file>)*
   assert(patch_mod_tail != NULL, "Unexpected NULL patch-module value");
   // Find the equal sign between the module name and the path specification
@@ -2218,7 +2216,7 @@ int Arguments::process_patch_mod_option(const char* patch_mod_tail, bool* patch_
       memcpy(module_name, patch_mod_tail, module_len);
       *(module_name + module_len) = '\0';
       // The path piece begins one past the module_equal sign
-      add_patch_mod_prefix(module_name, module_equal + 1, false);
+      add_patch_mod_prefix(module_name, module_equal + 1, false /* no append */);
       FREE_C_HEAP_ARRAY(char, module_name);
     } else {
       return JNI_ENOMEM;
@@ -2243,13 +2241,13 @@ int Arguments::finalize_patch_module() {
     const char * fileSep = os::file_separator();
 
     jio_snprintf(valueclasses_dir, JVM_MAXPATHLEN, "%s%slib%s" VALUECLASS_STR "%s",
-        Arguments::get_java_home(), fileSep, fileSep, fileSep);
+                 Arguments::get_java_home(), fileSep, fileSep, fileSep);
     DIR* dir = os::opendir(valueclasses_dir);
-    if (dir != NULL) {
+    if (dir != nullptr) {
       char * module_name = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
       char * path = AllocateHeap(JVM_MAXPATHLEN, mtArguments);
 
-      for (dirent * entry = os::readdir(dir); entry != NULL; entry = os::readdir(dir)) {
+      for (dirent * entry = os::readdir(dir); entry != nullptr; entry = os::readdir(dir)) {
         // Test if file ends-with "-valueclasses.jar"
         int len = (int)strlen(entry->d_name) - (sizeof(VALUECLASS_JAR) - 1);
         if (len <= 0 || strcmp(&entry->d_name[len], VALUECLASS_JAR) != 0) {
@@ -2260,7 +2258,7 @@ int Arguments::finalize_patch_module() {
         module_name[len] = '\0';     // truncate to just module-name
 
         jio_snprintf(path, JVM_MAXPATHLEN, "%s%s", valueclasses_dir, &entry->d_name);
-        add_patch_mod_prefix(module_name, path, true);
+        add_patch_mod_prefix(module_name, path, true /* append */);
         log_info(class)("--enable-preview appending value classes for module %s: %s", module_name, entry->d_name);
       }
       FreeHeap(module_name);
@@ -2273,7 +2271,7 @@ int Arguments::finalize_patch_module() {
   // Create numbered properties for each module that has been patched either
   // by --patch-module or --enable-preview
   // Format is "jdk.module.patch.<n>=<module_name>=<path>"
-  if (_patch_mod_prefix != NULL) {
+  if (_patch_mod_prefix != nullptr) {
     char * prop_value = AllocateHeap(JVM_MAXPATHLEN + JVM_MAXPATHLEN + 1, mtArguments);
     unsigned int patch_mod_count = 0;
 
@@ -2345,7 +2343,7 @@ jint Arguments::parse_xss(const JavaVMOption* option, const char* tail, intx* ou
   return JNI_OK;
 }
 
-jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_mod_javabase, JVMFlagOrigin origin) {
+jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin origin) {
   // For match_option to return remaining or value part of option string
   const char* tail;
 
@@ -2470,7 +2468,7 @@ jint Arguments::parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_m
       }
     } else if (match_option(option, "--patch-module=", &tail)) {
       // --patch-module=<module>=<file>(<pathsep><file>)*
-      int res = process_patch_mod_option(tail, patch_mod_javabase);
+      int res = process_patch_mod_option(tail);
       if (res != JNI_OK) {
         return res;
       }
@@ -3005,7 +3003,7 @@ bool match_module(void *module_name, ModulePatchPath *patch) {
 
 void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append) {
   // Create GrowableArray lazily, only if --patch-module has been specified
-  if (_patch_mod_prefix == NULL) {
+  if (_patch_mod_prefix == nullptr) {
     _patch_mod_prefix = new (mtArguments) GrowableArray<ModulePatchPath*>(10, mtArguments);
   }
 
@@ -3067,7 +3065,7 @@ void Arguments::fix_appclasspath() {
   }
 }
 
-jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
+jint Arguments::finalize_vm_init_args() {
   // check if the default lib/endorsed directory exists; if so, error
   char path[JVM_MAXPATHLEN];
   const char* fileSep = os::file_separator();
@@ -3191,8 +3189,8 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     }
   }
 
-  if (UseSharedSpaces && patch_mod_javabase) {
-    no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
+  if (UseSharedSpaces && _patch_mod_prefix != nullptr) {
+    no_shared_spaces("CDS is disabled when any module is patched.");
   }
   if (UseSharedSpaces && !DumpSharedSpaces && check_unsupported_cds_runtime_properties()) {
     UseSharedSpaces = false;

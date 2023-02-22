@@ -396,7 +396,7 @@ class Arguments : AllStatic {
   static bool create_module_property(const char* prop_name, const char* prop_value, PropertyInternal internal);
   static bool create_numbered_module_property(const char* prop_base_name, const char* prop_value, unsigned int count);
 
-  static int process_patch_mod_option(const char* patch_mod_tail, bool* patch_mod_javabase);
+  static int process_patch_mod_option(const char* patch_mod_tail);
 
   // Aggressive optimization flags.
   static jint set_aggressive_opts_flags();
@@ -432,8 +432,8 @@ class Arguments : AllStatic {
                                  const JavaVMInitArgs *java_tool_options_args,
                                  const JavaVMInitArgs *java_options_args,
                                  const JavaVMInitArgs *cmd_line_args);
-  static jint parse_each_vm_init_arg(const JavaVMInitArgs* args, bool* patch_mod_javabase, JVMFlagOrigin origin);
-  static jint finalize_vm_init_args(bool patch_mod_javabase);
+  static jint parse_each_vm_init_arg(const JavaVMInitArgs* args, JVMFlagOrigin origin);
+  static jint finalize_vm_init_args();
   static bool is_bad_option(const JavaVMOption* option, jboolean ignore, const char* option_type);
 
   static bool is_bad_option(const JavaVMOption* option, jboolean ignore) {
