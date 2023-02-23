@@ -3001,6 +3001,10 @@ bool match_module(void *module_name, ModulePatchPath *patch) {
   return (strcmp((char *)module_name, patch->module_name()) == 0);
 }
 
+bool Arguments::patch_mod_javabase() {
+    return _patch_mod_prefix != nullptr && _patch_mod_prefix->find((void*)JAVA_BASE_NAME, match_module) >= 0;
+}
+
 void Arguments::add_patch_mod_prefix(const char* module_name, const char* path, bool allow_append) {
   // Create GrowableArray lazily, only if --patch-module has been specified
   if (_patch_mod_prefix == nullptr) {
@@ -3189,8 +3193,8 @@ jint Arguments::finalize_vm_init_args() {
     }
   }
 
-  if (UseSharedSpaces && _patch_mod_prefix != nullptr) {
-    no_shared_spaces("CDS is disabled when any module is patched.");
+  if (UseSharedSpaces && patch_mod_javabase()) {
+    no_shared_spaces("CDS is disabled when " JAVA_BASE_NAME " module is patched.");
   }
   if (UseSharedSpaces && !DumpSharedSpaces && check_unsupported_cds_runtime_properties()) {
     UseSharedSpaces = false;
