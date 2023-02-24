@@ -124,11 +124,11 @@ TARGETS += $($(MODULE))
 VALUECLASSES_STR := valueclasses
 
 ifneq ($(COMPILER), bootjdk)
-    MODULE_VALUECLASS_SRC_DIRS := $(call FindModuleValueClassSrcDirs, $(MODULE))
-    MODULE_VALUECLASS_SOURCEPATH := $(call GetModuleValueClassSrcPath)
+  MODULE_VALUECLASS_SRC_DIRS := $(call FindModuleValueClassSrcDirs, $(MODULE))
+  MODULE_VALUECLASS_SOURCEPATH := $(call GetModuleValueClassSrcPath)
 
-    ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
-      $(eval $(call SetupJavaCompilation, $(MODULE)-$(VALUECLASSES_STR), \
+  ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
+    $(eval $(call SetupJavaCompilation, $(MODULE)-$(VALUECLASSES_STR), \
         SMALL_JAVA := false, \
         MODULE := $(MODULE), \
         SRC := $(wildcard $(MODULE_VALUECLASS_SRC_DIRS)), \
@@ -147,17 +147,17 @@ ifneq ($(COMPILER), bootjdk)
             --module-source-path $(MODULE_VALUECLASS_SOURCEPATH) \
             --module-path $(JDK_OUTPUTDIR)/modules \
             --system none, \
-      ))
+    ))
 
-      TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
+    TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
 
-      $(eval $(call SetupCopyFiles, $(MODULE)-copy-valueclass-jar, \
-          FILES := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
-          DEST := $(SUPPORT_OUTPUTDIR)/modules_libs/$(MODULE)/$(VALUECLASSES_STR), \
-      ))
+    $(eval $(call SetupCopyFiles, $(MODULE)-copy-valueclass-jar, \
+        FILES := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
+        DEST := $(SUPPORT_OUTPUTDIR)/modules_libs/$(MODULE)/$(VALUECLASSES_STR), \
+    ))
 
-      TARGETS += $($(MODULE)-copy-valueclass-jar)
-    endif
+    TARGETS += $($(MODULE)-copy-valueclass-jar)
+  endif
 endif
 
 # Declare dependencies between java compilations of different modules.
