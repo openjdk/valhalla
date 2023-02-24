@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2021, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -191,14 +191,13 @@ public enum AccessFlag {
      * {@code 0x0020} access flag bit is {@linkplain #SUPER SUPER access flag}; otherwise,
      * the {@code 0x0020} access flag bit is {@linkplain #IDENTITY IDENTITY access flag}.
      */
-    SUPER(0x0000_0020, false, Location.SET_CLASS_SUPER_VALHALLA,
+    SUPER(0x0000_0020, false,
+            ValhallaFeatures.isEnabled() ? Location.EMPTY_SET : Location.SET_CLASS,
             new Function<ClassFileFormatVersion, Set<Location>>() {
             @Override
             public Set<Location> apply(ClassFileFormatVersion cffv) {
                 return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
-                        ValhallaFeatures.isEnabled()) ?
-                        Location.SET_CLASS_SUPER_VALHALLA :
-                        Location.SET_CLASS;}
+                        ValhallaFeatures.isEnabled()) ? Location.EMPTY_SET : Location.SET_CLASS;}
         }),
 
     /**
@@ -667,8 +666,6 @@ public enum AccessFlag {
         private static final Set<Location> SET_CLASS = Set.of(CLASS);
         private static final Set<Location> SET_CLASS_INNER_CLASS =
             Set.of(CLASS, INNER_CLASS);
-        private static final Set<Location> SET_CLASS_SUPER_VALHALLA =
-                ValhallaFeatures.isEnabled() ? EMPTY_SET : SET_CLASS_INNER_CLASS;
         private static final Set<Location> SET_CLASS_IDENTITY_VALHALLA =
                 ValhallaFeatures.isEnabled() ? SET_CLASS_INNER_CLASS : EMPTY_SET;
         private static final Set<Location> SET_MODULE_REQUIRES =
