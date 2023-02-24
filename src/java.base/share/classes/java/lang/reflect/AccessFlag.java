@@ -665,8 +665,6 @@ public enum AccessFlag {
         private static final Set<Location> SET_CLASS = Set.of(CLASS);
         private static final Set<Location> SET_CLASS_INNER_CLASS =
             Set.of(CLASS, INNER_CLASS);
-        private static final Set<Location> SET_CLASS_IDENTITY_VALHALLA =
-                ValhallaFeatures.isEnabled() ? SET_CLASS_INNER_CLASS : EMPTY_SET;
         private static final Set<Location> SET_MODULE_REQUIRES =
             Set.of(MODULE_REQUIRES);
         private static final Set<Location> SET_PUBLIC_1 =
