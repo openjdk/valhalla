@@ -206,14 +206,13 @@ public enum AccessFlag {
      * value of <code>{@value "0x%04x" Modifier#IDENTITY}</code>.
      * @jvms 4.1 -B. Class access and property modifiers
      */
-    IDENTITY(Modifier.IDENTITY, true, Location.SET_CLASS_IDENTITY_VALHALLA,
+    IDENTITY(Modifier.IDENTITY, true,
+            ValhallaFeatures.isEnabled() ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET,
             new Function<ClassFileFormatVersion, Set<Location>>() {
                 @Override
                 public Set<Location> apply(ClassFileFormatVersion cffv) {
                     return (cffv.compareTo(ClassFileFormatVersion.RELEASE_21) >= 0 &&
-                            ValhallaFeatures.isEnabled()) ?
-                            Location.SET_CLASS_IDENTITY_VALHALLA :
-                            Location.EMPTY_SET;}
+                            ValhallaFeatures.isEnabled()) ? Location.SET_CLASS_INNER_CLASS : Location.EMPTY_SET;}
             }),
 
     /**
