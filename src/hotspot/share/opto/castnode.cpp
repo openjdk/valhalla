@@ -414,7 +414,7 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
   const TypePtr *my_type = _type->isa_ptr();
   const Type *result = _type;
   if (in_type != NULL && my_type != NULL) {
-    // TODO 8251442
+    // TODO 8302672
     if (!StressReflectiveCode && my_type->isa_aryptr() && in_type->isa_aryptr()) {
       // Propagate array properties (not flat/null-free)
       // Don't do this when StressReflectiveCode is enabled because it might lead to
