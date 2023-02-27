@@ -221,6 +221,8 @@ public final class ZoneRules implements Serializable {
               List<ZoneOffsetTransition> standardOffsetTransitionList,
               List<ZoneOffsetTransition> transitionList,
               List<ZoneOffsetTransitionRule> lastRules) {
+        super();
+
         // convert standard transitions
 
         this.standardTransitions = new long[standardOffsetTransitionList.size()];
@@ -284,6 +286,8 @@ public final class ZoneRules implements Serializable {
                       long[] savingsInstantTransitions,
                       ZoneOffset[] wallOffsets,
                       ZoneOffsetTransitionRule[] lastRules) {
+        super();
+
         this.standardTransitions = standardTransitions;
         this.standardOffsets = standardOffsets;
         this.savingsInstantTransitions = savingsInstantTransitions;
