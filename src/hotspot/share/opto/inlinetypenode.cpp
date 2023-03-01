@@ -912,26 +912,37 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
 
 InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const {
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* res = make_uninitialized(kit->gvn(), vk);
+  InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
   for (uint i = 1; i < req(); ++i) {
-    res->set_req(i, in(i));
+    vt->set_req(i, in(i));
   }
 
+  Node* alloc_oop = NULL;
   if (allocate) {
     // Re-execute if buffering triggers deoptimization
     PreserveReexecuteState preexecs(kit);
     kit->jvms()->set_should_reexecute(true);
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, true);
+    alloc_oop = kit->new_instance(klass_node, NULL, NULL, true);
     AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
     alloc->_larval = true;
 
     store(kit, alloc_oop, alloc_oop, vk);
-    res->set_oop(alloc_oop);
+    vt->set_oop(alloc_oop);
   }
   // TODO 8239003
-  //res->set_type(TypeInlineType::make(vk, true));
-  res = kit->gvn().transform(res)->as_InlineType();
+  //vt->set_type(TypeInlineType::make(vk, true));
+  InlineTypeNode* res = kit->gvn().transform(vt)->as_InlineType();
+  // Set larval state to the current oop if it is not the allocated
+  // private buffer. This is a temporary fix for the larval state
+  // assertion failure in "Unsafe_FinishPrivateBuffer()".
+  Node* oop = res->get_oop();
+  if (allocate && oop != alloc_oop) {
+    Node* mark_addr = kit->basic_plus_adr(oop, oopDesc::mark_offset_in_bytes());
+    Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+    mark = kit->gvn().transform(new OrXNode(mark, kit->MakeConX(markWord::larval_bit_in_place)));
+    kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
+  }
   assert(!allocate || res->is_allocated(&kit->gvn()), "must be allocated");
   return res;
 }
