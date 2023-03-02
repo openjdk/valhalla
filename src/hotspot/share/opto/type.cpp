@@ -5066,6 +5066,9 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         // Result is non-flattened
         off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
         field_off = Offset::bottom;
+      } else if (flattened_offset() == tap->flattened_offset()) {
+        off = Offset(!is_flat() ? offset() : tap->offset());
+        field_off = !is_flat() ? field_offset() : tap->field_offset();
       }
     }
 
@@ -6639,6 +6642,8 @@ const Type    *TypeAryKlassPtr::xmeet( const Type *t ) const {
         null_free = _null_free;
       } else if (above_centerline(this->ptr()) && !above_centerline(tap->ptr())) {
         null_free = tap->_null_free;
+      } else if (above_centerline(this->ptr()) && above_centerline(tap->ptr())) {
+        null_free = _null_free || tap->_null_free;
       }
     }
     return make(ptr, elem, res_klass, off, res_not_flat, res_not_null_free, null_free);
