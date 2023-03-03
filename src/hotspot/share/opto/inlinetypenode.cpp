@@ -680,7 +680,9 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  if (is_default(phase) && inline_klass()->is_initialized() &&
+  if (!is_larval(phase) &&
+      is_default(phase) &&
+      inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for default inline types
     set_oop(default_oop(*phase, inline_klass()));
@@ -912,37 +914,26 @@ InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi,
 
 InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const {
   ciInlineKlass* vk = inline_klass();
-  InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
+  InlineTypeNode* res = make_uninitialized(kit->gvn(), vk);
   for (uint i = 1; i < req(); ++i) {
-    vt->set_req(i, in(i));
+    res->set_req(i, in(i));
   }
 
-  Node* alloc_oop = NULL;
   if (allocate) {
     // Re-execute if buffering triggers deoptimization
     PreserveReexecuteState preexecs(kit);
     kit->jvms()->set_should_reexecute(true);
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    alloc_oop = kit->new_instance(klass_node, NULL, NULL, true);
+    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, true);
     AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
     alloc->_larval = true;
 
     store(kit, alloc_oop, alloc_oop, vk);
-    vt->set_oop(alloc_oop);
+    res->set_oop(alloc_oop);
   }
   // TODO 8239003
-  //vt->set_type(TypeInlineType::make(vk, true));
-  InlineTypeNode* res = kit->gvn().transform(vt)->as_InlineType();
-  // Set larval state to the current oop if it is not the allocated
-  // private buffer. This is a temporary fix for the larval state
-  // assertion failure in "Unsafe_FinishPrivateBuffer()".
-  Node* oop = res->get_oop();
-  if (allocate && oop != alloc_oop) {
-    Node* mark_addr = kit->basic_plus_adr(oop, oopDesc::mark_offset_in_bytes());
-    Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-    mark = kit->gvn().transform(new OrXNode(mark, kit->MakeConX(markWord::larval_bit_in_place)));
-    kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
-  }
+  //res->set_type(TypeInlineType::make(vk, true));
+  res = kit->gvn().transform(res)->as_InlineType();
   assert(!allocate || res->is_allocated(&kit->gvn()), "must be allocated");
   return res;
 }
@@ -969,6 +960,16 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   //res->set_type(TypeInlineType::make(vk, false));
   res = kit->gvn().transform(res)->as_InlineType();
   return res;
+}
+
+bool InlineTypeNode::is_larval(PhaseGVN* gvn) const {
+  if (!is_allocated(gvn)) {
+    return false;
+  }
+
+  Node* oop = get_oop();
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(oop, gvn);
+  return alloc != NULL && alloc->_larval;
 }
 
 Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) {
