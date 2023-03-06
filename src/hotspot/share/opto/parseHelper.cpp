@@ -263,13 +263,11 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
                                                        immutable_memory(), p2, tak));
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
-  if (!elemtype->isa_inlinetype()) {
-    elemtype = elemtype->make_oopptr();
-  }
+  const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   bool null_free = false;
-  if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
+  if (elemtype->make_ptr()->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
-    null_free = elemtype->isa_inlinetype() || !elemtype->maybe_null();
+    null_free = arytype->is_flat() || !elemtype->make_ptr()->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 

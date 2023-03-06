@@ -55,7 +55,6 @@ class     TypeNarrowOop;
 class     TypeNarrowKlass;
 class   TypeAry;
 class   TypeTuple;
-class   TypeInlineType;
 class   TypeVect;
 class     TypeVectA;
 class     TypeVectS;
@@ -103,7 +102,6 @@ public:
     VectorX,                    // 128bit Vector types
     VectorY,                    // 256bit Vector types
     VectorZ,                    // 512bit Vector types
-    InlineType,                 // Inline type
 
     AnyPtr,                     // Any old raw, klass, inst, or array pointer
     RawPtr,                     // Raw (non-oop) pointers
@@ -335,8 +333,6 @@ public:
   const TypeInstPtr  *is_instptr() const;        // Instance
   const TypeAryPtr   *isa_aryptr() const;        // Returns NULL if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
-  const TypeInlineType* isa_inlinetype() const;  // Returns NULL if not Inline Type
-  const TypeInlineType* is_inlinetype() const;   // Inline Type
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns NULL if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer
@@ -781,8 +777,8 @@ public:
 //------------------------------TypeAry----------------------------------------
 // Class of Array Types
 class TypeAry : public Type {
-  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool not_flat, bool not_null_free) : Type(Array),
-      _elem(elem), _size(size), _stable(stable), _not_flat(not_flat), _not_null_free(not_null_free) {}
+  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool flat, bool not_flat, bool not_null_free) : Type(Array),
+      _elem(elem), _size(size), _stable(stable), _flat(flat), _not_flat(not_flat), _not_null_free(not_null_free) {}
 public:
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
@@ -795,6 +791,7 @@ private:
   const bool _stable;           // Are elements @Stable?
 
   // Inline type array properties
+  const bool _flat;             // Array is flattened
   const bool _not_flat;         // Array is never flattened
   const bool _not_null_free;    // Array is never null-free
 
@@ -802,7 +799,7 @@ private:
 
 public:
   static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false,
-                             bool not_flat = false, bool not_null_free = false);
+                             bool flat = false, bool not_flat = false, bool not_null_free = false);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -915,7 +912,6 @@ public:
 class TypePtr : public Type {
   friend class TypeNarrowPtr;
   friend class Type;
-  friend class TypeInlineType;
 protected:
   class InterfaceSet {
   private:
@@ -1023,7 +1019,7 @@ protected:
                                                             ciKlass*& res_klass, bool& res_xk, bool& res_flatten_array);
 
   template<class T> static MeetResult meet_aryptr(PTR& ptr, const Type*& elem, const T* this_ary, const T* other_ary,
-                                                  ciKlass*& res_klass, bool& res_xk, bool &res_not_flat, bool &res_not_null_free);
+                                                  ciKlass*& res_klass, bool& res_xk, bool &res_flat, bool &res_not_flat, bool &res_not_null_free);
 
   template <class T1, class T2> static bool is_java_subtype_of_helper_for_instance(const T1* this_one, const T2* other, bool this_exact, bool other_exact);
   template <class T1, class T2> static bool is_same_java_type_as_helper_for_instance(const T1* this_one, const T2* other);
@@ -1504,7 +1500,7 @@ public:
   bool      is_stable() const { return _ary->_stable; }
 
   // Inline type array properties
-  bool is_flat()          const { return _ary->_elem->isa_inlinetype() != NULL; }
+  bool is_flat()          const { return _ary->_flat; }
   bool is_not_flat()      const { return _ary->_not_flat; }
   bool is_null_free()     const { return is_flat() || (_ary->_elem->make_ptr() != NULL && _ary->_elem->make_ptr()->is_inlinetypeptr() && (_ary->_elem->make_ptr()->ptr() == NotNull || _ary->_elem->make_ptr()->ptr() == AnyNull)); }
   bool is_not_null_free() const { return _ary->_not_null_free; }
@@ -2068,48 +2064,6 @@ public:
   // Convenience common pre-built types.
 };
 
-// TODO 8293800 Remove
-//------------------------------TypeValue---------------------------------------
-// Class of Inline Type Types
-class TypeInlineType : public Type {
-private:
-  ciInlineKlass* _vk;
-  TypePtr::InterfaceSet _interfaces;
-  bool _larval;
-
-protected:
-  TypeInlineType(ciInlineKlass* vk, TypePtr::InterfaceSet interfaces, bool larval)
-          : Type(InlineType),
-            _vk(vk), _interfaces(interfaces), _larval(larval) {
-  }
-
-public:
-  static const TypeInlineType* make(ciInlineKlass* vk, bool larval = false);
-  virtual ciInlineKlass* inline_klass() const { return _vk; }
-  TypePtr::InterfaceSet interfaces() const { return _interfaces; }
-  bool larval() const { return _larval; }
-
-  virtual bool eq(const Type* t) const;
-  virtual int  hash() const;             // Type specific hashing
-  virtual bool singleton(void) const;    // TRUE if type is a singleton
-  virtual bool empty(void) const;        // TRUE if type is vacuous
-
-  virtual const Type* xmeet(const Type* t) const;
-  virtual const Type* xdual() const;     // Compute dual right now.
-
-  virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const { return false; }
-  virtual bool would_improve_ptr(ProfilePtrKind ptr_kind) const { return false; }
-
-  virtual bool maybe_null() const { return false; }
-
-  static const TypeInlineType* BOTTOM;
-
-#ifndef PRODUCT
-  virtual void dump2(Dict &d, uint, outputStream* st) const; // Specialized per-Type dumping
-#endif
-};
-
-
 //------------------------------accessors--------------------------------------
 inline bool Type::is_ptr_to_narrowoop() const {
 #ifdef _LP64
@@ -2275,15 +2229,6 @@ inline const TypeAryPtr *Type::is_aryptr() const {
   return (TypeAryPtr*)this;
 }
 
-inline const TypeInlineType* Type::isa_inlinetype() const {
-  return (_base == InlineType) ? (TypeInlineType*)this : NULL;
-}
-
-inline const TypeInlineType* Type::is_inlinetype() const {
-  assert(_base == InlineType, "Not an inline type");
-  return (TypeInlineType*)this;
-}
-
 inline const TypeNarrowOop *Type::is_narrowoop() const {
   // OopPtr is the first and KlassPtr the last, with no non-oops between.
   assert(_base == NarrowOop, "Not a narrow oop" ) ;
@@ -2373,8 +2318,7 @@ inline bool Type::is_inlinetypeptr() const {
 }
 
 inline ciInlineKlass* Type::inline_klass() const {
-  assert(is_inlinetypeptr(), "must be an inline type ptr");
-  return is_instptr()->instance_klass()->as_inline_klass();
+  return make_ptr()->is_instptr()->instance_klass()->as_inline_klass();
 }
 
 

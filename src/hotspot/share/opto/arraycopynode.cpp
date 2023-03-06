@@ -280,21 +280,17 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BasicType src_elem = ary_src->elem()->array_element_basic_type();
     BasicType dest_elem = ary_dest->elem()->array_element_basic_type();
-    if (src_elem == T_ARRAY || src_elem == T_NARROWOOP || (src_elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
-      src_elem  = T_OBJECT;
-    }
-    if (dest_elem == T_ARRAY || dest_elem == T_NARROWOOP || (dest_elem == T_PRIMITIVE_OBJECT && !ary_dest->is_flat())) {
-      dest_elem = T_OBJECT;
-    }
+    if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
+    if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    if (src_elem != dest_elem || dest_elem == T_VOID) {
+    if (src_elem != dest_elem || ary_src->is_flat() != ary_dest->is_flat() || dest_elem == T_VOID) {
       // We don't know if arguments are arrays of the same type
       return false;
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization) ||
-        (src_elem == T_PRIMITIVE_OBJECT && ary_src->elem()->inline_klass()->contains_oops() &&
+    if ((!ary_dest->is_flat() && bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, false, BarrierSetC2::Optimization)) ||
+        (ary_dest->is_flat() && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, false, BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -303,7 +299,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     value_type = ary_src->elem();
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
-    if (dest_elem == T_PRIMITIVE_OBJECT) {
+    if (ary_dest->is_flat()) {
       shift = ary_src->flat_log_elem_size();
     }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
@@ -351,13 +347,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BasicType elem = ary_src->isa_aryptr()->elem()->array_element_basic_type();
-    if (elem == T_ARRAY || elem == T_NARROWOOP || (elem == T_PRIMITIVE_OBJECT && !ary_src->is_flat())) {
+    if (is_reference_type(elem, true)) {
       elem = T_OBJECT;
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-        (elem == T_PRIMITIVE_OBJECT && ary_src->elem()->inline_klass()->contains_oops() &&
+    if ((!ary_src->is_flat() && bs->array_copy_requires_gc_barriers(true, elem, true, is_clone_inst(), BarrierSetC2::Optimization)) ||
+        (ary_src->is_flat() && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -421,7 +417,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          const Type* value_type) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
-  if (copy_type == T_PRIMITIVE_OBJECT) {
+  if (atp_dest->is_flat()) {
     ciInlineKlass* vk = atp_src->elem()->inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
@@ -552,15 +548,6 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
   } else {
     if (in(TypeFunc::Control) != ctl) {
       // we can't return new memory and control from Ideal at parse time
-#ifdef ASSERT
-      Node* src = in(ArrayCopyNode::Src);
-      const Type* src_type = phase->type(src);
-      const TypeAryPtr* ary_src = src_type->isa_aryptr();
-      BasicType elem = ary_src != NULL ? ary_src->elem()->array_element_basic_type() : T_CONFLICT;
-      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, is_clone_inst(), BarrierSetC2::Optimization) ||
-             (ary_src != NULL && elem == T_PRIMITIVE_OBJECT && ary_src->is_not_flat()), "added control for clone?");
-#endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);
       return false;

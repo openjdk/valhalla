@@ -609,8 +609,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       // Create InlineTypeNode from the oop and replace the parameter
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
       set_local(i, vt);
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() &&
-               method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
+               t->isa_aryptr() != NULL && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flattened)
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != NULL && spec_type->isa_aryptr() != NULL) ? spec_type : t->is_aryptr();
@@ -821,11 +821,6 @@ void Parse::build_exits() {
     const TypeOopPtr* ret_oop_type = ret_type->isa_oopptr();
     if (ret_oop_type && !ret_oop_type->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
-    }
-    // Scalarize inline type when returning as fields or inlining non-incrementally
-    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        ret_type->is_inlinetypeptr()) {
-      ret_type = TypeInlineType::make(ret_type->inline_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
     Node*       ret_phi  = new PhiNode(region, ret_type);
@@ -2347,8 +2342,8 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
-    // The return_type is set in Parse::build_exits().
-    if (return_type->isa_inlinetype()) {
+    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
+        return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());

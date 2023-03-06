@@ -1412,8 +1412,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Initially all flattened array accesses share a single slice
-    if (ta->is_flat() && ta->elem() != TypeInlineType::BOTTOM && _flattened_accesses_share_alias) {
-      const TypeAry *tary = TypeAry::make(TypeInlineType::BOTTOM, ta->size());
+    if (ta->is_flat() && ta->elem() != TypeInstPtr::BOTTOM && _flattened_accesses_share_alias) {
+      const TypeAry* tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size(), /* stable= */ false, /* flat= */ true);
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
     }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
@@ -1716,7 +1716,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         alias_type(idx)->set_element(elemtype);
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
-      if (elemtype->isa_inlinetype() &&
+      if (flat->is_flat() &&
           field_offset != Type::OffsetBot) {
         ciInlineKlass* vk = elemtype->inline_klass();
         field_offset += vk->first_field_offset();
@@ -1769,7 +1769,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       alias_type(idx)->set_field(field);
       if (flat->isa_aryptr()) {
         // Fields of flat arrays are rewritable although they are declared final
-        assert(flat->is_aryptr()->is_flat(), "must be a flat array");
+        assert(flat->is_flat(), "must be a flat array");
         alias_type(idx)->set_rewritable(true);
       }
     }
@@ -2093,8 +2093,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
     for (uint i = 0; i < AliasCacheSize; i++) {
       AliasCacheEntry* ace = &_alias_cache[i];
       if (ace->_adr_type != NULL &&
-          ace->_adr_type->isa_aryptr() &&
-          ace->_adr_type->is_aryptr()->is_flat()) {
+          ace->_adr_type->is_flat()) {
         ace->_adr_type = NULL;
         ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the NULL adr_type resolves to AliasIdxTop
       }
@@ -2219,8 +2218,8 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
               if (idx == m->req()-1) {
                 Node* r = m->in(0);
                 for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
-                  const Type* adr_type = get_adr_type(j);
-                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat() || j == (uint)index) {
+                  const TypePtr* adr_type = get_adr_type(j);
+                  if (!adr_type->isa_aryptr() || !adr_type->is_flat() || j == (uint)index) {
                     continue;
                   }
                   Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
@@ -2249,8 +2248,8 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
               Node* ctrl = m->in(0)->in(TypeFunc::Control);
               igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
               for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
-                const Type* adr_type = get_adr_type(j);
-                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat() || j == (uint)index) {
+                const TypePtr* adr_type = get_adr_type(j);
+                if (!adr_type->isa_aryptr() || !adr_type->is_flat() || j == (uint)index) {
                   continue;
                 }
                 MemBarNode* mb = new MemBarCPUOrderNode(this, j, NULL);
@@ -2292,8 +2291,8 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       // Fix the memory state at the MergeMem we started from
       igvn.rehash_node_delayed(current);
       for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
-        const Type* adr_type = get_adr_type(j);
-        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
+        const TypePtr* adr_type = get_adr_type(j);
+        if (!adr_type->isa_aryptr() || !adr_type->is_flat()) {
           continue;
         }
         current->set_memory_at(j, mm);
@@ -3710,8 +3709,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
         MergeMemNode* mm = prec->as_MergeMem();
         Node* base = mm->base_memory();
         for (int i = AliasIdxRaw + 1; i < num_alias_types(); i++) {
-          const Type* adr_type = get_adr_type(i);
-          if (adr_type->isa_aryptr() && adr_type->is_aryptr()->is_flat()) {
+          const TypePtr* adr_type = get_adr_type(i);
+          if (adr_type->is_flat()) {
             Node* m = mm->memory_at(i);
             n->add_prec(m);
           }

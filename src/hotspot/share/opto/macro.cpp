@@ -293,7 +293,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
       Node* adr = NULL;
       Node* base = ac->in(ArrayCopyNode::Src);
       const TypeAryPtr* adr_type = _igvn.type(base)->is_aryptr();
-      if (adr_type->is_aryptr()->is_flat()) {
+      if (adr_type->is_flat()) {
         shift = adr_type->flat_log_elem_size();
       }
       if (src_pos_t->is_con() && dest_pos_t->is_con()) {
@@ -787,13 +787,10 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       nfields = alloc->in(AllocateNode::ALength)->find_int_con(-1);
       assert(nfields >= 0, "must be an array klass.");
       basic_elem_type = res_type->is_aryptr()->elem()->array_element_basic_type();
-      if (basic_elem_type == T_PRIMITIVE_OBJECT && !res_type->is_aryptr()->is_flat()) {
-        basic_elem_type = T_OBJECT;
-      }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
       field_type = res_type->is_aryptr()->elem();
-      if (res_type->is_aryptr()->is_flat()) {
+      if (res_type->is_flat()) {
         // Flattened inline type array
         element_size = res_type->is_aryptr()->flat_elem_size();
       }
@@ -858,7 +855,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
       Node* field_val = NULL;
       const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-      if (res_type->isa_aryptr() && res_type->is_aryptr()->is_flat()) {
+      if (res_type->is_flat()) {
         ciInlineKlass* vk = res_type->is_aryptr()->elem()->inline_klass();
         assert(vk->flatten_array(), "must be flattened");
         field_val = inline_type_from_mem(mem, ctl, vk, field_addr_type->isa_aryptr(), 0, alloc);
@@ -950,7 +947,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
   // Scalarize inline types that were added to the safepoint.
   // Don't allow linking a constant oop (if available) for flat array elements
   // because Deoptimization::reassign_flat_array_elements needs field values.
-  bool allow_oop = res_type != NULL && (!res_type->isa_aryptr() || !res_type->is_aryptr()->is_flat());
+  bool allow_oop = (res_type != NULL) && !res_type->is_flat();
   for (uint i = 0; i < value_worklist.size(); ++i) {
     InlineTypeNode* vt = value_worklist.at(i)->as_InlineType();
     vt->make_scalar_in_safepoints(&_igvn, allow_oop);

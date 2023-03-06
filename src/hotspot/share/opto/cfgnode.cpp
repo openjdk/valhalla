@@ -2481,7 +2481,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Check recursively if inputs are either an inline type, constant null
   // or another Phi (including self references through data loops). If so,
   // push the inline types down through the phis to enable folding of loads.
-  if (EnableValhalla && (_type->isa_ptr() || _type->isa_inlinetype()) && req() > 2) {
+  if (EnableValhalla && _type->isa_ptr() && req() > 2) {
     ResourceMark rm;
     Unique_Node_List worklist;
     worklist.push(this);
@@ -2529,7 +2529,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           if (phase->find_int_con(n->as_InlineType()->get_is_init(), 0) != 1) {
             is_init = false;
           }
-        } else if (n->is_Phi() && can_reshape && (n->bottom_type()->isa_ptr() || n->bottom_type()->isa_inlinetype())) {
+        } else if (n->is_Phi() && can_reshape && n->bottom_type()->isa_ptr()) {
           worklist.push(n);
         } else if (t->is_zero_type()) {
           is_init = false;
