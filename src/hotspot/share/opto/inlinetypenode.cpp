@@ -680,7 +680,9 @@ static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
 
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  if (is_default(phase) && inline_klass()->is_initialized() &&
+  if (!is_larval(phase) &&
+      is_default(phase) &&
+      inline_klass()->is_initialized() &&
       (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for default inline types
     set_oop(default_oop(*phase, inline_klass()));
@@ -958,6 +960,16 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   //res->set_type(TypeInlineType::make(vk, false));
   res = kit->gvn().transform(res)->as_InlineType();
   return res;
+}
+
+bool InlineTypeNode::is_larval(PhaseGVN* gvn) const {
+  if (!is_allocated(gvn)) {
+    return false;
+  }
+
+  Node* oop = get_oop();
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(oop, gvn);
+  return alloc != NULL && alloc->_larval;
 }
 
 Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, int holder_offset) {

@@ -64,6 +64,9 @@ protected:
   // Checks if the inline type fields are all set to default values
   bool is_default(PhaseGVN* gvn) const;
 
+  // Checks if the inline type oop is an allocated buffer with larval state
+  bool is_larval(PhaseGVN* gvn) const;
+
   // Checks if the inline type is loaded from memory and if so returns the oop
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
 
