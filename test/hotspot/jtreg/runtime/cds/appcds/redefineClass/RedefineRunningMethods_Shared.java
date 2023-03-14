@@ -61,7 +61,8 @@ public class RedefineRunningMethods_Shared {
         TestCommon.testDump(appJar, shared_classes,
                             // command-line arguments ...
                             use_whitebox_jar,
-                            "--enable-preview");
+                            "--enable-preview",
+                            "-XX:-EnableValhalla");
 
         // RedefineRunningMethods.java contained this:
         // @run main/othervm -javaagent:redefineagent.jar -Xlog:redefine+class+iklass+add=trace,redefine+class+iklass+purge=trace RedefineRunningMethods
@@ -71,6 +72,7 @@ public class RedefineRunningMethods_Shared {
                                  "-XX:+UnlockDiagnosticVMOptions",
                                  "-XX:+WhiteBoxAPI",
                                  "--enable-preview",
+                                 "-XX:-EnableValhalla",
                                  // These arguments are expected by RedefineRunningMethods
                                  "-javaagent:redefineagent.jar",
                                  "-Xlog:redefine+class+iklass+add=trace,redefine+class+iklass+purge=trace",
