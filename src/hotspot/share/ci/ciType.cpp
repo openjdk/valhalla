@@ -39,13 +39,15 @@ ciType* ciType::_basic_types[T_CONFLICT+1];
 // ------------------------------------------------------------------
 // ciType::ciType
 //
-ciType::ciType(BasicType basic_type) : ciMetadata() {
+ciType::ciType(BasicType basic_type, int bundle_size) : ciMetadata() {
   assert(basic_type >= T_BOOLEAN && basic_type <= T_CONFLICT, "range check");
   _basic_type = basic_type;
+  _bundle_size = bundle_size;
 }
 
 ciType::ciType(Klass* k) : ciMetadata(k) {
   _basic_type = k->is_array_klass() ? T_ARRAY : (k->is_inline_klass() ? T_PRIMITIVE_OBJECT : T_OBJECT);
+  _bundle_size = 1;
 }
 
 
@@ -106,13 +108,17 @@ ciInstance* ciType::java_mirror() {
 // Produce the ciType for a given primitive BasicType.
 // As a bonus, produce the right reference type for T_OBJECT.
 // Does not work on T_ARRAY.
-ciType* ciType::make(BasicType t) {
-  // short, etc.
-  // Note: Bare T_ADDRESS means a raw pointer type, not a return_address.
-  assert((uint)t < T_CONFLICT+1, "range check");
-  if (t == T_OBJECT)  return ciEnv::_Object_klass;  // java/lang/Object
-  assert(_basic_types[t] != NULL, "domain check");
-  return _basic_types[t];
+ciType* ciType::make(BasicType t, int bundle_size) {
+  if (bundle_size == 1) {
+    // short, etc.
+    // Note: Bare T_ADDRESS means a raw pointer type, not a return_address.
+    assert((uint)t < T_CONFLICT+1, "range check");
+    if (t == T_OBJECT)  return ciEnv::_Object_klass;  // java/lang/Object
+    assert(_basic_types[t] != NULL, "domain check");
+    return _basic_types[t];
+  } else {
+    return new (CURRENT_ENV->arena()) ciType(t, bundle_size);
+  }
 }
 
 // ciReturnAddress

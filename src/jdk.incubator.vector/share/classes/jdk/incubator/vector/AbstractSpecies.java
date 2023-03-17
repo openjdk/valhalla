@@ -115,6 +115,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
 
     @Stable //lazy JIT constant
     AbstractVector<E> dummyVectorMF;
+
     @Override
     @ForceInline
     public final int length() {
@@ -324,6 +325,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         return makeDummyVectorMF();
     }
 
+    @ForceInline
     private AbstractVector<E> makeDummyVector() {
         Object za = Array.newInstance(elementType(), laneCount);
         return dummyVector = vectorFactory.apply(za);
@@ -332,26 +334,27 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         // through the dummy vector.
     }
 
+    @ForceInline
     VectorSupport.VectorPayloadMF createVectorMF(Object initarr) {
         VectorSupport.VectorPayloadMF za = null;
         switch (laneType.switchKey) {
         case LaneType.SK_FLOAT:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceF(elementByteSize(), laneCount, (float[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceF(laneCount, (float[])initarr);
             break;
         case LaneType.SK_DOUBLE:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceD(elementByteSize(), laneCount, (double[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceD(laneCount, (double[])initarr);
             break;
         case LaneType.SK_BYTE:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceB(elementByteSize(), laneCount, (byte[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceB(laneCount, (byte[])initarr);
             break;
         case LaneType.SK_SHORT:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceS(elementByteSize(), laneCount, (short[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceS(laneCount, (short[])initarr);
             break;
         case LaneType.SK_INT:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceI(elementByteSize(), laneCount, (int[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceI(laneCount, (int[])initarr);
             break;
         case LaneType.SK_LONG:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceL(elementByteSize(), laneCount, (long[])initarr);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstanceL(laneCount, (long[])initarr);
             break;
         default:
             assert false : "Unsupported elemType in createVectorMF";
@@ -360,6 +363,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         return za;
     }
 
+    @ForceInline
     private AbstractVector<E> makeDummyVectorMF() {
         Object za = null;
         switch (laneType.switchKey) {
@@ -369,7 +373,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         case LaneType.SK_SHORT:
         case LaneType.SK_INT:
         case LaneType.SK_LONG:
-            za = VectorSupport.VectorPayloadMF.createVectPayloadInstance(elementByteSize(), laneCount);
+            za = VectorSupport.VectorPayloadMF.createVectPayloadInstance(elementType(), laneCount);
             break;
         default:
             assert false : "Unsupported elemType in makeDummyVectorMF";
@@ -380,6 +384,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
         // All other factory requests are routed
         // through the dummy vector.
     }
+
     /**
      * Build a mask by directly calling its constructor.
      * It is an error if the array is aliased elsewhere.

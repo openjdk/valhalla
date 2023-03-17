@@ -36,6 +36,7 @@
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
+#include "opto/vectornode.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 //------------------------------make_dtrace_method_entry_exit ----------------
@@ -367,6 +368,9 @@ void Parse::do_withfield() {
   InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
   for (uint i = 2; i < holder->req(); ++i) {
     new_vt->set_req(i, holder->in(i));
+  }
+  if (field->secondary_fields_count() > 1 && !val->bottom_type()->isa_vect()) {
+    val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), Type::get_const_type(field->type()), false));
   }
   new_vt->set_field_value_by_offset(field->offset(), val);
   push(_gvn.transform(new_vt));

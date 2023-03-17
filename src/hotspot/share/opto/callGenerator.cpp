@@ -790,7 +790,10 @@ void CallGenerator::do_late_inline_helper() {
 
     // Handle inline type returns
     InlineTypeNode* vt = result->isa_InlineType();
-    if (vt != NULL) {
+    // FIXME: VectorBoxes are neither scalarized nor buffered upfront, currently buffering happens during
+    // box expansions if they are live after box-unbox optimizations. This can be optimized by removing
+    // VectorBoxAllocation IR altogether.
+    if (vt != NULL && !result->is_VectorBox()) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
       } else if (vt->is_InlineType()) {

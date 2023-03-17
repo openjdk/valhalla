@@ -55,12 +55,12 @@ value class Short512Vector extends ShortVector {
 
     static final Class<Short> ETYPE = short.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512S.class);
 
-    private final VectorSupport.VectorPayloadMF512 payload;
+    private final VectorSupport.VectorPayloadMF512S payload;
 
     Short512Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF512)value;
+        this.payload = (VectorSupport.VectorPayloadMF512S)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Short512Vector extends ShortVector {
        return vec_mf();
     }
 
-    static final Short512Vector ZERO = new Short512Vector(VectorPayloadMF.createVectPayloadInstance(Short.BYTES, 32));
-    static final Short512Vector IOTA = new Short512Vector(VectorPayloadMF.createVectPayloadInstanceS(Short.BYTES, 32, (short [])(VSPECIES.iotaArray())));
+    static final Short512Vector ZERO = new Short512Vector(VectorPayloadMF.createVectPayloadInstance(short.class, 32));
+    static final Short512Vector IOTA = new Short512Vector(VectorPayloadMF.createVectPayloadInstanceS(32, (short [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

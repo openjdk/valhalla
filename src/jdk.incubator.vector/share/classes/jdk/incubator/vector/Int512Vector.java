@@ -55,12 +55,12 @@ value class Int512Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512I.class);
 
-    private final VectorSupport.VectorPayloadMF512 payload;
+    private final VectorSupport.VectorPayloadMF512I payload;
 
     Int512Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF512)value;
+        this.payload = (VectorSupport.VectorPayloadMF512I)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Int512Vector extends IntVector {
        return vec_mf();
     }
 
-    static final Int512Vector ZERO = new Int512Vector(VectorPayloadMF.createVectPayloadInstance(Integer.BYTES, 16));
-    static final Int512Vector IOTA = new Int512Vector(VectorPayloadMF.createVectPayloadInstanceI(Integer.BYTES, 16, (int [])(VSPECIES.iotaArray())));
+    static final Int512Vector ZERO = new Int512Vector(VectorPayloadMF.createVectPayloadInstance(int.class, 16));
+    static final Int512Vector IOTA = new Int512Vector(VectorPayloadMF.createVectPayloadInstanceI(16, (int [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

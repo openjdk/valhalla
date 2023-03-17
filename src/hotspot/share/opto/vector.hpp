@@ -37,17 +37,27 @@ class PhaseVector : public Phase {
   void expand_vbox_nodes();
   void expand_vbox_node(VectorBoxNode* vec_box);
   Node* expand_vbox_node_helper(Node* vbox,
+                                Node* vbox_alloc,
                                 Node* vect,
                                 const TypeInstPtr* box_type,
                                 const TypeVect* vect_type);
-  Node* expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
+  Node* expand_vbox_alloc_node(Node* vbox,
+                               VectorBoxAllocateNode* vbox_alloc,
                                Node* value,
                                const TypeInstPtr* box_type,
                                const TypeVect* vect_type);
+  Node* expand_vbox_alloc_node_mf(Node* vbox,
+                                  VectorBoxAllocateNode* vbox_alloc,
+                                  Node* value,
+                                  const TypeInstPtr* box_type,
+                                  const TypeVect* vect_type);
+  Node* get_loaded_payload(VectorUnboxNode* vec_unbox);
+
   void scalarize_vbox_nodes();
   void scalarize_vbox_node(VectorBoxNode* vec_box);
   void expand_vunbox_nodes();
   void expand_vunbox_node(VectorUnboxNode* vec_box);
+  void expand_vunbox_node_mf(VectorUnboxNode* vec_unbox);
   void eliminate_vbox_alloc_nodes();
   void eliminate_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc);
   void do_cleanup();

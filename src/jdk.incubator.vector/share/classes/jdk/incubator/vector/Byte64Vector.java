@@ -55,12 +55,12 @@ value class Byte64Vector extends ByteVector {
 
     static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64B.class);
 
-    private final VectorSupport.VectorPayloadMF64 payload;
+    private final VectorSupport.VectorPayloadMF64B payload;
 
     Byte64Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF64)value;
+        this.payload = (VectorSupport.VectorPayloadMF64B)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Byte64Vector extends ByteVector {
        return vec_mf();
     }
 
-    static final Byte64Vector ZERO = new Byte64Vector(VectorPayloadMF.createVectPayloadInstance(Byte.BYTES, 8));
-    static final Byte64Vector IOTA = new Byte64Vector(VectorPayloadMF.createVectPayloadInstanceB(Byte.BYTES, 8, (byte [])(VSPECIES.iotaArray())));
+    static final Byte64Vector ZERO = new Byte64Vector(VectorPayloadMF.createVectPayloadInstance(byte.class, 8));
+    static final Byte64Vector IOTA = new Byte64Vector(VectorPayloadMF.createVectPayloadInstanceB(8, (byte [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

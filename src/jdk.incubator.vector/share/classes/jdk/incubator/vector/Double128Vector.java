@@ -55,12 +55,12 @@ value class Double128Vector extends DoubleVector {
 
     static final Class<Double> ETYPE = double.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128D.class);
 
-    private final VectorSupport.VectorPayloadMF128 payload;
+    private final VectorSupport.VectorPayloadMF128D payload;
 
     Double128Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF128)value;
+        this.payload = (VectorSupport.VectorPayloadMF128D)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Double128Vector extends DoubleVector {
        return vec_mf();
     }
 
-    static final Double128Vector ZERO = new Double128Vector(VectorPayloadMF.createVectPayloadInstance(Double.BYTES, 2));
-    static final Double128Vector IOTA = new Double128Vector(VectorPayloadMF.createVectPayloadInstanceD(Double.BYTES, 2, (double [])(VSPECIES.iotaArray())));
+    static final Double128Vector ZERO = new Double128Vector(VectorPayloadMF.createVectPayloadInstance(double.class, 2));
+    static final Double128Vector IOTA = new Double128Vector(VectorPayloadMF.createVectPayloadInstanceD(2, (double [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

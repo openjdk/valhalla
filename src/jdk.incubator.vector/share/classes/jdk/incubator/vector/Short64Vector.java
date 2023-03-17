@@ -55,12 +55,12 @@ value class Short64Vector extends ShortVector {
 
     static final Class<Short> ETYPE = short.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64S.class);
 
-    private final VectorSupport.VectorPayloadMF64 payload;
+    private final VectorSupport.VectorPayloadMF64S payload;
 
     Short64Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF64)value;
+        this.payload = (VectorSupport.VectorPayloadMF64S)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Short64Vector extends ShortVector {
        return vec_mf();
     }
 
-    static final Short64Vector ZERO = new Short64Vector(VectorPayloadMF.createVectPayloadInstance(Short.BYTES, 4));
-    static final Short64Vector IOTA = new Short64Vector(VectorPayloadMF.createVectPayloadInstanceS(Short.BYTES, 4, (short [])(VSPECIES.iotaArray())));
+    static final Short64Vector ZERO = new Short64Vector(VectorPayloadMF.createVectPayloadInstance(short.class, 4));
+    static final Short64Vector IOTA = new Short64Vector(VectorPayloadMF.createVectPayloadInstanceS(4, (short [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

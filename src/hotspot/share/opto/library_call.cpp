@@ -2317,6 +2317,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         return false;
       }
       base = vt->get_oop();
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(base, &_gvn);
+      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
     } else {
       if (offset->is_Con()) {
         long off = find_long_con(offset, 0);

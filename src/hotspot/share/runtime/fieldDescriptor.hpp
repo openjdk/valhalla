@@ -91,8 +91,11 @@ class fieldDescriptor {
   inline bool is_inlined() const;
   inline bool is_inline_type()    const;
   inline bool is_multifield()            const;
+  inline bool is_multifield_base()       const;
   inline u2   multifield_base()          const;
   inline jbyte multifield_index()        const;
+  inline int secondary_fields_count(int base_idx) const;
+
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 

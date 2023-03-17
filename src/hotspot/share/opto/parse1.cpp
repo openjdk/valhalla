@@ -921,7 +921,11 @@ void Compile::return_values(JVMState* jvms) {
     kit.inc_sp(-ret_size);  // pop the return value(s)
     kit.sync_jvms();
     Node* res = kit.argument(0);
-    if (tf()->returns_inline_type_as_fields()) {
+    if (res->isa_InlineType() && VectorSupport::skip_value_scalarization(res->as_InlineType()->inline_klass())) {
+      InlineTypeNode* vt = res->as_InlineType();
+      assert(vt->is_buffered(), "");
+      ret->add_req(vt->get_oop());
+    } else if (tf()->returns_inline_type_as_fields()) {
       // Multiple return values (inline type fields): add as many edges
       // to the Return node as returned values.
       InlineTypeNode* vt = res->as_InlineType();
@@ -1134,7 +1138,7 @@ void Parse::do_exits() {
   // See GraphKit::add_exception_state, which performs the commoning.
   bool do_synch = method()->is_synchronized() && GenerateSynchronizationCode;
 
-  // record exit from a method if compiled while Dtrace is turned on.
+  // record exit from a method if compiled while Dtrace is returned on.
   if (do_synch || C->env()->dtrace_method_probes() || _replaced_nodes_for_exceptions) {
     // First move the exception list out of _exits:
     GraphKit kit(_exits.transfer_exceptions_into_jvms());
@@ -2353,7 +2357,14 @@ void Parse::return_current(Node* value) {
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
-      if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
+      if (VectorSupport::skip_value_scalarization(value->as_InlineType()->inline_klass())) {
+        // Buffer the vector return types, for regular inline object caller expects
+        // scalarized fields to be passed back.
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_should_reexecute(true);
+        inc_sp(1);
+        value = value->as_InlineType()->buffer(this);
+      } else if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
         // Returning from root or an incrementally inlined method. Make sure all non-flattened
         // fields are buffered and re-execute if allocation triggers deoptimization.
         PreserveReexecuteState preexecs(this);

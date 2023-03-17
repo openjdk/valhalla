@@ -60,6 +60,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
+#include "prims/vectorSupport.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -637,6 +638,9 @@ JRT_LEAF(address, SharedRuntime::exception_handler_for_return_address(JavaThread
   return raw_exception_handler_for_return_address(current, return_address);
 JRT_END
 
+JRT_LEAF(jint, SharedRuntime::is_vector_value_instance(InlineKlass* klass))
+  return (jint)VectorSupport::skip_value_scalarization(klass);
+JRT_END
 
 address SharedRuntime::get_poll_stub(address pc) {
   address stub;

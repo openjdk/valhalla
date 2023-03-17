@@ -55,12 +55,12 @@ value class Long128Vector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128L.class);
 
-    private final VectorSupport.VectorPayloadMF128 payload;
+    private final VectorSupport.VectorPayloadMF128L payload;
 
     Long128Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF128)value;
+        this.payload = (VectorSupport.VectorPayloadMF128L)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Long128Vector extends LongVector {
        return vec_mf();
     }
 
-    static final Long128Vector ZERO = new Long128Vector(VectorPayloadMF.createVectPayloadInstance(Long.BYTES, 2));
-    static final Long128Vector IOTA = new Long128Vector(VectorPayloadMF.createVectPayloadInstanceL(Long.BYTES, 2, (long [])(VSPECIES.iotaArray())));
+    static final Long128Vector ZERO = new Long128Vector(VectorPayloadMF.createVectPayloadInstance(long.class, 2));
+    static final Long128Vector IOTA = new Long128Vector(VectorPayloadMF.createVectPayloadInstanceL(2, (long [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

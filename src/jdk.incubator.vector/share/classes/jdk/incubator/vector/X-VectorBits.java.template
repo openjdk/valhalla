@@ -55,12 +55,12 @@ value class $vectortype$ extends $abstractvectortype$ {
 
     static final Class<$Boxtype$> ETYPE = $type$.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF$bits$.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF$bits$$Boxinitials$.class);
 
-    private final VectorSupport.VectorPayloadMF$bits$ payload;
+    private final VectorSupport.VectorPayloadMF$bits$$Boxinitials$ payload;
 
     $vectortype$(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF$bits$)value;
+        this.payload = (VectorSupport.VectorPayloadMF$bits$$Boxinitials$)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class $vectortype$ extends $abstractvectortype$ {
        return vec_mf();
     }
 
-    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.createVectPayloadInstance($Boxtype$.BYTES, $numLanes$));
-    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$($Boxtype$.BYTES, $numLanes$, ($type$ [])(VSPECIES.iotaArray())));
+    static final $vectortype$ ZERO = new $vectortype$(VectorPayloadMF.createVectPayloadInstance($type$.class, $numLanes$));
+    static final $vectortype$ IOTA = new $vectortype$(VectorPayloadMF.createVectPayloadInstance$Boxinitials$($numLanes$, ($type$ [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

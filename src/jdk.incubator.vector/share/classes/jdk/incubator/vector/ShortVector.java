@@ -373,7 +373,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Short.BYTES, length));
+                short.class, length));
         long start_offset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putShort(tpayload, start_offset + i * Short.BYTES, f.apply(memory, offset, i));
@@ -391,7 +391,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Short.BYTES, length));
+                short.class, length));
         long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Short>)m).getBits();
         for (int i = 0; i < length; i++) {
@@ -417,7 +417,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Short.BYTES, length));
+                short.class, length));
         long start_offset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putShort(tpayload, start_offset + i * Short.BYTES, f.apply(memory, offset, i));
@@ -435,7 +435,7 @@ public abstract class ShortVector extends AbstractVector<Short> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Short.BYTES, length));
+                short.class, length));
         long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Short>)m).getBits();
         for (int i = 0; i < length; i++) {

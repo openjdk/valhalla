@@ -39,8 +39,9 @@ class ciType : public ciMetadata {
 
 private:
   BasicType _basic_type;
+  int _bundle_size;
 
-  ciType(BasicType t);     // for primitive and unloaded types
+  ciType(BasicType t, int bundle_size = 1);     // for primitive and unloaded types
   ciType(Klass* k);        // for subclasses (reference types)
 
   const char* type_string() { return "ciType"; }
@@ -63,7 +64,8 @@ public:
 
   // Returns true if this is not a klass or array (i.e., not a reference type).
   bool is_primitive_type() const            { return !is_reference_type(basic_type()); }
-  int size() const                          { return type2size[basic_type()]; }
+  int size() const                          { return _bundle_size * type2size[basic_type()]; }
+  int bundle_size() const                   { return _bundle_size; }
   bool is_void() const                      { return basic_type() == T_VOID; }
   bool is_one_word() const                  { return size() == 1; }
   bool is_two_word() const                  { return size() == 2; }
@@ -81,7 +83,7 @@ public:
     print_name_on(tty);
   }
 
-  static ciType* make(BasicType t);
+  static ciType* make(BasicType t, int bundle_size = 1);
 };
 
 

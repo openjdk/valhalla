@@ -55,12 +55,12 @@ value class Long64Vector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64L.class);
 
-    private final VectorSupport.VectorPayloadMF64 payload;
+    private final VectorSupport.VectorPayloadMF64L payload;
 
     Long64Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF64)value;
+        this.payload = (VectorSupport.VectorPayloadMF64L)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Long64Vector extends LongVector {
        return vec_mf();
     }
 
-    static final Long64Vector ZERO = new Long64Vector(VectorPayloadMF.createVectPayloadInstance(Long.BYTES, 1));
-    static final Long64Vector IOTA = new Long64Vector(VectorPayloadMF.createVectPayloadInstanceL(Long.BYTES, 1, (long [])(VSPECIES.iotaArray())));
+    static final Long64Vector ZERO = new Long64Vector(VectorPayloadMF.createVectPayloadInstance(long.class, 1));
+    static final Long64Vector IOTA = new Long64Vector(VectorPayloadMF.createVectPayloadInstanceL(1, (long [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

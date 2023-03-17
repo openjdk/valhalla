@@ -55,12 +55,12 @@ value class Double256Vector extends DoubleVector {
 
     static final Class<Double> ETYPE = double.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF256.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF256D.class);
 
-    private final VectorSupport.VectorPayloadMF256 payload;
+    private final VectorSupport.VectorPayloadMF256D payload;
 
     Double256Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF256)value;
+        this.payload = (VectorSupport.VectorPayloadMF256D)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Double256Vector extends DoubleVector {
        return vec_mf();
     }
 
-    static final Double256Vector ZERO = new Double256Vector(VectorPayloadMF.createVectPayloadInstance(Double.BYTES, 4));
-    static final Double256Vector IOTA = new Double256Vector(VectorPayloadMF.createVectPayloadInstanceD(Double.BYTES, 4, (double [])(VSPECIES.iotaArray())));
+    static final Double256Vector ZERO = new Double256Vector(VectorPayloadMF.createVectPayloadInstance(double.class, 4));
+    static final Double256Vector IOTA = new Double256Vector(VectorPayloadMF.createVectPayloadInstanceD(4, (double [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

@@ -31,6 +31,7 @@
 #include "oops/typeArrayOop.hpp"
 #include "runtime/registerMap.hpp"
 #include "utilities/exceptions.hpp"
+#include "ci/ciKlass.hpp"
 
 extern "C" {
   void JNICALL JVM_RegisterVectorSupportMethods(JNIEnv* env, jclass vsclass);
@@ -38,8 +39,8 @@ extern "C" {
 
 class VectorSupport : AllStatic {
  private:
-  static Handle allocate_vector_payload(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, ScopeValue* payload, TRAPS);
-  static Handle allocate_vector_payload_helper(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, Location location, TRAPS);
+  static Handle allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, TRAPS);
+  static Handle allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ScopeValue* payload, TRAPS);
 
   static void init_payload_element(typeArrayOop arr, BasicType elem_bt, int index, address addr);
 
@@ -144,9 +145,20 @@ class VectorSupport : AllStatic {
   static int vop2ideal(jint vop, BasicType bt);
 
   static instanceOop allocate_vector(InstanceKlass* holder, frame* fr, RegisterMap* reg_map, ObjectValue* sv, TRAPS);
+  static instanceOop allocate_vector_payload(InstanceKlass* ik, frame* fr, RegisterMap* reg_map, ObjectValue* sv, TRAPS);
+
+  static InstanceKlass* get_vector_payload_klass(BasicType elem_bt, int num_elem);
+  static Symbol* get_vector_payload_field_signature(BasicType elem_bt, int num_elem);
 
   static bool is_vector(Klass* klass);
+  static bool is_vector(ciKlass* klass);
+  static bool is_vector_payload_mf(Klass* klass);
+  static bool is_vector_payload_mf(ciKlass* klass);
   static bool is_vector_mask(Klass* klass);
+  static bool is_vector_mask(ciKlass* klass);
   static bool is_vector_shuffle(Klass* klass);
+  static bool is_vector_shuffle(ciKlass* klass);
+  static bool skip_value_scalarization(ciKlass* klass);
+  static bool skip_value_scalarization(Klass* klass);
 };
 #endif // SHARE_PRIMS_VECTORSUPPORT_HPP

@@ -55,12 +55,12 @@ value class Float128Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128F.class);
 
-    private final VectorSupport.VectorPayloadMF128 payload;
+    private final VectorSupport.VectorPayloadMF128F payload;
 
     Float128Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF128)value;
+        this.payload = (VectorSupport.VectorPayloadMF128F)value;
     }
 
     VectorPayloadMF vec_mf() {
@@ -72,8 +72,8 @@ value class Float128Vector extends FloatVector {
        return vec_mf();
     }
 
-    static final Float128Vector ZERO = new Float128Vector(VectorPayloadMF.createVectPayloadInstance(Float.BYTES, 4));
-    static final Float128Vector IOTA = new Float128Vector(VectorPayloadMF.createVectPayloadInstanceF(Float.BYTES, 4, (float [])(VSPECIES.iotaArray())));
+    static final Float128Vector ZERO = new Float128Vector(VectorPayloadMF.createVectPayloadInstance(float.class, 4));
+    static final Float128Vector IOTA = new Float128Vector(VectorPayloadMF.createVectPayloadInstanceF(4, (float [])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.

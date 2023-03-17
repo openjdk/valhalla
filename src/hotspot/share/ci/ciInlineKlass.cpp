@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -78,12 +79,12 @@ bool ciInlineKlass::flatten_array() const {
 
 // Can this inline type be passed as multiple values?
 bool ciInlineKlass::can_be_passed_as_fields() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->can_be_passed_as_fields();)
+  GUARDED_VM_ENTRY(return !VectorSupport::skip_value_scalarization(const_cast<ciInlineKlass*>(this)) && to_InlineKlass()->can_be_passed_as_fields();)
 }
 
 // Can this inline type be returned as multiple values?
 bool ciInlineKlass::can_be_returned_as_fields() const {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->can_be_returned_as_fields();)
+  GUARDED_VM_ENTRY(return !VectorSupport::skip_value_scalarization(const_cast<ciInlineKlass*>(this)) && to_InlineKlass()->can_be_returned_as_fields();)
 }
 
 bool ciInlineKlass::is_empty() {

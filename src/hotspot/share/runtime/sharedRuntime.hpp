@@ -185,6 +185,7 @@ class SharedRuntime: AllStatic {
   // exception handling across interpreter/compiler boundaries
   static address raw_exception_handler_for_return_address(JavaThread* current, address return_address);
   static address exception_handler_for_return_address(JavaThread* current, address return_address);
+  static int is_vector_value_instance(InlineKlass* klass);
 
   // exception handling and implicit exceptions
   static address compute_compiled_exc_handler(CompiledMethod* nm, address ret_pc, Handle& exception,

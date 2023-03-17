@@ -54,9 +54,6 @@ protected:
                     // Nodes are connected in increasing order of the index of the field they correspond to.
   };
 
-  // Get the klass defining the field layout of the inline type
-  ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
-
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
@@ -71,6 +68,8 @@ protected:
   void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in, bool null_free = true, Node* null_check_region = NULL);
 
 public:
+  // Get the klass defining the field layout of the inline type
+  ciInlineKlass* inline_klass() const { return type()->inline_klass(); }
 
   // Create with default field values
   static InlineTypeNode* make_default(PhaseGVN& gvn, ciInlineKlass* vk);
@@ -88,6 +87,8 @@ public:
   // Returns the constant oop of the default inline type allocation
   static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);
 
+  static Node* default_value(PhaseGVN& gvn, ciType* field_type);
+
   // Support for control flow merges
   bool has_phi_inputs(Node* region);
   InlineTypeNode* clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init = false);
@@ -100,15 +101,21 @@ public:
   Node* get_is_init() const { return in(IsInit); }
   void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, gvn.intcon(1)); }
   void  set_is_buffered() { _is_buffered = true; }
+  bool  is_buffered() { return _is_buffered; }
 
   // Inline type fields
-  uint          field_count() const { return req() - Values; }
-  Node*         field_value(uint index) const;
-  Node*         field_value_by_offset(int offset, bool recursive = false) const;
-  void      set_field_value(uint index, Node* value);
-  void      set_field_value_by_offset(int offset, Node* value);
-  int           field_offset(uint index) const;
+  virtual uint  field_count() const { return req() - Values; }
+  virtual Node* field_value(uint index) const;
   uint          field_index(int offset) const;
+
+  Node*         field_value_by_offset(int offset, bool recursive = false) const;
+  void          set_field_value(uint index, Node* value);
+  void          set_field_value_by_offset(int offset, Node* value);
+  int           field_offset(uint index) const;
+  bool          is_multifield(uint index) const;
+  bool          is_multifield_base(uint index) const;
+  int           secondary_field_count(uint index) const;
+  bool          is_multifield() const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;
   bool          field_is_null_free(uint index) const;
