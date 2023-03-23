@@ -1867,7 +1867,7 @@ void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off
       assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
       int off = inner_field->offset() + sec_offset - vk->first_field_offset();
       LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
-      sec_offset += load->type()->size();
+      sec_offset += type2aelembytes(as_BasicType(load->type()));
       Value replacement = append(load);
       StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
       store->set_enclosing_field(enclosing_field);
