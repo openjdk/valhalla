@@ -30,6 +30,7 @@
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciUtilities.hpp"
+#include "utilities/growableArray.hpp"
 
 // ciField
 //
@@ -40,6 +41,7 @@ class ciField : public ArenaObj {
   CI_PACKAGE_ACCESS
   friend class ciEnv;
   friend class ciInstanceKlass;
+  friend class ciMultiField;
 
 private:
   ciFlags          _flags;
@@ -201,6 +203,22 @@ public:
   // Debugging output
   void print();
   void print_name_on(outputStream* st);
+};
+
+class ciMultiField : public ciField {
+private:
+  CI_PACKAGE_ACCESS
+  friend class ciInstanceKlass;
+
+  GrowableArray<ciField*>*   _secondary_fields;
+
+  ciMultiField(ciInstanceKlass* klass, int index) : ciField(klass, index) {}
+  ciMultiField(fieldDescriptor* fd) : ciField(fd) {}
+  ciMultiField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) :
+       ciField(field, holder, offset, is_final) {}
+public:
+  void add_secondary_fields(GrowableArray<ciField*>* fields) { _secondary_fields = fields; }
+  GrowableArray<ciField*>* secondary_fields() { return _secondary_fields; }
 };
 
 #endif // SHARE_CI_CIFIELD_HPP

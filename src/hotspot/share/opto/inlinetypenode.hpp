@@ -28,6 +28,7 @@
 #include "opto/connode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/node.hpp"
+#include "opto/matcher.hpp"
 
 class GraphKit;
 
@@ -43,6 +44,7 @@ protected:
   InlineTypeNode(ciInlineKlass* vk, Node* oop, bool null_free, bool is_buffered)
       : TypeNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()), _is_buffered(is_buffered) {
     init_class_id(Class_InlineType);
+    expand_input_edges(vk);
     init_req(Oop, oop);
     Compile::current()->add_inline_type(this);
   }
@@ -53,6 +55,8 @@ protected:
          Values     // Nodes corresponding to values of the inline type's fields.
                     // Nodes are connected in increasing order of the index of the field they correspond to.
   };
+
+  void expand_input_edges(ciInlineKlass * vk);
 
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
@@ -110,11 +114,12 @@ public:
 
   Node*         field_value_by_offset(int offset, bool recursive = false) const;
   void          set_field_value(uint index, Node* value);
+
   void          set_field_value_by_offset(int offset, Node* value);
   int           field_offset(uint index) const;
   bool          is_multifield(uint index) const;
   bool          is_multifield_base(uint index) const;
-  int           secondary_field_count(uint index) const;
+  int           secondary_fields_count(uint index) const;
   bool          is_multifield() const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;

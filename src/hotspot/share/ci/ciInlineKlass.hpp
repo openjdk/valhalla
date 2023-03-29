@@ -31,6 +31,7 @@
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "oops/inlineKlass.hpp"
+#include "ci/ciField.hpp"
 
 // ciInlineKlass
 //
@@ -70,7 +71,18 @@ public:
   // ith non-static declared field (presented by ascending address)
   ciField* declared_nonstatic_field_at(int i) {
     assert(_declared_nonstatic_fields != NULL, "should be initialized");
-    return _declared_nonstatic_fields->at(i);
+    if (i < _declared_nonstatic_fields->length()) {
+      return _declared_nonstatic_fields->at(i);
+    } else {
+      // Look for field in preceding multi-field bundle;
+      for (uint j = 0; j < (uint)i; j++) {
+        int bundle_size = _declared_nonstatic_fields->at(j)->secondary_fields_count();
+        if ((j + bundle_size) > (uint)i) {
+          return static_cast<ciMultiField*>(_declared_nonstatic_fields->at(j))->secondary_fields()->at(i - (j + 1));
+        }
+      }
+    }
+    return NULL;
   }
 
   // Inline type fields
