@@ -379,7 +379,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
             assert false : "Unsupported elemType in makeDummyVectorMF";
             break;
         }
-        return dummyVector = vectorFactory.apply(za);
+        return dummyVectorMF = vectorFactory.apply(za);
         // This is the only use of vectorFactory.
         // All other factory requests are routed
         // through the dummy vector.
