@@ -518,21 +518,36 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   if (!result->is_illegal() && result->is_float_kind() && !result->is_xmm_register()) {
     assert(result->fpu() == 0, "result must already be on TOS");
   }
+  if (InlineTypeReturnedAsFields) {
+  #ifndef _LP64
+     Unimplemented();
+  #endif
+    // Check if we are returning an non-null inline type and load its fields into registers
+    ciMethod* method = compilation()->method();
+    if (method->return_type()->is_inlinetype()) {
+      ciInlineKlass* vk = method->return_type()->as_inline_klass();
+      if (vk->can_be_returned_as_fields()) {
+        address unpack_handler = vk->unpack_handler();
+        assert(unpack_handler != NULL, "must be");
+        __ call(RuntimeAddress(unpack_handler));
+      }
+    } else if (!method->return_type()->is_loaded()) {
+      Label skip;
+      __ test_oop_is_not_inline_type(rax, rscratch1, skip);
 
-  ciMethod* method = compilation()->method();
-  if (InlineTypeReturnedAsFields && method->return_type()->is_inlinetype()) {
-    ciInlineKlass* vk = method->return_type()->as_inline_klass();
-    if (vk->can_be_returned_as_fields()) {
-#ifndef _LP64
-      Unimplemented();
-#else
-      address unpack_handler = vk->unpack_handler();
-      assert(unpack_handler != NULL, "must be");
-      __ call(RuntimeAddress(unpack_handler));
-      // At this point, rax points to the value object (for interpreter or C1 caller).
-      // The fields of the object are copied into registers (for C2 caller).
-#endif
+      // Load fields from a buffered value with an inline class specific handler
+      __ load_klass(rdi, rax, rscratch1);
+      __ movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
+      // Unpack handler can be null if inline type is not scalarizable in returns
+      __ testptr(rdi, rdi);
+      __ jcc(Assembler::zero, skip);
+      __ call(rdi);
+
+      __ bind(skip);
     }
+    // At this point, rax points to the value object (for interpreter or C1 caller).
+    // The fields of the object are copied into registers (for C2 caller).
   }
 
   // Pop the stack before the safepoint code

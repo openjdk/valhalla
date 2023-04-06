@@ -50,9 +50,9 @@ class SharedRuntime: AllStatic {
 
  private:
   static bool resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
-                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
+                                          CompiledMethod* caller_nm, bool is_virtual, bool is_optimized, bool& caller_is_c1,
                                           Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS);
-  static methodHandle resolve_sub_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS);
+  static methodHandle resolve_sub_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);
 
   // Shared stub locations
 
@@ -320,7 +320,7 @@ class SharedRuntime: AllStatic {
 
   // Resolves a call site- may patch in the destination of the call into the
   // compiled code.
-  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS);
+  static methodHandle resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS);
 
  private:
   // deopt blob
@@ -757,9 +757,9 @@ class CompiledEntrySignature : public StackObj {
   Method* _method;
   int  _num_inline_args;
   bool _has_inline_recv;
-  GrowableArray<SigEntry> *_sig;
-  GrowableArray<SigEntry> *_sig_cc;
-  GrowableArray<SigEntry> *_sig_cc_ro;
+  GrowableArray<SigEntry>* _sig;
+  GrowableArray<SigEntry>* _sig_cc;
+  GrowableArray<SigEntry>* _sig_cc_ro;
   VMRegPair* _regs;
   VMRegPair* _regs_cc;
   VMRegPair* _regs_cc_ro;
@@ -771,17 +771,19 @@ class CompiledEntrySignature : public StackObj {
   bool _c1_needs_stack_repair;
   bool _c2_needs_stack_repair;
 
+  GrowableArray<Method*>* _supers;
+
 public:
   Method* method()                     const { return _method; }
 
   // Used by Method::_from_compiled_inline_entry
-  GrowableArray<SigEntry>& sig()       const { return *_sig; }
+  GrowableArray<SigEntry>* sig()       const { return _sig; }
 
   // Used by Method::_from_compiled_entry
-  GrowableArray<SigEntry>& sig_cc()    const { return *_sig_cc; }
+  GrowableArray<SigEntry>* sig_cc()    const { return _sig_cc; }
 
   // Used by Method::_from_compiled_inline_ro_entry
-  GrowableArray<SigEntry>& sig_cc_ro() const { return *_sig_cc_ro; }
+  GrowableArray<SigEntry>* sig_cc_ro() const { return _sig_cc_ro; }
 
   VMRegPair* regs()                    const { return _regs; }
   VMRegPair* regs_cc()                 const { return _regs_cc; }
@@ -798,6 +800,8 @@ public:
   bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
   CodeOffsets::Entries c1_inline_ro_entry_type() const;
+
+  GrowableArray<Method*>* get_supers();
 
   CompiledEntrySignature(Method* method = NULL);
   void compute_calling_conventions(bool init = true);

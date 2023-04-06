@@ -98,6 +98,7 @@ class Method : public Metadata {
     _scoped                 = 1 << 11,
     _changes_current_thread = 1 << 12,
     _jvmti_mount_transition = 1 << 13,
+    _mismatch               = 1 << 14
   };
   mutable u2 _flags;
 
@@ -933,11 +934,11 @@ public:
 
   bool is_scalarized_arg(int idx) const;
 
-  bool c1_needs_stack_repair() {
+  bool c1_needs_stack_repair() const {
     return (_flags & _c1_needs_stack_repair) != 0;
   }
 
-  bool c2_needs_stack_repair() {
+  bool c2_needs_stack_repair() const {
     return (_flags & _c2_needs_stack_repair) != 0;
   }
 
@@ -947,6 +948,14 @@ public:
 
   void set_c2_needs_stack_repair(bool x) {
     _flags = x ? (_flags | _c2_needs_stack_repair) : (_flags & ~_c2_needs_stack_repair);
+  }
+
+  bool mismatch() const {
+    return (_flags & _mismatch) != 0;
+  }
+
+  void set_mismatch(bool x) {
+    _flags = x ? (_flags | _mismatch) : (_flags & ~_mismatch);
   }
 
   JFR_ONLY(DEFINE_TRACE_FLAG_ACCESSOR;)

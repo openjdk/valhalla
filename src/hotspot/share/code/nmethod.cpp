@@ -3069,13 +3069,13 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   const GrowableArray<SigEntry>* sig_cc;
   const VMRegPair* regs;
   if (block_begin == verified_entry_point()) {
-    sig_cc = &ces.sig_cc();
+    sig_cc = ces.sig_cc();
     regs = ces.regs_cc();
   } else if (block_begin == verified_inline_entry_point()) {
-    sig_cc = &ces.sig();
+    sig_cc = ces.sig();
     regs = ces.regs();
   } else if (block_begin == verified_inline_ro_entry_point()) {
-    sig_cc = &ces.sig_cc_ro();
+    sig_cc = ces.sig_cc_ro();
     regs = ces.regs_cc_ro();
   } else {
     return;

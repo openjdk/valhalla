@@ -1836,7 +1836,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
-    if (t->is_inlinetypeptr() && call->method()->is_scalarized_arg(arg_num)) {
+    if (t->is_inlinetypeptr() && !call->method()->get_Method()->mismatch() && call->method()->is_scalarized_arg(arg_num)) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       if (!arg->is_InlineType()) {
         assert(_gvn.type(arg)->is_zero_type() && !t->inline_klass()->is_null_free(), "Unexpected argument type");
@@ -1848,6 +1848,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
       call->set_override_symbolic_info(true);
+      // Register an evol dependency on the callee method to make sure that this method is deoptimized and
+      // re-compiled with a non-scalarized calling convention if the callee method is later marked as mismatched.
+      C->dependencies()->assert_evol_method(call->method());
       arg_num++;
       continue;
     } else if (arg->is_InlineType()) {
@@ -1923,6 +1926,9 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false, call->method()->signature()->returns_null_free_inline_type());
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
+    if (call->method()->return_type()->is_inlinetype()) {
+      ret = InlineTypeNode::make_from_oop(this, ret, call->method()->return_type()->as_inline_klass(), call->method()->signature()->returns_null_free_inline_type());
+    }
   }
 
   return ret;
