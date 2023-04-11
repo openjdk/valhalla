@@ -92,7 +92,6 @@ public class TestMismatchHandling {
     public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
     public static void main(String[] args) throws Exception {
-    
         M m = new M();
         // Make sure M::method is C1 compiled once with unloaded MyValue4 and not re-compiled
         for (int i = 0; i < 1000; ++i) {
@@ -103,7 +102,7 @@ public class TestMismatchHandling {
         WHITE_BOX.makeMethodNotCompilable(disable, 2, false);
         WHITE_BOX.makeMethodNotCompilable(disable, 3, false);
         WHITE_BOX.makeMethodNotCompilable(disable, 4, false);
-        
+
         // Sometimes, exclude some methods from compilation with C2 to stress test the calling convention
         // WARNING: This triggers class loading of argument/return types of all methods!
         if (Utils.getRandomInstance().nextBoolean()) {
@@ -150,7 +149,7 @@ public class TestMismatchHandling {
             TestMismatchHandlingHelper.test3(h, h, h, k, k, j, k);
             TestMismatchHandlingHelper.test4(m, true);
             TestMismatchHandlingHelper.test5(n, true);
-        } 
+        }
 
         // Only load these now
         F f = new F();
@@ -170,6 +169,6 @@ public class TestMismatchHandling {
             TestMismatchHandlingHelper.test4(m, false);
             TestMismatchHandlingHelper.test5(n, false);
             TestMismatchHandlingHelper.test6(f, g, l);
-        }    
+        }
     }
 }
