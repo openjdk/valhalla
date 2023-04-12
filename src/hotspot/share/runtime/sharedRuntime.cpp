@@ -3035,6 +3035,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
 }
 
 // TODO comment
+// TODO Follow-up RFE. This should only affect virtual calls! A non-abstract mismatched method can be called scalarized directly. Also, more deopts than required might be triggered.
 GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   if (_supers != nullptr) {
     return _supers;
@@ -3114,36 +3115,25 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
               non_scalar_super = true;
             }
           }
-          // TODO add a stress option to randomly trigger this behavior, also needs to enable is_scalarized_arg below
+#ifdef ASSERT
+          // Randomly enable below code paths for stress testing
+          bool stress = init && StressCallingConvention;
+          if (stress && (os::random() & 1) == 1) {
+            non_scalar_super = true;
+            if ((os::random() & 1) == 1) {
+              scalar_super = true;
+            }
+          }
+#endif
           if (non_scalar_super) {
-            // Found a super method with non-scalarized argument. Fall back to the non-scalarized calling convention.
-
-            // - We can always recover if no interfaces are involved
-            // - Otherwise, stick to the non-scalarized calling convention (because all methods in overriding chain will support that) and
-            //   - Calls from interpreter -> i2c -> non-scalarized entry -> OK
-            //   - Calls from C1 to interpreter -> non-scalarized c2i -> OK
-            //   - Calls from C1 to C1 -> non-scalarized entry -> OK
-            //   - Calls from C1 to C2 -> non-scalarized entry -> OK
-
-            //   - Calls from C2 to interpreter -> scalarized c2i -> PROBLEM: would need to handle different scalarized calling conventions
-            //   - Calls from C2 to C1 -> scalarized entry
-            //   - Calls from C2 to C2 -> scalarized entry
-
-            // Flag methods with mismatching/scalarized calling convention, deopt all C2 compiled nmethods and stick to non-scalarized calling convention (verified_inline_code_entry instead of verified_inline_ro_code_entry) for calls via flagged (resolved) methods
-            // This would also affect calls to other methods via the mismatched method.
-
-            // TODO Follow-up RFE. This should only affect virtual calls! A non-abstract mismatched method can be called scalarized directly
-            // TODO This also deopts the method if it's compiled as standalone, this is not required. Really?
-            // TODO Dependencies::check_evol_method
-
+            // Found a super method with a non-scalarized argument. Fall back to the non-scalarized calling convention.
             if (scalar_super) {
               // Found non-scalar *and* scalar super methods. We can't handle both.
               // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
               for (int i = 0; i < supers->length(); ++i) {
                 Method* super_method = supers->at(i);
-                if (super_method->is_scalarized_arg(arg_num)) {
+                if (super_method->is_scalarized_arg(arg_num) debug_only(|| (stress && (os::random() & 1) == 1))) {
                   super_method->set_mismatch(true);
-                  // TODO
                   MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
                   JavaThread* thread = JavaThread::current();
                   HandleMark hm(thread);
@@ -3152,7 +3142,7 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
                 }
               }
             }
-            // Non-scalarized calling convention
+            // Fall back to non-scalarized calling convention
             SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
             SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
           } else {

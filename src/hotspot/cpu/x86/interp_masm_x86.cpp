@@ -1192,7 +1192,7 @@ void InterpreterMacroAssembler::remove_activation(
     call(rdi);
 #endif
 #ifdef ASSERT
-    if (StressInlineTypeReturnedAsFields) {
+    if (StressCallingConvention) {
       // TODO 8284443 Enable this for value class returns (L-type descriptor)
       Label skip_stress;
       movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));

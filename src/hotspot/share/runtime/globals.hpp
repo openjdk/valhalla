@@ -2002,8 +2002,8 @@ const int ObjectAlignmentInBytes = 8;
   product_pd(bool, InlineTypeReturnedAsFields,                              \
           "Return fields instead of an inline type reference")              \
                                                                             \
-  develop(bool, StressInlineTypeReturnedAsFields, false,                    \
-          "Stress return of fields instead of an inline type reference")    \
+  develop(bool, StressCallingConvention, false,                             \
+          "Stress the scalarized calling convention.")                      \
                                                                             \
   product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
           "Use bits in the mark word to check for flat/null-free arrays")   \

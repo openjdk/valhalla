@@ -598,6 +598,7 @@ Compilation::Compilation(AbstractCompiler* compiler, ciEnv* env, ciMethod* metho
 #endif
   {
     ResetNoHandleMark rnhm; // Huh? Required when doing class lookup of the Q-types
+    // TODO 8284443 Should only be computed once
     _compiled_entry_signature.compute_calling_conventions(false);
   }
   compile_method();

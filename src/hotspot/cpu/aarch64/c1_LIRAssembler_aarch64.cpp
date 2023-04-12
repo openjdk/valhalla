@@ -507,7 +507,7 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
         assert(unpack_handler != NULL, "must be");
         __ far_call(RuntimeAddress(unpack_handler));
       }
-    } else {
+    } else if (!method->return_type()->is_loaded()) {
       Label skip;
       __ test_oop_is_not_inline_type(r0, rscratch2, skip);
 
