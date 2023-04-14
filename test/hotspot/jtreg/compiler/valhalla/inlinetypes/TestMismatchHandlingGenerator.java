@@ -344,7 +344,8 @@ class TestMismatchHandlingHelper {
         l.method(new MyValue3());
     }
 
-    // Test scalarized return from C2 compiled callee to C2 compiled caller.
+    // Test scalarized return from C2 compiled callee to C2 compiled caller with an unloaded
+    // return type at caller compile time due to a missing preload attribute.
     public static Verifiable test7(O o, boolean warmup) {
         return o.method(warmup);
     }
