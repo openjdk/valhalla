@@ -487,16 +487,17 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
       BasicType bt = type2field[ft->basic_type()];
       const Type* val_type = Type::get_const_type(ft);
       const TypeAryPtr* ary_type = kit->gvn().type(base)->isa_aryptr();
-      if (ary_type != NULL) {
-        decorators |= IS_ARRAY;
-      }
       const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
       Node* adr = kit->basic_plus_adr(base, ptr, offset);
       assert(is_java_primitive(bt) || adr->bottom_type()->is_ptr_to_narrowoop() == UseCompressedOops, "inconsistent");
       if (value->bottom_type()->isa_vect()) {
+        assert(value->bottom_type()->is_vect()->length() == (uint)vec_len, "");
         Node* store = kit->gvn().transform(StoreVectorNode::make(0, kit->control(), kit->memory(adr), adr, adr_type, value, vec_len));
         kit->set_memory(store, adr_type);
       } else {
+        if (ary_type != NULL) {
+          decorators |= IS_ARRAY;
+        }
         kit->access_store_at(base, adr, adr_type, value, val_type, bt, decorators);
       }
     }
@@ -762,15 +763,12 @@ Node* InlineTypeNode::default_oop(PhaseGVN& gvn, ciInlineKlass* vk) {
 }
 
 Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type) {
+  BasicType bt = field_type->basic_type();
   Node* value = gvn.zerocon(field_type->basic_type());
-  if (field_type->bundle_size() > 1)  {
-    int vec_len = field_type->bundle_size();
-    BasicType bt = field_type->basic_type();
-    if (Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
+  int vec_len = field_type->bundle_size();
+  if (vec_len > 1 &&
+      Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
       value = gvn.transform(VectorNode::scalar2vector(value, vec_len, Type::get_const_type(field_type), false));
-    } else {
-      // scalar default value to match the bundle size will be returned in subsiquent calls to default_value.
-    }
   }
   return value;
 }

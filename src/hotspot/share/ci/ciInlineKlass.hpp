@@ -27,11 +27,11 @@
 
 #include "ci/ciConstantPoolCache.hpp"
 #include "ci/ciEnv.hpp"
+#include "ci/ciField.hpp"
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "oops/inlineKlass.hpp"
-#include "ci/ciField.hpp"
 
 // ciInlineKlass
 //

@@ -1392,7 +1392,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   InstanceKlass* ik = klass;
   while (ik != NULL) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (!fs.access_flags().is_static() && !fs.is_multifield() && (!skip_internal || !fs.access_flags().is_internal())) {
+      if (!fs.access_flags().is_static() && (!skip_internal || !fs.access_flags().is_internal())) {
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());

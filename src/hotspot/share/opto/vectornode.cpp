@@ -1633,9 +1633,12 @@ Node* VectorInsertNode::make(Node* vec, Node* new_val, int position) {
 
 Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* n = obj();
-  if (n->is_InlineType() && !n->is_VectorBox()) {
-    n = n->as_InlineType()->get_oop();
-  }
+  // Vector APIs are lazily intrinsified, during parsing compiler emits a
+  // call to intrinsic function, since most of the APIs return an abstract vector
+  // hence a subsequent checkcast results into a graph shape comprising of CheckPP
+  // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
+  // a VectorBox but we still need to traverse back through chain of cast nodes
+  // to get to the VectorBox.
   n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
     if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
@@ -1675,8 +1678,16 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
   Node* n = obj();
   if (n->is_InlineType() && !n->is_VectorBox()) {
-    n = n->as_InlineType()->get_oop();
+    // FIXME: Directly return Vector loaded from multi-field for concrete
+    // vector InlineType nodes. This can save deferring unbox expansion.
+    // For masks/shuffle emit additional pruning IR to match the vector size.
   }
+  // Vector APIs are lazily intrinsified, during parsing compiler emits a
+  // call to intrinsic function, since most of the APIs return an abstract vector
+  // hence a subsequent checkcast results into a graph shape comprising of CheckPP
+  // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
+  // a VectorBox but we still need to traverse back through chain of cast nodes
+  // to get to the VectorBox.
   n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
     if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {

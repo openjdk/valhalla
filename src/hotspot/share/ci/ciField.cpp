@@ -211,7 +211,7 @@ ciField::ciField(fieldDescriptor *fd) :
   if (is_reference_type(field_type)) {
     _type = NULL;  // must call compute_type on first access
   } else {
-    _type = ciType::make(field_type, _secondary_fields_count);
+    _type = ciType::make(field_type, fd->secondary_fields_count(fd->index()));
   }
 
   // Either (a) it is marked shared, or else (b) we are done bootstrapping.
@@ -244,8 +244,6 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _original_holder = (field->_original_holder != NULL) ? field->_original_holder : field->_holder;
   _is_multifield = field->_is_multifield;
   _is_multifield_base = field->_is_multifield_base;
-  _secondary_fields_count = field->_secondary_fields_count;
-
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -301,7 +299,6 @@ void ciField::initialize_from(fieldDescriptor* fd) {
 
   _is_multifield = fd->is_multifield();
   _is_multifield_base = fd->is_multifield_base();
-  _secondary_fields_count = fd->secondary_fields_count(fd->index());
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
