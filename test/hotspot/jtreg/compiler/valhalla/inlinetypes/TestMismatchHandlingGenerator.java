@@ -84,6 +84,20 @@ value class MyValue5 implements Verifiable {
     }
 }
 
+value class MyValue6 implements Verifiable {
+    int x = 42;
+
+    @Override
+    public void verify() {
+        if (x != 42) {
+            throw new RuntimeException("Verification failed");
+        }
+    }
+
+    static MyValue6 make() {
+        return new MyValue6();
+    }
+}
 
 class A {
     public MyValue1 method(MyValue1 arg) {
@@ -220,15 +234,27 @@ class N {
     }
 }
 
+class O {
+    public MyValue6 method(boolean warmup) {
+        if (warmup) {
+            return null;
+        } else {
+            return MyValue6.make();
+        }
+    }
+}
+
 class TestMismatchHandlingHelper {
     // * = has preload attribute for MyValue*
 
     // With C <: B* <: A
-    public static void test1(A a1, A a2, A a3, B b1, B b2, C c) {
+    public static void test1(A a1, A a2, A a3, A a4, A a5, B b1, B b2, C c) {
         // Non-scalarized virtual call site, mismatching on B
         a1.method(new MyValue1()).verify();
         a2.method(new MyValue1()).verify();
         a3.method(new MyValue1()).verify();
+        a4.method(new MyValue1()).verify();
+        a5.method(new MyValue1()).verify();
         // Scalarized virtual call sites, mismatching on C
         b1.method(new MyValue1()).verify();
         b2.method(new MyValue1()).verify();
@@ -240,22 +266,34 @@ class TestMismatchHandlingHelper {
     // Loaded later, combine both hierachies and introduce a mismatch:
     // F  <: I2, I4*
     // G* <: I2, I4*
-    public static void test2(I1 i11, I1 i12, I1 i13, I2 i21, I2 i22, I2 i23, I3 i31, I3 i32, I3 i33, I4 i41, I4 i42, I4 i43, D d, E e) {
+    public static void test2(I1 i11, I1 i12, I1 i13, I1 i14, I1 i15, I1 i16, I2 i21, I2 i22, I2 i23, I2 i24, I2 i25, I2 i26, I3 i31, I3 i32, I3 i33, I3 i34, I3 i35, I3 i36, I4 i41, I4 i42, I4 i43, I4 i44, I4 i45, I4 i46, D d, E e) {
         // Non-scalarized virtual call sites, mismatching on E
         i11.method(new MyValue2()).verify();
         i12.method(new MyValue2()).verify();
         i13.method(new MyValue2()).verify();
+        i14.method(new MyValue2()).verify();
+        i15.method(new MyValue2()).verify();
+        i16.method(new MyValue2()).verify();
         i21.method(new MyValue2()).verify();
         i22.method(new MyValue2()).verify();
         i23.method(new MyValue2()).verify();
+        i24.method(new MyValue2()).verify();
+        i25.method(new MyValue2()).verify();
+        i26.method(new MyValue2()).verify();
         d.method(new MyValue2()).verify();
         // Scalarized virtual call sites, mismatching on D
         i31.method(new MyValue2()).verify();
         i32.method(new MyValue2()).verify();
         i33.method(new MyValue2()).verify();
+        i34.method(new MyValue2()).verify();
+        i35.method(new MyValue2()).verify();
+        i36.method(new MyValue2()).verify();
         i41.method(new MyValue2()).verify();
         i42.method(new MyValue2()).verify();
         i43.method(new MyValue2()).verify();
+        i44.method(new MyValue2()).verify();
+        i45.method(new MyValue2()).verify();
+        i46.method(new MyValue2()).verify();
         e.method(new MyValue2()).verify();
     }
 
@@ -263,15 +301,18 @@ class TestMismatchHandlingHelper {
     // K* <: J*
     // Loaded later, combines both hierachies and introduces a mismatch:
     // L* <: K*, I5
-    public static void test3(I5 i51, I5 i52, H h, J j1, J j2, J j3, K k) {
+    public static void test3(I5 i51, I5 i52, I5 i53, J j1, J j2, J j3, J j4, J j5, H h, K k) {
         // Non-scalarized virtual call sites, mismatching on L
         i51.method(new MyValue3()).verify();
         i52.method(new MyValue3()).verify();
+        i53.method(new MyValue3()).verify();
         h.method(new MyValue3()).verify();
         // Scalarized virtual call sites
         j1.method(new MyValue3()).verify();
         j2.method(new MyValue3()).verify();
         j3.method(new MyValue3()).verify();
+        j4.method(new MyValue3()).verify();
+        j5.method(new MyValue3()).verify();
         k.method(new MyValue3()).verify();
     }
 
@@ -301,5 +342,15 @@ class TestMismatchHandlingHelper {
         f.method(new MyValue2());
         g.method(new MyValue2());
         l.method(new MyValue3());
+    }
+
+    // Test scalarized return from C2 compiled callee to C2 compiled caller.
+    public static Verifiable test7(O o, boolean warmup) {
+        return o.method(warmup);
+    }
+
+    public static void test7TriggerCalleeCompilation(O o) {
+        o.method(true);
+        o.method(false).verify();
     }
 }

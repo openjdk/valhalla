@@ -341,7 +341,7 @@ class SharedRuntime: AllStatic {
   static methodHandle handle_ic_miss_helper(bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // Find the method that called us.
-  static methodHandle find_callee_method(TRAPS);
+  static methodHandle find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS);
 
   static void monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread);
 

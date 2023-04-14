@@ -523,15 +523,15 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
      Unimplemented();
   #endif
     // Check if we are returning an non-null inline type and load its fields into registers
-    ciMethod* method = compilation()->method();
-    if (method->return_type()->is_inlinetype()) {
-      ciInlineKlass* vk = method->return_type()->as_inline_klass();
+    ciType* return_type = compilation()->method()->return_type();
+    if (return_type->is_inlinetype()) {
+      ciInlineKlass* vk = return_type->as_inline_klass();
       if (vk->can_be_returned_as_fields()) {
         address unpack_handler = vk->unpack_handler();
         assert(unpack_handler != NULL, "must be");
         __ call(RuntimeAddress(unpack_handler));
       }
-    } else if (!method->return_type()->is_loaded()) {
+    } else if (return_type->is_instance_klass() && (!return_type->is_loaded() || StressCallingConvention)) {
       Label skip;
       __ test_oop_is_not_inline_type(rax, rscratch1, skip);
 
@@ -548,6 +548,8 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
     }
     // At this point, rax points to the value object (for interpreter or C1 caller).
     // The fields of the object are copied into registers (for C2 caller).
+
+    // TODO add stress option? Move it into SharedRuntime::generate_buffered_inline_type_adapter? Do we need the null check in the unpack handler?
   }
 
   // Pop the stack before the safepoint code

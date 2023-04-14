@@ -1335,7 +1335,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
   return receiver;
 }
 
-methodHandle SharedRuntime::find_callee_method(TRAPS) {
+methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   // We need first to check if any Java activations (compiled, interpreted)
@@ -1361,6 +1361,10 @@ methodHandle SharedRuntime::find_callee_method(TRAPS) {
     Bytecodes::Code bc;
     CallInfo callinfo;
     find_callee_info_helper(vfst, bc, callinfo, CHECK_(methodHandle()));
+    // Calls via mismatching methods are always non-scalarized
+    if (callinfo.resolved_method()->mismatch() && !is_optimized) {
+      caller_is_c1 = true;
+    }
     callee_method = methodHandle(current, callinfo.selected_method());
   }
   assert(callee_method()->is_method(), "must be");
@@ -1507,7 +1511,7 @@ methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimize
   Handle receiver = find_callee_info(invoke_code, call_info, CHECK_(methodHandle()));
   methodHandle callee_method(current, call_info.selected_method());
   // Calls via mismatching methods are always non-scalarized
-  if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
+  if (caller_nm->is_compiled_by_c1() || (call_info.resolved_method()->mismatch() && !is_optimized)) {
     caller_is_c1 = true;
   }
 
@@ -2075,11 +2079,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
     }
   }
 
-  methodHandle callee_method = find_callee_method(CHECK_(methodHandle()));
-  // Calls via mismatching methods are always non-scalarized
-  if (callee_method->mismatch()) {
-    caller_is_c1 = true;
-  }
+  methodHandle callee_method = find_callee_method(is_optimized, caller_is_c1, CHECK_(methodHandle()));
 
 #ifndef PRODUCT
   Atomic::inc(&_wrong_method_ctr);

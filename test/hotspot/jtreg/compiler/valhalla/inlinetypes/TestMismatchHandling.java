@@ -62,7 +62,10 @@
  *                   TestMismatchHandling
  */
 
-// Use below script to re-generate TestMismatchHandling.jcod
+// ##################################### WARNING ######################################
+// Use below script to re-generate TestMismatchHandling.jcod, don't modify it manually.
+// Be careful when changing anything (even the order) in this test and related files.
+// ##################################### WARNING ######################################
 
 /*
   #!/bin/bash
@@ -71,12 +74,12 @@
 
   # With preload attribute
   javac TestMismatchHandlingGenerator.java
-  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1.class MyValue2.class MyValue3.class MyValue4.class MyValue5.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
+  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec MyValue1.class MyValue2.class MyValue3.class MyValue4.class MyValue5.class MyValue6.class Verifiable.class B.class I3.class I4.class E.class G.class J.class K.class L.class TestMismatchHandlingHelper.class > TestMismatchHandling.jcod
 
   # Without preload attribute
   sed -i 's/value class MyValue/class MyValue/g' TestMismatchHandlingGenerator.java
   javac TestMismatchHandlingGenerator.java
-  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec A.class C.class I1.class I2.class D.class F.class H.class I5.class M.class N.class >> TestMismatchHandling.jcod
+  java -cp $ASMTOOLS org.openjdk.asmtools.Main jdec A.class C.class I1.class I2.class D.class F.class H.class I5.class M.class N.class O.class >> TestMismatchHandling.jcod
 
   sed -i 's/class MyValue/value class MyValue/g' TestMismatchHandlingGenerator.java
 */
@@ -138,17 +141,20 @@ public class TestMismatchHandling {
         J j = new J();
         K k = new K();
         N n = new N();
+        O o = new O();
 
         // Warmup
         for (int i = 0; i < 50_000; ++i) {
-            TestMismatchHandlingHelper.test1(a, a, a, b, b, c);
-            TestMismatchHandlingHelper.test1(b, a, a, b, b, c);
-            TestMismatchHandlingHelper.test1(c, b, a, c, b, c);
-            TestMismatchHandlingHelper.test2(d, d, d, d, d, d, e, e, e, e, e, e, d, e);
-            TestMismatchHandlingHelper.test3(h, h, h, j, j, j, k);
-            TestMismatchHandlingHelper.test3(h, h, h, k, k, j, k);
+            TestMismatchHandlingHelper.test1(a, a, a, b, c, b, b, c);
+            TestMismatchHandlingHelper.test1(b, a, a, b, c, b, b, c);
+            TestMismatchHandlingHelper.test1(c, b, a, b, c, c, b, c);
+            TestMismatchHandlingHelper.test2(d, d, d, d, d, d,  d, d, d, d, d, d,  e, e, e, e, e, e,  e, e, e, e, e, e,  d, e);
+            TestMismatchHandlingHelper.test2(d, d, d, d, d, d,  d, d, d, d, d, d,  e, e, e, e, e, e,  e, e, e, e, e, e,  d, e);
+            TestMismatchHandlingHelper.test3(h, h, h,  j, k, j, k, j,  h, k);
+            TestMismatchHandlingHelper.test3(h, h, h,  j, k, j, k, k,  h, k);
             TestMismatchHandlingHelper.test4(m, true);
             TestMismatchHandlingHelper.test5(n, true);
+            TestMismatchHandlingHelper.test7(o, true);
         }
 
         // Only load these now
@@ -157,18 +163,35 @@ public class TestMismatchHandling {
         L l = new L();
 
         for (int i = 0; i < 50_000; ++i) {
-            TestMismatchHandlingHelper.test1(a, a, a, b, b, c);
-            TestMismatchHandlingHelper.test1(b, a, a, b, b, c);
-            TestMismatchHandlingHelper.test1(c, b, a, c, b, c);
-            TestMismatchHandlingHelper.test2(d, f, g, d, f, g, e, e, g, e, e, g, d, e);
-            TestMismatchHandlingHelper.test2(f, f, g, f, f, g, f, e, g, f, e, g, d, e);
-            TestMismatchHandlingHelper.test2(g, g, g, g, g, g, g, g, g, g, f, g, d, e);
-            TestMismatchHandlingHelper.test3(h, l, h, j, j, l, k);
-            TestMismatchHandlingHelper.test3(h, l, h, k, j, l, k);
-            TestMismatchHandlingHelper.test3(l, l, h, l, k, l, l);
+            TestMismatchHandlingHelper.test1(a, a, a, b, c, b, b, c);
+            TestMismatchHandlingHelper.test1(b, a, a, b, c, b, b, c);
+            TestMismatchHandlingHelper.test1(c, b, a, b, c, c, b, c);
+            TestMismatchHandlingHelper.test2(d, f, g, d, f, d,  d, f, g, d, f, d,  e, f, g, e, f, g,  e, f, g, e, f, g,  d, e);
+            TestMismatchHandlingHelper.test2(d, f, g, d, f, f,  d, f, g, d, f, f,  e, f, g, e, f, f,  e, f, g, e, f, f,  d, e);
+            TestMismatchHandlingHelper.test2(d, f, g, f, g, g,  d, f, g, f, g, g,  e, f, g, f, g, g,  e, f, g, f, g, g,  d, e);
+            TestMismatchHandlingHelper.test3(h, l, h,  j, k, j, k, j,  h, k);
+            TestMismatchHandlingHelper.test3(h, l, h,  j, k, k, k, k,  h, k);
+            TestMismatchHandlingHelper.test3(h, l, l,  j, k, k, l, l,  h, l);
             TestMismatchHandlingHelper.test4(m, false);
             TestMismatchHandlingHelper.test5(n, false);
             TestMismatchHandlingHelper.test6(f, g, l);
+            TestMismatchHandlingHelper.test7TriggerCalleeCompilation(o);
+        }
+        TestMismatchHandlingHelper.test7(o, false).verify();
+
+        switch (Utils.getRandomInstance().nextInt() % 3) {
+        case 0:
+            TestMismatchHandlingHelper.test2(d, d, d, d, d, d,  d, d, d, d, d, d,  e, e, e, e, e, e,  e, e, e, e, e, e,  d, e);
+            TestMismatchHandlingHelper.test3(l, h, l,  k, l, l, j, j,  h, l);
+            break;
+        case 1:
+            TestMismatchHandlingHelper.test2(f, f, f, f, f, f,  f, f, f, f, f, f,  f, f, f, f, f, f,  f, f, f, f, f, f,  d, e);
+            TestMismatchHandlingHelper.test3(l, h, l,  l, j, j, k, l,  h, l);
+            break;
+        case 2:
+            TestMismatchHandlingHelper.test2(g, g, g, g, g, g,  g, g, g, g, g, g,  g, g, g, g, g, g,  g, g, g, g, g, g,  d, e);
+            TestMismatchHandlingHelper.test3(l, h, l,  j, k, k, l, j,  h, l);
+            break;
         }
     }
 }

@@ -767,7 +767,12 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         // ever sees a non-null value, loading has occurred.
         //
         // See do_getstatic() for similar explanation, as well as bug 4684993.
-        do_null_assert(return_type->as_klass());
+        // TODO Add call to unpack handler in call epilog instead
+        //do_null_assert(return_type->as_klass());
+        trap(str, NULL,
+             Deoptimization::make_trap_request
+             (Deoptimization::Reason_uninitialized,
+              Deoptimization::Action_reinterpret));
       } else {
         if (sigstr.is_null_free()) {
           return_type = outer()->mark_as_null_free(return_type);

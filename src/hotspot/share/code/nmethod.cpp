@@ -3065,7 +3065,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
 
   // Print the arguments for the 3 types of verified entry points
   CompiledEntrySignature ces(m);
-  ces.compute_calling_conventions();
+  ces.compute_calling_conventions(false);
   const GrowableArray<SigEntry>* sig_cc;
   const VMRegPair* regs;
   if (block_begin == verified_entry_point()) {

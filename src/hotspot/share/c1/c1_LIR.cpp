@@ -1095,7 +1095,8 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
         return true;
       }
     } else if (return_type->is_instance_klass() &&
-               (method()->is_method_handle_intrinsic() || !return_type->is_loaded())) {
+               (method()->is_method_handle_intrinsic() || !return_type->is_loaded() ||
+                StressCallingConvention)) {
       // An inline type might be returned from the call but we don't know its type.
       // This can happen with method handle intrinsics or when the return type is
       // not loaded (method holder is not loaded or preload attribute is missing).
