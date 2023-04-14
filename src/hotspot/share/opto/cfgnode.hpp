@@ -144,7 +144,7 @@ class PhiNode : public TypeNode {
   bool is_data_loop(RegionNode* r, Node* uin, const PhaseGVN* phase);
 
   static Node* clone_through_phi(Node* root_phi, const Type* t, uint c, PhaseIterGVN* igvn);
-  static Node* merge_through_phi(Node* root_phi, PhaseIterGVN* igvn);
+  static Node* merge_through_phi(Node* root_phi, PhaseGVN* phase);
 
 public:
   // Node layout (parallels RegionNode):
