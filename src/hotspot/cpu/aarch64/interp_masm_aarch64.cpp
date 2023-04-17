@@ -791,7 +791,8 @@ void InterpreterMacroAssembler::remove_activation(
 
     blr(rscratch1);
 #ifdef ASSERT
-    if (StressCallingConvention) {
+    // TODO 8284443 Enable
+    if (StressCallingConvention && false) {
       Label skip_stress;
       ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
       ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));

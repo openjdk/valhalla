@@ -3047,18 +3047,21 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   Symbol* name = _method->name();
   Symbol* signature = _method->signature();
   const Klass* holder = _method->method_holder()->super();
+  Symbol* holder_name = holder->name();
+  ThreadInVMfromUnknown tiv;
+  JavaThread* current = JavaThread::current();
+  HandleMark hm(current);
+  Handle loader(current, _method->method_holder()->class_loader());
+
   // Walk up the class hierarchy and search for super methods
   while (holder != NULL) {
     Method* super_method = holder->lookup_method(name, signature);
     if (super_method == NULL) {
       break;
     }
-    if (!super_method->is_static() && !super_method->is_private()) {
-      // TODO needed?
-      // Package-private methods are not inherited outside of package
-      // if (super_method->is_package_private() && super_method->method_holder()->is_same_class_package(targetclassloader(), targetclassname)) {
-        //return();)
-      //}
+    if (!super_method->is_static() && !super_method->is_private() &&
+        (!super_method->is_package_private() ||
+         super_method->method_holder()->is_same_class_package(loader(), holder_name))) {
       _supers->push(super_method);
     }
     holder = super_method->method_holder()->super();

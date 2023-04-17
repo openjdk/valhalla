@@ -504,8 +504,9 @@ Symbol* SignatureStream::find_symbol() {
 }
 
 InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
-  ThreadInVMfromUnknown __tiv;
+  ThreadInVMfromUnknown tiv;
   JavaThread* THREAD = JavaThread::current();
+  HandleMark hm(THREAD);
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::CachedOrNull, THREAD);

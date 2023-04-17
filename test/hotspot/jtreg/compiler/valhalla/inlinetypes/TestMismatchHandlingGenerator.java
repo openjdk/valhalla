@@ -269,7 +269,7 @@ class P implements I6 {
 }
 
 class Q {
-    public MyValue7 method(MyValue7 arg) {
+    MyValue7 method(MyValue7 arg) {
         arg.verify();
         return arg;
     }
@@ -277,7 +277,7 @@ class Q {
 
 class R extends Q {
     @Override
-    public MyValue7 method(MyValue7 arg) {
+    MyValue7 method(MyValue7 arg) {
         arg.verify();
         return arg;
     }
@@ -402,7 +402,7 @@ class TestMismatchHandlingHelper {
         o.method(false).verify();
     }
 
-    // Same as test3 but with default method in interface
+    // Same as test3 but with default method in interface and package private methods
     // P  <: I6
     // R* <: Q*
     // Loaded later, combines both hierachies and introduces a mismatch:

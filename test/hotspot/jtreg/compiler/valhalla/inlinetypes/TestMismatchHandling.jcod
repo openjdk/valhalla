@@ -1871,7 +1871,7 @@ class Q {
     }
     ;
     {  // method
-      0x0001; // access
+      0x0000; // access
       #16; // name_index
       #17; // descriptor_index
       [] { // Attributes
@@ -1972,7 +1972,7 @@ class R {
     }
     ;
     {  // method
-      0x0001; // access
+      0x0000; // access
       #16; // name_index
       #17; // descriptor_index
       [] { // Attributes
