@@ -3053,7 +3053,6 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
     if (super_method == NULL) {
       break;
     }
-    // TODO check if method is final? also below?
     if (!super_method->is_static() && !super_method->is_private()) {
       // TODO needed?
       // Package-private methods are not inherited outside of package
@@ -3068,7 +3067,6 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   Array<InstanceKlass*>* interfaces = _method->method_holder()->transitive_interfaces();
   for (int i = 0; i < interfaces->length(); ++i) {
     Method* m = interfaces->at(i)->lookup_method(name, signature);
-    // TODO what about protected/package private?
     if (m != NULL && !m->is_static() && m->is_public()) {
       _supers->push(m);
     }

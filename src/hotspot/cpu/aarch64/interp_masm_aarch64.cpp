@@ -794,8 +794,9 @@ void InterpreterMacroAssembler::remove_activation(
     if (StressCallingConvention) {
       Label skip_stress;
       ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-      ldr(rscratch1, Address(rscratch1, Method::flags_offset()));
-      tbz(rscratch1, Method::scalarized_return_flag(), skip_stress);
+      ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));
+      tstw(rscratch1, Method::scalarized_return_flag());
+      br(Assembler::EQ, skip_stress);
       load_klass(r0, r0);
       orr(r0, r0, 1);
       bind(skip_stress);

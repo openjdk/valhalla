@@ -255,7 +255,7 @@ class O {
 }
 
 interface I6 {
-    public default MyValue7 method(MyValue7 arg) {
+    default MyValue7 method(MyValue7 arg) {
         return null;
     }
 }
