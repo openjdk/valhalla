@@ -99,6 +99,16 @@ value class MyValue6 implements Verifiable {
     }
 }
 
+value class MyValue7 {
+    int x = 42;
+
+    void verify() {
+        if (x != 42) {
+            throw new RuntimeException("Verification failed");
+        }
+    }
+}
+
 class A {
     public MyValue1 method(MyValue1 arg) {
         arg.verify();
@@ -244,6 +254,43 @@ class O {
     }
 }
 
+interface I6 {
+    public default MyValue7 method(MyValue7 arg) {
+        return null;
+    }
+}
+
+class P implements I6 {
+    @Override
+    public MyValue7 method(MyValue7 arg) {
+        arg.verify();
+        return arg;
+    }
+}
+
+class Q {
+    public MyValue7 method(MyValue7 arg) {
+        arg.verify();
+        return arg;
+    }
+}
+
+class R extends Q {
+    @Override
+    public MyValue7 method(MyValue7 arg) {
+        arg.verify();
+        return arg;
+    }
+}
+
+class S extends R implements I6 {
+    @Override
+    public MyValue7 method(MyValue7 arg) {
+        arg.verify();
+        return arg;
+    }
+}
+
 class TestMismatchHandlingHelper {
     // * = has preload attribute for MyValue*
 
@@ -353,5 +400,25 @@ class TestMismatchHandlingHelper {
     public static void test7TriggerCalleeCompilation(O o) {
         o.method(true);
         o.method(false).verify();
+    }
+
+    // Same as test3 but with default method in interface
+    // P  <: I6
+    // R* <: Q*
+    // Loaded later, combines both hierachies and introduces a mismatch:
+    // S* <: R*, I6
+    public static void test8(I6 i61, I6 i62, I6 i63, Q q1, Q q2, Q q3, Q q4, Q q5, P p, R r) {
+        // Non-scalarized virtual call sites, mismatching on S
+        i61.method(new MyValue7()).verify();
+        i62.method(new MyValue7()).verify();
+        i63.method(new MyValue7()).verify();
+        p.method(new MyValue7()).verify();
+        // Scalarized virtual call sites
+        q1.method(new MyValue7()).verify();
+        q2.method(new MyValue7()).verify();
+        q3.method(new MyValue7()).verify();
+        q4.method(new MyValue7()).verify();
+        q5.method(new MyValue7()).verify();
+        r.method(new MyValue7()).verify();
     }
 }

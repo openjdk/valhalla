@@ -932,6 +932,10 @@ public:
     _flags = x ? (_flags | _scalarized_return) : (_flags & ~_scalarized_return);
   }
 
+  static u2 scalarized_return_flag() {
+    return _scalarized_return;
+  }
+
   bool is_scalarized_arg(int idx) const;
 
   bool c1_needs_stack_repair() const {

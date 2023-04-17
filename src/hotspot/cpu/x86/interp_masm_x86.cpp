@@ -1193,8 +1193,14 @@ void InterpreterMacroAssembler::remove_activation(
 #endif
 #ifdef ASSERT
     if (StressCallingConvention) {
+      Label skip_stress;
+      movptr(rscratch1, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
+      movl(rscratch1, Address(rscratch1, Method::flags_offset()));
+      testl(rcx, Method::scalarized_return_flag());
+      jcc(Assembler::zero, skip_stress);
       load_klass(rax, rax, rscratch1);
       orptr(rax, 1);
+      bind(skip_stress);
     }
 #endif
     // call above kills the value in rbx. Reload it.

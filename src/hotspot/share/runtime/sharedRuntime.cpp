@@ -3034,8 +3034,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   }
 }
 
-// TODO comment
-// TODO Follow-up RFE. This should only affect virtual calls! A non-abstract mismatched method can be called scalarized directly. Also, more deopts than required might be triggered.
+// Returns all super methods (transitive) in classes and interfaces that are overridden by the current method.
 GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   if (_supers != nullptr) {
     return _supers;
@@ -3069,9 +3068,8 @@ GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
   Array<InstanceKlass*>* interfaces = _method->method_holder()->transitive_interfaces();
   for (int i = 0; i < interfaces->length(); ++i) {
     Method* m = interfaces->at(i)->lookup_method(name, signature);
-    // TODO do we need to handle default methods?
     // TODO what about protected/package private?
-    if (m != NULL && m->is_public() && !m->is_static() && !m->is_default_method()) {
+    if (m != NULL && !m->is_static() && m->is_public()) {
       _supers->push(m);
     }
   }
