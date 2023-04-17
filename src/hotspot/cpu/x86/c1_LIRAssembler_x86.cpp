@@ -548,8 +548,6 @@ void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
     }
     // At this point, rax points to the value object (for interpreter or C1 caller).
     // The fields of the object are copied into registers (for C2 caller).
-
-    // TODO add stress option? Move it into SharedRuntime::generate_buffered_inline_type_adapter? Do we need the null check in the unpack handler?
   }
 
   // Pop the stack before the safepoint code

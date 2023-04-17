@@ -2452,7 +2452,7 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
 
 // An inline type might be returned from the call but we don't know its
 // type. Either we get a buffered inline type (and nothing needs to be done)
-// or one of the inlines being returned is the klass of the inline type
+// or one of the values being returned is the klass of the inline type
 // and we need to allocate an inline type instance of that type and
 // initialize it with other values being returned. In that case, we
 // first try a fast path allocation and initialize the value with the

@@ -767,12 +767,17 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         // ever sees a non-null value, loading has occurred.
         //
         // See do_getstatic() for similar explanation, as well as bug 4684993.
-        // TODO Add call to unpack handler in call epilog instead
-        //do_null_assert(return_type->as_klass());
-        trap(str, NULL,
-             Deoptimization::make_trap_request
-             (Deoptimization::Reason_uninitialized,
-              Deoptimization::Action_reinterpret));
+        if (InlineTypeReturnedAsFields) {
+          // Return might be in scalarized form but we can't handle it because we
+          // don't know the type. This can happen due to a missing preload attribute.
+          // TODO 8284443 Use PhaseMacroExpand::expand_mh_intrinsic_return for this
+          trap(str, NULL,
+               Deoptimization::make_trap_request
+               (Deoptimization::Reason_uninitialized,
+                Deoptimization::Action_reinterpret));
+        } else {
+          do_null_assert(return_type->as_klass());
+        }
       } else {
         if (sigstr.is_null_free()) {
           return_type = outer()->mark_as_null_free(return_type);
