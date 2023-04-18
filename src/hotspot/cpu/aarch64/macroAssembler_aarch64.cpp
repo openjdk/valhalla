@@ -6371,7 +6371,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {
-  return (reg->is_FloatRegister()) ? v0->as_VMReg() : r14->as_VMReg();
+  return (reg->is_FloatRegister()) ? v8->as_VMReg() : r14->as_VMReg();
 }
 
 void MacroAssembler::cache_wb(Address line) {
