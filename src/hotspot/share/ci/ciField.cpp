@@ -166,6 +166,11 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
     return;
   }
 
+  int bundle_size = field_desc.secondary_fields_count(field_desc.index());
+  if (bundle_size > 1) {
+    _type = ciType::make(field_type, bundle_size);
+  }
+
   // Access check based on declared_holder. canonical_holder should not be used
   // to check access because it can erroneously succeed. If this check fails,
   // propagate the declared holder to will_link() which in turn will bail out

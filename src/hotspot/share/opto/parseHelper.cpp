@@ -342,7 +342,7 @@ void Parse::do_withfield() {
   bool will_link;
   ciField* field = iter().get_field(will_link);
   assert(will_link, "withfield: typeflow responsibility");
-  int holder_depth = field->type()->size();
+  int holder_depth = field->type()->size() / field->type()->bundle_size();
   null_check(peek(holder_depth));
   if (stopped()) {
     return;
@@ -359,7 +359,7 @@ void Parse::do_withfield() {
     // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
-    int nargs = 1 + field->type()->size();
+    int nargs = 1 + field->type()->size() / field->type()->bundle_size();
     inc_sp(nargs);
     val = val->as_InlineType()->buffer(this);
   }

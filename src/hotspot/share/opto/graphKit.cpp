@@ -1109,7 +1109,7 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
   case Bytecodes::_withfield: {
     bool ignored_will_link;
     ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
-    int      size  = field->type()->size();
+    int      size  = field->type()->size() / field->type()->bundle_size();
     inputs = size+1;
     depth = rsize - inputs;
     break;

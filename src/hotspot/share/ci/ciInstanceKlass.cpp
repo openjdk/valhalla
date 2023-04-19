@@ -584,7 +584,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
         // field is declared final or the holder klass is an inline type itself.
         bool is_final = fd.is_final() || is_inlinetype();
         ciField* field = NULL;
-        if (flattened_field->secondary_fields_count() > 1) {
+        if (flattened_field->is_multifield_base()) {
           field = new (arena) ciMultiField(flattened_field, this, offset, is_final);
           static_cast<ciMultiField*>(field)->add_secondary_fields(static_cast<ciMultiField*>(flattened_field)->secondary_fields());
         } else {
@@ -596,7 +596,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       ciField* field = NULL;
       if (fs.is_multifield_base()) {
         field = new (arena) ciMultiField(&fd);
-        GrowableArray<ciField*>* sec_fields = new (arena) GrowableArray<ciField*>(arena, field->secondary_fields_count(), 0, NULL);
+        GrowableArray<ciField*>* sec_fields = new (arena) GrowableArray<ciField*>(arena, fd.secondary_fields_count(fd.index()), 0, NULL);
         static_cast<ciMultiField*>(field)->add_secondary_fields(sec_fields);
       } else {
         field = new (arena) ciField(&fd);
