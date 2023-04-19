@@ -186,6 +186,7 @@ public class TestInlineUnloaded {
             "-cp", "launcher.jar",
             "-XX:+IgnoreUnrecognizedVMOptions", "-showversion",
             "-XX:-TieredCompilation", "-Xbatch",
+            "-XX:-InlineTypeReturnedAsFields", // TODO Remove this once 8284443 fixed handling of unloaded return types
             "-XX:+PrintCompilation", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintInlining",
             "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,*TestNull::run",
             Launcher.class.getName(), testCaseName);

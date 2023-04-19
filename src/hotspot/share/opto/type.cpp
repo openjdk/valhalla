@@ -6931,6 +6931,10 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   // type argument/return as a single slot), one based on the actual calling
   // convention (with an inline type argument/return as a list of its fields).
   bool has_scalar_args = method->has_scalarized_args() && !is_osr_compilation;
+  // Fall back to the non-scalarized calling convention when compiling a call via a mismatching method
+  if (method != C->method() && method->get_Method()->mismatch()) {
+    has_scalar_args = false;
+  }
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, ignore_interfaces, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, ignore_interfaces, true) : domain_sig;
   ciSignature* sig = method->signature();

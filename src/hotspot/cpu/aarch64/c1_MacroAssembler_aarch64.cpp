@@ -361,8 +361,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   generate_stack_overflow_check(bang_size_in_bytes);
 
-  GrowableArray<SigEntry>* sig    = &ces->sig();
-  GrowableArray<SigEntry>* sig_cc = is_inline_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
+  GrowableArray<SigEntry>* sig    = ces->sig();
+  GrowableArray<SigEntry>* sig_cc = is_inline_ro_entry ? ces->sig_cc_ro() : ces->sig_cc();
   VMRegPair* regs      = ces->regs();
   VMRegPair* regs_cc   = is_inline_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
   int args_on_stack    = ces->args_on_stack();

@@ -1267,11 +1267,6 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
     frame stubFrame   = current->last_frame();
     // Caller-frame is a compiled frame
     frame callerFrame = stubFrame.sender(&reg_map2);
-    bool caller_is_c1 = false;
-
-    if (callerFrame.is_compiled_frame()) {
-      caller_is_c1 = callerFrame.cb()->is_compiled_by_c1();
-    }
 
     Method* callee = attached_method();
     if (callee == NULL) {
@@ -1280,9 +1275,11 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
+    bool caller_is_c1 = callerFrame.is_compiled_frame() && callerFrame.cb()->is_compiled_by_c1();
     if (!caller_is_c1 && callee->is_scalarized_arg(0)) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
+      assert(!callee->mismatch(), "calls with inline type receivers should never mismatch");
       assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
       if (bc == Bytecodes::_invokeinterface) {
         bc = Bytecodes::_invokevirtual; // C2 optimistically replaces interface calls by virtual calls
@@ -1338,7 +1335,7 @@ Handle SharedRuntime::find_callee_info_helper(vframeStream& vfst, Bytecodes::Cod
   return receiver;
 }
 
-methodHandle SharedRuntime::find_callee_method(TRAPS) {
+methodHandle SharedRuntime::find_callee_method(bool is_optimized, bool& caller_is_c1, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   // We need first to check if any Java activations (compiled, interpreted)
@@ -1364,6 +1361,10 @@ methodHandle SharedRuntime::find_callee_method(TRAPS) {
     Bytecodes::Code bc;
     CallInfo callinfo;
     find_callee_info_helper(vfst, bc, callinfo, CHECK_(methodHandle()));
+    // Calls via mismatching methods are always non-scalarized
+    if (callinfo.resolved_method()->mismatch() && !is_optimized) {
+      caller_is_c1 = true;
+    }
     callee_method = methodHandle(current, callinfo.selected_method());
   }
   assert(callee_method()->is_method(), "must be");
@@ -1371,7 +1372,7 @@ methodHandle SharedRuntime::find_callee_method(TRAPS) {
 }
 
 // Resolves a call.
-methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS) {
   methodHandle callee_method;
   callee_method = resolve_sub_helper(is_virtual, is_optimized, caller_is_c1, THREAD);
   if (JvmtiExport::can_hotswap_or_post_breakpoint()) {
@@ -1398,7 +1399,7 @@ methodHandle SharedRuntime::resolve_helper(bool is_virtual, bool is_optimized, b
 
 // This fails if resolution required refilling of IC stubs
 bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, const frame& caller_frame,
-                                                CompiledMethod* caller_nm, bool is_virtual, bool is_optimized,
+                                                CompiledMethod* caller_nm, bool is_virtual, bool is_optimized, bool& caller_is_c1,
                                                 Handle receiver, CallInfo& call_info, Bytecodes::Code invoke_code, TRAPS) {
   StaticCallInfo static_call_info;
   CompiledICInfo virtual_call_info;
@@ -1420,7 +1421,6 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 #endif
 
   bool is_nmethod = caller_nm->is_nmethod();
-  bool caller_is_c1 = caller_nm->is_compiled_by_c1();
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
@@ -1490,7 +1490,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 
 // Resolves a call.  The compilers generate code for calls that go here
 // and are patched with the real destination of the call.
-methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimized, bool* caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimized, bool& caller_is_c1, TRAPS) {
   JavaThread* current = THREAD;
   ResourceMark rm(current);
   RegisterMap cbl_map(current,
@@ -1502,7 +1502,6 @@ methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimize
   CodeBlob* caller_cb = caller_frame.cb();
   guarantee(caller_cb != NULL && caller_cb->is_compiled(), "must be called from compiled method");
   CompiledMethod* caller_nm = caller_cb->as_compiled_method_or_null();
-  *caller_is_c1 = caller_nm->is_compiled_by_c1();
 
   // determine call info & receiver
   // note: a) receiver is NULL for static calls
@@ -1511,6 +1510,10 @@ methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimize
   Bytecodes::Code invoke_code = Bytecodes::_illegal;
   Handle receiver = find_callee_info(invoke_code, call_info, CHECK_(methodHandle()));
   methodHandle callee_method(current, call_info.selected_method());
+  // Calls via mismatching methods are always non-scalarized
+  if (caller_nm->is_compiled_by_c1() || (call_info.resolved_method()->mismatch() && !is_optimized)) {
+    caller_is_c1 = true;
+  }
 
   assert((!is_virtual && invoke_code == Bytecodes::_invokestatic ) ||
          (!is_virtual && invoke_code == Bytecodes::_invokespecial) ||
@@ -1575,7 +1578,7 @@ methodHandle SharedRuntime::resolve_sub_helper(bool is_virtual, bool is_optimize
   for (;;) {
     ICRefillVerifier ic_refill_verifier;
     bool successful = resolve_sub_helper_internal(callee_method, caller_frame, caller_nm,
-                                                  is_virtual, is_optimized, receiver,
+                                                  is_virtual, is_optimized, caller_is_c1, receiver,
                                                   call_info, invoke_code, CHECK_(methodHandle()));
     if (successful) {
       return callee_method;
@@ -1710,10 +1713,10 @@ JRT_END
 // resolve a static call and patch code
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread* current ))
   methodHandle callee_method;
-  bool caller_is_c1;
+  bool caller_is_c1 = false;
   bool enter_special = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(false, false, &caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(false, false, caller_is_c1, CHECK_NULL);
     current->set_vm_result_2(callee_method());
 
     if (current->is_interp_only_mode()) {
@@ -1751,9 +1754,9 @@ JRT_END
 // resolve virtual call and update inline cache to monomorphic
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread* current))
   methodHandle callee_method;
-  bool caller_is_c1;
+  bool caller_is_c1 = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(true, false, &caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(true, false, caller_is_c1, CHECK_NULL);
     current->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
@@ -1768,9 +1771,9 @@ JRT_END
 // monomorphic, so it has no inline cache).  Patch code to resolved target.
 JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread* current))
   methodHandle callee_method;
-  bool caller_is_c1;
+  bool caller_is_c1 = false;
   JRT_BLOCK
-    callee_method = SharedRuntime::resolve_helper(true, true, &caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::resolve_helper(true, true, caller_is_c1, CHECK_NULL);
     current->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
@@ -1837,7 +1840,7 @@ bool SharedRuntime::handle_ic_miss_helper_internal(Handle receiver, CompiledMeth
                                             receiver_klass,
                                             inline_cache->is_optimized(),
                                             false, caller_nm->is_nmethod(),
-                                            caller_nm->is_compiled_by_c1(),
+                                            caller_is_c1,
                                             info, CHECK_false);
     if (!inline_cache->set_to_monomorphic(info)) {
       needs_ic_stub_refill = true;
@@ -1943,7 +1946,10 @@ methodHandle SharedRuntime::handle_ic_miss_helper(bool& is_optimized, bool& call
   frame caller_frame = current->last_frame().sender(&reg_map);
   CodeBlob* cb = caller_frame.cb();
   CompiledMethod* caller_nm = cb->as_compiled_method();
-  caller_is_c1 = caller_nm->is_compiled_by_c1();
+  // Calls via mismatching methods are always non-scalarized
+  if (caller_nm->is_compiled_by_c1() || call_info.resolved_method()->mismatch()) {
+    caller_is_c1 = true;
+  }
 
   for (;;) {
     ICRefillVerifier ic_refill_verifier;
@@ -2073,7 +2079,7 @@ methodHandle SharedRuntime::reresolve_call_site(bool& is_static_call, bool& is_o
     }
   }
 
-  methodHandle callee_method = find_callee_method(CHECK_(methodHandle()));
+  methodHandle callee_method = find_callee_method(is_optimized, caller_is_c1, CHECK_(methodHandle()));
 
 #ifndef PRODUCT
   Atomic::inc(&_wrong_method_ctr);
@@ -2870,24 +2876,24 @@ void AdapterHandlerLibrary::initialize() {
     _no_arg_handler = create_adapter(no_arg_blob, no_args, true);
 
     CompiledEntrySignature obj_args;
-    SigEntry::add_entry(&obj_args.sig(), T_OBJECT, NULL);
+    SigEntry::add_entry(obj_args.sig(), T_OBJECT, NULL);
     obj_args.compute_calling_conventions();
     _obj_arg_handler = create_adapter(obj_arg_blob, obj_args, true);
 
     CompiledEntrySignature int_args;
-    SigEntry::add_entry(&int_args.sig(), T_INT, NULL);
+    SigEntry::add_entry(int_args.sig(), T_INT, NULL);
     int_args.compute_calling_conventions();
     _int_arg_handler = create_adapter(int_arg_blob, int_args, true);
 
     CompiledEntrySignature obj_int_args;
-    SigEntry::add_entry(&obj_int_args.sig(), T_OBJECT, NULL);
-    SigEntry::add_entry(&obj_int_args.sig(), T_INT, NULL);
+    SigEntry::add_entry(obj_int_args.sig(), T_OBJECT, NULL);
+    SigEntry::add_entry(obj_int_args.sig(), T_INT, NULL);
     obj_int_args.compute_calling_conventions();
     _obj_int_arg_handler = create_adapter(obj_int_arg_blob, obj_int_args, true);
 
     CompiledEntrySignature obj_obj_args;
-    SigEntry::add_entry(&obj_obj_args.sig(), T_OBJECT, NULL);
-    SigEntry::add_entry(&obj_obj_args.sig(), T_OBJECT, NULL);
+    SigEntry::add_entry(obj_obj_args.sig(), T_OBJECT, NULL);
+    SigEntry::add_entry(obj_obj_args.sig(), T_OBJECT, NULL);
     obj_obj_args.compute_calling_conventions();
     _obj_obj_arg_handler = create_adapter(obj_obj_arg_blob, obj_obj_args, true);
 
@@ -2983,7 +2989,7 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _method(method), _num_inline_args(0), _has_inline_recv(false),
   _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
-  _c1_needs_stack_repair(false), _c2_needs_stack_repair(false) {
+  _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _supers(nullptr) {
   _sig = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
   _sig_cc = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
   _sig_cc_ro = new GrowableArray<SigEntry>((method != NULL) ? method->size_of_parameters() : 1);
@@ -3028,8 +3034,51 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   }
 }
 
+// Returns all super methods (transitive) in classes and interfaces that are overridden by the current method.
+GrowableArray<Method*>* CompiledEntrySignature::get_supers() {
+  if (_supers != nullptr) {
+    return _supers;
+  }
+  _supers = new GrowableArray<Method*>();
+  // Skip private, static, and <init> methods
+  if (_method->is_private() || _method->is_static() || _method->is_object_constructor()) {
+    return _supers;
+  }
+  Symbol* name = _method->name();
+  Symbol* signature = _method->signature();
+  const Klass* holder = _method->method_holder()->super();
+  Symbol* holder_name = holder->name();
+  ThreadInVMfromUnknown tiv;
+  JavaThread* current = JavaThread::current();
+  HandleMark hm(current);
+  Handle loader(current, _method->method_holder()->class_loader());
+
+  // Walk up the class hierarchy and search for super methods
+  while (holder != NULL) {
+    Method* super_method = holder->lookup_method(name, signature);
+    if (super_method == NULL) {
+      break;
+    }
+    if (!super_method->is_static() && !super_method->is_private() &&
+        (!super_method->is_package_private() ||
+         super_method->method_holder()->is_same_class_package(loader(), holder_name))) {
+      _supers->push(super_method);
+    }
+    holder = super_method->method_holder()->super();
+  }
+  // Search interfaces for super methods
+  Array<InstanceKlass*>* interfaces = _method->method_holder()->transitive_interfaces();
+  for (int i = 0; i < interfaces->length(); ++i) {
+    Method* m = interfaces->at(i)->lookup_method(name, signature);
+    if (m != NULL && !m->is_static() && m->is_public()) {
+      _supers->push(m);
+    }
+  }
+  return _supers;
+}
+
+// Iterate over arguments and compute scalarized and non-scalarized signatures
 void CompiledEntrySignature::compute_calling_conventions(bool init) {
-  // Iterate over arguments and compute scalarized and non-scalarized signatures
   bool has_scalarized = false;
   if (_method != NULL) {
     InstanceKlass* holder = _method->method_holder();
@@ -3052,18 +3101,61 @@ void CompiledEntrySignature::compute_calling_conventions(bool init) {
       BasicType bt = ss.type();
       if (bt == T_OBJECT || bt == T_PRIMITIVE_OBJECT) {
         InlineKlass* vk = ss.as_inline_klass(holder);
-        // TODO 8301007 Mismatch handling, we need to check parent method args (look at klassVtable::needs_new_vtable_entry)
         if (vk != NULL && vk->can_be_passed_as_fields() && (init || _method->is_scalarized_arg(arg_num))) {
-          _num_inline_args++;
-          has_scalarized = true;
-          int last = _sig_cc->length();
-          int last_ro = _sig_cc_ro->length();
-          _sig_cc->appendAll(vk->extended_sig());
-          _sig_cc_ro->appendAll(vk->extended_sig());
-          if (bt == T_OBJECT) {
-            // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_PRIMITIVE_OBJECT
-            _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
-            _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, NULL));
+          // Check for a calling convention mismatch with super method(s)
+          bool scalar_super = false;
+          bool non_scalar_super = false;
+          GrowableArray<Method*>* supers = get_supers();
+          for (int i = 0; i < supers->length(); ++i) {
+            Method* super_method = supers->at(i);
+            if (super_method->is_scalarized_arg(arg_num)) {
+              scalar_super = true;
+            } else {
+              non_scalar_super = true;
+            }
+          }
+#ifdef ASSERT
+          // Randomly enable below code paths for stress testing
+          bool stress = init && StressCallingConvention;
+          if (stress && (os::random() & 1) == 1) {
+            non_scalar_super = true;
+            if ((os::random() & 1) == 1) {
+              scalar_super = true;
+            }
+          }
+#endif
+          if (non_scalar_super) {
+            // Found a super method with a non-scalarized argument. Fall back to the non-scalarized calling convention.
+            if (scalar_super) {
+              // Found non-scalar *and* scalar super methods. We can't handle both.
+              // Mark the scalar method as mismatch and re-compile call sites to use non-scalarized calling convention.
+              for (int i = 0; i < supers->length(); ++i) {
+                Method* super_method = supers->at(i);
+                if (super_method->is_scalarized_arg(arg_num) debug_only(|| (stress && (os::random() & 1) == 1))) {
+                  super_method->set_mismatch(true);
+                  MutexLocker ml(Compile_lock, Mutex::_safepoint_check_flag);
+                  JavaThread* thread = JavaThread::current();
+                  HandleMark hm(thread);
+                  methodHandle mh(thread, super_method);
+                  CodeCache::flush_dependents_on_method(mh);
+                }
+              }
+            }
+            // Fall back to non-scalarized calling convention
+            SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
+            SigEntry::add_entry(_sig_cc_ro, T_OBJECT, ss.as_symbol());
+          } else {
+            _num_inline_args++;
+            has_scalarized = true;
+            int last = _sig_cc->length();
+            int last_ro = _sig_cc_ro->length();
+            _sig_cc->appendAll(vk->extended_sig());
+            _sig_cc_ro->appendAll(vk->extended_sig());
+            if (bt == T_OBJECT) {
+              // Nullable inline type argument, insert InlineTypeNode::IsInit field right after T_PRIMITIVE_OBJECT
+              _sig_cc->insert_before(last+1, SigEntry(T_BOOLEAN, -1, NULL));
+              _sig_cc_ro->insert_before(last_ro+1, SigEntry(T_BOOLEAN, -1, NULL));
+            }
           }
         } else {
           SigEntry::add_entry(_sig_cc, T_OBJECT, ss.as_symbol());
@@ -3149,14 +3241,14 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
                                                StubRoutines::throw_AbstractMethodError_entry(),
                                                wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
                                                wrong_method_abstract, wrong_method_abstract);
-      GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro().length(), mtInternal);
-      heap_sig->appendAll(&ces.sig_cc_ro());
+      GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc_ro()->length(), mtInternal);
+      heap_sig->appendAll(ces.sig_cc_ro());
       entry->set_sig_cc(heap_sig);
       return entry;
     }
 
     // Lookup method signature's fingerprint
-    entry = lookup(&ces.sig_cc(), ces.has_inline_recv());
+    entry = lookup(ces.sig_cc(), ces.has_inline_recv());
 
     if (entry != NULL) {
 #ifdef ASSERT
@@ -3199,15 +3291,15 @@ AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_ada
                                           sizeof(buffer_locs)/sizeof(relocInfo));
 
   // Make a C heap allocated version of the fingerprint to store in the adapter
-  AdapterFingerPrint* fingerprint = new AdapterFingerPrint(&ces.sig_cc(), ces.has_inline_recv());
+  AdapterFingerPrint* fingerprint = new AdapterFingerPrint(ces.sig_cc(), ces.has_inline_recv());
   MacroAssembler _masm(&buffer);
   AdapterHandlerEntry* entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
                                                 ces.args_on_stack(),
-                                                &ces.sig(),
+                                                ces.sig(),
                                                 ces.regs(),
-                                                &ces.sig_cc(),
+                                                ces.sig_cc(),
                                                 ces.regs_cc(),
-                                                &ces.sig_cc_ro(),
+                                                ces.sig_cc_ro(),
                                                 ces.regs_cc_ro(),
                                                 fingerprint,
                                                 new_adapter,
@@ -3215,8 +3307,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::create_adapter(AdapterBlob*& new_ada
 
   if (ces.has_scalarized_args()) {
     // Save a C heap allocated version of the scalarized signature and store it in the adapter
-    GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc().length(), mtInternal);
-    heap_sig->appendAll(&ces.sig_cc());
+    GrowableArray<SigEntry>* heap_sig = new (mtInternal) GrowableArray<SigEntry>(ces.sig_cc()->length(), mtInternal);
+    heap_sig->appendAll(ces.sig_cc());
     entry->set_sig_cc(heap_sig);
   }
 

@@ -1702,7 +1702,8 @@ Klass* Dependencies::check_evol_method(Method* m) {
   // Or is there a now a breakpoint?
   // (Assumes compiled code cannot handle bkpts; change if UseFastBreakpoints.)
   if (m->is_old()
-      || m->number_of_breakpoints() > 0) {
+      || m->number_of_breakpoints() > 0
+      || m->mismatch()) {
     return m->method_holder();
   } else {
     return NULL;

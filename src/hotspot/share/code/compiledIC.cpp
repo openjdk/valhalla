@@ -634,6 +634,7 @@ void CompiledStaticCall::set(const StaticCallInfo& info) {
 // Compute settings for a CompiledStaticCall. Since we might have to set
 // the stub when calling to the interpreter, we need to return arguments.
 void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* caller_nm, StaticCallInfo& info) {
+  assert(!m->mismatch(), "Mismatch for static call");
   bool caller_is_nmethod = caller_nm->is_nmethod();
   CompiledMethod* m_code = m->code();
   info._callee = m;
@@ -649,7 +650,6 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
     // puts a converter-frame on the stack to save arguments.
     assert(!m->is_method_handle_intrinsic(), "Compiled code should never call interpreter MH intrinsics");
     info._to_interpreter = true;
-
     if (caller_nm->is_compiled_by_c1()) {
       // C1 -> interp: values passed as oops
       info._entry = m()->get_c2i_inline_entry();

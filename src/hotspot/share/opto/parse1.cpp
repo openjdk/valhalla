@@ -921,7 +921,7 @@ void Compile::return_values(JVMState* jvms) {
       // to the Return node as returned values.
       InlineTypeNode* vt = res->as_InlineType();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
-      if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
+      if (vt->is_allocated(&kit.gvn()) && !StressCallingConvention) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller

@@ -703,6 +703,10 @@ Node *PhaseIdealLoop::conditional_move( Node *region ) {
     for (uint j = 1; j < region->req(); j++) {
       Node *proj = region->in(j);
       Node *inp = phi->in(j);
+      if (inp->isa_InlineType()) {
+        // TODO 8302217 This prevents PhiNode::push_inline_types_through
+        return NULL;
+      }
       if (get_ctrl(inp) == proj) { // Found local op
         cost++;
         // Check for a chain of dependent ops; these will all become
