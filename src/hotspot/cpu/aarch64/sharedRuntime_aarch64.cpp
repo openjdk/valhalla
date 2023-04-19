@@ -772,7 +772,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
             Label L_notNull;
             if (reg->is_stack()) {
               int ld_off = reg->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
-              __ ldr(tmp1, Address(sp, ld_off));
+              __ ldrb(tmp1, Address(sp, ld_off));
               __ cbnz(tmp1, L_notNull);
             } else {
               __ cbnz(reg->as_Register(), L_notNull);
