@@ -2198,8 +2198,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     if (EnableValhalla) {
       // The mark word may contain property bits (inline, flat, null-free)
       Node* klass_node = alloc->in(AllocateNode::KlassNode);
-      const TypeKlassPtr* tkls = phase->type(klass_node)->is_klassptr();
-      if (tkls->is_loaded() && tkls->klass_is_exact()) {
+      const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();
+      if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact()) {
         return TypeX::make(tkls->exact_klass()->prototype_header().value());
       }
     } else {
