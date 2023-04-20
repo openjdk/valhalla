@@ -5408,7 +5408,7 @@ const TypePtr* TypeAryPtr::add_field_offset_and_offset(intptr_t offset) const {
         offset += header;
       }
     }
-    if (offset >= (intptr_t)header || offset < 0) {
+    if (elem()->make_oopptr()->is_inlinetypeptr() && (offset >= (intptr_t)header || offset < 0)) {
       // Try to get the field of the inline type array element we are pointing to
       ciInlineKlass* vk = elem()->inline_klass();
       int shift = flat_log_elem_size();
