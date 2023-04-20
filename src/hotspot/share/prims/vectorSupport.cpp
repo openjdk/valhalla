@@ -30,6 +30,7 @@
 #include "code/location.hpp"
 #include "jni.h"
 #include "jvm.h"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/vectorSupport.hpp"
@@ -199,7 +200,7 @@ Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_
     instanceOop obj = InlineKlass::cast(payload_kls)->allocate_instance(THREAD);
 
     fieldDescriptor fd;
-    Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(T_BYTE), false, &fd);
+    Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
     assert(fd.is_multifield_base() && fd.secondary_fields_count(fd.index()) == num_elem, "");
 
     int ffo = InlineKlass::cast(payload_kls)->first_field_offset();
@@ -342,7 +343,7 @@ Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, B
     Location location = payload->as_LocationValue()->location();
     if (location.type() == Location::vector) {
       // Vector payload value in an aligned adjacent tuple (8, 16, 32 or 64 bytes).
-      return allocate_vector_payload_helper(ik, num_elem, T_BYTE, fr, reg_map, location, THREAD); // safepoint
+      return allocate_vector_payload_helper(ik, num_elem, elem_bt, fr, reg_map, location, THREAD); // safepoint
     }
 #ifdef ASSERT
     // Other payload values are: 'oop' type location and scalar-replaced boxed vector representation.
@@ -366,9 +367,19 @@ instanceOop VectorSupport::allocate_vector_payload(InstanceKlass* ik, frame* fr,
   assert(ov->field_size() == 1, "%s not a vector", ik->name()->as_C_string());
   assert(ik->is_inline_klass(), "");
 
+  int num_elem = 0;
+  BasicType elem_bt = T_ILLEGAL;
   ScopeValue* payload_value = ov->field_at(0);
-  int num_elem = InlineKlass::cast(ik)->get_exact_size_in_bytes();
-  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, T_BYTE, fr, reg_map, payload_value, CHECK_NULL);
+  for (JavaFieldStream fs(ik); !fs.done(); fs.next()) {
+    fieldDescriptor& fd = fs.field_descriptor();
+    if (fd.is_multifield_base()) {
+      elem_bt = fd.field_type();
+      num_elem = fd.secondary_fields_count(fd.index());
+      break;
+    }
+  }
+  assert(num_elem != 0, "");
+  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, payload_value, CHECK_NULL);
   return (instanceOop)payload_instance();
 }
 

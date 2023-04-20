@@ -217,6 +217,10 @@ private:
 public:
   void add_secondary_fields(GrowableArray<ciField*>* fields) { _secondary_fields = fields; }
   GrowableArray<ciField*>* secondary_fields() { return _secondary_fields; }
+  ciField* secondary_field_at(int i) {
+    assert(_secondary_fields->length() > i, "");
+    return _secondary_fields->at(i);
+  }
 };
 
 #endif // SHARE_CI_CIFIELD_HPP

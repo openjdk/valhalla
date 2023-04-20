@@ -766,7 +766,7 @@ Node* InlineTypeNode::default_value(PhaseGVN& gvn, ciType* field_type) {
   BasicType bt = field_type->basic_type();
   Node* value = gvn.zerocon(field_type->basic_type());
   int vec_len = field_type->bundle_size();
-  if (vec_len > 1 &&
+  if (is_java_primitive(bt) &&
       Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
       value = gvn.transform(VectorNode::scalar2vector(value, vec_len, Type::get_const_type(field_type), false));
   }

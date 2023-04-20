@@ -3702,11 +3702,11 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                    VectorMask<$Boxtype$> m) {
         $Type$Species vsp = ($Type$Species) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.length(), a.length)) {
-            return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_IN_RANGE);
+            return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_IN_RANGE);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 1, a.length);
-        return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
+        return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
     }
 
     /**
@@ -3863,7 +3863,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         }
         else {
             $Type$Species vsp = ($Type$Species) species;
-            return vsp.dummyVector().fromArray0(a, offset, indexMap, mapOffset, m);
+            return vsp.dummyVectorMF().fromArray0(a, offset, indexMap, mapOffset, m);
         }
     }
 #end[byteOrShort]
@@ -3891,7 +3891,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                        char[] a, int offset) {
         offset = checkFromIndexSize(offset, species.length(), a.length);
         $Type$Species vsp = ($Type$Species) species;
-        return vsp.dummyVector().fromCharArray0(a, offset);
+        return vsp.dummyVectorMF().fromCharArray0(a, offset);
     }
 
     /**
@@ -3924,11 +3924,11 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                        VectorMask<$Boxtype$> m) {
         $Type$Species vsp = ($Type$Species) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.length(), a.length)) {
-            return vsp.dummyVector().fromCharArray0(a, offset, m, OFFSET_IN_RANGE);
+            return vsp.dummyVectorMF().fromCharArray0(a, offset, m, OFFSET_IN_RANGE);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 1, a.length);
-        return vsp.dummyVector().fromCharArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
+        return vsp.dummyVectorMF().fromCharArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
     }
 
     /**
@@ -4046,7 +4046,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                           boolean[] a, int offset) {
         offset = checkFromIndexSize(offset, species.length(), a.length);
         $Type$Species vsp = ($Type$Species) species;
-        return vsp.dummyVector().fromBooleanArray0(a, offset);
+        return vsp.dummyVectorMF().fromBooleanArray0(a, offset);
     }
 
     /**
@@ -4083,11 +4083,11 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
         $Type$Species vsp = ($Type$Species) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.length(), a.length)) {
             $abstractvectortype$ zero = vsp.zero();
-            return vsp.dummyVector().fromBooleanArray0(a, offset, m, OFFSET_IN_RANGE);
+            return vsp.dummyVectorMF().fromBooleanArray0(a, offset, m, OFFSET_IN_RANGE);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 1, a.length);
-        return vsp.dummyVector().fromBooleanArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
+        return vsp.dummyVectorMF().fromBooleanArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
     }
 
     /**
@@ -4217,7 +4217,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                            ByteOrder bo) {
         offset = checkFromIndexSize(offset, species.vectorByteSize(), ms.byteSize());
         $Type$Species vsp = ($Type$Species) species;
-        return vsp.dummyVector().fromMemorySegment0(ms, offset).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset).maybeSwap(bo);
     }
 
     /**
@@ -4279,11 +4279,11 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                                            VectorMask<$Boxtype$> m) {
         $Type$Species vsp = ($Type$Species) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.vectorByteSize(), ms.byteSize())) {
-            return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
+            return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, $sizeInBytes$, ms.byteSize());
-        return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
     }
 
     // Memory store operations
@@ -5584,7 +5584,7 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
                     throw badElementBits(lv, v);
                 }
             }
-            return dummyVector().fromArray0(va, 0);
+            return dummyVectorMF().fromArray0(va, 0);
         }
 
         // Virtual constructors
@@ -5595,12 +5595,6 @@ public abstract class $abstractvectortype$ extends AbstractVector<$Boxtype$> {
             // User entry point:  Be careful with inputs.
             return $abstractvectortype$
                 .fromArray(this, ($type$[]) a, offset);
-        }
-
-        @ForceInline
-        @Override final
-        $abstractvectortype$ dummyVector() {
-            return ($abstractvectortype$) super.dummyVector();
         }
 
         @ForceInline

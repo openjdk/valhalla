@@ -55,10 +55,23 @@ int ciInlineKlass::field_index_by_offset(int offset) {
   int best_index = -1;
   // Search the field with the given offset
   for (int i = 0; i < nof_declared_nonstatic_fields(); ++i) {
-    int field_offset = _declared_nonstatic_fields->at(i)->offset();
+    ciField* field = _declared_nonstatic_fields->at(i);
+    int field_offset = field->offset();
     if (field_offset == offset) {
       // Exact match
       return i;
+    } else if (field->is_multifield_base()) {
+      for (int j = 0; j < field->secondary_fields_count(); j++) {
+        ciField* sec_field = static_cast<ciMultiField*>(field)->secondary_field_at(j);
+        assert(sec_field != NULL, "");
+        int sec_field_offset = sec_field->offset();
+        if (sec_field_offset == offset) {
+          return i + j + 1;
+        } else if (sec_field_offset < offset && sec_field_offset > best_offset) {
+          best_offset = sec_field_offset;
+          best_index = i + j + 1;
+        }
+      }
     } else if (field_offset < offset && field_offset > best_offset) {
       // No exact match. Save the index of the field with the closest offset that
       // is smaller than the given field offset. This index corresponds to the

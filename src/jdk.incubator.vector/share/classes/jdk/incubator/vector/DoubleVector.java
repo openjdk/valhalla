@@ -2902,11 +2902,11 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                    VectorMask<Double> m) {
         DoubleSpecies vsp = (DoubleSpecies) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.length(), a.length)) {
-            return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_IN_RANGE);
+            return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_IN_RANGE);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 1, a.length);
-        return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
+        return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
     }
 
     /**
@@ -3034,7 +3034,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
         }
         else {
             DoubleSpecies vsp = (DoubleSpecies) species;
-            return vsp.dummyVector().fromArray0(a, offset, indexMap, mapOffset, m);
+            return vsp.dummyVectorMF().fromArray0(a, offset, indexMap, mapOffset, m);
         }
     }
 
@@ -3078,7 +3078,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                            ByteOrder bo) {
         offset = checkFromIndexSize(offset, species.vectorByteSize(), ms.byteSize());
         DoubleSpecies vsp = (DoubleSpecies) species;
-        return vsp.dummyVector().fromMemorySegment0(ms, offset).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset).maybeSwap(bo);
     }
 
     /**
@@ -3136,11 +3136,11 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                                            VectorMask<Double> m) {
         DoubleSpecies vsp = (DoubleSpecies) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.vectorByteSize(), ms.byteSize())) {
-            return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
+            return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 8, ms.byteSize());
-        return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
     }
 
     // Memory store operations
@@ -3902,7 +3902,7 @@ public abstract class DoubleVector extends AbstractVector<Double> {
                     throw badElementBits(lv, v);
                 }
             }
-            return dummyVector().fromArray0(va, 0);
+            return dummyVectorMF().fromArray0(va, 0);
         }
 
         // Virtual constructors
@@ -3913,12 +3913,6 @@ public abstract class DoubleVector extends AbstractVector<Double> {
             // User entry point:  Be careful with inputs.
             return DoubleVector
                 .fromArray(this, (double[]) a, offset);
-        }
-
-        @ForceInline
-        @Override final
-        DoubleVector dummyVector() {
-            return (DoubleVector) super.dummyVector();
         }
 
         @ForceInline

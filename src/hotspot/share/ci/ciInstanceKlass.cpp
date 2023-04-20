@@ -419,10 +419,10 @@ ciField* ciInstanceKlass::get_field_by_offset(int field_offset, bool is_static) 
   if (!is_static) {
     for (int i = 0, len = nof_nonstatic_fields(); i < len; i++) {
       ciField* field = _nonstatic_fields->at(i);
-      int field_off = field->offset_in_bytes();
-      if (field_off == field_offset)
+      int curr_field_offset = field->offset_in_bytes();
+      if (curr_field_offset == field_offset)
         return field;
-      if (field_off > field_offset)
+      if (curr_field_offset > field_offset)
         break;
       // could do binary search or check bins, but probably not worth it
       if (field->secondary_fields_count() > 1) {
