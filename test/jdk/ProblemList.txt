@@ -711,7 +711,6 @@ com/sun/jdi/AfterThreadDeathTest.java                           8232839 linux-al
 com/sun/jdi/cds/CDSBreakpointTest.java                          8304168 generic-all
 com/sun/jdi/cds/CDSDeleteAllBkptsTest.java                      8304168 generic-all
 com/sun/jdi/cds/CDSFieldWatchpoints.java                        8304168 generic-all
-runtime/cds/appcds/redefineClass/RedefineRunningMethods_Shared.java  8304168 generic-all
 
 ############################################################################
 
