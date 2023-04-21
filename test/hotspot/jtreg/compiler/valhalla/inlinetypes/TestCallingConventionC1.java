@@ -71,7 +71,9 @@ public class TestCallingConventionC1 {
                 new Scenario(3,
                              "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
                              "-XX:TieredStopAtLevel=1",
-                             "-XX:+TieredCompilation"),
+                             "-XX:+TieredCompilation",
+                             "-XX:+IgnoreUnrecognizedVMOptions",
+                             "-XX:-PatchALot"),
                 // Only C2.
                 new Scenario(4,
                              "-XX:+EnableValhalla", "-XX:+EnablePrimitiveClasses",
