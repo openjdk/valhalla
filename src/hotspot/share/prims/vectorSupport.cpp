@@ -164,7 +164,7 @@ void VectorSupport::init_payload_element(typeArrayOop arr, BasicType elem_bt, in
   }
 }
 
-Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, TRAPS) {
+Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, int larval, TRAPS) {
   int elem_size = type2aelembytes(elem_bt);
 
   // FIXME: Existing handling is used for shuffles and mask classes, to be removed after
@@ -198,6 +198,7 @@ Handle VectorSupport::allocate_vector_payload_helper(InstanceKlass* ik, int num_
     InstanceKlass* payload_kls = get_vector_payload_klass(elem_bt, num_elem);
     assert(payload_kls->is_inline_klass(), "");
     instanceOop obj = InlineKlass::cast(payload_kls)->allocate_instance(THREAD);
+    if (larval) obj->set_mark(obj->mark().enter_larval_state());
 
     fieldDescriptor fd;
     Klass* def = payload_kls->find_field(vmSymbols::mfield_name(), vmSymbols::type_signature(elem_bt), false, &fd);
@@ -338,12 +339,16 @@ InstanceKlass* VectorSupport::get_vector_payload_klass(BasicType elem_bt, int nu
   return NULL;
 }
 
-Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ScopeValue* payload, TRAPS) {
+Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
+  ScopeValue* payload = ov->field_at(0);
+  intptr_t in_larval = StackValue::create_stack_value(fr, reg_map, ov->in_larval())->get_int();
+  jint larval = (jint)*((jint*)&in_larval);
+
   if (payload->is_location()) {
     Location location = payload->as_LocationValue()->location();
     if (location.type() == Location::vector) {
       // Vector payload value in an aligned adjacent tuple (8, 16, 32 or 64 bytes).
-      return allocate_vector_payload_helper(ik, num_elem, elem_bt, fr, reg_map, location, THREAD); // safepoint
+      return allocate_vector_payload_helper(ik, num_elem, elem_bt, fr, reg_map, location, larval, THREAD); // safepoint
     }
 #ifdef ASSERT
     // Other payload values are: 'oop' type location and scalar-replaced boxed vector representation.
@@ -369,7 +374,6 @@ instanceOop VectorSupport::allocate_vector_payload(InstanceKlass* ik, frame* fr,
 
   int num_elem = 0;
   BasicType elem_bt = T_ILLEGAL;
-  ScopeValue* payload_value = ov->field_at(0);
   for (JavaFieldStream fs(ik); !fs.done(); fs.next()) {
     fieldDescriptor& fd = fs.field_descriptor();
     if (fd.is_multifield_base()) {
@@ -379,7 +383,7 @@ instanceOop VectorSupport::allocate_vector_payload(InstanceKlass* ik, frame* fr,
     }
   }
   assert(num_elem != 0, "");
-  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, payload_value, CHECK_NULL);
+  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
   return (instanceOop)payload_instance();
 }
 
@@ -390,8 +394,7 @@ instanceOop VectorSupport::allocate_vector(InstanceKlass* ik, frame* fr, Registe
 
   int num_elem = klass2length(ik);
   BasicType elem_bt = klass2bt(ik);
-  ScopeValue* payload_value = ov->field_at(0);
-  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, payload_value, CHECK_NULL);
+  Handle payload_instance = VectorSupport::allocate_vector_payload(ik, num_elem, elem_bt, fr, reg_map, ov, CHECK_NULL);
   instanceOop vbox = ik->allocate_instance(THREAD);
   Handle vbox_h = Handle(THREAD, vbox);
 

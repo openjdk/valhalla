@@ -308,6 +308,10 @@ void InlineTypeNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_Li
   } else {
     sfpt->add_req(igvn->C->top());
   }
+
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(get_oop(), igvn);
+  sfpt->add_req(igvn->intcon(alloc && alloc->_larval ? 1 : 0));
+
   // Iterate over the inline type fields in order of increasing
   // offset and add the field values to the safepoint.
   for (uint j = 0; j < nfields; ++j) {

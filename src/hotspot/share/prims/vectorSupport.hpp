@@ -39,8 +39,8 @@ extern "C" {
 
 class VectorSupport : AllStatic {
  private:
-  static Handle allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, TRAPS);
-  static Handle allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ScopeValue* payload, TRAPS);
+  static Handle allocate_vector_payload_helper(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, Location location, int larval, TRAPS);
+  static Handle allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS);
 
   static void init_payload_element(typeArrayOop arr, BasicType elem_bt, int index, address addr);
 
