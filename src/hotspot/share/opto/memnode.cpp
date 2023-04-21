@@ -232,6 +232,8 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
         mem_t = mem_t->is_aryptr()
                      ->cast_to_stable(t_oop->is_aryptr()->is_stable())
                      ->cast_to_size(t_oop->is_aryptr()->size())
+                     ->cast_to_not_flat(t_oop->is_aryptr()->is_not_flat())
+                     ->cast_to_not_null_free(t_oop->is_aryptr()->is_not_null_free())
                      ->with_offset(t_oop->is_aryptr()->offset())
                      ->is_aryptr();
       }
