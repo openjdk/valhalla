@@ -486,19 +486,16 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   address loc = map.location(pair.first(), nullptr);
   intptr_t ptr = *(intptr_t*)loc;
   if (is_set_nth_bit(ptr, 0)) {
-    // Oop is tagged, must be an InlineKlass oop
+    // Return value is tagged, must be an InlineKlass pointer
     clear_nth_bit(ptr, 0);
     assert(Metaspace::contains((void*)ptr), "should be klass");
     InlineKlass* vk = (InlineKlass*)ptr;
     assert(vk->can_be_returned_as_fields(), "must be able to return as fields");
     return vk;
   }
-#ifdef ASSERT
-  // Oop is not tagged, must be a valid oop
-  if (VerifyOops) {
-    oopDesc::verify(cast_to_oop(ptr));
-  }
-#endif
+  // Return value is not tagged, must be a valid oop
+  assert(oopDesc::is_oop_or_null(cast_to_oop(ptr), true),
+         "Bad oop return: " PTR_FORMAT, ptr);
   return NULL;
 }
 
