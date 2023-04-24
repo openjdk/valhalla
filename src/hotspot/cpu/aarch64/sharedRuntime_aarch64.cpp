@@ -3428,22 +3428,14 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       __ strs(r_1->as_FloatRegister(), to);
     } else if (bt == T_DOUBLE) {
       __ strd(r_1->as_FloatRegister(), to);
-    } else if (bt == T_OBJECT || bt == T_ARRAY) {
-      Register val = r_1->as_Register();
-      assert_different_registers(r0, val);
-      // We don't need barriers because the destination is a newly allocated object.
-      // Also, we cannot use store_heap_oop(to, val) because it uses r8 as tmp.
-      if (UseCompressedOops) {
-        __ encode_heap_oop(val);
-        __ str(val, to);
-      } else {
-        __ str(val, to);
-      }
     } else {
-      assert(is_java_primitive(bt), "unexpected basic type");
-      assert_different_registers(r0, r_1->as_Register());
-      size_t size_in_bytes = type2aelembytes(bt);
-      __ store_sized_value(to, r_1->as_Register(), size_in_bytes);
+      Register val = r_1->as_Register();
+      assert_different_registers(to.base(), val, r15, r16, r17);
+      if (is_reference_type(bt)) {
+        __ store_heap_oop(to, val, r15, r16, r17, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      } else {
+        __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
+      }
     }
     j++;
   }
