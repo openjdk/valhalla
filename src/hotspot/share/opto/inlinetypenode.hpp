@@ -35,23 +35,19 @@ class GraphKit;
 // Node representing an inline type in C2 IR
 class InlineTypeNode : public TypeNode {
 protected:
-  virtual uint hash() const;
-  virtual bool cmp(const Node &n) const;
-  virtual uint size_of() const;
-  bool _is_buffered;
-
-  InlineTypeNode(ciInlineKlass* vk, Node* oop, bool null_free, bool is_buffered)
-      : TypeNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()), _is_buffered(is_buffered) {
+  InlineTypeNode(ciInlineKlass* vk, Node* oop, bool null_free)
+      : TypeNode(TypeInstPtr::make(null_free ? TypePtr::NotNull : TypePtr::BotPTR, vk), Values + vk->nof_declared_nonstatic_fields()) {
     init_class_id(Class_InlineType);
     init_req(Oop, oop);
     Compile::current()->add_inline_type(this);
   }
 
-  enum { Control,   // Control input.
-         Oop,       // Oop to heap allocated buffer (NULL if not buffered).
-         IsInit,    // Needs to be checked for NULL before using the field values.
-         Values     // Nodes corresponding to values of the inline type's fields.
-                    // Nodes are connected in increasing order of the index of the field they correspond to.
+  enum { Control,    // Control input.
+         Oop,        // Oop to heap allocated buffer.
+         IsBuffered, // True if inline type is heap allocated (or NULL), false otherwise.
+         IsInit,     // Needs to be checked for NULL before using the field values.
+         Values      // Nodes corresponding to values of the inline type's fields.
+                     // Nodes are connected in increasing order of the index of the field they correspond to.
   };
 
   // Get the klass defining the field layout of the inline type
@@ -107,8 +103,9 @@ public:
   Node* get_oop() const    { return in(Oop); }
   void  set_oop(Node* oop) { set_req(Oop, oop); }
   Node* get_is_init() const { return in(IsInit); }
-  void  set_is_init(PhaseGVN& gvn) { set_req(IsInit, gvn.intcon(1)); }
-  void  set_is_buffered() { _is_buffered = true; }
+  void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req(IsInit, gvn.intcon(init ? 1 : 0)); }
+  Node* get_is_buffered() const { return in(IsBuffered); }
+  void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req(IsBuffered, gvn.intcon(buffered ? 1 : 0)); }
 
   // Inline type fields
   uint          field_count() const { return req() - Values; }

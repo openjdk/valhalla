@@ -1924,7 +1924,6 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(n == ret_val || !n->is_InlineType(), "chain of inline type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
@@ -2021,11 +2020,14 @@ void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
               must_be_buffered = true;
             }
           }
+        } else if (u->is_Phi()) {
+          // TODO 8302217 Remove this once InlineTypeNodes are reliably pushed through
         } else if (u->Opcode() != Op_Return || !tf()->returns_inline_type_as_fields()) {
           must_be_buffered = true;
         }
         if (must_be_buffered && !vt->is_allocated(&igvn)) {
-          vt->dump(-3);
+          vt->dump(0);
+          u->dump(0);
           assert(false, "Should have been buffered");
         }
 #endif
