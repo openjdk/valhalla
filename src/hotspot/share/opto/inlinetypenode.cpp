@@ -33,44 +33,35 @@
 #include "opto/rootnode.hpp"
 #include "opto/phaseX.hpp"
 
-uint InlineTypeNode::size_of() const {
-  return sizeof(*this);
-}
-
-uint InlineTypeNode::hash() const {
-  return TypeNode::hash() + _is_buffered;
-}
-
-bool InlineTypeNode::cmp(const Node& n) const {
-  return TypeNode::cmp(n) && ((InlineTypeNode&)n)._is_buffered == _is_buffered;
-}
-
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
 InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, bool is_init) {
   InlineTypeNode* vt = clone()->as_InlineType();
-  if (vt->is_InlineType()) {
-    // Use nullable type
-    const Type* t = Type::get_const_type(inline_klass());
-    gvn->set_type(vt, t);
-    vt->as_InlineType()->set_type(t);
-  }
+  const Type* t = Type::get_const_type(inline_klass());
+  gvn->set_type(vt, t);
+  vt->as_InlineType()->set_type(t);
 
   // Create a PhiNode for merging the oop values
-  const Type* phi_type = Type::get_const_type(inline_klass());
-  PhiNode* oop = PhiNode::make(region, vt->get_oop(), phi_type);
-  gvn->set_type(oop, phi_type);
+  PhiNode* oop = PhiNode::make(region, vt->get_oop(), t);
+  gvn->set_type(oop, t);
   gvn->record_for_igvn(oop);
   vt->set_oop(oop);
+
+  // Create a PhiNode for merging the is_buffered values
+  t = Type::get_const_basic_type(T_BOOLEAN);
+  Node* is_buffered_node = PhiNode::make(region, vt->get_is_buffered(), t);
+  gvn->set_type(is_buffered_node, t);
+  gvn->record_for_igvn(is_buffered_node);
+  vt->set_req(IsBuffered, is_buffered_node);
 
   // Create a PhiNode for merging the is_init values
   Node* is_init_node;
   if (is_init) {
     is_init_node = gvn->intcon(1);
   } else {
-    phi_type = Type::get_const_basic_type(T_BOOLEAN);
-    is_init_node = PhiNode::make(region, vt->get_is_init(), phi_type);
-    gvn->set_type(is_init_node, phi_type);
+    t = Type::get_const_basic_type(T_BOOLEAN);
+    is_init_node = PhiNode::make(region, vt->get_is_init(), t);
+    gvn->set_type(is_init_node, t);
     gvn->record_for_igvn(is_init_node);
   }
   vt->set_req(IsInit, is_init_node);
@@ -87,14 +78,13 @@ InlineTypeNode* InlineTypeNode::clone_with_phis(PhaseGVN* gvn, Node* region, boo
       // Handle inline type fields recursively
       value = value->as_InlineType()->clone_with_phis(gvn, region);
     } else {
-      phi_type = Type::get_const_type(type);
-      value = PhiNode::make(region, value, phi_type);
-      gvn->set_type(value, phi_type);
+      t = Type::get_const_type(type);
+      value = PhiNode::make(region, value, t);
+      gvn->set_type(value, t);
       gvn->record_for_igvn(value);
     }
     vt->set_field_value(i, value);
   }
-  gvn->set_type(vt, vt->bottom_type());
   gvn->record_for_igvn(vt);
   return vt;
 }
@@ -122,7 +112,6 @@ bool InlineTypeNode::has_phi_inputs(Node* region) {
 
 // Merges 'this' with 'other' by updating the input PhiNodes added by 'clone_with_phis'
 InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* other, int pnum, bool transform) {
-  _is_buffered = _is_buffered && other->_is_buffered;
   // Merge oop inputs
   PhiNode* phi = get_oop()->as_Phi();
   phi->set_req(pnum, other->get_oop());
@@ -130,6 +119,14 @@ InlineTypeNode* InlineTypeNode::merge_with(PhaseGVN* gvn, const InlineTypeNode* 
     set_oop(gvn->transform(phi));
   }
 
+  // Merge is_buffered inputs
+  phi = get_is_buffered()->as_Phi();
+  phi->set_req(pnum, other->get_is_buffered());
+  if (transform) {
+    set_req(IsBuffered, gvn->transform(phi));
+  }
+
+  // Merge is_init inputs
   Node* is_init = get_is_init();
   if (is_init->is_Phi()) {
     phi = is_init->as_Phi();
@@ -163,6 +160,10 @@ void InlineTypeNode::add_new_path(Node* region) {
   assert(has_phi_inputs(region), "must have phi inputs");
 
   PhiNode* phi = get_oop()->as_Phi();
+  phi->add_req(NULL);
+  assert(phi->req() == region->req(), "must be same size as region");
+
+  phi = get_is_buffered()->as_Phi();
   phi->add_req(NULL);
   assert(phi->req() == region->req(), "must be same size as region");
 
@@ -494,7 +495,7 @@ void InlineTypeNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass
 }
 
 InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
-  if (_is_buffered) {
+  if (kit->gvn().find_int_con(get_is_buffered(), 0) == 1) {
     // Already buffered
     return this;
   }
@@ -505,7 +506,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   if (not_buffered_ctl->is_top()) {
     // Already buffered
     InlineTypeNode* vt = clone()->as_InlineType();
-    vt->_is_buffered = true;
+    vt->set_is_buffered(kit->gvn());
     vt = kit->gvn().transform(vt)->as_InlineType();
     if (safe_for_replace) {
       kit->replace_in_map(this, vt);
@@ -576,8 +577,8 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
   // Use cloned InlineTypeNode to propagate oop from now on
   Node* res_oop = kit->gvn().transform(oop);
   InlineTypeNode* vt = clone()->as_InlineType();
-  vt->_is_buffered = true;
   vt->set_oop(res_oop);
+  vt->set_is_buffered(kit->gvn());
   vt = kit->gvn().transform(vt)->as_InlineType();
   if (safe_for_replace) {
     kit->replace_in_map(this, vt);
@@ -589,7 +590,7 @@ InlineTypeNode* InlineTypeNode::buffer(GraphKit* kit, bool safe_for_replace) {
 }
 
 bool InlineTypeNode::is_allocated(PhaseGVN* phase) const {
-  if (_is_buffered) {
+  if (phase->find_int_con(get_is_buffered(), 0) == 1) {
     return true;
   }
   Node* oop = get_oop();
@@ -692,6 +693,7 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (oop->isa_InlineType() && !phase->type(oop)->maybe_null()) {
     InlineTypeNode* vtptr = oop->as_InlineType();
     set_oop(vtptr->get_oop());
+    set_is_buffered(*phase);
     set_is_init(*phase);
     for (uint i = Values; i < vtptr->req(); ++i) {
       set_req(i, vtptr->in(i));
@@ -738,7 +740,8 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 InlineTypeNode* InlineTypeNode::make_uninitialized(PhaseGVN& gvn, ciInlineKlass* vk, bool null_free) {
   // Create a new InlineTypeNode with uninitialized values and NULL oop
   Node* oop = (vk->is_empty() && vk->is_initialized()) ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
-  InlineTypeNode* vt = new InlineTypeNode(vk, oop, null_free, vk->is_empty() && vk->is_initialized());
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop, null_free);
+  vt->set_is_buffered(gvn, vk->is_empty() && vk->is_initialized());
   vt->set_is_init(gvn);
   return vt;
 }
@@ -757,7 +760,8 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
 InlineTypeNode* InlineTypeNode::make_default_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
   // Create a new InlineTypeNode with default values
   Node* oop = vk->is_initialized() ? default_oop(gvn, vk) : gvn.zerocon(T_PRIMITIVE_OBJECT);
-  InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true, /* buffered= */ vk->is_initialized());
+  InlineTypeNode* vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
+  vt->set_is_buffered(gvn, vk->is_initialized());
   vt->set_is_init(gvn);
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* ft = vt->field_type(i);
@@ -840,7 +844,8 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
       kit->record_for_igvn(vt);
       return vt;
     }
-    vt = new InlineTypeNode(vk, not_null_oop, null_free, true);
+    vt = new InlineTypeNode(vk, not_null_oop, null_free);
+    vt->set_is_buffered(gvn);
     vt->set_is_init(gvn);
     vt->load(kit, not_null_oop, not_null_oop, vk, visited);
 
@@ -864,8 +869,9 @@ InlineTypeNode* InlineTypeNode::make_from_oop_impl(GraphKit* kit, Node* oop, ciI
     }
   } else {
     // Oop can never be null
-    vt = new InlineTypeNode(vk, oop, /* null_free= */ true, true);
+    vt = new InlineTypeNode(vk, oop, /* null_free= */ true);
     Node* init_ctl = kit->control();
+    vt->set_is_buffered(gvn);
     vt->set_is_init(gvn);
     vt->load(kit, oop, oop, vk, visited);
 // TODO 8284443
@@ -1148,7 +1154,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& ba
   // The last argument is used to pass IsInit information to compiled code
   if (!null_free && !in) {
     Node* cmp = is_init->raw_out(0);
-    is_init= gvn.transform(new ProjNode(multi->as_Call(), base_input));
+    is_init = gvn.transform(new ProjNode(multi->as_Call(), base_input));
     set_req(IsInit, is_init);
     gvn.hash_delete(cmp);
     cmp->set_req(1, is_init);
@@ -1201,8 +1207,9 @@ InlineTypeNode* InlineTypeNode::make_null(PhaseGVN& gvn, ciInlineKlass* vk) {
 }
 
 InlineTypeNode* InlineTypeNode::make_null_impl(PhaseGVN& gvn, ciInlineKlass* vk, GrowableArray<ciType*>& visited) {
-  InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false, /* buffered= */ true);
-  vt->set_req(IsInit, gvn.intcon(0));
+  InlineTypeNode* vt = new InlineTypeNode(vk, gvn.zerocon(T_OBJECT), /* null_free= */ false);
+  vt->set_is_buffered(gvn);
+  vt->set_is_init(gvn, false);
   for (uint i = 0; i < vt->field_count(); i++) {
     ciType* ft = vt->field_type(i);
     Node* value = gvn.zerocon(ft->basic_type());
