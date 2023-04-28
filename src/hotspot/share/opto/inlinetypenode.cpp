@@ -433,6 +433,12 @@ void InlineTypeNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass*
           ft = con_type->inline_klass();
           null_free = true;
         }
+        BasicType bt = con_type->basic_type();
+        int vec_len = field->secondary_fields_count();
+        if (field->is_multifield_base() &&
+          Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), vec_len, bt)) {
+          value = kit->gvn().transform(VectorNode::scalar2vector(value, vec_len, Type::get_const_type(field->type()), false));
+        }
       } else {
         // Load field value from memory
         BasicType bt = type2field[ft->basic_type()];

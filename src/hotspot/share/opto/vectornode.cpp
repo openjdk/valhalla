@@ -1639,6 +1639,11 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
   // a VectorBox but we still need to traverse back through chain of cast nodes
   // to get to the VectorBox.
+  if (n->is_InlineType() &&
+      !n->is_VectorBox() &&
+      VectorSupport::is_vector(n->as_InlineType()->inline_klass())) {
+    n = n->as_InlineType()->get_oop();
+  }
   n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
     if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
@@ -1688,6 +1693,11 @@ Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
   // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
   // a VectorBox but we still need to traverse back through chain of cast nodes
   // to get to the VectorBox.
+  if (n->is_InlineType() &&
+      !n->is_VectorBox() &&
+      VectorSupport::is_vector(n->as_InlineType()->inline_klass())) {
+    n = n->as_InlineType()->get_oop();
+  }
   n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
     if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
