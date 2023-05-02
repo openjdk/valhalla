@@ -122,16 +122,16 @@ public:
 class ObjectValue: public ScopeValue {
  protected:
   int                        _id;
-  ScopeValue*                _in_larval;
+  ScopeValue*                _is_larval;
   ScopeValue*                _klass;
   ScopeValue*                _is_init;
   GrowableArray<ScopeValue*> _field_values;
   Handle                     _value;
   bool                       _visited;
  public:
-  ObjectValue(int id, ScopeValue* klass, ScopeValue* is_init = NULL, ScopeValue* in_larval = NULL)
+  ObjectValue(int id, ScopeValue* klass, ScopeValue* is_init = NULL, ScopeValue* is_larval = NULL)
      : _id(id)
-     , _in_larval(in_larval)
+     , _is_larval(is_larval)
      , _klass(klass)
      , _is_init(is_init)
      , _field_values()
@@ -142,7 +142,7 @@ class ObjectValue: public ScopeValue {
 
   ObjectValue(int id)
      : _id(id)
-     , _in_larval(NULL)
+     , _is_larval(NULL)
      , _klass(NULL)
      , _is_init(NULL)
      , _field_values()
@@ -154,7 +154,7 @@ class ObjectValue: public ScopeValue {
   int                         id() const                { return _id; }
   ScopeValue*                 klass() const             { return _klass; }
   ScopeValue*                 is_init() const           { return _is_init; }
-  ScopeValue*                 in_larval() const         { return _in_larval; }
+  ScopeValue*                 is_larval() const         { return _is_larval; }
   GrowableArray<ScopeValue*>* field_values()            { return &_field_values; }
   ScopeValue*                 field_at(int i) const     { return _field_values.at(i); }
   int                         field_size()              { return _field_values.length(); }

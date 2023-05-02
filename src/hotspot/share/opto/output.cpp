@@ -911,7 +911,7 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       // Nullable, scalarized inline types have an is_init input
       // that needs to be checked before using the field values.
       ScopeValue* is_init = NULL;
-      ScopeValue* in_larval = NULL;
+      ScopeValue* is_larval = NULL;
       if (cik->is_inlinetype()) {
         Node* init_node = sfpt->in(first_ind++);
         assert(init_node != NULL, "is_init node not found");
@@ -926,13 +926,13 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
         }
 
         Node* larval_node = sfpt->in(first_ind++);
-        assert(larval_node != NULL && larval_node->is_Con(), "in_larval node not found");
+        assert(larval_node != NULL && larval_node->is_Con(), "is_larval node not found");
 
         const TypeInt* larval_type = larval_node->bottom_type()->is_int();
-        in_larval = new ConstantIntValue(larval_type->get_con());
+        is_larval = new ConstantIntValue(larval_type->get_con());
       }
       sv = new ObjectValue(spobj->_idx,
-                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), is_init, in_larval);
+                           new ConstantOopWriteValue(cik->java_mirror()->constant_encoding()), is_init, is_larval);
       set_sv_for_object_node(objs, sv);
 
       for (uint i = 0; i < spobj->n_fields(); i++) {

@@ -341,8 +341,8 @@ InstanceKlass* VectorSupport::get_vector_payload_klass(BasicType elem_bt, int nu
 
 Handle VectorSupport::allocate_vector_payload(InstanceKlass* ik, int num_elem, BasicType elem_bt, frame* fr, RegisterMap* reg_map, ObjectValue* ov, TRAPS) {
   ScopeValue* payload = ov->field_at(0);
-  intptr_t in_larval = StackValue::create_stack_value(fr, reg_map, ov->in_larval())->get_int();
-  jint larval = (jint)*((jint*)&in_larval);
+  intptr_t is_larval = StackValue::create_stack_value(fr, reg_map, ov->is_larval())->get_int();
+  jint larval = (jint)*((jint*)&is_larval);
 
   if (payload->is_location()) {
     Location location = payload->as_LocationValue()->location();

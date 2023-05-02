@@ -151,7 +151,7 @@ void ObjectValue::set_value(oop value) {
 void ObjectValue::read_object(DebugInfoReadStream* stream) {
   _klass = read_from(stream);
   _is_init = read_from(stream);
-  _in_larval = read_from(stream);
+  _is_larval = read_from(stream);
   assert(_klass->is_constant_oop(), "should be constant java mirror oop");
   int length = stream->read_int();
   for (int i = 0; i < length; i++) {
@@ -174,10 +174,10 @@ void ObjectValue::write_on(DebugInfoWriteStream* stream) {
       _is_init = new MarkerValue();
     }
     _is_init->write_on(stream);
-    if (_in_larval == NULL) {
-      _in_larval = new MarkerValue();
+    if (_is_larval == NULL) {
+      _is_larval = new MarkerValue();
     }
-    _in_larval->write_on(stream);
+    _is_larval->write_on(stream);
     int length = _field_values.length();
     stream->write_int(length);
     for (int i = 0; i < length; i++) {
