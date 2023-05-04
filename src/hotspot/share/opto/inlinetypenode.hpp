@@ -58,6 +58,8 @@ protected:
 
   void expand_input_edges(ciInlineKlass * vk);
 
+
+
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
   const TypePtr* field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const;
@@ -87,6 +89,8 @@ public:
   static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in, bool null_free = true);
 
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
+
+  static bool is_multifield_scalarized(ciField* field);
 
   // Returns the constant oop of the default inline type allocation
   static Node* default_oop(PhaseGVN& gvn, ciInlineKlass* vk);

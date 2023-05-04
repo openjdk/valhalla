@@ -47,19 +47,27 @@ bool InlineTypeNode::cmp(const Node& n) const {
   return TypeNode::cmp(n) && ((InlineTypeNode&)n)._is_buffered == _is_buffered;
 }
 
-void InlineTypeNode::expand_input_edges(ciInlineKlass * vk) {
+bool InlineTypeNode::is_multifield_scalarized(ciField* field) {
+  int field_count = field->secondary_fields_count();
+  BasicType bt = field->type()->basic_type();
+  if (field_count > 1 &&
+      (!Matcher::match_rule_supported_vector(Op_LoadVector, field_count, bt) ||
+       !Matcher::match_rule_supported_vector(Op_StoreVector, field_count, bt) ||
+       !Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), field_count, bt))) {
+    return true;
+  }
+  return false;
+}
+
+void InlineTypeNode::expand_input_edges(ciInlineKlass* vk) {
   // We generally perform three operations on multi-field bundle, load its contents into vector,
   // store the contents of vector to multi-field bundle or broadcast a value into a vector equivalent
   // in size to a multi-field bundle. If any of these operations are not supported by target platform
   // scalarize the multi-fields into individual fields.
-  for(int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
+  for (int i = 0; i < vk->nof_declared_nonstatic_fields(); i++) {
     ciField* field = vk->declared_nonstatic_field_at(i);
-    int field_count = field->secondary_fields_count();
-    BasicType bt = field->type()->basic_type();
-    if (field_count > 1 &&
-        (!Matcher::match_rule_supported_vector(Op_LoadVector, field_count, bt) ||
-        !Matcher::match_rule_supported_vector(Op_StoreVector, field_count, bt) ||
-        !Matcher::match_rule_supported_vector(VectorNode::replicate_opcode(bt), field_count, bt))) {
+    if (is_multifield_scalarized(field)) {
+      int field_count = field->secondary_fields_count();
       while(--field_count) {
         add_req(NULL);
       }

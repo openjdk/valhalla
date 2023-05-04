@@ -160,7 +160,7 @@ abstract class AbstractShuffle<E> extends VectorShuffle<E> {
             assert(si >= 0 && si < length);
             reorder[i] = (byte) si;
         }
-        return vspecies().dummyVector().shuffleFromBytes(reorder);
+        return vspecies().dummyVectorMF().shuffleFromBytes(reorder);
     }
 
     @ForceInline

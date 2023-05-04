@@ -430,7 +430,7 @@ abstract class AbstractSpecies<E> extends VectorSupport.VectorSpecies<E>
     @ForceInline
     @Override
     public final Vector<E> fromMemorySegment(MemorySegment ms, long offset, ByteOrder bo) {
-        return dummyVector()
+        return dummyVectorMF()
             .fromMemorySegment0(ms, offset)
             .maybeSwap(bo);
     }
