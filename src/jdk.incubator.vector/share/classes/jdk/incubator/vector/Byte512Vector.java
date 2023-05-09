@@ -55,12 +55,12 @@ value class Byte512Vector extends ByteVector {
 
     static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512B.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF512B.class);
 
-    private final VectorSupport.VectorPayloadMF512B payload;
+    private final VectorPayloadMF512B payload;
 
     Byte512Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF512B)value;
+        this.payload = (VectorPayloadMF512B)value;
     }
 
     VectorPayloadMF vec_mf() {

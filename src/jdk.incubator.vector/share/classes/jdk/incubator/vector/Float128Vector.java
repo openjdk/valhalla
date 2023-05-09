@@ -55,12 +55,12 @@ value class Float128Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128F.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128F.class);
 
-    private final VectorSupport.VectorPayloadMF128F payload;
+    private final VectorPayloadMF128F payload;
 
     Float128Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF128F)value;
+        this.payload = (VectorPayloadMF128F)value;
     }
 
     VectorPayloadMF vec_mf() {

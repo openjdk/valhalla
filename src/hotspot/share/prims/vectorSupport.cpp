@@ -68,41 +68,20 @@ const char* VectorSupport::svmlname[VectorSupport::NUM_SVML_OP] = {
 };
 #endif
 
-
-bool VectorSupport::is_vector(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_Vector_klass());
-}
-
 bool VectorSupport::is_vector(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_Vector_klass());
-}
-
-bool VectorSupport::is_vector_payload_mf(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorPayloadMF_klass());
 }
 
 bool VectorSupport::is_vector_payload_mf(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorPayloadMF_klass());
 }
 
-bool VectorSupport::is_vector_mask(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
-}
-
 bool VectorSupport::is_vector_mask(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorMask_klass());
 }
 
-bool VectorSupport::is_vector_shuffle(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
-}
-
 bool VectorSupport::is_vector_shuffle(Klass* klass) {
   return klass->is_subclass_of(vmClasses::vector_VectorShuffle_klass());
-}
-
-bool VectorSupport::skip_value_scalarization(ciKlass* klass) {
-  return VectorSupport::is_vector(klass) || VectorSupport::is_vector_payload_mf(klass);
 }
 
 bool VectorSupport::skip_value_scalarization(Klass* klass) {
@@ -399,7 +378,6 @@ instanceOop VectorSupport::allocate_vector(InstanceKlass* ik, frame* fr, Registe
   Handle vbox_h = Handle(THREAD, vbox);
 
   fieldDescriptor fd;
-  int elem_size = type2aelembytes(elem_bt);
   Symbol* payload_sig = VectorSupport::get_vector_payload_field_signature(elem_bt, num_elem);
   Klass* def = ik->find_field(vmSymbols::payload_name(), payload_sig, false, &fd);
   assert(def != NULL, "");

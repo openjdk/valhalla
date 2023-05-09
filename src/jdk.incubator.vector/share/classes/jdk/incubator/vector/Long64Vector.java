@@ -55,12 +55,12 @@ value class Long64Vector extends LongVector {
 
     static final Class<Long> ETYPE = long.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64L.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64L.class);
 
-    private final VectorSupport.VectorPayloadMF64L payload;
+    private final VectorPayloadMF64L payload;
 
     Long64Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF64L)value;
+        this.payload = (VectorPayloadMF64L)value;
     }
 
     VectorPayloadMF vec_mf() {

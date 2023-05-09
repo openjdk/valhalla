@@ -2756,10 +2756,6 @@ void Compile::Optimize() {
     set_for_igvn(old_worklist); // new_worklist is dead beyond this point
   }
 
-  // Now that all inlining is over and no PhaseRemoveUseless will run, cut edge from root to loop
-  // safepoints
-  remove_root_to_sfpts_edges(igvn);
-
   // Process inline type nodes now that all inlining is over
   process_inline_types(igvn);
 
@@ -2773,6 +2769,9 @@ void Compile::Optimize() {
   }
   assert(!has_vbox_nodes(), "sanity");
 
+  // Now that all inlining is over and no PhaseRemoveUseless will run, cut edge from root to loop
+  // safepoints
+  remove_root_to_sfpts_edges(igvn);
 
   adjust_flattened_array_access_aliases(igvn);
 

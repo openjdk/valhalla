@@ -31,16 +31,24 @@
 #include "prims/vectorSupport.hpp"
 #include "runtime/stubRoutines.hpp"
 
-static bool is_vector(ciKlass* kls) { return VectorSupport::is_vector(kls); }
-static bool is_vector_mask(ciKlass* kls) { return VectorSupport::is_vector_mask(kls); }
-static bool is_vector_shuffle(ciKlass* kls) { return VectorSupport::is_vector_shuffle(kls); }
+static bool is_vector(ciKlass* klass) {
+  return klass->is_subclass_of(ciEnv::current()->vector_Vector_klass());
+}
+
+static bool is_vector_mask(ciKlass* klass) {
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
+}
+
+static bool is_vector_shuffle(ciKlass* klass) {
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
+}
 
 #ifdef ASSERT
 static bool check_vbox(const TypeInstPtr* vbox_type) {
   assert(vbox_type->klass_is_exact(), "");
 
   ciInstanceKlass* ik = vbox_type->instance_klass();
-  assert(VectorSupport::is_vector(ik), "not a vector");
+  assert(is_vector(ik), "not a vector");
 
   ciField* fd1 = ik->get_field_by_name(ciSymbols::ETYPE_name(), ciSymbols::class_signature(), /* is_static */ true);
   assert(fd1 != NULL, "element type info is missing");

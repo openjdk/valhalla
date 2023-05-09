@@ -921,7 +921,7 @@ void Compile::return_values(JVMState* jvms) {
     kit.inc_sp(-ret_size);  // pop the return value(s)
     kit.sync_jvms();
     Node* res = kit.argument(0);
-    if (res->isa_InlineType() && VectorSupport::skip_value_scalarization(res->as_InlineType()->inline_klass())) {
+    if (res->isa_InlineType() && VectorSupport::skip_value_scalarization(res->as_InlineType()->inline_klass()->get_InlineKlass())) {
       InlineTypeNode* vt = res->as_InlineType();
       assert(vt->is_buffered(), "");
       ret->add_req(vt->get_oop());
@@ -2357,7 +2357,7 @@ void Parse::return_current(Node* value) {
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
       }
-      if (VectorSupport::skip_value_scalarization(value->as_InlineType()->inline_klass())) {
+      if (VectorSupport::skip_value_scalarization(value->as_InlineType()->inline_klass()->get_InlineKlass())) {
         // Buffer the vector return types, for regular inline object caller expects
         // scalarized fields to be passed back.
         PreserveReexecuteState preexecs(this);

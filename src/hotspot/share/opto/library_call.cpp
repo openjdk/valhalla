@@ -2331,7 +2331,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         // Skip over direct field access for VectorPayloadMF* class instancs since
         // multifield is loaded into vector, alternatively we can create a lane
         // extraction logic.
-        if (field != NULL && !VectorSupport::is_vector_payload_mf(vk)) {
+        if (field != NULL && !VectorSupport::is_vector_payload_mf(vk->get_InlineKlass())) {
           BasicType bt = field->layout_type();
           if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
             bt = T_OBJECT;

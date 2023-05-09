@@ -29,6 +29,7 @@
 #include "opto/phaseX.hpp"
 #include "opto/type.hpp"
 #include "opto/vectornode.hpp"
+#include "ci/ciKlass.hpp"
 
 class PhaseVector : public Phase {
  private:
@@ -36,8 +37,7 @@ class PhaseVector : public Phase {
 
   void expand_vbox_nodes();
   void expand_vbox_node(VectorBoxNode* vec_box);
-  Node* expand_vbox_node_helper(Node* vbox,
-                                Node* vbox_alloc,
+  Node* expand_vbox_node_helper(Node* vbox_alloc,
                                 Node* vect,
                                 const TypeInstPtr* box_type,
                                 const TypeVect* vect_type);

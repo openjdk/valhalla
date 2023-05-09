@@ -55,12 +55,12 @@ value class Int128Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF128I.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF128I.class);
 
-    private final VectorSupport.VectorPayloadMF128I payload;
+    private final VectorPayloadMF128I payload;
 
     Int128Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF128I)value;
+        this.payload = (VectorPayloadMF128I)value;
     }
 
     VectorPayloadMF vec_mf() {

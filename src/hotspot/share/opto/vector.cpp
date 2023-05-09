@@ -34,15 +34,19 @@
 #include "prims/vectorSupport.hpp"
 
 static bool is_vector(ciKlass* klass) {
-  return VectorSupport::is_vector(klass);
+  return klass->is_subclass_of(ciEnv::current()->vector_Vector_klass());
+}
+
+static bool is_vector_payload_mf(ciKlass* klass) {
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorPayloadMF_klass());
 }
 
 static bool is_vector_mask(ciKlass* klass) {
-  return VectorSupport::is_vector_mask(klass);
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
 }
 
 static bool is_vector_shuffle(ciKlass* klass) {
-  return VectorSupport::is_vector_shuffle(klass);
+  return klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
 }
 
 void PhaseVector::optimize_vector_boxes() {
@@ -316,15 +320,14 @@ void PhaseVector::expand_vbox_node(VectorBoxNode* vec_box) {
   if (vec_box->outcnt() > 0) {
     Node* vbox = vec_box->get_oop();
     Node* vect = vec_box->get_vec();
-    Node* result = expand_vbox_node_helper(vec_box, vbox, vect, vec_box->box_type(), vec_box->vec_type());
+    Node* result = expand_vbox_node_helper(vbox, vect, vec_box->box_type(), vec_box->vec_type());
     C->gvn_replace_by(vec_box, result);
     C->print_method(PHASE_EXPAND_VBOX, 3, vec_box);
   }
   C->remove_macro_node(vec_box);
 }
 
-Node* PhaseVector::expand_vbox_node_helper(Node* vec_box,
-                                           Node* vbox,
+Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
                                            Node* vect,
                                            const TypeInstPtr* box_type,
                                            const TypeVect* vect_type) {
@@ -332,7 +335,7 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vec_box,
     assert(vbox->as_Phi()->region() == vect->as_Phi()->region(), "");
     Node* new_phi = new PhiNode(vbox->as_Phi()->region(), box_type);
     for (uint i = 1; i < vbox->req(); i++) {
-      Node* new_box = expand_vbox_node_helper(vec_box, vbox->in(i), vect->in(i), box_type, vect_type);
+      Node* new_box = expand_vbox_node_helper(vbox->in(i), vect->in(i), box_type, vect_type);
       new_phi->set_req(i, new_box);
     }
     new_phi = C->initial_gvn()->transform(new_phi);
@@ -347,7 +350,7 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vec_box,
     // move up and are guaranteed to dominate.
     Node* new_phi = new PhiNode(vbox->as_Phi()->region(), box_type);
     for (uint i = 1; i < vbox->req(); i++) {
-      Node* new_box = expand_vbox_node_helper(vec_box, vbox->in(i), vect, box_type, vect_type);
+      Node* new_box = expand_vbox_node_helper(vbox->in(i), vect, box_type, vect_type);
       new_phi->set_req(i, new_box);
     }
     new_phi = C->initial_gvn()->transform(new_phi);
@@ -380,12 +383,12 @@ Node* PhaseVector::expand_vbox_alloc_node_vector(VectorBoxAllocateNode* vbox_all
   Node* klass_node = kit.makecon(klass_type);
   Node* buffer_mem = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
 
-  assert(VectorSupport::is_vector(box_klass), "");
+  assert(is_vector(box_klass), "");
   ciField* payload_field = box_klass->declared_nonstatic_field_at(0);
   int offset = payload_field->offset();
   if (!payload_field->is_flattened()) {
     ciInlineKlass* payload_klass = static_cast<ciInlineKlass*>(payload_field->type());
-    assert(VectorSupport::is_vector_payload_mf(payload_klass), "");
+    assert(is_vector_payload_mf(payload_klass), "");
     ciField* mutifield = payload_klass->declared_nonstatic_field_at(0);
     offset += mutifield->offset();
   }
@@ -515,41 +518,7 @@ void PhaseVector::expand_vunbox_node_vector(VectorUnboxNode* vec_unbox) {
     PhaseGVN& gvn = kit.gvn();
 
     Node* vec_val_load = get_loaded_payload(vec_unbox);
-
-    if (vec_val_load == NULL) {
-      Node* obj = vec_unbox->obj();
-      const TypeInstPtr* tinst = gvn.type(obj)->isa_instptr();
-      assert(VectorSupport::is_vector(tinst->instance_klass()), "");
-      ciInlineKlass* box_klass = static_cast<ciInlineKlass*>(tinst->instance_klass());
-
-      const TypeVect* vt = vec_unbox->bottom_type()->is_vect();
-      BasicType bt = vt->element_basic_type();
-      int num_elem = vt->length();
-
-      assert(VectorSupport::is_vector(box_klass), "");
-      ciField* payload_field = box_klass->declared_nonstatic_field_at(0);
-      int offset = payload_field->offset();
-      if (!payload_field->is_flattened()) {
-        ciInlineKlass* payload_klass = static_cast<ciInlineKlass*>(payload_field->type());
-        assert(VectorSupport::is_vector_payload_mf(payload_klass), "");
-        ciField* mutifield = payload_klass->declared_nonstatic_field_at(0);
-        offset += mutifield->offset();
-      }
-
-      Node* mem = vec_unbox->mem();
-      Node* ctrl = vec_unbox->in(0);
-      Node* vec_adr = gvn.transform(kit.basic_plus_adr(obj, offset));
-      const TypePtr *adr_type = gvn.type(vec_adr)->isa_ptr();
-
-      vec_val_load = LoadVectorNode::make(0,
-                                          ctrl,
-                                          mem,
-                                          vec_adr,
-                                          adr_type,
-                                          num_elem,
-                                          bt);
-      vec_val_load = gvn.transform(vec_val_load);
-    }
+    assert (vec_val_load != NULL, "");
 
     C->set_max_vector_size(MAX2(C->max_vector_size(), vec_val_load->bottom_type()->is_vect()->length_in_bytes()));
     gvn.hash_delete(vec_unbox);

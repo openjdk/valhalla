@@ -31,7 +31,6 @@
 #include "oops/typeArrayOop.hpp"
 #include "runtime/registerMap.hpp"
 #include "utilities/exceptions.hpp"
-#include "ci/ciKlass.hpp"
 
 extern "C" {
   void JNICALL JVM_RegisterVectorSupportMethods(JNIEnv* env, jclass vsclass);
@@ -151,14 +150,9 @@ class VectorSupport : AllStatic {
   static Symbol* get_vector_payload_field_signature(BasicType elem_bt, int num_elem);
 
   static bool is_vector(Klass* klass);
-  static bool is_vector(ciKlass* klass);
   static bool is_vector_payload_mf(Klass* klass);
-  static bool is_vector_payload_mf(ciKlass* klass);
   static bool is_vector_mask(Klass* klass);
-  static bool is_vector_mask(ciKlass* klass);
   static bool is_vector_shuffle(Klass* klass);
-  static bool is_vector_shuffle(ciKlass* klass);
-  static bool skip_value_scalarization(ciKlass* klass);
   static bool skip_value_scalarization(Klass* klass);
 };
 #endif // SHARE_PRIMS_VECTORSUPPORT_HPP

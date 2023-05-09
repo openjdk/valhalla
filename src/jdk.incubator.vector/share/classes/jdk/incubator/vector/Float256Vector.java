@@ -55,12 +55,12 @@ value class Float256Vector extends FloatVector {
 
     static final Class<Float> ETYPE = float.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF256F.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF256F.class);
 
-    private final VectorSupport.VectorPayloadMF256F payload;
+    private final VectorPayloadMF256F payload;
 
     Float256Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF256F)value;
+        this.payload = (VectorPayloadMF256F)value;
     }
 
     VectorPayloadMF vec_mf() {

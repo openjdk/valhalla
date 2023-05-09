@@ -55,12 +55,12 @@ value class Int512Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512I.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF512I.class);
 
-    private final VectorSupport.VectorPayloadMF512I payload;
+    private final VectorPayloadMF512I payload;
 
     Int512Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF512I)value;
+        this.payload = (VectorPayloadMF512I)value;
     }
 
     VectorPayloadMF vec_mf() {

@@ -55,12 +55,12 @@ value class Double512Vector extends DoubleVector {
 
     static final Class<Double> ETYPE = double.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF512D.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF512D.class);
 
-    private final VectorSupport.VectorPayloadMF512D payload;
+    private final VectorPayloadMF512D payload;
 
     Double512Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF512D)value;
+        this.payload = (VectorPayloadMF512D)value;
     }
 
     VectorPayloadMF vec_mf() {

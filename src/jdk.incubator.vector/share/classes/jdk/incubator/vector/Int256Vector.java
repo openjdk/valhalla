@@ -55,12 +55,12 @@ value class Int256Vector extends IntVector {
 
     static final Class<Integer> ETYPE = int.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF256I.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF256I.class);
 
-    private final VectorSupport.VectorPayloadMF256I payload;
+    private final VectorPayloadMF256I payload;
 
     Int256Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF256I)value;
+        this.payload = (VectorPayloadMF256I)value;
     }
 
     VectorPayloadMF vec_mf() {

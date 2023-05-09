@@ -55,12 +55,12 @@ value class Short64Vector extends ShortVector {
 
     static final Class<Short> ETYPE = short.class; // used by the JVM
 
-    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorSupport.VectorPayloadMF64S.class);
+    static final long MFOFFSET = VectorPayloadMF.multiFieldOffset(VectorPayloadMF64S.class);
 
-    private final VectorSupport.VectorPayloadMF64S payload;
+    private final VectorPayloadMF64S payload;
 
     Short64Vector(Object value) {
-        this.payload = (VectorSupport.VectorPayloadMF64S)value;
+        this.payload = (VectorPayloadMF64S)value;
     }
 
     VectorPayloadMF vec_mf() {
