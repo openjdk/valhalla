@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,8 +72,8 @@ value class Double512Vector extends DoubleVector {
        return vec_mf();
     }
 
-    static final Double512Vector ZERO = new Double512Vector(VectorPayloadMF.createVectPayloadInstance(double.class, 8));
-    static final Double512Vector IOTA = new Double512Vector(VectorPayloadMF.createVectPayloadInstanceD(8, (double [])(VSPECIES.iotaArray())));
+    static final Double512Vector ZERO = new Double512Vector(VectorPayloadMF.newInstanceFactory(double.class, 8));
+    static final Double512Vector IOTA = new Double512Vector(VectorPayloadMF.createVectPayloadInstanceD(8, (double[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -145,8 +145,8 @@ value class Double512Vector extends DoubleVector {
 
     @Override
     @ForceInline
-    Double512Mask maskFromArray(boolean[] bits) {
-        return new Double512Mask(bits);
+    Double512Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Double512Mask(payload);
     }
 
     @Override
@@ -574,34 +574,22 @@ value class Double512Vector extends DoubleVector {
 
     // Mask
 
-    static final class Double512Mask extends AbstractMask<Double> {
+    static final value class Double512Mask extends AbstractMask<Double> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Double> ETYPE = double.class; // used by the JVM
 
-        Double512Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF64Z payload;
+
+        Double512Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF64Z) payload;
         }
 
-        Double512Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Double512Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Double512Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -614,29 +602,14 @@ value class Double512Vector extends DoubleVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
+        final @Override
+        VectorPayloadMF getBits() {
+            return payload;
         }
 
         @Override
-        Double512Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Double512Mask(res);
-        }
-
-        @Override
-        Double512Mask bOp(VectorMask<Double> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Double512Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Double512Mask(res);
+        protected final Object getPayload() {
+            return getBits();
         }
 
         @ForceInline
@@ -644,33 +617,6 @@ value class Double512Vector extends DoubleVector {
         public final
         Double512Vector toVector() {
             return (Double512Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -692,7 +638,7 @@ value class Double512Vector extends DoubleVector {
         @Override
         @ForceInline
         public Double512Mask compress() {
-            return (Double512Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Double512Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Double512Vector.class, Double512Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -705,9 +651,9 @@ value class Double512Vector extends DoubleVector {
         public Double512Mask and(VectorMask<Double> mask) {
             Objects.requireNonNull(mask);
             Double512Mask m = (Double512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Double512Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Double512Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Double512Mask) m1.bOp(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -715,9 +661,9 @@ value class Double512Vector extends DoubleVector {
         public Double512Mask or(VectorMask<Double> mask) {
             Objects.requireNonNull(mask);
             Double512Mask m = (Double512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Double512Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Double512Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Double512Mask) m1.bOp(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -725,9 +671,9 @@ value class Double512Vector extends DoubleVector {
         Double512Mask xor(VectorMask<Double> mask) {
             Objects.requireNonNull(mask);
             Double512Mask m = (Double512Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Double512Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Double512Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Double512Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -736,21 +682,21 @@ value class Double512Vector extends DoubleVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Double512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Double512Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Double512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Double512Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Double512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Double512Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -760,7 +706,7 @@ value class Double512Vector extends DoubleVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Double512Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Double512Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -770,7 +716,7 @@ value class Double512Vector extends DoubleVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Double512Mask.class, long.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Double512Mask)m).getBits()));
+                                         (m, __) -> ((Double512Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -778,7 +724,7 @@ value class Double512Vector extends DoubleVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Double512Mask.class, long.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Double512Mask)m).getBits()));
+                                         (m, __) -> ((Double512Mask) m).allTrueHelper());
         }
 
         @ForceInline

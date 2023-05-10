@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ static bool check_vbox(const TypeInstPtr* vbox_type) {
   assert(vbox_type->klass_is_exact(), "");
 
   ciInstanceKlass* ik = vbox_type->instance_klass();
-  assert(is_vector(ik), "not a vector");
+  assert(is_vector(ik) || is_vector_mask(ik), "not a vector or a vector mask");
 
   ciField* fd1 = ik->get_field_by_name(ciSymbols::ETYPE_name(), ciSymbols::class_signature(), /* is_static */ true);
   assert(fd1 != NULL, "element type info is missing");
@@ -156,7 +156,16 @@ Node* GraphKit::box_vector(Node* vector, const TypeInstPtr* vbox_type, BasicType
   Node* ret = gvn().transform(new ProjNode(alloc, TypeFunc::Parms));
 
   assert(check_vbox(vbox_type), "");
-  const TypeVect* vt = TypeVect::make(elem_bt, num_elem, is_vector_mask(vbox_type->instance_klass()));
+
+  // VectorMask format conversion
+  if (is_vector_mask(vbox_type->instance_klass()) &&
+      (vector->bottom_type()->isa_vectmask() || elem_bt != T_BOOLEAN)) {
+    vector = gvn().transform(VectorStoreMaskNode::make(gvn(), vector, elem_bt, num_elem));
+    elem_bt = T_BOOLEAN;
+    assert(vector->bottom_type()->is_vect()->element_basic_type() == elem_bt,
+           "must be consistent with mask representation");
+  }
+  const TypeVect* vt = TypeVect::make(elem_bt, num_elem);
   Node* vbox = VectorBoxNode::make_box_node(gvn(), C, ret, vector, vbox_type, vt);
   return gvn().transform(vbox);
 }
@@ -170,13 +179,21 @@ Node* GraphKit::unbox_vector(Node* v, const TypeInstPtr* vbox_type, BasicType el
   if (vbox_type_v->maybe_null()) {
     return NULL; // no nulls are allowed
   }
-  // TODO[valhalla] Limiting support to only vectors cases untill mask and shuffle becomes inline types.
-  if (!is_vector(vbox_type->instance_klass())) {
+  // TODO[valhalla] Limiting support to only vector and vector mask cases untill shuffle becomes inline types.
+  if (!is_vector(vbox_type->instance_klass()) && !is_vector_mask(vbox_type->instance_klass())) {
     return NULL;
   }
   assert(check_vbox(vbox_type), "");
-  const TypeVect* vt = TypeVect::make(elem_bt, num_elem, is_vector_mask(vbox_type->instance_klass()));
+
+  BasicType unbox_bt = elem_bt;
+  if (is_vector_mask(vbox_type->instance_klass())) {
+    unbox_bt = T_BOOLEAN;
+  }
+  const TypeVect* vt = TypeVect::make(unbox_bt, num_elem);
   Node* unbox = gvn().transform(new VectorUnboxNode(C, vt, v, merged_memory(), shuffle_to_vector));
+  if (is_vector_mask(vbox_type->instance_klass())) {
+    unbox = gvn().transform(new VectorLoadMaskNode(unbox, TypeVect::makemask(elem_bt, num_elem)));
+  }
   return unbox;
 }
 
@@ -862,8 +879,8 @@ bool LibraryCallKit::inline_vector_frombits_coerced() {
 
   bool is_mask = is_vector_mask(vbox_klass);
   bool is_shuffle = is_vector_shuffle(vbox_klass);
-  // TODO[valhalla] Preventing intrinsification for mask/shuffle till they become inline types.
-  if (is_mask || is_shuffle) {
+  // TODO[valhalla] Preventing intrinsification for shuffle till they become inline types.
+  if (is_shuffle) {
     return false;
   }
   int  bcast_mode = mode->get_con();
@@ -1008,8 +1025,8 @@ bool LibraryCallKit::inline_vector_mem_operation(bool is_store) {
   ciKlass* vbox_klass = vector_klass->const_oop()->as_instance()->java_lang_Class_klass();
   bool is_mask = is_vector_mask(vbox_klass);
   bool is_shuffle = is_vector_shuffle(vbox_klass);
-  // TODO[valhalla] Preventing intrinsification for mask/shuffle till they become inline types.
-  if (is_mask || is_shuffle) {
+  // TODO[valhalla] Preventing intrinsification for shuffle till they become inline types.
+  if (is_shuffle) {
     return false;
   }
 
@@ -1977,8 +1994,7 @@ bool LibraryCallKit::inline_vector_compare() {
 
   bool is_masked_op = argument(7)->bottom_type() != TypePtr::NULL_PTR;
   Node* mask = is_masked_op ? unbox_vector(argument(7), mbox_type, elem_bt, num_elem) : NULL;
-  // TODO[valhalla] Preveting intrinsification untill mask becomes inline type.
-  if (true || is_masked_op && mask == NULL) {
+  if (is_masked_op && mask == NULL) {
     if (C->print_intrinsics()) {
       tty->print_cr("  ** not supported: mask = null arity=2 op=comp/%d vlen=%d etype=%s ismask=usestore is_masked_op=1",
                     cond->get_con(), num_elem, type2name(elem_bt));

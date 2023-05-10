@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,8 +72,8 @@ value class Long128Vector extends LongVector {
        return vec_mf();
     }
 
-    static final Long128Vector ZERO = new Long128Vector(VectorPayloadMF.createVectPayloadInstance(long.class, 2));
-    static final Long128Vector IOTA = new Long128Vector(VectorPayloadMF.createVectPayloadInstanceL(2, (long [])(VSPECIES.iotaArray())));
+    static final Long128Vector ZERO = new Long128Vector(VectorPayloadMF.newInstanceFactory(long.class, 2));
+    static final Long128Vector IOTA = new Long128Vector(VectorPayloadMF.createVectPayloadInstanceL(2, (long[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -140,8 +140,8 @@ value class Long128Vector extends LongVector {
 
     @Override
     @ForceInline
-    Long128Mask maskFromArray(boolean[] bits) {
-        return new Long128Mask(bits);
+    Long128Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Long128Mask(payload);
     }
 
     @Override
@@ -563,34 +563,22 @@ value class Long128Vector extends LongVector {
 
     // Mask
 
-    static final class Long128Mask extends AbstractMask<Long> {
+    static final value class Long128Mask extends AbstractMask<Long> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Long> ETYPE = long.class; // used by the JVM
 
-        Long128Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF16Z payload;
+
+        Long128Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF16Z) payload;
         }
 
-        Long128Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Long128Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Long128Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -603,29 +591,14 @@ value class Long128Vector extends LongVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
+        final @Override
+        VectorPayloadMF getBits() {
+            return payload;
         }
 
         @Override
-        Long128Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Long128Mask(res);
-        }
-
-        @Override
-        Long128Mask bOp(VectorMask<Long> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Long128Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Long128Mask(res);
+        protected final Object getPayload() {
+            return getBits();
         }
 
         @ForceInline
@@ -633,33 +606,6 @@ value class Long128Vector extends LongVector {
         public final
         Long128Vector toVector() {
             return (Long128Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -681,7 +627,7 @@ value class Long128Vector extends LongVector {
         @Override
         @ForceInline
         public Long128Mask compress() {
-            return (Long128Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Long128Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Long128Vector.class, Long128Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -694,9 +640,9 @@ value class Long128Vector extends LongVector {
         public Long128Mask and(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long128Mask m = (Long128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Long128Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Long128Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Long128Mask) m1.bOp(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -704,9 +650,9 @@ value class Long128Vector extends LongVector {
         public Long128Mask or(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long128Mask m = (Long128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Long128Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Long128Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Long128Mask) m1.bOp(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -714,9 +660,9 @@ value class Long128Vector extends LongVector {
         Long128Mask xor(VectorMask<Long> mask) {
             Objects.requireNonNull(mask);
             Long128Mask m = (Long128Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Long128Mask.class, null, long.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Long128Mask.class, null,
+                                          long.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Long128Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -725,21 +671,21 @@ value class Long128Vector extends LongVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Long128Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Long128Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Long128Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Long128Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Long128Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Long128Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -749,7 +695,7 @@ value class Long128Vector extends LongVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Long128Mask.class, long.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Long128Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -759,7 +705,7 @@ value class Long128Vector extends LongVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Long128Mask.class, long.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Long128Mask)m).getBits()));
+                                         (m, __) -> ((Long128Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -767,7 +713,7 @@ value class Long128Vector extends LongVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Long128Mask.class, long.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Long128Mask)m).getBits()));
+                                         (m, __) -> ((Long128Mask) m).allTrueHelper());
         }
 
         @ForceInline

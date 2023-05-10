@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,34 +37,34 @@ class PhaseVector : public Phase {
 
   void expand_vbox_nodes();
   void expand_vbox_node(VectorBoxNode* vec_box);
-  Node* expand_vbox_node_helper(Node* vbox_alloc,
+  Node* expand_vbox_node_helper(VectorBoxNode* vec_box,
+                                Node* vbox_alloc,
                                 Node* vect,
                                 const TypeInstPtr* box_type,
                                 const TypeVect* vect_type);
 
-  Node* expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
+  Node* expand_vbox_alloc_node(VectorBoxNode* vec_box,
+                               VectorBoxAllocateNode* vbox_alloc,
                                Node* value,
                                const TypeInstPtr* box_type,
                                const TypeVect* vect_type);
 
-  Node* expand_vbox_alloc_node_vector(VectorBoxAllocateNode* vbox_alloc,
-                                      Node* value,
+  Node* expand_vbox_alloc_node_vector(VectorBoxNode* vec_box,
+                                      VectorBoxAllocateNode* vbox_alloc,
                                       const TypeInstPtr* box_type,
                                       const TypeVect* vect_type);
 
-  Node* expand_vbox_alloc_node_mask_shuffle(VectorBoxAllocateNode* vbox_alloc,
+  Node* expand_vbox_alloc_node_shuffle(VectorBoxAllocateNode* vbox_alloc,
                                             Node* value,
                                             const TypeInstPtr* box_type,
                                             const TypeVect* vect_type);
-
-  Node* get_loaded_payload(VectorUnboxNode* vec_unbox);
 
   void scalarize_vbox_nodes();
   void scalarize_vbox_node(VectorBoxNode* vec_box);
   void expand_vunbox_nodes();
   void expand_vunbox_node(VectorUnboxNode* vec_box);
   void expand_vunbox_node_vector(VectorUnboxNode* vec_unbox);
-  void expand_vunbox_node_mask_shuffle(VectorUnboxNode* vec_unbox);
+  void expand_vunbox_node_shuffle(VectorUnboxNode* vec_unbox);
   void eliminate_vbox_alloc_nodes();
   void eliminate_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc);
   void do_cleanup();

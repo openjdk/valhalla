@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,7 +85,9 @@ bool VectorSupport::is_vector_shuffle(Klass* klass) {
 }
 
 bool VectorSupport::skip_value_scalarization(Klass* klass) {
-  return VectorSupport::is_vector(klass) || VectorSupport::is_vector_payload_mf(klass);
+  return VectorSupport::is_vector(klass) ||
+         VectorSupport::is_vector_mask(klass) ||
+         VectorSupport::is_vector_payload_mf(klass);
 }
 
 BasicType VectorSupport::klass2bt(InstanceKlass* ik) {

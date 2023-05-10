@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,8 +72,8 @@ value class Byte64Vector extends ByteVector {
        return vec_mf();
     }
 
-    static final Byte64Vector ZERO = new Byte64Vector(VectorPayloadMF.createVectPayloadInstance(byte.class, 8));
-    static final Byte64Vector IOTA = new Byte64Vector(VectorPayloadMF.createVectPayloadInstanceB(8, (byte [])(VSPECIES.iotaArray())));
+    static final Byte64Vector ZERO = new Byte64Vector(VectorPayloadMF.newInstanceFactory(byte.class, 8));
+    static final Byte64Vector IOTA = new Byte64Vector(VectorPayloadMF.createVectPayloadInstanceB(8, (byte[])(VSPECIES.iotaArray())));
 
     static {
         // Warm up a few species caches.
@@ -145,8 +145,8 @@ value class Byte64Vector extends ByteVector {
 
     @Override
     @ForceInline
-    Byte64Mask maskFromArray(boolean[] bits) {
-        return new Byte64Mask(bits);
+    Byte64Mask maskFromPayload(VectorPayloadMF payload) {
+        return new Byte64Mask(payload);
     }
 
     @Override
@@ -585,34 +585,22 @@ value class Byte64Vector extends ByteVector {
 
     // Mask
 
-    static final class Byte64Mask extends AbstractMask<Byte> {
+    static final value class Byte64Mask extends AbstractMask<Byte> {
         static final int VLENGTH = VSPECIES.laneCount();    // used by the JVM
         static final Class<Byte> ETYPE = byte.class; // used by the JVM
 
-        Byte64Mask(boolean[] bits) {
-            this(bits, 0);
+        private final VectorPayloadMF64Z payload;
+
+        Byte64Mask(VectorPayloadMF payload) {
+            this.payload = (VectorPayloadMF64Z) payload;
         }
 
-        Byte64Mask(boolean[] bits, int offset) {
-            super(prepare(bits, offset));
+        Byte64Mask(VectorPayloadMF payload, int offset) {
+            this(prepare(payload, offset, VLENGTH));
         }
 
         Byte64Mask(boolean val) {
-            super(prepare(val));
-        }
-
-        private static boolean[] prepare(boolean[] bits, int offset) {
-            boolean[] newBits = new boolean[VSPECIES.laneCount()];
-            for (int i = 0; i < newBits.length; i++) {
-                newBits[i] = bits[offset + i];
-            }
-            return newBits;
-        }
-
-        private static boolean[] prepare(boolean val) {
-            boolean[] bits = new boolean[VSPECIES.laneCount()];
-            Arrays.fill(bits, val);
-            return bits;
+            this(prepare(val, VLENGTH));
         }
 
         @ForceInline
@@ -625,29 +613,14 @@ value class Byte64Vector extends ByteVector {
         }
 
         @ForceInline
-        boolean[] getBits() {
-            return (boolean[])getPayload();
+        final @Override
+        VectorPayloadMF getBits() {
+            return payload;
         }
 
         @Override
-        Byte64Mask uOp(MUnOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i]);
-            }
-            return new Byte64Mask(res);
-        }
-
-        @Override
-        Byte64Mask bOp(VectorMask<Byte> m, MBinOp f) {
-            boolean[] res = new boolean[vspecies().laneCount()];
-            boolean[] bits = getBits();
-            boolean[] mbits = ((Byte64Mask)m).getBits();
-            for (int i = 0; i < res.length; i++) {
-                res[i] = f.apply(i, bits[i], mbits[i]);
-            }
-            return new Byte64Mask(res);
+        protected final Object getPayload() {
+            return getBits();
         }
 
         @ForceInline
@@ -655,33 +628,6 @@ value class Byte64Vector extends ByteVector {
         public final
         Byte64Vector toVector() {
             return (Byte64Vector) super.toVectorTemplate();  // specialize
-        }
-
-        /**
-         * Helper function for lane-wise mask conversions.
-         * This function kicks in after intrinsic failure.
-         */
-        @ForceInline
-        private final <E>
-        VectorMask<E> defaultMaskCast(AbstractSpecies<E> dsp) {
-            if (length() != dsp.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-            boolean[] maskArray = toArray();
-            return  dsp.maskFactory(maskArray).check(dsp);
-        }
-
-        @Override
-        @ForceInline
-        public <E> VectorMask<E> cast(VectorSpecies<E> dsp) {
-            AbstractSpecies<E> species = (AbstractSpecies<E>) dsp;
-            if (length() != species.laneCount())
-                throw new IllegalArgumentException("VectorMask length and species length differ");
-
-            return VectorSupport.convert(VectorSupport.VECTOR_OP_CAST,
-                this.getClass(), ETYPE, VLENGTH,
-                species.maskType(), species.elementType(), VLENGTH,
-                this, species,
-                (m, s) -> s.maskFactory(m.toArray()).check(s));
         }
 
         @Override
@@ -703,7 +649,7 @@ value class Byte64Vector extends ByteVector {
         @Override
         @ForceInline
         public Byte64Mask compress() {
-            return (Byte64Mask)VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
+            return (Byte64Mask) VectorSupport.compressExpandOp(VectorSupport.VECTOR_OP_MASK_COMPRESS,
                 Byte64Vector.class, Byte64Mask.class, ETYPE, VLENGTH, null, this,
                 (v1, m1) -> VSPECIES.iota().compare(VectorOperators.LT, m1.trueCount()));
         }
@@ -716,9 +662,9 @@ value class Byte64Vector extends ByteVector {
         public Byte64Mask and(VectorMask<Byte> mask) {
             Objects.requireNonNull(mask);
             Byte64Mask m = (Byte64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_AND, Byte64Mask.class, null, byte.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a & b));
+            return VectorSupport.binaryOp(VECTOR_OP_AND, Byte64Mask.class, null,
+                                          byte.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Byte64Mask) m1.bOp(m2, (i, a, b) -> a & b));
         }
 
         @Override
@@ -726,9 +672,9 @@ value class Byte64Vector extends ByteVector {
         public Byte64Mask or(VectorMask<Byte> mask) {
             Objects.requireNonNull(mask);
             Byte64Mask m = (Byte64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_OR, Byte64Mask.class, null, byte.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a | b));
+            return VectorSupport.binaryOp(VECTOR_OP_OR, Byte64Mask.class, null,
+                                          byte.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Byte64Mask) m1.bOp(m2, (i, a, b) -> a | b));
         }
 
         @ForceInline
@@ -736,9 +682,9 @@ value class Byte64Vector extends ByteVector {
         Byte64Mask xor(VectorMask<Byte> mask) {
             Objects.requireNonNull(mask);
             Byte64Mask m = (Byte64Mask)mask;
-            return VectorSupport.binaryOp(VECTOR_OP_XOR, Byte64Mask.class, null, byte.class, VLENGTH,
-                                          this, m, null,
-                                          (m1, m2, vm) -> m1.bOp(m2, (i, a, b) -> a ^ b));
+            return VectorSupport.binaryOp(VECTOR_OP_XOR, Byte64Mask.class, null,
+                                          byte.class, VLENGTH, this, m, null,
+                                          (m1, m2, vm) -> (Byte64Mask) m1.bOp(m2, (i, a, b) -> a ^ b));
         }
 
         // Mask Query operations
@@ -747,21 +693,21 @@ value class Byte64Vector extends ByteVector {
         @ForceInline
         public int trueCount() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TRUECOUNT, Byte64Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> trueCountHelper(m.getBits()));
+                                                            (m) -> ((Byte64Mask) m).trueCountHelper());
         }
 
         @Override
         @ForceInline
         public int firstTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_FIRSTTRUE, Byte64Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> firstTrueHelper(m.getBits()));
+                                                            (m) -> ((Byte64Mask) m).firstTrueHelper());
         }
 
         @Override
         @ForceInline
         public int lastTrue() {
             return (int) VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_LASTTRUE, Byte64Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> lastTrueHelper(m.getBits()));
+                                                            (m) -> ((Byte64Mask) m).lastTrueHelper());
         }
 
         @Override
@@ -771,7 +717,7 @@ value class Byte64Vector extends ByteVector {
                 throw new UnsupportedOperationException("too many lanes for one long");
             }
             return VectorSupport.maskReductionCoerced(VECTOR_OP_MASK_TOLONG, Byte64Mask.class, byte.class, VLENGTH, this,
-                                                      (m) -> toLongHelper(m.getBits()));
+                                                      (m) -> ((Byte64Mask) m).toLongHelper());
         }
 
         // Reductions
@@ -781,7 +727,7 @@ value class Byte64Vector extends ByteVector {
         public boolean anyTrue() {
             return VectorSupport.test(BT_ne, Byte64Mask.class, byte.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> anyTrueHelper(((Byte64Mask)m).getBits()));
+                                         (m, __) -> ((Byte64Mask) m).anyTrueHelper());
         }
 
         @Override
@@ -789,7 +735,7 @@ value class Byte64Vector extends ByteVector {
         public boolean allTrue() {
             return VectorSupport.test(BT_overflow, Byte64Mask.class, byte.class, VLENGTH,
                                          this, vspecies().maskAll(true),
-                                         (m, __) -> allTrueHelper(((Byte64Mask)m).getBits()));
+                                         (m, __) -> ((Byte64Mask) m).allTrueHelper());
         }
 
         @ForceInline

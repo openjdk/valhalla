@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,10 +35,6 @@
 
 static bool is_vector(ciKlass* klass) {
   return klass->is_subclass_of(ciEnv::current()->vector_Vector_klass());
-}
-
-static bool is_vector_payload_mf(ciKlass* klass) {
-  return klass->is_subclass_of(ciEnv::current()->vector_VectorPayloadMF_klass());
 }
 
 static bool is_vector_mask(ciKlass* klass) {
@@ -249,7 +245,7 @@ void PhaseVector::scalarize_vbox_node(VectorBoxNode* vec_box) {
   ciInstanceKlass* iklass = vec_box->box_type()->instance_klass();
   // Multi-field based vectors are InlineTypeNodes and are already
   // scalarized by process_inline_types.
-  if (is_vector(iklass)) {
+  if (is_vector(iklass) || is_vector_mask(iklass)) {
     return;
   }
 
@@ -320,14 +316,15 @@ void PhaseVector::expand_vbox_node(VectorBoxNode* vec_box) {
   if (vec_box->outcnt() > 0) {
     Node* vbox = vec_box->get_oop();
     Node* vect = vec_box->get_vec();
-    Node* result = expand_vbox_node_helper(vbox, vect, vec_box->box_type(), vec_box->vec_type());
+    Node* result = expand_vbox_node_helper(vec_box, vbox, vect, vec_box->box_type(), vec_box->vec_type());
     C->gvn_replace_by(vec_box, result);
     C->print_method(PHASE_EXPAND_VBOX, 3, vec_box);
   }
   C->remove_macro_node(vec_box);
 }
 
-Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
+Node* PhaseVector::expand_vbox_node_helper(VectorBoxNode* vec_box,
+                                           Node* vbox,
                                            Node* vect,
                                            const TypeInstPtr* box_type,
                                            const TypeVect* vect_type) {
@@ -335,7 +332,7 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
     assert(vbox->as_Phi()->region() == vect->as_Phi()->region(), "");
     Node* new_phi = new PhiNode(vbox->as_Phi()->region(), box_type);
     for (uint i = 1; i < vbox->req(); i++) {
-      Node* new_box = expand_vbox_node_helper(vbox->in(i), vect->in(i), box_type, vect_type);
+      Node* new_box = expand_vbox_node_helper(vec_box, vbox->in(i), vect->in(i), box_type, vect_type);
       new_phi->set_req(i, new_box);
     }
     new_phi = C->initial_gvn()->transform(new_phi);
@@ -350,14 +347,14 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
     // move up and are guaranteed to dominate.
     Node* new_phi = new PhiNode(vbox->as_Phi()->region(), box_type);
     for (uint i = 1; i < vbox->req(); i++) {
-      Node* new_box = expand_vbox_node_helper(vbox->in(i), vect, box_type, vect_type);
+      Node* new_box = expand_vbox_node_helper(vec_box, vbox->in(i), vect, box_type, vect_type);
       new_phi->set_req(i, new_box);
     }
     new_phi = C->initial_gvn()->transform(new_phi);
     return new_phi;
   } else if (vbox->is_Proj() && vbox->in(0)->Opcode() == Op_VectorBoxAllocate) {
     VectorBoxAllocateNode* vbox_alloc = static_cast<VectorBoxAllocateNode*>(vbox->in(0));
-    return expand_vbox_alloc_node(vbox_alloc, vect, box_type, vect_type);
+    return expand_vbox_alloc_node(vec_box, vbox_alloc, vect, box_type, vect_type);
   } else {
     assert(!vbox->is_Phi(), "");
     // TODO: assert that expanded vbox is initialized with the same value (vect).
@@ -365,58 +362,30 @@ Node* PhaseVector::expand_vbox_node_helper(Node* vbox,
   }
 }
 
-Node* PhaseVector::expand_vbox_alloc_node_vector(VectorBoxAllocateNode* vbox_alloc,
-                                                 Node* value,
+Node* PhaseVector::expand_vbox_alloc_node_vector(VectorBoxNode* vec_box,
+                                                 VectorBoxAllocateNode* vbox_alloc,
                                                  const TypeInstPtr* box_type,
                                                  const TypeVect* vect_type) {
   JVMState* jvms = clone_jvms(C, vbox_alloc);
   GraphKit kit(jvms);
-  PhaseGVN& gvn = kit.gvn();
 
-  ciInlineKlass* box_klass = static_cast<ciInlineKlass*>(box_type->inline_klass());
-
-  BasicType bt = vect_type->element_basic_type();
-  int num_elem = vect_type->length();
-  int elem_size = type2aelembytes(bt);
-
+  ciInlineKlass* vk = static_cast<ciInlineKlass*>(box_type->inline_klass());
   const TypeKlassPtr* klass_type = box_type->as_klass_type();
   Node* klass_node = kit.makecon(klass_type);
   Node* buffer_mem = kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
-
-  assert(is_vector(box_klass), "");
-  ciField* payload_field = box_klass->declared_nonstatic_field_at(0);
-  int offset = payload_field->offset();
-  if (!payload_field->is_flattened()) {
-    ciInlineKlass* payload_klass = static_cast<ciInlineKlass*>(payload_field->type());
-    assert(is_vector_payload_mf(payload_klass), "");
-    ciField* mutifield = payload_klass->declared_nonstatic_field_at(0);
-    offset += mutifield->offset();
-  }
-
-  Node* buffer_start_adr = kit.basic_plus_adr(buffer_mem, offset);
-  const TypePtr* buffer_adr_type = buffer_start_adr->bottom_type()->is_ptr();
-  Node* buffer_mem_start = kit.memory(buffer_start_adr);
-  Node* vstore = gvn.transform(StoreVectorNode::make(0,
-                                                     kit.control(),
-                                                     buffer_mem_start,
-                                                     buffer_start_adr,
-                                                     buffer_adr_type,
-                                                     value,
-                                                     num_elem));
-  kit.set_memory(vstore, buffer_adr_type);
+  vec_box->store(&kit, buffer_mem, buffer_mem, vk);
 
   C->set_max_vector_size(MAX2(C->max_vector_size(), vect_type->length_in_bytes()));
 
   kit.replace_call(vbox_alloc, buffer_mem, true);
   C->remove_macro_node(vbox_alloc);
-
   return buffer_mem;
 }
 
 // FIXME: To be removed when mask and shuffle use multi-field backed storage.
 // Since intrinsification is skipped upfront for  mask/shuffle related operations
 // this is anyways a dead code currently.
-Node* PhaseVector::expand_vbox_alloc_node_mask_shuffle(VectorBoxAllocateNode* vbox_alloc,
+Node* PhaseVector::expand_vbox_alloc_node_shuffle(VectorBoxAllocateNode* vbox_alloc,
                                                        Node* value,
                                                        const TypeInstPtr* box_type,
                                                        const TypeVect* vect_type) {
@@ -489,27 +458,16 @@ Node* PhaseVector::expand_vbox_alloc_node_mask_shuffle(VectorBoxAllocateNode* vb
   return vec_obj;
 }
 
-Node* PhaseVector::expand_vbox_alloc_node(VectorBoxAllocateNode* vbox_alloc,
+Node* PhaseVector::expand_vbox_alloc_node(VectorBoxNode* vec_box, VectorBoxAllocateNode* vbox_alloc,
                                           Node* value,
                                           const TypeInstPtr* box_type,
                                           const TypeVect* vect_type) {
   ciInstanceKlass* box_klass = box_type->instance_klass();
-  if (is_vector(box_klass)) {
-    return expand_vbox_alloc_node_vector(vbox_alloc, value, box_type, vect_type);
+  if (is_vector(box_klass) || is_vector_mask(box_klass)) {
+    return expand_vbox_alloc_node_vector(vec_box, vbox_alloc, box_type, vect_type);
   } else {
-    return expand_vbox_alloc_node_mask_shuffle(vbox_alloc, value, box_type, vect_type);
+    return expand_vbox_alloc_node_shuffle(vbox_alloc, value, box_type, vect_type);
   }
-}
-
-Node* PhaseVector::get_loaded_payload(VectorUnboxNode* vec_unbox) {
-   Node* obj = vec_unbox->obj();
-   while(obj->is_InlineType()) {
-      obj = obj->as_InlineType()->field_value(0);
-   }
-   if (obj->bottom_type()->isa_vect()) {
-     return obj;
-   }
-   return NULL;
 }
 
 void PhaseVector::expand_vunbox_node_vector(VectorUnboxNode* vec_unbox) {
@@ -517,13 +475,16 @@ void PhaseVector::expand_vunbox_node_vector(VectorUnboxNode* vec_unbox) {
     GraphKit kit;
     PhaseGVN& gvn = kit.gvn();
 
-    Node* vec_val_load = get_loaded_payload(vec_unbox);
-    assert (vec_val_load != NULL, "");
+    Node* node = vec_unbox->obj();
+    while(node->is_InlineType()) {
+      node = node->as_InlineType()->field_value(0);
+    }
+    assert(Type::cmp(vec_unbox->bottom_type(), node->bottom_type()) == 0, "type is not matched");
 
-    C->set_max_vector_size(MAX2(C->max_vector_size(), vec_val_load->bottom_type()->is_vect()->length_in_bytes()));
+    C->set_max_vector_size(MAX2(C->max_vector_size(), vec_unbox->bottom_type()->is_vect()->length_in_bytes()));
     gvn.hash_delete(vec_unbox);
     vec_unbox->disconnect_inputs(C);
-    C->gvn_replace_by(vec_unbox, vec_val_load);
+    C->gvn_replace_by(vec_unbox, node);
   }
   C->remove_macro_node(vec_unbox);
 }
@@ -531,7 +492,7 @@ void PhaseVector::expand_vunbox_node_vector(VectorUnboxNode* vec_unbox) {
 // FIXME: To be removed when mask and shuffle use multi-field backed storage.
 // Since intrinsification is skipped upfront for mask/shuffle related operations
 // this is anyways a dead code currently.
-void PhaseVector::expand_vunbox_node_mask_shuffle(VectorUnboxNode* vec_unbox) {
+void PhaseVector::expand_vunbox_node_shuffle(VectorUnboxNode* vec_unbox) {
   if (vec_unbox->outcnt() > 0) {
     GraphKit kit;
     PhaseGVN& gvn = kit.gvn();
@@ -611,10 +572,10 @@ void PhaseVector::expand_vunbox_node(VectorUnboxNode* vec_unbox) {
     const TypeInstPtr* tinst = gvn.type(obj)->isa_instptr();
     ciInstanceKlass* from_kls = tinst->instance_klass();
 
-    if (is_vector(from_kls)) {
+    if (is_vector(from_kls) || is_vector_mask(from_kls)) {
       return expand_vunbox_node_vector(vec_unbox);
     } else {
-      return expand_vunbox_node_mask_shuffle(vec_unbox);
+      return expand_vunbox_node_shuffle(vec_unbox);
     }
   }
   C->remove_macro_node(vec_unbox);
