@@ -27,8 +27,8 @@
 
 #include "opto/connode.hpp"
 #include "opto/loopnode.hpp"
-#include "opto/node.hpp"
 #include "opto/matcher.hpp"
+#include "opto/node.hpp"
 
 class GraphKit;
 
@@ -57,8 +57,6 @@ protected:
   };
 
   void expand_input_edges(ciInlineKlass * vk);
-
-
 
   void make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt);
 
@@ -124,7 +122,6 @@ public:
   bool          is_multifield(uint index) const;
   bool          is_multifield_base(uint index) const;
   int           secondary_fields_count(uint index) const;
-  bool          is_multifield() const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;
   bool          field_is_null_free(uint index) const;

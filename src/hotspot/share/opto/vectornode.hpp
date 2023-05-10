@@ -25,10 +25,10 @@
 #define SHARE_OPTO_VECTORNODE_HPP
 
 #include "opto/callnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
 #include "opto/node.hpp"
-#include "opto/inlinetypenode.hpp"
 #include "opto/opcodes.hpp"
 #include "prims/vectorSupport.hpp"
 

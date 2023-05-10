@@ -189,7 +189,6 @@ public:
   bool is_flattened            () const { return _is_flattened; }
   bool is_null_free            () const { return _is_null_free; }
 
-
   // The field is modified outside of instance initializer methods
   // (or class/initializer methods if the field is static).
   bool has_initialized_final_update() const { return flags().has_initialized_final_update(); }

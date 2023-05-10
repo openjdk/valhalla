@@ -30,8 +30,8 @@
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/vector.hpp"
-#include "utilities/macros.hpp"
 #include "prims/vectorSupport.hpp"
+#include "utilities/macros.hpp"
 
 static bool is_vector(ciKlass* klass) {
   return klass->is_subclass_of(ciEnv::current()->vector_Vector_klass());

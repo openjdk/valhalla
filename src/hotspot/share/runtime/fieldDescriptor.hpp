@@ -96,7 +96,6 @@ class fieldDescriptor {
   inline jbyte multifield_index()        const;
   inline int secondary_fields_count(int base_idx) const;
 
-
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 
   bool is_field_access_watched()  const    { return access_flags().is_field_access_watched(); }

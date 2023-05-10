@@ -118,10 +118,10 @@
   template(jdk_internal_vm_vector_VectorPayloadMF128D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D") \
   template(jdk_internal_vm_vector_VectorPayloadMF256D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D") \
   template(jdk_internal_vm_vector_VectorPayloadMF512D, "jdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D") \
-  template(payload_name,                              "payload")                                  \
-  template(mfield_name,                               "mfield")                                   \
-  template(ETYPE_name,                                "ETYPE")                                    \
-  template(VLENGTH_name,                              "VLENGTH")                                  \
+  template(payload_name,                               "payload")                                 \
+  template(mfield_name,                                "mfield")                                  \
+  template(ETYPE_name,                                 "ETYPE")                                   \
+  template(VLENGTH_name,                               "VLENGTH")                                 \
                                                                                                   \
   template(jdk_internal_vm_FillerObject,              "jdk/internal/vm/FillerObject")             \
                                                                                                   \
@@ -293,30 +293,30 @@
   template(jdk_internal_ValueBased_signature,                                "Ljdk/internal/ValueBased;") \
                                                                                                   \
   /* VectorAPI support */                                                                         \
-  template(vector_VectorPayloadMF64B_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B;")  \
-  template(vector_VectorPayloadMF128B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B;") \
-  template(vector_VectorPayloadMF256B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B;") \
-  template(vector_VectorPayloadMF512B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512B;") \
-  template(vector_VectorPayloadMF64S_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64S;")  \
-  template(vector_VectorPayloadMF128S_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128S;") \
-  template(vector_VectorPayloadMF256S_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256S;") \
-  template(vector_VectorPayloadMF512S_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512S;") \
-  template(vector_VectorPayloadMF64I_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64I;")  \
-  template(vector_VectorPayloadMF128I_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128I;") \
-  template(vector_VectorPayloadMF256I_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256I;") \
-  template(vector_VectorPayloadMF512I_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512I;") \
-  template(vector_VectorPayloadMF64L_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64L;")  \
-  template(vector_VectorPayloadMF128L_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128L;") \
-  template(vector_VectorPayloadMF256L_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256L;") \
-  template(vector_VectorPayloadMF512L_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512L;") \
-  template(vector_VectorPayloadMF64F_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64F;")  \
-  template(vector_VectorPayloadMF128F_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128F;") \
-  template(vector_VectorPayloadMF256F_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256F;") \
-  template(vector_VectorPayloadMF512F_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512F;") \
-  template(vector_VectorPayloadMF64D_signature,        "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64D;")  \
-  template(vector_VectorPayloadMF128D_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D;") \
-  template(vector_VectorPayloadMF256D_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D;") \
-  template(vector_VectorPayloadMF512D_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D;") \
+  template(vector_VectorPayloadMF64B_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64B;")  \
+  template(vector_VectorPayloadMF128B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128B;") \
+  template(vector_VectorPayloadMF256B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256B;") \
+  template(vector_VectorPayloadMF512B_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512B;") \
+  template(vector_VectorPayloadMF64S_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64S;")  \
+  template(vector_VectorPayloadMF128S_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128S;") \
+  template(vector_VectorPayloadMF256S_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256S;") \
+  template(vector_VectorPayloadMF512S_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512S;") \
+  template(vector_VectorPayloadMF64I_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64I;")  \
+  template(vector_VectorPayloadMF128I_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128I;") \
+  template(vector_VectorPayloadMF256I_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256I;") \
+  template(vector_VectorPayloadMF512I_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512I;") \
+  template(vector_VectorPayloadMF64L_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64L;")  \
+  template(vector_VectorPayloadMF128L_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128L;") \
+  template(vector_VectorPayloadMF256L_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256L;") \
+  template(vector_VectorPayloadMF512L_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512L;") \
+  template(vector_VectorPayloadMF64F_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64F;")  \
+  template(vector_VectorPayloadMF128F_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128F;") \
+  template(vector_VectorPayloadMF256F_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256F;") \
+  template(vector_VectorPayloadMF512F_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512F;") \
+  template(vector_VectorPayloadMF64D_signature,       "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF64D;")  \
+  template(vector_VectorPayloadMF128D_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF128D;") \
+  template(vector_VectorPayloadMF256D_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF256D;") \
+  template(vector_VectorPayloadMF512D_signature,      "Qjdk/internal/vm/vector/VectorSupport$VectorPayloadMF512D;") \
                                                                                                   \
   /* class symbols needed by intrinsics */                                                        \
   VM_INTRINSICS_DO(VM_INTRINSIC_IGNORE, template, VM_SYMBOL_IGNORE, VM_SYMBOL_IGNORE, VM_ALIAS_IGNORE) \

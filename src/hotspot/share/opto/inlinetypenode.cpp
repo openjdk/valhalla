@@ -34,7 +34,6 @@
 #include "opto/phaseX.hpp"
 #include "opto/vectornode.hpp"
 
-
 uint InlineTypeNode::size_of() const {
   return sizeof(*this);
 }

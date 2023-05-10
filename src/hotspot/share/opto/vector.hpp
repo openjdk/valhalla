@@ -25,11 +25,11 @@
 #ifndef SHARE_OPTO_VECTOR_HPP
 #define SHARE_OPTO_VECTOR_HPP
 
+#include "ci/ciKlass.hpp"
 #include "opto/node.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/type.hpp"
 #include "opto/vectornode.hpp"
-#include "ci/ciKlass.hpp"
 
 class PhaseVector : public Phase {
  private:

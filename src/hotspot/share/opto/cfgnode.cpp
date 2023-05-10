@@ -2701,7 +2701,6 @@ Node* PhiNode::merge_through_phi(Node* root_phi, PhaseGVN *phase) {
   ciInlineKlass* vk = static_cast<ciInlineKlass*>(btype->inline_klass());
   ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
 
-  Node* payload_oop = payload->is_initialized() ? InlineTypeNode::default_oop(*igvn, payload) : igvn->zerocon(T_PRIMITIVE_OBJECT);
   Node* payload_value = InlineTypeNode::make_uninitialized(*igvn, payload, true);
 
   Node* new_payload_phi = igvn->transform(clone_through_phi(root_phi, payload_value->bottom_type(), 3, igvn));

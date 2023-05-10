@@ -188,57 +188,57 @@ public class VectorSupport {
 
         @ForceInline
         private static VectorPayloadMF newInstanceFactory(Class<?> elemType, int length) {
-            VectorPayloadMF obj = null;
             if (elemType == byte.class) {
                 switch(length) {
-                    case  8: obj = new VectorPayloadMF64B(); break;
-                    case 16: obj = new VectorPayloadMF128B(); break;
-                    case 32: obj = new VectorPayloadMF256B(); break;
-                    case 64: obj = new VectorPayloadMF512B(); break;
+                    case  8: return new VectorPayloadMF64B();
+                    case 16: return new VectorPayloadMF128B();
+                    case 32: return new VectorPayloadMF256B();
+                    case 64: return new VectorPayloadMF512B();
                     default: assert false : "Unhandled vector size";
                 }
             } else if (elemType == short.class) {
                 switch(length) {
-                    case  4: obj = new VectorPayloadMF64S(); break;
-                    case  8: obj = new VectorPayloadMF128S(); break;
-                    case 16: obj = new VectorPayloadMF256S(); break;
-                    case 32: obj = new VectorPayloadMF512S(); break;
+                    case  4: return new VectorPayloadMF64S();
+                    case  8: return new VectorPayloadMF128S();
+                    case 16: return new VectorPayloadMF256S();
+                    case 32: return new VectorPayloadMF512S();
                     default: assert false : "Unhandled vector size";
                 }
             } else if (elemType == int.class) {
                 switch(length) {
-                    case  2: obj = new VectorPayloadMF64I(); break;
-                    case  4: obj = new VectorPayloadMF128I(); break;
-                    case  8: obj = new VectorPayloadMF256I(); break;
-                    case 16: obj = new VectorPayloadMF512I(); break;
+                    case  2: return new VectorPayloadMF64I();
+                    case  4: return new VectorPayloadMF128I();
+                    case  8: return new VectorPayloadMF256I();
+                    case 16: return new VectorPayloadMF512I();
                     default: assert false : "Unhandled vector size";
                 }
             } else if (elemType == long.class) {
                 switch(length) {
-                    case  1: obj = new VectorPayloadMF64L(); break;
-                    case  2: obj = new VectorPayloadMF128L(); break;
-                    case  4: obj = new VectorPayloadMF256L(); break;
-                    case  8: obj = new VectorPayloadMF512L(); break;
+                    case  1: return new VectorPayloadMF64L();
+                    case  2: return new VectorPayloadMF128L();
+                    case  4: return new VectorPayloadMF256L();
+                    case  8: return new VectorPayloadMF512L();
                     default: assert false : "Unhandled vector size";
                 }
             } else if (elemType == float.class) {
                 switch(length) {
-                    case  2: obj = new VectorPayloadMF64F(); break;
-                    case  4: obj = new VectorPayloadMF128F(); break;
-                    case  8: obj = new VectorPayloadMF256F(); break;
-                    case 16: obj = new VectorPayloadMF512F(); break;
+                    case  2: return new VectorPayloadMF64F();
+                    case  4: return new VectorPayloadMF128F();
+                    case  8: return new VectorPayloadMF256F();
+                    case 16: return new VectorPayloadMF512F();
                     default: assert false : "Unhandled vector size";
                 }
-            } else if (elemType == double.class) {
+            } else {
+                assert elemType == double.class;
                 switch(length) {
-                    case  1: obj = new VectorPayloadMF64D(); break;
-                    case  2: obj = new VectorPayloadMF128D(); break;
-                    case  4: obj = new VectorPayloadMF256D(); break;
-                    case  8: obj = new VectorPayloadMF512D(); break;
+                    case  1: return new VectorPayloadMF64D();
+                    case  2: return new VectorPayloadMF128D();
+                    case  4: return new VectorPayloadMF256D();
+                    case  8: return new VectorPayloadMF512D();
                     default: assert false : "Unhandled vector size";
                 }
             }
-            return obj;
+            return null;
         }
 
         @ForceInline
