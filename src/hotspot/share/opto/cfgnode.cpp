@@ -2698,24 +2698,11 @@ Node* PhiNode::merge_through_phi(Node* root_phi, PhaseGVN *phase) {
   const TypeInstPtr* btype = cached_vbox->box_type();
   const TypeVect*    vtype = cached_vbox->vec_type();
 
-  ciInlineKlass* vk = static_cast<ciInlineKlass*>(btype->inline_klass());
-  ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
-
-  Node* payload_value = InlineTypeNode::make_uninitialized(*igvn, payload, true);
-
-  Node* new_payload_phi = igvn->transform(clone_through_phi(root_phi, payload_value->bottom_type(), 3, igvn));
-  Node* new_vector_phi = igvn->transform(clone_through_phi(new_payload_phi, vtype, 3, igvn));
-  payload_value->as_InlineType()->set_field_value(0, new_vector_phi);
-  payload_value = igvn->transform(payload_value);
-
+  Node* new_payload_phi = clone_through_phi(root_phi, cached_vbox->field_value(0)->bottom_type(), 3, igvn);
+  Node* new_vector_phi = clone_through_phi(new_payload_phi, vtype, 3, igvn);
   Node* new_vbox_phi = clone_through_phi(root_phi, btype, 1, igvn);
-  Node* new_box_node = new VectorBoxNode(phase->C, vk, NULL, btype, vtype, false, vk->is_empty() && vk->is_initialized());
-  new_box_node->as_InlineType()->set_is_init(*igvn);
-  new_box_node->as_InlineType()->set_oop(new_vbox_phi);
-  new_box_node->as_InlineType()->set_is_buffered();
-  new_box_node->as_InlineType()->set_field_value(0, payload_value);
-  new_box_node = igvn->transform(new_box_node);
-  return new_box_node;
+
+  return VectorBoxNode::make_box_node(*igvn, phase->C, new_vbox_phi, new_vector_phi, btype, vtype);
 }
 
 bool PhiNode::is_data_loop(RegionNode* r, Node* uin, const PhaseGVN* phase) {
