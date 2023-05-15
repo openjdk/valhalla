@@ -2739,16 +2739,6 @@ void Compile::Optimize() {
   // so keep only the actual candidates for optimizations.
   cleanup_expensive_nodes(igvn);
 
-  assert(EnableVectorSupport || !has_vbox_nodes(), "sanity");
-  if (EnableVectorSupport && has_vbox_nodes()) {
-    TracePhase tp("", &timers[_t_vector]);
-    PhaseVector pv(igvn);
-    pv.optimize_vector_boxes();
-
-    print_method(PHASE_ITER_GVN_AFTER_VECTOR, 2);
-  }
-  assert(!has_vbox_nodes(), "sanity");
-
   if (!failing() && RenumberLiveNodes && live_nodes() + NodeLimitFudgeFactor < unique()) {
     Compile::TracePhase tp("", &timers[_t_renumberLive]);
     initial_gvn()->replace_with(&igvn);
@@ -2766,12 +2756,22 @@ void Compile::Optimize() {
     set_for_igvn(old_worklist); // new_worklist is dead beyond this point
   }
 
+  // Process inline type nodes now that all inlining is over
+  process_inline_types(igvn);
+
+  assert(EnableVectorSupport || !has_vbox_nodes(), "sanity");
+  if (EnableVectorSupport && has_vbox_nodes()) {
+    TracePhase tp("", &timers[_t_vector]);
+    PhaseVector pv(igvn);
+    pv.optimize_vector_boxes();
+
+    print_method(PHASE_ITER_GVN_AFTER_VECTOR, 2);
+  }
+  assert(!has_vbox_nodes(), "sanity");
+
   // Now that all inlining is over and no PhaseRemoveUseless will run, cut edge from root to loop
   // safepoints
   remove_root_to_sfpts_edges(igvn);
-
-  // Process inline type nodes now that all inlining is over
-  process_inline_types(igvn);
 
   adjust_flattened_array_access_aliases(igvn);
 

@@ -1179,6 +1179,14 @@ void InterpreterMacroAssembler::remove_activation(
     Label skip;
     test_oop_is_not_inline_type(rax, rscratch1, skip);
 
+    // Skip scalarization for vector value objects (concrete vectors and payloads).
+    load_klass(rdi, rax, rscratch1);
+    movptr(rscratch1, rax);
+    super_call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::skip_value_scalarization), rdi);
+    testptr(rax, rax);
+    movptr(rax, rscratch1);
+    jcc(Assembler::notZero, skip);
+
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else

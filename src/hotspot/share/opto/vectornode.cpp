@@ -28,6 +28,7 @@
 #include "opto/subnode.hpp"
 #include "opto/vectornode.hpp"
 #include "opto/convertnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/globalDefinitions.hpp"
 
@@ -854,6 +855,10 @@ bool VectorNode::is_all_ones_vector(Node* n) {
   case Op_ReplicateL:
   case Op_MaskAll:
     return is_con(n->in(1), -1);
+  case Op_ReplicateF:
+    return n->in(1)->bottom_type() == TypeF::ONE;
+  case Op_ReplicateD:
+    return n->in(1)->bottom_type() == TypeD::ONE;
   default:
     return false;
   }
@@ -868,6 +873,10 @@ bool VectorNode::is_all_zeros_vector(Node* n) {
   case Op_ReplicateL:
   case Op_MaskAll:
     return is_con(n->in(1), 0);
+  case Op_ReplicateF:
+    return n->in(1)->bottom_type() == TypeF::ZERO;
+  case Op_ReplicateD:
+    return n->in(1)->bottom_type() == TypeD::ZERO;
   default:
     return false;
   }
@@ -1623,9 +1632,21 @@ Node* VectorInsertNode::make(Node* vec, Node* new_val, int position) {
 }
 
 Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  Node* n = obj()->uncast();
+  Node* n = obj();
+  assert(n->is_InlineType(), "");
+  // Vector APIs are lazily intrinsified, during parsing compiler emits a
+  // call to intrinsic function, since most of the APIs return an abstract vector
+  // hence a subsequent checkcast results into a graph shape comprising of CheckPP
+  // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
+  // a VectorBox but we still need to traverse back through chain of cast nodes
+  // to get to the VectorBox.
+  if (!n->is_VectorBox() &&
+      VectorSupport::is_vector(n->as_InlineType()->inline_klass()->get_InlineKlass())) {
+    n = n->as_InlineType()->get_oop();
+  }
+  n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
-    if (Type::cmp(bottom_type(), n->in(VectorBoxNode::Value)->bottom_type()) == 0) {
+    if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
       // Handled by VectorUnboxNode::Identity()
     } else {
       VectorBoxNode* vbox = static_cast<VectorBoxNode*>(n);
@@ -1634,7 +1655,7 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       const TypeVect* out_vt = type()->is_vect();
 
       if (in_vt->length() == out_vt->length()) {
-        Node* value = vbox->in(VectorBoxNode::Value);
+        Node* value = vbox->field_value(0);
 
         bool is_vector_mask    = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorMask_klass());
         bool is_vector_shuffle = vbox_klass->is_subclass_of(ciEnv::current()->vector_VectorShuffle_klass());
@@ -1660,10 +1681,27 @@ Node* VectorUnboxNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 }
 
 Node* VectorUnboxNode::Identity(PhaseGVN* phase) {
-  Node* n = obj()->uncast();
+  Node* n = obj();
+  if (n->is_InlineType() && !n->is_VectorBox()) {
+    // FIXME: Directly return Vector loaded from multi-field for concrete
+    // vector InlineType nodes. This can save deferring unbox expansion.
+    // For masks/shuffle emit additional pruning IR to match the vector size.
+  }
+  // Vector APIs are lazily intrinsified, during parsing compiler emits a
+  // call to intrinsic function, since most of the APIs return an abstract vector
+  // hence a subsequent checkcast results into a graph shape comprising of CheckPP
+  // and CheckCastPP chain. During lazy inline expansion, call gets replaced by
+  // a VectorBox but we still need to traverse back through chain of cast nodes
+  // to get to the VectorBox.
+  if (n->is_InlineType() &&
+      !n->is_VectorBox() &&
+      VectorSupport::is_vector(n->as_InlineType()->inline_klass()->get_InlineKlass())) {
+    n = n->as_InlineType()->get_oop();
+  }
+  n = n->uncast();
   if (EnableVectorReboxing && n->Opcode() == Op_VectorBox) {
-    if (Type::cmp(bottom_type(), n->in(VectorBoxNode::Value)->bottom_type()) == 0) {
-      return n->in(VectorBoxNode::Value); // VectorUnbox (VectorBox v) ==> v
+    if (Type::cmp(bottom_type(), n->as_VectorBox()->get_vec()->bottom_type()) == 0) {
+      return n->as_VectorBox()->get_vec(); // VectorUnbox (VectorBox v) ==> v
     } else {
       // Handled by VectorUnboxNode::Ideal().
     }

@@ -1143,6 +1143,8 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
 #ifdef COMPILER2
         if (EnableVectorSupport && VectorSupport::is_vector(ik)) {
           obj = VectorSupport::allocate_vector(ik, fr, reg_map, sv, THREAD);
+        } else if (EnableVectorSupport && VectorSupport::is_vector_payload_mf(ik)) {
+          obj = VectorSupport::allocate_vector_payload(ik, fr, reg_map, sv, THREAD);
         } else {
           obj = ik->allocate_instance(THREAD);
         }
@@ -1543,7 +1545,7 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     }
 #endif // INCLUDE_JVMCI
 #ifdef COMPILER2
-    if (EnableVectorSupport && VectorSupport::is_vector(k)) {
+    if (EnableVectorSupport && (VectorSupport::is_vector(k) || VectorSupport::is_vector_payload_mf(k))) {
       assert(sv->field_size() == 1, "%s not a vector", k->name()->as_C_string());
       ScopeValue* payload = sv->field_at(0);
       if (payload->is_location() &&

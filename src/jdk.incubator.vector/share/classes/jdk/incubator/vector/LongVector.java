@@ -373,7 +373,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Long.BYTES, length));
+                long.class, length));
         long start_offset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putLong(tpayload, start_offset + i * Long.BYTES, f.apply(memory, offset, i));
@@ -391,7 +391,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Long.BYTES, length));
+                long.class, length));
         long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Long>)m).getBits();
         for (int i = 0; i < length; i++) {
@@ -417,7 +417,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Long.BYTES, length));
+                long.class, length));
         long start_offset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putLong(tpayload, start_offset + i * Long.BYTES, f.apply(memory, offset, i));
@@ -435,7 +435,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Long.BYTES, length));
+                long.class, length));
         long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Long>)m).getBits();
         for (int i = 0; i < length; i++) {
@@ -2955,11 +2955,11 @@ public abstract class LongVector extends AbstractVector<Long> {
                                    VectorMask<Long> m) {
         LongSpecies vsp = (LongSpecies) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.length(), a.length)) {
-            return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_IN_RANGE);
+            return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_IN_RANGE);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 1, a.length);
-        return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
+        return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
     }
 
     /**
@@ -3087,7 +3087,7 @@ public abstract class LongVector extends AbstractVector<Long> {
         }
         else {
             LongSpecies vsp = (LongSpecies) species;
-            return vsp.dummyVector().fromArray0(a, offset, indexMap, mapOffset, m);
+            return vsp.dummyVectorMF().fromArray0(a, offset, indexMap, mapOffset, m);
         }
     }
 
@@ -3131,7 +3131,7 @@ public abstract class LongVector extends AbstractVector<Long> {
                                            ByteOrder bo) {
         offset = checkFromIndexSize(offset, species.vectorByteSize(), ms.byteSize());
         LongSpecies vsp = (LongSpecies) species;
-        return vsp.dummyVector().fromMemorySegment0(ms, offset).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset).maybeSwap(bo);
     }
 
     /**
@@ -3189,11 +3189,11 @@ public abstract class LongVector extends AbstractVector<Long> {
                                            VectorMask<Long> m) {
         LongSpecies vsp = (LongSpecies) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.vectorByteSize(), ms.byteSize())) {
-            return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
+            return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 8, ms.byteSize());
-        return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
     }
 
     // Memory store operations
@@ -3946,7 +3946,7 @@ public abstract class LongVector extends AbstractVector<Long> {
                     throw badElementBits(lv, v);
                 }
             }
-            return dummyVector().fromArray0(va, 0);
+            return dummyVectorMF().fromArray0(va, 0);
         }
 
         // Virtual constructors
@@ -3957,12 +3957,6 @@ public abstract class LongVector extends AbstractVector<Long> {
             // User entry point:  Be careful with inputs.
             return LongVector
                 .fromArray(this, (long[]) a, offset);
-        }
-
-        @ForceInline
-        @Override final
-        LongVector dummyVector() {
-            return (LongVector) super.dummyVector();
         }
 
         @ForceInline

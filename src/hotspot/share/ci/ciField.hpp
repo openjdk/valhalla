@@ -30,6 +30,7 @@
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciUtilities.hpp"
+#include "utilities/growableArray.hpp"
 
 // ciField
 //
@@ -40,6 +41,7 @@ class ciField : public ArenaObj {
   CI_PACKAGE_ACCESS
   friend class ciEnv;
   friend class ciInstanceKlass;
+  friend class ciMultiField;
 
 private:
   ciFlags          _flags;
@@ -52,6 +54,8 @@ private:
   bool             _is_constant;
   bool             _is_flattened;
   bool             _is_null_free;
+  bool             _is_multifield;
+  bool             _is_multifield_base;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
@@ -104,6 +108,10 @@ public:
 
   // Of what type is this field?
   ciType* type() { return (_type == NULL) ? compute_type() : _type; }
+
+  bool is_multifield() { return _is_multifield; }
+  bool is_multifield_base() { return _is_multifield_base; }
+  int secondary_fields_count() { return type()->bundle_size(); } const
 
   // How is this field actually stored in memory?
   BasicType layout_type() { return type2field[type()->basic_type()]; }
@@ -192,6 +200,26 @@ public:
   // Debugging output
   void print();
   void print_name_on(outputStream* st);
+};
+
+class ciMultiField : public ciField {
+private:
+  CI_PACKAGE_ACCESS
+  friend class ciInstanceKlass;
+
+  GrowableArray<ciField*>* _secondary_fields;
+
+  ciMultiField(ciInstanceKlass* klass, int index) : ciField(klass, index) {}
+  ciMultiField(fieldDescriptor* fd) : ciField(fd) {}
+  ciMultiField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) :
+       ciField(field, holder, offset, is_final) {}
+public:
+  void add_secondary_fields(GrowableArray<ciField*>* fields) { _secondary_fields = fields; }
+  GrowableArray<ciField*>* secondary_fields() { return _secondary_fields; }
+  ciField* secondary_field_at(int i) {
+    assert(_secondary_fields->length() > i, "");
+    return _secondary_fields->at(i);
+  }
 };
 
 #endif // SHARE_CI_CIFIELD_HPP

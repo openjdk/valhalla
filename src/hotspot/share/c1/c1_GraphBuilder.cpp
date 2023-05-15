@@ -1863,13 +1863,16 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before, ciField* enclosing_field) {
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
-    assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
-    int off = inner_field->offset() - vk->first_field_offset();
-    LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
-    Value replacement = append(load);
-    StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
-    store->set_enclosing_field(enclosing_field);
-    append(store);
+    for (int j = 0, sec_offset = 0; j < inner_field->secondary_fields_count(); j++) {
+      assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
+      int off = inner_field->offset() + sec_offset - vk->first_field_offset();
+      LoadField* load = new LoadField(src, src_off + off, inner_field, false, state_before, false);
+      sec_offset += type2aelembytes(as_BasicType(load->type()));
+      Value replacement = append(load);
+      StoreField* store = new StoreField(dest, dest_off + off, inner_field, replacement, false, state_before, false);
+      store->set_enclosing_field(enclosing_field);
+      append(store);
+    }
   }
 }
 

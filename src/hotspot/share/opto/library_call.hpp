@@ -109,7 +109,9 @@ class LibraryCallKit : public GraphKit {
     Node* res = result();
     if (!stopped() && res != NULL) {
       BasicType bt = res->bottom_type()->basic_type();
-      if (C->inlining_incrementally() && res->is_InlineType()) {
+      // VectorBoxes should be treated as special InlineTypeNodes, we will defer its buffering
+      // to a later stage to give opportunity for consumption by subsequent expanders.
+      if (C->inlining_incrementally() && res->is_InlineType() && !res->is_VectorBox()) {
         // The caller expects an oop when incrementally inlining an intrinsic that returns an
         // inline type. Make sure the call is re-executed if the allocation triggers a deoptimization.
         PreserveReexecuteState preexecs(this);

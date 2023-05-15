@@ -43,6 +43,7 @@ class ciInstanceKlass : public ciKlass {
   friend class ciExceptionHandler;
   friend class ciMethod;
   friend class ciField;
+  friend class ciMultiField;
   friend class ciReplay;
 
 private:

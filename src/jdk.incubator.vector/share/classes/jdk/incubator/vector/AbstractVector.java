@@ -144,7 +144,7 @@ abstract class AbstractVector<E> extends Vector<E> {
     private boolean sameSpecies(VectorSpecies<?> species) {
         // It's simpler and faster to do a class check,
         // even if you have to load a dummy vector.
-        AbstractVector<?> other = ((AbstractSpecies<?>)species).dummyVector();
+        AbstractVector<?> other = ((AbstractSpecies<?>)species).dummyVectorMF();
         boolean same = (this.getClass() == other.getClass());
         // Make sure it works, too!
         assert(same == (this.species() == species)) : same;

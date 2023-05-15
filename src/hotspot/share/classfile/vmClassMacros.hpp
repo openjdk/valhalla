@@ -193,10 +193,30 @@
                                                                                                                 \
   /* support multi-field based vectors */                                                                       \
   do_klass(vector_VectorPayloadMF_klass,                jdk_internal_vm_vector_VectorPayloadMF                ) \
-  do_klass(vector_VectorPayloadMF64_klass,              jdk_internal_vm_vector_VectorPayloadMF64              ) \
-  do_klass(vector_VectorPayloadMF128_klass,             jdk_internal_vm_vector_VectorPayloadMF128             ) \
-  do_klass(vector_VectorPayloadMF256_klass,             jdk_internal_vm_vector_VectorPayloadMF256             ) \
-  do_klass(vector_VectorPayloadMF512_klass,             jdk_internal_vm_vector_VectorPayloadMF512             ) \
+  do_klass(vector_VectorPayloadMF64B_klass,             jdk_internal_vm_vector_VectorPayloadMF64B             ) \
+  do_klass(vector_VectorPayloadMF128B_klass,            jdk_internal_vm_vector_VectorPayloadMF128B            ) \
+  do_klass(vector_VectorPayloadMF256B_klass,            jdk_internal_vm_vector_VectorPayloadMF256B            ) \
+  do_klass(vector_VectorPayloadMF512B_klass,            jdk_internal_vm_vector_VectorPayloadMF512B            ) \
+  do_klass(vector_VectorPayloadMF64S_klass,             jdk_internal_vm_vector_VectorPayloadMF64S             ) \
+  do_klass(vector_VectorPayloadMF128S_klass,            jdk_internal_vm_vector_VectorPayloadMF128S            ) \
+  do_klass(vector_VectorPayloadMF256S_klass,            jdk_internal_vm_vector_VectorPayloadMF256S            ) \
+  do_klass(vector_VectorPayloadMF512S_klass,            jdk_internal_vm_vector_VectorPayloadMF512S            ) \
+  do_klass(vector_VectorPayloadMF64I_klass,             jdk_internal_vm_vector_VectorPayloadMF64I             ) \
+  do_klass(vector_VectorPayloadMF128I_klass,            jdk_internal_vm_vector_VectorPayloadMF128I            ) \
+  do_klass(vector_VectorPayloadMF256I_klass,            jdk_internal_vm_vector_VectorPayloadMF256I            ) \
+  do_klass(vector_VectorPayloadMF512I_klass,            jdk_internal_vm_vector_VectorPayloadMF512I            ) \
+  do_klass(vector_VectorPayloadMF64L_klass,             jdk_internal_vm_vector_VectorPayloadMF64L             ) \
+  do_klass(vector_VectorPayloadMF128L_klass,            jdk_internal_vm_vector_VectorPayloadMF128L            ) \
+  do_klass(vector_VectorPayloadMF256L_klass,            jdk_internal_vm_vector_VectorPayloadMF256L            ) \
+  do_klass(vector_VectorPayloadMF512L_klass,            jdk_internal_vm_vector_VectorPayloadMF512L            ) \
+  do_klass(vector_VectorPayloadMF64F_klass,             jdk_internal_vm_vector_VectorPayloadMF64F             ) \
+  do_klass(vector_VectorPayloadMF128F_klass,            jdk_internal_vm_vector_VectorPayloadMF128F            ) \
+  do_klass(vector_VectorPayloadMF256F_klass,            jdk_internal_vm_vector_VectorPayloadMF256F            ) \
+  do_klass(vector_VectorPayloadMF512F_klass,            jdk_internal_vm_vector_VectorPayloadMF512F            ) \
+  do_klass(vector_VectorPayloadMF64D_klass,             jdk_internal_vm_vector_VectorPayloadMF64D             ) \
+  do_klass(vector_VectorPayloadMF128D_klass,            jdk_internal_vm_vector_VectorPayloadMF128D            ) \
+  do_klass(vector_VectorPayloadMF256D_klass,            jdk_internal_vm_vector_VectorPayloadMF256D            ) \
+  do_klass(vector_VectorPayloadMF512D_klass,            jdk_internal_vm_vector_VectorPayloadMF512D            ) \
                                                                                                                 \
                                                                                                                 \
   /* GC support */                                                                                              \

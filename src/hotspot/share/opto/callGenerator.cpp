@@ -790,7 +790,9 @@ void CallGenerator::do_late_inline_helper() {
 
     // Handle inline type returns
     InlineTypeNode* vt = result->isa_InlineType();
-    if (vt != NULL) {
+    // Upfront buffering for VectorBox may cause problems in sweeping allocation
+    // graph pallets if boxes are removed during unbox-box optimization.
+    if (vt != NULL && !result->is_VectorBox()) {
       if (call->tf()->returns_inline_type_as_fields()) {
         vt->replace_call_results(&kit, call, C, inline_method->signature()->returns_null_free_inline_type());
       } else if (vt->is_InlineType()) {

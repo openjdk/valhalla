@@ -25,6 +25,7 @@
 #define SHARE_OPTO_VECTORNODE_HPP
 
 #include "opto/callnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/memnode.hpp"
 #include "opto/node.hpp"
@@ -1665,24 +1666,48 @@ class VectorInsertNode : public VectorNode {
   static Node* make(Node* vec, Node* new_val, int position);
 };
 
-class VectorBoxNode : public Node {
+class VectorBoxNode : public InlineTypeNode {
  private:
-  const TypeInstPtr* const _box_type;
-  const TypeVect*    const _vec_type;
+  const TypeInstPtr* _box_type;
+  const TypeVect*    _vec_type;
+
  public:
-  enum {
-     Box   = 1,
-     Value = 2
-  };
-  VectorBoxNode(Compile* C, Node* box, Node* val,
-                const TypeInstPtr* box_type, const TypeVect* vt)
-    : Node(NULL, box, val), _box_type(box_type), _vec_type(vt) {
-    init_flags(Flag_is_macro);
-    C->add_macro_node(this);
+  void set_box_type(const TypeInstPtr* box_type) { _box_type = box_type; }
+  void set_vec_type(const TypeVect* vec_type) { _vec_type = vec_type; }
+
+  VectorBoxNode(Compile* C, ciInlineKlass* vk, Node* oop, const TypeInstPtr* box_type, const TypeVect* vt, bool null_free, bool is_buffered) :
+    InlineTypeNode(vk, oop, null_free, is_buffered) {
+      init_flags(Flag_is_macro);
+      init_class_id(Class_VectorBox);
+      set_vec_type(vt);
+      set_box_type(box_type);
+      C->add_macro_node(this);
+  }
+
+  static VectorBoxNode* make_box_node(PhaseGVN& gvn, Compile* C, Node* box, Node* val,
+                                      const TypeInstPtr* box_type, const TypeVect* vt) {
+    ciInlineKlass* vk = static_cast<ciInlineKlass*>(box_type->inline_klass());
+    ciInlineKlass* payload = vk->declared_nonstatic_field_at(0)->type()->as_inline_klass();
+
+    Node* payload_oop = payload->is_initialized() ? default_oop(gvn, payload) : gvn.zerocon(T_PRIMITIVE_OBJECT);
+    Node* payload_value = InlineTypeNode::make_uninitialized(gvn, payload, true);
+    payload_value->as_InlineType()->set_field_value(0, val);
+    payload_value = gvn.transform(payload_value);
+
+    VectorBoxNode* box_node = new VectorBoxNode(C, vk, box, box_type, vt, false, vk->is_empty() && vk->is_initialized());
+    box_node->set_field_value(0, payload_value);
+    box_node->set_is_init(gvn);
+
+    return box_node;
   }
 
   const  TypeInstPtr* box_type() const { assert(_box_type != NULL, ""); return _box_type; };
   const  TypeVect*    vec_type() const { assert(_vec_type != NULL, ""); return _vec_type; };
+
+  Node*  get_vec() {
+    assert(field_value(0)->is_InlineType(), "");
+    return field_value(0)->as_InlineType()->field_value(0);
+  }
 
   virtual int Opcode() const;
   virtual const Type* bottom_type() const { return _box_type; }

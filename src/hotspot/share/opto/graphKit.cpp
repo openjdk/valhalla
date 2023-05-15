@@ -1067,7 +1067,9 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
     {
       bool ignored_will_link;
       ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
-      int      size  = field->type()->size();
+      int size = field->is_multifield_base() ?
+                   (InlineTypeNode::is_multifield_scalarized(field) ? field->type()->elem_word_count() : 1)
+                   : field->type()->size();
       bool is_get = (depth >= 0), is_static = (depth & 1);
       inputs = (is_static ? 0 : 1);
       if (is_get) {
@@ -1109,7 +1111,9 @@ bool GraphKit::compute_stack_effects(int& inputs, int& depth) {
   case Bytecodes::_withfield: {
     bool ignored_will_link;
     ciField* field = method()->get_field_at_bci(bci(), ignored_will_link);
-    int      size  = field->type()->size();
+    int size = field->is_multifield_base() ?
+                 (InlineTypeNode::is_multifield_scalarized(field) ? field->type()->elem_word_count() : 1)
+                   : field->type()->size();
     inputs = size+1;
     depth = rsize - inputs;
     break;

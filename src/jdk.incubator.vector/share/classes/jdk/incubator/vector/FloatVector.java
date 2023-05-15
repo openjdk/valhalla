@@ -373,7 +373,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Float.BYTES, length));
+                float.class, length));
         long start_offset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(memory, offset, i));
@@ -391,7 +391,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Float.BYTES, length));
+                float.class, length));
         long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
         for (int i = 0; i < length; i++) {
@@ -417,7 +417,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Float.BYTES, length));
+                float.class, length));
         long start_offset = this.multiFieldOffset();
         for (int i = 0; i < length; i++) {
             Unsafe.getUnsafe().putFloat(tpayload, start_offset + i * Float.BYTES, f.apply(memory, offset, i));
@@ -435,7 +435,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         int length = vspecies().length();
         VectorPayloadMF tpayload =
             Unsafe.getUnsafe().makePrivateBuffer(VectorPayloadMF.createVectPayloadInstance(
-                Float.BYTES, length));
+                float.class, length));
         long start_offset = this.multiFieldOffset();
         boolean[] mbits = ((AbstractMask<Float>)m).getBits();
         for (int i = 0; i < length; i++) {
@@ -2926,11 +2926,11 @@ public abstract class FloatVector extends AbstractVector<Float> {
                                    VectorMask<Float> m) {
         FloatSpecies vsp = (FloatSpecies) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.length(), a.length)) {
-            return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_IN_RANGE);
+            return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_IN_RANGE);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 1, a.length);
-        return vsp.dummyVector().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
+        return vsp.dummyVectorMF().fromArray0(a, offset, m, OFFSET_OUT_OF_RANGE);
     }
 
     /**
@@ -3038,7 +3038,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
         }
         else {
             FloatSpecies vsp = (FloatSpecies) species;
-            return vsp.dummyVector().fromArray0(a, offset, indexMap, mapOffset, m);
+            return vsp.dummyVectorMF().fromArray0(a, offset, indexMap, mapOffset, m);
         }
     }
 
@@ -3082,7 +3082,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                                            ByteOrder bo) {
         offset = checkFromIndexSize(offset, species.vectorByteSize(), ms.byteSize());
         FloatSpecies vsp = (FloatSpecies) species;
-        return vsp.dummyVector().fromMemorySegment0(ms, offset).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset).maybeSwap(bo);
     }
 
     /**
@@ -3140,11 +3140,11 @@ public abstract class FloatVector extends AbstractVector<Float> {
                                            VectorMask<Float> m) {
         FloatSpecies vsp = (FloatSpecies) species;
         if (VectorIntrinsics.indexInRange(offset, vsp.vectorByteSize(), ms.byteSize())) {
-            return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
+            return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_IN_RANGE).maybeSwap(bo);
         }
 
         checkMaskFromIndexSize(offset, vsp, m, 4, ms.byteSize());
-        return vsp.dummyVector().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
+        return vsp.dummyVectorMF().fromMemorySegment0(ms, offset, m, OFFSET_OUT_OF_RANGE).maybeSwap(bo);
     }
 
     // Memory store operations
@@ -3843,7 +3843,7 @@ public abstract class FloatVector extends AbstractVector<Float> {
                     throw badElementBits(lv, v);
                 }
             }
-            return dummyVector().fromArray0(va, 0);
+            return dummyVectorMF().fromArray0(va, 0);
         }
 
         // Virtual constructors
@@ -3854,12 +3854,6 @@ public abstract class FloatVector extends AbstractVector<Float> {
             // User entry point:  Be careful with inputs.
             return FloatVector
                 .fromArray(this, (float[]) a, offset);
-        }
-
-        @ForceInline
-        @Override final
-        FloatVector dummyVector() {
-            return (FloatVector) super.dummyVector();
         }
 
         @ForceInline

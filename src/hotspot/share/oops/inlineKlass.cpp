@@ -40,6 +40,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "prims/vectorSupport.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -237,6 +238,7 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   SigEntry::add_entry(sig, T_PRIMITIVE_OBJECT, name(), base_off);
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
+    if (fs.is_multifield()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (fs.is_inlined()) {
       // Resolve klass of inlined field and recursively collect fields
@@ -331,12 +333,12 @@ void InlineKlass::cleanup_blobs() {
 
 // Can this inline type be passed as multiple values?
 bool InlineKlass::can_be_passed_as_fields() const {
-  return InlineTypePassFieldsAsArgs;
+  return !VectorSupport::skip_value_scalarization(const_cast<InlineKlass*>(this)) && InlineTypePassFieldsAsArgs;
 }
 
 // Can this inline type be returned as multiple values?
 bool InlineKlass::can_be_returned_as_fields(bool init) const {
-  return InlineTypeReturnedAsFields && (init || return_regs() != NULL);
+  return !VectorSupport::skip_value_scalarization(const_cast<InlineKlass*>(this)) && InlineTypeReturnedAsFields && (init || return_regs() != NULL);
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint

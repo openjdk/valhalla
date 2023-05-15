@@ -2277,7 +2277,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       assert(vtype == type || (type == T_PRIMITIVE_OBJECT && vtype == T_OBJECT), "putter must accept the expected value");
     }
 #endif // ASSERT
- }
+  }
 #endif //PRODUCT
 
   C->set_has_unsafe_access(true);  // Mark eventual nmethod as "unsafe".
@@ -2317,6 +2317,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         return false;
       }
       base = vt->get_oop();
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(base, &_gvn);
+      assert(alloc->_larval, "InlineType instance must be in _larval state for unsafe put operation.\n");
     } else {
       if (offset->is_Con()) {
         long off = find_long_con(offset, 0);
@@ -2326,7 +2328,10 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
         }
 
         ciField* field = vk->get_non_flattened_field_by_offset(off);
-        if (field != NULL) {
+        // Skip over direct field access for VectorPayloadMF* class instancs since
+        // multifield is loaded into vector, alternatively we can create a lane
+        // extraction logic.
+        if (field != NULL && !VectorSupport::is_vector_payload_mf(vk->get_InlineKlass())) {
           BasicType bt = field->layout_type();
           if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_PRIMITIVE_OBJECT && !field->is_flattened())) {
             bt = T_OBJECT;
