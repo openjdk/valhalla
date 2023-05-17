@@ -1454,9 +1454,6 @@ public class Types {
 
                     Map<Symbol,Type> tMap = new HashMap<>();
                     for (Type ti : interfaces(t)) {
-                        if (tMap.containsKey(ti)) {
-                            throw new AssertionError("Malformed intersection");
-                        }
                         tMap.put(ti.tsym, ti);
                     }
                     for (Type si : interfaces(s)) {

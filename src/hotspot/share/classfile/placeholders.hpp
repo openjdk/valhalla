@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -139,15 +139,15 @@ class PlaceholderEntry {
   void               set_inlineTypeFieldQ(SeenThread* SeenThread) { _inlineTypeFieldQ = SeenThread; }
 
   bool super_load_in_progress() {
-     return (_superThreadQ != NULL);
+     return (_superThreadQ != nullptr);
   }
 
   bool instance_load_in_progress() {
-    return (_loadInstanceThreadQ != NULL);
+    return (_loadInstanceThreadQ != nullptr);
   }
 
   bool define_class_in_progress() {
-    return (_defineThreadQ != NULL);
+    return (_defineThreadQ != nullptr);
   }
 
   bool inline_type_field_in_progress() {

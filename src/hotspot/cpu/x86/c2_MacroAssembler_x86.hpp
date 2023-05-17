@@ -32,9 +32,6 @@ public:
   void verified_entry(Compile* C, int sp_inc = 0);
 
   void entry_barrier();
-  void emit_entry_barrier_stub(C2EntryBarrierStub* stub);
-  static int entry_barrier_stub_size();
-
   Assembler::AvxVectorLen vector_length_encoding(int vlen_in_bytes);
 
   // Code used by cmpFastLock and cmpFastUnlock mach instructions in .ad file.
