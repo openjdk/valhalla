@@ -720,7 +720,7 @@ public:
         DEFINE_CLASS_ID(ExpandV, Vector, 5)
         DEFINE_CLASS_ID(CompressM, Vector, 6)
       DEFINE_CLASS_ID(InlineType, Type, 8)
-      DEFINE_CLASS_ID(Con, Type, 8)
+      DEFINE_CLASS_ID(Con, Type, 9)
           DEFINE_CLASS_ID(ConI, Con, 0)
 
 
