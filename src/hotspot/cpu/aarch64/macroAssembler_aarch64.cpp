@@ -1727,8 +1727,8 @@ void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register te
     bind(done_check);
   }
 #endif
-  ldrw(temp_reg, Address(klass, InstanceKlass::misc_status_offset()));
-  andr(temp_reg, temp_reg, InstanceKlassMiscStatus::is_empty_inline_type_value());
+  ldrw(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
+  andr(temp_reg, temp_reg, InstanceKlassFlags::is_empty_inline_type_value());
   cbnz(temp_reg, is_empty_inline_type);
 }
 

@@ -364,33 +364,33 @@ class InstanceKlass: public Klass {
   bool has_localvariable_table() const     { return _misc_flags.has_localvariable_table(); }
   void set_has_localvariable_table(bool b) { _misc_flags.set_has_localvariable_table(b); }
 
-  bool has_inline_type_fields() const { return _misc_status.has_inline_type_fields(); }
-  void set_has_inline_type_fields()   { _misc_status.set_has_inline_type_fields(true); }
+  bool has_inline_type_fields() const { return _misc_flags.has_inline_type_fields(); }
+  void set_has_inline_type_fields()   { _misc_flags.set_has_inline_type_fields(true); }
 
-  bool is_empty_inline_type() const   { return _misc_status.is_empty_inline_type(); }
-  void set_is_empty_inline_type()     { _misc_status.set_is_empty_inline_type(true); }
+  bool is_empty_inline_type() const   { return _misc_flags.is_empty_inline_type(); }
+  void set_is_empty_inline_type()     { _misc_flags.set_is_empty_inline_type(true); }
 
   // Note:  The naturally_atomic property only applies to
   // inline classes; it is never true on identity classes.
   // The bit is placed on instanceKlass for convenience.
 
   // Query if h/w provides atomic load/store for instances.
-  bool is_naturally_atomic() const  { return _misc_status.is_naturally_atomic(); }
-  void set_is_naturally_atomic()    { _misc_status.set_is_naturally_atomic(true); }
+  bool is_naturally_atomic() const  { return _misc_flags.is_naturally_atomic(); }
+  void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
   // Query if this class implements jl.NonTearable or was
   // mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers along with NonTearable.
-  bool is_declared_atomic() const { return _misc_status.is_declared_atomic(); }
-  void set_is_declared_atomic()   { _misc_status.set_is_declared_atomic(true); }
+  bool is_declared_atomic() const { return _misc_flags.is_declared_atomic(); }
+  void set_is_declared_atomic()   { _misc_flags.set_is_declared_atomic(true); }
 
-  bool carries_value_modifier() const { return _misc_status.carries_value_modifier(); }
-  void set_carries_value_modifier()   { _misc_status.set_carries_value_modifier(true); }
+  bool carries_value_modifier() const { return _misc_flags.carries_value_modifier(); }
+  void set_carries_value_modifier()   { _misc_flags.set_carries_value_modifier(true); }
 
-  bool carries_identity_modifier() const  { return _misc_status.carries_identity_modifier(); }
-  void set_carries_identity_modifier()    { _misc_status.set_carries_identity_modifier(true); }
+  bool carries_identity_modifier() const  { return _misc_flags.carries_identity_modifier(); }
+  void set_carries_identity_modifier()    { _misc_flags.set_carries_identity_modifier(true); }
 
   // field sizes
   int nonstatic_field_size() const         { return _nonstatic_field_size; }
@@ -601,7 +601,7 @@ public:
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
 
   static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
-  static ByteSize misc_status_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_status)); }
+  static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called

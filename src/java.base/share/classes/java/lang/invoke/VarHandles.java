@@ -126,8 +126,8 @@ final class VarHandles {
             if (!type.isPrimitive()) {
                 if (f.isFlattened()) {
                     return maybeAdapt(f.isFinal() && !isWriteAllowedOnFinalFields
-                            ? new VarHandleValues.FieldStaticReadOnly(refc, foffset, type)
-                            : new VarHandleValues.FieldStaticReadWrite(refc, foffset, type));
+                            ? new VarHandleValues.FieldStaticReadOnly(refc, refc, foffset, type)
+                            : new VarHandleValues.FieldStaticReadWrite(refc, refc, foffset, type));
                 } else {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                             ? new VarHandleReferences.FieldStaticReadOnly(refc, base, foffset, type)
