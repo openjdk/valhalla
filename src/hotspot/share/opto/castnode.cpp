@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,13 +87,15 @@ Node *ConstraintCastNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   }
 
   // Push cast through InlineTypeNode
-  InlineTypeNode* vt = in(1)->isa_InlineType();
-  if (vt != NULL && phase->type(vt)->filter_speculative(_type) != Type::TOP) {
-    Node* cast = clone();
-    cast->set_req(1, vt->get_oop());
-    vt = vt->clone()->as_InlineType();
-    vt->set_oop(phase->transform(cast));
-    return vt;
+  if (in(1)->is_InlineType() && !in(1)->is_VectorBox()) {
+    InlineTypeNode* vt = in(1)->as_InlineType();
+    if (phase->type(vt)->filter_speculative(_type) != Type::TOP) {
+      Node* cast = clone();
+      cast->set_req(1, vt->get_oop());
+      vt = vt->clone()->as_InlineType();
+      vt->set_oop(phase->transform(cast));
+      return vt;
+    }
   }
 
   return NULL;
