@@ -1999,7 +1999,7 @@ LibraryCallKit::classify_unsafe_addr(Node* &base, Node* &offset, BasicType type)
         offset_type->_lo >= 0 &&
         !MacroAssembler::needs_explicit_null_check(offset_type->_hi)) {
       return Type::OopPtr;
-    } else if (type == T_OBJECT) {
+    } else if (type == T_OBJECT || type == T_PRIMITIVE_OBJECT) {
       // off heap access to an oop doesn't make any sense. Has to be on
       // heap.
       return Type::OopPtr;
@@ -2337,7 +2337,11 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
             bt = T_OBJECT;
           }
           if (bt == type && (bt != T_PRIMITIVE_OBJECT || field->type() == inline_klass)) {
-            set_result(vt->field_value_by_offset(off, false));
+            Node* value = vt->field_value_by_offset(off, false);
+            if (value->is_InlineType()) {
+              value = value->as_InlineType()->adjust_scalarization_depth(this);
+            }
+            set_result(value);
             return true;
           }
         }
@@ -2428,6 +2432,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   if (bt != T_ILLEGAL) {
     assert(alias_type->adr_type()->is_oopptr(), "should be on-heap access");
+    if (adr_type->is_flat()) {
+      bt = T_PRIMITIVE_OBJECT;
+    }
     if (bt == T_BYTE && adr_type->isa_aryptr()) {
       // Alias type doesn't differentiate between byte[] and boolean[]).
       // Use address type to get the element type.
@@ -2455,9 +2462,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       }
     } else if (adr_type->isa_aryptr()) {
       const Type* elem = adr_type->is_aryptr()->elem();
-      if (!elem->isa_inlinetype()) {
-        mismatched = true;
-      } else if (elem->inline_klass() != inline_klass) {
+      if (!adr_type->is_flat() || elem->inline_klass() != inline_klass) {
         mismatched = true;
       }
     } else {
@@ -2465,7 +2470,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
     if (is_store) {
       const Type* val_t = _gvn.type(val);
-      if (!(val_t->isa_inlinetype() || val_t->is_inlinetypeptr()) || val_t->inline_klass() != inline_klass) {
+      if (!val_t->is_inlinetypeptr() || val_t->inline_klass() != inline_klass) {
         set_map(old_map);
         set_sp(old_sp);
         return false;
@@ -3905,7 +3910,7 @@ bool LibraryCallKit::inline_Class_cast() {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
-      int static_res = C->static_subtype_check(TypeKlassPtr::make(tm->as_klass()), tp->as_klass_type());
+      int static_res = C->static_subtype_check(TypeKlassPtr::make(tm->as_klass(), Type::trust_interfaces), tp->as_klass_type());
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
         if (requires_null_check) {
@@ -5525,7 +5530,7 @@ bool LibraryCallKit::inline_arraycopy() {
     if (is_reference_type(src_elem, true)) src_elem = T_OBJECT;
     if (is_reference_type(dest_elem, true)) dest_elem = T_OBJECT;
 
-    if (src_elem == dest_elem && src_elem == T_OBJECT) {
+    if (src_elem == dest_elem && top_src->is_flat() == top_dest->is_flat() && src_elem == T_OBJECT) {
       // If both arrays are object arrays then having the exact types
       // for both will remove the need for a subtype check at runtime
       // before the call and may make it possible to pick a faster copy
@@ -7392,7 +7397,7 @@ bool LibraryCallKit::inline_base64_decodeBlock() {
 bool LibraryCallKit::inline_poly1305_processBlocks() {
   address stubAddr;
   const char *stubName;
-  assert(UsePolyIntrinsics, "need Poly intrinsics support");
+  assert(UsePoly1305Intrinsics, "need Poly intrinsics support");
   assert(callee()->signature()->size() == 5, "poly1305_processBlocks has %d parameters", callee()->signature()->size());
   stubAddr = StubRoutines::poly1305_processBlocks();
   stubName = "poly1305_processBlocks";
@@ -7624,7 +7629,7 @@ bool LibraryCallKit::inline_digestBase_implCompressMB(Node* digestBase_obj, ciIn
                                                       BasicType elem_type, address stubAddr, const char *stubName,
                                                       Node* src_start, Node* ofs, Node* limit) {
   const TypeKlassPtr* aklass = TypeKlassPtr::make(instklass_digestBase);
-  const TypeOopPtr* xtype = aklass->as_instance_type()->cast_to_ptr_type(TypePtr::NotNull);
+  const TypeOopPtr* xtype = aklass->cast_to_exactness(false)->as_instance_type()->cast_to_ptr_type(TypePtr::NotNull);
   Node* digest_obj = new CheckCastPPNode(control(), digestBase_obj, xtype);
   digest_obj = _gvn.transform(digest_obj);
 

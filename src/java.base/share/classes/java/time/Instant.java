@@ -425,7 +425,6 @@ public final class Instant
      * @param nanos  the nanoseconds within the second, must be positive
      */
     private Instant(long epochSecond, int nanos) {
-        super();
         this.seconds = epochSecond;
         this.nanos = nanos;
     }

@@ -1423,7 +1423,7 @@ class VectorMaskWrapperNode : public VectorNode {
   Node* vector_mask() const { return in(2); }
 };
 
-class VectorTestNode : public Node {
+class VectorTestNode : public CmpNode {
  private:
   BoolTest::mask _predicate;
 
@@ -1431,18 +1431,18 @@ class VectorTestNode : public Node {
   uint size_of() const { return sizeof(*this); }
 
  public:
-  VectorTestNode(Node* in1, Node* in2, BoolTest::mask predicate) : Node(NULL, in1, in2), _predicate(predicate) {
+  VectorTestNode(Node* in1, Node* in2, BoolTest::mask predicate) : CmpNode(in1, in2), _predicate(predicate) {
     assert(in2->bottom_type()->is_vect() == in2->bottom_type()->is_vect(), "same vector type");
   }
   virtual int Opcode() const;
   virtual uint hash() const { return Node::hash() + _predicate; }
+  virtual const Type* Value(PhaseGVN* phase) const { return TypeInt::CC; }
+  virtual const Type* sub(const Type*, const Type*) const { return TypeInt::CC; }
+  BoolTest::mask get_predicate() const { return _predicate; }
+
   virtual bool cmp( const Node &n ) const {
     return Node::cmp(n) && _predicate == ((VectorTestNode&)n)._predicate;
   }
-  virtual const Type *bottom_type() const { return TypeInt::BOOL; }
-  virtual uint ideal_reg() const { return Op_RegI; }  // TODO Should be RegFlags but due to missing comparison flags for BoolTest
-                                                      // in middle-end, we make it boolean result directly.
-  BoolTest::mask get_predicate() const { return _predicate; }
 };
 
 class VectorBlendNode : public VectorNode {
@@ -1675,8 +1675,8 @@ class VectorBoxNode : public InlineTypeNode {
   void set_box_type(const TypeInstPtr* box_type) { _box_type = box_type; }
   void set_vec_type(const TypeVect* vec_type) { _vec_type = vec_type; }
 
-  VectorBoxNode(Compile* C, ciInlineKlass* vk, Node* oop, const TypeInstPtr* box_type, const TypeVect* vt, bool null_free, bool is_buffered) :
-    InlineTypeNode(vk, oop, null_free, is_buffered) {
+  VectorBoxNode(Compile* C, ciInlineKlass* vk, Node* oop, const TypeInstPtr* box_type, const TypeVect* vt, bool null_free) :
+    InlineTypeNode(vk, oop, null_free) {
       init_flags(Flag_is_macro);
       init_class_id(Class_VectorBox);
       set_vec_type(vt);
@@ -1694,7 +1694,7 @@ class VectorBoxNode : public InlineTypeNode {
     payload_value->as_InlineType()->set_field_value(0, val);
     payload_value = gvn.transform(payload_value);
 
-    VectorBoxNode* box_node = new VectorBoxNode(C, vk, box, box_type, vt, false, vk->is_empty() && vk->is_initialized());
+    VectorBoxNode* box_node = new VectorBoxNode(C, vk, box, box_type, vt, false);
     box_node->set_field_value(0, payload_value);
     box_node->set_is_init(gvn);
 

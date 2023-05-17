@@ -197,7 +197,7 @@ void LIR_Op2::verify() const {
              "can't produce oops from arith");
   }
 
-  if (TwoOperandLIRForm) {
+  if (two_operand_lir_form) {
 
 #ifdef ASSERT
     bool threeOperandForm = false;
@@ -1095,16 +1095,16 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
         return true;
       }
     } else if (return_type->is_instance_klass() &&
-               (method()->is_method_handle_intrinsic() ||
-                (!return_type->is_loaded() && !method()->holder()->is_loaded()))) {
+               (method()->is_method_handle_intrinsic() || !return_type->is_loaded() ||
+                StressCallingConvention)) {
       // An inline type might be returned from the call but we don't know its type.
-      // This can happen with method handle intrinsics or when both the return type
-      // and the method holder are unloaded (and therefore the preload logic did not
-      // get a chance to load the return type). If an inline type is returned, we
-      // either get an oop to a buffer and nothing needs to be done or one of the
-      // values being returned is the klass of the inline type (RAX on x64, with LSB
-      // set to 1) and we need to allocate an inline type instance of that type and
-      // initialize it with other values being returned (in other registers).
+      // This can happen with method handle intrinsics or when the return type is
+      // not loaded (method holder is not loaded or preload attribute is missing).
+      // If an inline type is returned, we either get an oop to a buffer and nothing
+      // needs to be done or one of the values being returned is the klass of the
+      // inline type (RAX on x64, with LSB set to 1) and we need to allocate an inline
+      // type instance of that type and initialize it with the fields values being
+      // returned in other registers.
       return true;
     }
   }

@@ -497,16 +497,32 @@ void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
 void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
-  ciMethod* method = compilation()->method();
-  if (InlineTypeReturnedAsFields && method->return_type()->is_inlinetype()) {
-    ciInlineKlass* vk = method->return_type()->as_inline_klass();
-    if (vk->can_be_returned_as_fields()) {
-      address unpack_handler = vk->unpack_handler();
-      assert(unpack_handler != NULL, "must be");
-      __ far_call(RuntimeAddress(unpack_handler));
-      // At this point, r0 points to the value object (for interpreter or C1 caller).
-      // The fields of the object are copied into registers (for C2 caller).
+  if (InlineTypeReturnedAsFields) {
+    // Check if we are returning an non-null inline type and load its fields into registers
+    ciType* return_type = compilation()->method()->return_type();
+    if (return_type->is_inlinetype()) {
+      ciInlineKlass* vk = return_type->as_inline_klass();
+      if (vk->can_be_returned_as_fields()) {
+        address unpack_handler = vk->unpack_handler();
+        assert(unpack_handler != NULL, "must be");
+        __ far_call(RuntimeAddress(unpack_handler));
+      }
+    } else if (return_type->is_instance_klass() && (!return_type->is_loaded() || StressCallingConvention)) {
+      Label skip;
+      __ test_oop_is_not_inline_type(r0, rscratch2, skip);
+
+      // Load fields from a buffered value with an inline class specific handler
+      __ load_klass(rscratch1 /*dst*/, r0 /*src*/);
+      __ ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
+      // Unpack handler can be null if inline type is not scalarizable in returns
+      __ cbz(rscratch1, skip);
+      __ blr(rscratch1);
+
+      __ bind(skip);
     }
+    // At this point, r0 points to the value object (for interpreter or C1 caller).
+    // The fields of the object are copied into registers (for C2 caller).
   }
 
   // Pop the stack before the safepoint code

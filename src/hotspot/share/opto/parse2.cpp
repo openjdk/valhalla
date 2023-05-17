@@ -201,25 +201,18 @@ void Parse::array_store(BasicType bt) {
 
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-  assert(adr->as_AddP()->in(AddPNode::Base) == ary, "inconsistent address base");
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
   } else if (bt == T_OBJECT) {
     elemtype = elemtype->make_oopptr();
     const Type* tval = _gvn.type(cast_val);
-    // We may have lost type information for 'val' here due to the casts
-    // emitted by the array_store_check code (see JDK-6312651)
-    // TODO Remove this code once JDK-6312651 is in.
-    const Type* tval_init = _gvn.type(val);
     // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.
     // This is only legal for non-null stores because the array_store_check always passes for null, even
     // if the array is null-free. Null stores are handled in GraphKit::gen_inline_array_null_guard().
-    bool not_inline = !tval->isa_inlinetype() &&
-                      ((!tval_init->maybe_null() && !tval_init->is_oopptr()->can_be_inline_type()) ||
-                       (!tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type()));
-    bool not_flattened = not_inline || ((tval_init->is_inlinetypeptr() || tval_init->isa_inlinetype()) && !tval_init->inline_klass()->flatten_array());
-    if (!ary_t->is_not_null_free() && not_inline) {
+    bool not_null_free = !tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type();
+    bool not_flattened = not_null_free || (tval->is_inlinetypeptr() && !tval->inline_klass()->flatten_array());
+    if (!ary_t->is_not_null_free() && not_null_free) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
       ary_t = ary_t->cast_to_not_null_free();
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
@@ -277,10 +270,8 @@ void Parse::array_store(BasicType bt) {
         }
         // Try to determine the inline klass
         ciInlineKlass* vk = NULL;
-        if (tval->isa_inlinetype() || tval->is_inlinetypeptr()) {
+        if (tval->is_inlinetypeptr()) {
           vk = tval->inline_klass();
-        } else if (tval_init->isa_inlinetype() || tval_init->is_inlinetypeptr()) {
-          vk = tval_init->inline_klass();
         } else if (elemtype->is_inlinetypeptr()) {
           vk = elemtype->inline_klass();
         }

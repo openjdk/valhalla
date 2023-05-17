@@ -609,8 +609,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       // Create InlineTypeNode from the oop and replace the parameter
       Node* vt = InlineTypeNode::make_from_oop(this, parm, t->inline_klass(), !t->maybe_null());
       set_local(i, vt);
-    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() &&
-               method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
+    } else if (UseTypeSpeculation && (i == (arg_size - 1)) && !is_osr_parse() && method()->has_vararg() &&
+               t->isa_aryptr() != NULL && !t->is_aryptr()->is_null_free() && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flattened)
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != NULL && spec_type->isa_aryptr() != NULL) ? spec_type : t->is_aryptr();
@@ -822,11 +822,6 @@ void Parse::build_exits() {
     if (ret_oop_type && !ret_oop_type->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
-    // Scalarize inline type when returning as fields or inlining non-incrementally
-    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
-        ret_type->is_inlinetypeptr()) {
-      ret_type = TypeInlineType::make(ret_type->inline_klass());
-    }
     int         ret_size = type2size[ret_type->basic_type()];
     Node*       ret_phi  = new PhiNode(region, ret_type);
     gvn().set_type_bottom(ret_phi);
@@ -923,14 +918,14 @@ void Compile::return_values(JVMState* jvms) {
     Node* res = kit.argument(0);
     if (res->isa_InlineType() && VectorSupport::skip_value_scalarization(res->as_InlineType()->inline_klass()->get_InlineKlass())) {
       InlineTypeNode* vt = res->as_InlineType();
-      assert(vt->is_buffered(), "");
+      assert(vt->get_is_buffered(), "");
       ret->add_req(vt->get_oop());
     } else if (tf()->returns_inline_type_as_fields()) {
       // Multiple return values (inline type fields): add as many edges
       // to the Return node as returned values.
       InlineTypeNode* vt = res->as_InlineType();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
-      if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
+      if (vt->is_allocated(&kit.gvn()) && !StressCallingConvention) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
       } else {
         // Return the tagged klass pointer to signal scalarization to the caller
@@ -1275,7 +1270,7 @@ void Parse::do_method_entry() {
   // Narrow receiver type when it is too broad for the method being parsed.
   if (!method()->is_static()) {
     ciInstanceKlass* callee_holder = method()->holder();
-    const Type* holder_type = TypeInstPtr::make(TypePtr::BotPTR, callee_holder);
+    const Type* holder_type = TypeInstPtr::make(TypePtr::BotPTR, callee_holder, Type::trust_interfaces);
 
     Node* receiver_obj = local(0);
     const TypeInstPtr* receiver_type = _gvn.type(receiver_obj)->isa_instptr();
@@ -1288,7 +1283,7 @@ void Parse::do_method_entry() {
       assert(callee_holder->is_interface(), "missing subtype check");
 
       // Perform dynamic receiver subtype check against callee holder class w/ a halt on failure.
-      Node* holder_klass = _gvn.makecon(TypeKlassPtr::make(callee_holder));
+      Node* holder_klass = _gvn.makecon(TypeKlassPtr::make(callee_holder, Type::trust_interfaces));
       Node* not_subtype_ctrl = gen_subtype_check(receiver_obj, holder_klass);
       assert(!stopped(), "not a subtype");
 
@@ -2287,7 +2282,7 @@ void Parse::clinit_deopt() {
 
   set_parse_bci(0);
 
-  Node* holder = makecon(TypeKlassPtr::make(method()->holder()));
+  Node* holder = makecon(TypeKlassPtr::make(method()->holder(), Type::trust_interfaces));
   guard_klass_being_initialized(holder);
 }
 
@@ -2351,8 +2346,8 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeInstPtr* tr = return_type->isa_instptr();
-    // The return_type is set in Parse::build_exits().
-    if (return_type->isa_inlinetype()) {
+    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
+        return_type->is_inlinetypeptr()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass(), method()->signature()->returns_null_free_inline_type());
@@ -2380,27 +2375,10 @@ void Parse::return_current(Node* value) {
       jvms()->set_should_reexecute(true);
       inc_sp(1);
       value = value->as_InlineType()->buffer(this);
-    } else if (tr && tr->isa_instptr() && tr->is_loaded() && tr->is_interface()) {
-      // If returning oops to an interface-return, there is a silent free
-      // cast from oop to interface allowed by the Verifier. Make it explicit here.
-      const TypeInstPtr* tp = value->bottom_type()->isa_instptr();
-      if (tp && tp->is_loaded() && !tp->is_interface()) {
-        // sharpen the type eagerly; this eases certain assert checking
-        if (tp->higher_equal(TypeInstPtr::NOTNULL)) {
-          tr = tr->join_speculative(TypeInstPtr::NOTNULL)->is_instptr();
-        }
-        value = _gvn.transform(new CheckCastPPNode(0, value, tr));
-      }
-    } else {
-      // Handle returns of oop-arrays to an arrays-of-interface return
-      const TypeInstPtr* phi_tip;
-      const TypeInstPtr* val_tip;
-      Type::get_arrays_base_elements(return_type, value->bottom_type(), &phi_tip, &val_tip);
-      if (phi_tip != NULL && phi_tip->is_loaded() && phi_tip->is_interface() &&
-          val_tip != NULL && val_tip->is_loaded() && !val_tip->is_interface()) {
-        value = _gvn.transform(new CheckCastPPNode(0, value, return_type));
-      }
     }
+    // ...else
+    // If returning oops to an interface-return, there is a silent free
+    // cast from oop to interface allowed by the Verifier. Make it explicit here.
     phi->add_req(value);
   }
 

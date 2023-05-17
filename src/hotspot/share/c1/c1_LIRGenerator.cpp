@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -495,7 +495,7 @@ void LIRGenerator::arithmetic_op(Bytecodes::Code code, LIR_Opr result, LIR_Opr l
   LIR_Opr left_op   = left;
   LIR_Opr right_op  = right;
 
-  if (TwoOperandLIRForm && left_op != result_op) {
+  if (two_operand_lir_form && left_op != result_op) {
     assert(right_op != result_op, "malformed");
     __ move(left_op, result_op);
     left_op = result_op;
@@ -567,7 +567,7 @@ void LIRGenerator::arithmetic_op_fpu(Bytecodes::Code code, LIR_Opr result, LIR_O
 
 void LIRGenerator::shift_op(Bytecodes::Code code, LIR_Opr result_op, LIR_Opr value, LIR_Opr count, LIR_Opr tmp) {
 
-  if (TwoOperandLIRForm && value != result_op
+  if (two_operand_lir_form && value != result_op
       // Only 32bit right shifts require two operand form on S390.
       S390_ONLY(&& (code == Bytecodes::_ishr || code == Bytecodes::_iushr))) {
     assert(count != result_op, "malformed");
@@ -589,7 +589,7 @@ void LIRGenerator::shift_op(Bytecodes::Code code, LIR_Opr result_op, LIR_Opr val
 
 
 void LIRGenerator::logic_op (Bytecodes::Code code, LIR_Opr result_op, LIR_Opr left_op, LIR_Opr right_op) {
-  if (TwoOperandLIRForm && left_op != result_op) {
+  if (two_operand_lir_form && left_op != result_op) {
     assert(right_op != result_op, "malformed");
     __ move(left_op, result_op);
     left_op = result_op;
@@ -2186,6 +2186,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       __ branch_destination(L_end->label());
       set_in_conditional_code(false);
     } else {
+      info = state_for(x, x->state_before());
       __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
       __ branch(lir_cond_equal, new DeoptimizeStub(info, Deoptimization::Reason_uninitialized,
                                                          Deoptimization::Action_make_not_entrant));
@@ -4106,7 +4107,7 @@ void LIRGenerator::do_MemBar(MemBar* x) {
 
 LIR_Opr LIRGenerator::mask_boolean(LIR_Opr array, LIR_Opr value, CodeEmitInfo*& null_check_info) {
   LIR_Opr value_fixed = rlock_byte(T_BYTE);
-  if (TwoOperandLIRForm) {
+  if (two_operand_lir_form) {
     __ move(value, value_fixed);
     __ logical_and(value_fixed, LIR_OprFact::intConst(1), value_fixed);
   } else {

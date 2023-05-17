@@ -90,7 +90,6 @@ CreateHkTargets = \
 
 ################################################################################
 # Setup the main compilation
-
 $(eval $(call SetupJavaCompilation, $(MODULE), \
     SMALL_JAVA := false, \
     MODULE := $(MODULE), \
@@ -116,6 +115,50 @@ $(eval $(call SetupJavaCompilation, $(MODULE), \
 ))
 
 TARGETS += $($(MODULE))
+
+################################################################################
+# Setup compilation for value classes in the module
+# TBD: When $(DOCLINT) was included there was an NPE in JavacTypes.getOverriddenMethods
+
+# Directory and file name suffix for jar file containing value classes
+VALUECLASSES_STR := valueclasses
+
+ifneq ($(COMPILER), bootjdk)
+  MODULE_VALUECLASS_SRC_DIRS := $(call FindModuleValueClassSrcDirs, $(MODULE))
+  MODULE_VALUECLASS_SOURCEPATH := $(call GetModuleValueClassSrcPath)
+
+  ifneq ($(MODULE_VALUECLASS_SRC_DIRS),)
+    $(eval $(call SetupJavaCompilation, $(MODULE)-$(VALUECLASSES_STR), \
+        SMALL_JAVA := false, \
+        MODULE := $(MODULE), \
+        SRC := $(wildcard $(MODULE_VALUECLASS_SRC_DIRS)), \
+        INCLUDES := $(JDK_USER_DEFINED_FILTER), \
+        FAIL_NO_SRC := $(FAIL_NO_SRC), \
+        BIN := $(SUPPORT_OUTPUTDIR)/$(VALUECLASSES_STR)/, \
+        JAR := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
+        HEADERS := $(SUPPORT_OUTPUTDIR)/headers, \
+        DISABLED_WARNINGS := $(DISABLED_WARNINGS_java), \
+        EXCLUDES := $(EXCLUDES), \
+        EXCLUDE_FILES := $(EXCLUDE_FILES) \
+        KEEP_ALL_TRANSLATIONS := $(KEEP_ALL_TRANSLATIONS), \
+        DEPENDS := $($(MODULE)), \
+        JAVAC_FLAGS := \
+            $(JAVAC_FLAGS) \
+            --module-source-path $(MODULE_VALUECLASS_SOURCEPATH) \
+            --module-path $(JDK_OUTPUTDIR)/modules \
+            --system none, \
+    ))
+
+    TARGETS += $($(MODULE)-$(VALUECLASSES_STR))
+
+    $(eval $(call SetupCopyFiles, $(MODULE)-copy-valueclass-jar, \
+        FILES := $(JDK_OUTPUTDIR)/lib/$(VALUECLASSES_STR)/$(MODULE)-$(VALUECLASSES_STR).jar, \
+        DEST := $(SUPPORT_OUTPUTDIR)/modules_libs/$(MODULE)/$(VALUECLASSES_STR), \
+    ))
+
+    TARGETS += $($(MODULE)-copy-valueclass-jar)
+  endif
+endif
 
 # Declare dependencies between java compilations of different modules.
 # Since the other modules are declared in different invocations of this file,

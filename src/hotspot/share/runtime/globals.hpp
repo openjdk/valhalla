@@ -238,7 +238,7 @@ const int ObjectAlignmentInBytes = 8;
   product(bool, UseBASE64Intrinsics, false,                                 \
           "Use intrinsics for java.util.Base64")                            \
                                                                             \
-  product(bool, UsePolyIntrinsics, false, DIAGNOSTIC,                       \
+  product(bool, UsePoly1305Intrinsics, false, DIAGNOSTIC,                   \
           "Use intrinsics for sun.security.util.math.intpoly")              \
                                                                             \
   product(size_t, LargePageSizeInBytes, 0,                                  \
@@ -2002,8 +2002,8 @@ const int ObjectAlignmentInBytes = 8;
   product_pd(bool, InlineTypeReturnedAsFields,                              \
           "Return fields instead of an inline type reference")              \
                                                                             \
-  develop(bool, StressInlineTypeReturnedAsFields, false,                    \
-          "Stress return of fields instead of an inline type reference")    \
+  develop(bool, StressCallingConvention, false,                             \
+          "Stress the scalarized calling convention.")                      \
                                                                             \
   product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
           "Use bits in the mark word to check for flat/null-free arrays")   \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1097,5 +1097,28 @@ public class TestUnloadedInlineTypeField {
         } catch (NoClassDefFoundError e) {
             // Expected
         }
+    }
+
+    static final primitive class MyValue27 {
+        final int foo = rI;
+    }
+
+    static class MyValue27Holder {
+        MyValue27 v;
+    }
+
+    // Make sure MyValue27Holder is loaded but MyValue27 is not
+    Class test27Class = MyValue27Holder.class;
+
+    // Test unloaded inline type field load from loaded holder
+    @Test
+    public static int test27() {
+        MyValue27Holder holder = new MyValue27Holder();
+        return holder.v.foo;
+    }
+
+    @Run(test = "test27")
+    public void test27_verifier() {
+        Asserts.assertEQ(test27(), 0);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -218,11 +218,28 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
     PhiNode *mphi = result->as_Phi();
     assert(mphi->bottom_type() == Type::MEMORY, "memory phi required");
     const TypePtr *t = mphi->adr_type();
-    if (t == TypePtr::BOTTOM || t == TypeRawPtr::BOTTOM ||
-        (t->isa_oopptr() && !t->is_oopptr()->is_known_instance() &&
-         t->is_oopptr()->cast_to_exactness(true)
-           ->is_oopptr()->cast_to_ptr_type(t_oop->ptr())
-            ->is_oopptr()->cast_to_instance_id(t_oop->instance_id()) == t_oop)) {
+    bool do_split = false;
+    // In the following cases, Load memory input can be further optimized based on
+    // its precise address type
+    if (t == TypePtr::BOTTOM || t == TypeRawPtr::BOTTOM ) {
+      do_split = true;
+    } else if (t->isa_oopptr() && !t->is_oopptr()->is_known_instance()) {
+      const TypeOopPtr* mem_t =
+        t->is_oopptr()->cast_to_exactness(true)
+        ->is_oopptr()->cast_to_ptr_type(t_oop->ptr())
+        ->is_oopptr()->cast_to_instance_id(t_oop->instance_id());
+      if (t_oop->is_aryptr()) {
+        mem_t = mem_t->is_aryptr()
+                     ->cast_to_stable(t_oop->is_aryptr()->is_stable())
+                     ->cast_to_size(t_oop->is_aryptr()->size())
+                     ->cast_to_not_flat(t_oop->is_aryptr()->is_not_flat())
+                     ->cast_to_not_null_free(t_oop->is_aryptr()->is_not_null_free())
+                     ->with_offset(t_oop->is_aryptr()->offset())
+                     ->is_aryptr();
+      }
+      do_split = mem_t == t_oop;
+    }
+    if (do_split) {
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
@@ -1960,7 +1977,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // expression (LShiftL quux 3) independently optimized to the constant 8.
     if ((t->isa_int() == NULL) && (t->isa_long() == NULL)
         && (_type->isa_vect() == NULL)
-        && t->isa_inlinetype() == NULL
+        && !ary->is_flat()
         && Opcode() != Op_LoadKlass && Opcode() != Op_LoadNKlass) {
       // t might actually be lower than _type, if _type is a unique
       // concrete subclass of abstract class t.
@@ -2078,7 +2095,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
   }
 
   const TypeKlassPtr *tkls = tp->isa_klassptr();
-  if (tkls != NULL && !StressReflectiveCode) {
+  if (tkls != NULL) {
     if (tkls->is_loaded() && tkls->klass_is_exact()) {
       ciKlass* klass = tkls->exact_klass();
       // We are loading a field from a Klass metaobject whose identity
@@ -2098,7 +2115,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         // (Folds up type checking code.)
         assert(Opcode() == Op_LoadKlass, "must load a klass from _primary_supers");
         ciKlass *ss = klass->super_of_depth(depth);
-        return ss ? TypeKlassPtr::make(ss) : TypePtr::NULL_PTR;
+        return ss ? TypeKlassPtr::make(ss, Type::trust_interfaces) : TypePtr::NULL_PTR;
       }
       const Type* aift = load_array_final_field(tkls, klass);
       if (aift != NULL)  return aift;
@@ -2129,7 +2146,7 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
           // (Folds up type checking code.)
           assert(Opcode() == Op_LoadKlass, "must load a klass from _primary_supers");
           ciKlass *ss = klass->super_of_depth(depth);
-          return ss ? TypeKlassPtr::make(ss) : TypePtr::NULL_PTR;
+          return ss ? TypeKlassPtr::make(ss, Type::trust_interfaces) : TypePtr::NULL_PTR;
         }
       }
     }
@@ -2183,8 +2200,8 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     if (EnableValhalla) {
       // The mark word may contain property bits (inline, flat, null-free)
       Node* klass_node = alloc->in(AllocateNode::KlassNode);
-      const TypeKlassPtr* tkls = phase->type(klass_node)->is_klassptr();
-      if (tkls->is_loaded() && tkls->klass_is_exact()) {
+      const TypeKlassPtr* tkls = phase->type(klass_node)->isa_klassptr();
+      if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact()) {
         return TypeX::make(tkls->exact_klass()->prototype_header().value());
       }
     } else {
@@ -2399,14 +2416,14 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free));
+          return TypeKlassPtr::make(ciArrayKlass::make(t, null_free), Type::trust_interfaces);
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has NULL for a klass field
           return TypePtr::NULL_PTR;
         }
         // (Folds up the 1st indirection in aClassConstant.getModifiers().)
-        return TypeKlassPtr::make(t->as_klass());
+        return TypeKlassPtr::make(t->as_klass(), Type::trust_interfaces);
       }
       // non-constant mirror, so we can't tell what's going on
     }
@@ -2444,7 +2461,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       ciKlass* sup = tkls->is_instklassptr()->instance_klass()->super();
       // The field is Klass::_super.  Return its (constant) value.
       // (Folds up the 2nd indirection in aClassConstant.getSuperClass().)
-      return sup ? TypeKlassPtr::make(sup) : TypePtr::NULL_PTR;
+      return sup ? TypeKlassPtr::make(sup, Type::trust_interfaces) : TypePtr::NULL_PTR;
     }
   }
 
@@ -2816,7 +2833,6 @@ Node* StoreNode::Identity(PhaseGVN* phase) {
     // a newly allocated object is already all-zeroes everywhere
     if (mem->is_Proj() && mem->in(0)->is_Allocate() &&
         (phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == val)) {
-      assert(!phase->type(val)->is_zero_type() || mem->in(0)->in(AllocateNode::DefaultValue) == NULL, "storing null to inline type array is forbidden");
       result = mem;
     }
 
@@ -4100,9 +4116,11 @@ Node* InitializeNode::capture_store(StoreNode* st, intptr_t start,
       ins_req(i, C->top());     // build a new edge
   }
   Node* new_st = st->clone();
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   new_st->set_req(MemNode::Control, in(Control));
   new_st->set_req(MemNode::Memory,  prev_mem);
   new_st->set_req(MemNode::Address, make_raw_address(start, phase));
+  bs->eliminate_gc_barrier_data(new_st);
   new_st = phase->transform(new_st);
 
   // At this point, new_st might have swallowed a pre-existing store

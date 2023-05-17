@@ -2373,8 +2373,8 @@ bool ConnectionGraph::is_oop_field(Node* n, int offset, bool* unsafe) {
       } else if (find_second_addp(n, n->in(AddPNode::Base)) != NULL) {
         // Ignore first AddP.
       } else {
-        const Type* elemtype = adr_type->isa_aryptr()->elem();
-        if (elemtype->isa_inlinetype() && field_offset != Type::OffsetBot) {
+        const Type* elemtype = adr_type->is_aryptr()->elem();
+        if (adr_type->is_aryptr()->is_flat() && field_offset != Type::OffsetBot) {
           ciInlineKlass* vk = elemtype->inline_klass();
           field_offset += vk->first_field_offset();
           bt = vk->get_field_by_offset(field_offset, false)->layout_type();

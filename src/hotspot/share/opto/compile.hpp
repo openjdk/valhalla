@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2023, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,6 @@ class CloneMap;
 class ConnectionGraph;
 class IdealGraphPrinter;
 class InlineTree;
-class Int_Array;
 class Matcher;
 class MachConstantNode;
 class MachConstantBaseNode;
@@ -78,12 +77,10 @@ class PhaseCCP;
 class PhaseOutput;
 class RootNode;
 class relocInfo;
-class Scope;
 class StartNode;
 class SafePointNode;
 class JVMState;
 class Type;
-class TypeData;
 class TypeInt;
 class TypeInteger;
 class TypeKlassPtr;
@@ -166,7 +163,6 @@ class CloneMap {
   void set_clone_idx(int x)                      { _clone_idx = x; }
   bool is_debug()                 const          { return _debug; }
   void set_debug(bool debug)                     { _debug = debug; }
-  static const char* debug_option_name;
 
   bool same_idx(node_idx_t k1, node_idx_t k2)  const { return idx(k1) == idx(k2); }
   bool same_gen(node_idx_t k1, node_idx_t k2)  const { return gen(k1) == gen(k2); }
@@ -319,6 +315,7 @@ class Compile : public Phase {
   bool                  _has_stringbuilder;     // True StringBuffers or StringBuilders are allocated
   bool                  _has_boxed_value;       // True if a boxed object is allocated
   bool                  _has_reserved_stack_access; // True if the method or an inlined method is annotated with ReservedStackAccess
+  bool                  _has_circular_inline_type; // True if method loads an inline type with a circular, non-flattened field
   uint                  _max_vector_size;       // Maximum size of generated vectors
   bool                  _clear_upper_avx;       // Clear upper bits of ymm registers using vzeroupper
   uint                  _trap_hist[trapHistLength];  // Cumulative traps
@@ -601,6 +598,8 @@ class Compile : public Phase {
   void          set_has_boxed_value(bool z)     { _has_boxed_value = z; }
   bool              has_reserved_stack_access() const { return _has_reserved_stack_access; }
   void          set_has_reserved_stack_access(bool z) { _has_reserved_stack_access = z; }
+  bool              has_circular_inline_type() const { return _has_circular_inline_type; }
+  void          set_has_circular_inline_type(bool z) { _has_circular_inline_type = z; }
   uint              max_vector_size() const     { return _max_vector_size; }
   void          set_max_vector_size(uint s)     { _max_vector_size = s; }
   bool              clear_upper_avx() const     { return _clear_upper_avx; }
@@ -1201,7 +1200,7 @@ class Compile : public Phase {
 
   // Static parse-time type checking logic for gen_subtype_check:
   enum SubTypeCheckResult { SSC_always_false, SSC_always_true, SSC_easy_test, SSC_full_test };
-  SubTypeCheckResult static_subtype_check(const TypeKlassPtr* superk, const TypeKlassPtr* subk);
+  SubTypeCheckResult static_subtype_check(const TypeKlassPtr* superk, const TypeKlassPtr* subk, bool skip = StressReflectiveCode);
 
   static Node* conv_I2X_index(PhaseGVN* phase, Node* offset, const TypeInt* sizetype,
                               // Optional control dependency (for example, on range check)

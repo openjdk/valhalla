@@ -96,7 +96,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)), NULL, null_free);
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), NULL, null_free);
   if (stopped()) {
     return;
   }
@@ -135,7 +135,7 @@ void Parse::do_instanceof() {
   }
 
   // Push the bool result back on stack
-  Node* res = gen_instanceof(peek(), makecon(TypeKlassPtr::make(klass)), true);
+  Node* res = gen_instanceof(peek(), makecon(TypeKlassPtr::make(klass, Type::trust_interfaces)), true);
 
   // Pop from stack AFTER gen_instanceof because it can uncommon trap.
   pop();
@@ -264,13 +264,11 @@ Node* Parse::array_store_check(Node*& adr, const Type*& elemtype) {
                                                        immutable_memory(), p2, tak));
 
   // If we statically know that this is an inline type array, use precise element klass for checkcast
-  if (!elemtype->isa_inlinetype()) {
-    elemtype = elemtype->make_oopptr();
-  }
+  const TypeAryPtr* arytype = _gvn.type(ary)->is_aryptr();
   bool null_free = false;
-  if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
+  if (elemtype->make_ptr()->is_inlinetypeptr()) {
     // We statically know that this is an inline type array, use precise klass ptr
-    null_free = elemtype->isa_inlinetype() || !elemtype->maybe_null();
+    null_free = arytype->is_flat() || !elemtype->make_ptr()->maybe_null();
     a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 
@@ -365,10 +363,9 @@ void Parse::do_withfield() {
   }
 
   // Clone the inline type node and set the new field value
-  InlineTypeNode* new_vt = InlineTypeNode::make_uninitialized(gvn(), gvn().type(holder)->inline_klass());
-  for (uint i = 2; i < holder->req(); ++i) {
-    new_vt->set_req(i, holder->in(i));
-  }
+  InlineTypeNode* new_vt = holder->clone()->as_InlineType();
+  new_vt->set_oop(gvn().zerocon(T_PRIMITIVE_OBJECT));
+  new_vt->set_is_buffered(gvn(), false);
 
   BasicType bt = field->type()->basic_type();
   int vec_len = field->secondary_fields_count();
@@ -380,6 +377,14 @@ void Parse::do_withfield() {
   } else {
     val = _gvn.transform(VectorNode::scalar2vector(val, field->secondary_fields_count(), Type::get_const_type(field->type()), false));
     new_vt->set_field_value_by_offset(field->offset(), val);
+  }
+
+  {
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    int nargs = InlineTypeNode::stack_size_for_field(field);
+    inc_sp(nargs);
+    new_vt = new_vt->adjust_scalarization_depth(this);
   }
   push(_gvn.transform(new_vt));
 }

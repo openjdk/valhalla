@@ -51,6 +51,7 @@ public class TestInliningProtectionDomain extends InliningBase {
         if (compileBar) {
             commandLineNormal.add("-XX:CompileCommand=compileonly," + testClass.getName() + "::bar");
         }
+        commandLineNormal.add("-XX:-InlineTypeReturnedAsFields"); // TODO Remove this once 8284443 fixed handling of unloaded return types
         runTest();
     }
 

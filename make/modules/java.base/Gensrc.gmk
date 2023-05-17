@@ -36,6 +36,7 @@ include gensrc/GensrcVarHandles.gmk
 include gensrc/GensrcModuleLoaderMap.gmk
 include gensrc/GensrcEmojiData.gmk
 include gensrc/GensrcScopedMemoryAccess.gmk
+include gensrc/GensrcValueClasses.gmk
 
 # GensrcLocaleData.gmk does not set TARGETS, so we must choose which targets
 # to include.

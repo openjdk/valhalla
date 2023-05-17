@@ -155,12 +155,18 @@ public class VectorSupport {
 
     public static class VectorSpecies<E> { }
 
+    /**
+     * @hidden
+     */
     public abstract static class VectorPayload {
         protected abstract Object getPayload();
     }
 
     public static abstract class Vector<E> extends VectorPayload { }
 
+    /**
+     * @hidden
+     */
     public static class VectorShuffle<E> extends VectorPayload {
         private final Object payload; // array of primitives
 
@@ -172,6 +178,9 @@ public class VectorSupport {
         }
     }
 
+    /**
+     * @hidden
+     */
     public static class VectorMask<E> extends VectorPayload {
         private final Object payload; // array of primitives
 

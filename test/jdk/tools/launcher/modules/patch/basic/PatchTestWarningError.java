@@ -135,6 +135,25 @@ public class PatchTestWarningError {
         assertTrue(exitValue != 0);
     }
 
+    /**
+     * Test with --patch-module options patching the same module (not java.base).
+     *
+     */
+    public void testDuplicateModuleLogging() throws Exception {
+        int exitValue =
+            executeTestJava("--patch-module", "java.logging=" + PATCHES1_DIR.resolve("java.base"),
+                            "--patch-module", "java.logging=" + PATCHES2_DIR.resolve("java.base"),
+                            "--module-path", MODS_DIR.toString(),
+                            "-m", "test/jdk.test.Main")
+                .outputTo(System.out)
+                .errorTo(System.out)
+                // error output by VM
+                .shouldContain("Cannot specify a module more than once to --patch-module: java.logging")
+                .getExitValue();
+
+        assertTrue(exitValue != 0);
+    }
+
     @DataProvider(name = "emptyItem")
     public Object[][] emptyItems() {
         String patch1 = PATCHES1_DIR.resolve("java.base").toString();

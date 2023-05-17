@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2022, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2023, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, 2021, Red Hat Inc. All rights reserved.
  * Copyright (c) 2021, Azul Systems, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -772,7 +772,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
             Label L_notNull;
             if (reg->is_stack()) {
               int ld_off = reg->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
-              __ ldr(tmp1, Address(sp, ld_off));
+              __ ldrb(tmp1, Address(sp, ld_off));
               __ cbnz(tmp1, L_notNull);
             } else {
               __ cbnz(reg->as_Register(), L_notNull);
@@ -1393,6 +1393,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ cbnz(c_rarg2, call_thaw);
 
     const address tr_call = __ trampoline_call(resolve);
+    if (tr_call == nullptr) {
+      fatal("CodeCache is full at gen_continuation_enter");
+    }
 
     oop_maps->add_gc_map(__ pc() - start, map);
     __ post_call_nop();
@@ -1400,7 +1403,10 @@ static void gen_continuation_enter(MacroAssembler* masm,
     __ b(exit);
 
     CodeBuffer* cbuf = masm->code_section()->outer();
-    CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+    address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+    if (stub == nullptr) {
+      fatal("CodeCache is full at gen_continuation_enter");
+    }
   }
 
   // compiled entry
@@ -1417,6 +1423,9 @@ static void gen_continuation_enter(MacroAssembler* masm,
   __ cbnz(c_rarg2, call_thaw);
 
   const address tr_call = __ trampoline_call(resolve);
+  if (tr_call == nullptr) {
+    fatal("CodeCache is full at gen_continuation_enter");
+  }
 
   oop_maps->add_gc_map(__ pc() - start, map);
   __ post_call_nop();
@@ -1458,7 +1467,10 @@ static void gen_continuation_enter(MacroAssembler* masm,
   }
 
   CodeBuffer* cbuf = masm->code_section()->outer();
-  CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+  address stub = CompiledStaticCall::emit_to_interp_stub(*cbuf, tr_call);
+  if (stub == nullptr) {
+    fatal("CodeCache is full at gen_continuation_enter");
+  }
 }
 
 static void gen_continuation_yield(MacroAssembler* masm,
@@ -3416,22 +3428,14 @@ BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(con
       __ strs(r_1->as_FloatRegister(), to);
     } else if (bt == T_DOUBLE) {
       __ strd(r_1->as_FloatRegister(), to);
-    } else if (bt == T_OBJECT || bt == T_ARRAY) {
-      Register val = r_1->as_Register();
-      assert_different_registers(r0, val);
-      // We don't need barriers because the destination is a newly allocated object.
-      // Also, we cannot use store_heap_oop(to, val) because it uses r8 as tmp.
-      if (UseCompressedOops) {
-        __ encode_heap_oop(val);
-        __ str(val, to);
-      } else {
-        __ str(val, to);
-      }
     } else {
-      assert(is_java_primitive(bt), "unexpected basic type");
-      assert_different_registers(r0, r_1->as_Register());
-      size_t size_in_bytes = type2aelembytes(bt);
-      __ store_sized_value(to, r_1->as_Register(), size_in_bytes);
+      Register val = r_1->as_Register();
+      assert_different_registers(to.base(), val, r15, r16, r17);
+      if (is_reference_type(bt)) {
+        __ store_heap_oop(to, val, r15, r16, r17, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      } else {
+        __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
+      }
     }
     j++;
   }

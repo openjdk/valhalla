@@ -54,8 +54,11 @@ void Parse::do_field_access(bool is_get, bool is_field) {
     assert(is_get, "inline type field store not supported");
     InlineTypeNode* vt = peek()->as_InlineType();
     null_check(vt);
-    pop();
     Node* value = vt->field_value_by_offset(field->offset());
+    if (value->is_InlineType()) {
+      value = value->as_InlineType()->adjust_scalarization_depth(this);
+    }
+    pop();
     push_node(field->layout_type(), value);
     return;
   }
@@ -229,7 +232,6 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   BasicType bt = field->layout_type();
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
-  assert(!field->is_null_free() || !gvn().type(val)->maybe_null(), "Null store to inline type field");
   if (field->is_null_free() && field->type()->as_inline_klass()->is_empty()) {
     // Storing to a field of an empty inline type. Ignore.
     return;
@@ -323,7 +325,7 @@ void Parse::do_newarray() {
 
   kill_dead_locals();
 
-  const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass);
+  const TypeKlassPtr* array_klass_type = TypeKlassPtr::make(array_klass, Type::trust_interfaces);
   Node* count_val = pop();
   Node* obj = new_array(makecon(array_klass_type), count_val, 1);
   push(obj);
@@ -345,7 +347,7 @@ void Parse::do_newarray(BasicType elem_type) {
 Node* Parse::expand_multianewarray(ciArrayKlass* array_klass, Node* *lengths, int ndimensions, int nargs) {
   Node* length = lengths[0];
   assert(length != NULL, "");
-  Node* array = new_array(makecon(TypeKlassPtr::make(array_klass)), length, nargs);
+  Node* array = new_array(makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)), length, nargs);
   if (ndimensions > 1) {
     jint length_con = find_int_con(length, -1);
     guarantee(length_con >= 0, "non-constant multianewarray");
@@ -442,7 +444,7 @@ void Parse::do_multianewarray() {
     c = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                           OptoRuntime::multianewarray_Type(ndimensions),
                           fun, NULL, TypeRawPtr::BOTTOM,
-                          makecon(TypeKlassPtr::make(array_klass)),
+                          makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)),
                           length[0], length[1], length[2],
                           (ndimensions > 2) ? length[3] : NULL,
                           (ndimensions > 3) ? length[4] : NULL);
@@ -464,14 +466,14 @@ void Parse::do_multianewarray() {
     c = make_runtime_call(RC_NO_LEAF | RC_NO_IO,
                           OptoRuntime::multianewarrayN_Type(),
                           OptoRuntime::multianewarrayN_Java(), NULL, TypeRawPtr::BOTTOM,
-                          makecon(TypeKlassPtr::make(array_klass)),
+                          makecon(TypeKlassPtr::make(array_klass, Type::trust_interfaces)),
                           dims);
   }
   make_slow_call_ex(c, env()->Throwable_klass(), false);
 
   Node* res = _gvn.transform(new ProjNode(c, TypeFunc::Parms));
 
-  const Type* type = TypeOopPtr::make_from_klass_raw(array_klass);
+  const Type* type = TypeOopPtr::make_from_klass_raw(array_klass, Type::trust_interfaces);
 
   // Improve the type:  We know it's not null, exact, and of a given length.
   type = type->is_ptr()->cast_to_ptr_type(TypePtr::NotNull);

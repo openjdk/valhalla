@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @summary Module system initialization exception results if a module is specificed twice to --patch-module.
+ * @summary If a module is specificed twice to --patch-module, it should print an error
  * @requires vm.flagless
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
@@ -35,8 +35,8 @@ import jdk.test.lib.process.ProcessTools;
 
 public class PatchModuleDupModule {
 
-  // The module system initialization should generate an ExceptionInInitializerError
   // if --patch-module is specified with the same module more than once.
+  // The launcher should print an error.
 
   public static void main(String args[]) throws Exception {
     ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
@@ -44,7 +44,7 @@ public class PatchModuleDupModule {
       "--patch-module=module_one=module_one_dir",
       "-version");
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
-    output.shouldContain("java.lang.ExceptionInInitializerError");
+    output.shouldContain("Cannot specify a module more than once to --patch-module");
     output.shouldHaveExitValue(1);
   }
 }

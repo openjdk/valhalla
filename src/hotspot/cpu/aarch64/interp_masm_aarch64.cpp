@@ -777,7 +777,6 @@ void InterpreterMacroAssembler::remove_activation(
     bind(no_reserved_zone_enabling);
   }
 
-
   if (state == atos && InlineTypeReturnedAsFields) {
     // Check if we are returning an non-null inline type and load its fields into registers
     Label skip;
@@ -792,14 +791,13 @@ void InterpreterMacroAssembler::remove_activation(
 
     blr(rscratch1);
 #ifdef ASSERT
-    if (StressInlineTypeReturnedAsFields) {
-      // TODO 8284443 Enable this for value class returns (L-type descriptor)
+    // TODO 8284443 Enable
+    if (StressCallingConvention && false) {
       Label skip_stress;
       ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
-      ldr(rscratch1, Address(rscratch1, Method::const_offset()));
-      ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
-      cmpw(rscratch1, (u1) T_PRIMITIVE_OBJECT);
-      br(Assembler::NE, skip_stress);
+      ldrw(rscratch1, Address(rscratch1, Method::flags_offset()));
+      tstw(rscratch1, Method::scalarized_return_flag());
+      br(Assembler::EQ, skip_stress);
       load_klass(r0, r0);
       orr(r0, r0, 1);
       bind(skip_stress);

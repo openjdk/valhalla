@@ -777,7 +777,8 @@ void Dependencies::write_dependency_to(xmlStream* xtty,
         xtty->object("x", arg.metadata_value());
       }
     } else {
-      char xn[12]; sprintf(xn, "x%d", j);
+      char xn[12];
+      os::snprintf_checked(xn, sizeof(xn), "x%d", j);
       if (arg.is_oop()) {
         xtty->object(xn, Handle(thread, arg.oop_value()));
       } else {
@@ -1701,7 +1702,8 @@ Klass* Dependencies::check_evol_method(Method* m) {
   // Or is there a now a breakpoint?
   // (Assumes compiled code cannot handle bkpts; change if UseFastBreakpoints.)
   if (m->is_old()
-      || m->number_of_breakpoints() > 0) {
+      || m->number_of_breakpoints() > 0
+      || m->mismatch()) {
     return m->method_holder();
   } else {
     return NULL;

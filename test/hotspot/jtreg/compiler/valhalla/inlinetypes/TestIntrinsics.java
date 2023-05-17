@@ -375,6 +375,7 @@ public class TestIntrinsics {
     private static final long Y_OFFSET;
     private static final long V1_OFFSET;
     private static final boolean V1_FLATTENED;
+
     static {
         try {
             Field xField = PrimitiveClass.asValueType(MyValue1.class).getDeclaredField("x");
@@ -1488,12 +1489,12 @@ public class TestIntrinsics {
             if (V1_FLATTENED) {
                 return U.getValue(v1, offset, PrimitiveClass.asValueType(MyValue2.class));
             }
-            return (MyValue2)U.getReference(v1, V1_OFFSET);
+            return (MyValue2)U.getReference(v1, offset);
         } else {
             if (V1_FLATTENED) {
                 return U.getValue(v2, offset, PrimitiveClass.asValueType(MyValue2.class));
             }
-            return (MyValue2)U.getReference(v2, V1_OFFSET);
+            return (MyValue2)U.getReference(v2, offset);
         }
     }
 
@@ -1515,12 +1516,12 @@ public class TestIntrinsics {
             if (V1_FLATTENED) {
                 return U.getValue(test73_value1, offset, PrimitiveClass.asValueType(MyValue2.class));
             }
-            return (MyValue2)U.getReference(test73_value1, V1_OFFSET);
+            return (MyValue2)U.getReference(test73_value1, offset);
         } else {
             if (V1_FLATTENED) {
                 return U.getValue(test73_value2, offset, PrimitiveClass.asValueType(MyValue2.class));
             }
-            return (MyValue2)U.getReference(test73_value2, V1_OFFSET);
+            return (MyValue2)U.getReference(test73_value2, offset);
         }
     }
 
@@ -1631,4 +1632,31 @@ public class TestIntrinsics {
         }
     }
     */
+
+    public static final primitive class Test80Value1 {
+        final Test80Value2 v = new Test80Value2();
+    }
+
+    public static final primitive class Test80Value2 {
+        final long l = rL;
+        final Integer i = rI;
+    }
+
+    // Test that unsafe access is not incorrectly classified as mismatched
+    @Test
+    @IR(failOn = {CALL_UNSAFE})
+    public Test80Value2 test80(Test80Value1.ref v, boolean flat, long offset) {
+        if (flat) {
+            return U.getValue(v, offset, PrimitiveClass.asValueType(Test80Value2.class));
+        } else {
+            return (Test80Value2)U.getReference(v, offset);
+        }
+    }
+
+    @Run(test = "test80")
+    public void test80_verifier() throws Exception {
+        Test80Value1 v = new Test80Value1();
+        Field field = PrimitiveClass.asValueType(Test80Value1.class).getDeclaredField("v");
+        Asserts.assertEQ(test80(v, U.isFlattened(field), U.objectFieldOffset(field)), v.v);
+    }
 }

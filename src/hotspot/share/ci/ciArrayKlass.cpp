@@ -28,9 +28,9 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
-#include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "memory/universe.hpp"
 
 // ciArrayKlass
 //
@@ -134,3 +134,4 @@ ciInstance* ciArrayKlass::component_mirror_instance() const {
     return CURRENT_ENV->get_instance(component_mirror);
   )
 }
+
