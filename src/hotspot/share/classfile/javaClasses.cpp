@@ -972,7 +972,7 @@ void java_lang_Class::allocate_mirror(Klass* k, bool is_scratch, Handle protecti
       Klass* element_klass = (Klass*) FlatArrayKlass::cast(k)->element_klass();
       assert(element_klass->is_inline_klass(), "Must be inline type component");
       if (is_scratch) {
-        comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_type));
+        comp_mirror = Handle(THREAD, HeapShared::scratch_java_mirror(element_klass));
       } else {
         InlineKlass* vk = InlineKlass::cast(element_klass);
         comp_mirror = Handle(THREAD, vk->val_mirror());

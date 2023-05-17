@@ -53,7 +53,7 @@ struct HeapOopType: AllStatic {
 template <DecoratorSet decorators>
 struct ValueOopType: AllStatic {
   static const bool needs_oop_compress = HasDecorator<decorators, INTERNAL_RT_USE_COMPRESSED_OOPS>::value;
-  typedef typename Conditional<needs_oop_compress, narrowOop, oop>::type type;
+  using type = std::conditional_t<needs_oop_compress, narrowOop, oop>;
 };
 
 namespace AccessInternal {
