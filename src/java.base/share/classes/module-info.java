@@ -273,6 +273,8 @@ module java.base {
         jdk.random;
     exports jdk.internal.value to  // Needed by Unsafe
         jdk.unsupported;
+    exports jdk.internal.util to
+        java.desktop;
     exports sun.net to
         java.net.http,
         jdk.naming.dns;
