@@ -94,7 +94,7 @@ public:
   // Create with null field values
   static InlineTypeNode* make_null(PhaseGVN& gvn, ciInlineKlass* vk);
 
-  static int stack_size_for_field(ciField* field); 
+  static int stack_size_for_field(ciField* field);
 
   static bool is_multifield_scalarized(ciField* field);
 
@@ -116,7 +116,7 @@ public:
   void  set_is_init(PhaseGVN& gvn, bool init = true) { set_req(IsInit, gvn.intcon(init ? 1 : 0)); }
   Node* get_is_buffered() const { return in(IsBuffered); }
   void  set_is_buffered(PhaseGVN& gvn, bool buffered = true) { set_req(IsBuffered, gvn.intcon(buffered ? 1 : 0)); }
-  
+
   // Get indices for inputs.
   static int   get_Oop_idx()    { return InlineTypeNode::Oop; }
   static int   get_Values_idx() { return InlineTypeNode::Values; }
